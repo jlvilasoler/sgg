@@ -1,0 +1,188 @@
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { deleteProveedor, fetchProveedores } from "../../api";
+import type { Proveedor } from "../../types";
+import { confirmAction } from "../../utils/confirm";
+import TablePagination, {
+  paginateSlice,
+  type PageSize,
+} from "../TablePagination";
+
+interface Props {
+  apiOnline: boolean;
+  onEdit: (p: Proveedor) => void;
+  onError: (msg: string) => void;
+  onSuccess: (msg: string) => void;
+  onVolver: () => void;
+}
+
+export default function ProveedorListado({
+  apiOnline,
+  onEdit,
+  onError,
+  onSuccess,
+  onVolver,
+}: Props) {
+  const [rows, setRows] = useState<Proveedor[]>([]);
+  const [busqueda, setBusqueda] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<PageSize>(30);
+
+  const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
+  const pageSafe = Math.min(page, totalPages);
+
+  const rowsPagina = useMemo(
+    () => paginateSlice(rows, pageSafe, pageSize),
+    [rows, pageSafe, pageSize]
+  );
+
+  useEffect(() => {
+    setPage(1);
+  }, [busqueda, pageSize]);
+
+  const load = useCallback(async () => {
+    if (!apiOnline) {
+      setRows([]);
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    try {
+      setRows(await fetchProveedores(busqueda));
+    } catch (e) {
+      onError(e instanceof Error ? e.message : "Error al cargar");
+    } finally {
+      setLoading(false);
+    }
+  }, [apiOnline, busqueda, onError]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const borrar = async (id: number) => {
+    const ok = await confirmAction({
+      title: "Eliminar proveedor",
+      message: "¿Eliminar este proveedor?",
+      confirmText: "Eliminar",
+      variant: "danger",
+    });
+    if (!ok) return;
+    try {
+      await deleteProveedor(id);
+      onSuccess("Proveedor eliminado");
+      load();
+    } catch (err) {
+      onError(err instanceof Error ? err.message : "Error al eliminar");
+    }
+  };
+
+  return (
+    <div className="subseccion-panel">
+      <button type="button" className="subseccion-back" onClick={onVolver}>
+        ‹ Volver a Proveedores
+      </button>
+
+      <div className="card">
+        <div className="form-header">
+          <h2>Listado de proveedores</h2>
+          <p className="muted">
+            {loading ? "Cargando..." : `${rows.length} proveedor(es) encontrados`}
+          </p>
+        </div>
+
+        <div className="filters mayusculas-auto">
+          <div className="field flex-grow">
+            <label htmlFor="busq-prov">Buscar</label>
+            <input
+              id="busq-prov"
+              type="search"
+              placeholder="Código, razón social, RUT, ciudad..."
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && load()}
+            />
+          </div>
+          <button type="button" className="btn btn-primary" onClick={load}>
+            Buscar
+          </button>
+        </div>
+
+        <div className="table-wrap">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Cód.</th>
+                <th>Razón social</th>
+                <th>RUT</th>
+                <th>Dirección</th>
+                <th>Ciudad</th>
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr>
+                  <td colSpan={6} className="empty">
+                    Cargando...
+                  </td>
+                </tr>
+              ) : !apiOnline ? (
+                <tr>
+                  <td colSpan={6} className="empty">
+                    API no conectada
+                  </td>
+                </tr>
+              ) : rows.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="empty">
+                    Sin proveedores con esos filtros
+                  </td>
+                </tr>
+              ) : (
+                rowsPagina.map((p) => (
+                  <tr key={p.id}>
+                    <td className="num">{p.cod}</td>
+                    <td>{p.razon_social}</td>
+                    <td>{p.rut}</td>
+                    <td>{p.direccion}</td>
+                    <td>{p.ciudad}</td>
+                    <td className="actions-cell">
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-edit"
+                        onClick={() => onEdit(p)}
+                      >
+                        Editar
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-delete"
+                        onClick={() => borrar(p.id)}
+                      >
+                        Borrar
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {!loading && apiOnline && rows.length > 0 && (
+          <TablePagination
+            total={rows.length}
+            page={pageSafe}
+            pageSize={pageSize}
+            onPageChange={setPage}
+            onPageSizeChange={(size) => {
+              setPageSize(size);
+              setPage(1);
+            }}
+          />
+        )}
+      </div>
+    </div>
+  );
+}

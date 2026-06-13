@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" role="img" aria-label="Banco República">
+  <rect width="48" height="48" rx="6" fill="#00843d"/>
+  <g fill="#fff">
+    <path d="M10 12h6v20h-6zM21 10h6v24h-6zM32 12h6v20h-6z"/>
+    <circle cx="15" cy="9" r="2.5"/>
+    <circle cx="24" cy="7" r="2.5"/>
+    <circle cx="33" cy="9" r="2.5"/>
+  </g>
+</svg>
