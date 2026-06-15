@@ -4,7 +4,7 @@ services:
     name: sgg
     runtime: node
     plan: free
-    buildCommand: npm run install:all && npm run build
+    buildCommand: npm run build:render
     startCommand: npm start
     healthCheckPath: /api/health
     envVars:
