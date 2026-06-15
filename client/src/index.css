@@ -1891,6 +1891,7 @@ body {
 }
 
 .subseccion-back {
+  display: none !important;
   align-self: flex-start;
   background: none;
   border: none;
