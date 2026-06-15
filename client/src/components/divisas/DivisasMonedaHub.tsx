@@ -17,7 +17,7 @@ export default function DivisasMonedaHub({
   onSuccess,
   onVolverDivisas,
 }: Props) {
-  const [refreshKey, setRefreshKey] = useState(0);
+  const [refreshKey] = useState(0);
 
   return (
     <DivisasHistorial

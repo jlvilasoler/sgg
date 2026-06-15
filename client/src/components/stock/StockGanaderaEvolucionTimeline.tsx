@@ -415,7 +415,7 @@ function ChartHembra({ edadMeses, mesesPin, estado, etapaActivaId }: ChartHembra
 }
 
 function ChartGeneral({
-  edadMeses,
+  edadMeses: _edadMeses,
   mesesPin,
   estado,
   posicionPct,

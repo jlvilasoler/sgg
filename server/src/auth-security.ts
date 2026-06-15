@@ -109,7 +109,7 @@ export function getCorsOptions(): CorsOptions {
 }
 
 export function securityHeaders(
-  _req: Request,
+  req: Request,
   res: Response,
   next: NextFunction
 ): void {
@@ -118,10 +118,12 @@ export function securityHeaders(
   res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
   res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
   res.setHeader("X-DNS-Prefetch-Control", "off");
-  res.setHeader(
-    "Content-Security-Policy",
-    "default-src 'none'; frame-ancestors 'none'"
-  );
+  if (req.path.startsWith("/api")) {
+    res.setHeader(
+      "Content-Security-Policy",
+      "default-src 'none'; frame-ancestors 'none'"
+    );
+  }
   if (IS_PROD) {
     res.setHeader(
       "Strict-Transport-Security",

@@ -174,7 +174,7 @@ export default function Usuarios({
     }
   };
 
-  const showForm = creating || editing;
+  const showForm = creating || editing !== null;
 
   return (
     <div className="subseccion-panel">

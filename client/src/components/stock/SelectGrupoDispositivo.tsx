@@ -9,7 +9,7 @@ interface Props {
 /** Grupo GEN + año, derivado automáticamente del año de nacimiento. */
 export default function SelectGrupoDispositivo({
   anio,
-  disabled = false,
+  disabled: _disabled = false,
   id,
 }: Props) {
   return (

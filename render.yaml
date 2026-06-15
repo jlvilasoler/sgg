@@ -1,0 +1,20 @@
+# Render Blueprint — https://render.com/docs/blueprint-spec
+services:
+  - type: web
+    name: sgg
+    runtime: node
+    plan: free
+    buildCommand: npm run install:all && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SCG_TRUST_PROXY
+        value: "1"
+      - key: SCG_CLIENT_ORIGIN
+        sync: false
+      - key: SCG_ADMIN_EMAIL
+        sync: false
+      - key: SCG_ADMIN_PASSWORD
+        sync: false

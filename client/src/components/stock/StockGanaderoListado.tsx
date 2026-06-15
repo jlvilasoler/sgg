@@ -29,7 +29,7 @@ interface Props {
 export default function StockGanaderoListado({
   apiOnline,
   onError,
-  onSuccess,
+  onSuccess: _onSuccess,
   onVolver,
   onVerHistorial,
   initialLoteId = "",

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { fetchStockGanaderaDispositivos } from "../../api";
-import type { DispositivoEstado, StockGanaderaDispositivo } from "../../types";
+import type { StockGanaderaDispositivo } from "../../types";
 import TablePagination, {
   paginateSlice,
   type PageSize,

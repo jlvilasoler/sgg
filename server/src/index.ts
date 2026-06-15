@@ -1,7 +1,10 @@
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import express, { type Request, type Response } from "express";
+import fs from "fs";
 import multer from "multer";
+import path from "path";
+import { fileURLToPath } from "url";
 import * as db from "./database.js";
 import {
   apiRateLimiter,
@@ -37,7 +40,11 @@ const iconUpload = multer({
   },
 });
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const IS_PROD = process.env.NODE_ENV === "production";
 const PORT = Number(process.env.PORT) || 3001;
+const HOST = process.env.HOST || (IS_PROD ? "0.0.0.0" : "127.0.0.1");
+const CLIENT_DIST = path.join(__dirname, "../../client/dist");
 
 db.initDb();
 
@@ -2014,6 +2021,24 @@ app.get("/api/rrhh/resumen-global", (req, res) => {
   });
 });
 
-app.listen(PORT, "127.0.0.1", () => {
-  console.log(`API SCG: http://127.0.0.1:${PORT}`);
+if (IS_PROD) {
+  if (!fs.existsSync(CLIENT_DIST)) {
+    console.error(
+      "[SCG] Falta client/dist. Ejecutá: npm run build --prefix client"
+    );
+    process.exit(1);
+  }
+  app.use(express.static(CLIENT_DIST));
+  app.get("*", (req: Request, res: Response) => {
+    if (req.path.startsWith("/api")) {
+      res.status(404).json({ ok: false, error: "No encontrado" });
+      return;
+    }
+    res.sendFile(path.join(CLIENT_DIST, "index.html"));
+  });
+}
+
+app.listen(PORT, HOST, () => {
+  const label = IS_PROD ? "SCG producción" : "API SCG";
+  console.log(`${label}: http://${HOST === "0.0.0.0" ? "127.0.0.1" : HOST}:${PORT}`);
 });
