@@ -13,7 +13,7 @@ services:
       - key: SCG_TRUST_PROXY
         value: "1"
       - key: SCG_CLIENT_ORIGIN
-        sync: false
+        value: https://sgg-dcpo.onrender.com
       - key: SCG_ADMIN_EMAIL
         sync: false
       - key: SCG_ADMIN_PASSWORD

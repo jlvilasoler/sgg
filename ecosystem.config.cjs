@@ -10,7 +10,7 @@ module.exports = {
         PORT: "3001",
         HOST: "127.0.0.1",
         SCG_TRUST_PROXY: "1",
-        SCG_CLIENT_ORIGIN: "https://tu-dominio.com",
+        SCG_CLIENT_ORIGIN: "https://sgg-dcpo.onrender.com",
       },
     },
   ],
