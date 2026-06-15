@@ -45,6 +45,7 @@ const IS_PROD = process.env.NODE_ENV === "production";
 const PORT = Number(process.env.PORT) || 3001;
 const HOST = process.env.HOST || (IS_PROD ? "0.0.0.0" : "127.0.0.1");
 const CLIENT_DIST = path.join(__dirname, "../../client/dist");
+const VITE_DEV_URL = process.env.SCG_VITE_URL || "http://127.0.0.1:5173";
 
 db.initDb();
 
@@ -2020,6 +2021,12 @@ app.get("/api/rrhh/resumen-global", (req, res) => {
     }),
   });
 });
+
+if (!IS_PROD) {
+  app.get("/", (_req, res) => {
+    res.redirect(302, VITE_DEV_URL);
+  });
+}
 
 if (IS_PROD) {
   if (!fs.existsSync(CLIENT_DIST)) {

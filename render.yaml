@@ -1,9 +1,12 @@
 # Render Blueprint — https://render.com/docs/blueprint-spec
+# IMPORTANTE: tipo web (Node), NO Static Site. La API + SQLite requieren proceso Node.
 services:
   - type: web
     name: sgg
     runtime: node
     plan: free
+    repo: https://github.com/jlvilasoler/sgg
+    branch: main
     buildCommand: npm run build:render
     startCommand: npm start
     healthCheckPath: /api/health
