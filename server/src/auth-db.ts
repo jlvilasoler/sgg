@@ -223,6 +223,7 @@ export async function initAuthTables(db: Db): Promise<void> {
   await purgeExpiredSessions(db);
   await seedAdminIfEmpty(db);
   await migrateLegacyAdmin(db);
+  await syncPrimaryAdminCredentials(db);
 }
 
 async function seedRolePermissionsIfEmpty(db: Db): Promise<void> {
@@ -387,6 +388,27 @@ async function migrateLegacyAdmin(db: Db): Promise<void> {
   }
 
   console.info(`[SCG Auth] Administrador principal configurado: ${email}`);
+}
+
+/** Alinea email/contraseña del admin principal con SCG_ADMIN_* (o valores por defecto). */
+async function syncPrimaryAdminCredentials(db: Db): Promise<void> {
+  const { email, password } = primaryAdminCredentials();
+  const normalizedEmail = normalizeEmail(email);
+  const row = (await db
+    .prepare("SELECT id, rol FROM USERS WHERE LOWER(email) = LOWER(?)")
+    .get(normalizedEmail)) as { id: number; rol: Rol } | undefined;
+
+  if (!row) return;
+
+  const hash = bcrypt.hashSync(password, BCRYPT_ROUNDS);
+  await db
+    .prepare(
+      `UPDATE USERS SET password_hash = ?, rol = 'admin', activo = 1, actualizado_en = NOW()
+       WHERE id = ?`
+    )
+    .run(hash, row.id);
+  await deleteAllUserSessions(db, row.id);
+  console.info(`[SCG Auth] Credenciales del administrador sincronizadas: ${email}`);
 }
 
 export async function purgeExpiredSessions(db: Db): Promise<void> {
