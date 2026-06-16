@@ -22,7 +22,15 @@ import * as stock from "./stock-ganadero-db.js";
 import * as auth from "./auth-db.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DATA_DIR = path.join(__dirname, "..", "..", "data");
+
+function resolveDataDir(): string {
+  const configured = process.env.SCG_DATA_DIR?.trim();
+  if (configured) return configured;
+  if (process.env.VERCEL) return "/tmp/scg-data";
+  return path.join(__dirname, "..", "..", "data");
+}
+
+const DATA_DIR = resolveDataDir();
 const DB_PATH = path.join(DATA_DIR, "scg_contabilidad.db");
 
 let db: Database.Database;

@@ -42,6 +42,7 @@ const iconUpload = multer({
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const IS_PROD = process.env.NODE_ENV === "production";
+const IS_VERCEL = process.env.VERCEL === "1";
 const PORT = Number(process.env.PORT) || 3001;
 const HOST = process.env.HOST || (IS_PROD ? "0.0.0.0" : "127.0.0.1");
 const CLIENT_DIST = path.join(__dirname, "../../client/dist");
@@ -50,7 +51,7 @@ const VITE_DEV_URL = process.env.SCG_VITE_URL || "http://127.0.0.1:5173";
 db.initDb();
 
 const app = express();
-if (process.env.SCG_TRUST_PROXY === "1") {
+if (process.env.SCG_TRUST_PROXY === "1" || IS_VERCEL) {
   app.set("trust proxy", 1);
 }
 app.disable("x-powered-by");
@@ -2028,7 +2029,7 @@ if (!IS_PROD) {
   });
 }
 
-if (IS_PROD) {
+if (IS_PROD && !IS_VERCEL) {
   if (!fs.existsSync(CLIENT_DIST)) {
     console.error(
       "[SCG] Falta client/dist. Ejecutá: npm run build --prefix client"
@@ -2045,7 +2046,11 @@ if (IS_PROD) {
   });
 }
 
-app.listen(PORT, HOST, () => {
-  const label = IS_PROD ? "SCG producción" : "API SCG";
-  console.log(`${label}: http://${HOST === "0.0.0.0" ? "127.0.0.1" : HOST}:${PORT}`);
-});
+export default app;
+
+if (!IS_VERCEL) {
+  app.listen(PORT, HOST, () => {
+    const label = IS_PROD ? "SCG producción" : "API SCG";
+    console.log(`${label}: http://${HOST === "0.0.0.0" ? "127.0.0.1" : HOST}:${PORT}`);
+  });
+}

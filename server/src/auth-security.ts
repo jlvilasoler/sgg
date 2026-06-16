@@ -77,8 +77,14 @@ export function constantTimeEqual(a: string, b: string): boolean {
 
 /** Orígenes del frontend autorizados (CORS + anti-CSRF). */
 export function getAllowedClientOrigins(): string[] {
+  const origins = new Set<string>();
   const configured = process.env.SCG_CLIENT_ORIGIN?.trim();
-  if (configured) return [configured];
+  if (configured) origins.add(configured);
+  const vercelUrl = process.env.VERCEL_URL?.trim();
+  if (vercelUrl) origins.add(`https://${vercelUrl}`);
+  const vercelBranch = process.env.VERCEL_BRANCH_URL?.trim();
+  if (vercelBranch) origins.add(`https://${vercelBranch}`);
+  if (origins.size > 0) return [...origins];
   if (IS_PROD) {
     return ["http://127.0.0.1:5173"];
   }
