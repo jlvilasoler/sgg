@@ -25,8 +25,9 @@ export async function ensureRubrosNombres(
   nombres: readonly string[]
 ): Promise<void> {
   const insert = await db.prepare(
-    `INSERT INTO RUBROS (nombre, activo) VALUES (@nombre, 1)
-     ON CONFLICT (nombre) DO NOTHING`
+    `INSERT INTO RUBROS (nombre, activo)
+     SELECT @nombre, 1
+     WHERE NOT EXISTS (SELECT 1 FROM RUBROS WHERE LOWER(nombre) = LOWER(@nombre))`
   );
   for (const nombre of nombres) {
     await insert.run({ nombre });
@@ -41,8 +42,9 @@ async function syncRubrosFromPresupuesto(db: Db): Promise<void> {
     )
     .all()) as { rubro: string }[];
   const insert = await db.prepare(
-    `INSERT INTO RUBROS (nombre, activo) VALUES (@nombre, 1)
-     ON CONFLICT (nombre) DO NOTHING`
+    `INSERT INTO RUBROS (nombre, activo)
+     SELECT @nombre, 1
+     WHERE NOT EXISTS (SELECT 1 FROM RUBROS WHERE LOWER(nombre) = LOWER(@nombre))`
   );
   for (const r of rows) {
     await insert.run({ nombre: r.rubro.trim() });

@@ -1,17 +1,10 @@
 import type { Db } from "./db/pg-client.js";
 import fs from "fs";
 import path from "path";
-import { fileURLToPath } from "url";
+import { scgDataPath } from "./data-dir.js";
 import { BANCO_ICONOS_RUBRO, isEmojiEnBanco } from "./grupo-iconos-data.js";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-export const VENTA_GRUPO_ICONOS_DIR = path.join(
-  __dirname,
-  "..",
-  "..",
-  "data",
-  "venta-grupo-iconos"
-);
+export const VENTA_GRUPO_ICONOS_DIR = scgDataPath("venta-grupo-iconos");
 
 const MIME_EXT: Record<string, string> = {
   "image/jpeg": "jpg",
@@ -35,7 +28,7 @@ export type VentaGrupoIconoDto =
   | { tipo: "emoji"; emoji: string };
 
 export async function initVentaGrupoIconosTable(_db: Db): Promise<void> {
-  fs.mkdirSync(VENTA_GRUPO_ICONOS_DIR, { recursive: true });
+  scgDataPath("venta-grupo-iconos");
 }
 
 async function getByGrupo(db: Db, grupo: string): Promise<VentaGrupoIconoRow | undefined> {

@@ -50,8 +50,11 @@ const HOST = process.env.HOST || (IS_PROD ? "0.0.0.0" : "127.0.0.1");
 const CLIENT_DIST = path.join(__dirname, "../../client/dist");
 const VITE_DEV_URL = process.env.SCG_VITE_URL || "http://127.0.0.1:5173";
 
+let lastDbInitError: string | null = null;
+
 const dbReady = db.initDb();
 void dbReady.catch((err) => {
+  lastDbInitError = err instanceof Error ? err.message : String(err);
   console.error("[SCG] Error al inicializar la base de datos:", err);
 });
 
@@ -62,7 +65,15 @@ app.use(async (_req, res, next) => {
     next();
   } catch (err) {
     console.error("[SCG] Base de datos no disponible:", err);
-    res.status(503).json({ ok: false, error: "Base de datos no disponible" });
+    const hint = !process.env.DATABASE_URL?.trim()
+      ? "Configurá DATABASE_URL en Vercel (Supabase → Transaction pooler, puerto 6543)."
+      : "Revisá que DATABASE_URL sea correcta y que el proyecto Supabase esté activo.";
+    res.status(503).json({
+      ok: false,
+      error: "Base de datos no disponible",
+      hint,
+      detail: lastDbInitError,
+    });
   }
 });
 if (process.env.SCG_TRUST_PROXY === "1" || IS_VERCEL) {

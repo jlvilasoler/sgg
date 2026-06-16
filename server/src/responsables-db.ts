@@ -26,8 +26,9 @@ export async function syncResponsablesFromPresupuesto(db: Db): Promise<void> {
     )
     .all()) as { responsable_gasto: string }[];
   const insert = await db.prepare(
-    `INSERT INTO RESPONSABLES (nombre, activo) VALUES (@nombre, 1)
-     ON CONFLICT (nombre) DO NOTHING`
+    `INSERT INTO RESPONSABLES (nombre, activo)
+     SELECT @nombre, 1
+     WHERE NOT EXISTS (SELECT 1 FROM RESPONSABLES WHERE LOWER(nombre) = LOWER(@nombre))`
   );
   for (const r of rows) {
     await insert.run({ nombre: r.responsable_gasto.trim() });

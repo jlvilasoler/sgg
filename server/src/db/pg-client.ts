@@ -9,21 +9,36 @@ let pool: PgPool | null = null;
 
 export function getPool(): PgPool {
   if (!pool) {
-    const connectionString = process.env.DATABASE_URL?.trim();
-    if (!connectionString) {
+    const raw = process.env.DATABASE_URL?.trim();
+    if (!raw) {
       throw new Error(
         "Falta DATABASE_URL (connection string de Supabase Postgres)."
       );
     }
+    const connectionString = normalizeDatabaseUrl(raw);
     pool = new Pool({
       connectionString,
       ssl: connectionString.includes("localhost")
         ? false
         : { rejectUnauthorized: false },
       max: process.env.VERCEL ? 1 : 10,
+      connectionTimeoutMillis: 15_000,
     });
   }
   return pool;
+}
+
+function normalizeDatabaseUrl(url: string): string {
+  let u = url;
+  if (!u.includes("localhost") && !/sslmode=/i.test(u)) {
+    u += u.includes("?") ? "&" : "?";
+    u += "sslmode=require";
+  }
+  if (/pooler\.supabase\.com:6543/i.test(u) && !/pgbouncer=/i.test(u)) {
+    u += u.includes("?") ? "&" : "?";
+    u += "pgbouncer=true";
+  }
+  return u;
 }
 
 export async function closePool(): Promise<void> {

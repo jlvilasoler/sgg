@@ -1,11 +1,10 @@
 import type { Db } from "./db/pg-client.js";
 import fs from "fs";
 import path from "path";
-import { fileURLToPath } from "url";
+import { scgDataPath } from "./data-dir.js";
 import { BANCO_ICONOS_RUBRO, isEmojiEnBanco } from "./grupo-iconos-data.js";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-export const GRUPO_ICONOS_DIR = path.join(__dirname, "..", "..", "data", "grupo-iconos");
+export const GRUPO_ICONOS_DIR = scgDataPath("grupo-iconos");
 
 const MIME_EXT: Record<string, string> = {
   "image/jpeg": "jpg",
@@ -29,7 +28,7 @@ export type GrupoIconoDto =
   | { tipo: "emoji"; emoji: string };
 
 export async function initGrupoIconosTable(_db: Db): Promise<void> {
-  fs.mkdirSync(GRUPO_ICONOS_DIR, { recursive: true });
+  scgDataPath("grupo-iconos");
 }
 
 async function getByGrupo(db: Db, grupo: string): Promise<GrupoIconoRow | undefined> {
