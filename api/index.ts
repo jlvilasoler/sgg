@@ -13,6 +13,21 @@ export default function handler(
   return new Promise((resolve, reject) => {
     res.on("finish", () => resolve());
     res.on("error", reject);
-    app(req, res);
+    try {
+      app(req, res);
+    } catch (err) {
+      console.error("[SCG API] Error al invocar Express:", err);
+      if (!res.headersSent) {
+        res.statusCode = 500;
+        res.setHeader("Content-Type", "application/json");
+        res.end(
+          JSON.stringify({
+            ok: false,
+            error: err instanceof Error ? err.message : "Error interno",
+          })
+        );
+      }
+      resolve();
+    }
   });
 }
