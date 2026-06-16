@@ -3,6 +3,7 @@
   "private": true,
   "version": "1.0.0",
   "description": "Sistema de Contabilidad Ganadera — React + Node",
+  "type": "module",
   "engines": {
     "node": ">=20"
   },
@@ -13,6 +14,15 @@
     "build:render": "npm run install:all && npm run build",
     "build:vercel": "npm run install:all && npm run build",
     "start": "npm run start --prefix server"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "better-sqlite3": "^12.10.0",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "multer": "^1.4.5-lts.1",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "concurrently": "^9.1.2",
