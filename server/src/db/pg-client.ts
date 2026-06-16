@@ -30,6 +30,18 @@ export function getPool(): PgPool {
 
 function normalizeDatabaseUrl(url: string): string {
   let u = url;
+
+  const directSupabase = u.match(
+    /^postgres(?:ql)?:\/\/postgres:([^@]+)@db\.([a-z0-9]+)\.supabase\.co:5432\/postgres/i
+  );
+  if (directSupabase && process.env.VERCEL) {
+    throw new Error(
+      "DATABASE_URL usa conexión directa (db.xxx.supabase.co:5432) que no funciona en Vercel. " +
+        "En Supabase → Database → Connection string elegí Transaction pooler (puerto 6543) " +
+        "y pegá esa URL en Vercel."
+    );
+  }
+
   if (!u.includes("localhost") && !/sslmode=/i.test(u)) {
     u += u.includes("?") ? "&" : "?";
     u += "sslmode=require";

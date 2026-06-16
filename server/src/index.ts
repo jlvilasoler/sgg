@@ -67,7 +67,11 @@ app.use(async (_req, res, next) => {
     console.error("[SCG] Base de datos no disponible:", err);
     const hint = !process.env.DATABASE_URL?.trim()
       ? "Configurá DATABASE_URL en Vercel (Supabase → Transaction pooler, puerto 6543)."
-      : "Revisá que DATABASE_URL sea correcta y que el proyecto Supabase esté activo.";
+      : lastDbInitError?.includes("db.") && lastDbInitError.includes("supabase.co")
+        ? "Cambiá DATABASE_URL: no uses db.xxx.supabase.co:5432. Usá Transaction pooler (puerto 6543) desde Supabase."
+        : lastDbInitError?.includes("Transaction pooler")
+          ? lastDbInitError
+          : "Revisá que DATABASE_URL sea la del pooler (6543) y que el proyecto Supabase esté activo.";
     res.status(503).json({
       ok: false,
       error: "Base de datos no disponible",
