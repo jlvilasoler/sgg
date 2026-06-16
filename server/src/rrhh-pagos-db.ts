@@ -1,4 +1,4 @@
-import type Database from "better-sqlite3";
+import type { Db } from "./db/pg-client.js";
 import type { Presupuesto } from "./types.js";
 import {
   formatCedulaDisplay,
@@ -71,10 +71,6 @@ const RUBRO_SUELDO_SQL = `(
   OR lower(sub_rubro) LIKE '%vacacional%' OR lower(sub_rubro) LIKE '%salario%'
 )`;
 
-function cedulaNormSql(column: string): string {
-  return `replace(replace(replace(${column}, '.', ''), '-', ''), ' ', '')`;
-}
-
 function clasificarVinculo(
   row: Presupuesto,
   cedulaNorm: string,
@@ -125,17 +121,17 @@ function clasificarVinculo(
   return null;
 }
 
-export function listPagosPorCedula(
-  db: Database.Database,
+export async function listPagosPorCedula(
+  db: Db,
   cedula: string,
   filters?: { fecha_desde?: string; fecha_hasta?: string; empresa?: string }
-): ResumenPagosFuncionario {
+): Promise<ResumenPagosFuncionario> {
   const cedulaNorm = normalizeCedula(cedula);
   if (!cedulaNorm) {
     throw new Error("Ingresá una cédula de identidad válida.");
   }
 
-  const funcionario = getFuncionarioByCedula(db, cedula) ?? null;
+  const funcionario = (await getFuncionarioByCedula(db, cedula)) ?? null;
 
   let query = "SELECT * FROM PRESUPUESTO WHERE 1=1";
   const params: Record<string, string> = {};
@@ -153,7 +149,7 @@ export function listPagosPorCedula(
   }
   query += " ORDER BY fecha DESC, id DESC";
 
-  const all = db.prepare(query).all(params) as Presupuesto[];
+  const all = (await db.prepare(query).all(params)) as Presupuesto[];
   const pagos: PagoFuncionario[] = [];
 
   for (const row of all) {
@@ -251,14 +247,14 @@ export function listPagosPorCedula(
   };
 }
 
-export function resumenGlobalSueldos(
-  db: Database.Database,
+export async function resumenGlobalSueldos(
+  db: Db,
   filters?: { fecha_desde?: string; fecha_hasta?: string }
-): {
+): Promise<{
   total_registros: number;
   total_pesos: number;
   funcionarios_con_pagos: number;
-} {
+}> {
   let query = `SELECT COUNT(*) AS n, COALESCE(SUM(pesos),0) AS pesos
     FROM PRESUPUESTO WHERE ${RUBRO_SUELDO_SQL}`;
   const params: Record<string, string> = {};
@@ -270,15 +266,15 @@ export function resumenGlobalSueldos(
     query += " AND fecha <= @fecha_hasta";
     params.fecha_hasta = filters.fecha_hasta;
   }
-  const row = db.prepare(query).get(params) as { n: number; pesos: number };
+  const row = (await db.prepare(query).get(params)) as { n: number; pesos: number };
 
-  const funcs = db
+  const funcs = (await db
     .prepare(
-      `SELECT COUNT(DISTINCT ${cedulaNormSql("funcionario_cedula")}) AS c
+      `SELECT COUNT(DISTINCT replace(replace(replace(funcionario_cedula, '.', ''), '-', ''), ' ', '')) AS c
        FROM PRESUPUESTO
        WHERE trim(funcionario_cedula) != ''`
     )
-    .get() as { c: number };
+    .get()) as { c: number };
 
   return {
     total_registros: row.n,

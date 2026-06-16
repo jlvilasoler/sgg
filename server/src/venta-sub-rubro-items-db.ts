@@ -1,4 +1,4 @@
-import type Database from "better-sqlite3";
+import type { Db } from "./db/pg-client.js";
 import { normalizarTituloRubro } from "./text-normalize.js";
 
 export interface VentaSubRubroItem {
@@ -14,99 +14,86 @@ export interface VentaSubRubroItemInput {
   activo?: boolean;
 }
 
-export function initVentaSubRubroItemsTable(db: Database.Database): void {
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS VENTA_SUB_RUBRO_ITEMS (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      sub_rubro_id INTEGER NOT NULL,
-      nombre TEXT NOT NULL,
-      activo INTEGER NOT NULL DEFAULT 1,
-      creado_en TEXT DEFAULT (datetime('now', 'localtime')),
-      FOREIGN KEY (sub_rubro_id) REFERENCES VENTA_SUB_RUBROS(id) ON DELETE CASCADE,
-      UNIQUE (sub_rubro_id, nombre COLLATE NOCASE)
-    );
-    CREATE INDEX IF NOT EXISTS idx_venta_sub_rubro_items_sub ON VENTA_SUB_RUBRO_ITEMS(sub_rubro_id);
-  `);
-}
+export async function initVentaSubRubroItemsTable(_db: Db): Promise<void> {}
 
-export function listVentaItemsBySubRubroId(
-  db: Database.Database,
+export async function listVentaItemsBySubRubroId(
+  db: Db,
   subRubroId: number,
   soloActivos = false
-): VentaSubRubroItem[] {
+): Promise<VentaSubRubroItem[]> {
   let q = "SELECT * FROM VENTA_SUB_RUBRO_ITEMS WHERE sub_rubro_id = ?";
   if (soloActivos) q += " AND activo = 1";
-  q += " ORDER BY nombre COLLATE NOCASE ASC";
-  return db.prepare(q).all(subRubroId) as VentaSubRubroItem[];
+  q += " ORDER BY LOWER(nombre) ASC";
+  return (await db.prepare(q).all(subRubroId)) as VentaSubRubroItem[];
 }
 
-export function listVentaItemsBySubRubroNombre(
-  db: Database.Database,
+export async function listVentaItemsBySubRubroNombre(
+  db: Db,
   subRubroNombre: string,
   soloActivos = true
-): VentaSubRubroItem[] {
-  const row = db
-    .prepare("SELECT id FROM VENTA_SUB_RUBROS WHERE nombre = ? COLLATE NOCASE")
-    .get(subRubroNombre.trim()) as { id: number } | undefined;
+): Promise<VentaSubRubroItem[]> {
+  const row = (await db
+    .prepare("SELECT id FROM VENTA_SUB_RUBROS WHERE LOWER(nombre) = LOWER(?)")
+    .get(subRubroNombre.trim())) as { id: number } | undefined;
   if (!row) return [];
   return listVentaItemsBySubRubroId(db, row.id, soloActivos);
 }
 
-export function listVentaItemsGroupedBySubRubroIds(
-  db: Database.Database,
+export async function listVentaItemsGroupedBySubRubroIds(
+  db: Db,
   ids: number[]
-): Record<number, VentaSubRubroItem[]> {
+): Promise<Record<number, VentaSubRubroItem[]>> {
   const out: Record<number, VentaSubRubroItem[]> = {};
   if (!ids.length) return out;
   for (const id of ids) out[id] = [];
   const placeholders = ids.map(() => "?").join(",");
-  const rows = db
+  const rows = (await db
     .prepare(
       `SELECT * FROM VENTA_SUB_RUBRO_ITEMS WHERE sub_rubro_id IN (${placeholders})
-       ORDER BY sub_rubro_id, nombre COLLATE NOCASE ASC`
+       ORDER BY sub_rubro_id, LOWER(nombre) ASC`
     )
-    .all(...ids) as VentaSubRubroItem[];
+    .all(...ids)) as VentaSubRubroItem[];
   for (const r of rows) {
     out[r.sub_rubro_id].push(r);
   }
   return out;
 }
 
-export function countVentaItemsBySubRubroIds(
-  db: Database.Database,
+export async function countVentaItemsBySubRubroIds(
+  db: Db,
   ids: number[]
-): Record<number, number> {
+): Promise<Record<number, number>> {
   const out: Record<number, number> = {};
   if (!ids.length) return out;
   const placeholders = ids.map(() => "?").join(",");
-  const rows = db
+  const rows = (await db
     .prepare(
       `SELECT sub_rubro_id, COUNT(*) AS n FROM VENTA_SUB_RUBRO_ITEMS
        WHERE sub_rubro_id IN (${placeholders}) GROUP BY sub_rubro_id`
     )
-    .all(...ids) as { sub_rubro_id: number; n: number }[];
+    .all(...ids)) as { sub_rubro_id: number; n: number }[];
   for (const id of ids) out[id] = 0;
   for (const r of rows) out[r.sub_rubro_id] = r.n;
   return out;
 }
 
-export function getVentaItemById(
-  db: Database.Database,
+export async function getVentaItemById(
+  db: Db,
   id: number
-): VentaSubRubroItem | undefined {
-  return db.prepare("SELECT * FROM VENTA_SUB_RUBRO_ITEMS WHERE id = ?").get(id) as
+): Promise<VentaSubRubroItem | undefined> {
+  return (await db.prepare("SELECT * FROM VENTA_SUB_RUBRO_ITEMS WHERE id = ?").get(id)) as
     | VentaSubRubroItem
     | undefined;
 }
 
-export function insertVentaItem(
-  db: Database.Database,
+export async function insertVentaItem(
+  db: Db,
   subRubroId: number,
   data: VentaSubRubroItemInput
-): number {
+): Promise<number> {
   const nombre = normalizarTituloRubro(data.nombre);
   if (!nombre) throw new Error("El nombre del ítem es obligatorio.");
-  const result = db
+  const result = await db
     .prepare(
       `INSERT INTO VENTA_SUB_RUBRO_ITEMS (sub_rubro_id, nombre, activo)
        VALUES (@sub_rubro_id, @nombre, @activo)`
@@ -119,15 +106,15 @@ export function insertVentaItem(
   return Number(result.lastInsertRowid);
 }
 
-export function updateVentaItem(
-  db: Database.Database,
+export async function updateVentaItem(
+  db: Db,
   id: number,
   data: VentaSubRubroItemInput
-): boolean {
+): Promise<boolean> {
   const nombre = normalizarTituloRubro(data.nombre);
   if (!nombre) throw new Error("El nombre del ítem es obligatorio.");
   return (
-    db
+    await db
       .prepare(
         "UPDATE VENTA_SUB_RUBRO_ITEMS SET nombre = @nombre, activo = @activo WHERE id = @id"
       )
@@ -135,10 +122,10 @@ export function updateVentaItem(
         id,
         nombre,
         activo: data.activo === false ? 0 : 1,
-      }).changes > 0
-  );
+      })
+  ).changes > 0;
 }
 
-export function deleteVentaItem(db: Database.Database, id: number): boolean {
-  return db.prepare("DELETE FROM VENTA_SUB_RUBRO_ITEMS WHERE id = ?").run(id).changes > 0;
+export async function deleteVentaItem(db: Db, id: number): Promise<boolean> {
+  return (await db.prepare("DELETE FROM VENTA_SUB_RUBRO_ITEMS WHERE id = ?").run(id)).changes > 0;
 }

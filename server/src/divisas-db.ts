@@ -1,4 +1,4 @@
-import type Database from "better-sqlite3";
+import type { Db } from "./db/pg-client.js";
 
 export const PARES_DIVISA = ["UYU_USD", "BRL_USD"] as const;
 export type ParDivisa = (typeof PARES_DIVISA)[number];
@@ -22,25 +22,12 @@ export interface TipoCambioInput {
   valor: number;
 }
 
-export function initDivisasTable(db: Database.Database): void {
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS DIVISAS_TC (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      fecha TEXT NOT NULL,
-      par TEXT NOT NULL CHECK (par IN ('UYU_USD', 'BRL_USD')),
-      valor REAL NOT NULL,
-      creado_en TEXT DEFAULT (datetime('now', 'localtime')),
-      UNIQUE (fecha, par)
-    );
-    CREATE INDEX IF NOT EXISTS idx_divisas_fecha ON DIVISAS_TC(fecha);
-    CREATE INDEX IF NOT EXISTS idx_divisas_par ON DIVISAS_TC(par);
-  `);
-}
+export async function initDivisasTable(_db: Db): Promise<void> {}
 
-export function listDivisas(
-  db: Database.Database,
+export async function listDivisas(
+  db: Db,
   filters: { par?: ParDivisa; fecha_desde?: string; fecha_hasta?: string } = {}
-): TipoCambio[] {
+): Promise<TipoCambio[]> {
   let query = "SELECT * FROM DIVISAS_TC WHERE 1=1";
   const params: Record<string, string> = {};
   if (filters.par) {
@@ -56,31 +43,31 @@ export function listDivisas(
     params.fecha_hasta = filters.fecha_hasta;
   }
   query += " ORDER BY fecha DESC, par ASC";
-  return db.prepare(query).all(params) as TipoCambio[];
+  return (await db.prepare(query).all(params)) as TipoCambio[];
 }
 
 /** TC vigente en una fecha: exacta o la más reciente anterior. */
-export function getTipoCambioEnFecha(
-  db: Database.Database,
+export async function getTipoCambioEnFecha(
+  db: Db,
   par: ParDivisa,
   fecha: string
-): TipoCambio | undefined {
+): Promise<TipoCambio | undefined> {
   const f = fecha.trim();
   if (!f) return undefined;
-  const exact = db
+  const exact = (await db
     .prepare("SELECT * FROM DIVISAS_TC WHERE par = ? AND fecha = ?")
-    .get(par, f) as TipoCambio | undefined;
+    .get(par, f)) as TipoCambio | undefined;
   if (exact) return exact;
-  return db
+  return (await db
     .prepare(
       `SELECT * FROM DIVISAS_TC WHERE par = ? AND fecha <= ?
        ORDER BY fecha DESC LIMIT 1`
     )
-    .get(par, f) as TipoCambio | undefined;
+    .get(par, f)) as TipoCambio | undefined;
 }
 
-export function getUltimosPorPar(db: Database.Database): TipoCambio[] {
-  return db
+export async function getUltimosPorPar(db: Db): Promise<TipoCambio[]> {
+  return (await db
     .prepare(
       `SELECT d.* FROM DIVISAS_TC d
        INNER JOIN (
@@ -88,54 +75,58 @@ export function getUltimosPorPar(db: Database.Database): TipoCambio[] {
        ) t ON d.par = t.par AND d.fecha = t.max_fecha
        ORDER BY d.par`
     )
-    .all() as TipoCambio[];
+    .all()) as TipoCambio[];
 }
 
-export function upsertTipoCambio(db: Database.Database, row: TipoCambioInput): void {
-  db.prepare(
-    `INSERT INTO DIVISAS_TC (fecha, par, valor) VALUES (@fecha, @par, @valor)
+export async function upsertTipoCambio(db: Db, row: TipoCambioInput): Promise<void> {
+  await db
+    .prepare(
+      `INSERT INTO DIVISAS_TC (fecha, par, valor) VALUES (@fecha, @par, @valor)
      ON CONFLICT(fecha, par) DO UPDATE SET valor = excluded.valor`
-  ).run(row);
+    )
+    .run(row);
 }
 
-export function insertTipoCambio(db: Database.Database, row: TipoCambioInput): number {
-  const r = db
+export async function insertTipoCambio(db: Db, row: TipoCambioInput): Promise<number> {
+  const r = await db
     .prepare("INSERT INTO DIVISAS_TC (fecha, par, valor) VALUES (@fecha, @par, @valor)")
     .run(row);
   return Number(r.lastInsertRowid);
 }
 
-export function updateTipoCambio(
-  db: Database.Database,
+export async function updateTipoCambio(
+  db: Db,
   id: number,
   row: TipoCambioInput
-): boolean {
+): Promise<boolean> {
   return (
-    db.prepare(
-      "UPDATE DIVISAS_TC SET fecha = @fecha, par = @par, valor = @valor WHERE id = @id"
-    ).run({ ...row, id }).changes > 0
-  );
+    await db
+      .prepare(
+        "UPDATE DIVISAS_TC SET fecha = @fecha, par = @par, valor = @valor WHERE id = @id"
+      )
+      .run({ ...row, id })
+  ).changes > 0;
 }
 
-export function deleteTipoCambio(db: Database.Database, id: number): boolean {
-  return db.prepare("DELETE FROM DIVISAS_TC WHERE id = ?").run(id).changes > 0;
+export async function deleteTipoCambio(db: Db, id: number): Promise<boolean> {
+  return (await db.prepare("DELETE FROM DIVISAS_TC WHERE id = ?").run(id)).changes > 0;
 }
 
-export function getTipoCambioById(
-  db: Database.Database,
+export async function getTipoCambioById(
+  db: Db,
   id: number
-): TipoCambio | undefined {
-  return db.prepare("SELECT * FROM DIVISAS_TC WHERE id = ?").get(id) as
+): Promise<TipoCambio | undefined> {
+  return (await db.prepare("SELECT * FROM DIVISAS_TC WHERE id = ?").get(id)) as
     | TipoCambio
     | undefined;
 }
 
-export function existsTipoCambio(
-  db: Database.Database,
+export async function existsTipoCambio(
+  db: Db,
   fecha: string,
   par: ParDivisa
-): boolean {
-  const row = db
+): Promise<boolean> {
+  const row = await db
     .prepare("SELECT 1 FROM DIVISAS_TC WHERE fecha = ? AND par = ? LIMIT 1")
     .get(fecha, par);
   return row !== undefined;
@@ -191,39 +182,39 @@ function shiftMonth(year: number, month1to12: number, delta: number): {
 }
 
 /** Último TC, promedio del mes en curso y cierre del último mes cerrado. */
-export function getIndicadoresPorPar(
-  db: Database.Database,
+export async function getIndicadoresPorPar(
+  db: Db,
   par: ParDivisa
-): DivisaIndicadores {
-  const ultimoRow = db
+): Promise<DivisaIndicadores> {
+  const ultimoRow = (await db
     .prepare(
       `SELECT fecha, valor FROM DIVISAS_TC WHERE par = ?
        ORDER BY fecha DESC LIMIT 1`
     )
-    .get(par) as { fecha: string; valor: number } | undefined;
+    .get(par)) as { fecha: string; valor: number } | undefined;
 
   const hoy = isoHoyLocal();
   const [y, m] = hoy.split("-").map(Number);
   const mesActual = monthRange(y, m);
 
-  const avgRow = db
+  const avgRow = (await db
     .prepare(
       `SELECT AVG(valor) AS promedio, COUNT(*) AS dias FROM DIVISAS_TC
        WHERE par = ? AND fecha >= ? AND fecha <= ?`
     )
-    .get(par, mesActual.desde, mesActual.hasta) as
+    .get(par, mesActual.desde, mesActual.hasta)) as
     | { promedio: number | null; dias: number }
     | undefined;
 
   const prev = shiftMonth(y, m, -1);
   const mesAnterior = monthRange(prev.year, prev.month);
-  const cierreRow = db
+  const cierreRow = (await db
     .prepare(
       `SELECT fecha, valor FROM DIVISAS_TC
        WHERE par = ? AND fecha >= ? AND fecha <= ?
        ORDER BY fecha DESC LIMIT 1`
     )
-    .get(par, mesAnterior.desde, mesAnterior.hasta) as
+    .get(par, mesAnterior.desde, mesAnterior.hasta)) as
     | { fecha: string; valor: number }
     | undefined;
 
@@ -250,49 +241,52 @@ export function getIndicadoresPorPar(
 }
 
 /** Fecha más reciente guardada para un par (undefined si no hay registros). */
-export function getMaxFechaPorPar(
-  db: Database.Database,
+export async function getMaxFechaPorPar(
+  db: Db,
   par: ParDivisa
-): string | undefined {
-  const row = db
+): Promise<string | undefined> {
+  const row = (await db
     .prepare("SELECT MAX(fecha) AS max_fecha FROM DIVISAS_TC WHERE par = ?")
-    .get(par) as { max_fecha: string | null } | undefined;
+    .get(par)) as { max_fecha: string | null } | undefined;
   const f = row?.max_fecha?.trim();
   return f || undefined;
 }
 
-export function importBatch(
-  db: Database.Database,
+export async function importBatch(
+  db: Db,
   rows: TipoCambioInput[],
   options?: { solo_nuevos?: boolean }
-): { insertados: number; actualizados: number; ignorados: number } {
+): Promise<{ insertados: number; actualizados: number; ignorados: number }> {
   const soloNuevos = options?.solo_nuevos === true;
-  const exists = db.prepare(
-    "SELECT id FROM DIVISAS_TC WHERE fecha = ? AND par = ?"
-  );
-  const insert = db.prepare(
-    "INSERT INTO DIVISAS_TC (fecha, par, valor) VALUES (@fecha, @par, @valor)"
-  );
-  const tx = db.transaction((items: TipoCambioInput[]) => {
+  return db.transaction(async (tx) => {
+    const existsStmt = await tx.prepare(
+      "SELECT id FROM DIVISAS_TC WHERE fecha = ? AND par = ?"
+    );
+    const insertStmt = await tx.prepare(
+      "INSERT INTO DIVISAS_TC (fecha, par, valor) VALUES (@fecha, @par, @valor)"
+    );
+    const upsertStmt = await tx.prepare(
+      `INSERT INTO DIVISAS_TC (fecha, par, valor) VALUES (@fecha, @par, @valor)
+       ON CONFLICT(fecha, par) DO UPDATE SET valor = excluded.valor`
+    );
     let insertados = 0;
     let actualizados = 0;
     let ignorados = 0;
-    for (const row of items) {
-      const prev = exists.get(row.fecha, row.par);
+    for (const row of rows) {
+      const prev = await existsStmt.get(row.fecha, row.par);
       if (soloNuevos) {
         if (prev) {
           ignorados++;
           continue;
         }
-        insert.run(row);
+        await insertStmt.run(row);
         insertados++;
         continue;
       }
-      upsertTipoCambio(db, row);
+      await upsertStmt.run(row);
       if (prev) actualizados++;
       else insertados++;
     }
     return { insertados, actualizados, ignorados };
   });
-  return tx(rows);
 }

@@ -1,4 +1,4 @@
-import type Database from "better-sqlite3";
+import type { Db } from "./db/pg-client.js";
 
 export interface Funcionario {
   id: number;
@@ -56,52 +56,16 @@ function validateCedula(cedula: string): string {
   return n;
 }
 
-export function initFuncionariosTable(db: Database.Database): void {
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS FUNCIONARIOS (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      cedula TEXT NOT NULL UNIQUE,
-      nombre TEXT NOT NULL,
-      apellido TEXT NOT NULL,
-      domicilio TEXT NOT NULL DEFAULT '',
-      ciudad TEXT NOT NULL DEFAULT '',
-      departamento TEXT NOT NULL DEFAULT '',
-      banco TEXT NOT NULL DEFAULT '',
-      sucursal TEXT NOT NULL DEFAULT '',
-      cuenta TEXT NOT NULL DEFAULT '',
-      tipo_cuenta TEXT NOT NULL DEFAULT '',
-      titular_cuenta TEXT NOT NULL DEFAULT '',
-      celular TEXT NOT NULL DEFAULT '',
-      email TEXT NOT NULL DEFAULT '',
-      activo INTEGER NOT NULL DEFAULT 1,
-      creado_en TEXT DEFAULT (datetime('now', 'localtime')),
-      actualizado_en TEXT DEFAULT (datetime('now', 'localtime'))
-    );
-    CREATE INDEX IF NOT EXISTS idx_funcionarios_cedula ON FUNCIONARIOS(cedula);
-    CREATE INDEX IF NOT EXISTS idx_funcionarios_apellido ON FUNCIONARIOS(apellido);
-    CREATE INDEX IF NOT EXISTS idx_funcionarios_activo ON FUNCIONARIOS(activo);
-  `);
-  migrateFuncionarioContacto(db);
-}
-
-function migrateFuncionarioContacto(db: Database.Database): void {
-  const cols = db.prepare("PRAGMA table_info(FUNCIONARIOS)").all() as { name: string }[];
-  if (!cols.some((c) => c.name === "celular")) {
-    db.exec(`ALTER TABLE FUNCIONARIOS ADD COLUMN celular TEXT NOT NULL DEFAULT ''`);
-  }
-  if (!cols.some((c) => c.name === "email")) {
-    db.exec(`ALTER TABLE FUNCIONARIOS ADD COLUMN email TEXT NOT NULL DEFAULT ''`);
-  }
-}
+export async function initFuncionariosTable(_db: Db): Promise<void> {}
 
 function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
 }
 
-export function listFuncionarios(
-  db: Database.Database,
+export async function listFuncionarios(
+  db: Db,
   opts?: { busqueda?: string; soloActivos?: boolean }
-): Funcionario[] {
+): Promise<Funcionario[]> {
   let query = "SELECT * FROM FUNCIONARIOS WHERE 1=1";
   const params: Record<string, string | number> = {};
   if (opts?.soloActivos) query += " AND activo = 1";
@@ -113,44 +77,44 @@ export function listFuncionarios(
     )`;
     params.term = `%${opts.busqueda.trim()}%`;
   }
-  query += " ORDER BY apellido COLLATE NOCASE, nombre COLLATE NOCASE";
-  return db.prepare(query).all(params) as Funcionario[];
+  query += " ORDER BY LOWER(apellido), LOWER(nombre)";
+  return (await db.prepare(query).all(params)) as Funcionario[];
 }
 
-export function getFuncionarioById(
-  db: Database.Database,
+export async function getFuncionarioById(
+  db: Db,
   id: number
-): Funcionario | undefined {
-  return db.prepare("SELECT * FROM FUNCIONARIOS WHERE id = ?").get(id) as
+): Promise<Funcionario | undefined> {
+  return (await db.prepare("SELECT * FROM FUNCIONARIOS WHERE id = ?").get(id)) as
     | Funcionario
     | undefined;
 }
 
-export function getFuncionarioByCedula(
-  db: Database.Database,
+export async function getFuncionarioByCedula(
+  db: Db,
   cedula: string
-): Funcionario | undefined {
+): Promise<Funcionario | undefined> {
   const n = normalizeCedula(cedula);
   if (!n) return undefined;
-  return db
+  return (await db
     .prepare(
       `SELECT * FROM FUNCIONARIOS
        WHERE replace(replace(replace(cedula, '.', ''), '-', ''), ' ', '') = ?`
     )
-    .get(n) as Funcionario | undefined;
+    .get(n)) as Funcionario | undefined;
 }
 
-export function insertFuncionario(db: Database.Database, data: FuncionarioInput): number {
+export async function insertFuncionario(db: Db, data: FuncionarioInput): Promise<number> {
   const cedula = validateCedula(data.cedula);
   const nombre = data.nombre.trim();
   const apellido = data.apellido.trim();
   if (!nombre) throw new Error("El nombre es obligatorio.");
   if (!apellido) throw new Error("El apellido es obligatorio.");
-  if (getFuncionarioByCedula(db, cedula)) {
+  if (await getFuncionarioByCedula(db, cedula)) {
     throw new Error("Ya existe un funcionario con esa cédula.");
   }
 
-  const result = db
+  const result = await db
     .prepare(
       `INSERT INTO FUNCIONARIOS (
         cedula, nombre, apellido, domicilio, ciudad, departamento,
@@ -179,12 +143,12 @@ export function insertFuncionario(db: Database.Database, data: FuncionarioInput)
   return Number(result.lastInsertRowid);
 }
 
-export function updateFuncionario(
-  db: Database.Database,
+export async function updateFuncionario(
+  db: Db,
   id: number,
   data: FuncionarioInput
-): boolean {
-  const existing = getFuncionarioById(db, id);
+): Promise<boolean> {
+  const existing = await getFuncionarioById(db, id);
   if (!existing) return false;
 
   const cedula = validateCedula(data.cedula);
@@ -193,13 +157,13 @@ export function updateFuncionario(
   if (!nombre) throw new Error("El nombre es obligatorio.");
   if (!apellido) throw new Error("El apellido es obligatorio.");
 
-  const otro = getFuncionarioByCedula(db, cedula);
+  const otro = await getFuncionarioByCedula(db, cedula);
   if (otro && otro.id !== id) {
     throw new Error("Ya existe otro funcionario con esa cédula.");
   }
 
   return (
-    db
+    await db
       .prepare(
         `UPDATE FUNCIONARIOS SET
           cedula = @cedula, nombre = @nombre, apellido = @apellido,
@@ -208,7 +172,7 @@ export function updateFuncionario(
           tipo_cuenta = @tipo_cuenta, titular_cuenta = @titular_cuenta,
           celular = @celular, email = @email,
           activo = @activo,
-          actualizado_en = datetime('now', 'localtime')
+          actualizado_en = NOW()
         WHERE id = @id`
       )
       .run({
@@ -227,25 +191,25 @@ export function updateFuncionario(
         celular: (data.celular ?? "").trim(),
         email: normalizeEmail(data.email ?? ""),
         activo: data.activo === false ? 0 : 1,
-      }).changes > 0
-  );
+      })
+  ).changes > 0;
 }
 
-export function deleteFuncionario(db: Database.Database, id: number): boolean {
-  const row = getFuncionarioById(db, id);
+export async function deleteFuncionario(db: Db, id: number): Promise<boolean> {
+  const row = await getFuncionarioById(db, id);
   if (!row) return false;
-  const { n } = db
+  const { n } = (await db
     .prepare(
       `SELECT COUNT(*) AS n FROM PRESUPUESTO
        WHERE replace(replace(replace(funcionario_cedula, '.', ''), '-', ''), ' ', '') = ?`
     )
-    .get(normalizeCedula(row.cedula)) as { n: number };
+    .get(normalizeCedula(row.cedula))) as { n: number };
   if (n > 0) {
     throw new Error(
       "No se puede eliminar: hay gastos vinculados a esta cédula. Desactivá el funcionario."
     );
   }
-  return db.prepare("DELETE FROM FUNCIONARIOS WHERE id = ?").run(id).changes > 0;
+  return (await db.prepare("DELETE FROM FUNCIONARIOS WHERE id = ?").run(id)).changes > 0;
 }
 
 export function nombreFuncionarioDisplay(f: {
@@ -262,16 +226,15 @@ export function esRubroRemuneracion(rubro: string, subRubro = ""): boolean {
   );
 }
 
-export function getFuncionarioByNombreDisplay(
-  db: Database.Database,
+export async function getFuncionarioByNombreDisplay(
+  db: Db,
   nombreDisplay: string
-): Funcionario | undefined {
+): Promise<Funcionario | undefined> {
   const v = nombreDisplay.trim();
   if (!v) return undefined;
-  for (const f of listFuncionarios(db, { soloActivos: true })) {
+  for (const f of await listFuncionarios(db, { soloActivos: true })) {
     if (
-      nombreFuncionarioDisplay(f).localeCompare(v, "es", { sensitivity: "accent" }) ===
-      0
+      nombreFuncionarioDisplay(f).localeCompare(v, "es", { sensitivity: "accent" }) === 0
     ) {
       return f;
     }
@@ -279,12 +242,14 @@ export function getFuncionarioByNombreDisplay(
   return undefined;
 }
 
-export function listFuncionariosParaSelector(db: Database.Database): Array<{
-  cedula: string;
-  label: string;
-  nombre_display: string;
-}> {
-  return listFuncionarios(db, { soloActivos: true }).map((f) => ({
+export async function listFuncionariosParaSelector(db: Db): Promise<
+  Array<{
+    cedula: string;
+    label: string;
+    nombre_display: string;
+  }>
+> {
+  return (await listFuncionarios(db, { soloActivos: true })).map((f) => ({
     cedula: f.cedula,
     label: `${formatCedulaDisplay(f.cedula)} — ${nombreFuncionarioDisplay(f)}`,
     nombre_display: nombreFuncionarioDisplay(f),

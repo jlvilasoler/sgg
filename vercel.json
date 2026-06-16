@@ -8,7 +8,7 @@
   ],
   "functions": {
     "api/index.ts": {
-      "includeFiles": "{server/dist/**,server/node_modules/better-sqlite3/**,node_modules/better-sqlite3/**}",
+      "includeFiles": "{server/dist/**,server/supabase/**}",
       "maxDuration": 10,
       "memory": 1024
     }

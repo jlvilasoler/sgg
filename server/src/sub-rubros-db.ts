@@ -1,4 +1,4 @@
-import type Database from "better-sqlite3";
+import type { Db } from "./db/pg-client.js";
 import {
   getRubroByNombre,
   insertRubro,
@@ -26,97 +26,51 @@ export interface SubRubroInput {
   activo?: boolean;
 }
 
-export function initSubRubrosTable(db: Database.Database): void {
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS SUB_RUBROS (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      nombre TEXT NOT NULL UNIQUE COLLATE NOCASE,
-      grupo TEXT NOT NULL,
-      activo INTEGER NOT NULL DEFAULT 1,
-      creado_en TEXT DEFAULT (datetime('now', 'localtime'))
-    );
-    CREATE INDEX IF NOT EXISTS idx_sub_rubros_activo ON SUB_RUBROS(activo);
-    CREATE INDEX IF NOT EXISTS idx_sub_rubros_grupo ON SUB_RUBROS(grupo);
-  `);
-  seedSubRubrosIfEmpty(db);
-  migrateRacinesARaciones(db);
-  migrateUnificarGruposSubRubros(db);
-  migrateRenombrarGrupoAlambrados(db);
-  syncSubRubrosFromPresupuesto(db);
+export async function initSubRubrosTable(db: Db): Promise<void> {
+  await seedSubRubrosIfEmpty(db);
+  await migrateRenombrarGrupoAlambrados(db);
+  await syncSubRubrosFromPresupuesto(db);
 }
 
 /** Rubro-grupo correcto: «Alambrados» (no «Alambrados y cerramientos»). */
-export function migrateRenombrarGrupoAlambrados(db: Database.Database): void {
-  const rows = db
+export async function migrateRenombrarGrupoAlambrados(db: Db): Promise<void> {
+  const rows = (await db
     .prepare("SELECT id, grupo FROM SUB_RUBROS")
-    .all() as { id: number; grupo: string }[];
-  const update = db.prepare("UPDATE SUB_RUBROS SET grupo = ? WHERE id = ?");
+    .all()) as { id: number; grupo: string }[];
+  const update = await db.prepare("UPDATE SUB_RUBROS SET grupo = ? WHERE id = ?");
   for (const row of rows) {
     if (esGrupoAlambradosLegacy(row.grupo)) {
-      update.run(GRUPO_ALAMBRADOS, row.id);
+      await update.run(GRUPO_ALAMBRADOS, row.id);
     }
   }
 }
 
-/**
- * Unifica variantes del mismo rubro-grupo (ej. «Alambrados y cerramientos» vs «Alambrados Y Cerramientos»)
- * tras corregir normalizarTituloRubro (la «y» ya no pasa a mayúscula al guardar).
- */
-function migrateUnificarGruposSubRubros(db: Database.Database): void {
-  const rows = db
-    .prepare("SELECT id, grupo FROM SUB_RUBROS")
-    .all() as { id: number; grupo: string }[];
-  if (!rows.length) return;
-
-  const canonPorClave = new Map<string, string>();
-  for (const row of rows) {
-    const clave = row.grupo.toLocaleLowerCase("es-UY");
-    const canon = normalizarTituloRubro(row.grupo);
-    const prev = canonPorClave.get(clave);
-    if (!prev) canonPorClave.set(clave, canon);
-    else if (prev !== canon) {
-      const elige =
-        prev.includes(" y ") || (!prev.includes(" Y ") && canon.includes(" Y "))
-          ? prev
-          : canon;
-      canonPorClave.set(clave, elige);
-    }
-  }
-
-  const update = db.prepare("UPDATE SUB_RUBROS SET grupo = ? WHERE id = ?");
-  const tx = db.transaction(() => {
-    for (const row of rows) {
-      const clave = row.grupo.toLocaleLowerCase("es-UY");
-      const canon = canonPorClave.get(clave);
-      if (canon && canon !== row.grupo) update.run(canon, row.id);
-    }
-  });
-  tx();
-}
+async function migrateUnificarGruposSubRubros(_db: Db): Promise<void> {}
 
 /** Llamar después de initGrupoIconosTable. */
-export function migrateUnificarGruposIconos(db: Database.Database): void {
-  const exists = db
+export async function migrateUnificarGruposIconos(db: Db): Promise<void> {
+  const exists = await db
     .prepare(
-      "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'GRUPO_ICONOS'"
+      `SELECT 1 FROM information_schema.tables
+       WHERE table_schema = 'public' AND lower(table_name) = 'grupo_iconos' LIMIT 1`
     )
     .get();
   if (!exists) return;
 
-  const iconRows = db
+  const iconRows = (await db
     .prepare("SELECT id, grupo FROM GRUPO_ICONOS")
-    .all() as { id: number; grupo: string }[];
+    .all()) as { id: number; grupo: string }[];
   for (const row of iconRows) {
     if (esGrupoAlambradosLegacy(row.grupo)) {
-      const dup = db
+      const dup = (await db
         .prepare(
-          "SELECT id FROM GRUPO_ICONOS WHERE grupo = ? COLLATE NOCASE AND id != ?"
+          "SELECT id FROM GRUPO_ICONOS WHERE LOWER(grupo) = LOWER(?) AND id != ?"
         )
-        .get(GRUPO_ALAMBRADOS, row.id) as { id: number } | undefined;
+        .get(GRUPO_ALAMBRADOS, row.id)) as { id: number } | undefined;
       if (dup) {
-        db.prepare("DELETE FROM GRUPO_ICONOS WHERE id = ?").run(row.id);
+        await db.prepare("DELETE FROM GRUPO_ICONOS WHERE id = ?").run(row.id);
       } else {
-        db.prepare("UPDATE GRUPO_ICONOS SET grupo = ? WHERE id = ?").run(
+        await db.prepare("UPDATE GRUPO_ICONOS SET grupo = ? WHERE id = ?").run(
           GRUPO_ALAMBRADOS,
           row.id
         );
@@ -125,112 +79,94 @@ export function migrateUnificarGruposIconos(db: Database.Database): void {
     }
     const canon = normalizarTituloRubro(row.grupo);
     if (!canon || canon === row.grupo) continue;
-    const dup = db
-      .prepare("SELECT id FROM GRUPO_ICONOS WHERE grupo = ? COLLATE NOCASE AND id != ?")
-      .get(canon, row.id) as { id: number } | undefined;
+    const dup = (await db
+      .prepare("SELECT id FROM GRUPO_ICONOS WHERE LOWER(grupo) = LOWER(?) AND id != ?")
+      .get(canon, row.id)) as { id: number } | undefined;
     if (dup) {
-      db.prepare("DELETE FROM GRUPO_ICONOS WHERE id = ?").run(row.id);
+      await db.prepare("DELETE FROM GRUPO_ICONOS WHERE id = ?").run(row.id);
     } else {
-      db.prepare("UPDATE GRUPO_ICONOS SET grupo = ? WHERE id = ?").run(canon, row.id);
+      await db.prepare("UPDATE GRUPO_ICONOS SET grupo = ? WHERE id = ?").run(canon, row.id);
     }
   }
 }
 
-/** Corrección de nombre en catálogo y gastos existentes. */
-function migrateRacinesARaciones(db: Database.Database): void {
-  const viejo = getSubRubroByNombre(db, "Racines");
-  if (!viejo) return;
-  const nuevo = getSubRubroByNombre(db, "Raciones");
-  if (nuevo && nuevo.id !== viejo.id) return;
+async function migrateRacinesARaciones(_db: Db): Promise<void> {}
 
-  db.prepare("UPDATE SUB_RUBROS SET nombre = 'Raciones' WHERE id = ?").run(viejo.id);
-
-  const cols = db.prepare("PRAGMA table_info(PRESUPUESTO)").all() as { name: string }[];
-  if (cols.some((c) => c.name === "sub_rubro")) {
-    db.prepare(
-      `UPDATE PRESUPUESTO SET sub_rubro = 'Raciones'
-       WHERE sub_rubro = 'Racines' COLLATE NOCASE`
-    ).run();
-  }
-}
-
-function seedSubRubrosIfEmpty(db: Database.Database): void {
-  const { n } = db.prepare("SELECT COUNT(*) AS n FROM SUB_RUBROS").get() as { n: number };
+async function seedSubRubrosIfEmpty(db: Db): Promise<void> {
+  const { n } = (await db.prepare("SELECT COUNT(*) AS n FROM SUB_RUBROS").get()) as { n: number };
   if (n > 0) return;
 
-  const insert = db.prepare(
-    "INSERT INTO SUB_RUBROS (nombre, grupo, activo) VALUES (@nombre, @grupo, 1)"
-  );
-  const tx = db.transaction((items: typeof SUB_RUBROS_SEED) => {
-    for (const item of items) {
-      insert.run({ nombre: item.nombre, grupo: item.grupo });
+  await db.transaction(async (tx) => {
+    const insert = await tx.prepare(
+      "INSERT INTO SUB_RUBROS (nombre, grupo, activo) VALUES (@nombre, @grupo, 1)"
+    );
+    for (const item of SUB_RUBROS_SEED) {
+      await insert.run({ nombre: item.nombre, grupo: item.grupo });
     }
   });
-  tx(SUB_RUBROS_SEED);
 }
 
-function syncSubRubrosFromPresupuesto(db: Database.Database): void {
-  const cols = db.prepare("PRAGMA table_info(PRESUPUESTO)").all() as { name: string }[];
-  if (!cols.some((c) => c.name === "sub_rubro")) return;
-
-  const rows = db
+async function syncSubRubrosFromPresupuesto(db: Db): Promise<void> {
+  const rows = (await db
     .prepare(
       `SELECT DISTINCT sub_rubro FROM PRESUPUESTO
        WHERE sub_rubro IS NOT NULL AND trim(sub_rubro) != ''`
     )
-    .all() as { sub_rubro: string }[];
+    .all()) as { sub_rubro: string }[];
 
-  const insert = db.prepare(
-    "INSERT OR IGNORE INTO SUB_RUBROS (nombre, grupo, activo) VALUES (@nombre, @grupo, 1)"
+  const insert = await db.prepare(
+    `INSERT INTO SUB_RUBROS (nombre, grupo, activo)
+     SELECT @nombre, @grupo, 1
+     WHERE NOT EXISTS (SELECT 1 FROM SUB_RUBROS WHERE LOWER(nombre) = LOWER(@nombre))`
   );
   for (const r of rows) {
-    insert.run({ nombre: r.sub_rubro.trim(), grupo: "Importado" });
+    await insert.run({ nombre: r.sub_rubro.trim(), grupo: "Importado" });
   }
 }
 
-export function listSubRubros(db: Database.Database, soloActivos = false): SubRubro[] {
+export async function listSubRubros(db: Db, soloActivos = false): Promise<SubRubro[]> {
   let query = "SELECT * FROM SUB_RUBROS";
   if (soloActivos) query += " WHERE activo = 1";
-  query += " ORDER BY grupo COLLATE NOCASE ASC, nombre COLLATE NOCASE ASC";
-  return db.prepare(query).all() as SubRubro[];
+  query += " ORDER BY LOWER(grupo) ASC, LOWER(nombre) ASC";
+  return (await db.prepare(query).all()) as SubRubro[];
 }
 
-export function listSubRubrosNombres(db: Database.Database): string[] {
-  return listSubRubros(db, true).map((r) => r.nombre);
+export async function listSubRubrosNombres(db: Db): Promise<string[]> {
+  return (await listSubRubros(db, true)).map((r) => r.nombre);
 }
 
-export function listSubRubrosGrupos(db: Database.Database): string[] {
-  const fromDb = db
-    .prepare(
-      `SELECT DISTINCT grupo FROM SUB_RUBROS ORDER BY grupo COLLATE NOCASE ASC`
-    )
-    .all() as { grupo: string }[];
+export async function listSubRubrosGrupos(db: Db): Promise<string[]> {
+  const fromDb = (await db
+    .prepare(`SELECT DISTINCT grupo FROM SUB_RUBROS ORDER BY LOWER(grupo) ASC`)
+    .all()) as { grupo: string }[];
   const set = new Set<string>([...GRUPOS_SUB_RUBRO, ...fromDb.map((r) => r.grupo)]);
   return [...set].sort((a, b) => a.localeCompare(b, "es"));
 }
 
-export function getSubRubroById(db: Database.Database, id: number): SubRubro | undefined {
-  return db.prepare("SELECT * FROM SUB_RUBROS WHERE id = ?").get(id) as SubRubro | undefined;
+export async function getSubRubroById(db: Db, id: number): Promise<SubRubro | undefined> {
+  return (await db.prepare("SELECT * FROM SUB_RUBROS WHERE id = ?").get(id)) as
+    | SubRubro
+    | undefined;
 }
 
-export function getSubRubroByNombre(
-  db: Database.Database,
+export async function getSubRubroByNombre(
+  db: Db,
   nombre: string
-): SubRubro | undefined {
-  return db
-    .prepare("SELECT * FROM SUB_RUBROS WHERE nombre = ? COLLATE NOCASE")
-    .get(nombre.trim()) as SubRubro | undefined;
+): Promise<SubRubro | undefined> {
+  return (await db
+    .prepare("SELECT * FROM SUB_RUBROS WHERE LOWER(nombre) = LOWER(?)")
+    .get(nombre.trim())) as SubRubro | undefined;
 }
 
-export function insertSubRubro(db: Database.Database, data: SubRubroInput): number {
+export async function insertSubRubro(db: Db, data: SubRubroInput): Promise<number> {
   const nombre = normalizarTituloRubro(data.nombre);
   const grupo = normalizarTituloRubro(data.grupo);
   if (!nombre) throw new Error("El nombre del sub-rubro es obligatorio.");
   if (!grupo) throw new Error("El grupo del sub-rubro es obligatorio.");
-  if (getSubRubroByNombre(db, nombre)) {
+  if (await getSubRubroByNombre(db, nombre)) {
     throw new Error("Ya existe un sub-rubro con ese nombre.");
   }
-  const result = db
+  const result = await db
     .prepare(
       "INSERT INTO SUB_RUBROS (nombre, grupo, activo) VALUES (@nombre, @grupo, @activo)"
     )
@@ -238,21 +174,21 @@ export function insertSubRubro(db: Database.Database, data: SubRubroInput): numb
   return Number(result.lastInsertRowid);
 }
 
-export function updateSubRubro(
-  db: Database.Database,
+export async function updateSubRubro(
+  db: Db,
   id: number,
   data: SubRubroInput
-): boolean {
+): Promise<boolean> {
   const nombre = normalizarTituloRubro(data.nombre);
   const grupo = normalizarTituloRubro(data.grupo);
   if (!nombre) throw new Error("El nombre del sub-rubro es obligatorio.");
   if (!grupo) throw new Error("El grupo del sub-rubro es obligatorio.");
-  const existing = getSubRubroByNombre(db, nombre);
+  const existing = await getSubRubroByNombre(db, nombre);
   if (existing && existing.id !== id) {
     throw new Error("Ya existe otro sub-rubro con ese nombre.");
   }
   return (
-    db
+    await db
       .prepare(
         "UPDATE SUB_RUBROS SET nombre = @nombre, grupo = @grupo, activo = @activo WHERE id = @id"
       )
@@ -261,8 +197,8 @@ export function updateSubRubro(
         nombre,
         grupo,
         activo: data.activo === false ? 0 : 1,
-      }).changes > 0
-  );
+      })
+  ).changes > 0;
 }
 
 export type DeleteGrupoResult = {
@@ -271,11 +207,11 @@ export type DeleteGrupoResult = {
 };
 
 /** Renombra el rubro (grupo) y propaga el cambio a gastos y catálogo RUBROS. */
-export function renameSubRubroGrupo(
-  db: Database.Database,
+export async function renameSubRubroGrupo(
+  db: Db,
   grupoAnterior: string,
   grupoNuevo: string
-): number {
+): Promise<number> {
   const anterior = normalizarTituloRubro(grupoAnterior);
   const nuevo = normalizarTituloRubro(grupoNuevo);
   if (!anterior) throw new Error("El rubro actual no es válido.");
@@ -284,80 +220,73 @@ export function renameSubRubroGrupo(
     return 0;
   }
 
-  const conflictoGrupo = db
-    .prepare(
-      `SELECT grupo FROM SUB_RUBROS WHERE grupo = @nuevo COLLATE NOCASE LIMIT 1`
-    )
-    .get({ nuevo }) as { grupo: string } | undefined;
+  const conflictoGrupo = (await db
+    .prepare(`SELECT grupo FROM SUB_RUBROS WHERE LOWER(grupo) = LOWER(@nuevo) LIMIT 1`)
+    .get({ nuevo })) as { grupo: string } | undefined;
   if (
     conflictoGrupo &&
-    conflictoGrupo.grupo.localeCompare(anterior, "es", { sensitivity: "accent" }) !==
-      0
+    conflictoGrupo.grupo.localeCompare(anterior, "es", { sensitivity: "accent" }) !== 0
   ) {
     throw new Error(`Ya existe el rubro «${conflictoGrupo.grupo}».`);
   }
 
-  const { n: cantSubs } = db
-    .prepare(
-      "SELECT COUNT(*) AS n FROM SUB_RUBROS WHERE grupo = @anterior COLLATE NOCASE"
-    )
-    .get({ anterior }) as { n: number };
+  const { n: cantSubs } = (await db
+    .prepare("SELECT COUNT(*) AS n FROM SUB_RUBROS WHERE LOWER(grupo) = LOWER(@anterior)")
+    .get({ anterior })) as { n: number };
   if (cantSubs === 0) {
     throw new Error(`No hay sub-rubros bajo «${anterior}».`);
   }
 
-  const rubroOrigen = getRubroByNombre(db, anterior);
-  const rubroDestino = getRubroByNombre(db, nuevo);
+  const rubroOrigen = await getRubroByNombre(db, anterior);
+  const rubroDestino = await getRubroByNombre(db, nuevo);
   if (rubroDestino && (!rubroOrigen || rubroDestino.id !== rubroOrigen.id)) {
     throw new Error("Ya existe otro rubro en el catálogo con ese nombre.");
   }
 
-  const renombrar = db.transaction(() => {
-    const upd = db
+  return db.transaction(async (tx) => {
+    const upd = await tx
       .prepare(
         `UPDATE SUB_RUBROS SET grupo = @nuevo
-         WHERE grupo = @anterior COLLATE NOCASE`
+         WHERE LOWER(grupo) = LOWER(@anterior)`
       )
       .run({ anterior, nuevo });
 
-    db.prepare(
+    await tx.prepare(
       `UPDATE PRESUPUESTO SET rubro = @nuevo
-       WHERE rubro = @anterior COLLATE NOCASE`
+       WHERE LOWER(rubro) = LOWER(@anterior)`
     ).run({ anterior, nuevo });
 
     if (rubroOrigen) {
-      updateRubro(db, rubroOrigen.id, {
+      await updateRubro(db, rubroOrigen.id, {
         nombre: nuevo,
         activo: rubroOrigen.activo !== 0,
       });
     } else if (!rubroDestino) {
       try {
-        insertRubro(db, { nombre: nuevo, activo: true });
+        await insertRubro(db, { nombre: nuevo, activo: true });
       } catch (e) {
-        if (!getRubroByNombre(db, nuevo)) throw e;
+        if (!(await getRubroByNombre(db, nuevo))) throw e;
       }
     }
 
     return upd.changes;
   });
-
-  return renombrar();
 }
 
-export function deleteSubRubrosByGrupo(
-  db: Database.Database,
+export async function deleteSubRubrosByGrupo(
+  db: Db,
   grupo: string
-): DeleteGrupoResult {
+): Promise<DeleteGrupoResult> {
   const g = grupo.trim();
   if (!g) throw new Error("El nombre del rubro (grupo) es obligatorio.");
-  const rows = db
-    .prepare("SELECT id, nombre FROM SUB_RUBROS WHERE grupo = ? COLLATE NOCASE")
-    .all(g) as { id: number; nombre: string }[];
+  const rows = (await db
+    .prepare("SELECT id, nombre FROM SUB_RUBROS WHERE LOWER(grupo) = LOWER(?)")
+    .all(g)) as { id: number; nombre: string }[];
   const blocked: DeleteGrupoResult["blocked"] = [];
   let deleted = 0;
   for (const row of rows) {
     try {
-      if (deleteSubRubro(db, row.id)) deleted++;
+      if (await deleteSubRubro(db, row.id)) deleted++;
     } catch (e) {
       blocked.push({ nombre: row.nombre, razon: (e as Error).message });
     }
@@ -365,31 +294,24 @@ export function deleteSubRubrosByGrupo(
   return { deleted, blocked };
 }
 
-export function deleteSubRubro(db: Database.Database, id: number): boolean {
-  const row = getSubRubroById(db, id);
+export async function deleteSubRubro(db: Db, id: number): Promise<boolean> {
+  const row = await getSubRubroById(db, id);
   if (!row) return false;
-  const cols = db.prepare("PRAGMA table_info(PRESUPUESTO)").all() as { name: string }[];
-  if (cols.some((c) => c.name === "sub_rubro")) {
-    const used = db
-      .prepare(
-        "SELECT COUNT(*) AS n FROM PRESUPUESTO WHERE sub_rubro = ? COLLATE NOCASE"
-      )
-      .get(row.nombre) as { n: number };
-    if (used.n > 0) {
-      throw new Error(
-        `No se puede eliminar: hay ${used.n} gasto(s) con este sub-rubro. Desactivalo en su lugar.`
-      );
-    }
+  const used = (await db
+    .prepare("SELECT COUNT(*) AS n FROM PRESUPUESTO WHERE LOWER(sub_rubro) = LOWER(?)")
+    .get(row.nombre)) as { n: number };
+  if (used.n > 0) {
+    throw new Error(
+      `No se puede eliminar: hay ${used.n} gasto(s) con este sub-rubro. Desactivalo en su lugar.`
+    );
   }
-  db.prepare("DELETE FROM RUBRO_SUB_RUBROS WHERE sub_rubro_id = ?").run(id);
-  return db.prepare("DELETE FROM SUB_RUBROS WHERE id = ?").run(id).changes > 0;
+  await db.prepare("DELETE FROM RUBRO_SUB_RUBROS WHERE sub_rubro_id = ?").run(id);
+  return (await db.prepare("DELETE FROM SUB_RUBROS WHERE id = ?").run(id)).changes > 0;
 }
 
-export function subRubroExistsActivo(db: Database.Database, nombre: string): boolean {
-  const row = db
-    .prepare(
-      "SELECT 1 FROM SUB_RUBROS WHERE nombre = ? COLLATE NOCASE AND activo = 1"
-    )
+export async function subRubroExistsActivo(db: Db, nombre: string): Promise<boolean> {
+  const row = await db
+    .prepare("SELECT 1 FROM SUB_RUBROS WHERE LOWER(nombre) = LOWER(?) AND activo = 1")
     .get(nombre.trim());
   return !!row;
 }

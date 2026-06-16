@@ -91,7 +91,7 @@ export function moduleFromApiPath(path: string): Modulo | null {
   return null;
 }
 
-export function authMiddleware(req: Request, res: Response, next: NextFunction): void {
+export async function authMiddleware(req: Request, res: Response, next: NextFunction): Promise<void> {
   const path = req.path;
 
   if (!path.startsWith("/api")) {
@@ -116,7 +116,7 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction):
     return;
   }
 
-  const user = authDb.getUserBySessionToken(db, token);
+  const user = await authDb.getUserBySessionToken(db, token);
 
   if (!user) {
     res.status(401).json({ ok: false, error: "Sesión no válida o expirada" });
@@ -155,70 +155,68 @@ function requireAdmin(req: Request, res: Response): boolean {
 }
 
 export function registerAuthRoutes(app: Express): void {
-  app.post("/api/auth/login", loginRateLimiter, (req, res) => {
-    void (async () => {
-      try {
-        const email = String(req.body?.email ?? "").trim().slice(0, 254);
-        const password = String(req.body?.password ?? "").slice(0, 128);
+  app.post("/api/auth/login", loginRateLimiter, async (req, res) => {
+    try {
+      const email = String(req.body?.email ?? "").trim().slice(0, 254);
+      const password = String(req.body?.password ?? "").slice(0, 128);
 
-        if (!email || !password) {
-          res.status(400).json({ ok: false, error: "Email y contraseña requeridos" });
-          return;
-        }
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-          res.status(400).json({ ok: false, error: "Email o contraseña incorrectos" });
-          return;
-        }
-
-        const db = getDb();
-        const ip = clientIp(req);
-        const result = authDb.verifyLogin(db, email, password, {
-          ip,
-          userAgent: req.headers["user-agent"],
-        });
-
-        if (!result.ok) {
-          await artificialLoginDelay();
-          const msg =
-            result.reason === "locked"
-              ? "Cuenta bloqueada temporalmente por intentos fallidos. Probá más tarde."
-              : "Email o contraseña incorrectos";
-          res.status(401).json({ ok: false, error: msg });
-          return;
-        }
-
-        const token = authDb.createSession(db, result.user.id, {
-          ip,
-          userAgent: req.headers["user-agent"],
-        });
-
-        res.cookie(SESSION_COOKIE, token, cookieOptions());
-        res.json({ ok: true, data: result.user });
-      } catch (e) {
-        res.status(500).json({
-          ok: false,
-          error: "Error al iniciar sesión",
-        });
+      if (!email || !password) {
+        res.status(400).json({ ok: false, error: "Email y contraseña requeridos" });
+        return;
       }
-    })();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        res.status(400).json({ ok: false, error: "Email o contraseña incorrectos" });
+        return;
+      }
+
+      const db = getDb();
+      const ip = clientIp(req);
+      const result = await authDb.verifyLogin(db, email, password, {
+        ip,
+        userAgent: req.headers["user-agent"],
+      });
+
+      if (!result.ok) {
+        await artificialLoginDelay();
+        const msg =
+          result.reason === "locked"
+            ? "Cuenta bloqueada temporalmente por intentos fallidos. Probá más tarde."
+            : "Email o contraseña incorrectos";
+        res.status(401).json({ ok: false, error: msg });
+        return;
+      }
+
+      const token = await authDb.createSession(db, result.user.id, {
+        ip,
+        userAgent: req.headers["user-agent"],
+      });
+
+      res.cookie(SESSION_COOKIE, token, cookieOptions());
+      res.json({ ok: true, data: result.user });
+    } catch {
+      res.status(500).json({
+        ok: false,
+        error: "Error al iniciar sesión",
+      });
+    }
   });
 
-  app.post("/api/auth/logout", (req, res) => {
+  app.post("/api/auth/logout", async (req, res) => {
     const token = req.cookies?.[SESSION_COOKIE] as string | undefined;
     if (token) {
-      authDb.deleteSession(getDb(), token);
+      await authDb.deleteSession(getDb(), token);
     }
     clearSessionCookie(res);
     res.json({ ok: true });
   });
 
-  app.get("/api/auth/me", (req, res) => {
+  app.get("/api/auth/me", async (req, res) => {
     const token = req.cookies?.[SESSION_COOKIE] as string | undefined;
     if (!isValidSessionTokenFormat(token)) {
       res.status(401).json({ ok: false, error: "No autenticado" });
       return;
     }
-    const user = authDb.getUserBySessionToken(getDb(), token);
+    const user = await authDb.getUserBySessionToken(getDb(), token);
     if (!user) {
       res.status(401).json({ ok: false, error: "No autenticado" });
       return;
@@ -226,13 +224,13 @@ export function registerAuthRoutes(app: Express): void {
     res.json({ ok: true, data: user });
   });
 
-  app.post("/api/auth/cambiar-password", (req, res) => {
+  app.post("/api/auth/cambiar-password", async (req, res) => {
     const token = req.cookies?.[SESSION_COOKIE] as string | undefined;
     if (!isValidSessionTokenFormat(token)) {
       res.status(401).json({ ok: false, error: "No autenticado" });
       return;
     }
-    const user = authDb.getUserBySessionToken(getDb(), token);
+    const user = await authDb.getUserBySessionToken(getDb(), token);
     if (!user) {
       res.status(401).json({ ok: false, error: "No autenticado" });
       return;
@@ -241,7 +239,7 @@ export function registerAuthRoutes(app: Express): void {
     try {
       const actual = String(req.body?.password_actual ?? "").slice(0, 128);
       const nueva = String(req.body?.password_nueva ?? "").slice(0, 128);
-      authDb.changeOwnPassword(getDb(), user.id, actual, nueva);
+      await authDb.changeOwnPassword(getDb(), user.id, actual, nueva);
       clearSessionCookie(res);
       res.json({
         ok: true,
@@ -255,12 +253,12 @@ export function registerAuthRoutes(app: Express): void {
     }
   });
 
-  app.get("/api/auth/users", (req, res) => {
+  app.get("/api/auth/users", async (req, res) => {
     if (!requireAdmin(req, res)) return;
-    res.json({ ok: true, data: authDb.listUsers(getDb()) });
+    res.json({ ok: true, data: await authDb.listUsers(getDb()) });
   });
 
-  app.post("/api/auth/users", (req, res) => {
+  app.post("/api/auth/users", async (req, res) => {
     if (!requireAdmin(req, res)) return;
     try {
       const data = {
@@ -274,8 +272,8 @@ export function registerAuthRoutes(app: Express): void {
         res.status(400).json({ ok: false, error: "Rol inválido" });
         return;
       }
-      const user = authDb.insertUser(getDb(), data);
-      authDb.recordAuthEvent(getDb(), "user_created", {
+      const user = await authDb.insertUser(getDb(), data);
+      await authDb.recordAuthEvent(getDb(), "user_created", {
         email: user.email,
         detalle: `rol=${user.rol}`,
       });
@@ -288,7 +286,7 @@ export function registerAuthRoutes(app: Express): void {
     }
   });
 
-  app.patch("/api/auth/users/:id", (req, res) => {
+  app.patch("/api/auth/users/:id", async (req, res) => {
     if (!requireAdmin(req, res)) return;
     try {
       const id = Number(req.params.id);
@@ -311,7 +309,7 @@ export function registerAuthRoutes(app: Express): void {
       if (body.activo !== undefined) updateData.activo = Boolean(body.activo);
       if (body.password) updateData.password = String(body.password);
 
-      const current = authDb.getUserById(getDb(), id);
+      const current = await authDb.getUserById(getDb(), id);
       if (!current) {
         res.status(404).json({ ok: false, error: "Usuario no encontrado" });
         return;
@@ -320,7 +318,7 @@ export function registerAuthRoutes(app: Express): void {
       if (
         updateData.activo === false &&
         current.rol === "admin" &&
-        authDb.countActiveAdmins(getDb(), id) === 0
+        await authDb.countActiveAdmins(getDb(), id) === 0
       ) {
         res.status(400).json({
           ok: false,
@@ -333,7 +331,7 @@ export function registerAuthRoutes(app: Express): void {
         updateData.rol &&
         updateData.rol !== "admin" &&
         current.rol === "admin" &&
-        authDb.countActiveAdmins(getDb(), id) === 0
+        await authDb.countActiveAdmins(getDb(), id) === 0
       ) {
         res.status(400).json({
           ok: false,
@@ -342,7 +340,7 @@ export function registerAuthRoutes(app: Express): void {
         return;
       }
 
-      const user = authDb.updateUser(getDb(), id, updateData);
+      const user = await authDb.updateUser(getDb(), id, updateData);
       res.json({ ok: true, data: user });
     } catch (e) {
       res.status(400).json({
@@ -352,12 +350,12 @@ export function registerAuthRoutes(app: Express): void {
     }
   });
 
-  app.get("/api/auth/role-permissions", (req, res) => {
+  app.get("/api/auth/role-permissions", async (req, res) => {
     if (!requireAdmin(req, res)) return;
-    res.json({ ok: true, data: authDb.listRolePermissions(getDb()) });
+    res.json({ ok: true, data: await authDb.listRolePermissions(getDb()) });
   });
 
-  app.patch("/api/auth/role-permissions/:rol", (req, res) => {
+  app.patch("/api/auth/role-permissions/:rol", async (req, res) => {
     if (!requireAdmin(req, res)) return;
     try {
       const rol = String(req.params.rol) as authDb.Rol;
@@ -366,11 +364,11 @@ export function registerAuthRoutes(app: Express): void {
         return;
       }
       const body = req.body ?? {};
-      const updated = authDb.updateRolePermissions(getDb(), rol, {
+      const updated = await authDb.updateRolePermissions(getDb(), rol, {
         puede_escribir: Boolean(body.puede_escribir),
         modulos: body.modulos ?? {},
       });
-      authDb.recordAuthEvent(getDb(), "role_permissions_updated", {
+      await authDb.recordAuthEvent(getDb(), "role_permissions_updated", {
         detalle: `rol=${rol}`,
       });
       res.json({ ok: true, data: updated });

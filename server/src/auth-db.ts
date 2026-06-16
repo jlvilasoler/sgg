@@ -1,6 +1,6 @@
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
-import type Database from "better-sqlite3";
+import type { Db } from "./db/pg-client.js";
 import {
   hashSessionToken,
   isValidSessionTokenFormat,
@@ -136,23 +136,23 @@ const DEFAULT_ROLE_ACCESS: Record<
   },
 };
 
-export function roleCapabilities(
-  db: Database.Database,
+export async function roleCapabilities(
+  db: Db,
   rol: Rol
-): { permisos: Modulo[]; puede_escribir: boolean } {
+): Promise<{ permisos: Modulo[]; puede_escribir: boolean }> {
   if (rol === "admin") {
     return { permisos: [...MODULOS], puede_escribir: true };
   }
 
-  const escRow = db
+  const escRow = (await db
     .prepare("SELECT puede_escribir FROM ROLE_ESCRITURA WHERE rol = ?")
-    .get(rol) as { puede_escribir: number } | undefined;
+    .get(rol)) as { puede_escribir: number } | undefined;
 
-  const modRows = db
+  const modRows = (await db
     .prepare(
       "SELECT modulo FROM ROLE_PERMISOS WHERE rol = ? AND acceso = 1 ORDER BY modulo"
     )
-    .all(rol) as { modulo: string }[];
+    .all(rol)) as { modulo: string }[];
 
   const permisos = modRows
     .map((r) => r.modulo as Modulo)
@@ -174,8 +174,8 @@ export function canWrite(rol: Rol): boolean {
   return DEFAULT_ROLE_ACCESS[rol].puede_escribir;
 }
 
-export function toUserPublic(row: UserRow, db: Database.Database): UserPublic {
-  const caps = roleCapabilities(db, row.rol);
+export async function toUserPublic(row: UserRow, db: Db): Promise<UserPublic> {
+  const caps = await roleCapabilities(db, row.rol);
   return {
     id: row.id,
     email: row.email,
@@ -194,139 +194,73 @@ function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
 }
 
-function ensureUserColumn(
-  db: Database.Database,
-  column: string,
-  definition: string
-): void {
-  const cols = db.prepare("PRAGMA table_info(USERS)").all() as { name: string }[];
-  if (!cols.some((c) => c.name === column)) {
-    db.exec(`ALTER TABLE USERS ADD COLUMN ${column} ${definition}`);
-  }
-}
-
 function assertPasswordPolicy(password: string): void {
   const err = validatePasswordStrength(password);
   if (err) throw new Error(err);
 }
 
-export function recordAuthEvent(
-  db: Database.Database,
+export async function recordAuthEvent(
+  db: Db,
   evento: string,
   meta?: { email?: string; ip?: string; userAgent?: string; detalle?: string }
-): void {
-  db.prepare(
-    `INSERT INTO AUTH_AUDIT_LOG (evento, email, ip, user_agent, detalle)
+): Promise<void> {
+  await db
+    .prepare(
+      `INSERT INTO AUTH_AUDIT_LOG (evento, email, ip, user_agent, detalle)
      VALUES (?, ?, ?, ?, ?)`
-  ).run(
-    evento,
-    meta?.email ?? null,
-    meta?.ip ?? null,
-    meta?.userAgent ?? null,
-    meta?.detalle ?? null
-  );
+    )
+    .run(
+      evento,
+      meta?.email ?? null,
+      meta?.ip ?? null,
+      meta?.userAgent ?? null,
+      meta?.detalle ?? null
+    );
 }
 
-export function initAuthTables(db: Database.Database): void {
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS USERS (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      email TEXT NOT NULL COLLATE NOCASE,
-      password_hash TEXT NOT NULL,
-      nombre TEXT NOT NULL,
-      rol TEXT NOT NULL CHECK (rol IN ('admin', 'editor', 'consulta')),
-      activo INTEGER NOT NULL DEFAULT 1,
-      creado_en TEXT DEFAULT (datetime('now', 'localtime')),
-      actualizado_en TEXT DEFAULT (datetime('now', 'localtime')),
-      ultimo_acceso TEXT
-    );
-    CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON USERS(email);
-
-    CREATE TABLE IF NOT EXISTS USER_SESSIONS (
-      id TEXT PRIMARY KEY,
-      user_id INTEGER NOT NULL,
-      creado_en TEXT DEFAULT (datetime('now', 'localtime')),
-      expira_en TEXT NOT NULL,
-      ip TEXT,
-      user_agent TEXT,
-      FOREIGN KEY (user_id) REFERENCES USERS(id) ON DELETE CASCADE
-    );
-    CREATE INDEX IF NOT EXISTS idx_sessions_user ON USER_SESSIONS(user_id);
-    CREATE INDEX IF NOT EXISTS idx_sessions_expira ON USER_SESSIONS(expira_en);
-
-    CREATE TABLE IF NOT EXISTS AUTH_AUDIT_LOG (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      evento TEXT NOT NULL,
-      email TEXT,
-      ip TEXT,
-      user_agent TEXT,
-      detalle TEXT,
-      creado_en TEXT DEFAULT (datetime('now', 'localtime'))
-    );
-    CREATE INDEX IF NOT EXISTS idx_auth_audit_creado ON AUTH_AUDIT_LOG(creado_en);
-  `);
-
-  ensureUserColumn(db, "failed_login_attempts", "INTEGER NOT NULL DEFAULT 0");
-  ensureUserColumn(db, "locked_until", "TEXT");
-
-  initRolePermissionsTables(db);
-  purgeExpiredSessions(db);
-  seedAdminIfEmpty(db);
-  migrateLegacyAdmin(db);
+export async function initAuthTables(db: Db): Promise<void> {
+  await seedRolePermissionsIfEmpty(db);
+  await purgeExpiredSessions(db);
+  await seedAdminIfEmpty(db);
+  await migrateLegacyAdmin(db);
 }
 
-function initRolePermissionsTables(db: Database.Database): void {
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS ROLE_ESCRITURA (
-      rol TEXT PRIMARY KEY CHECK (rol IN ('admin', 'editor', 'consulta')),
-      puede_escribir INTEGER NOT NULL DEFAULT 0,
-      actualizado_en TEXT DEFAULT (datetime('now', 'localtime'))
-    );
-
-    CREATE TABLE IF NOT EXISTS ROLE_PERMISOS (
-      rol TEXT NOT NULL CHECK (rol IN ('admin', 'editor', 'consulta')),
-      modulo TEXT NOT NULL,
-      acceso INTEGER NOT NULL DEFAULT 0,
-      PRIMARY KEY (rol, modulo)
-    );
-  `);
-  seedRolePermissionsIfEmpty(db);
-}
-
-function seedRolePermissionsIfEmpty(db: Database.Database): void {
-  const count = db
+async function seedRolePermissionsIfEmpty(db: Db): Promise<void> {
+  const count = (await db
     .prepare("SELECT COUNT(*) AS n FROM ROLE_ESCRITURA")
-    .get() as { n: number };
+    .get()) as { n: number };
   if (count.n > 0) return;
 
-  const insEsc = db.prepare(
+  const insEsc = await db.prepare(
     "INSERT INTO ROLE_ESCRITURA (rol, puede_escribir) VALUES (?, ?)"
   );
-  const insMod = db.prepare(
+  const insMod = await db.prepare(
     "INSERT INTO ROLE_PERMISOS (rol, modulo, acceso) VALUES (?, ?, ?)"
   );
 
   for (const rol of ["admin", "editor", "consulta"] as Rol[]) {
     const def = DEFAULT_ROLE_ACCESS[rol];
-    insEsc.run(rol, def.puede_escribir ? 1 : 0);
+    await insEsc.run(rol, def.puede_escribir ? 1 : 0);
     for (const modulo of MODULOS) {
-      insMod.run(rol, modulo, def.modulos.includes(modulo) ? 1 : 0);
+      await insMod.run(rol, modulo, def.modulos.includes(modulo) ? 1 : 0);
     }
   }
 }
 
-export function listRolePermissions(db: Database.Database): RolPermisosConfig[] {
+export async function listRolePermissions(db: Db): Promise<RolPermisosConfig[]> {
   const roles: Rol[] = ["admin", "editor", "consulta"];
-  return roles.map((rol) => {
-    const caps = roleCapabilities(db, rol);
-    const modRows = db
+  const result: RolPermisosConfig[] = [];
+
+  for (const rol of roles) {
+    const caps = await roleCapabilities(db, rol);
+    const modRows = (await db
       .prepare("SELECT modulo, acceso FROM ROLE_PERMISOS WHERE rol = ?")
-      .all(rol) as { modulo: string; acceso: number }[];
+      .all(rol)) as { modulo: string; acceso: number }[];
     const accesoMap = new Map(
       modRows.map((r) => [r.modulo as Modulo, r.acceso === 1])
     );
 
-    return {
+    result.push({
       rol,
       rol_label: ROL_LABELS[rol],
       descripcion: ROL_DESCRIPCION[rol],
@@ -337,15 +271,17 @@ export function listRolePermissions(db: Database.Database): RolPermisosConfig[] 
         acceso: rol === "admin" ? true : (accesoMap.get(modulo) ?? false),
       })),
       editable: rol !== "admin",
-    };
-  });
+    });
+  }
+
+  return result;
 }
 
-export function updateRolePermissions(
-  db: Database.Database,
+export async function updateRolePermissions(
+  db: Db,
   rol: Rol,
   input: RolPermisosInput
-): RolPermisosConfig {
+): Promise<RolPermisosConfig> {
   if (rol === "admin") {
     throw new Error("Los permisos del administrador no se pueden modificar");
   }
@@ -353,20 +289,20 @@ export function updateRolePermissions(
   const modulosInput = input.modulos ?? {};
   let enabledCount = 0;
 
-  const upsert = db.prepare(
+  const upsert = await db.prepare(
     `INSERT INTO ROLE_PERMISOS (rol, modulo, acceso)
      VALUES (?, ?, ?)
-     ON CONFLICT(rol, modulo) DO UPDATE SET acceso = excluded.acceso`
+     ON CONFLICT (rol, modulo) DO UPDATE SET acceso = excluded.acceso`
   );
 
   for (const modulo of MODULOS) {
     if (modulo === "usuarios") {
-      upsert.run(rol, modulo, 0);
+      await upsert.run(rol, modulo, 0);
       continue;
     }
     const acceso = Boolean(modulosInput[modulo]);
     if (acceso) enabledCount += 1;
-    upsert.run(rol, modulo, acceso ? 1 : 0);
+    await upsert.run(rol, modulo, acceso ? 1 : 0);
   }
 
   if (enabledCount === 0) {
@@ -374,15 +310,17 @@ export function updateRolePermissions(
   }
 
   const puedeEscribir = rol === "consulta" ? false : Boolean(input.puede_escribir);
-  db.prepare(
-    `INSERT INTO ROLE_ESCRITURA (rol, puede_escribir, actualizado_en)
-     VALUES (?, ?, datetime('now', 'localtime'))
-     ON CONFLICT(rol) DO UPDATE SET
+  await db
+    .prepare(
+      `INSERT INTO ROLE_ESCRITURA (rol, puede_escribir, actualizado_en)
+     VALUES (?, ?, NOW())
+     ON CONFLICT (rol) DO UPDATE SET
        puede_escribir = excluded.puede_escribir,
        actualizado_en = excluded.actualizado_en`
-  ).run(rol, puedeEscribir ? 1 : 0);
+    )
+    .run(rol, puedeEscribir ? 1 : 0);
 
-  return listRolePermissions(db).find((r) => r.rol === rol)!;
+  return (await listRolePermissions(db)).find((r) => r.rol === rol)!;
 }
 
 function primaryAdminCredentials(): { email: string; password: string } {
@@ -392,60 +330,69 @@ function primaryAdminCredentials(): { email: string; password: string } {
   };
 }
 
-function seedAdminIfEmpty(db: Database.Database): void {
-  const count = db.prepare("SELECT COUNT(*) AS n FROM USERS").get() as { n: number };
+async function seedAdminIfEmpty(db: Db): Promise<void> {
+  const count = (await db.prepare("SELECT COUNT(*) AS n FROM USERS").get()) as {
+    n: number;
+  };
   if (count.n > 0) return;
 
   const { email, password } = primaryAdminCredentials();
   const hash = bcrypt.hashSync(password, BCRYPT_ROUNDS);
 
-  db.prepare(
-    `INSERT INTO USERS (email, password_hash, nombre, rol, activo)
+  await db
+    .prepare(
+      `INSERT INTO USERS (email, password_hash, nombre, rol, activo)
      VALUES (?, ?, ?, 'admin', 1)`
-  ).run(email, hash, "Administrador SCG");
+    )
+    .run(normalizeEmail(email), hash, "Administrador SCG");
 
   console.info(`[SCG Auth] Usuario administrador creado: ${email}`);
 }
 
 /** Migra el admin por defecto anterior al correo principal configurado. */
-function migrateLegacyAdmin(db: Database.Database): void {
+async function migrateLegacyAdmin(db: Db): Promise<void> {
   const { email, password } = primaryAdminCredentials();
   const hash = bcrypt.hashSync(password, BCRYPT_ROUNDS);
+  const normalizedEmail = normalizeEmail(email);
 
-  const legacy = db
-    .prepare("SELECT id FROM USERS WHERE email = ? COLLATE NOCASE")
-    .get(LEGACY_ADMIN_EMAIL) as { id: number } | undefined;
+  const legacy = (await db
+    .prepare("SELECT id FROM USERS WHERE LOWER(email) = LOWER(?)")
+    .get(LEGACY_ADMIN_EMAIL)) as { id: number } | undefined;
 
   if (!legacy) return;
 
-  const existingPrimary = db
-    .prepare("SELECT id FROM USERS WHERE email = ? COLLATE NOCASE AND id != ?")
-    .get(email, legacy.id) as { id: number } | undefined;
+  const existingPrimary = (await db
+    .prepare("SELECT id FROM USERS WHERE LOWER(email) = LOWER(?) AND id != ?")
+    .get(normalizedEmail, legacy.id)) as { id: number } | undefined;
 
   if (existingPrimary) {
-    db.prepare("UPDATE USERS SET activo = 0 WHERE id = ?").run(legacy.id);
-    db.prepare(
-      `UPDATE USERS SET password_hash = ?, rol = 'admin', activo = 1,
-        actualizado_en = datetime('now', 'localtime') WHERE id = ?`
-    ).run(hash, existingPrimary.id);
-    deleteAllUserSessions(db, legacy.id);
-    deleteAllUserSessions(db, existingPrimary.id);
+    await db.prepare("UPDATE USERS SET activo = 0 WHERE id = ?").run(legacy.id);
+    await db
+      .prepare(
+        `UPDATE USERS SET password_hash = ?, rol = 'admin', activo = 1,
+        actualizado_en = NOW() WHERE id = ?`
+      )
+      .run(hash, existingPrimary.id);
+    await deleteAllUserSessions(db, legacy.id);
+    await deleteAllUserSessions(db, existingPrimary.id);
   } else {
-    db.prepare(
-      `UPDATE USERS SET email = ?, password_hash = ?, nombre = 'Administrador SCG',
-        rol = 'admin', activo = 1, actualizado_en = datetime('now', 'localtime')
+    await db
+      .prepare(
+        `UPDATE USERS SET email = ?, password_hash = ?, nombre = 'Administrador SCG',
+        rol = 'admin', activo = 1, actualizado_en = NOW()
        WHERE id = ?`
-    ).run(email, hash, legacy.id);
-    deleteAllUserSessions(db, legacy.id);
+      )
+      .run(normalizedEmail, hash, legacy.id);
+    await deleteAllUserSessions(db, legacy.id);
   }
 
   console.info(`[SCG Auth] Administrador principal configurado: ${email}`);
 }
 
-export function purgeExpiredSessions(db: Database.Database): void {
-  db.prepare(
-    `DELETE FROM USER_SESSIONS WHERE datetime(expira_en) <= datetime('now', 'localtime')`
-  ).run();
+export async function purgeExpiredSessions(db: Db): Promise<void> {
+  await db
+    .prepare(`DELETE FROM USER_SESSIONS WHERE expira_en <= NOW()`)
+    .run();
 }
 
 function newSessionToken(): string {
@@ -473,29 +420,29 @@ function dbLockedUntilMs(iso: string): number {
   return new Date(iso.replace(" ", "T")).getTime();
 }
 
-function trimUserSessions(db: Database.Database, userId: number): void {
-  const rows = db
+async function trimUserSessions(db: Db, userId: number): Promise<void> {
+  const rows = (await db
     .prepare(
       `SELECT id FROM USER_SESSIONS WHERE user_id = ?
-       ORDER BY datetime(creado_en) DESC`
+       ORDER BY creado_en DESC`
     )
-    .all(userId) as { id: string }[];
+    .all(userId)) as { id: string }[];
 
   if (rows.length <= MAX_SESSIONS_PER_USER) return;
 
   const toDelete = rows.slice(MAX_SESSIONS_PER_USER);
-  const del = db.prepare("DELETE FROM USER_SESSIONS WHERE id = ?");
-  for (const row of toDelete) del.run(row.id);
+  const del = await db.prepare("DELETE FROM USER_SESSIONS WHERE id = ?");
+  for (const row of toDelete) await del.run(row.id);
 }
 
-function registerFailedLogin(
-  db: Database.Database,
+async function registerFailedLogin(
+  db: Db,
   row: UserRow | undefined,
   email: string,
   meta?: { ip?: string; userAgent?: string }
-): void {
+): Promise<void> {
   if (!row) {
-    recordAuthEvent(db, "login_fail_unknown", {
+    await recordAuthEvent(db, "login_fail_unknown", {
       email,
       ip: meta?.ip,
       userAgent: meta?.userAgent,
@@ -505,10 +452,12 @@ function registerFailedLogin(
 
   const attempts = (row.failed_login_attempts ?? 0) + 1;
   if (attempts >= MAX_ACCOUNT_LOGIN_ATTEMPTS) {
-    db.prepare(
-      `UPDATE USERS SET failed_login_attempts = ?, locked_until = ? WHERE id = ?`
-    ).run(attempts, lockoutExpiryIso(), row.id);
-    recordAuthEvent(db, "account_locked", {
+    await db
+      .prepare(
+        `UPDATE USERS SET failed_login_attempts = ?, locked_until = ? WHERE id = ?`
+      )
+      .run(attempts, lockoutExpiryIso(), row.id);
+    await recordAuthEvent(db, "account_locked", {
       email: row.email,
       ip: meta?.ip,
       userAgent: meta?.userAgent,
@@ -517,97 +466,102 @@ function registerFailedLogin(
     return;
   }
 
-  db.prepare(`UPDATE USERS SET failed_login_attempts = ? WHERE id = ?`).run(
-    attempts,
-    row.id
-  );
-  recordAuthEvent(db, "login_fail", {
+  await db
+    .prepare(`UPDATE USERS SET failed_login_attempts = ? WHERE id = ?`)
+    .run(attempts, row.id);
+  await recordAuthEvent(db, "login_fail", {
     email: row.email,
     ip: meta?.ip,
     userAgent: meta?.userAgent,
   });
 }
 
-function clearLoginFailures(db: Database.Database, userId: number): void {
-  db.prepare(
-    `UPDATE USERS SET failed_login_attempts = 0, locked_until = NULL WHERE id = ?`
-  ).run(userId);
+async function clearLoginFailures(db: Db, userId: number): Promise<void> {
+  await db
+    .prepare(
+      `UPDATE USERS SET failed_login_attempts = 0, locked_until = NULL WHERE id = ?`
+    )
+    .run(userId);
 }
 
-export function createSession(
-  db: Database.Database,
+export async function createSession(
+  db: Db,
   userId: number,
   meta?: { ip?: string; userAgent?: string }
-): string {
-  purgeExpiredSessions(db);
+): Promise<string> {
+  await purgeExpiredSessions(db);
   const token = newSessionToken();
   const tokenHash = hashSessionToken(token);
-  db.prepare(
-    `INSERT INTO USER_SESSIONS (id, user_id, expira_en, ip, user_agent)
+  await db
+    .prepare(
+      `INSERT INTO USER_SESSIONS (id, user_id, expira_en, ip, user_agent)
      VALUES (?, ?, ?, ?, ?)`
-  ).run(tokenHash, userId, sessionExpiryIso(), meta?.ip ?? null, meta?.userAgent ?? null);
+    )
+    .run(tokenHash, userId, sessionExpiryIso(), meta?.ip ?? null, meta?.userAgent ?? null);
 
-  trimUserSessions(db, userId);
+  await trimUserSessions(db, userId);
 
-  db.prepare(
-    `UPDATE USERS SET ultimo_acceso = datetime('now', 'localtime') WHERE id = ?`
-  ).run(userId);
+  await db
+    .prepare(`UPDATE USERS SET ultimo_acceso = NOW() WHERE id = ?`)
+    .run(userId);
 
   return token;
 }
 
-export function deleteSession(db: Database.Database, token: string): void {
+export async function deleteSession(db: Db, token: string): Promise<void> {
   if (!isValidSessionTokenFormat(token)) return;
-  db.prepare("DELETE FROM USER_SESSIONS WHERE id = ?").run(hashSessionToken(token));
+  await db
+    .prepare("DELETE FROM USER_SESSIONS WHERE id = ?")
+    .run(hashSessionToken(token));
 }
 
-export function deleteAllUserSessions(db: Database.Database, userId: number): void {
-  db.prepare("DELETE FROM USER_SESSIONS WHERE user_id = ?").run(userId);
+export async function deleteAllUserSessions(db: Db, userId: number): Promise<void> {
+  await db.prepare("DELETE FROM USER_SESSIONS WHERE user_id = ?").run(userId);
 }
 
-export function getUserBySessionToken(
-  db: Database.Database,
+export async function getUserBySessionToken(
+  db: Db,
   token: string | undefined
-): UserPublic | null {
+): Promise<UserPublic | null> {
   if (!isValidSessionTokenFormat(token)) return null;
-  purgeExpiredSessions(db);
+  await purgeExpiredSessions(db);
 
   const tokenHash = hashSessionToken(token!);
-  const row = db
+  const row = (await db
     .prepare(
       `SELECT u.* FROM USERS u
        INNER JOIN USER_SESSIONS s ON s.user_id = u.id
        WHERE s.id = ? AND u.activo = 1
-         AND datetime(s.expira_en) > datetime('now', 'localtime')`
+         AND s.expira_en > NOW()`
     )
-    .get(tokenHash) as UserRow | undefined;
+    .get(tokenHash)) as UserRow | undefined;
 
   if (!row) return null;
 
-  db.prepare(
-    `UPDATE USER_SESSIONS SET expira_en = ? WHERE id = ?`
-  ).run(sessionExpiryIso(), tokenHash);
+  await db
+    .prepare(`UPDATE USER_SESSIONS SET expira_en = ? WHERE id = ?`)
+    .run(sessionExpiryIso(), tokenHash);
 
-  return toUserPublic(row, db);
+  return await toUserPublic(row, db);
 }
 
 export type LoginResult =
   | { ok: true; user: UserPublic }
   | { ok: false; reason: "invalid" | "locked" };
 
-export function verifyLogin(
-  db: Database.Database,
+export async function verifyLogin(
+  db: Db,
   email: string,
   password: string,
   meta?: { ip?: string; userAgent?: string }
-): LoginResult {
+): Promise<LoginResult> {
   const normalized = normalizeEmail(email);
-  const row = db
-    .prepare(`SELECT * FROM USERS WHERE email = ? COLLATE NOCASE AND activo = 1`)
-    .get(normalized) as UserRow | undefined;
+  const row = (await db
+    .prepare(`SELECT * FROM USERS WHERE LOWER(email) = LOWER(?) AND activo = 1`)
+    .get(normalized)) as UserRow | undefined;
 
   if (row && isAccountLocked(row)) {
-    recordAuthEvent(db, "login_blocked_locked", {
+    await recordAuthEvent(db, "login_blocked_locked", {
       email: row.email,
       ip: meta?.ip,
       userAgent: meta?.userAgent,
@@ -619,61 +573,69 @@ export function verifyLogin(
   const valid = bcrypt.compareSync(password, hashToCompare);
 
   if (!row || !valid) {
-    registerFailedLogin(db, row, normalized, meta);
+    await registerFailedLogin(db, row, normalized, meta);
     return { ok: false, reason: "invalid" };
   }
 
-  clearLoginFailures(db, row.id);
-  recordAuthEvent(db, "login_ok", {
+  await clearLoginFailures(db, row.id);
+  await recordAuthEvent(db, "login_ok", {
     email: row.email,
     ip: meta?.ip,
     userAgent: meta?.userAgent,
   });
 
-  return { ok: true, user: toUserPublic(row, db) };
+  return { ok: true, user: await toUserPublic(row, db) };
 }
 
-export function listUsers(db: Database.Database): UserPublic[] {
-  const rows = db
-    .prepare("SELECT * FROM USERS ORDER BY nombre COLLATE NOCASE ASC")
-    .all() as UserRow[];
-  return rows.map((row) => toUserPublic(row, db));
+export async function listUsers(db: Db): Promise<UserPublic[]> {
+  const rows = (await db
+    .prepare("SELECT * FROM USERS ORDER BY LOWER(nombre) ASC")
+    .all()) as UserRow[];
+  const result: UserPublic[] = [];
+  for (const row of rows) {
+    result.push(await toUserPublic(row, db));
+  }
+  return result;
 }
 
-export function getUserById(db: Database.Database, id: number): UserPublic | null {
-  const row = db.prepare("SELECT * FROM USERS WHERE id = ?").get(id) as UserRow | undefined;
-  return row ? toUserPublic(row, db) : null;
+export async function getUserById(db: Db, id: number): Promise<UserPublic | null> {
+  const row = (await db.prepare("SELECT * FROM USERS WHERE id = ?").get(id)) as
+    | UserRow
+    | undefined;
+  return row ? await toUserPublic(row, db) : null;
 }
 
-export function insertUser(db: Database.Database, data: UserInput): UserPublic {
+export async function insertUser(db: Db, data: UserInput): Promise<UserPublic> {
   const email = normalizeEmail(data.email);
   if (!email.includes("@")) throw new Error("Email inválido");
   if (!data.password) throw new Error("La contraseña es obligatoria");
   assertPasswordPolicy(data.password);
   if (!data.nombre.trim()) throw new Error("El nombre es obligatorio");
 
-  const exists = db
-    .prepare("SELECT id FROM USERS WHERE email = ? COLLATE NOCASE")
-    .get(email) as { id: number } | undefined;
+  const exists = (await db
+    .prepare("SELECT id FROM USERS WHERE LOWER(email) = LOWER(?)")
+    .get(email)) as { id: number } | undefined;
   if (exists) throw new Error("Ya existe un usuario con ese email");
 
   const hash = bcrypt.hashSync(data.password, BCRYPT_ROUNDS);
-  const result = db
+  const result = await db
     .prepare(
       `INSERT INTO USERS (email, password_hash, nombre, rol, activo)
        VALUES (?, ?, ?, ?, ?)`
     )
     .run(email, hash, data.nombre.trim(), data.rol, data.activo === false ? 0 : 1);
 
-  return getUserById(db, Number(result.lastInsertRowid))!;
+  return (await getUserById(db, Number(result.lastInsertRowid)))!;
 }
 
-export function updateUser(
-  db: Database.Database,
+export async function updateUser(
+  db: Db,
   id: number,
   data: Partial<UserInput>
-): UserPublic {
-  const current = db.prepare("SELECT * FROM USERS WHERE id = ?").get(id) as UserRow | undefined;
+): Promise<UserPublic> {
+  const current = (await db.prepare("SELECT * FROM USERS WHERE id = ?").get(id)) as
+    | UserRow
+    | undefined;
   if (!current) throw new Error("Usuario no encontrado");
 
   const email = data.email !== undefined ? normalizeEmail(data.email) : current.email;
@@ -684,62 +646,73 @@ export function updateUser(
   if (!email.includes("@")) throw new Error("Email inválido");
   if (!nombre) throw new Error("El nombre es obligatorio");
 
-  const dup = db
-    .prepare("SELECT id FROM USERS WHERE email = ? COLLATE NOCASE AND id != ?")
-    .get(email, id) as { id: number } | undefined;
+  const dup = (await db
+    .prepare("SELECT id FROM USERS WHERE LOWER(email) = LOWER(?) AND id != ?")
+    .get(email, id)) as { id: number } | undefined;
   if (dup) throw new Error("Ya existe otro usuario con ese email");
 
   if (data.password) {
     assertPasswordPolicy(data.password);
     const hash = bcrypt.hashSync(data.password, BCRYPT_ROUNDS);
-    db.prepare(
-      `UPDATE USERS SET email = ?, nombre = ?, rol = ?, activo = ?,
-        password_hash = ?, actualizado_en = datetime('now', 'localtime')
+    await db
+      .prepare(
+        `UPDATE USERS SET email = ?, nombre = ?, rol = ?, activo = ?,
+        password_hash = ?, actualizado_en = NOW()
        WHERE id = ?`
-    ).run(email, nombre, rol, activo, hash, id);
-    deleteAllUserSessions(db, id);
+      )
+      .run(email, nombre, rol, activo, hash, id);
+    await deleteAllUserSessions(db, id);
   } else {
-    db.prepare(
-      `UPDATE USERS SET email = ?, nombre = ?, rol = ?, activo = ?,
-        actualizado_en = datetime('now', 'localtime')
+    await db
+      .prepare(
+        `UPDATE USERS SET email = ?, nombre = ?, rol = ?, activo = ?,
+        actualizado_en = NOW()
        WHERE id = ?`
-    ).run(email, nombre, rol, activo, id);
-    if (activo === 0) deleteAllUserSessions(db, id);
+      )
+      .run(email, nombre, rol, activo, id);
+    if (activo === 0) await deleteAllUserSessions(db, id);
   }
 
-  return getUserById(db, id)!;
+  return (await getUserById(db, id))!;
 }
 
-export function changeOwnPassword(
-  db: Database.Database,
+export async function changeOwnPassword(
+  db: Db,
   userId: number,
   actual: string,
   nueva: string
-): void {
+): Promise<void> {
   assertPasswordPolicy(nueva);
 
-  const row = db.prepare("SELECT * FROM USERS WHERE id = ?").get(userId) as UserRow | undefined;
+  const row = (await db.prepare("SELECT * FROM USERS WHERE id = ?").get(userId)) as
+    | UserRow
+    | undefined;
   if (!row) throw new Error("Usuario no encontrado");
   if (!bcrypt.compareSync(actual, row.password_hash)) {
     throw new Error("Contraseña actual incorrecta");
   }
 
   const hash = bcrypt.hashSync(nueva, BCRYPT_ROUNDS);
-  db.prepare(
-    `UPDATE USERS SET password_hash = ?, actualizado_en = datetime('now', 'localtime') WHERE id = ?`
-  ).run(hash, userId);
-  deleteAllUserSessions(db, userId);
+  await db
+    .prepare(
+      `UPDATE USERS SET password_hash = ?, actualizado_en = NOW() WHERE id = ?`
+    )
+    .run(hash, userId);
+  await deleteAllUserSessions(db, userId);
 }
 
-export function countActiveAdmins(db: Database.Database, excludeId?: number): number {
+export async function countActiveAdmins(
+  db: Db,
+  excludeId?: number
+): Promise<number> {
   const row = excludeId
-    ? (db
+    ? ((await db
         .prepare(
           `SELECT COUNT(*) AS n FROM USERS WHERE rol = 'admin' AND activo = 1 AND id != ?`
         )
-        .get(excludeId) as { n: number })
-    : (db
+        .get(excludeId)) as { n: number })
+    : ((await db
         .prepare(`SELECT COUNT(*) AS n FROM USERS WHERE rol = 'admin' AND activo = 1`)
-        .get() as { n: number });
+        .get()) as { n: number });
   return row.n;
 }

@@ -1,5 +1,7 @@
+import "dotenv/config";
 import cors from "cors";
 import cookieParser from "cookie-parser";
+import "express-async-errors";
 import express, { type Request, type Response } from "express";
 import fs from "fs";
 import multer from "multer";
@@ -48,9 +50,20 @@ const HOST = process.env.HOST || (IS_PROD ? "0.0.0.0" : "127.0.0.1");
 const CLIENT_DIST = path.join(__dirname, "../../client/dist");
 const VITE_DEV_URL = process.env.SCG_VITE_URL || "http://127.0.0.1:5173";
 
-db.initDb();
+const dbReady = db.initDb().catch((err) => {
+  console.error("[SCG] Error al inicializar la base de datos:", err);
+  throw err;
+});
 
 const app = express();
+app.use(async (_req, res, next) => {
+  try {
+    await dbReady;
+    next();
+  } catch {
+    res.status(503).json({ ok: false, error: "Base de datos no disponible" });
+  }
+});
 if (process.env.SCG_TRUST_PROXY === "1" || IS_VERCEL) {
   app.set("trust proxy", 1);
 }
@@ -93,7 +106,7 @@ function addDaysIso(iso: string, dias: number): string {
   return `${y}-${m}-${day}`;
 }
 
-function parseBody(req: Request): PresupuestoInput {
+async function parseBody(req: Request): Promise<PresupuestoInput> {
   const body = req.body as Record<string, unknown>;
   const empresa = String(body.empresa ?? "").trim();
   if (!EMPRESAS.includes(empresa as Empresa)) {
@@ -110,16 +123,16 @@ function parseBody(req: Request): PresupuestoInput {
   let funcionario_cedula = String(body.funcionario_cedula ?? "").trim();
   if (!concepto) throw new Error("El concepto es obligatorio.");
   if (!rubro) throw new Error("El rubro es obligatorio.");
-  if (!db.rubros.existsActivo(rubro)) {
+  if (!await db.rubros.existsActivo(rubro)) {
     throw new Error("El rubro debe existir en el catálogo RUBROS y estar activo.");
   }
   if (sub_rubro) {
-    if (!db.subRubros.existsActivo(sub_rubro)) {
+    if (!await db.subRubros.existsActivo(sub_rubro)) {
       throw new Error(
         "El sub-rubro debe existir en el catálogo SUB_RUBROS y estar activo."
       );
     }
-    if (!db.rubroVinculos.isValidPair(rubro, sub_rubro)) {
+    if (!await db.rubroVinculos.isValidPair(rubro, sub_rubro)) {
       throw new Error(
         "El sub-rubro no está vinculado a este rubro. Configuralo en Rubros → Configuración vínculos."
       );
@@ -128,14 +141,14 @@ function parseBody(req: Request): PresupuestoInput {
   const rubroSueldos = db.funcionarios.esRubroRemuneracion(rubro, sub_rubro);
 
   if (rubroSueldos && responsable_gasto && !funcionario_cedula) {
-    const porNombre = db.funcionarios.getByNombreDisplay(responsable_gasto);
+    const porNombre = await db.funcionarios.getByNombreDisplay(responsable_gasto);
     if (porNombre) funcionario_cedula = porNombre.cedula;
   }
 
   if (
     responsable_gasto &&
     !rubroSueldos &&
-    !db.responsables.existsActivo(responsable_gasto)
+    !await db.responsables.existsActivo(responsable_gasto)
   ) {
     throw new Error(
       "El presupuesto asignado debe existir en el catálogo y estar activo."
@@ -144,8 +157,8 @@ function parseBody(req: Request): PresupuestoInput {
 
   if (rubroSueldos && responsable_gasto) {
     const f =
-      (funcionario_cedula ? db.funcionarios.getByCedula(funcionario_cedula) : undefined) ??
-      db.funcionarios.getByNombreDisplay(responsable_gasto);
+      (funcionario_cedula ? await db.funcionarios.getByCedula(funcionario_cedula) : undefined) ??
+      await db.funcionarios.getByNombreDisplay(responsable_gasto);
     if (f) {
       if (!f.activo) {
         throw new Error(
@@ -153,7 +166,7 @@ function parseBody(req: Request): PresupuestoInput {
         );
       }
       funcionario_cedula = f.cedula;
-    } else if (!db.responsables.existsActivo(responsable_gasto)) {
+    } else if (!await db.responsables.existsActivo(responsable_gasto)) {
       throw new Error(
         "Presupuesto asignado: elegí un empleado activo de RRHH o un nombre del catálogo Presupuesto asignado."
       );
@@ -161,7 +174,7 @@ function parseBody(req: Request): PresupuestoInput {
       funcionario_cedula = "";
     }
   } else if (funcionario_cedula) {
-    const f = db.funcionarios.getByCedula(funcionario_cedula);
+    const f = await db.funcionarios.getByCedula(funcionario_cedula);
     if (!f || !f.activo) {
       throw new Error(
         "El funcionario (cédula) debe existir en Recursos Humanos → Funcionarios y estar activo."
@@ -191,16 +204,17 @@ function parseBody(req: Request): PresupuestoInput {
   };
 }
 
-app.get("/api/health", (_req, res) => {
-  res.json({ ok: true, service: "scg-api" });
+app.get("/api/health", async (_req, res) => {
+  await dbReady;
+  res.json({ ok: true, service: "scg-api", database: "postgres" });
 });
 
-app.get("/api/catalogos", (_req, res) => {
-  res.json({ ok: true, ...db.getCatalogos() });
+app.get("/api/catalogos", async (_req, res) => {
+  res.json({ ok: true, ...(await db.getCatalogos()) });
 });
 
-app.get("/api/presupuesto", (req, res) => {
-  const data = db.listPresupuesto({
+app.get("/api/presupuesto", async (req, res) => {
+  const data = await db.listPresupuesto({
     empresa: req.query.empresa as string | undefined,
     rubro: req.query.rubro as string | undefined,
     responsable_gasto: req.query.responsable_gasto as string | undefined,
@@ -211,8 +225,8 @@ app.get("/api/presupuesto", (req, res) => {
   res.json({ ok: true, data });
 });
 
-app.get("/api/presupuesto/siguiente-operacion", (_req, res) => {
-  const nro = db.peekNextNroRegistro();
+app.get("/api/presupuesto/siguiente-operacion", async (_req, res) => {
+  const nro = await db.peekNextNroRegistro();
   res.json({
     ok: true,
     data: {
@@ -222,9 +236,9 @@ app.get("/api/presupuesto/siguiente-operacion", (_req, res) => {
   });
 });
 
-app.get("/api/presupuesto/:id", (req, res) => {
+app.get("/api/presupuesto/:id", async (req, res) => {
   const id = Number(req.params.id);
-  const reg = db.getPresupuesto(id);
+  const reg = await db.getPresupuesto(id);
   if (!reg) {
     res.status(404).json({ ok: false, error: "Registro no encontrado" });
     return;
@@ -232,11 +246,11 @@ app.get("/api/presupuesto/:id", (req, res) => {
   res.json({ ok: true, data: reg });
 });
 
-app.post("/api/presupuesto", (req, res) => {
+app.post("/api/presupuesto", async (req, res) => {
   try {
-    const payload = parseBody(req);
-    const newId = db.insertPresupuesto(payload);
-    const reg = db.getPresupuesto(newId);
+    const payload = await parseBody(req);
+    const newId = await db.insertPresupuesto(payload);
+    const reg = await db.getPresupuesto(newId);
     res.status(201).json({
       ok: true,
       data: reg,
@@ -248,17 +262,17 @@ app.post("/api/presupuesto", (req, res) => {
   }
 });
 
-app.put("/api/presupuesto/:id", (req, res) => {
+app.put("/api/presupuesto/:id", async (req, res) => {
   try {
     const id = Number(req.params.id);
-    const payload = parseBody(req);
-    if (!db.updatePresupuesto(id, payload)) {
+    const payload = await parseBody(req);
+    if (!await db.updatePresupuesto(id, payload)) {
       res.status(404).json({ ok: false, error: "Registro no encontrado" });
       return;
     }
     res.json({
       ok: true,
-      data: db.getPresupuesto(id),
+      data: await db.getPresupuesto(id),
       message: "Registro actualizado",
     });
   } catch (e) {
@@ -266,9 +280,9 @@ app.put("/api/presupuesto/:id", (req, res) => {
   }
 });
 
-app.delete("/api/presupuesto/:id", (req, res) => {
+app.delete("/api/presupuesto/:id", async (req, res) => {
   const id = Number(req.params.id);
-  if (!db.deletePresupuesto(id)) {
+  if (!await db.deletePresupuesto(id)) {
     res.status(404).json({ ok: false, error: "Registro no encontrado" });
     return;
   }
@@ -297,8 +311,8 @@ function parseIngresoVentaBody(req: Request) {
   };
 }
 
-app.get("/api/ingresos-ventas", (req, res) => {
-  const data = db.ingresosVentas.list({
+app.get("/api/ingresos-ventas", async (req, res) => {
+  const data = await db.ingresosVentas.list({
     fecha_desde: req.query.fecha_desde as string | undefined,
     fecha_hasta: req.query.fecha_hasta as string | undefined,
     busqueda: req.query.busqueda as string | undefined,
@@ -306,20 +320,20 @@ app.get("/api/ingresos-ventas", (req, res) => {
   res.json({ ok: true, data });
 });
 
-app.get("/api/ingresos-ventas/siguiente-operacion", (_req, res) => {
-  const nro = db.ingresosVentas.peekNextNro();
+app.get("/api/ingresos-ventas/siguiente-operacion", async (_req, res) => {
+  const nro = await db.ingresosVentas.peekNextNro();
   res.json({
     ok: true,
     data: {
       nro_registro: nro,
-      numero_operacion: db.ingresosVentas.formatNumeroOperacion(nro),
+      numero_operacion: await db.ingresosVentas.formatNumeroOperacion(nro),
     },
   });
 });
 
-app.get("/api/ingresos-ventas/:id", (req, res) => {
+app.get("/api/ingresos-ventas/:id", async (req, res) => {
   const id = Number(req.params.id);
-  const reg = db.ingresosVentas.getById(id);
+  const reg = await db.ingresosVentas.getById(id);
   if (!reg) {
     res.status(404).json({ ok: false, error: "Registro no encontrado" });
     return;
@@ -327,11 +341,11 @@ app.get("/api/ingresos-ventas/:id", (req, res) => {
   res.json({ ok: true, data: reg });
 });
 
-app.post("/api/ingresos-ventas", (req, res) => {
+app.post("/api/ingresos-ventas", async (req, res) => {
   try {
     const payload = parseIngresoVentaBody(req);
-    const newId = db.ingresosVentas.insert(payload);
-    const reg = db.ingresosVentas.getById(newId);
+    const newId = await db.ingresosVentas.insert(payload);
+    const reg = await db.ingresosVentas.getById(newId);
     res.status(201).json({
       ok: true,
       data: reg,
@@ -343,17 +357,17 @@ app.post("/api/ingresos-ventas", (req, res) => {
   }
 });
 
-app.put("/api/ingresos-ventas/:id", (req, res) => {
+app.put("/api/ingresos-ventas/:id", async (req, res) => {
   try {
     const id = Number(req.params.id);
     const payload = parseIngresoVentaBody(req);
-    if (!db.ingresosVentas.update(id, payload)) {
+    if (!await db.ingresosVentas.update(id, payload)) {
       res.status(404).json({ ok: false, error: "Registro no encontrado" });
       return;
     }
     res.json({
       ok: true,
-      data: db.ingresosVentas.getById(id),
+      data: await db.ingresosVentas.getById(id),
       message: "Registro actualizado",
     });
   } catch (e) {
@@ -361,31 +375,31 @@ app.put("/api/ingresos-ventas/:id", (req, res) => {
   }
 });
 
-app.delete("/api/ingresos-ventas/:id", (req, res) => {
+app.delete("/api/ingresos-ventas/:id", async (req, res) => {
   const id = Number(req.params.id);
-  if (!db.ingresosVentas.delete(id)) {
+  if (!await db.ingresosVentas.delete(id)) {
     res.status(404).json({ ok: false, error: "Registro no encontrado" });
     return;
   }
   res.json({ ok: true, message: "Registro eliminado" });
 });
 
-app.get("/api/venta-sub-rubros", (req, res) => {
+app.get("/api/venta-sub-rubros", async (req, res) => {
   const soloActivos = req.query.solo_activos === "1";
-  res.json({ ok: true, data: db.ventaSubRubros.list(soloActivos) });
+  res.json({ ok: true, data: await db.ventaSubRubros.list(soloActivos) });
 });
 
-app.get("/api/venta-sub-rubros/grupos", (_req, res) => {
-  res.json({ ok: true, data: db.ventaSubRubros.listGrupos() });
+app.get("/api/venta-sub-rubros/grupos", async (_req, res) => {
+  res.json({ ok: true, data: await db.ventaSubRubros.listGrupos() });
 });
 
-app.post("/api/venta-sub-rubros", (req, res) => {
+app.post("/api/venta-sub-rubros", async (req, res) => {
   try {
     const payload = parseSubRubroBody(req);
-    const id = db.ventaSubRubros.insert(payload);
+    const id = await db.ventaSubRubros.insert(payload);
     res.status(201).json({
       ok: true,
-      data: db.ventaSubRubros.getById(id),
+      data: await db.ventaSubRubros.getById(id),
       message: "Sub-rubro creado",
     });
   } catch (e) {
@@ -393,21 +407,21 @@ app.post("/api/venta-sub-rubros", (req, res) => {
   }
 });
 
-app.put("/api/venta-sub-rubros/:id", (req, res) => {
+app.put("/api/venta-sub-rubros/:id", async (req, res) => {
   try {
     const id = Number(req.params.id);
-    const prev = db.ventaSubRubros.getById(id);
+    const prev = await db.ventaSubRubros.getById(id);
     const payload = parseSubRubroBody(req);
-    if (!db.ventaSubRubros.update(id, payload)) {
+    if (!await db.ventaSubRubros.update(id, payload)) {
       res.status(404).json({ ok: false, error: "Sub-rubro no encontrado" });
       return;
     }
     if (prev && prev.grupo !== payload.grupo) {
-      db.ventaGrupoIconos.renameGrupo(prev.grupo, payload.grupo);
+      await db.ventaGrupoIconos.renameGrupo(prev.grupo, payload.grupo);
     }
     res.json({
       ok: true,
-      data: db.ventaSubRubros.getById(id),
+      data: await db.ventaSubRubros.getById(id),
       message: "Sub-rubro actualizado",
     });
   } catch (e) {
@@ -415,13 +429,13 @@ app.put("/api/venta-sub-rubros/:id", (req, res) => {
   }
 });
 
-app.put("/api/venta-sub-rubros/grupo/rename", (req, res) => {
+app.put("/api/venta-sub-rubros/grupo/rename", async (req, res) => {
   try {
     const anterior = String(req.body?.anterior ?? "").trim();
     const nuevo = String(req.body?.nuevo ?? "").trim();
-    const updated = db.ventaSubRubros.renameGrupo(anterior, nuevo);
+    const updated = await db.ventaSubRubros.renameGrupo(anterior, nuevo);
     const nombreCanon = normalizarTituloRubro(nuevo);
-    db.ventaGrupoIconos.renameGrupo(anterior, nombreCanon);
+    await db.ventaGrupoIconos.renameGrupo(anterior, nombreCanon);
     res.json({
       ok: true,
       message:
@@ -435,11 +449,11 @@ app.put("/api/venta-sub-rubros/grupo/rename", (req, res) => {
   }
 });
 
-app.delete("/api/venta-sub-rubros/grupo/:grupo", (req, res) => {
+app.delete("/api/venta-sub-rubros/grupo/:grupo", async (req, res) => {
   try {
     const grupo = decodeURIComponent(req.params.grupo);
-    const result = db.ventaSubRubros.deleteByGrupo(grupo);
-    db.ventaGrupoIconos.deleteByGrupo(grupo);
+    const result = await db.ventaSubRubros.deleteByGrupo(grupo);
+    await db.ventaGrupoIconos.deleteByGrupo(grupo);
     const msg =
       result.deleted > 0
         ? `Rubro eliminado (${result.deleted} sub-rubro(s))`
@@ -450,10 +464,10 @@ app.delete("/api/venta-sub-rubros/grupo/:grupo", (req, res) => {
   }
 });
 
-app.delete("/api/venta-sub-rubros/:id", (req, res) => {
+app.delete("/api/venta-sub-rubros/:id", async (req, res) => {
   try {
     const id = Number(req.params.id);
-    if (!db.ventaSubRubros.delete(id)) {
+    if (!await db.ventaSubRubros.delete(id)) {
       res.status(404).json({ ok: false, error: "Sub-rubro no encontrado" });
       return;
     }
@@ -463,25 +477,25 @@ app.delete("/api/venta-sub-rubros/:id", (req, res) => {
   }
 });
 
-app.get("/api/venta-sub-rubros/items-counts", (req, res) => {
+app.get("/api/venta-sub-rubros/items-counts", async (req, res) => {
   const raw = String(req.query.ids ?? "").trim();
   const ids = raw
     .split(",")
     .map((s) => Number(s.trim()))
     .filter((n) => Number.isFinite(n) && n > 0);
-  res.json({ ok: true, data: db.ventaSubRubroItems.countsBySubRubroIds(ids) });
+  res.json({ ok: true, data: await db.ventaSubRubroItems.countsBySubRubroIds(ids) });
 });
 
-app.get("/api/venta-sub-rubros/items-batch", (req, res) => {
+app.get("/api/venta-sub-rubros/items-batch", async (req, res) => {
   const raw = String(req.query.ids ?? "").trim();
   const ids = raw
     .split(",")
     .map((s) => Number(s.trim()))
     .filter((n) => Number.isFinite(n) && n > 0);
-  res.json({ ok: true, data: db.ventaSubRubroItems.groupedBySubRubroIds(ids) });
+  res.json({ ok: true, data: await db.ventaSubRubroItems.groupedBySubRubroIds(ids) });
 });
 
-app.get("/api/venta-sub-rubros/items", (req, res) => {
+app.get("/api/venta-sub-rubros/items", async (req, res) => {
   const nombre = String(req.query.sub_rubro ?? "").trim();
   if (!nombre) {
     res.status(400).json({ ok: false, error: "Falta el sub-rubro." });
@@ -490,11 +504,11 @@ app.get("/api/venta-sub-rubros/items", (req, res) => {
   const soloActivos = req.query.solo_activos !== "0";
   res.json({
     ok: true,
-    data: db.ventaSubRubroItems.listBySubRubroNombre(nombre, soloActivos),
+    data: await db.ventaSubRubroItems.listBySubRubroNombre(nombre, soloActivos),
   });
 });
 
-app.post("/api/venta-sub-rubros/items", (req, res) => {
+app.post("/api/venta-sub-rubros/items", async (req, res) => {
   try {
     const subRubroNombre = String(
       (req.body as { sub_rubro?: string }).sub_rubro ?? ""
@@ -504,16 +518,16 @@ app.post("/api/venta-sub-rubros/items", (req, res) => {
       res.status(400).json({ ok: false, error: "Falta el sub-rubro." });
       return;
     }
-    const sub = db.ventaSubRubros.getByNombre(subRubroNombre);
+    const sub = await db.ventaSubRubros.getByNombre(subRubroNombre);
     if (!sub) {
       res.status(404).json({ ok: false, error: "Sub-rubro no encontrado" });
       return;
     }
     const activo = (req.body as { activo?: boolean }).activo !== false;
-    const itemId = db.ventaSubRubroItems.insert(sub.id, { nombre, activo });
+    const itemId = await db.ventaSubRubroItems.insert(sub.id, { nombre, activo });
     res.status(201).json({
       ok: true,
-      data: db.ventaSubRubroItems.getById(itemId),
+      data: await db.ventaSubRubroItems.getById(itemId),
       message: "Ítem creado",
     });
   } catch (e) {
@@ -521,30 +535,30 @@ app.post("/api/venta-sub-rubros/items", (req, res) => {
   }
 });
 
-app.get("/api/venta-sub-rubros/:id/items", (req, res) => {
+app.get("/api/venta-sub-rubros/:id/items", async (req, res) => {
   const id = Number(req.params.id);
-  const sub = db.ventaSubRubros.getById(id);
+  const sub = await db.ventaSubRubros.getById(id);
   if (!sub) {
     res.status(404).json({ ok: false, error: "Sub-rubro no encontrado" });
     return;
   }
   const soloActivos = req.query.solo_activos !== "0";
-  res.json({ ok: true, data: db.ventaSubRubroItems.listBySubRubroId(id, soloActivos) });
+  res.json({ ok: true, data: await db.ventaSubRubroItems.listBySubRubroId(id, soloActivos) });
 });
 
-app.post("/api/venta-sub-rubros/:id/items", (req, res) => {
+app.post("/api/venta-sub-rubros/:id/items", async (req, res) => {
   try {
     const id = Number(req.params.id);
-    if (!db.ventaSubRubros.getById(id)) {
+    if (!await db.ventaSubRubros.getById(id)) {
       res.status(404).json({ ok: false, error: "Sub-rubro no encontrado" });
       return;
     }
     const nombre = String((req.body as { nombre?: string }).nombre ?? "").trim();
     const activo = (req.body as { activo?: boolean }).activo !== false;
-    const itemId = db.ventaSubRubroItems.insert(id, { nombre, activo });
+    const itemId = await db.ventaSubRubroItems.insert(id, { nombre, activo });
     res.status(201).json({
       ok: true,
-      data: db.ventaSubRubroItems.getById(itemId),
+      data: await db.ventaSubRubroItems.getById(itemId),
       message: "Ítem creado",
     });
   } catch (e) {
@@ -552,18 +566,18 @@ app.post("/api/venta-sub-rubros/:id/items", (req, res) => {
   }
 });
 
-app.put("/api/venta-sub-rubro-items/:id", (req, res) => {
+app.put("/api/venta-sub-rubro-items/:id", async (req, res) => {
   try {
     const id = Number(req.params.id);
     const nombre = String((req.body as { nombre?: string }).nombre ?? "").trim();
     const activo = (req.body as { activo?: boolean }).activo !== false;
-    if (!db.ventaSubRubroItems.update(id, { nombre, activo })) {
+    if (!await db.ventaSubRubroItems.update(id, { nombre, activo })) {
       res.status(404).json({ ok: false, error: "Ítem no encontrado" });
       return;
     }
     res.json({
       ok: true,
-      data: db.ventaSubRubroItems.getById(id),
+      data: await db.ventaSubRubroItems.getById(id),
       message: "Ítem actualizado",
     });
   } catch (e) {
@@ -571,24 +585,24 @@ app.put("/api/venta-sub-rubro-items/:id", (req, res) => {
   }
 });
 
-app.delete("/api/venta-sub-rubro-items/:id", (req, res) => {
+app.delete("/api/venta-sub-rubro-items/:id", async (req, res) => {
   const id = Number(req.params.id);
-  if (!db.ventaSubRubroItems.delete(id)) {
+  if (!await db.ventaSubRubroItems.delete(id)) {
     res.status(404).json({ ok: false, error: "Ítem no encontrado" });
     return;
   }
   res.json({ ok: true, message: "Ítem eliminado" });
 });
 
-app.get("/api/venta-grupo-iconos", (_req, res) => {
-  res.json({ ok: true, data: db.ventaGrupoIconos.map() });
+app.get("/api/venta-grupo-iconos", async (_req, res) => {
+  res.json({ ok: true, data: await db.ventaGrupoIconos.map() });
 });
 
-app.get("/api/venta-grupo-iconos/banco", (_req, res) => {
-  res.json({ ok: true, data: db.ventaGrupoIconos.banco() });
+app.get("/api/venta-grupo-iconos/banco", async (_req, res) => {
+  res.json({ ok: true, data: await db.ventaGrupoIconos.banco() });
 });
 
-app.put("/api/venta-grupo-iconos/:grupo/emoji", (req, res) => {
+app.put("/api/venta-grupo-iconos/:grupo/emoji", async (req, res) => {
   try {
     const grupo = decodeURIComponent(paramString(req.params.grupo)).trim();
     const emoji = String((req.body as { emoji?: unknown })?.emoji ?? "").trim();
@@ -596,7 +610,7 @@ app.put("/api/venta-grupo-iconos/:grupo/emoji", (req, res) => {
       res.status(400).json({ ok: false, error: "Rubro inválido." });
       return;
     }
-    const dto = db.ventaGrupoIconos.saveEmoji(grupo, emoji);
+    const dto = await db.ventaGrupoIconos.saveEmoji(grupo, emoji);
     res.json({
       ok: true,
       data: { grupo, icono: dto },
@@ -607,9 +621,9 @@ app.put("/api/venta-grupo-iconos/:grupo/emoji", (req, res) => {
   }
 });
 
-app.get("/api/venta-grupo-iconos/:grupo/imagen", (req, res) => {
+app.get("/api/venta-grupo-iconos/:grupo/imagen", async (req, res) => {
   const grupo = decodeURIComponent(paramString(req.params.grupo));
-  const filePath = db.ventaGrupoIconos.filePath(grupo);
+  const filePath = await db.ventaGrupoIconos.filePath(grupo);
   if (!filePath) {
     res.status(404).json({ ok: false, error: "Sin imagen personalizada" });
     return;
@@ -624,7 +638,7 @@ app.get("/api/venta-grupo-iconos/:grupo/imagen", (req, res) => {
 app.post(
   "/api/venta-grupo-iconos/:grupo/imagen",
   iconUpload.single("imagen"),
-  (req, res) => {
+  async (req, res) => {
     try {
       const grupo = decodeURIComponent(paramString(req.params.grupo)).trim();
       if (!grupo) {
@@ -636,7 +650,7 @@ app.post(
         res.status(400).json({ ok: false, error: "Seleccioná una imagen." });
         return;
       }
-      const icono = db.ventaGrupoIconos.save(grupo, file.buffer, file.mimetype);
+      const icono = await db.ventaGrupoIconos.save(grupo, file.buffer, file.mimetype);
       res.json({
         ok: true,
         data: { grupo, icono },
@@ -648,25 +662,25 @@ app.post(
   }
 );
 
-app.delete("/api/venta-grupo-iconos/:grupo/imagen", (req, res) => {
+app.delete("/api/venta-grupo-iconos/:grupo/imagen", async (req, res) => {
   try {
     const grupo = decodeURIComponent(paramString(req.params.grupo));
-    db.ventaGrupoIconos.deleteByGrupo(grupo);
+    await db.ventaGrupoIconos.deleteByGrupo(grupo);
     res.json({ ok: true, message: "Icono restaurado al predeterminado" });
   } catch (e) {
     res.status(400).json({ ok: false, error: (e as Error).message });
   }
 });
 
-app.get("/api/stock-ganadero/lotes", (_req, res) => {
-  res.json({ ok: true, data: db.stockGanadero.listLotes() });
+app.get("/api/stock-ganadero/lotes", async (_req, res) => {
+  res.json({ ok: true, data: await db.stockGanadero.listLotes() });
 });
 
-app.get("/api/stock-ganadero/registros", (req, res) => {
+app.get("/api/stock-ganadero/registros", async (req, res) => {
   const loteId = req.query.lote_id ? Number(req.query.lote_id) : undefined;
   res.json({
     ok: true,
-    data: db.stockGanadero.listRegistros({
+    data: await db.stockGanadero.listRegistros({
       lote_id: loteId && Number.isFinite(loteId) ? loteId : undefined,
       busqueda: req.query.busqueda as string | undefined,
       fecha_desde: req.query.fecha_desde as string | undefined,
@@ -676,11 +690,11 @@ app.get("/api/stock-ganadero/registros", (req, res) => {
   });
 });
 
-app.get("/api/stock-ganadero/estadisticas", (req, res) => {
+app.get("/api/stock-ganadero/estadisticas", async (req, res) => {
   const loteId = req.query.lote_id ? Number(req.query.lote_id) : undefined;
   res.json({
     ok: true,
-    data: db.stockGanadero.estadisticas({
+    data: await db.stockGanadero.estadisticas({
       lote_id: loteId && Number.isFinite(loteId) ? loteId : undefined,
       busqueda: req.query.busqueda as string | undefined,
       fecha_desde: req.query.fecha_desde as string | undefined,
@@ -689,7 +703,7 @@ app.get("/api/stock-ganadero/estadisticas", (req, res) => {
   });
 });
 
-app.get("/api/stock-ganadero/dispositivos", (req, res) => {
+app.get("/api/stock-ganadero/dispositivos", async (req, res) => {
   const loteId = req.query.lote_id ? Number(req.query.lote_id) : undefined;
   const estadoRaw = String(req.query.estado_dispositivo ?? "").toUpperCase();
   const estadoDispositivo =
@@ -700,7 +714,7 @@ app.get("/api/stock-ganadero/dispositivos", (req, res) => {
       : undefined;
   res.json({
     ok: true,
-    data: db.stockGanadero.listDispositivos({
+    data: await db.stockGanadero.listDispositivos({
       lote_id: loteId && Number.isFinite(loteId) ? loteId : undefined,
       busqueda: req.query.busqueda as string | undefined,
       fecha_desde: req.query.fecha_desde as string | undefined,
@@ -714,9 +728,9 @@ app.get("/api/stock-ganadero/dispositivos", (req, res) => {
   });
 });
 
-app.get("/api/stock-ganadero/dispositivos/:clave", (req, res) => {
+app.get("/api/stock-ganadero/dispositivos/:clave", async (req, res) => {
   const loteId = req.query.lote_id ? Number(req.query.lote_id) : undefined;
-  const detalle = db.stockGanadero.getDispositivo(req.params.clave, {
+  const detalle = await db.stockGanadero.getDispositivo(req.params.clave, {
     lote_id: loteId && Number.isFinite(loteId) ? loteId : undefined,
     busqueda: req.query.busqueda as string | undefined,
     fecha_desde: req.query.fecha_desde as string | undefined,
@@ -729,9 +743,9 @@ app.get("/api/stock-ganadero/dispositivos/:clave", (req, res) => {
   res.json({ ok: true, data: detalle });
 });
 
-app.get("/api/stock-ganadero/dispositivos/:clave/historial-cambios", (req, res) => {
+app.get("/api/stock-ganadero/dispositivos/:clave/historial-cambios", async (req, res) => {
   try {
-    const data = db.stockGanadero.listHistorialCambios(req.params.clave);
+    const data = await db.stockGanadero.listHistorialCambios(req.params.clave);
     res.json({ ok: true, data });
   } catch (e) {
     res.status(400).json({
@@ -741,14 +755,14 @@ app.get("/api/stock-ganadero/dispositivos/:clave/historial-cambios", (req, res) 
   }
 });
 
-app.patch("/api/stock-ganadero/dispositivos/:clave/sexo", (req, res) => {
+app.patch("/api/stock-ganadero/dispositivos/:clave/sexo", async (req, res) => {
   try {
     const sexo = String(req.body?.sexo ?? "").toUpperCase() as
       | ""
       | "MACHO"
       | "HEMBRA";
     const eid = typeof req.body?.eid === "string" ? req.body.eid : undefined;
-    const actualizado = db.stockGanadero.updateDispositivoSexo(
+    const actualizado = await db.stockGanadero.updateDispositivoSexo(
       req.params.clave,
       sexo,
       eid
@@ -762,7 +776,7 @@ app.patch("/api/stock-ganadero/dispositivos/:clave/sexo", (req, res) => {
   }
 });
 
-app.patch("/api/stock-ganadero/dispositivos/:clave", (req, res) => {
+app.patch("/api/stock-ganadero/dispositivos/:clave", async (req, res) => {
   try {
     const body = req.body ?? {};
     const sexo = String(body.sexo ?? "").toUpperCase() as "" | "MACHO" | "HEMBRA";
@@ -799,7 +813,7 @@ app.patch("/api/stock-ganadero/dispositivos/:clave", (req, res) => {
         : Number(bajaAnioRaw);
     const eid = typeof body.eid === "string" ? body.eid : undefined;
 
-    const data = db.stockGanadero.saveDispositivo(
+    const data = await db.stockGanadero.saveDispositivo(
       req.params.clave,
       {
         sexo,
@@ -823,7 +837,7 @@ app.patch("/api/stock-ganadero/dispositivos/:clave", (req, res) => {
   }
 });
 
-app.patch("/api/stock-ganadero/dispositivos/:clave/edad", (req, res) => {
+app.patch("/api/stock-ganadero/dispositivos/:clave/edad", async (req, res) => {
   try {
     const raw = req.body?.edad;
     const edad =
@@ -831,7 +845,7 @@ app.patch("/api/stock-ganadero/dispositivos/:clave/edad", (req, res) => {
         ? null
         : Number(raw);
     const eid = typeof req.body?.eid === "string" ? req.body.eid : undefined;
-    const actualizado = db.stockGanadero.updateDispositivoEdad(
+    const actualizado = await db.stockGanadero.updateDispositivoEdad(
       req.params.clave,
       edad,
       eid
@@ -845,18 +859,19 @@ app.patch("/api/stock-ganadero/dispositivos/:clave/edad", (req, res) => {
   }
 });
 
-app.get("/api/stock-ganadero/resumen", (_req, res) => {
+app.get("/api/stock-ganadero/resumen", async (_req, res) => {
+  const lotes = await db.stockGanadero.listLotes();
   res.json({
     ok: true,
     data: {
-      lotes: db.stockGanadero.listLotes().length,
-      registros: db.stockGanadero.countRegistros(),
-      dispositivos: db.stockGanadero.countDispositivos(),
+      lotes: lotes.length,
+      registros: await db.stockGanadero.countRegistros(),
+      dispositivos: await db.stockGanadero.countDispositivos(),
     },
   });
 });
 
-app.post("/api/stock-ganadero/import/file", upload.single("file"), (req, res) => {
+app.post("/api/stock-ganadero/import/file", upload.single("file"), async (req, res) => {
   try {
     const file = req.file;
     if (!file?.buffer?.length) {
@@ -864,8 +879,8 @@ app.post("/api/stock-ganadero/import/file", upload.single("file"), (req, res) =>
       return;
     }
     const rows = parseStockGanaderoBuffer(file.buffer);
-    const result = db.stockGanadero.importRows(file.originalname || "import.txt", rows);
-    const lote = db.stockGanadero.getLote(result.lote_id);
+    const result = await db.stockGanadero.importRows(file.originalname || "import.txt", rows);
+    const lote = await db.stockGanadero.getLote(result.lote_id);
     res.status(201).json({
       ok: true,
       message: `Importadas ${result.insertados} lectura(s) desde «${lote?.nombre_archivo ?? "archivo"}»`,
@@ -876,13 +891,13 @@ app.post("/api/stock-ganadero/import/file", upload.single("file"), (req, res) =>
   }
 });
 
-app.post("/api/stock-ganadero/import/text", (req, res) => {
+app.post("/api/stock-ganadero/import/text", async (req, res) => {
   try {
     const texto = String((req.body as { texto?: string }).texto ?? "");
     const nombre = String((req.body as { nombre_archivo?: string }).nombre_archivo ?? "pegado.txt");
     const rows = parseStockGanaderoText(texto);
-    const result = db.stockGanadero.importRows(nombre, rows);
-    const lote = db.stockGanadero.getLote(result.lote_id);
+    const result = await db.stockGanadero.importRows(nombre, rows);
+    const lote = await db.stockGanadero.getLote(result.lote_id);
     res.status(201).json({
       ok: true,
       message: `Importadas ${result.insertados} lectura(s)`,
@@ -920,7 +935,7 @@ function mensajeImportBaja(
   return msg;
 }
 
-app.post("/api/stock-ganadero/baja/file", upload.single("file"), (req, res) => {
+app.post("/api/stock-ganadero/baja/file", upload.single("file"), async (req, res) => {
   try {
     const file = req.file;
     if (!file?.buffer?.length) {
@@ -929,7 +944,7 @@ app.post("/api/stock-ganadero/baja/file", upload.single("file"), (req, res) => {
     }
     const estado = parseEstadoBajaImport(req.body?.estado);
     const rows = parseStockGanaderoBuffer(file.buffer);
-    const result = db.stockGanadero.importBaja(rows, estado);
+    const result = await db.stockGanadero.importBaja(rows, estado);
     res.status(201).json({
       ok: true,
       message: mensajeImportBaja(result, estado),
@@ -940,13 +955,13 @@ app.post("/api/stock-ganadero/baja/file", upload.single("file"), (req, res) => {
   }
 });
 
-app.post("/api/stock-ganadero/baja/text", (req, res) => {
+app.post("/api/stock-ganadero/baja/text", async (req, res) => {
   try {
     const body = req.body as { texto?: string; estado?: string };
     const texto = String(body.texto ?? "");
     const estado = parseEstadoBajaImport(body.estado);
     const rows = parseStockGanaderoText(texto);
-    const result = db.stockGanadero.importBaja(rows, estado);
+    const result = await db.stockGanadero.importBaja(rows, estado);
     res.status(201).json({
       ok: true,
       message: mensajeImportBaja(result, estado),
@@ -957,9 +972,9 @@ app.post("/api/stock-ganadero/baja/text", (req, res) => {
   }
 });
 
-app.delete("/api/stock-ganadero/lotes/:id", (req, res) => {
+app.delete("/api/stock-ganadero/lotes/:id", async (req, res) => {
   const id = Number(req.params.id);
-  if (!db.stockGanadero.deleteLote(id)) {
+  if (!await db.stockGanadero.deleteLote(id)) {
     res.status(404).json({ ok: false, error: "Lote no encontrado" });
     return;
   }
@@ -983,18 +998,18 @@ function parseProveedorBody(req: Request) {
   };
 }
 
-app.get("/api/proveedores", (req, res) => {
+app.get("/api/proveedores", async (req, res) => {
   const busqueda = req.query.busqueda as string | undefined;
-  res.json({ ok: true, data: db.proveedores.list(busqueda) });
+  res.json({ ok: true, data: await db.proveedores.list(busqueda) });
 });
 
-app.get("/api/proveedores/siguiente-cod", (_req, res) => {
-  res.json({ ok: true, cod: db.proveedores.nextCod() });
+app.get("/api/proveedores/siguiente-cod", async (_req, res) => {
+  res.json({ ok: true, cod: await db.proveedores.nextCod() });
 });
 
-app.get("/api/proveedores/:cod", (req, res) => {
+app.get("/api/proveedores/:cod", async (req, res) => {
   const cod = Number(req.params.cod);
-  const reg = db.proveedores.getByCod(cod);
+  const reg = await db.proveedores.getByCod(cod);
   if (!reg) {
     res.status(404).json({ ok: false, error: "Proveedor no encontrado" });
     return;
@@ -1002,17 +1017,17 @@ app.get("/api/proveedores/:cod", (req, res) => {
   res.json({ ok: true, data: reg });
 });
 
-app.post("/api/proveedores", (req, res) => {
+app.post("/api/proveedores", async (req, res) => {
   try {
     const payload = parseProveedorBody(req);
-    if (db.proveedores.getByCod(payload.cod)) {
+    if (await db.proveedores.getByCod(payload.cod)) {
       res.status(400).json({ ok: false, error: "Ya existe un proveedor con ese código" });
       return;
     }
-    const id = db.proveedores.insert(payload);
+    const id = await db.proveedores.insert(payload);
     res.status(201).json({
       ok: true,
-      data: db.proveedores.getById(id),
+      data: await db.proveedores.getById(id),
       message: "Proveedor agregado",
     });
   } catch (e) {
@@ -1020,22 +1035,22 @@ app.post("/api/proveedores", (req, res) => {
   }
 });
 
-app.put("/api/proveedores/id/:id", (req, res) => {
+app.put("/api/proveedores/id/:id", async (req, res) => {
   try {
     const id = Number(req.params.id);
     const payload = parseProveedorBody(req);
-    const existing = db.proveedores.getByCod(payload.cod);
+    const existing = await db.proveedores.getByCod(payload.cod);
     if (existing && existing.id !== id) {
       res.status(400).json({ ok: false, error: "Ya existe otro proveedor con ese código" });
       return;
     }
-    if (!db.proveedores.update(id, payload)) {
+    if (!await db.proveedores.update(id, payload)) {
       res.status(404).json({ ok: false, error: "Proveedor no encontrado" });
       return;
     }
     res.json({
       ok: true,
-      data: db.proveedores.getById(id),
+      data: await db.proveedores.getById(id),
       message: "Proveedor actualizado",
     });
   } catch (e) {
@@ -1043,9 +1058,9 @@ app.put("/api/proveedores/id/:id", (req, res) => {
   }
 });
 
-app.delete("/api/proveedores/id/:id", (req, res) => {
+app.delete("/api/proveedores/id/:id", async (req, res) => {
   const id = Number(req.params.id);
-  if (!db.proveedores.delete(id)) {
+  if (!await db.proveedores.delete(id)) {
     res.status(404).json({ ok: false, error: "Proveedor no encontrado" });
     return;
   }
@@ -1059,18 +1074,18 @@ function parseRubroBody(req: Request) {
   return { nombre, activo };
 }
 
-app.get("/api/rubros", (req, res) => {
+app.get("/api/rubros", async (req, res) => {
   const soloActivos = req.query.solo_activos === "1";
-  res.json({ ok: true, data: db.rubros.list(soloActivos) });
+  res.json({ ok: true, data: await db.rubros.list(soloActivos) });
 });
 
-app.post("/api/rubros", (req, res) => {
+app.post("/api/rubros", async (req, res) => {
   try {
     const payload = parseRubroBody(req);
-    const id = db.rubros.insert(payload);
+    const id = await db.rubros.insert(payload);
     res.status(201).json({
       ok: true,
-      data: db.rubros.getById(id),
+      data: await db.rubros.getById(id),
       message: "Rubro creado",
     });
   } catch (e) {
@@ -1078,17 +1093,17 @@ app.post("/api/rubros", (req, res) => {
   }
 });
 
-app.put("/api/rubros/:id", (req, res) => {
+app.put("/api/rubros/:id", async (req, res) => {
   try {
     const id = Number(req.params.id);
     const payload = parseRubroBody(req);
-    if (!db.rubros.update(id, payload)) {
+    if (!await db.rubros.update(id, payload)) {
       res.status(404).json({ ok: false, error: "Rubro no encontrado" });
       return;
     }
     res.json({
       ok: true,
-      data: db.rubros.getById(id),
+      data: await db.rubros.getById(id),
       message: "Rubro actualizado",
     });
   } catch (e) {
@@ -1096,10 +1111,10 @@ app.put("/api/rubros/:id", (req, res) => {
   }
 });
 
-app.delete("/api/rubros/:id", (req, res) => {
+app.delete("/api/rubros/:id", async (req, res) => {
   try {
     const id = Number(req.params.id);
-    if (!db.rubros.delete(id)) {
+    if (!await db.rubros.delete(id)) {
       res.status(404).json({ ok: false, error: "Rubro no encontrado" });
       return;
     }
@@ -1117,23 +1132,23 @@ function parseSubRubroBody(req: Request) {
   return { nombre, grupo, activo };
 }
 
-app.get("/api/sub-rubros", (req, res) => {
+app.get("/api/sub-rubros", async (req, res) => {
   const soloActivos = req.query.solo_activos === "1";
-  res.json({ ok: true, data: db.subRubros.list(soloActivos) });
+  res.json({ ok: true, data: await db.subRubros.list(soloActivos) });
 });
 
-app.get("/api/sub-rubros/grupos", (_req, res) => {
-  res.json({ ok: true, data: db.subRubros.listGrupos() });
+app.get("/api/sub-rubros/grupos", async (_req, res) => {
+  res.json({ ok: true, data: await db.subRubros.listGrupos() });
 });
 
-app.post("/api/sub-rubros", (req, res) => {
+app.post("/api/sub-rubros", async (req, res) => {
   try {
     const payload = parseSubRubroBody(req);
-    const id = db.subRubros.insert(payload);
-    db.rubroVinculos.syncPorGrupo(id, payload.grupo);
+    const id = await db.subRubros.insert(payload);
+    await db.rubroVinculos.syncPorGrupo(id, payload.grupo);
     res.status(201).json({
       ok: true,
-      data: db.subRubros.getById(id),
+      data: await db.subRubros.getById(id),
       message: "Sub-rubro creado",
     });
   } catch (e) {
@@ -1141,7 +1156,7 @@ app.post("/api/sub-rubros", (req, res) => {
   }
 });
 
-app.post("/api/sub-rubros/desde-rubro", (req, res) => {
+app.post("/api/sub-rubros/desde-rubro", async (req, res) => {
   try {
     const body = req.body as Record<string, unknown>;
     const rubro = String(body.rubro ?? "").trim();
@@ -1152,12 +1167,12 @@ app.post("/api/sub-rubros/desde-rubro", (req, res) => {
       res.status(400).json({ ok: false, error: "El rubro contable es obligatorio." });
       return;
     }
-    const grupo = db.rubroVinculos.resolveGrupoParaRubro(rubro);
-    const id = db.subRubros.insert({ nombre, grupo, activo });
-    db.rubroVinculos.syncPorGrupo(id, grupo);
+    const grupo = await db.rubroVinculos.resolveGrupoParaRubro(rubro);
+    const id = await db.subRubros.insert({ nombre, grupo, activo });
+    await db.rubroVinculos.syncPorGrupo(id, grupo);
     res.status(201).json({
       ok: true,
-      data: db.subRubros.getById(id),
+      data: await db.subRubros.getById(id),
       message: "Sub-rubro creado",
     });
   } catch (e) {
@@ -1165,22 +1180,22 @@ app.post("/api/sub-rubros/desde-rubro", (req, res) => {
   }
 });
 
-app.put("/api/sub-rubros/:id", (req, res) => {
+app.put("/api/sub-rubros/:id", async (req, res) => {
   try {
     const id = Number(req.params.id);
-    const prev = db.subRubros.getById(id);
+    const prev = await db.subRubros.getById(id);
     const payload = parseSubRubroBody(req);
-    if (!db.subRubros.update(id, payload)) {
+    if (!await db.subRubros.update(id, payload)) {
       res.status(404).json({ ok: false, error: "Sub-rubro no encontrado" });
       return;
     }
     if (prev && prev.grupo !== payload.grupo) {
-      db.grupoIconos.renameGrupo(prev.grupo, payload.grupo);
+      await db.grupoIconos.renameGrupo(prev.grupo, payload.grupo);
     }
-    db.rubroVinculos.syncPorGrupo(id, payload.grupo);
+    await db.rubroVinculos.syncPorGrupo(id, payload.grupo);
     res.json({
       ok: true,
-      data: db.subRubros.getById(id),
+      data: await db.subRubros.getById(id),
       message: "Sub-rubro actualizado",
     });
   } catch (e) {
@@ -1188,21 +1203,19 @@ app.put("/api/sub-rubros/:id", (req, res) => {
   }
 });
 
-app.put("/api/sub-rubros/grupo/rename", (req, res) => {
+app.put("/api/sub-rubros/grupo/rename", async (req, res) => {
   try {
     const anterior = String(req.body?.anterior ?? "").trim();
     const nuevo = String(req.body?.nuevo ?? "").trim();
-    const updated = db.subRubros.renameGrupo(anterior, nuevo);
+    const updated = await db.subRubros.renameGrupo(anterior, nuevo);
     const nombreCanon = normalizarTituloRubro(nuevo);
-    db.grupoIconos.renameGrupo(anterior, nombreCanon);
-    const subs = db.subRubros
-      .list(false)
-      .filter(
+    await db.grupoIconos.renameGrupo(anterior, nombreCanon);
+    const subs = (await db.subRubros.list(false)).filter(
         (s) =>
           s.grupo.localeCompare(nombreCanon, "es", { sensitivity: "accent" }) === 0
       );
     for (const s of subs) {
-      db.rubroVinculos.syncPorGrupo(s.id, s.grupo);
+      await db.rubroVinculos.syncPorGrupo(s.id, s.grupo);
     }
     res.json({
       ok: true,
@@ -1217,11 +1230,11 @@ app.put("/api/sub-rubros/grupo/rename", (req, res) => {
   }
 });
 
-app.delete("/api/sub-rubros/grupo/:grupo", (req, res) => {
+app.delete("/api/sub-rubros/grupo/:grupo", async (req, res) => {
   try {
     const grupo = decodeURIComponent(req.params.grupo);
-    const result = db.subRubros.deleteByGrupo(grupo);
-    db.grupoIconos.deleteByGrupo(grupo);
+    const result = await db.subRubros.deleteByGrupo(grupo);
+    await db.grupoIconos.deleteByGrupo(grupo);
     const msg =
       result.deleted > 0
         ? `Rubro eliminado (${result.deleted} sub-rubro(s))`
@@ -1232,10 +1245,10 @@ app.delete("/api/sub-rubros/grupo/:grupo", (req, res) => {
   }
 });
 
-app.delete("/api/sub-rubros/:id", (req, res) => {
+app.delete("/api/sub-rubros/:id", async (req, res) => {
   try {
     const id = Number(req.params.id);
-    if (!db.subRubros.delete(id)) {
+    if (!await db.subRubros.delete(id)) {
       res.status(404).json({ ok: false, error: "Sub-rubro no encontrado" });
       return;
     }
@@ -1245,25 +1258,25 @@ app.delete("/api/sub-rubros/:id", (req, res) => {
   }
 });
 
-app.get("/api/sub-rubros/items-counts", (req, res) => {
+app.get("/api/sub-rubros/items-counts", async (req, res) => {
   const raw = String(req.query.ids ?? "").trim();
   const ids = raw
     .split(",")
     .map((s) => Number(s.trim()))
     .filter((n) => Number.isFinite(n) && n > 0);
-  res.json({ ok: true, data: db.subRubroItems.countsBySubRubroIds(ids) });
+  res.json({ ok: true, data: await db.subRubroItems.countsBySubRubroIds(ids) });
 });
 
-app.get("/api/sub-rubros/items-batch", (req, res) => {
+app.get("/api/sub-rubros/items-batch", async (req, res) => {
   const raw = String(req.query.ids ?? "").trim();
   const ids = raw
     .split(",")
     .map((s) => Number(s.trim()))
     .filter((n) => Number.isFinite(n) && n > 0);
-  res.json({ ok: true, data: db.subRubroItems.groupedBySubRubroIds(ids) });
+  res.json({ ok: true, data: await db.subRubroItems.groupedBySubRubroIds(ids) });
 });
 
-app.get("/api/sub-rubros/items", (req, res) => {
+app.get("/api/sub-rubros/items", async (req, res) => {
   const nombre = String(req.query.sub_rubro ?? "").trim();
   if (!nombre) {
     res.status(400).json({ ok: false, error: "Falta el sub-rubro." });
@@ -1272,11 +1285,11 @@ app.get("/api/sub-rubros/items", (req, res) => {
   const soloActivos = req.query.solo_activos !== "0";
   res.json({
     ok: true,
-    data: db.subRubroItems.listBySubRubroNombre(nombre, soloActivos),
+    data: await db.subRubroItems.listBySubRubroNombre(nombre, soloActivos),
   });
 });
 
-app.post("/api/sub-rubros/items", (req, res) => {
+app.post("/api/sub-rubros/items", async (req, res) => {
   try {
     const subRubroNombre = String(
       (req.body as { sub_rubro?: string }).sub_rubro ?? ""
@@ -1286,16 +1299,16 @@ app.post("/api/sub-rubros/items", (req, res) => {
       res.status(400).json({ ok: false, error: "Falta el sub-rubro." });
       return;
     }
-    const sub = db.subRubros.getByNombre(subRubroNombre);
+    const sub = await db.subRubros.getByNombre(subRubroNombre);
     if (!sub) {
       res.status(404).json({ ok: false, error: "Sub-rubro no encontrado" });
       return;
     }
     const activo = (req.body as { activo?: boolean }).activo !== false;
-    const itemId = db.subRubroItems.insert(sub.id, { nombre, activo });
+    const itemId = await db.subRubroItems.insert(sub.id, { nombre, activo });
     res.status(201).json({
       ok: true,
-      data: db.subRubroItems.getById(itemId),
+      data: await db.subRubroItems.getById(itemId),
       message: "Ítem creado",
     });
   } catch (e) {
@@ -1303,30 +1316,30 @@ app.post("/api/sub-rubros/items", (req, res) => {
   }
 });
 
-app.get("/api/sub-rubros/:id/items", (req, res) => {
+app.get("/api/sub-rubros/:id/items", async (req, res) => {
   const id = Number(req.params.id);
-  const sub = db.subRubros.getById(id);
+  const sub = await db.subRubros.getById(id);
   if (!sub) {
     res.status(404).json({ ok: false, error: "Sub-rubro no encontrado" });
     return;
   }
   const soloActivos = req.query.solo_activos !== "0";
-  res.json({ ok: true, data: db.subRubroItems.listBySubRubroId(id, soloActivos) });
+  res.json({ ok: true, data: await db.subRubroItems.listBySubRubroId(id, soloActivos) });
 });
 
-app.post("/api/sub-rubros/:id/items", (req, res) => {
+app.post("/api/sub-rubros/:id/items", async (req, res) => {
   try {
     const id = Number(req.params.id);
-    if (!db.subRubros.getById(id)) {
+    if (!await db.subRubros.getById(id)) {
       res.status(404).json({ ok: false, error: "Sub-rubro no encontrado" });
       return;
     }
     const nombre = String((req.body as { nombre?: string }).nombre ?? "").trim();
     const activo = (req.body as { activo?: boolean }).activo !== false;
-    const itemId = db.subRubroItems.insert(id, { nombre, activo });
+    const itemId = await db.subRubroItems.insert(id, { nombre, activo });
     res.status(201).json({
       ok: true,
-      data: db.subRubroItems.getById(itemId),
+      data: await db.subRubroItems.getById(itemId),
       message: "Ítem creado",
     });
   } catch (e) {
@@ -1334,18 +1347,18 @@ app.post("/api/sub-rubros/:id/items", (req, res) => {
   }
 });
 
-app.put("/api/sub-rubro-items/:id", (req, res) => {
+app.put("/api/sub-rubro-items/:id", async (req, res) => {
   try {
     const id = Number(req.params.id);
     const nombre = String((req.body as { nombre?: string }).nombre ?? "").trim();
     const activo = (req.body as { activo?: boolean }).activo !== false;
-    if (!db.subRubroItems.update(id, { nombre, activo })) {
+    if (!await db.subRubroItems.update(id, { nombre, activo })) {
       res.status(404).json({ ok: false, error: "Ítem no encontrado" });
       return;
     }
     res.json({
       ok: true,
-      data: db.subRubroItems.getById(id),
+      data: await db.subRubroItems.getById(id),
       message: "Ítem actualizado",
     });
   } catch (e) {
@@ -1353,24 +1366,24 @@ app.put("/api/sub-rubro-items/:id", (req, res) => {
   }
 });
 
-app.delete("/api/sub-rubro-items/:id", (req, res) => {
+app.delete("/api/sub-rubro-items/:id", async (req, res) => {
   const id = Number(req.params.id);
-  if (!db.subRubroItems.delete(id)) {
+  if (!await db.subRubroItems.delete(id)) {
     res.status(404).json({ ok: false, error: "Ítem no encontrado" });
     return;
   }
   res.json({ ok: true, message: "Ítem eliminado" });
 });
 
-app.get("/api/grupo-iconos", (_req, res) => {
-  res.json({ ok: true, data: db.grupoIconos.map() });
+app.get("/api/grupo-iconos", async (_req, res) => {
+  res.json({ ok: true, data: await db.grupoIconos.map() });
 });
 
-app.get("/api/grupo-iconos/banco", (_req, res) => {
-  res.json({ ok: true, data: db.grupoIconos.banco() });
+app.get("/api/grupo-iconos/banco", async (_req, res) => {
+  res.json({ ok: true, data: await db.grupoIconos.banco() });
 });
 
-app.put("/api/grupo-iconos/:grupo/emoji", (req, res) => {
+app.put("/api/grupo-iconos/:grupo/emoji", async (req, res) => {
   try {
     const grupo = decodeURIComponent(paramString(req.params.grupo)).trim();
     const emoji = String((req.body as { emoji?: unknown })?.emoji ?? "").trim();
@@ -1378,7 +1391,7 @@ app.put("/api/grupo-iconos/:grupo/emoji", (req, res) => {
       res.status(400).json({ ok: false, error: "Rubro inválido." });
       return;
     }
-    const dto = db.grupoIconos.saveEmoji(grupo, emoji);
+    const dto = await db.grupoIconos.saveEmoji(grupo, emoji);
     res.json({
       ok: true,
       data: { grupo, icono: dto },
@@ -1389,9 +1402,9 @@ app.put("/api/grupo-iconos/:grupo/emoji", (req, res) => {
   }
 });
 
-app.get("/api/grupo-iconos/:grupo/imagen", (req, res) => {
+app.get("/api/grupo-iconos/:grupo/imagen", async (req, res) => {
   const grupo = decodeURIComponent(paramString(req.params.grupo));
-  const filePath = db.grupoIconos.filePath(grupo);
+  const filePath = await db.grupoIconos.filePath(grupo);
   if (!filePath) {
     res.status(404).json({ ok: false, error: "Sin imagen personalizada" });
     return;
@@ -1406,7 +1419,7 @@ app.get("/api/grupo-iconos/:grupo/imagen", (req, res) => {
 app.post(
   "/api/grupo-iconos/:grupo/imagen",
   iconUpload.single("imagen"),
-  (req, res) => {
+  async (req, res) => {
     try {
       const grupo = decodeURIComponent(paramString(req.params.grupo)).trim();
       if (!grupo) {
@@ -1418,7 +1431,7 @@ app.post(
         res.status(400).json({ ok: false, error: "Seleccioná una imagen." });
         return;
       }
-      const icono = db.grupoIconos.save(grupo, file.buffer, file.mimetype);
+      const icono = await db.grupoIconos.save(grupo, file.buffer, file.mimetype);
       res.json({
         ok: true,
         data: { grupo, icono },
@@ -1430,41 +1443,41 @@ app.post(
   }
 );
 
-app.delete("/api/grupo-iconos/:grupo/imagen", (req, res) => {
+app.delete("/api/grupo-iconos/:grupo/imagen", async (req, res) => {
   try {
     const grupo = decodeURIComponent(paramString(req.params.grupo));
-    db.grupoIconos.deleteByGrupo(grupo);
+    await db.grupoIconos.deleteByGrupo(grupo);
     res.json({ ok: true, message: "Icono restaurado al predeterminado" });
   } catch (e) {
     res.status(400).json({ ok: false, error: (e as Error).message });
   }
 });
 
-app.get("/api/rubro-vinculos/mapa", (_req, res) => {
-  res.json({ ok: true, data: db.rubroVinculos.mapaCompleto() });
+app.get("/api/rubro-vinculos/mapa", async (_req, res) => {
+  res.json({ ok: true, data: await db.rubroVinculos.mapaCompleto() });
 });
 
-app.get("/api/rubros/:id/vinculos-sub-rubros", (req, res) => {
+app.get("/api/rubros/:id/vinculos-sub-rubros", async (req, res) => {
   const rubroId = Number(req.params.id);
-  if (!db.rubros.getById(rubroId)) {
+  const rubroRow = await db.rubros.getById(rubroId);
+  if (!rubroRow) {
     res.status(404).json({ ok: false, error: "Rubro no encontrado" });
     return;
   }
+  const mapa = await db.rubroVinculos.mapPorRubro(true);
   res.json({
     ok: true,
     data: {
-      sub_rubro_ids: db.rubroVinculos.getSubRubroIds(rubroId),
-      sub_rubros: db.rubroVinculos.mapPorRubro(true)[
-        db.rubros.getById(rubroId)!.nombre
-      ] ?? [],
+      sub_rubro_ids: await db.rubroVinculos.getSubRubroIds(rubroId),
+      sub_rubros: mapa[rubroRow.nombre] ?? [],
     },
   });
 });
 
-app.put("/api/rubros/:id/vinculos-sub-rubros", (req, res) => {
+app.put("/api/rubros/:id/vinculos-sub-rubros", async (req, res) => {
   try {
     const rubroId = Number(req.params.id);
-    const rubroRow = db.rubros.getById(rubroId);
+    const rubroRow = await db.rubros.getById(rubroId);
     if (!rubroRow) {
       res.status(404).json({ ok: false, error: "Rubro no encontrado" });
       return;
@@ -1474,16 +1487,16 @@ app.put("/api/rubros/:id/vinculos-sub-rubros", (req, res) => {
     const sub_rubro_ids = Array.isArray(raw)
       ? raw.map((x) => Number(x)).filter((n) => Number.isFinite(n) && n > 0)
       : [];
-    db.rubroVinculos.setSubRubros(rubroId, sub_rubro_ids);
+    await db.rubroVinculos.setSubRubros(rubroId, sub_rubro_ids);
+    const ids = await db.rubroVinculos.getSubRubroIds(rubroId);
+    const mapa = await db.rubroVinculos.mapPorRubro(true);
     res.json({
       ok: true,
       message: "Vínculos guardados",
       data: {
         rubro: rubroRow.nombre,
-        sub_rubro_ids: db.rubroVinculos.getSubRubroIds(rubroId),
-        sub_rubros: db.rubroVinculos.getSubRubroIds(rubroId).length
-          ? db.rubroVinculos.mapPorRubro(true)[rubroRow.nombre] ?? []
-          : [],
+        sub_rubro_ids: ids,
+        sub_rubros: ids.length ? mapa[rubroRow.nombre] ?? [] : [],
       },
     });
   } catch (e) {
@@ -1498,18 +1511,18 @@ function parseResponsableBody(req: Request) {
   return { nombre, activo };
 }
 
-app.get("/api/responsables", (req, res) => {
+app.get("/api/responsables", async (req, res) => {
   const soloActivos = req.query.solo_activos === "1";
-  res.json({ ok: true, data: db.responsables.list(soloActivos) });
+  res.json({ ok: true, data: await db.responsables.list(soloActivos) });
 });
 
-app.post("/api/responsables", (req, res) => {
+app.post("/api/responsables", async (req, res) => {
   try {
     const payload = parseResponsableBody(req);
-    const id = db.responsables.insert(payload);
+    const id = await db.responsables.insert(payload);
     res.status(201).json({
       ok: true,
-      data: db.responsables.getById(id),
+      data: await db.responsables.getById(id),
       message: "Nombre guardado",
     });
   } catch (e) {
@@ -1517,17 +1530,17 @@ app.post("/api/responsables", (req, res) => {
   }
 });
 
-app.put("/api/responsables/:id", (req, res) => {
+app.put("/api/responsables/:id", async (req, res) => {
   try {
     const id = Number(req.params.id);
     const payload = parseResponsableBody(req);
-    if (!db.responsables.update(id, payload)) {
+    if (!await db.responsables.update(id, payload)) {
       res.status(404).json({ ok: false, error: "Nombre no encontrado" });
       return;
     }
     res.json({
       ok: true,
-      data: db.responsables.getById(id),
+      data: await db.responsables.getById(id),
       message: "Nombre actualizado",
     });
   } catch (e) {
@@ -1535,10 +1548,10 @@ app.put("/api/responsables/:id", (req, res) => {
   }
 });
 
-app.delete("/api/responsables/:id", (req, res) => {
+app.delete("/api/responsables/:id", async (req, res) => {
   try {
     const id = Number(req.params.id);
-    if (!db.responsables.delete(id)) {
+    if (!await db.responsables.delete(id)) {
       res.status(404).json({ ok: false, error: "Nombre no encontrado" });
       return;
     }
@@ -1561,25 +1574,25 @@ function parseDivisaBody(req: Request) {
   return { fecha, par, valor };
 }
 
-app.get("/api/divisas", (req, res) => {
+app.get("/api/divisas", async (req, res) => {
   const par = req.query.par as ParDivisa | undefined;
   res.json({
     ok: true,
-    data: db.divisas.list({
+    data: await db.divisas.list({
       par,
       fecha_desde: req.query.fecha_desde as string | undefined,
       fecha_hasta: req.query.fecha_hasta as string | undefined,
     }),
-    ultimos: db.divisas.ultimos(),
+    ultimos: await db.divisas.ultimos(),
     indicadores: par
-      ? db.divisas.indicadores(par)
-      : db.divisas.indicadores("UYU_USD"),
-    pares: db.divisas.pares,
-    labels: db.divisas.labels,
+      ? await db.divisas.indicadores(par)
+      : await db.divisas.indicadores("UYU_USD"),
+    pares: await db.divisas.pares,
+    labels: await db.divisas.labels,
   });
 });
 
-app.get("/api/divisas/para-fecha", (req, res) => {
+app.get("/api/divisas/para-fecha", async (req, res) => {
   const par = req.query.par as ParDivisa | undefined;
   const fecha = String(req.query.fecha ?? "").trim();
   if (!par || !PARES_DIVISA.includes(par)) {
@@ -1590,7 +1603,7 @@ app.get("/api/divisas/para-fecha", (req, res) => {
     res.status(400).json({ ok: false, error: "La fecha es obligatoria." });
     return;
   }
-  const row = db.divisas.valorEnFecha(par, fecha);
+  const row = await db.divisas.valorEnFecha(par, fecha);
   if (!row) {
     res.json({ ok: true, data: null });
     return;
@@ -1615,17 +1628,17 @@ function mensajeImportacionDivisas(result: {
   return partes.join(", ");
 }
 
-app.post("/api/divisas", (req, res) => {
+app.post("/api/divisas", async (req, res) => {
   try {
     const payload = parseDivisaBody(req);
-    if (db.divisas.exists(payload.fecha, payload.par)) {
+    if (await db.divisas.exists(payload.fecha, payload.par)) {
       res.status(409).json({
         ok: false,
         error: `Ya existe un TC para ${payload.fecha} (${payload.par}). ${MSG_TC_INMUTABLE}`,
       });
       return;
     }
-    db.divisas.insert(payload);
+    await db.divisas.insert(payload);
     res.status(201).json({ ok: true, message: "Tipo de cambio guardado" });
   } catch (e) {
     res.status(400).json({ ok: false, error: (e as Error).message });
@@ -1651,7 +1664,7 @@ app.post("/api/divisas/import/file", upload.single("file"), async (req, res) => 
       res.status(400).json({ ok: false, error: "No se encontraron filas válidas en el archivo" });
       return;
     }
-    const result = db.divisas.importBatch(rows, { solo_nuevos: true });
+    const result = await db.divisas.importBatch(rows, { solo_nuevos: true });
     res.json({
       ok: true,
       message: mensajeImportacionDivisas(result),
@@ -1674,7 +1687,7 @@ app.post("/api/divisas/import/investing-uyu", async (req, res) => {
       res.status(400).json({ ok: false, error: "No hay filas para importar." });
       return;
     }
-    const result = db.divisas.importBatch(fetched.rows, { solo_nuevos: true });
+    const result = await db.divisas.importBatch(fetched.rows, { solo_nuevos: true });
     res.json({
       ok: true,
       message: `Investing.com (USD/UYU): ${mensajeImportacionDivisas(result)} (${fetched.rows.length} día(s)).`,
@@ -1714,7 +1727,7 @@ app.post("/api/divisas/import/bcu-uyu", async (req, res) => {
         ? 2
         : Math.min(Math.max(Number(anosRaw) || 2, 1), 10);
 
-    const maxGuardada = db.divisas.maxFecha("UYU_USD");
+    const maxGuardada = await db.divisas.maxFecha("UYU_USD");
     let desdeIncremental: string | undefined;
     if (!completo && !fechaDesdeFiltro && maxGuardada) {
       desdeIncremental = addDaysIso(maxGuardada, 1);
@@ -1764,7 +1777,7 @@ app.post("/api/divisas/import/bcu-uyu", async (req, res) => {
       return;
     }
 
-    const result = db.divisas.importBatch(fetched.rows, { solo_nuevos: soloNuevos });
+    const result = await db.divisas.importBatch(fetched.rows, { solo_nuevos: soloNuevos });
     const msgPartes = [
       `BCU (USD/UYU): ${result.insertados} día(s) nuevo(s) guardado(s).`,
     ];
@@ -1782,7 +1795,7 @@ app.post("/api/divisas/import/bcu-uyu", async (req, res) => {
       parseadas: fetched.parseadas,
       rango: fetched.rango,
       lotes: fetched.lotes,
-      ultima_guardada: db.divisas.maxFecha("UYU_USD"),
+      ultima_guardada: await db.divisas.maxFecha("UYU_USD"),
       fuente: "https://www.bcu.gub.uy/",
       ...result,
     });
@@ -1811,7 +1824,7 @@ app.post("/api/divisas/import/yahoo-brl", async (req, res) => {
         ? 2
         : Math.min(Math.max(Number(body.anos) || 2, 1), 10);
 
-    const maxGuardada = db.divisas.maxFecha("BRL_USD");
+    const maxGuardada = await db.divisas.maxFecha("BRL_USD");
     let desdeIncremental: string | undefined;
     if (!completo && !fechaDesdeFiltro && maxGuardada) {
       desdeIncremental = addDaysIso(maxGuardada, 1);
@@ -1861,7 +1874,7 @@ app.post("/api/divisas/import/yahoo-brl", async (req, res) => {
       return;
     }
 
-    const result = db.divisas.importBatch(fetched.rows, { solo_nuevos: soloNuevos });
+    const result = await db.divisas.importBatch(fetched.rows, { solo_nuevos: soloNuevos });
     const msgPartes = [
       `BRL/USD: ${result.insertados} día(s) nuevo(s) guardado(s).`,
     ];
@@ -1875,7 +1888,7 @@ app.post("/api/divisas/import/yahoo-brl", async (req, res) => {
       total: fetched.rows.length,
       parseadas: fetched.parseadas,
       rango: fetched.rango,
-      ultima_guardada: db.divisas.maxFecha("BRL_USD"),
+      ultima_guardada: await db.divisas.maxFecha("BRL_USD"),
       fuente: "Yahoo Finance (USDBRL=X)",
       ...result,
     });
@@ -1884,7 +1897,7 @@ app.post("/api/divisas/import/yahoo-brl", async (req, res) => {
   }
 });
 
-app.post("/api/divisas/import/text", (req, res) => {
+app.post("/api/divisas/import/text", async (req, res) => {
   try {
     const text = String((req.body as { text?: string }).text ?? "").trim();
     if (!text) {
@@ -1896,7 +1909,7 @@ app.post("/api/divisas/import/text", (req, res) => {
       res.status(400).json({ ok: false, error: "No se encontraron filas válidas" });
       return;
     }
-    const result = db.divisas.importBatch(rows, { solo_nuevos: true });
+    const result = await db.divisas.importBatch(rows, { solo_nuevos: true });
     res.json({
       ok: true,
       message: `Importación: ${mensajeImportacionDivisas(result)}`,
@@ -1908,15 +1921,15 @@ app.post("/api/divisas/import/text", (req, res) => {
   }
 });
 
-app.get("/api/resumen", (req, res) => {
+app.get("/api/resumen", async (req, res) => {
   const fecha_desde = req.query.fecha_desde as string | undefined;
   const fecha_hasta = req.query.fecha_hasta as string | undefined;
   const empresa = req.query.empresa as string | undefined;
   res.json({
     ok: true,
-    por_empresa: db.resumenPorEmpresa(fecha_desde, fecha_hasta),
-    por_rubro: db.resumenPorRubro(empresa),
-    rubros: db.rubros.listNombres(),
+    por_empresa: await db.resumenPorEmpresa(fecha_desde, fecha_hasta),
+    por_rubro: await db.resumenPorRubro(empresa),
+    rubros: await db.rubros.listNombres(),
   });
 });
 
@@ -1940,15 +1953,15 @@ function parseFuncionarioBody(req: Request) {
   };
 }
 
-app.get("/api/funcionarios", (req, res) => {
+app.get("/api/funcionarios", async (req, res) => {
   const busqueda = req.query.busqueda as string | undefined;
   const soloActivos = req.query.solo_activos === "1";
-  res.json({ ok: true, data: db.funcionarios.list({ busqueda, soloActivos }) });
+  res.json({ ok: true, data: await db.funcionarios.list({ busqueda, soloActivos }) });
 });
 
-app.get("/api/funcionarios/cedula/:cedula", (req, res) => {
+app.get("/api/funcionarios/cedula/:cedula", async (req, res) => {
   const cedula = decodeURIComponent(paramString(req.params.cedula));
-  const row = db.funcionarios.getByCedula(cedula);
+  const row = await db.funcionarios.getByCedula(cedula);
   if (!row) {
     res.status(404).json({ ok: false, error: "Funcionario no encontrado" });
     return;
@@ -1956,12 +1969,12 @@ app.get("/api/funcionarios/cedula/:cedula", (req, res) => {
   res.json({ ok: true, data: row });
 });
 
-app.post("/api/funcionarios", (req, res) => {
+app.post("/api/funcionarios", async (req, res) => {
   try {
-    const id = db.funcionarios.insert(parseFuncionarioBody(req));
+    const id = await db.funcionarios.insert(parseFuncionarioBody(req));
     res.status(201).json({
       ok: true,
-      data: db.funcionarios.getById(id),
+      data: await db.funcionarios.getById(id),
       message: "Funcionario registrado",
     });
   } catch (e) {
@@ -1969,16 +1982,16 @@ app.post("/api/funcionarios", (req, res) => {
   }
 });
 
-app.put("/api/funcionarios/:id", (req, res) => {
+app.put("/api/funcionarios/:id", async (req, res) => {
   try {
     const id = Number(req.params.id);
-    if (!db.funcionarios.update(id, parseFuncionarioBody(req))) {
+    if (!await db.funcionarios.update(id, parseFuncionarioBody(req))) {
       res.status(404).json({ ok: false, error: "Funcionario no encontrado" });
       return;
     }
     res.json({
       ok: true,
-      data: db.funcionarios.getById(id),
+      data: await db.funcionarios.getById(id),
       message: "Funcionario actualizado",
     });
   } catch (e) {
@@ -1986,10 +1999,10 @@ app.put("/api/funcionarios/:id", (req, res) => {
   }
 });
 
-app.delete("/api/funcionarios/:id", (req, res) => {
+app.delete("/api/funcionarios/:id", async (req, res) => {
   try {
     const id = Number(req.params.id);
-    if (!db.funcionarios.delete(id)) {
+    if (!await db.funcionarios.delete(id)) {
       res.status(404).json({ ok: false, error: "Funcionario no encontrado" });
       return;
     }
@@ -1999,10 +2012,10 @@ app.delete("/api/funcionarios/:id", (req, res) => {
   }
 });
 
-app.get("/api/rrhh/pagos", (req, res) => {
+app.get("/api/rrhh/pagos", async (req, res) => {
   try {
     const cedula = String(req.query.cedula ?? "").trim();
-    const data = db.rrhhPagos.porCedula(cedula, {
+    const data = await db.rrhhPagos.porCedula(cedula, {
       fecha_desde: req.query.fecha_desde as string | undefined,
       fecha_hasta: req.query.fecha_hasta as string | undefined,
       empresa: req.query.empresa as string | undefined,
@@ -2013,10 +2026,10 @@ app.get("/api/rrhh/pagos", (req, res) => {
   }
 });
 
-app.get("/api/rrhh/resumen-global", (req, res) => {
+app.get("/api/rrhh/resumen-global", async (req, res) => {
   res.json({
     ok: true,
-    data: db.rrhhPagos.resumenGlobal({
+    data: await db.rrhhPagos.resumenGlobal({
       fecha_desde: req.query.fecha_desde as string | undefined,
       fecha_hasta: req.query.fecha_hasta as string | undefined,
     }),

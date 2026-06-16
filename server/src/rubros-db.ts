@@ -1,4 +1,4 @@
-import type Database from "better-sqlite3";
+import type { Db } from "./db/pg-client.js";
 import { normalizarTituloRubro } from "./text-normalize.js";
 import { RUBROS_DEFAULT } from "./types.js";
 
@@ -14,130 +14,122 @@ export interface RubroInput {
   activo?: boolean;
 }
 
-export function initRubrosTable(db: Database.Database): void {
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS RUBROS (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      nombre TEXT NOT NULL UNIQUE COLLATE NOCASE,
-      activo INTEGER NOT NULL DEFAULT 1,
-      creado_en TEXT DEFAULT (datetime('now', 'localtime'))
-    );
-    CREATE INDEX IF NOT EXISTS idx_rubros_activo ON RUBROS(activo);
-  `);
-  seedRubrosIfEmpty(db);
-  syncRubrosFromPresupuesto(db);
+export async function initRubrosTable(db: Db): Promise<void> {
+  await seedRubrosIfEmpty(db);
+  await syncRubrosFromPresupuesto(db);
 }
 
 /** Asegura rubros del catálogo por grupo (Agricultura, Construcción, etc.). */
-export function ensureRubrosNombres(
-  db: Database.Database,
+export async function ensureRubrosNombres(
+  db: Db,
   nombres: readonly string[]
-): void {
-  const insert = db.prepare(
-    "INSERT OR IGNORE INTO RUBROS (nombre, activo) VALUES (@nombre, 1)"
+): Promise<void> {
+  const insert = await db.prepare(
+    `INSERT INTO RUBROS (nombre, activo) VALUES (@nombre, 1)
+     ON CONFLICT (nombre) DO NOTHING`
   );
   for (const nombre of nombres) {
-    insert.run({ nombre });
+    await insert.run({ nombre });
   }
 }
 
-function syncRubrosFromPresupuesto(db: Database.Database): void {
-  const rows = db
+async function syncRubrosFromPresupuesto(db: Db): Promise<void> {
+  const rows = (await db
     .prepare(
       `SELECT DISTINCT rubro FROM PRESUPUESTO
        WHERE rubro IS NOT NULL AND trim(rubro) != ''`
     )
-    .all() as { rubro: string }[];
-  const insert = db.prepare(
-    "INSERT OR IGNORE INTO RUBROS (nombre, activo) VALUES (@nombre, 1)"
+    .all()) as { rubro: string }[];
+  const insert = await db.prepare(
+    `INSERT INTO RUBROS (nombre, activo) VALUES (@nombre, 1)
+     ON CONFLICT (nombre) DO NOTHING`
   );
   for (const r of rows) {
-    insert.run({ nombre: r.rubro.trim() });
+    await insert.run({ nombre: r.rubro.trim() });
   }
 }
 
-function seedRubrosIfEmpty(db: Database.Database): void {
-  const { n } = db.prepare("SELECT COUNT(*) AS n FROM RUBROS").get() as { n: number };
+async function seedRubrosIfEmpty(db: Db): Promise<void> {
+  const { n } = (await db.prepare("SELECT COUNT(*) AS n FROM RUBROS").get()) as { n: number };
   if (n > 0) return;
 
-  const insert = db.prepare("INSERT INTO RUBROS (nombre, activo) VALUES (@nombre, 1)");
-  const tx = db.transaction((nombres: readonly string[]) => {
-    for (const nombre of nombres) {
-      insert.run({ nombre });
+  await db.transaction(async (tx) => {
+    const insert = await tx.prepare("INSERT INTO RUBROS (nombre, activo) VALUES (@nombre, 1)");
+    for (const nombre of RUBROS_DEFAULT) {
+      await insert.run({ nombre });
     }
   });
-  tx(RUBROS_DEFAULT);
 }
 
-export function listRubros(db: Database.Database, soloActivos = false): Rubro[] {
+export async function listRubros(db: Db, soloActivos = false): Promise<Rubro[]> {
   let query = "SELECT * FROM RUBROS";
   if (soloActivos) query += " WHERE activo = 1";
-  query += " ORDER BY nombre COLLATE NOCASE ASC";
-  return db.prepare(query).all() as Rubro[];
+  query += " ORDER BY LOWER(nombre) ASC";
+  return (await db.prepare(query).all()) as Rubro[];
 }
 
-export function listRubrosNombres(db: Database.Database): string[] {
-  return listRubros(db, true).map((r) => r.nombre);
+export async function listRubrosNombres(db: Db): Promise<string[]> {
+  return (await listRubros(db, true)).map((r) => r.nombre);
 }
 
-export function getRubroById(db: Database.Database, id: number): Rubro | undefined {
-  return db.prepare("SELECT * FROM RUBROS WHERE id = ?").get(id) as Rubro | undefined;
+export async function getRubroById(db: Db, id: number): Promise<Rubro | undefined> {
+  return (await db.prepare("SELECT * FROM RUBROS WHERE id = ?").get(id)) as Rubro | undefined;
 }
 
-export function getRubroByNombre(
-  db: Database.Database,
+export async function getRubroByNombre(
+  db: Db,
   nombre: string
-): Rubro | undefined {
-  return db
-    .prepare("SELECT * FROM RUBROS WHERE nombre = ? COLLATE NOCASE")
-    .get(nombre.trim()) as Rubro | undefined;
+): Promise<Rubro | undefined> {
+  return (await db
+    .prepare("SELECT * FROM RUBROS WHERE LOWER(nombre) = LOWER(?)")
+    .get(nombre.trim())) as Rubro | undefined;
 }
 
-export function insertRubro(db: Database.Database, data: RubroInput): number {
+export async function insertRubro(db: Db, data: RubroInput): Promise<number> {
   const nombre = normalizarTituloRubro(data.nombre);
   if (!nombre) throw new Error("El nombre del rubro es obligatorio.");
-  if (getRubroByNombre(db, nombre)) {
+  if (await getRubroByNombre(db, nombre)) {
     throw new Error("Ya existe un rubro con ese nombre.");
   }
-  const result = db
+  const result = await db
     .prepare("INSERT INTO RUBROS (nombre, activo) VALUES (@nombre, @activo)")
     .run({ nombre, activo: data.activo === false ? 0 : 1 });
   return Number(result.lastInsertRowid);
 }
 
-export function updateRubro(db: Database.Database, id: number, data: RubroInput): boolean {
+export async function updateRubro(db: Db, id: number, data: RubroInput): Promise<boolean> {
   const nombre = normalizarTituloRubro(data.nombre);
   if (!nombre) throw new Error("El nombre del rubro es obligatorio.");
-  const existing = getRubroByNombre(db, nombre);
+  const existing = await getRubroByNombre(db, nombre);
   if (existing && existing.id !== id) {
     throw new Error("Ya existe otro rubro con ese nombre.");
   }
   return (
-    db.prepare("UPDATE RUBROS SET nombre = @nombre, activo = @activo WHERE id = @id").run({
+    await db.prepare("UPDATE RUBROS SET nombre = @nombre, activo = @activo WHERE id = @id").run({
       id,
       nombre,
       activo: data.activo === false ? 0 : 1,
-    }).changes > 0
-  );
+    })
+  ).changes > 0;
 }
 
-export function deleteRubro(db: Database.Database, id: number): boolean {
-  const rubro = getRubroById(db, id);
+export async function deleteRubro(db: Db, id: number): Promise<boolean> {
+  const rubro = await getRubroById(db, id);
   if (!rubro) return false;
-  const used = db
-    .prepare("SELECT COUNT(*) AS n FROM PRESUPUESTO WHERE rubro = ? COLLATE NOCASE")
-    .get(rubro.nombre) as { n: number };
+  const used = (await db
+    .prepare("SELECT COUNT(*) AS n FROM PRESUPUESTO WHERE LOWER(rubro) = LOWER(?)")
+    .get(rubro.nombre)) as { n: number };
   if (used.n > 0) {
     throw new Error(
       `No se puede eliminar: hay ${used.n} gasto(s) con este rubro. Desactivalo en su lugar.`
     );
   }
-  return db.prepare("DELETE FROM RUBROS WHERE id = ?").run(id).changes > 0;
+  return (await db.prepare("DELETE FROM RUBROS WHERE id = ?").run(id)).changes > 0;
 }
 
-export function rubroExistsActivo(db: Database.Database, nombre: string): boolean {
-  const row = db
-    .prepare("SELECT 1 FROM RUBROS WHERE nombre = ? COLLATE NOCASE AND activo = 1")
+export async function rubroExistsActivo(db: Db, nombre: string): Promise<boolean> {
+  const row = await db
+    .prepare("SELECT 1 FROM RUBROS WHERE LOWER(nombre) = LOWER(?) AND activo = 1")
     .get(nombre.trim());
   return !!row;
 }

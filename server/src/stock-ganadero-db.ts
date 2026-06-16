@@ -1,4 +1,4 @@
-import type Database from "better-sqlite3";
+import type { Db } from "./db/pg-client.js";
 import type { StockGanaderoRowInput } from "./parse-stock-ganadero-txt.js";
 import { dispositivoClave, eidClave, splitEidVid } from "./stock-ganadero-id.js";
 
@@ -82,15 +82,15 @@ function appendRegistroFilters(
   return sql;
 }
 
-function clavesEidRepetidas(
-  db: Database.Database,
+async function clavesEidRepetidas(
+  db: Db,
   filters?: StockGanaderoFilters
-): Set<string> {
+): Promise<Set<string>> {
   let sql = `SELECT eid, vid FROM STOCK_GANADERO_REGISTRO WHERE 1=1`;
   const params: Record<string, string | number> = {};
   sql = appendRegistroFilters(sql, params, filters);
 
-  const rows = db.prepare(sql).all(params) as { eid: string; vid: string }[];
+  const rows = await db.prepare(sql).all(params) as { eid: string; vid: string }[];
   const counts = new Map<string, { eid: string; vid: string; n: number }>();
   for (const row of rows) {
     const split = splitEidVid(row.eid, row.vid);
@@ -107,162 +107,15 @@ function clavesEidRepetidas(
   return repetidas;
 }
 
-export function initStockGanaderoTables(db: Database.Database): void {
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS STOCK_GANADERO_LOTE (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      nombre_archivo TEXT NOT NULL DEFAULT '',
-      filas INTEGER NOT NULL DEFAULT 0,
-      importado_en TEXT DEFAULT (datetime('now', 'localtime'))
-    );
-    CREATE TABLE IF NOT EXISTS STOCK_GANADERO_REGISTRO (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      lote_id INTEGER NOT NULL,
-      eid TEXT NOT NULL,
-      vid TEXT NOT NULL DEFAULT '',
-      fecha TEXT NOT NULL,
-      hora TEXT NOT NULL DEFAULT '',
-      condicion TEXT NOT NULL DEFAULT '',
-      creado_en TEXT DEFAULT (datetime('now', 'localtime')),
-      FOREIGN KEY (lote_id) REFERENCES STOCK_GANADERO_LOTE(id) ON DELETE CASCADE
-    );
-    CREATE INDEX IF NOT EXISTS idx_stock_reg_lote ON STOCK_GANADERO_REGISTRO(lote_id);
-    CREATE INDEX IF NOT EXISTS idx_stock_reg_eid ON STOCK_GANADERO_REGISTRO(eid);
-    CREATE INDEX IF NOT EXISTS idx_stock_reg_fecha ON STOCK_GANADERO_REGISTRO(fecha);
-    CREATE TABLE IF NOT EXISTS STOCK_GANADERO_DISPOSITIVO (
-      clave TEXT PRIMARY KEY,
-      eid TEXT NOT NULL DEFAULT '',
-      sexo TEXT NOT NULL DEFAULT '',
-      edad INTEGER,
-      nacimiento_mes INTEGER,
-      nacimiento_anio INTEGER,
-      observaciones TEXT NOT NULL DEFAULT '',
-      empresa TEXT NOT NULL DEFAULT '',
-      grupo TEXT NOT NULL DEFAULT '',
-      actualizado_en TEXT DEFAULT (datetime('now', 'localtime'))
-    );
-  `);
-  migrateStockGanaderoDispositivoMeta(db);
-  migrateSplitEidVid(db);
-  migrateStockGanaderoDispositivoHistorial(db);
-  migrateSyncGrupoDesdeNacimiento(db);
-}
+export async function initStockGanaderoTables(_db: Db): Promise<void> {}
 
-function migrateSyncGrupoDesdeNacimiento(db: Database.Database): void {
-  const rows = db
-    .prepare(
-      `SELECT clave, nacimiento_anio, grupo FROM STOCK_GANADERO_DISPOSITIVO`
-    )
-    .all() as { clave: string; nacimiento_anio: number | null; grupo: string }[];
-  const upd = db.prepare(
-    `UPDATE STOCK_GANADERO_DISPOSITIVO SET grupo = @grupo WHERE clave = @clave`
-  );
-  for (const row of rows) {
-    const anio =
-      row.nacimiento_anio === null || row.nacimiento_anio === undefined
-        ? null
-        : Number.isInteger(row.nacimiento_anio)
-          ? row.nacimiento_anio
-          : null;
-    const grupo = grupoDesdeNacimiento(anio);
-    if (grupo !== (row.grupo ?? "").trim()) {
-      upd.run({ clave: row.clave, grupo });
-    }
-  }
-}
+async function migrateSyncGrupoDesdeNacimiento(_db: Db): Promise<void> {}
 
-function migrateStockGanaderoDispositivoHistorial(db: Database.Database): void {
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS STOCK_GANADERO_DISPOSITIVO_HISTORIAL (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      clave TEXT NOT NULL,
-      campo TEXT NOT NULL,
-      etiqueta TEXT NOT NULL DEFAULT '',
-      valor_anterior TEXT NOT NULL DEFAULT '',
-      valor_nuevo TEXT NOT NULL DEFAULT '',
-      creado_en TEXT DEFAULT (datetime('now', 'localtime'))
-    );
-    CREATE INDEX IF NOT EXISTS idx_stock_disp_hist_clave
-      ON STOCK_GANADERO_DISPOSITIVO_HISTORIAL(clave);
-    CREATE INDEX IF NOT EXISTS idx_stock_disp_hist_fecha
-      ON STOCK_GANADERO_DISPOSITIVO_HISTORIAL(creado_en);
-  `);
-}
+async function migrateStockGanaderoDispositivoHistorial(_db: Db): Promise<void> {}
 
-function migrateSplitEidVid(db: Database.Database): void {
-  const updReg = db.prepare(
-    `UPDATE STOCK_GANADERO_REGISTRO SET eid = @eid, vid = @vid WHERE id = @id`
-  );
-  const registros = db
-    .prepare(`SELECT id, eid, vid FROM STOCK_GANADERO_REGISTRO`)
-    .all() as { id: number; eid: string; vid: string }[];
+async function migrateSplitEidVid(_db: Db): Promise<void> {}
 
-  for (const row of registros) {
-    const split = splitEidVid(row.eid, row.vid);
-    if (split.eid !== row.eid.trim() || split.vid !== (row.vid ?? "").trim()) {
-      updReg.run({ id: row.id, eid: split.eid, vid: split.vid });
-    }
-  }
-
-  const updDisp = db.prepare(
-    `UPDATE STOCK_GANADERO_DISPOSITIVO SET eid = @eid WHERE clave = @clave`
-  );
-  const dispositivos = db
-    .prepare(`SELECT clave, eid FROM STOCK_GANADERO_DISPOSITIVO`)
-    .all() as { clave: string; eid: string }[];
-
-  for (const row of dispositivos) {
-    const split = splitEidVid(row.eid, "");
-    if (split.eid !== row.eid.trim()) {
-      updDisp.run({ clave: row.clave, eid: split.eid });
-    }
-  }
-}
-
-function migrateStockGanaderoDispositivoMeta(db: Database.Database): void {
-  const cols = db
-    .prepare("PRAGMA table_info(STOCK_GANADERO_DISPOSITIVO)")
-    .all() as { name: string }[];
-  const names = new Set(cols.map((c) => c.name));
-  if (!names.has("edad")) {
-    db.exec(`ALTER TABLE STOCK_GANADERO_DISPOSITIVO ADD COLUMN edad INTEGER`);
-  }
-  if (!names.has("nacimiento_mes")) {
-    db.exec(`ALTER TABLE STOCK_GANADERO_DISPOSITIVO ADD COLUMN nacimiento_mes INTEGER`);
-  }
-  if (!names.has("nacimiento_anio")) {
-    db.exec(`ALTER TABLE STOCK_GANADERO_DISPOSITIVO ADD COLUMN nacimiento_anio INTEGER`);
-  }
-  if (!names.has("observaciones")) {
-    db.exec(
-      `ALTER TABLE STOCK_GANADERO_DISPOSITIVO ADD COLUMN observaciones TEXT NOT NULL DEFAULT ''`
-    );
-  }
-  if (!names.has("empresa")) {
-    db.exec(
-      `ALTER TABLE STOCK_GANADERO_DISPOSITIVO ADD COLUMN empresa TEXT NOT NULL DEFAULT ''`
-    );
-  }
-  if (!names.has("grupo")) {
-    db.exec(
-      `ALTER TABLE STOCK_GANADERO_DISPOSITIVO ADD COLUMN grupo TEXT NOT NULL DEFAULT ''`
-    );
-  }
-  if (!names.has("estado")) {
-    db.exec(
-      `ALTER TABLE STOCK_GANADERO_DISPOSITIVO ADD COLUMN estado TEXT NOT NULL DEFAULT 'VIVO'`
-    );
-    db.exec(
-      `UPDATE STOCK_GANADERO_DISPOSITIVO SET estado = 'VIVO' WHERE estado IS NULL OR trim(estado) = ''`
-    );
-  }
-  if (!names.has("baja_mes")) {
-    db.exec(`ALTER TABLE STOCK_GANADERO_DISPOSITIVO ADD COLUMN baja_mes INTEGER`);
-  }
-  if (!names.has("baja_anio")) {
-    db.exec(`ALTER TABLE STOCK_GANADERO_DISPOSITIVO ADD COLUMN baja_anio INTEGER`);
-  }
-}
+async function migrateStockGanaderoDispositivoMeta(_db: Db): Promise<void> {}
 
 const GRUPO_ANIO_MIN = 2000;
 const GRUPO_RE = /^GEN(\d{4})$/;
@@ -358,15 +211,15 @@ interface DispositivoMetaRow {
   baja_anio: number | null;
 }
 
-function mapMetaDispositivos(
-  db: Database.Database
-): Map<string, DispositivoMetaGuardada> {
-  const rows = db
+async function mapMetaDispositivos(
+  db: Db
+): Promise<Map<string, DispositivoMetaGuardada>> {
+  const rows = (await db
     .prepare(
       `SELECT clave, sexo, empresa, grupo, edad, nacimiento_mes, nacimiento_anio, observaciones, estado, baja_mes, baja_anio
        FROM STOCK_GANADERO_DISPOSITIVO`
     )
-    .all() as DispositivoMetaRow[];
+    .all()) as DispositivoMetaRow[];
   const map = new Map<string, DispositivoMetaGuardada>();
   for (const row of rows) {
     map.set(row.clave, aplicarEdadCalculada(normalizarMetaDispositivo(row)));
@@ -429,12 +282,12 @@ function normalizarMetaDispositivo(row: Partial<DispositivoMetaRow>): Dispositiv
   });
 }
 
-function enrichDispositivosWithMeta(
-  db: Database.Database,
+async function enrichDispositivosWithMeta(
+  db: Db,
   dispositivos: StockGanaderaDispositivo[]
-): StockGanaderaDispositivo[] {
+): Promise<StockGanaderaDispositivo[]> {
   if (!dispositivos.length) return dispositivos;
-  const meta = mapMetaDispositivos(db);
+  const meta = await mapMetaDispositivos(db);
   for (const d of dispositivos) {
     const info = meta.get(d.clave);
     d.sexo = info?.sexo ?? "";
@@ -451,10 +304,10 @@ function enrichDispositivosWithMeta(
   return dispositivos;
 }
 
-function assertDispositivoExiste(db: Database.Database, claveNorm: string): void {
-  const eids = db
+async function assertDispositivoExiste(db: Db, claveNorm: string): Promise<void> {
+  const eids = (await db
     .prepare(`SELECT eid, vid FROM STOCK_GANADERO_REGISTRO`)
-    .all() as { eid: string; vid: string }[];
+    .all()) as { eid: string; vid: string }[];
   const existe = eids.some(
     (r) => dispositivoClave(r.eid, r.vid) === claveNorm
   );
@@ -524,14 +377,14 @@ function validarFechaBaja(
   return { baja_mes: mes, baja_anio: anio };
 }
 
-export function saveStockGanaderaDispositivo(
-  db: Database.Database,
+export async function saveStockGanaderaDispositivo(
+  db: Db,
   clave: string,
   input: DispositivoMetaInput,
   eid = ""
-): DispositivoMetaGuardada {
+): Promise<DispositivoMetaGuardada> {
   const claveNorm = normalizarClaveDispositivo(clave);
-  assertDispositivoExiste(db, claveNorm);
+  await assertDispositivoExiste(db, claveNorm);
 
   const sexo = SEXOS_VALIDOS.has(input.sexo) ? input.sexo : "";
   if (!SEXOS_VALIDOS.has(sexo)) throw new Error("Sexo inválido. Use MACHO o HEMBRA.");
@@ -559,12 +412,12 @@ export function saveStockGanaderaDispositivo(
   );
   const eidGuardar = eid.trim() || claveNorm;
 
-  const anteriorRow = db
+  const anteriorRow = (await db
     .prepare(
       `SELECT sexo, empresa, grupo, nacimiento_mes, nacimiento_anio, observaciones, estado, baja_mes, baja_anio
        FROM STOCK_GANADERO_DISPOSITIVO WHERE clave = ?`
     )
-    .get(claveNorm) as Partial<DispositivoMetaRow> | undefined;
+    .get(claveNorm)) as Partial<DispositivoMetaRow> | undefined;
   const anterior = anteriorRow
     ? normalizarMetaDispositivo(anteriorRow)
     : null;
@@ -581,7 +434,7 @@ export function saveStockGanaderaDispositivo(
     edad,
   };
 
-  db.prepare(
+  await db.prepare(
     `INSERT INTO STOCK_GANADERO_DISPOSITIVO (
        clave, eid, sexo, empresa, grupo, edad, nacimiento_mes, nacimiento_anio, observaciones, estado, baja_mes, baja_anio, actualizado_en
      ) VALUES (
@@ -616,7 +469,7 @@ export function saveStockGanaderaDispositivo(
     baja_anio: baja.baja_anio,
   });
 
-  registrarHistorialCambiosDispositivo(db, claveNorm, anterior, nuevo);
+  await registrarHistorialCambiosDispositivo(db, claveNorm, anterior, nuevo);
 
   return {
     sexo,
@@ -643,10 +496,10 @@ function fechaIsoAMesAnio(fecha: string): { mes: number; anio: number } | null {
   return { mes, anio };
 }
 
-function clavesRegistradasSet(db: Database.Database): Set<string> {
-  const rows = db
+async function clavesRegistradasSet(db: Db): Promise<Set<string>> {
+  const rows = (await db
     .prepare(`SELECT eid, vid FROM STOCK_GANADERO_REGISTRO`)
-    .all() as { eid: string; vid: string }[];
+    .all()) as { eid: string; vid: string }[];
   const set = new Set<string>();
   for (const r of rows) {
     const k = dispositivoClave(r.eid, r.vid);
@@ -655,20 +508,20 @@ function clavesRegistradasSet(db: Database.Database): Set<string> {
   return set;
 }
 
-function aplicarBajaDispositivo(
-  db: Database.Database,
+async function aplicarBajaDispositivo(
+  db: Db,
   claveNorm: string,
   eid: string,
   estado: "VENDIDO" | "FRIGORIFICO",
   baja_mes: number,
   baja_anio: number
-): void {
-  const anteriorRow = db
+): Promise<void> {
+  const anteriorRow = (await db
     .prepare(
       `SELECT sexo, empresa, grupo, nacimiento_mes, nacimiento_anio, observaciones, estado, baja_mes, baja_anio
        FROM STOCK_GANADERO_DISPOSITIVO WHERE clave = ?`
     )
-    .get(claveNorm) as Partial<DispositivoMetaRow> | undefined;
+    .get(claveNorm)) as Partial<DispositivoMetaRow> | undefined;
   const anterior = anteriorRow ? normalizarMetaDispositivo(anteriorRow) : null;
   const nacimiento_mes = anterior?.nacimiento_mes ?? null;
   const nacimiento_anio = anterior?.nacimiento_anio ?? null;
@@ -695,7 +548,7 @@ function aplicarBajaDispositivo(
     edad,
   };
 
-  db.prepare(
+  await db.prepare(
     `INSERT INTO STOCK_GANADERO_DISPOSITIVO (
        clave, eid, sexo, empresa, grupo, edad, nacimiento_mes, nacimiento_anio, observaciones, estado, baja_mes, baja_anio, actualizado_en
      ) VALUES (
@@ -724,7 +577,7 @@ function aplicarBajaDispositivo(
     baja_anio: baja.baja_anio,
   });
 
-  registrarHistorialCambiosDispositivo(db, claveNorm, anterior, nuevo);
+  await registrarHistorialCambiosDispositivo(db, claveNorm, anterior, nuevo);
 }
 
 export interface ImportBajaDispositivosResult {
@@ -734,24 +587,24 @@ export interface ImportBajaDispositivosResult {
   muestra_no_encontrados: string[];
 }
 
-export function importBajaDispositivos(
-  db: Database.Database,
+export async function importBajaDispositivos(
+  db: Db,
   rows: StockGanaderoRowInput[],
   estado: "VENDIDO" | "FRIGORIFICO"
-): ImportBajaDispositivosResult {
+): Promise<ImportBajaDispositivosResult> {
   if (!rows.length) throw new Error("El archivo no contiene dispositivos válidos.");
   if (estado !== "VENDIDO" && estado !== "FRIGORIFICO") {
     throw new Error("Estado inválido. Use VENDIDO o FRIGORIFICO.");
   }
 
-  const registradas = clavesRegistradasSet(db);
+  const registradas = await clavesRegistradasSet(db);
   const vistos = new Set<string>();
   let actualizados = 0;
   let no_encontrados = 0;
   let duplicados_omitidos = 0;
   const muestra_no_encontrados: string[] = [];
 
-  const tx = db.transaction(() => {
+  await db.transaction(async (tx) => {
     for (const row of rows) {
       const claveNorm = dispositivoClave(row.eid, row.vid);
       if (!claveNorm) continue;
@@ -776,8 +629,8 @@ export function importBajaDispositivos(
         );
       }
 
-      aplicarBajaDispositivo(
-        db,
+      await aplicarBajaDispositivo(
+        tx,
         claveNorm,
         row.eid,
         estado,
@@ -787,8 +640,6 @@ export function importBajaDispositivos(
       actualizados += 1;
     }
   });
-
-  tx();
 
   if (actualizados === 0 && no_encontrados === 0) {
     throw new Error("No se procesó ningún dispositivo del archivo.");
@@ -802,26 +653,26 @@ export function importBajaDispositivos(
   };
 }
 
-export function updateStockGanaderaDispositivoSexo(
-  db: Database.Database,
+export async function updateStockGanaderaDispositivoSexo(
+  db: Db,
   clave: string,
   sexo: DispositivoSexo,
   eid = ""
-): DispositivoSexo {
+): Promise<DispositivoSexo> {
   const claveNorm = normalizarClaveDispositivo(clave);
   if (!SEXOS_VALIDOS.has(sexo)) throw new Error("Sexo inválido. Use MACHO o HEMBRA.");
-  assertDispositivoExiste(db, claveNorm);
+  await assertDispositivoExiste(db, claveNorm);
 
-  const anteriorRow = db
+  const anteriorRow = (await db
     .prepare(`SELECT sexo, empresa, grupo, nacimiento_mes, nacimiento_anio, observaciones, estado, baja_mes, baja_anio
               FROM STOCK_GANADERO_DISPOSITIVO WHERE clave = ?`)
-    .get(claveNorm) as Partial<DispositivoMetaRow> | undefined;
+    .get(claveNorm)) as Partial<DispositivoMetaRow> | undefined;
   const anterior = anteriorRow
     ? normalizarMetaDispositivo(anteriorRow)
     : null;
 
   const eidGuardar = eid.trim() || claveNorm;
-  db.prepare(
+  await db.prepare(
     `INSERT INTO STOCK_GANADERO_DISPOSITIVO (clave, eid, sexo, actualizado_en)
      VALUES (@clave, @eid, @sexo, datetime('now', 'localtime'))
      ON CONFLICT(clave) DO UPDATE SET
@@ -831,7 +682,7 @@ export function updateStockGanaderaDispositivoSexo(
   ).run({ clave: claveNorm, eid: eidGuardar, sexo });
 
   if (anterior?.sexo !== sexo) {
-    registrarHistorialCambiosDispositivo(db, claveNorm, anterior, {
+    await registrarHistorialCambiosDispositivo(db, claveNorm, anterior, {
       sexo,
       empresa: anterior?.empresa ?? "",
       grupo: anterior?.grupo ?? "",
@@ -848,20 +699,20 @@ export function updateStockGanaderaDispositivoSexo(
   return sexo;
 }
 
-export function updateStockGanaderaDispositivoEdad(
-  db: Database.Database,
+export async function updateStockGanaderaDispositivoEdad(
+  db: Db,
   clave: string,
   _edad: number | null,
   eid = ""
-): number | null {
+): Promise<number | null> {
   const claveNorm = normalizarClaveDispositivo(clave);
-  assertDispositivoExiste(db, claveNorm);
+  await assertDispositivoExiste(db, claveNorm);
 
-  const row = db
+  const row = (await db
     .prepare(
       `SELECT nacimiento_mes, nacimiento_anio FROM STOCK_GANADERO_DISPOSITIVO WHERE clave = ?`
     )
-    .get(claveNorm) as
+    .get(claveNorm)) as
     | { nacimiento_mes: number | null; nacimiento_anio: number | null }
     | undefined;
 
@@ -871,7 +722,7 @@ export function updateStockGanaderaDispositivoEdad(
   );
 
   const eidGuardar = eid.trim() || claveNorm;
-  db.prepare(
+  await db.prepare(
     `INSERT INTO STOCK_GANADERO_DISPOSITIVO (clave, eid, edad, actualizado_en)
      VALUES (@clave, @eid, @edad, datetime('now', 'localtime'))
      ON CONFLICT(clave) DO UPDATE SET
@@ -883,36 +734,36 @@ export function updateStockGanaderaDispositivoEdad(
   return edadNorm;
 }
 
-export function listStockGanaderoLotes(db: Database.Database): StockGanaderoLote[] {
-  return db
+export async function listStockGanaderoLotes(db: Db): Promise<StockGanaderoLote[]> {
+  return (await db
     .prepare(
       `SELECT * FROM STOCK_GANADERO_LOTE ORDER BY importado_en DESC, id DESC`
     )
-    .all() as StockGanaderoLote[];
+    .all()) as StockGanaderoLote[];
 }
 
-export function getStockGanaderoLoteById(
-  db: Database.Database,
+export async function getStockGanaderoLoteById(
+  db: Db,
   id: number
-): StockGanaderoLote | undefined {
-  return db
+): Promise<StockGanaderoLote | undefined> {
+  return (await db
     .prepare("SELECT * FROM STOCK_GANADERO_LOTE WHERE id = ?")
-    .get(id) as StockGanaderoLote | undefined;
+    .get(id)) as StockGanaderoLote | undefined;
 }
 
-export function listStockGanaderoRegistros(
-  db: Database.Database,
+export async function listStockGanaderoRegistros(
+  db: Db,
   filters?: StockGanaderoFilters
-): StockGanaderoRegistro[] {
+): Promise<StockGanaderoRegistro[]> {
   let sql = "SELECT * FROM STOCK_GANADERO_REGISTRO WHERE 1=1";
   const params: Record<string, string | number> = {};
   sql = appendRegistroFilters(sql, params, filters);
 
   sql += " ORDER BY fecha DESC, hora DESC, id DESC";
-  let rows = db.prepare(sql).all(params) as StockGanaderoRegistro[];
+  let rows = await db.prepare(sql).all(params) as StockGanaderoRegistro[];
 
   if (filters?.solo_repetidos) {
-    const repetidas = clavesEidRepetidas(db, {
+    const repetidas = await clavesEidRepetidas(db, {
       lote_id: filters.lote_id,
       busqueda: filters.busqueda,
       fecha_desde: filters.fecha_desde,
@@ -929,15 +780,15 @@ export function listStockGanaderoRegistros(
   });
 }
 
-export function getStockGanaderoEstadisticas(
-  db: Database.Database,
+export async function getStockGanaderoEstadisticas(
+  db: Db,
   filters?: StockGanaderoFilters
-): StockGanaderoEstadisticas {
+): Promise<StockGanaderoEstadisticas> {
   let sql = `SELECT eid, vid FROM STOCK_GANADERO_REGISTRO WHERE 1=1`;
   const params: Record<string, string | number> = {};
   sql = appendRegistroFilters(sql, params, filters);
 
-  const rows = db.prepare(sql).all(params) as { eid: string; vid: string }[];
+  const rows = await db.prepare(sql).all(params) as { eid: string; vid: string }[];
   const counts = new Map<string, { eid: string; vid: string; n: number }>();
 
   for (const row of rows) {
@@ -987,27 +838,27 @@ export function getStockGanaderoEstadisticas(
   };
 }
 
-export function importStockGanaderoRows(
-  db: Database.Database,
+export async function importStockGanaderoRows(
+  db: Db,
   nombreArchivo: string,
   rows: StockGanaderoRowInput[]
-): { lote_id: number; insertados: number } {
+): Promise<{ lote_id: number; insertados: number }> {
   if (!rows.length) throw new Error("El archivo no contiene lecturas válidas.");
 
-  const tx = db.transaction((items: StockGanaderoRowInput[]) => {
-    const lote = db
+  return db.transaction(async (tx) => {
+    const lote = await tx
       .prepare(
         `INSERT INTO STOCK_GANADERO_LOTE (nombre_archivo, filas) VALUES (@nombre_archivo, @filas)`
       )
-      .run({ nombre_archivo: nombreArchivo.trim() || "import.txt", filas: items.length });
+      .run({ nombre_archivo: nombreArchivo.trim() || "import.txt", filas: rows.length });
     const lote_id = Number(lote.lastInsertRowid);
 
-    const ins = db.prepare(
+    const ins = await tx.prepare(
       `INSERT INTO STOCK_GANADERO_REGISTRO (lote_id, eid, vid, fecha, hora, condicion)
        VALUES (@lote_id, @eid, @vid, @fecha, @hora, @condicion)`
     );
-    for (const r of items) {
-      ins.run({
+    for (const r of rows) {
+      await ins.run({
         lote_id,
         eid: r.eid,
         vid: r.vid,
@@ -1016,24 +867,21 @@ export function importStockGanaderoRows(
         condicion: r.condicion,
       });
     }
-    return { lote_id, insertados: items.length };
+    return { lote_id, insertados: rows.length };
   });
-
-  return tx(rows);
 }
 
-export function deleteStockGanaderoLote(db: Database.Database, id: number): boolean {
-  const tx = db.transaction((loteId: number) => {
-    db.prepare("DELETE FROM STOCK_GANADERO_REGISTRO WHERE lote_id = ?").run(loteId);
-    return db.prepare("DELETE FROM STOCK_GANADERO_LOTE WHERE id = ?").run(loteId).changes > 0;
+export async function deleteStockGanaderoLote(db: Db, id: number): Promise<boolean> {
+  return db.transaction(async (tx) => {
+    await tx.prepare("DELETE FROM STOCK_GANADERO_REGISTRO WHERE lote_id = ?").run(id);
+    return (await tx.prepare("DELETE FROM STOCK_GANADERO_LOTE WHERE id = ?").run(id)).changes > 0;
   });
-  return tx(id);
 }
 
-export function countStockGanaderoRegistros(db: Database.Database): number {
-  const row = db
+export async function countStockGanaderoRegistros(db: Db): Promise<number> {
+  const row = (await db
     .prepare("SELECT COUNT(*) AS n FROM STOCK_GANADERO_REGISTRO")
-    .get() as { n: number };
+    .get()) as { n: number };
   return row.n;
 }
 
@@ -1186,38 +1034,38 @@ function filtrarYOrdenarBajas(
   return rows;
 }
 
-export function listStockGanaderaDispositivos(
-  db: Database.Database,
+export async function listStockGanaderaDispositivos(
+  db: Db,
   filters?: StockGanaderoFilters
-): StockGanaderaDispositivo[] {
-  const registros = listStockGanaderoRegistros(db, filters);
-  const repetidas = clavesEidRepetidas(db, filters);
+): Promise<StockGanaderaDispositivo[]> {
+  const registros = await listStockGanaderoRegistros(db, filters);
+  const repetidas = await clavesEidRepetidas(db, filters);
   let dispositivos = buildDispositivosFromRegistros(registros, repetidas);
 
   if (filters?.solo_repetidos) {
     dispositivos = dispositivos.filter((d) => d.es_repetido);
   }
 
-  dispositivos = enrichDispositivosWithMeta(db, dispositivos);
+  dispositivos = await enrichDispositivosWithMeta(db, dispositivos);
   return filtrarYOrdenarBajas(dispositivos, filters);
 }
 
-export function getStockGanaderaDispositivoDetalle(
-  db: Database.Database,
+export async function getStockGanaderaDispositivoDetalle(
+  db: Db,
   clave: string,
   filters?: StockGanaderoFilters
-): StockGanaderaDispositivoDetalle | undefined {
+): Promise<StockGanaderaDispositivoDetalle | undefined> {
   const claveNorm = clave.replace(/\D/g, "");
   if (!claveNorm) return undefined;
 
-  const rows = db
+  const rows = (await db
     .prepare(
       `SELECT r.*, l.nombre_archivo
        FROM STOCK_GANADERO_REGISTRO r
        JOIN STOCK_GANADERO_LOTE l ON l.id = r.lote_id
        WHERE 1=1`
     )
-    .all() as StockGanaderaLecturaDetalle[];
+    .all()) as StockGanaderaLecturaDetalle[];
 
   let lecturas = rows.filter(
     (r) => dispositivoClave(r.eid, r.vid) === claveNorm
@@ -1257,12 +1105,12 @@ export function getStockGanaderaDispositivoDetalle(
       ) || b.id - a.id
   );
 
-  const repetidas = clavesEidRepetidas(db, filters);
+  const repetidas = await clavesEidRepetidas(db, filters);
   const [resumen] = buildDispositivosFromRegistros(lecturas, repetidas);
   if (!resumen) return undefined;
 
   const lotes = new Set(lecturas.map((l) => l.lote_id));
-  const [enriquecido] = enrichDispositivosWithMeta(db, [resumen]);
+  const [enriquecido] = await enrichDispositivosWithMeta(db, [resumen]);
 
   return {
     ...enriquecido,
@@ -1271,10 +1119,10 @@ export function getStockGanaderaDispositivoDetalle(
   };
 }
 
-export function countStockGanaderaDispositivos(db: Database.Database): number {
-  const rows = db
+export async function countStockGanaderaDispositivos(db: Db): Promise<number> {
+  const rows = (await db
     .prepare(`SELECT eid, vid FROM STOCK_GANADERO_REGISTRO`)
-    .all() as { eid: string; vid: string }[];
+    .all()) as { eid: string; vid: string }[];
   const claves = new Set<string>();
   for (const r of rows) {
     const k = dispositivoClave(r.eid, r.vid);
@@ -1366,16 +1214,16 @@ function fmtHistorialObs(v: string): string {
   return t || "—";
 }
 
-function insertHistorialFila(
-  db: Database.Database,
+async function insertHistorialFila(
+  db: Db,
   clave: string,
   campo: string,
   etiqueta: string,
   valorAnterior: string,
   valorNuevo: string
-): void {
+): Promise<void> {
   if (valorAnterior === valorNuevo) return;
-  db.prepare(
+  await db.prepare(
     `INSERT INTO STOCK_GANADERO_DISPOSITIVO_HISTORIAL
        (clave, campo, etiqueta, valor_anterior, valor_nuevo, creado_en)
      VALUES (@clave, @campo, @etiqueta, @valor_anterior, @valor_nuevo,
@@ -1389,12 +1237,12 @@ function insertHistorialFila(
   });
 }
 
-function registrarHistorialCambiosDispositivo(
-  db: Database.Database,
+async function registrarHistorialCambiosDispositivo(
+  db: Db,
   clave: string,
   anterior: DispositivoMetaGuardada | null,
   nuevo: DispositivoMetaGuardada
-): void {
+): Promise<void> {
   const prevEmpresa = fmtHistorialEmpresa(anterior?.empresa ?? "");
   const prevGrupo = fmtHistorialGrupo(anterior?.grupo ?? "");
   const prevSexo = fmtHistorialSexo(anterior?.sexo ?? "");
@@ -1425,10 +1273,10 @@ function registrarHistorialCambiosDispositivo(
     nuevo.baja_anio
   );
 
-  insertHistorialFila(db, clave, "empresa", "Empresa", prevEmpresa, nextEmpresa);
-  insertHistorialFila(db, clave, "grupo", "Grupo", prevGrupo, nextGrupo);
-  insertHistorialFila(db, clave, "sexo", "Sexo", prevSexo, nextSexo);
-  insertHistorialFila(
+  await insertHistorialFila(db, clave, "empresa", "Empresa", prevEmpresa, nextEmpresa);
+  await insertHistorialFila(db, clave, "grupo", "Grupo", prevGrupo, nextGrupo);
+  await insertHistorialFila(db, clave, "sexo", "Sexo", prevSexo, nextSexo);
+  await insertHistorialFila(
     db,
     clave,
     "nacimiento",
@@ -1436,7 +1284,7 @@ function registrarHistorialCambiosDispositivo(
     prevNac,
     nextNac
   );
-  insertHistorialFila(
+  await insertHistorialFila(
     db,
     clave,
     "observaciones",
@@ -1444,8 +1292,8 @@ function registrarHistorialCambiosDispositivo(
     prevObs,
     nextObs
   );
-  insertHistorialFila(db, clave, "estado", "Estado", prevEstado, nextEstado);
-  insertHistorialFila(
+  await insertHistorialFila(db, clave, "estado", "Estado", prevEstado, nextEstado);
+  await insertHistorialFila(
     db,
     clave,
     "fecha_baja",
@@ -1455,19 +1303,19 @@ function registrarHistorialCambiosDispositivo(
   );
 }
 
-export function listStockGanaderaDispositivoHistorial(
-  db: Database.Database,
+export async function listStockGanaderaDispositivoHistorial(
+  db: Db,
   clave: string
-): StockGanaderaDispositivoHistorial[] {
+): Promise<StockGanaderaDispositivoHistorial[]> {
   const claveNorm = normalizarClaveDispositivo(clave);
-  assertDispositivoExiste(db, claveNorm);
+  await assertDispositivoExiste(db, claveNorm);
 
-  return db
+  return (await db
     .prepare(
       `SELECT id, clave, campo, etiqueta, valor_anterior, valor_nuevo, creado_en
        FROM STOCK_GANADERO_DISPOSITIVO_HISTORIAL
        WHERE clave = ?
        ORDER BY creado_en DESC, id DESC`
     )
-    .all(claveNorm) as StockGanaderaDispositivoHistorial[];
+    .all(claveNorm)) as StockGanaderaDispositivoHistorial[];
 }

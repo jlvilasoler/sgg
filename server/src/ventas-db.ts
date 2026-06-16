@@ -1,4 +1,4 @@
-import type Database from "better-sqlite3";
+import type { Db } from "./db/pg-client.js";
 
 export interface IngresoVenta {
   id: number;
@@ -44,60 +44,23 @@ export function calcularTotalUsdVenta(
   return Math.round(total * 10000) / 10000;
 }
 
-export function initVentasTable(db: Database.Database): void {
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS INGRESOS_VENTAS (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      nro_registro INTEGER UNIQUE,
-      fecha TEXT NOT NULL,
-      codigo_proveedor TEXT NOT NULL DEFAULT '',
-      razon_social_proveedor TEXT NOT NULL DEFAULT '',
-      concepto TEXT NOT NULL,
-      nro_factura TEXT NOT NULL DEFAULT '',
-      pesos REAL NOT NULL DEFAULT 0,
-      dolares_usd REAL NOT NULL DEFAULT 0,
-      tc_usd REAL NOT NULL DEFAULT 0,
-      total_usd REAL NOT NULL DEFAULT 0,
-      creado_en TEXT DEFAULT (datetime('now', 'localtime'))
-    );
-    CREATE INDEX IF NOT EXISTS idx_ventas_fecha ON INGRESOS_VENTAS(fecha);
-    CREATE INDEX IF NOT EXISTS idx_ventas_nro_registro ON INGRESOS_VENTAS(nro_registro);
-  `);
+export async function initVentasTable(_db: Db): Promise<void> {}
 
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS INGRESOS_VENTAS_SEQ (
-      id INTEGER PRIMARY KEY CHECK (id = 1),
-      ultimo INTEGER NOT NULL DEFAULT 0
-    );
-    INSERT OR IGNORE INTO INGRESOS_VENTAS_SEQ (id, ultimo) VALUES (1, 0);
-  `);
-
-  const maxRow = db
-    .prepare("SELECT COALESCE(MAX(nro_registro), 0) AS m FROM INGRESOS_VENTAS")
-    .get() as { m: number };
-  const seqRow = db
-    .prepare("SELECT ultimo FROM INGRESOS_VENTAS_SEQ WHERE id = 1")
-    .get() as { ultimo: number } | undefined;
-  const ultimo = Math.max(maxRow.m, seqRow?.ultimo ?? 0);
-  db.prepare("UPDATE INGRESOS_VENTAS_SEQ SET ultimo = ? WHERE id = 1").run(ultimo);
-}
-
-function allocNroRegistro(db: Database.Database): number {
-  const tx = db.transaction(() => {
-    const row = db
+async function allocNroRegistro(db: Db): Promise<number> {
+  return db.transaction(async (tx) => {
+    const row = (await tx
       .prepare("SELECT ultimo FROM INGRESOS_VENTAS_SEQ WHERE id = 1")
-      .get() as { ultimo: number };
+      .get()) as { ultimo: number };
     const next = row.ultimo + 1;
-    db.prepare("UPDATE INGRESOS_VENTAS_SEQ SET ultimo = ? WHERE id = 1").run(next);
+    await tx.prepare("UPDATE INGRESOS_VENTAS_SEQ SET ultimo = ? WHERE id = 1").run(next);
     return next;
   });
-  return tx();
 }
 
-export function peekNextNroRegistroVenta(db: Database.Database): number {
-  const row = db
+export async function peekNextNroRegistroVenta(db: Db): Promise<number> {
+  const row = (await db
     .prepare("SELECT ultimo FROM INGRESOS_VENTAS_SEQ WHERE id = 1")
-    .get() as { ultimo: number };
+    .get()) as { ultimo: number };
   return row.ultimo + 1;
 }
 
@@ -123,10 +86,10 @@ function normalizeInput(data: IngresoVentaInput): IngresoVentaInput {
   };
 }
 
-export function listIngresosVentas(
-  db: Database.Database,
+export async function listIngresosVentas(
+  db: Db,
   filters?: IngresoVentaFilters
-): IngresoVenta[] {
+): Promise<IngresoVenta[]> {
   let sql = "SELECT * FROM INGRESOS_VENTAS WHERE 1=1";
   const params: Record<string, string> = {};
 
@@ -149,22 +112,22 @@ export function listIngresosVentas(
   }
 
   sql += " ORDER BY fecha DESC, nro_registro DESC";
-  return db.prepare(sql).all(params) as IngresoVenta[];
+  return (await db.prepare(sql).all(params)) as IngresoVenta[];
 }
 
-export function getIngresoVentaById(
-  db: Database.Database,
+export async function getIngresoVentaById(
+  db: Db,
   id: number
-): IngresoVenta | undefined {
-  return db
+): Promise<IngresoVenta | undefined> {
+  return (await db
     .prepare("SELECT * FROM INGRESOS_VENTAS WHERE id = ?")
-    .get(id) as IngresoVenta | undefined;
+    .get(id)) as IngresoVenta | undefined;
 }
 
-export function insertIngresoVenta(
-  db: Database.Database,
+export async function insertIngresoVenta(
+  db: Db,
   data: IngresoVentaInput
-): number {
+): Promise<number> {
   const row = normalizeInput(data);
   if (!row.fecha) throw new Error("La fecha es obligatoria.");
   if (!row.concepto) throw new Error("El concepto es obligatorio.");
@@ -175,8 +138,8 @@ export function insertIngresoVenta(
     throw new Error("Ingresá el tipo de cambio (TC) para convertir pesos a USD.");
   }
 
-  const nro_registro = allocNroRegistro(db);
-  const result = db
+  const nro_registro = await allocNroRegistro(db);
+  const result = await db
     .prepare(
       `INSERT INTO INGRESOS_VENTAS (
         nro_registro, fecha, codigo_proveedor, razon_social_proveedor,
@@ -190,11 +153,11 @@ export function insertIngresoVenta(
   return Number(result.lastInsertRowid);
 }
 
-export function updateIngresoVenta(
-  db: Database.Database,
+export async function updateIngresoVenta(
+  db: Db,
   id: number,
   data: IngresoVentaInput
-): boolean {
+): Promise<boolean> {
   const row = normalizeInput(data);
   if (!row.fecha) throw new Error("La fecha es obligatoria.");
   if (!row.concepto) throw new Error("El concepto es obligatorio.");
@@ -206,7 +169,7 @@ export function updateIngresoVenta(
   }
 
   return (
-    db
+    await db
       .prepare(
         `UPDATE INGRESOS_VENTAS SET
           fecha = @fecha,
@@ -220,10 +183,10 @@ export function updateIngresoVenta(
           total_usd = @total_usd
          WHERE id = @id`
       )
-      .run({ ...row, id }).changes > 0
-  );
+      .run({ ...row, id })
+  ).changes > 0;
 }
 
-export function deleteIngresoVenta(db: Database.Database, id: number): boolean {
-  return db.prepare("DELETE FROM INGRESOS_VENTAS WHERE id = ?").run(id).changes > 0;
+export async function deleteIngresoVenta(db: Db, id: number): Promise<boolean> {
+  return (await db.prepare("DELETE FROM INGRESOS_VENTAS WHERE id = ?").run(id)).changes > 0;
 }
