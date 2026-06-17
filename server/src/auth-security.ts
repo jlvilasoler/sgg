@@ -79,7 +79,10 @@ export function constantTimeEqual(a: string, b: string): boolean {
 export function getAllowedClientOrigins(): string[] {
   const origins = new Set<string>();
   const configured = process.env.SCG_CLIENT_ORIGIN?.trim();
-  if (configured) origins.add(configured);
+  if (configured) {
+    const localDevOrigin = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(configured);
+    if (!IS_PROD || !localDevOrigin) origins.add(configured);
+  }
   const vercelUrl = process.env.VERCEL_URL?.trim();
   if (vercelUrl) origins.add(`https://${vercelUrl}`);
   const vercelBranch = process.env.VERCEL_BRANCH_URL?.trim();
