@@ -16,11 +16,10 @@ export function getPool(): PgPool {
       );
     }
     const connectionString = normalizeDatabaseUrl(raw);
+    const useSsl = !connectionString.includes("localhost");
     pool = new Pool({
       connectionString,
-      ssl: connectionString.includes("localhost")
-        ? false
-        : { rejectUnauthorized: false },
+      ssl: useSsl ? { rejectUnauthorized: false } : false,
       max: process.env.VERCEL ? 1 : 10,
       connectionTimeoutMillis: 15_000,
     });
@@ -42,10 +41,10 @@ function normalizeDatabaseUrl(url: string): string {
     );
   }
 
-  if (!u.includes("localhost") && !/sslmode=/i.test(u)) {
-    u += u.includes("?") ? "&" : "?";
-    u += "sslmode=require";
-  }
+  // sslmode en la URL fuerza verificación de certificado y falla con Supabase pooler.
+  // El SSL se configura en el Pool con rejectUnauthorized: false.
+  u = u.replace(/([?&])sslmode=[^&]*/gi, "$1").replace(/\?&/, "?").replace(/[?&]$/, "");
+
   if (/pooler\.supabase\.com:6543/i.test(u) && !/pgbouncer=/i.test(u)) {
     u += u.includes("?") ? "&" : "?";
     u += "pgbouncer=true";
