@@ -867,11 +867,11 @@ body {
 
 .data-table-rubros .col-acciones,
 .data-table-rubros tbody td.actions-cell {
-  width: 7.25rem;
-  max-width: 7.25rem;
+  width: 9rem;
+  min-width: 9rem;
   box-sizing: border-box;
-  padding-left: 0.25rem;
-  padding-right: 0.25rem;
+  padding-left: 0.35rem;
+  padding-right: 0.35rem;
   vertical-align: top;
 }
 
@@ -886,24 +886,33 @@ body {
   flex-wrap: nowrap;
   justify-content: flex-end;
   align-items: center;
-  gap: 0.2rem;
+  gap: 0.35rem;
 }
 
 .subrubro-row-actions .btn-icon-only,
 .data-table-rubros .actions-cell-inner .btn-icon-only {
   flex: 0 0 auto;
-  padding: 0.35rem;
-  min-width: 2rem;
-  min-height: 2rem;
+  padding: 0.3rem;
+  min-width: 1.85rem;
+  min-height: 1.85rem;
 }
 
 .data-table-rubros .col-estado,
 .data-table-rubros tbody td.col-estado-cell {
-  width: 5.5rem;
-  max-width: 5.5rem;
+  width: 6.5rem;
+  min-width: 6.5rem;
   white-space: nowrap;
   vertical-align: top;
   padding-top: 0.55rem;
+  padding-right: 0.5rem;
+}
+
+.data-table-rubros .subrubro-row--editing td.col-estado-cell {
+  padding-right: 0.65rem;
+}
+
+.data-table-rubros .subrubro-row--editing td.actions-cell {
+  padding-left: 0.5rem;
 }
 
 .btn-icon-only {
@@ -942,6 +951,7 @@ body {
 .data-table-rubros {
   table-layout: fixed;
   width: 100%;
+  min-width: 38rem;
 }
 
 .data-table-rubros .col-grupo {
