@@ -3,7 +3,7 @@ import app from "../server/dist/index.js";
 
 export const config = {
   runtime: "nodejs",
-  maxDuration: 10,
+  maxDuration: 60,
 };
 
 export default function handler(

@@ -21,7 +21,7 @@ export function getPool(): PgPool {
       connectionString,
       ssl: useSsl ? { rejectUnauthorized: false } : false,
       max: process.env.VERCEL ? 1 : 10,
-      connectionTimeoutMillis: 15_000,
+      connectionTimeoutMillis: process.env.VERCEL ? 30_000 : 15_000,
     });
   }
   return pool;

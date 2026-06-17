@@ -29,10 +29,20 @@ function splitSqlStatements(sql: string): string[] {
 }
 
 export async function applySchema(): Promise<void> {
+  const pool = getPool();
+
+  const exists = await pool.query(
+    `SELECT 1 FROM information_schema.tables
+     WHERE table_schema = 'public' AND table_name = 'presupuesto' LIMIT 1`
+  );
+  if (exists.rows.length > 0) {
+    console.info("[SCG] Schema ya aplicado, omitiendo DDL");
+    return;
+  }
+
   const schemaPath = resolveSchemaPath();
   console.info("[SCG] Aplicando schema desde", schemaPath);
   const sql = fs.readFileSync(schemaPath, "utf8");
-  const pool = getPool();
   const statements = splitSqlStatements(sql);
 
   for (const stmt of statements) {
