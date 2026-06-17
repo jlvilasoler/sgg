@@ -395,20 +395,42 @@ async function syncPrimaryAdminCredentials(db: Db): Promise<void> {
   const { email, password } = primaryAdminCredentials();
   const normalizedEmail = normalizeEmail(email);
   const row = (await db
-    .prepare("SELECT id, rol FROM USERS WHERE LOWER(email) = LOWER(?)")
-    .get(normalizedEmail)) as { id: number; rol: Rol } | undefined;
+    .prepare(
+      "SELECT id, rol, password_hash FROM USERS WHERE LOWER(email) = LOWER(?)"
+    )
+    .get(normalizedEmail)) as
+    | { id: number; rol: Rol; password_hash: string }
+    | undefined;
 
   if (!row) return;
 
-  const hash = bcrypt.hashSync(password, BCRYPT_ROUNDS);
-  await db
-    .prepare(
-      `UPDATE USERS SET password_hash = ?, rol = 'admin', activo = 1, actualizado_en = NOW()
+  let passwordMatches = false;
+  try {
+    passwordMatches = bcrypt.compareSync(password, row.password_hash);
+  } catch {
+    passwordMatches = false;
+  }
+
+  if (!passwordMatches) {
+    const hash = bcrypt.hashSync(password, BCRYPT_ROUNDS);
+    await db
+      .prepare(
+        `UPDATE USERS SET password_hash = ?, rol = 'admin', activo = 1, actualizado_en = NOW()
        WHERE id = ?`
-    )
-    .run(hash, row.id);
-  await deleteAllUserSessions(db, row.id);
-  console.info(`[SCG Auth] Credenciales del administrador sincronizadas: ${email}`);
+      )
+      .run(hash, row.id);
+    await deleteAllUserSessions(db, row.id);
+    console.info(`[SCG Auth] Contraseña del administrador sincronizada: ${email}`);
+    return;
+  }
+
+  if (row.rol !== "admin") {
+    await db
+      .prepare(
+        `UPDATE USERS SET rol = 'admin', activo = 1, actualizado_en = NOW() WHERE id = ?`
+      )
+      .run(row.id);
+  }
 }
 
 export async function purgeExpiredSessions(db: Db): Promise<void> {
