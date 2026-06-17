@@ -550,8 +550,15 @@ body {
   gap: 0.5rem;
 }
 
+.subrubro-grupo-title {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
 .subrubro-grupo-title strong {
   font-size: 1rem;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .subrubro-grupo-title--picker {
@@ -938,7 +945,7 @@ body {
 }
 
 .data-table-rubros .col-grupo {
-  width: 15rem;
+  width: 3.25rem;
 }
 
 .data-table-rubros .col-subrubro {
@@ -999,24 +1006,21 @@ body {
   padding-top: 0.5rem;
 }
 
-.data-table-rubros .subrubro-grupo-label {
-  display: inline-flex;
-  flex-wrap: nowrap;
-  align-items: center;
+.data-table-rubros .subrubro-grupo-cell--icon-only {
+  text-align: center;
+  padding-left: 0.35rem;
+  padding-right: 0.35rem;
+}
+
+.data-table-rubros .subrubro-grupo-cell--inline-fields {
+  width: auto;
+}
+
+.subrubro-inline-grupo-nombre {
+  display: grid;
+  grid-template-columns: minmax(8rem, 1fr) minmax(8rem, 1fr);
   gap: 0.5rem;
-  max-width: 100%;
-}
-
-.data-table-rubros .subrubro-grupo-label .rubro-grupo-badge {
-  flex-shrink: 0;
-}
-
-.data-table-rubros .subrubro-grupo-text {
-  min-width: 0;
-  line-height: 1.3;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  width: 100%;
 }
 
 .subrubro-items-col {

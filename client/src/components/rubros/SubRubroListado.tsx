@@ -596,29 +596,54 @@ export default function SubRubroListado({
     if (!inline) return null;
     const editableGrupo = inline.editGrupo === true;
 
+    if (editableGrupo) {
+      return (
+        <tr className="subrubro-row--editing subrubro-row--new" key={key}>
+          <td colSpan={2} className="subrubro-grupo-cell subrubro-grupo-cell--inline-fields">
+            <div className="subrubro-inline-grupo-nombre">
+              <input
+                ref={grupoRef}
+                className="inline-input"
+                data-sin-mayusculas="true"
+                value={inline.grupo}
+                placeholder="Nombre del rubro"
+                onChange={(e) =>
+                  setInline((d) => d && { ...d, grupo: e.target.value })
+                }
+                onKeyDown={(e) =>
+                  e.key === "Enter" && (e.preventDefault(), guardarInline())
+                }
+              />
+              <input
+                ref={nombreRef}
+                className="inline-input subrubro-nombre-input"
+                data-sin-mayusculas="true"
+                value={inline.nombre}
+                placeholder="Nombre del sub-rubro"
+                onChange={(e) =>
+                  setInline((d) => d && { ...d, nombre: e.target.value })
+                }
+                onKeyDown={(e) =>
+                  e.key === "Enter" && (e.preventDefault(), guardarInline())
+                }
+              />
+            </div>
+          </td>
+          <td className="subrubro-items-col muted subrubro-items-col--empty">—</td>
+          <td>{renderEstadoEditor()}</td>
+          <td className="actions-cell">{renderEditActions()}</td>
+        </tr>
+      );
+    }
+
     return (
       <tr className="subrubro-row--editing subrubro-row--new" key={key}>
-        <td className="subrubro-grupo-cell">
-          {editableGrupo ? (
-            <input
-              ref={grupoRef}
-              className="inline-input"
-              data-sin-mayusculas="true"
-              value={inline.grupo}
-              placeholder="Nombre del rubro"
-              onChange={(e) =>
-                setInline((d) => d && { ...d, grupo: e.target.value })
-              }
-              onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), guardarInline())}
-            />
-          ) : (
-            <span className="subrubro-grupo-label muted">
-              <GrupoIcon grupo={inline.grupo} size="sm" />
-              <span className="subrubro-grupo-text" title={inline.grupo}>
-                {inline.grupo}
-              </span>
-            </span>
-          )}
+        <td
+          className="muted subrubro-grupo-cell subrubro-grupo-cell--icon-only"
+          title={inline.grupo}
+        >
+          <GrupoIcon grupo={inline.grupo} size="sm" />
+          <span className="sr-only">{inline.grupo}</span>
         </td>
         <td className="col-subrubro-name">
           <input
@@ -642,11 +667,11 @@ export default function SubRubroListado({
 
   const inlineNuevoRubro = inline?.nuevoRubro === true;
 
-  const inlineEnGrupo = (grupo: string) =>
+  const inlineNuevoSubEnGrupo = (grupo: string) =>
     inline &&
     !inline.nuevoRubro &&
-    inline.anchorGrupo === grupo &&
-    (inline.mode === "edit" || inline.mode === "new");
+    inline.mode === "new" &&
+    inline.anchorGrupo === grupo;
 
   return (
     <div className="subseccion-panel">
@@ -853,13 +878,12 @@ export default function SubRubroListado({
                             key={r.id}
                             className={isEditing ? "subrubro-row--editing" : undefined}
                           >
-                            <td className="muted subrubro-grupo-cell">
-                              <span className="subrubro-grupo-label">
-                                <GrupoIcon grupo={grupo} size="sm" clickable />
-                                <span className="subrubro-grupo-text" title={grupo}>
-                                  {grupo}
-                                </span>
-                              </span>
+                            <td
+                              className="muted subrubro-grupo-cell subrubro-grupo-cell--icon-only"
+                              title={grupo}
+                            >
+                              <GrupoIcon grupo={grupo} size="sm" clickable />
+                              <span className="sr-only">{grupo}</span>
                             </td>
                             <td className="col-subrubro-name">
                               {isEditing ? (
@@ -944,7 +968,7 @@ export default function SubRubroListado({
                           </tr>
                         );
                       })}
-                      {inlineEnGrupo(grupo) && renderInlineRow(`new-${grupo}`)}
+                      {inlineNuevoSubEnGrupo(grupo) && renderInlineRow(`new-${grupo}`)}
                     </Fragment>
                   ))}
                 </>
