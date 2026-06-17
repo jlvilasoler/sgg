@@ -1,8 +1,8 @@
-import "dotenv/config";
+import "./load-env.js";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import "express-async-errors";
-import express, { type Request, type Response } from "express";
+import express, { type NextFunction, type Request, type Response } from "express";
 import fs from "fs";
 import multer from "multer";
 import path from "path";
@@ -53,20 +53,61 @@ const VITE_DEV_URL = process.env.SCG_VITE_URL || "http://127.0.0.1:5173";
 let lastDbInitError: string | null = null;
 
 const dbReady = db.initDb();
-void dbReady.catch((err) => {
-  lastDbInitError = err instanceof Error ? err.message : String(err);
-  console.error("[SCG] Error al inicializar la base de datos:", err);
-});
+let dbInitOk = false;
+void dbReady
+  .then(() => {
+    dbInitOk = true;
+  })
+  .catch((err) => {
+    lastDbInitError = err instanceof Error ? err.message : String(err);
+    console.error("[SCG] Error al inicializar la base de datos:", err);
+  });
 
 const app = express();
-app.use(async (_req, res, next) => {
+if (process.env.SCG_TRUST_PROXY === "1" || IS_VERCEL) {
+  app.set("trust proxy", 1);
+}
+app.disable("x-powered-by");
+app.use(securityHeaders);
+app.use(apiRateLimiter);
+app.use(cors(getCorsOptions()));
+app.use(cookieParser());
+app.use(express.json({ limit: "512kb" }));
+
+app.get("/api/health", (_req, res) => {
+  if (lastDbInitError) {
+    res.status(503).json({
+      ok: false,
+      service: "scg-api",
+      database: "postgres",
+      ready: false,
+      error: "Base de datos no disponible",
+      detail: lastDbInitError,
+    });
+    return;
+  }
+  res.json({
+    ok: true,
+    service: "scg-api",
+    database: "postgres",
+    ready: dbInitOk,
+  });
+});
+
+app.use(async (req, res, next) => {
+  if (req.path === "/api/health") {
+    next();
+    return;
+  }
   try {
     await dbReady;
     next();
   } catch (err) {
     console.error("[SCG] Base de datos no disponible:", err);
     const hint = !process.env.DATABASE_URL?.trim()
-      ? "Configurá DATABASE_URL en Vercel (Supabase → Transaction pooler, puerto 6543)."
+      ? IS_VERCEL
+        ? "Configurá DATABASE_URL en Vercel (Supabase → Transaction pooler, puerto 6543)."
+        : "Creá server/.env (copiá .env.example) y pegá DATABASE_URL de Supabase — la misma URI que en Vercel."
       : lastDbInitError?.includes("db.") && lastDbInitError.includes("supabase.co")
         ? "Cambiá DATABASE_URL: no uses db.xxx.supabase.co:5432. Usá Transaction pooler (puerto 6543) desde Supabase."
         : lastDbInitError?.includes("password authentication failed")
@@ -82,15 +123,6 @@ app.use(async (_req, res, next) => {
     });
   }
 });
-if (process.env.SCG_TRUST_PROXY === "1" || IS_VERCEL) {
-  app.set("trust proxy", 1);
-}
-app.disable("x-powered-by");
-app.use(securityHeaders);
-app.use(apiRateLimiter);
-app.use(cors(getCorsOptions()));
-app.use(cookieParser());
-app.use(express.json({ limit: "512kb" }));
 app.use(csrfOriginGuard);
 app.use(authMiddleware);
 
@@ -221,11 +253,6 @@ async function parseBody(req: Request): Promise<PresupuestoInput> {
     saldo_usd: parseNum(body.saldo_usd),
   };
 }
-
-app.get("/api/health", async (_req, res) => {
-  await dbReady;
-  res.json({ ok: true, service: "scg-api", database: "postgres" });
-});
 
 app.get("/api/catalogos", async (_req, res) => {
   res.json({ ok: true, ...(await db.getCatalogos()) });
@@ -2078,6 +2105,16 @@ if (IS_PROD && !IS_VERCEL) {
 }
 
 export default app;
+
+app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
+  console.error("[SCG] Error no capturado:", err);
+  if (!res.headersSent) {
+    res.status(500).json({
+      ok: false,
+      error: err instanceof Error ? err.message : "Error interno del servidor",
+    });
+  }
+});
 
 if (!IS_VERCEL) {
   app.listen(PORT, HOST, () => {

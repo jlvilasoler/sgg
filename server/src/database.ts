@@ -21,6 +21,54 @@ import { applySchema } from "./db/init-schema.js";
 
 let db: PgDb;
 
+const INIT_LOCK_KEY = 84937291;
+
+async function tryAdvisoryLock(waitMs: number): Promise<boolean> {
+  const pool = getPool();
+  const deadline = Date.now() + waitMs;
+  while (Date.now() < deadline) {
+    const r = await pool.query("SELECT pg_try_advisory_lock($1) AS ok", [INIT_LOCK_KEY]);
+    if (r.rows[0]?.ok === true) return true;
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+  return false;
+}
+
+async function releaseAdvisoryLock(): Promise<void> {
+  await getPool().query("SELECT pg_advisory_unlock($1)", [INIT_LOCK_KEY]).catch(() => {});
+}
+
+async function schemaAlreadyApplied(): Promise<boolean> {
+  const r = await getPool().query(
+    `SELECT 1 FROM information_schema.tables
+     WHERE table_schema = 'public' AND table_name = 'presupuesto' LIMIT 1`
+  );
+  return r.rows.length > 0;
+}
+
+async function runModuleSeeds(): Promise<void> {
+  await prov.initProveedoresTable(db);
+  await prov.seedProveedoresIfEmpty(db);
+  await gicon.initGrupoIconosTable(db);
+
+  await Promise.all([
+    div.initDivisasTable(db),
+    rub.initRubrosTable(db),
+    sub.initSubRubrosTable(db),
+    subItems.initSubRubroItemsTable(db),
+    vinc.initRubroSubRubrosTable(db),
+    resp.initResponsablesTable(db),
+    func.initFuncionariosTable(db),
+    ventas.initVentasTable(db),
+    vsub.initVentaSubRubrosTable(db),
+    vsubItems.initVentaSubRubroItemsTable(db),
+    vgicon.initVentaGrupoIconosTable(db),
+    stock.initStockGanaderoTables(db),
+  ]);
+
+  await sub.migrateUnificarGruposIconos(db);
+}
+
 async function connectWithRetry(attempts = 4): Promise<void> {
   let lastErr: unknown;
   for (let i = 0; i < attempts; i++) {
@@ -39,35 +87,26 @@ async function connectWithRetry(attempts = 4): Promise<void> {
 
 export async function initDb(): Promise<void> {
   await connectWithRetry();
+  db = new PgDb();
 
-  const pool = getPool();
-  await pool.query("SELECT pg_advisory_lock(84937291)");
+  const existing = await schemaAlreadyApplied();
+  const lockWaitMs = existing ? 8_000 : 50_000;
+  const locked = await tryAdvisoryLock(lockWaitMs);
+
   try {
-    await applySchema();
-    db = new PgDb();
-
-    await prov.initProveedoresTable(db);
-    await prov.seedProveedoresIfEmpty(db);
-    await gicon.initGrupoIconosTable(db);
-
-  // Init en paralelo: seeds secuenciales dentro de cada módulo.
-  await div.initDivisasTable(db);
-  await rub.initRubrosTable(db);
-  await sub.initSubRubrosTable(db);
-  await subItems.initSubRubroItemsTable(db);
-  await vinc.initRubroSubRubrosTable(db);
-  await resp.initResponsablesTable(db);
-  await func.initFuncionariosTable(db);
-  await ventas.initVentasTable(db);
-  await vsub.initVentaSubRubrosTable(db);
-  await vsubItems.initVentaSubRubroItemsTable(db);
-  await vgicon.initVentaGrupoIconosTable(db);
-  await stock.initStockGanaderoTables(db);
-
-    await sub.migrateUnificarGruposIconos(db);
+    if (!existing || locked) {
+      await applySchema();
+    }
+    if (locked) {
+      if (!existing) {
+        await runModuleSeeds();
+      }
+    } else if (!existing) {
+      console.warn("[SCG] Init en curso en otra instancia; omitiendo seeds pesados");
+    }
     await auth.initAuthTables(db);
   } finally {
-    await pool.query("SELECT pg_advisory_unlock(84937291)").catch(() => {});
+    if (locked) await releaseAdvisoryLock();
   }
 }
 
@@ -94,6 +133,9 @@ async function allocNroRegistro(): Promise<number> {
 }
 
 export function getDb(): PgDb {
+  if (!db) {
+    throw new Error("Base de datos aún inicializando");
+  }
   return db;
 }
 

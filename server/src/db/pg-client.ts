@@ -46,8 +46,8 @@ function normalizeDatabaseUrl(url: string): string {
   // sslmode en la URL fuerza verificación de certificado y falla con Supabase pooler.
   u = u.replace(/([?&])sslmode=[^&]*/gi, "$1").replace(/\?&/, "?").replace(/[?&]$/, "");
 
-  // Vercel: Session pooler (5432) — estable con transacciones e init largo. Transaction (6543) cuelga.
-  if (process.env.VERCEL && /pooler\.supabase\.com:6543/i.test(u)) {
+  // Session pooler (5432): transacciones e init largos. Transaction (6543) cuelga en Vercel y en dev local.
+  if (/pooler\.supabase\.com:6543/i.test(u)) {
     u = u.replace(":6543", ":5432");
   }
 
@@ -60,10 +60,6 @@ function normalizeDatabaseUrl(url: string): string {
     );
   }
 
-  if (/pooler\.supabase\.com:6543/i.test(u) && !/pgbouncer=/i.test(u)) {
-    u += u.includes("?") ? "&" : "?";
-    u += "pgbouncer=true";
-  }
   return u;
 }
 

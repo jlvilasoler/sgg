@@ -80,8 +80,8 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 export async function checkApiHealth(): Promise<boolean> {
   try {
     const res = await fetch(`${API}/health`);
-    const json = await res.json();
-    return json.ok === true;
+    const json = (await res.json()) as { ok?: boolean; ready?: boolean };
+    return json.ok === true && json.ready !== false;
   } catch {
     return false;
   }

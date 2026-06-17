@@ -84,6 +84,9 @@ export function getAllowedClientOrigins(): string[] {
   if (vercelUrl) origins.add(`https://${vercelUrl}`);
   const vercelBranch = process.env.VERCEL_BRANCH_URL?.trim();
   if (vercelBranch) origins.add(`https://${vercelBranch}`);
+  if (!IS_PROD) {
+    for (const origin of DEV_CLIENT_ORIGINS) origins.add(origin);
+  }
   if (origins.size > 0) return [...origins];
   if (IS_PROD) {
     return ["http://127.0.0.1:5173"];
@@ -106,7 +109,7 @@ export function getCorsOptions(): CorsOptions {
         callback(null, true);
         return;
       }
-      callback(new Error("Not allowed by CORS"));
+      callback(null, false);
     },
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
