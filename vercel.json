@@ -8,7 +8,7 @@
   ],
   "functions": {
     "api/index.ts": {
-      "includeFiles": "{server/dist/**,server/supabase/**}",
+      "includeFiles": "{server/dist/**}",
       "maxDuration": 10,
       "memory": 1024
     }
