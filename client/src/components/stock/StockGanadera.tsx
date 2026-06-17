@@ -23,6 +23,8 @@ import {
   EDAD_FILTRO_OPCIONES,
   categoriasDispositivo,
   coincideCategoriaFiltro,
+  coincideSinFechaNacFiltro,
+  dispositivoSinFechaNacimiento,
   edadFiltroKey,
   fmtEstadoDispositivo,
   fmtGrupo,
@@ -31,6 +33,7 @@ import {
   labelCategoriaFiltro,
   labelEdadFiltro,
   labelGrupoLibreFiltro,
+  SIN_FECHA_NAC_FILTRO_KEY,
 } from "./stock-ganadera-utils";
 
 function toggleSet<T>(prev: Set<T>, value: T): Set<T> {
@@ -47,13 +50,17 @@ function aplicaFacetas(
   filtroEstado: Set<DispositivoEstado>,
   filtroEdad: Set<string>,
   filtroGrupoLibre: Set<string>,
-  filtroCategoria: Set<string>
+  filtroCategoria: Set<string>,
+  filtroSinFechaNac: Set<string>
 ): StockGanaderaDispositivo[] {
   return rows.filter((d) => {
     if (filtroSexo.size > 0 && !filtroSexo.has(d.sexo || "")) return false;
     if (filtroEmpresa.size > 0 && !filtroEmpresa.has(d.empresa || "")) return false;
     if (filtroEstado.size > 0 && !filtroEstado.has(d.estado)) return false;
-    if (filtroEdad.size > 0 && !filtroEdad.has(edadFiltroKey(d))) return false;
+    if (filtroEdad.size > 0) {
+      const edadKey = edadFiltroKey(d);
+      if (edadKey === null || !filtroEdad.has(edadKey)) return false;
+    }
     if (
       filtroGrupoLibre.size > 0 &&
       !filtroGrupoLibre.has(grupoLibreFiltroKey(d.grupo_libre ?? ""))
@@ -61,6 +68,7 @@ function aplicaFacetas(
       return false;
     }
     if (!coincideCategoriaFiltro(d, filtroCategoria)) return false;
+    if (!coincideSinFechaNacFiltro(d, filtroSinFechaNac)) return false;
     return true;
   });
 }
@@ -117,6 +125,9 @@ export default function StockGanadera({
   const [filtroCategoria, setFiltroCategoria] = useState<Set<string>>(
     () => new Set()
   );
+  const [filtroSinFechaNac, setFiltroSinFechaNac] = useState<Set<string>>(
+    () => new Set()
+  );
   const [bulkOpen, setBulkOpen] = useState(false);
   const [filtrosMobileOpen, setFiltrosMobileOpen] = useState(false);
 
@@ -153,7 +164,7 @@ export default function StockGanadera({
   useEffect(() => {
     setPage(1);
     setSeleccion(new Set());
-  }, [busqueda, fechaDesde, fechaHasta, pageSize, filtroSexo, filtroEmpresa, filtroEstado, filtroEdad, filtroGrupoLibre, filtroCategoria]);
+  }, [busqueda, fechaDesde, fechaHasta, pageSize, filtroSexo, filtroEmpresa, filtroEstado, filtroEdad, filtroGrupoLibre, filtroCategoria, filtroSinFechaNac]);
 
   const filteredRows = useMemo(
     () =>
@@ -164,9 +175,10 @@ export default function StockGanadera({
         filtroEstado,
         filtroEdad,
         filtroGrupoLibre,
-        filtroCategoria
+        filtroCategoria,
+        filtroSinFechaNac
       ),
-    [rows, filtroSexo, filtroEmpresa, filtroEstado, filtroEdad, filtroGrupoLibre, filtroCategoria]
+    [rows, filtroSexo, filtroEmpresa, filtroEstado, filtroEdad, filtroGrupoLibre, filtroCategoria, filtroSinFechaNac]
   );
 
   const facetCounts = useMemo(() => {
@@ -176,6 +188,7 @@ export default function StockGanadera({
     const edad: Record<string, number> = {};
     const grupoLibre: Record<string, number> = {};
     const categoria: Record<string, number> = {};
+    let sinFechaNac = 0;
     for (const o of EDAD_FILTRO_OPCIONES) edad[o.key] = 0;
     for (const o of [
       ...CATEGORIA_FILTRO_HEMBRA,
@@ -189,14 +202,15 @@ export default function StockGanadera({
       empresa[d.empresa || ""] = (empresa[d.empresa || ""] ?? 0) + 1;
       estado[d.estado] = (estado[d.estado] ?? 0) + 1;
       const edadKey = edadFiltroKey(d);
-      edad[edadKey] = (edad[edadKey] ?? 0) + 1;
+      if (edadKey !== null) edad[edadKey] = (edad[edadKey] ?? 0) + 1;
+      if (dispositivoSinFechaNacimiento(d)) sinFechaNac += 1;
       const grupoKey = grupoLibreFiltroKey(d.grupo_libre ?? "");
       grupoLibre[grupoKey] = (grupoLibre[grupoKey] ?? 0) + 1;
       for (const cat of categoriasDispositivo(d)) {
         categoria[cat] = (categoria[cat] ?? 0) + 1;
       }
     }
-    return { sexo, empresa, estado, edad, grupoLibre, categoria };
+    return { sexo, empresa, estado, edad, grupoLibre, categoria, sinFechaNac };
   }, [rows]);
 
   const grupoLibreOpciones = useMemo(() => {
@@ -217,7 +231,8 @@ export default function StockGanadera({
     filtroEstado.size > 0 ||
     filtroEdad.size > 0 ||
     filtroGrupoLibre.size > 0 ||
-    filtroCategoria.size > 0;
+    filtroCategoria.size > 0 ||
+    filtroSinFechaNac.size > 0;
 
   const limpiarFacetas = () => {
     setFiltroSexo(new Set());
@@ -226,6 +241,7 @@ export default function StockGanadera({
     setFiltroEdad(new Set());
     setFiltroGrupoLibre(new Set());
     setFiltroCategoria(new Set());
+    setFiltroSinFechaNac(new Set());
   };
 
   const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
@@ -378,6 +394,7 @@ export default function StockGanadera({
               filtroEdad={filtroEdad}
               filtroGrupoLibre={filtroGrupoLibre}
               filtroCategoria={filtroCategoria}
+              filtroSinFechaNac={filtroSinFechaNac}
               grupoLibreOpciones={grupoLibreOpciones}
               onToggleSexo={(k) => setFiltroSexo((p) => toggleSet(p, k))}
               onToggleEmpresa={(k) => setFiltroEmpresa((p) => toggleSet(p, k))}
@@ -385,12 +402,16 @@ export default function StockGanadera({
               onToggleEdad={(k) => setFiltroEdad((p) => toggleSet(p, k))}
               onToggleGrupoLibre={(k) => setFiltroGrupoLibre((p) => toggleSet(p, k))}
               onToggleCategoria={(k) => setFiltroCategoria((p) => toggleSet(p, k))}
+              onToggleSinFechaNac={() =>
+                setFiltroSinFechaNac((p) => toggleSet(p, SIN_FECHA_NAC_FILTRO_KEY))
+              }
               onLimpiarSexo={() => setFiltroSexo(new Set())}
               onLimpiarEmpresa={() => setFiltroEmpresa(new Set())}
               onLimpiarEstado={() => setFiltroEstado(new Set())}
               onLimpiarEdad={() => setFiltroEdad(new Set())}
               onLimpiarGrupoLibre={() => setFiltroGrupoLibre(new Set())}
               onLimpiarCategoria={() => setFiltroCategoria(new Set())}
+              onLimpiarSinFechaNac={() => setFiltroSinFechaNac(new Set())}
               counts={facetCounts}
               onLimpiarFacetas={limpiarFacetas}
               hayFacetasActivas={hayFacetasActivas}
@@ -540,6 +561,18 @@ export default function StockGanadera({
                     </button>
                   </span>
                 ))}
+                {filtroSinFechaNac.has(SIN_FECHA_NAC_FILTRO_KEY) ? (
+                  <span key="sin-fecha-nac" className="stock-ganadera-chip">
+                    Sin fecha nacimiento
+                    <button
+                      type="button"
+                      aria-label="Quitar filtro sin fecha nacimiento"
+                      onClick={() => setFiltroSinFechaNac(new Set())}
+                    >
+                      ×
+                    </button>
+                  </span>
+                ) : null}
                 <button
                   type="button"
                   className="stock-ganadera-chips-clear"

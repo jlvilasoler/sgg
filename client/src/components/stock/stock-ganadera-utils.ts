@@ -446,10 +446,9 @@ export function fmtGrupoLibre(grupoLibre: string): string {
   return grupoLibre.trim() || "—";
 }
 
-export type EdadFiltroKey = "sin_fecha" | "0_12" | "13_24" | "25_36" | "37_mas";
+export type EdadFiltroKey = "0_12" | "13_24" | "25_36" | "37_mas";
 
 export const EDAD_FILTRO_OPCIONES: { key: EdadFiltroKey; label: string }[] = [
-  { key: "sin_fecha", label: "Sin fecha de nacimiento" },
   { key: "0_12", label: "Hasta 12 meses" },
   { key: "13_24", label: "13 a 24 meses" },
   { key: "25_36", label: "25 a 36 meses" },
@@ -469,13 +468,30 @@ export function edadFiltroKey(d: {
   edad: number | null;
   nacimiento_mes: number | null;
   nacimiento_anio: number | null;
-}): EdadFiltroKey {
+}): EdadFiltroKey | null {
   const meses = edadMesesDispositivo(d);
-  if (meses === null) return "sin_fecha";
+  if (meses === null) return null;
   if (meses <= 12) return "0_12";
   if (meses <= 24) return "13_24";
   if (meses <= 36) return "25_36";
   return "37_mas";
+}
+
+export const SIN_FECHA_NAC_FILTRO_KEY = "sin_fecha_nac";
+
+export function dispositivoSinFechaNacimiento(d: {
+  nacimiento_mes: number | null;
+  nacimiento_anio: number | null;
+}): boolean {
+  return !d.nacimiento_mes || !d.nacimiento_anio;
+}
+
+export function coincideSinFechaNacFiltro(
+  d: Parameters<typeof dispositivoSinFechaNacimiento>[0],
+  filtro: Set<string>
+): boolean {
+  if (!filtro.has(SIN_FECHA_NAC_FILTRO_KEY)) return true;
+  return dispositivoSinFechaNacimiento(d);
 }
 
 export function labelEdadFiltro(key: EdadFiltroKey): string {
@@ -500,8 +516,7 @@ export type CategoriaFiltroKey =
   | "TORO_1_2"
   | "NOVILLO_MAS_2"
   | "TORO_MAS_2"
-  | "SIN_SEXO"
-  | "SIN_FECHA";
+  | "SIN_SEXO";
 
 export const CATEGORIA_FILTRO_HEMBRA: { key: CategoriaFiltroKey; label: string }[] = [
   { key: "TERNERA", label: "Ternera" },
@@ -520,7 +535,6 @@ export const CATEGORIA_FILTRO_MACHO: { key: CategoriaFiltroKey; label: string }[
 
 export const CATEGORIA_FILTRO_OTROS: { key: CategoriaFiltroKey; label: string }[] = [
   { key: "SIN_SEXO", label: "Sin sexo definido" },
-  { key: "SIN_FECHA", label: "Sin fecha de nacimiento" },
 ];
 
 export function labelCategoriaFiltro(key: CategoriaFiltroKey): string {
@@ -543,9 +557,10 @@ export function categoriasDispositivo(d: {
   baja_anio: number | null;
 }): Set<CategoriaFiltroKey> {
   if (!d.sexo) return new Set(["SIN_SEXO"]);
+  if (dispositivoSinFechaNacimiento(d)) return new Set();
 
   const edadMeses = edadMesesDispositivo(d);
-  if (edadMeses === null) return new Set(["SIN_FECHA"]);
+  if (edadMeses === null) return new Set();
 
   const meses = mesesReferenciaTimeline(
     d.estado,
@@ -555,7 +570,7 @@ export function categoriasDispositivo(d: {
     d.baja_mes,
     d.baja_anio
   );
-  if (meses === null) return new Set(["SIN_FECHA"]);
+  if (meses === null) return new Set();
 
   if (d.sexo === "HEMBRA") {
     const etapa = etapaHembraDesdeMeses(meses);

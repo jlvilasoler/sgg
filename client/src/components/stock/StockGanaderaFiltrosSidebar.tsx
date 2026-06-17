@@ -6,6 +6,7 @@ import {
   CATEGORIA_FILTRO_OTROS,
   EDAD_FILTRO_OPCIONES,
   ESTADOS_DISPOSITIVO,
+  SIN_FECHA_NAC_FILTRO_KEY,
   labelGrupoLibreFiltro,
 } from "./stock-ganadera-utils";
 
@@ -16,6 +17,7 @@ export interface FacetCounts {
   edad: Record<string, number>;
   grupoLibre: Record<string, number>;
   categoria: Record<string, number>;
+  sinFechaNac: number;
 }
 
 interface Props {
@@ -29,6 +31,7 @@ interface Props {
   filtroEdad: Set<string>;
   filtroGrupoLibre: Set<string>;
   filtroCategoria: Set<string>;
+  filtroSinFechaNac: Set<string>;
   grupoLibreOpciones: string[];
   onToggleSexo: (key: string) => void;
   onToggleEmpresa: (key: string) => void;
@@ -36,12 +39,14 @@ interface Props {
   onToggleEdad: (key: string) => void;
   onToggleGrupoLibre: (key: string) => void;
   onToggleCategoria: (key: string) => void;
+  onToggleSinFechaNac: () => void;
   onLimpiarSexo: () => void;
   onLimpiarEmpresa: () => void;
   onLimpiarEstado: () => void;
   onLimpiarEdad: () => void;
   onLimpiarGrupoLibre: () => void;
   onLimpiarCategoria: () => void;
+  onLimpiarSinFechaNac: () => void;
   counts: FacetCounts;
   onLimpiarFacetas: () => void;
   hayFacetasActivas: boolean;
@@ -124,6 +129,7 @@ export default function StockGanaderaFiltrosSidebar({
   filtroEdad,
   filtroGrupoLibre,
   filtroCategoria,
+  filtroSinFechaNac,
   grupoLibreOpciones,
   onToggleSexo,
   onToggleEmpresa,
@@ -131,12 +137,14 @@ export default function StockGanaderaFiltrosSidebar({
   onToggleEdad,
   onToggleGrupoLibre,
   onToggleCategoria,
+  onToggleSinFechaNac,
   onLimpiarSexo,
   onLimpiarEmpresa,
   onLimpiarEstado,
   onLimpiarEdad,
   onLimpiarGrupoLibre,
   onLimpiarCategoria,
+  onLimpiarSinFechaNac,
   counts,
   onLimpiarFacetas,
   hayFacetasActivas,
@@ -245,6 +253,19 @@ export default function StockGanaderaFiltrosSidebar({
               onChange={() => onToggleEstado(o.value)}
             />
           ))}
+        </FacetGroup>
+
+        <FacetGroup
+          title="Fecha nacimiento"
+          showClear={filtroSinFechaNac.size > 0}
+          onClear={onLimpiarSinFechaNac}
+        >
+          <FacetOption
+            checked={filtroSinFechaNac.has(SIN_FECHA_NAC_FILTRO_KEY)}
+            label="Sin fecha nacimiento"
+            count={counts.sinFechaNac}
+            onChange={onToggleSinFechaNac}
+          />
         </FacetGroup>
 
         <FacetGroup
