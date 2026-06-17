@@ -30,16 +30,20 @@ function splitLine(line: string, delim: string): string[] {
   return line.split(delim).map((c) => c.trim());
 }
 
-function parseUsDate(value: string): string {
+/** Fechas con barra: día/mes/año (Uruguay y región). Ej. 08/12/2023 → 8 dic 2023. */
+function parseSlashDate(value: string): string {
   const s = value.trim();
   const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
   if (!m) return "";
-  const month = m[1].padStart(2, "0");
-  const day = m[2].padStart(2, "0");
+  const day = m[1].padStart(2, "0");
+  const month = m[2].padStart(2, "0");
+  const d = Number(day);
+  const mo = Number(month);
+  if (mo < 1 || mo > 12 || d < 1 || d > 31) return "";
   return `${m[3]}-${month}-${day}`;
 }
 
-/** Tru-Test CSV usa AAAA-MM-DD; otros exports usan M/D/AAAA. */
+/** Tru-Test CSV usa AAAA-MM-DD; otros exports usan DD/MM/AAAA. */
 function parseFecha(value: string): string {
   const s = value.trim();
   if (!s) return "";
@@ -49,7 +53,7 @@ function parseFecha(value: string): string {
     return `${iso[1]}-${iso[2].padStart(2, "0")}-${iso[3].padStart(2, "0")}`;
   }
 
-  return parseUsDate(s);
+  return parseSlashDate(s);
 }
 
 function parseTime(value: string): string {

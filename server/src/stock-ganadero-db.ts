@@ -108,7 +108,94 @@ async function clavesEidRepetidas(
 }
 
 export async function initStockGanaderoTables(db: Db): Promise<void> {
+  await migrateFechasSlashLatam(db);
   await migrateStockGanaderoDispositivoHistorial(db);
+}
+
+async function migrateFechasSlashLatam(db: Db): Promise<void> {
+  const done = (await db
+    .prepare(
+      `SELECT 1 AS ok FROM STOCK_GANADERO_DISPOSITIVO_HISTORIAL
+       WHERE clave = '__meta__' AND campo = 'fechas_ddmm_v1' LIMIT 1`
+    )
+    .get()) as { ok: number } | undefined;
+  if (done) return;
+
+  await corregirFechasSlashInvertidas(db);
+
+  await db
+    .prepare(
+      `DELETE FROM STOCK_GANADERO_DISPOSITIVO_HISTORIAL WHERE campo = 'condicion'`
+    )
+    .run();
+  await db
+    .prepare(
+      `DELETE FROM STOCK_GANADERO_DISPOSITIVO_HISTORIAL
+       WHERE clave = '__meta__' AND campo = 'backfill_condicion'`
+    )
+    .run();
+
+  await db
+    .prepare(
+      `INSERT INTO STOCK_GANADERO_DISPOSITIVO_HISTORIAL
+         (clave, campo, etiqueta, valor_anterior, valor_nuevo)
+       VALUES ('__meta__', 'fechas_ddmm_v1', '', '', '')`
+    )
+    .run();
+}
+
+function fechasSonIntercambioMesDia(f1: string, f2: string): boolean {
+  const m1 = f1.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  const m2 = f2.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m1 || !m2 || m1[1] !== m2[1]) return false;
+  return m1[2] === m2[3] && m1[3] === m2[2] && m1[2] !== m2[2];
+}
+
+/** De un par invertido, la fecha DD/MM correcta es la mayor en orden ISO (ej. dic > ago). */
+function fechaCorrectaEnPar(f1: string, f2: string): string {
+  return f1 > f2 ? f1 : f2;
+}
+
+async function corregirFechasSlashInvertidas(db: Db): Promise<void> {
+  const rows = (await db
+    .prepare(
+      `SELECT id, eid, vid, fecha, hora FROM STOCK_GANADERO_REGISTRO ORDER BY id`
+    )
+    .all()) as Pick<StockGanaderoRegistro, "id" | "eid" | "vid" | "fecha" | "hora">[];
+
+  const porHora = new Map<string, Pick<StockGanaderoRegistro, "id" | "eid" | "vid" | "fecha" | "hora">[]>();
+  for (const r of rows) {
+    const key = `${r.eid}\0${r.vid}\0${r.hora}`;
+    const list = porHora.get(key) ?? [];
+    list.push(r);
+    porHora.set(key, list);
+  }
+
+  const upd = await db.prepare(
+    `UPDATE STOCK_GANADERO_REGISTRO SET fecha = @fecha WHERE id = @id`
+  );
+
+  for (const list of porHora.values()) {
+    const fechas = [...new Set(list.map((r) => r.fecha))];
+    if (fechas.length < 2) continue;
+
+    for (let i = 0; i < fechas.length; i++) {
+      for (let j = i + 1; j < fechas.length; j++) {
+        const f1 = fechas[i];
+        const f2 = fechas[j];
+        if (!fechasSonIntercambioMesDia(f1, f2)) continue;
+
+        const correcta = fechaCorrectaEnPar(f1, f2);
+        const incorrecta = f1 === correcta ? f2 : f1;
+
+        for (const r of list) {
+          if (r.fecha === incorrecta) {
+            await upd.run({ fecha: correcta, id: r.id });
+          }
+        }
+      }
+    }
+  }
 }
 
 async function migrateSyncGrupoDesdeNacimiento(_db: Db): Promise<void> {}
@@ -990,12 +1077,22 @@ function compareFechaHora(
   return (a.hora || "").localeCompare(b.hora || "");
 }
 
-/** La lectura más reciente gana; si empatan fecha/hora, gana el id mayor (último insertado). */
-function esLecturaMasReciente(a: LecturaPunto, b: LecturaPunto): boolean {
+/** La lectura más reciente gana; si empatan fecha/hora, gana el id mayor; si aún empatan, gana condición no vacía. */
+function esLecturaMasReciente(
+  a: LecturaPunto & { condicion?: string },
+  b: LecturaPunto & { condicion?: string }
+): boolean {
   const cmp = compareFechaHora(a, b);
   if (cmp > 0) return true;
   if (cmp < 0) return false;
-  return (a.id ?? 0) > (b.id ?? 0);
+  const idA = a.id ?? 0;
+  const idB = b.id ?? 0;
+  if (idA !== idB) return idA > idB;
+  const condA = String(a.condicion ?? "").trim();
+  const condB = String(b.condicion ?? "").trim();
+  if (condA && !condB) return true;
+  if (!condA && condB) return false;
+  return false;
 }
 
 function esLecturaMasAntigua(a: LecturaPunto, b: LecturaPunto): boolean {
@@ -1132,10 +1229,11 @@ function buildDispositivosFromRegistros(
     }
 
     const ultimaId = ultimaIdPorClave.get(clave) ?? r.id;
-    const ultimaLectura: LecturaPunto = {
+    const ultimaLectura: LecturaResumen = {
       id: ultimaId,
       fecha: prev.ultima_fecha,
       hora: prev.ultima_hora,
+      condicion: prev.ultima_condicion ?? "",
     };
     if (esLecturaMasReciente(lectura, ultimaLectura)) {
       prev.ultima_fecha = r.fecha;
@@ -1147,6 +1245,30 @@ function buildDispositivosFromRegistros(
     }
 
     prev.es_repetido = repetidasClaves.has(clave);
+  }
+
+  const mejorCondicionPorClave = new Map<string, LecturaResumen>();
+  for (const r of registros) {
+    const { eid, vid } = splitEidVid(r.eid, r.vid);
+    const clave = dispositivoClave(eid, vid);
+    if (!clave || !String(r.condicion ?? "").trim()) continue;
+
+    const lectura: LecturaResumen = {
+      id: r.id,
+      fecha: r.fecha,
+      hora: r.hora,
+      condicion: r.condicion ?? "",
+    };
+    const prev = mejorCondicionPorClave.get(clave);
+    if (!prev || esLecturaMasReciente(lectura, prev)) {
+      mejorCondicionPorClave.set(clave, lectura);
+    }
+  }
+
+  for (const d of map.values()) {
+    if (String(d.ultima_condicion ?? "").trim()) continue;
+    const mejor = mejorCondicionPorClave.get(d.clave);
+    if (mejor) d.ultima_condicion = mejor.condicion;
   }
 
   return [...map.values()].sort(
