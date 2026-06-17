@@ -93,17 +93,14 @@ export async function migrateUnificarGruposIconos(db: Db): Promise<void> {
 async function migrateRacinesARaciones(_db: Db): Promise<void> {}
 
 async function seedSubRubrosIfEmpty(db: Db): Promise<void> {
-  const { n } = (await db.prepare("SELECT COUNT(*) AS n FROM SUB_RUBROS").get()) as { n: number };
-  if (n > 0) return;
-
-  await db.transaction(async (tx) => {
-    const insert = await tx.prepare(
-      "INSERT INTO SUB_RUBROS (nombre, grupo, activo) VALUES (@nombre, @grupo, 1)"
-    );
-    for (const item of SUB_RUBROS_SEED) {
-      await insert.run({ nombre: item.nombre, grupo: item.grupo });
-    }
-  });
+  const insert = await db.prepare(
+    `INSERT INTO SUB_RUBROS (nombre, grupo, activo)
+     SELECT @nombre, @grupo, 1
+     WHERE NOT EXISTS (SELECT 1 FROM SUB_RUBROS WHERE LOWER(nombre) = LOWER(@nombre))`
+  );
+  for (const item of SUB_RUBROS_SEED) {
+    await insert.run({ nombre: item.nombre, grupo: item.grupo });
+  }
 }
 
 async function syncSubRubrosFromPresupuesto(db: Db): Promise<void> {

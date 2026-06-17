@@ -52,15 +52,14 @@ async function syncRubrosFromPresupuesto(db: Db): Promise<void> {
 }
 
 async function seedRubrosIfEmpty(db: Db): Promise<void> {
-  const { n } = (await db.prepare("SELECT COUNT(*) AS n FROM RUBROS").get()) as { n: number };
-  if (n > 0) return;
-
-  await db.transaction(async (tx) => {
-    const insert = await tx.prepare("INSERT INTO RUBROS (nombre, activo) VALUES (@nombre, 1)");
-    for (const nombre of RUBROS_DEFAULT) {
-      await insert.run({ nombre });
-    }
-  });
+  const insert = await db.prepare(
+    `INSERT INTO RUBROS (nombre, activo)
+     SELECT @nombre, 1
+     WHERE NOT EXISTS (SELECT 1 FROM RUBROS WHERE LOWER(nombre) = LOWER(@nombre))`
+  );
+  for (const nombre of RUBROS_DEFAULT) {
+    await insert.run({ nombre });
+  }
 }
 
 export async function listRubros(db: Db, soloActivos = false): Promise<Rubro[]> {

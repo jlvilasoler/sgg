@@ -36,19 +36,14 @@ export async function syncResponsablesFromPresupuesto(db: Db): Promise<void> {
 }
 
 async function seedResponsablesIfEmpty(db: Db): Promise<void> {
-  const { n } = (await db.prepare("SELECT COUNT(*) AS n FROM RESPONSABLES").get()) as {
-    n: number;
-  };
-  if (n > 0) return;
-
-  await db.transaction(async (tx) => {
-    const insert = await tx.prepare(
-      "INSERT INTO RESPONSABLES (nombre, activo) VALUES (@nombre, 1)"
-    );
-    for (const nombre of RESPONSABLES_DEFAULT) {
-      await insert.run({ nombre });
-    }
-  });
+  const insert = await db.prepare(
+    `INSERT INTO RESPONSABLES (nombre, activo)
+     SELECT @nombre, 1
+     WHERE NOT EXISTS (SELECT 1 FROM RESPONSABLES WHERE LOWER(nombre) = LOWER(@nombre))`
+  );
+  for (const nombre of RESPONSABLES_DEFAULT) {
+    await insert.run({ nombre });
+  }
 }
 
 export async function listResponsables(
