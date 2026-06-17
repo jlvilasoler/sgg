@@ -198,6 +198,7 @@ export function registerAuthRoutes(app: Express): void {
       res.status(500).json({
         ok: false,
         error: "Error al iniciar sesión",
+        detail: e instanceof Error ? e.message : String(e),
       });
     }
   });

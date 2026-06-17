@@ -185,8 +185,8 @@ export async function toUserPublic(row: UserRow, db: Db): Promise<UserPublic> {
     activo: pgNum(row.activo) === 1,
     permisos: caps.permisos,
     puede_escribir: caps.puede_escribir,
-    creado_en: row.creado_en,
-    ultimo_acceso: row.ultimo_acceso,
+    creado_en: pgTimestampString(row.creado_en) ?? "",
+    ultimo_acceso: pgTimestampString(row.ultimo_acceso),
   };
 }
 
@@ -426,6 +426,23 @@ function pgNum(value: unknown, fallback = 0): number {
   return Number.isFinite(n) ? n : fallback;
 }
 
+function pgTimestampMs(value: unknown): number {
+  if (value == null) return 0;
+  if (value instanceof Date) return value.getTime();
+  if (typeof value === "string") {
+    const normalized = value.includes("T") ? value : value.replace(" ", "T");
+    const t = new Date(normalized).getTime();
+    return Number.isFinite(t) ? t : 0;
+  }
+  return 0;
+}
+
+function pgTimestampString(value: unknown): string | null {
+  if (value == null) return null;
+  if (value instanceof Date) return value.toISOString();
+  return String(value);
+}
+
 function sessionExpiryIso(): string {
   return new Date(Date.now() + SESSION_MS).toISOString();
 }
@@ -434,15 +451,9 @@ function lockoutExpiryIso(): string {
   return new Date(Date.now() + ACCOUNT_LOCKOUT_MS).toISOString();
 }
 
-function dbLockedUntilMs(iso: string): number {
-  const normalized = iso.includes("T") ? iso : iso.replace(" ", "T");
-  return new Date(normalized).getTime();
-}
-
 function isAccountLocked(row: UserRow): boolean {
   if (!row.locked_until) return false;
-  const locked = dbLockedUntilMs(row.locked_until);
-  return locked > Date.now();
+  return pgTimestampMs(row.locked_until) > Date.now();
 }
 
 async function trimUserSessions(db: Db, userId: number): Promise<void> {
@@ -522,7 +533,7 @@ export async function createSession(
       `INSERT INTO USER_SESSIONS (id, user_id, expira_en, ip, user_agent)
      VALUES (?, ?, ?, ?, ?)`
     )
-    .run(tokenHash, userId, sessionExpiryIso(), meta?.ip ?? null, meta?.userAgent ?? null);
+    .run(tokenHash, Number(userId), sessionExpiryIso(), meta?.ip ?? null, meta?.userAgent ?? null);
 
   await trimUserSessions(db, userId);
 
