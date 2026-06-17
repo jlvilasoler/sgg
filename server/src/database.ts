@@ -1,4 +1,4 @@
-import { PgDb } from "./db/pg-client.js";
+import { PgDb, getPool } from "./db/pg-client.js";
 import type { Presupuesto, PresupuestoInput, ResumenEmpresa, ResumenRubro } from "./types.js";
 import { EMPRESAS } from "./types.js";
 import * as prov from "./proveedores-db.js";
@@ -22,25 +22,31 @@ import { applySchema } from "./db/init-schema.js";
 let db: PgDb;
 
 export async function initDb(): Promise<void> {
+  await getPool().query("SELECT 1");
+
   await applySchema();
   db = new PgDb();
 
   await prov.initProveedoresTable(db);
   await prov.seedProveedoresIfEmpty(db);
-  await div.initDivisasTable(db);
-  await rub.initRubrosTable(db);
-  await sub.initSubRubrosTable(db);
-  await subItems.initSubRubroItemsTable(db);
-  await vinc.initRubroSubRubrosTable(db);
   await gicon.initGrupoIconosTable(db);
+
+  await Promise.all([
+    div.initDivisasTable(db),
+    rub.initRubrosTable(db),
+    sub.initSubRubrosTable(db),
+    subItems.initSubRubroItemsTable(db),
+    vinc.initRubroSubRubrosTable(db),
+    resp.initResponsablesTable(db),
+    func.initFuncionariosTable(db),
+    ventas.initVentasTable(db),
+    vsub.initVentaSubRubrosTable(db),
+    vsubItems.initVentaSubRubroItemsTable(db),
+    vgicon.initVentaGrupoIconosTable(db),
+    stock.initStockGanaderoTables(db),
+  ]);
+
   await sub.migrateUnificarGruposIconos(db);
-  await resp.initResponsablesTable(db);
-  await func.initFuncionariosTable(db);
-  await ventas.initVentasTable(db);
-  await vsub.initVentaSubRubrosTable(db);
-  await vsubItems.initVentaSubRubroItemsTable(db);
-  await vgicon.initVentaGrupoIconosTable(db);
-  await stock.initStockGanaderoTables(db);
   await auth.initAuthTables(db);
 }
 

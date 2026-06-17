@@ -21,7 +21,9 @@ export function getPool(): PgPool {
       connectionString,
       ssl: useSsl ? { rejectUnauthorized: false } : false,
       max: process.env.VERCEL ? 1 : 10,
-      connectionTimeoutMillis: process.env.VERCEL ? 30_000 : 15_000,
+      idleTimeoutMillis: process.env.VERCEL ? 0 : 10_000,
+      allowExitOnIdle: Boolean(process.env.VERCEL),
+      connectionTimeoutMillis: process.env.VERCEL ? 60_000 : 15_000,
     });
   }
   return pool;
@@ -42,8 +44,14 @@ function normalizeDatabaseUrl(url: string): string {
   }
 
   // sslmode en la URL fuerza verificación de certificado y falla con Supabase pooler.
-  // El SSL se configura en el Pool con rejectUnauthorized: false.
   u = u.replace(/([?&])sslmode=[^&]*/gi, "$1").replace(/\?&/, "?").replace(/[?&]$/, "");
+
+  // Vercel: Session pooler (5432) — estable con transacciones e init largo. Transaction (6543) cuelga.
+  if (process.env.VERCEL && /pooler\.supabase\.com:6543/i.test(u)) {
+    u = u.replace(":6543", ":5432");
+  }
+
+  u = u.replace(/([?&])pgbouncer=[^&]*/gi, "$1").replace(/\?&/, "?").replace(/[?&]$/, "");
 
   if (/pooler\.supabase\.com/i.test(u) && /^postgres(?:ql)?:\/\/postgres:/i.test(u)) {
     throw new Error(

@@ -45,15 +45,20 @@ export async function applySchema(): Promise<void> {
   const sql = fs.readFileSync(schemaPath, "utf8");
   const statements = splitSqlStatements(sql);
 
-  for (const stmt of statements) {
-    try {
-      await pool.query(stmt);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      if (/already exists/i.test(msg)) continue;
-      console.error("[SCG] Error en DDL:", stmt.slice(0, 120), "—", msg);
-      throw err;
+  const client = await pool.connect();
+  try {
+    for (const stmt of statements) {
+      try {
+        await client.query(stmt);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        if (/already exists/i.test(msg)) continue;
+        console.error("[SCG] Error en DDL:", stmt.slice(0, 120), "—", msg);
+        throw err;
+      }
     }
+  } finally {
+    client.release();
   }
   console.info(`[SCG] Schema aplicado (${statements.length} sentencias)`);
 }
