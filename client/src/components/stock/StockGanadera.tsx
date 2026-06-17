@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   fetchStockGanaderaDispositivos,
-  fetchStockGanaderoEstadisticas,
 } from "../../api";
 import type { StockGanaderaDispositivo } from "../../types";
 import { fmtDate } from "../../utils";
@@ -47,15 +46,9 @@ export default function StockGanadera({
   refreshKey = 0,
 }: Props) {
   const [rows, setRows] = useState<StockGanaderaDispositivo[]>([]);
-  const [stats, setStats] = useState({
-    total: 0,
-    activos: 0,
-    repetidos: 0,
-  });
   const [busqueda, setBusqueda] = useState("");
   const [fechaDesde, setFechaDesde] = useState("");
   const [fechaHasta, setFechaHasta] = useState("");
-  const [soloRepetidos, setSoloRepetidos] = useState(false);
   const [editarDispositivo, setEditarDispositivo] =
     useState<StockGanaderaDispositivo | null>(null);
   const [detalleClave, setDetalleClave] = useState<string | null>(null);
@@ -69,9 +62,8 @@ export default function StockGanadera({
       busqueda: busqueda.trim() || undefined,
       fecha_desde: fechaDesde || undefined,
       fecha_hasta: fechaHasta || undefined,
-      solo_repetidos: soloRepetidos,
     }),
-    [busqueda, fechaDesde, fechaHasta, soloRepetidos]
+    [busqueda, fechaDesde, fechaHasta]
   );
 
   const load = useCallback(async () => {
@@ -82,30 +74,14 @@ export default function StockGanadera({
     }
     setLoading(true);
     try {
-      const [dispositivos, estadisticas] = await Promise.all([
-        fetchStockGanaderaDispositivos(filtros),
-        fetchStockGanaderoEstadisticas({
-          busqueda: filtros.busqueda,
-          fecha_desde: filtros.fecha_desde,
-          fecha_hasta: filtros.fecha_hasta,
-        }),
-      ]);
-      setRows(dispositivos);
-      setStats({
-        total: estadisticas.eids_activos + estadisticas.eids_repetidos,
-        activos: estadisticas.eids_activos,
-        repetidos: estadisticas.eids_repetidos,
-      });
-      if (soloRepetidos && dispositivos.length === 0) {
-        setSoloRepetidos(false);
-      }
+      setRows(await fetchStockGanaderaDispositivos(filtros));
     } catch (e) {
       onError(e instanceof Error ? e.message : "Error al cargar");
       setRows([]);
     } finally {
       setLoading(false);
     }
-  }, [apiOnline, filtros, soloRepetidos, onError]);
+  }, [apiOnline, filtros, onError]);
 
   useEffect(() => {
     load();
@@ -114,7 +90,7 @@ export default function StockGanadera({
   useEffect(() => {
     setPage(1);
     setSeleccion(new Set());
-  }, [busqueda, fechaDesde, fechaHasta, pageSize, soloRepetidos]);
+  }, [busqueda, fechaDesde, fechaHasta, pageSize]);
 
   const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
   const pageSafe = Math.min(page, totalPages);
@@ -222,38 +198,10 @@ export default function StockGanadera({
               <div className="stock-dash-card stock-dash-card--total">
                 <span className="stock-dash-label">Dispositivos</span>
                 <span className="stock-dash-valor">
-                  {loading ? "—" : stats.total}
+                  {loading ? "—" : rows.length}
                 </span>
-                <span className="stock-dash-hint">EIDs distintos</span>
+                <span className="stock-dash-hint">Caravanas en el filtro</span>
               </div>
-              <div className="stock-dash-card stock-dash-card--activos">
-                <span className="stock-dash-label">Activos</span>
-                <span className="stock-dash-valor">
-                  {loading ? "—" : stats.activos}
-                </span>
-                <span className="stock-dash-hint">Sin lecturas duplicadas</span>
-              </div>
-              <button
-                type="button"
-                className={`stock-dash-card stock-dash-card--repetidos${
-                  soloRepetidos ? " is-active" : ""
-                }`}
-                onClick={() => stats.repetidos > 0 && setSoloRepetidos((v) => !v)}
-                disabled={loading || stats.repetidos === 0}
-                title={
-                  stats.repetidos > 0
-                    ? "Clic para ver solo dispositivos con EID repetido"
-                    : "Sin duplicados"
-                }
-              >
-                <span className="stock-dash-label">Con repetición</span>
-                <span className="stock-dash-valor stock-dash-valor--alerta">
-                  {loading ? "—" : stats.repetidos}
-                </span>
-                <span className="stock-dash-hint">
-                  {stats.repetidos > 0 ? "Clic para filtrar" : "Todo en orden"}
-                </span>
-              </button>
               <div className="stock-dash-card stock-dash-card--macho">
                 <span className="stock-dash-label">Total machos</span>
                 <span className="stock-dash-valor stock-dash-valor--macho">
@@ -276,18 +224,6 @@ export default function StockGanadera({
                 <span className="stock-dash-hint">Sin sexo asignado</span>
               </div>
             </div>
-            {soloRepetidos && (
-              <div className="stock-dash-filtro">
-                <span>Mostrando solo dispositivos con lecturas repetidas</span>
-                <button
-                  type="button"
-                  className="btn btn-sm"
-                  onClick={() => setSoloRepetidos(false)}
-                >
-                  Ver todos
-                </button>
-              </div>
-            )}
           </section>
         )}
 
