@@ -38,6 +38,7 @@ import type {
   RolPermisosConfig,
   RolPermisosInput,
 } from "./types";
+import { apiConnectionError } from "./utils/api-messages";
 
 const API = "/api";
 
@@ -52,9 +53,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
       ...options,
     });
   } catch {
-    throw new Error(
-      "No se pudo conectar con la API (puerto 3001). Ejecutá npm run dev desde la carpeta SCG."
-    );
+    throw new Error(apiConnectionError());
   }
 
   let json: { ok?: boolean; error?: string };
@@ -79,9 +78,16 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 
 export async function checkApiHealth(): Promise<boolean> {
   try {
-    const res = await fetch(`${API}/health`);
+    const res = await fetch(`${API}/health`, {
+      ...FETCH_INIT,
+      cache: "no-store",
+    });
+    if (!res.ok) return false;
     const json = (await res.json()) as { ok?: boolean; ready?: boolean };
-    return json.ok === true && json.ready !== false;
+    if (json.ok !== true) return false;
+    // En local, esperar a que la DB termine de inicializar (Vite arranca antes).
+    if (import.meta.env.DEV && json.ready === false) return false;
+    return true;
   } catch {
     return false;
   }
@@ -406,9 +412,7 @@ export async function importStockGanaderoFile(
       body: form,
     });
   } catch {
-    throw new Error(
-      "No se pudo conectar con la API (puerto 3001). Ejecutá npm run dev desde la carpeta SCG."
-    );
+    throw new Error(apiConnectionError());
   }
   const json = (await res.json()) as {
     ok?: boolean;
@@ -470,9 +474,7 @@ export async function importStockGanaderoBajaFile(
       body: form,
     });
   } catch {
-    throw new Error(
-      "No se pudo conectar con la API (puerto 3001). Ejecutá npm run dev desde la carpeta SCG."
-    );
+    throw new Error(apiConnectionError());
   }
   const json = (await res.json()) as {
     ok?: boolean;
@@ -754,9 +756,7 @@ export async function uploadGrupoIcono(
       body: fd,
     });
   } catch {
-    throw new Error(
-      "No se pudo conectar con la API (puerto 3001). Ejecutá npm run dev desde la carpeta SCG."
-    );
+    throw new Error(apiConnectionError());
   }
   const json = (await res.json()) as {
     ok?: boolean;
@@ -897,9 +897,7 @@ export async function uploadVentaGrupoIcono(
       { ...FETCH_INIT, method: "POST", body: fd }
     );
   } catch {
-    throw new Error(
-      "No se pudo conectar con la API (puerto 3001). Ejecutá npm run dev desde la carpeta SCG."
-    );
+    throw new Error(apiConnectionError());
   }
   const json = (await res.json()) as {
     ok?: boolean;

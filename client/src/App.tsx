@@ -156,7 +156,11 @@ export default function App() {
     return (
       <div className="loading-screen">
         <p>Cargando SCG...</p>
-        <p className="muted">Iniciando conexión con la base de datos</p>
+        <p className="muted">
+          {import.meta.env.DEV
+            ? "Iniciando conexión con la API local"
+            : "Conectando con el servidor"}
+        </p>
       </div>
     );
   }

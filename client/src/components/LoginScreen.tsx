@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { loginAuth } from "../api";
+import { apiConnectionError, apiOfflineMessage } from "../utils/api-messages";
 import type { AuthUser } from "../types";
 import LogoHereford from "./LogoHereford";
 
@@ -18,7 +19,7 @@ export default function LoginScreen({ apiOnline, onLogin, onError }: Props) {
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     if (!apiOnline) {
-      onError("API no conectada. Ejecutá npm run dev desde la carpeta SCG.");
+      onError(apiConnectionError());
       return;
     }
     setLoading(true);
@@ -90,9 +91,7 @@ export default function LoginScreen({ apiOnline, onLogin, onError }: Props) {
           </div>
 
           {!apiOnline && (
-            <p className="auth-login-offline">
-              Esperando conexión con la API en el puerto 3001…
-            </p>
+            <p className="auth-login-offline">{apiOfflineMessage()}</p>
           )}
 
           <button
