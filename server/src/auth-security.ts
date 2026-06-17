@@ -75,6 +75,43 @@ export function constantTimeEqual(a: string, b: string): boolean {
   return crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b));
 }
 
+function requestHost(req: Request): string | null {
+  const raw = req.headers["x-forwarded-host"] ?? req.headers.host;
+  if (typeof raw !== "string" || !raw.trim()) return null;
+  return raw.split(",")[0].trim().toLowerCase();
+}
+
+function originMatchesHost(origin: string, host: string): boolean {
+  try {
+    return new URL(origin).host.toLowerCase() === host.toLowerCase();
+  } catch {
+    return false;
+  }
+}
+
+/** SPA y API en el mismo dominio (p. ej. Vercel): el navegador puede omitir Origin. */
+function isTrustedSameSiteRequest(req: Request): boolean {
+  const host = requestHost(req);
+  if (!host) return false;
+
+  const origin = req.headers.origin;
+  if (typeof origin === "string" && origin.length > 0) {
+    return originMatchesHost(origin, host);
+  }
+
+  const referer = req.headers.referer;
+  if (typeof referer === "string" && referer.length > 0) {
+    try {
+      return new URL(referer).host.toLowerCase() === host;
+    } catch {
+      return false;
+    }
+  }
+
+  // En Vercel el frontend y /api comparten host; sin Origin ni Referer, confiar en el host.
+  return process.env.VERCEL === "1";
+}
+
 /** Orígenes del frontend autorizados (CORS + anti-CSRF). */
 export function getAllowedClientOrigins(): string[] {
   const origins = new Set<string>();
@@ -83,10 +120,21 @@ export function getAllowedClientOrigins(): string[] {
     const localDevOrigin = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(configured);
     if (!IS_PROD || !localDevOrigin) origins.add(configured);
   }
-  const vercelUrl = process.env.VERCEL_URL?.trim();
-  if (vercelUrl) origins.add(`https://${vercelUrl}`);
-  const vercelBranch = process.env.VERCEL_BRANCH_URL?.trim();
-  if (vercelBranch) origins.add(`https://${vercelBranch}`);
+  for (const key of [
+    "VERCEL_PROJECT_PRODUCTION_URL",
+    "VERCEL_URL",
+    "VERCEL_BRANCH_URL",
+  ] as const) {
+    const value = process.env[key]?.trim();
+    if (value) origins.add(value.startsWith("http") ? value : `https://${value}`);
+  }
+  const extra = process.env.SCG_CLIENT_ORIGINS?.trim();
+  if (extra) {
+    for (const part of extra.split(",")) {
+      const o = part.trim();
+      if (o) origins.add(o);
+    }
+  }
   if (!IS_PROD) {
     for (const origin of DEV_CLIENT_ORIGINS) origins.add(origin);
   }
@@ -97,7 +145,11 @@ export function getAllowedClientOrigins(): string[] {
   return [...DEV_CLIENT_ORIGINS];
 }
 
-export function isAllowedClientOrigin(origin: string): boolean {
+export function isAllowedClientOrigin(origin: string, req?: Request): boolean {
+  if (req) {
+    const host = requestHost(req);
+    if (host && originMatchesHost(origin, host)) return true;
+  }
   const allowed = getAllowedClientOrigins();
   return allowed.some(
     (candidate) =>
@@ -178,15 +230,15 @@ export function csrfOriginGuard(
 
   const origin = requestOrigin(req);
   if (!origin) {
-    if (IS_PROD) {
-      res.status(403).json({ ok: false, error: "Origen no permitido" });
+    if (!IS_PROD || isTrustedSameSiteRequest(req)) {
+      next();
       return;
     }
-    next();
+    res.status(403).json({ ok: false, error: "Origen no permitido" });
     return;
   }
 
-  if (!isAllowedClientOrigin(origin)) {
+  if (!isAllowedClientOrigin(origin, req)) {
     res.status(403).json({ ok: false, error: "Origen no permitido" });
     return;
   }
