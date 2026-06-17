@@ -40,30 +40,35 @@ async function connectWithRetry(attempts = 4): Promise<void> {
 export async function initDb(): Promise<void> {
   await connectWithRetry();
 
-  await applySchema();
-  db = new PgDb();
+  const pool = getPool();
+  await pool.query("SELECT pg_advisory_lock(84937291)");
+  try {
+    await applySchema();
+    db = new PgDb();
 
-  await prov.initProveedoresTable(db);
-  await prov.seedProveedoresIfEmpty(db);
-  await gicon.initGrupoIconosTable(db);
+    await prov.initProveedoresTable(db);
+    await prov.seedProveedoresIfEmpty(db);
+    await gicon.initGrupoIconosTable(db);
 
-  await Promise.all([
-    div.initDivisasTable(db),
-    rub.initRubrosTable(db),
-    sub.initSubRubrosTable(db),
-    subItems.initSubRubroItemsTable(db),
-    vinc.initRubroSubRubrosTable(db),
-    resp.initResponsablesTable(db),
-    func.initFuncionariosTable(db),
-    ventas.initVentasTable(db),
-    vsub.initVentaSubRubrosTable(db),
-    vsubItems.initVentaSubRubroItemsTable(db),
-    vgicon.initVentaGrupoIconosTable(db),
-    stock.initStockGanaderoTables(db),
-  ]);
+  // Init en paralelo: seeds secuenciales dentro de cada módulo.
+  await div.initDivisasTable(db);
+  await rub.initRubrosTable(db);
+  await sub.initSubRubrosTable(db);
+  await subItems.initSubRubroItemsTable(db);
+  await vinc.initRubroSubRubrosTable(db);
+  await resp.initResponsablesTable(db);
+  await func.initFuncionariosTable(db);
+  await ventas.initVentasTable(db);
+  await vsub.initVentaSubRubrosTable(db);
+  await vsubItems.initVentaSubRubroItemsTable(db);
+  await vgicon.initVentaGrupoIconosTable(db);
+  await stock.initStockGanaderoTables(db);
 
-  await sub.migrateUnificarGruposIconos(db);
-  await auth.initAuthTables(db);
+    await sub.migrateUnificarGruposIconos(db);
+    await auth.initAuthTables(db);
+  } finally {
+    await pool.query("SELECT pg_advisory_unlock(84937291)").catch(() => {});
+  }
 }
 
 export async function peekNextNroRegistro(): Promise<number> {
