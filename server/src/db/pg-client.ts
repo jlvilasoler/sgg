@@ -151,7 +151,12 @@ export class PgStatement {
   async run(...params: unknown[]): Promise<RunResult> {
     let sql = adaptSql(this.sql);
     const isInsert = /^\s*INSERT\s+/i.test(sql) && !/\bRETURNING\b/i.test(sql);
-    if (isInsert) {
+    const skipReturningId =
+      isInsert &&
+      /INSERT\s+INTO\s+("?ROLE_ESCRITURA"?|"?ROLE_PERMISOS"?|"?RUBRO_SUB_RUBROS"?)\b/i.test(
+        sql
+      );
+    if (isInsert && !skipReturningId) {
       sql = sql.replace(/;\s*$/, "") + " RETURNING id";
     }
     const { text, values } = toPgParams(sql, normalizeParams(...params));
