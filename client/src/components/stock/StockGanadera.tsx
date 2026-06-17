@@ -318,9 +318,7 @@ export default function StockGanadera({
                 rowsPagina.map((d) => (
                   <tr
                     key={d.clave}
-                    className={`stock-ganadera-row stock-table-pro-row${
-                      d.es_repetido ? " stock-table-pro-row--dup" : ""
-                    }`}
+                    className="stock-ganadera-row stock-table-pro-row"
                   >
                     <td className="stock-td stock-td--num stock-td--eid">
                       {d.eid || "—"}
@@ -369,11 +367,6 @@ export default function StockGanadera({
                     </td>
                     <td className="stock-td stock-td--estado">
                       <BadgeEstadoDispositivo estado={d.estado} />
-                      {d.es_repetido && (
-                        <span className="stock-badge-rep stock-badge-rep--inline">
-                          Repetido
-                        </span>
-                      )}
                     </td>
                   </tr>
                 ))

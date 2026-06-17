@@ -149,7 +149,7 @@ export class PgStatement {
     const isInsert = /^\s*INSERT\s+/i.test(sql) && !/\bRETURNING\b/i.test(sql);
     const skipReturningId =
       isInsert &&
-      /INSERT\s+INTO\s+("?ROLE_ESCRITURA"?|"?ROLE_PERMISOS"?|"?RUBRO_SUB_RUBROS"?|"?USER_SESSIONS"?)\b/i.test(
+      /INSERT\s+INTO\s+("?ROLE_ESCRITURA"?|"?ROLE_PERMISOS"?|"?RUBRO_SUB_RUBROS"?|"?USER_SESSIONS"?|"?STOCK_GANADERO_DISPOSITIVO"?)\b/i.test(
         sql
       );
     if (isInsert && !skipReturningId) {

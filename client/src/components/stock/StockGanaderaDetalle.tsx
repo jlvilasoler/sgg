@@ -141,11 +141,6 @@ export default function StockGanaderaDetalle({
                   <span className="stock-ganadera-detalle-label">Estado</span>
                   <span className="stock-ganadera-detalle-valor">
                     <BadgeEstadoDispositivo estado={detalle.estado} />
-                    {detalle.es_repetido && (
-                      <span className="stock-badge-rep stock-badge-rep--inline">
-                        Repetido
-                      </span>
-                    )}
                   </span>
                 </div>
                 <div className="stock-ganadera-detalle-item">
