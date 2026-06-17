@@ -11,6 +11,7 @@ import TablePagination, {
 } from "../TablePagination";
 import BadgeEstadoDispositivo from "./BadgeEstadoDispositivo";
 import IconoDispositivoWifi from "./IconoDispositivoWifi";
+import StockGanaderaBulkPanel from "./StockGanaderaBulkPanel";
 import StockGanaderaDetalle from "./StockGanaderaDetalle";
 import StockGanaderaEdadMiniTimeline from "./StockGanaderaEdadMiniTimeline";
 import StockGanaderaEditarModal from "./StockGanaderaEditarModal";
@@ -33,6 +34,7 @@ function claseCeldaSexo(sexo: StockGanaderaDispositivo["sexo"]): string {
 interface Props {
   apiOnline: boolean;
   onError: (msg: string) => void;
+  onSuccess?: (msg: string) => void;
   onVolver: () => void;
   refreshKey?: number;
 }
@@ -40,6 +42,7 @@ interface Props {
 export default function StockGanadera({
   apiOnline,
   onError,
+  onSuccess,
   onVolver,
   refreshKey = 0,
 }: Props) {
@@ -59,6 +62,7 @@ export default function StockGanadera({
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<PageSize>(30);
+  const [seleccion, setSeleccion] = useState<Set<string>>(() => new Set());
 
   const filtros = useMemo(
     () => ({
@@ -109,6 +113,7 @@ export default function StockGanadera({
 
   useEffect(() => {
     setPage(1);
+    setSeleccion(new Set());
   }, [busqueda, fechaDesde, fechaHasta, pageSize, soloRepetidos]);
 
   const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
@@ -117,6 +122,48 @@ export default function StockGanadera({
     () => paginateSlice(rows, pageSafe, pageSize),
     [rows, pageSafe, pageSize]
   );
+
+  const seleccionados = useMemo(
+    () => rows.filter((r) => seleccion.has(r.clave)),
+    [rows, seleccion]
+  );
+
+  const clavesPagina = useMemo(
+    () => rowsPagina.map((r) => r.clave),
+    [rowsPagina]
+  );
+
+  const paginaTodaSeleccionada =
+    clavesPagina.length > 0 && clavesPagina.every((c) => seleccion.has(c));
+  const paginaParcial =
+    !paginaTodaSeleccionada && clavesPagina.some((c) => seleccion.has(c));
+
+  const toggleClave = (clave: string) => {
+    setSeleccion((prev) => {
+      const next = new Set(prev);
+      if (next.has(clave)) next.delete(clave);
+      else next.add(clave);
+      return next;
+    });
+  };
+
+  const togglePagina = () => {
+    setSeleccion((prev) => {
+      const next = new Set(prev);
+      if (paginaTodaSeleccionada) {
+        for (const c of clavesPagina) next.delete(c);
+      } else {
+        for (const c of clavesPagina) next.add(c);
+      }
+      return next;
+    });
+  };
+
+  const seleccionarTodosFiltrados = () => {
+    setSeleccion(new Set(rows.map((r) => r.clave)));
+  };
+
+  const limpiarSeleccion = () => setSeleccion(new Set());
 
   const sexoStats = useMemo(() => {
     let machos = 0;
@@ -279,10 +326,37 @@ export default function StockGanadera({
           </button>
         </div>
 
+        <StockGanaderaBulkPanel
+          seleccionados={seleccionados}
+          totalFiltrados={rows.length}
+          apiOnline={apiOnline}
+          onSeleccionarTodosFiltrados={seleccionarTodosFiltrados}
+          onLimpiar={limpiarSeleccion}
+          onAplicado={() => {
+            limpiarSeleccion();
+            void load();
+          }}
+          onError={onError}
+          onSuccess={(msg) => onSuccess?.(msg)}
+        />
+
         <div className="table-wrap table-wrap-stock-pro">
           <table className="data-table stock-ganadera-table stock-table-pro">
             <thead>
               <tr>
+                <th className="stock-th stock-th--sel" aria-label="Seleccionar">
+                  <input
+                    type="checkbox"
+                    className="stock-row-check"
+                    checked={paginaTodaSeleccionada}
+                    ref={(el) => {
+                      if (el) el.indeterminate = paginaParcial;
+                    }}
+                    onChange={togglePagina}
+                    disabled={loading || rowsPagina.length === 0}
+                    title="Seleccionar página"
+                  />
+                </th>
                 <th className="stock-th stock-th--num">EID</th>
                 <th className="stock-th">VID</th>
                 <th className="stock-th">Empresa</th>
@@ -298,19 +372,19 @@ export default function StockGanadera({
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={10} className="empty">
+                  <td colSpan={11} className="empty">
                     Cargando…
                   </td>
                 </tr>
               ) : !apiOnline ? (
                 <tr>
-                  <td colSpan={10} className="empty">
+                  <td colSpan={11} className="empty">
                     API no conectada
                   </td>
                 </tr>
               ) : rows.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="empty">
+                  <td colSpan={11} className="empty">
                     Sin dispositivos para los filtros aplicados.
                   </td>
                 </tr>
@@ -318,8 +392,19 @@ export default function StockGanadera({
                 rowsPagina.map((d) => (
                   <tr
                     key={d.clave}
-                    className="stock-ganadera-row stock-table-pro-row"
+                    className={`stock-ganadera-row stock-table-pro-row${
+                      seleccion.has(d.clave) ? " stock-table-pro-row--selected" : ""
+                    }`}
                   >
+                    <td className="stock-td stock-td--sel">
+                      <input
+                        type="checkbox"
+                        className="stock-row-check"
+                        checked={seleccion.has(d.clave)}
+                        onChange={() => toggleClave(d.clave)}
+                        aria-label={`Seleccionar ${d.vid || d.eid}`}
+                      />
+                    </td>
                     <td className="stock-td stock-td--num stock-td--eid">
                       {d.eid || "—"}
                     </td>

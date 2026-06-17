@@ -23,6 +23,7 @@ import { fetchYahooUsdBrl } from "./yahoo-usd-brl.js";
 import { fetchInvestingUsdUyu } from "./investing-usd-uyu.js";
 import { normalizarTituloRubro } from "./text-normalize.js";
 import { parseStockGanaderoBuffer, parseStockGanaderoText } from "./parse-stock-ganadero-txt.js";
+import type { DispositivoMetaPatch } from "./stock-ganadero-db.js";
 import { EMPRESAS, type Empresa, type PresupuestoInput } from "./types.js";
 
 const upload = multer({
@@ -796,6 +797,71 @@ app.get("/api/stock-ganadero/dispositivos/:clave/historial-cambios", async (req,
     res.status(400).json({
       ok: false,
       error: e instanceof Error ? e.message : "Error al cargar historial",
+    });
+  }
+});
+
+app.patch("/api/stock-ganadero/dispositivos/bulk", async (req, res) => {
+  try {
+    const body = req.body ?? {};
+    const claves = Array.isArray(body.claves)
+      ? body.claves.map((c: unknown) => String(c).trim()).filter(Boolean)
+      : [];
+    const patch = (body.patch ?? {}) as Record<string, unknown>;
+    const eids =
+      body.eids && typeof body.eids === "object" && !Array.isArray(body.eids)
+        ? (body.eids as Record<string, string>)
+        : {};
+
+    const metaPatch: DispositivoMetaPatch = {};
+    if (patch.sexo !== undefined) {
+      metaPatch.sexo = String(patch.sexo).toUpperCase() as "" | "MACHO" | "HEMBRA";
+    }
+    if (patch.empresa !== undefined) {
+      metaPatch.empresa = String(patch.empresa).toUpperCase() as
+        | ""
+        | "GUAVIYU"
+        | "CHIVILCOY";
+    }
+    if (patch.nacimiento_mes !== undefined) {
+      const v = patch.nacimiento_mes;
+      metaPatch.nacimiento_mes =
+        v === null || v === "" ? null : Number(v);
+    }
+    if (patch.nacimiento_anio !== undefined) {
+      const v = patch.nacimiento_anio;
+      metaPatch.nacimiento_anio =
+        v === null || v === "" ? null : Number(v);
+    }
+    if (patch.observaciones !== undefined) {
+      metaPatch.observaciones = String(patch.observaciones);
+    }
+    if (patch.estado !== undefined) {
+      metaPatch.estado = String(patch.estado).toUpperCase() as
+        | "VIVO"
+        | "MUERTO"
+        | "VENDIDO"
+        | "FRIGORIFICO";
+    }
+    if (patch.baja_mes !== undefined) {
+      const v = patch.baja_mes;
+      metaPatch.baja_mes = v === null || v === "" ? null : Number(v);
+    }
+    if (patch.baja_anio !== undefined) {
+      const v = patch.baja_anio;
+      metaPatch.baja_anio = v === null || v === "" ? null : Number(v);
+    }
+
+    const result = await db.stockGanadero.bulkPatchDispositivos(
+      claves,
+      metaPatch,
+      eids
+    );
+    res.json({ ok: true, data: result });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al actualizar dispositivos",
     });
   }
 });

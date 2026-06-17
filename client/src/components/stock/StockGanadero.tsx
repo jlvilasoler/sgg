@@ -176,6 +176,7 @@ export default function StockGanadero({
         apiOnline={apiOnline}
         refreshKey={listRefresh}
         onError={onError}
+        onSuccess={onSuccess}
         onVolver={volverMenu}
       />
     );

@@ -592,6 +592,81 @@ export async function saveStockGanaderaDispositivo(
   };
 }
 
+export type DispositivoMetaPatch = Partial<DispositivoMetaInput>;
+
+export interface BulkPatchDispositivosResult {
+  actualizados: number;
+  errores: { clave: string; mensaje: string }[];
+}
+
+function mergeMetaConPatch(
+  prev: DispositivoMetaGuardada | null,
+  patch: DispositivoMetaPatch
+): DispositivoMetaInput {
+  const merged: DispositivoMetaInput = {
+    sexo: prev?.sexo ?? "",
+    empresa: prev?.empresa ?? "",
+    grupo: prev?.grupo ?? "",
+    nacimiento_mes: prev?.nacimiento_mes ?? null,
+    nacimiento_anio: prev?.nacimiento_anio ?? null,
+    observaciones: prev?.observaciones ?? "",
+    estado: prev?.estado ?? "VIVO",
+    baja_mes: prev?.baja_mes ?? null,
+    baja_anio: prev?.baja_anio ?? null,
+  };
+  if (patch.sexo !== undefined) merged.sexo = patch.sexo;
+  if (patch.empresa !== undefined) merged.empresa = patch.empresa;
+  if (patch.nacimiento_mes !== undefined) merged.nacimiento_mes = patch.nacimiento_mes;
+  if (patch.nacimiento_anio !== undefined) merged.nacimiento_anio = patch.nacimiento_anio;
+  if (patch.observaciones !== undefined) merged.observaciones = patch.observaciones;
+  if (patch.estado !== undefined) merged.estado = patch.estado;
+  if (patch.baja_mes !== undefined) merged.baja_mes = patch.baja_mes;
+  if (patch.baja_anio !== undefined) merged.baja_anio = patch.baja_anio;
+  return merged;
+}
+
+export async function bulkPatchStockGanaderaDispositivos(
+  db: Db,
+  claves: string[],
+  patch: DispositivoMetaPatch,
+  eids: Record<string, string> = {}
+): Promise<BulkPatchDispositivosResult> {
+  const keys = [...new Set(claves.map((c) => c.trim()).filter(Boolean))];
+  if (!keys.length) throw new Error("Seleccioná al menos un dispositivo.");
+  if (!Object.keys(patch).length) {
+    throw new Error("Marcá al menos un campo para aplicar.");
+  }
+
+  const errores: { clave: string; mensaje: string }[] = [];
+  let actualizados = 0;
+
+  await db.transaction(async (tx) => {
+    const meta = await mapMetaDispositivos(tx);
+    for (const clave of keys) {
+      try {
+        const claveNorm = normalizarClaveDispositivo(clave);
+        const prev = meta.get(claveNorm) ?? null;
+        const input = mergeMetaConPatch(prev, patch);
+        const eid = eids[clave] ?? eids[claveNorm] ?? "";
+        await saveStockGanaderaDispositivo(tx, claveNorm, input, eid);
+        actualizados += 1;
+      } catch (e) {
+        errores.push({
+          clave,
+          mensaje: e instanceof Error ? e.message : "Error al guardar",
+        });
+      }
+    }
+  });
+
+  if (actualizados === 0) {
+    const msg = errores[0]?.mensaje ?? "No se pudo actualizar ningún dispositivo.";
+    throw new Error(msg);
+  }
+
+  return { actualizados, errores };
+}
+
 function fechaIsoAMesAnio(fecha: string): { mes: number; anio: number } | null {
   const m = fecha.trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (!m) return null;

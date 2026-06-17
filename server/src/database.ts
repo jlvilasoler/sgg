@@ -227,6 +227,11 @@ export const stockGanadero = {
     stock.updateStockGanaderaDispositivoEdad(db, clave, edad, eid),
   saveDispositivo: (clave: string, input: stock.DispositivoMetaInput, eid?: string) =>
     stock.saveStockGanaderaDispositivo(db, clave, input, eid),
+  bulkPatchDispositivos: (
+    claves: string[],
+    patch: stock.DispositivoMetaPatch,
+    eids?: Record<string, string>
+  ) => stock.bulkPatchStockGanaderaDispositivos(db, claves, patch, eids),
   listHistorialCambios: (clave: string) =>
     stock.listStockGanaderaDispositivoHistorial(db, clave),
 };

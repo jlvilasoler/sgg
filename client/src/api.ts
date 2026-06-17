@@ -405,6 +405,26 @@ export async function saveStockGanaderaDispositivo(
   return json.data;
 }
 
+export async function bulkPatchStockGanaderaDispositivos(
+  claves: string[],
+  patch: Record<string, unknown>,
+  eids: Record<string, string> = {}
+): Promise<{
+  actualizados: number;
+  errores: { clave: string; mensaje: string }[];
+}> {
+  const json = await request<{
+    data: {
+      actualizados: number;
+      errores: { clave: string; mensaje: string }[];
+    };
+  }>("/stock-ganadero/dispositivos/bulk", {
+    method: "PATCH",
+    body: JSON.stringify({ claves, patch, eids }),
+  });
+  return json.data;
+}
+
 export async function importStockGanaderoFile(
   file: File
 ): Promise<{ message: string; lote_id: number; insertados: number }> {
