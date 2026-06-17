@@ -69,7 +69,9 @@ app.use(async (_req, res, next) => {
       ? "Configurá DATABASE_URL en Vercel (Supabase → Transaction pooler, puerto 6543)."
       : lastDbInitError?.includes("db.") && lastDbInitError.includes("supabase.co")
         ? "Cambiá DATABASE_URL: no uses db.xxx.supabase.co:5432. Usá Transaction pooler (puerto 6543) desde Supabase."
-        : lastDbInitError?.includes("Transaction pooler")
+        : lastDbInitError?.includes("password authentication failed")
+          ? "Contraseña o usuario incorrectos en DATABASE_URL. Usuario pooler: postgres.mxcrpumaadtixlmnlgmj (no solo postgres). Reseteá la contraseña en Supabase → Database y pegá la URI completa."
+          : lastDbInitError?.includes("Transaction pooler")
           ? lastDbInitError
           : "Revisá que DATABASE_URL sea la del pooler (6543) y que el proyecto Supabase esté activo.";
     res.status(503).json({

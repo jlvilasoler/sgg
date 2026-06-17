@@ -45,6 +45,13 @@ function normalizeDatabaseUrl(url: string): string {
   // El SSL se configura en el Pool con rejectUnauthorized: false.
   u = u.replace(/([?&])sslmode=[^&]*/gi, "$1").replace(/\?&/, "?").replace(/[?&]$/, "");
 
+  if (/pooler\.supabase\.com/i.test(u) && /^postgres(?:ql)?:\/\/postgres:/i.test(u)) {
+    throw new Error(
+      "En Transaction pooler el usuario no es «postgres», es «postgres.TU_PROJECT_REF» " +
+        "(ej. postgres.mxcrpumaadtixlmnlgmj). Copiá la URI desde Supabase sin cambiar el usuario."
+    );
+  }
+
   if (/pooler\.supabase\.com:6543/i.test(u) && !/pgbouncer=/i.test(u)) {
     u += u.includes("?") ? "&" : "?";
     u += "pgbouncer=true";
