@@ -160,7 +160,7 @@ export async function roleCapabilities(
 
   return {
     permisos,
-    puede_escribir: escRow?.puede_escribir === 1,
+    puede_escribir: pgNum(escRow?.puede_escribir) === 1,
   };
 }
 
@@ -182,7 +182,7 @@ export async function toUserPublic(row: UserRow, db: Db): Promise<UserPublic> {
     nombre: row.nombre,
     rol: row.rol,
     rol_label: ROL_LABELS[row.rol],
-    activo: row.activo === 1,
+    activo: pgNum(row.activo) === 1,
     permisos: caps.permisos,
     puede_escribir: caps.puede_escribir,
     creado_en: row.creado_en,
@@ -230,7 +230,7 @@ async function seedRolePermissionsIfEmpty(db: Db): Promise<void> {
   const count = (await db
     .prepare("SELECT COUNT(*) AS n FROM ROLE_ESCRITURA")
     .get()) as { n: number };
-  if (count.n > 0) return;
+  if (pgNum(count.n) > 0) return;
 
   const insEsc = await db.prepare(
     "INSERT INTO ROLE_ESCRITURA (rol, puede_escribir) VALUES (?, ?)"
@@ -335,7 +335,7 @@ async function seedAdminIfEmpty(db: Db): Promise<void> {
   const count = (await db.prepare("SELECT COUNT(*) AS n FROM USERS").get()) as {
     n: number;
   };
-  if (count.n > 0) return;
+  if (pgNum(count.n) > 0) return;
 
   const { email, password } = primaryAdminCredentials();
   const hash = bcrypt.hashSync(password, BCRYPT_ROUNDS);
@@ -421,25 +421,28 @@ function newSessionToken(): string {
   return crypto.randomBytes(32).toString("hex");
 }
 
+function pgNum(value: unknown, fallback = 0): number {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
 function sessionExpiryIso(): string {
-  return new Date(Date.now() + SESSION_MS).toISOString().slice(0, 19).replace("T", " ");
+  return new Date(Date.now() + SESSION_MS).toISOString();
 }
 
 function lockoutExpiryIso(): string {
-  return new Date(Date.now() + ACCOUNT_LOCKOUT_MS)
-    .toISOString()
-    .slice(0, 19)
-    .replace("T", " ");
+  return new Date(Date.now() + ACCOUNT_LOCKOUT_MS).toISOString();
+}
+
+function dbLockedUntilMs(iso: string): number {
+  const normalized = iso.includes("T") ? iso : iso.replace(" ", "T");
+  return new Date(normalized).getTime();
 }
 
 function isAccountLocked(row: UserRow): boolean {
   if (!row.locked_until) return false;
   const locked = dbLockedUntilMs(row.locked_until);
   return locked > Date.now();
-}
-
-function dbLockedUntilMs(iso: string): number {
-  return new Date(iso.replace(" ", "T")).getTime();
 }
 
 async function trimUserSessions(db: Db, userId: number): Promise<void> {
@@ -472,7 +475,7 @@ async function registerFailedLogin(
     return;
   }
 
-  const attempts = (row.failed_login_attempts ?? 0) + 1;
+  const attempts = pgNum(row.failed_login_attempts) + 1;
   if (attempts >= MAX_ACCOUNT_LOGIN_ATTEMPTS) {
     await db
       .prepare(
@@ -592,7 +595,12 @@ export async function verifyLogin(
   }
 
   const hashToCompare = row?.password_hash ?? DUMMY_PASSWORD_HASH;
-  const valid = bcrypt.compareSync(password, hashToCompare);
+  let valid = false;
+  try {
+    valid = bcrypt.compareSync(password, hashToCompare);
+  } catch {
+    valid = false;
+  }
 
   if (!row || !valid) {
     await registerFailedLogin(db, row, normalized, meta);

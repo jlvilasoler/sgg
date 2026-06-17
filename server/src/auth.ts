@@ -193,7 +193,8 @@ export function registerAuthRoutes(app: Express): void {
 
       res.cookie(SESSION_COOKIE, token, cookieOptions());
       res.json({ ok: true, data: result.user });
-    } catch {
+    } catch (e) {
+      console.error("[SCG Auth] Error en login:", e);
       res.status(500).json({
         ok: false,
         error: "Error al iniciar sesión",
