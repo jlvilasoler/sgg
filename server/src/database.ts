@@ -21,8 +21,24 @@ import { applySchema } from "./db/init-schema.js";
 
 let db: PgDb;
 
+async function connectWithRetry(attempts = 4): Promise<void> {
+  let lastErr: unknown;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      await getPool().query("SELECT 1");
+      return;
+    } catch (err) {
+      lastErr = err;
+      if (i < attempts - 1) {
+        await new Promise((r) => setTimeout(r, 1500 * (i + 1)));
+      }
+    }
+  }
+  throw lastErr;
+}
+
 export async function initDb(): Promise<void> {
-  await getPool().query("SELECT 1");
+  await connectWithRetry();
 
   await applySchema();
   db = new PgDb();
