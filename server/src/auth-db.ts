@@ -223,7 +223,12 @@ export async function initAuthTables(db: Db): Promise<void> {
   await purgeExpiredSessions(db);
   await seedAdminIfEmpty(db);
   await migrateLegacyAdmin(db);
-  await syncPrimaryAdminCredentials(db);
+  // En Vercel no re-sincronizar admin en cada cold start (invalidaba sesiones).
+  if (process.env.VERCEL !== "1") {
+    await syncPrimaryAdminCredentials(db);
+  } else if (process.env.SCG_ADMIN_SYNC_ON_START === "1") {
+    await syncPrimaryAdminCredentials(db);
+  }
 }
 
 async function seedRolePermissionsIfEmpty(db: Db): Promise<void> {
@@ -326,8 +331,8 @@ export async function updateRolePermissions(
 
 function primaryAdminCredentials(): { email: string; password: string } {
   return {
-    email: process.env.SCG_ADMIN_EMAIL?.trim() || DEFAULT_ADMIN_EMAIL,
-    password: process.env.SCG_ADMIN_PASSWORD || DEFAULT_ADMIN_PASSWORD,
+    email: (process.env.SCG_ADMIN_EMAIL?.trim() || DEFAULT_ADMIN_EMAIL).trim(),
+    password: (process.env.SCG_ADMIN_PASSWORD || DEFAULT_ADMIN_PASSWORD).trim(),
   };
 }
 

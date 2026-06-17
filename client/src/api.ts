@@ -44,6 +44,9 @@ const API = "/api";
 
 const FETCH_INIT: RequestInit = { credentials: "include" };
 
+/** 401 esperado sin sesión (no disparar cierre de sesión en el cliente). */
+const SILENT_401_PREFIXES = ["/auth/me", "/auth/login"];
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   let res: Response;
   try {
@@ -68,7 +71,10 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   }
 
   if (!json.ok) {
-    if (res.status === 401 && !path.startsWith("/auth/login")) {
+    if (
+      res.status === 401 &&
+      !SILENT_401_PREFIXES.some((prefix) => path.startsWith(prefix))
+    ) {
       window.dispatchEvent(new CustomEvent("scg-unauthorized"));
     }
     throw new Error(json.error || `Error en la solicitud (${res.status})`);
@@ -1239,8 +1245,13 @@ export async function logoutAuth(): Promise<void> {
 
 export async function fetchCurrentUser(): Promise<AuthUser | null> {
   try {
-    const json = await request<{ data: AuthUser }>("/auth/me");
-    return json.data;
+    const res = await fetch(`${API}/auth/me`, {
+      ...FETCH_INIT,
+      cache: "no-store",
+    });
+    if (res.status === 401) return null;
+    const json = (await res.json()) as { ok?: boolean; data?: AuthUser };
+    return json.ok && json.data ? json.data : null;
   } catch {
     return null;
   }

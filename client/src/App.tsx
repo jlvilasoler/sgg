@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useFormularioMayusculas } from "./hooks/useFormularioMayusculas";
 import {
   checkApiHealth,
@@ -37,6 +37,7 @@ export default function App() {
   const [booting, setBooting] = useState(true);
   const [editRow, setEditRow] = useState<Presupuesto | null>(null);
   const [listKey, setListKey] = useState(0);
+  const hadUserRef = useRef(false);
 
   const notify = useCallback((msg: string, ok = true, title?: string) => {
     showToast(msg, ok, title);
@@ -85,11 +86,19 @@ export default function App() {
   }, [apiOnline, connectApi]);
 
   useEffect(() => {
+    if (user) hadUserRef.current = true;
+  }, [user]);
+
+  useEffect(() => {
     const onUnauthorized = () => {
+      const wasLoggedIn = hadUserRef.current;
       setUser(null);
       setScreen("home");
       setEditRow(null);
-      notify("Tu sesión expiró. Volvé a iniciar sesión.", false);
+      hadUserRef.current = false;
+      if (wasLoggedIn) {
+        notify("Tu sesión expiró. Volvé a iniciar sesión.", false);
+      }
     };
     window.addEventListener("scg-unauthorized", onUnauthorized);
     return () => window.removeEventListener("scg-unauthorized", onUnauthorized);

@@ -40,7 +40,7 @@ function cookieOptions(): CookieOptions {
   return {
     httpOnly: true,
     secure: IS_PROD,
-    sameSite: IS_PROD ? "strict" : "lax",
+    sameSite: "lax",
     maxAge: 7 * 24 * 60 * 60 * 1000,
     path: "/",
   };
@@ -51,7 +51,7 @@ function clearSessionCookie(res: Response): void {
     path: "/",
     httpOnly: true,
     secure: IS_PROD,
-    sameSite: IS_PROD ? "strict" : "lax",
+    sameSite: "lax",
   });
 }
 
