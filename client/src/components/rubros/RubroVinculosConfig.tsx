@@ -294,7 +294,7 @@ export default function RubroVinculosConfig({
             Resumen de todos los vínculos configurados. Hacé clic en un rubro para editarlo arriba.
           </p>
           <p className="vinculos-mapa-leyenda muted">
-            Todo parte del cuadro <strong>SCG</strong>: líneas al <strong>rubro</strong> contable,
+            Todo parte del cuadro <strong>SGG</strong>: líneas al <strong>rubro</strong> contable,
             luego al <strong>grupo</strong> y a cada <strong>sub-rubro</strong>. Clic en un rubro
             para editarlo arriba.
           </p>

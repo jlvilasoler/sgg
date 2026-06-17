@@ -8,6 +8,6 @@ export function apiOfflineMessage(): string {
 
 export function apiConnectionError(): string {
   return IS_DEV
-    ? "No se pudo conectar con la API (puerto 3001). Ejecutá npm run dev desde la carpeta SCG."
+    ? "No se pudo conectar con la API (puerto 3001). Ejecutá npm run dev desde la carpeta del proyecto."
     : "No se pudo conectar con el servidor. Esperá unos segundos y recargá la página.";
 }

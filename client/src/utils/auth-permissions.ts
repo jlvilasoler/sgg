@@ -32,8 +32,13 @@ const SCREEN_MODULO: Record<TabId, Modulo> = {
   recursos_humanos: "rrhh",
   ingresos_ventas: "ventas",
   stock_ganadero: "stock",
+  stock_movimientos: "usuarios",
   usuarios: "usuarios",
 };
+
+export function canAccessStockMovimientos(user: AuthUser | null): boolean {
+  return user?.rol === "admin";
+}
 
 export function moduloForScreen(screen: TabId): Modulo {
   return SCREEN_MODULO[screen];

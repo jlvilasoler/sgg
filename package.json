@@ -2,7 +2,7 @@
   "name": "scg-contabilidad",
   "private": true,
   "version": "1.0.0",
-  "description": "Sistema de Contabilidad Ganadera — React + Node",
+  "description": "Sistema de Gestión Ganadera — React + Node",
   "type": "module",
   "engines": {
     "node": ">=20"

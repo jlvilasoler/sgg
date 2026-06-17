@@ -83,8 +83,8 @@ export default function LoginScreen({ apiOnline, onLogin, onError }: Props) {
           <div className="auth-login-brand">
             <LogoHereford className="auth-login-logo" />
             <div>
-              <h1 className="auth-login-title">SCG</h1>
-              <p className="auth-login-sub">Sistema de Contabilidad Ganadera</p>
+              <h1 className="auth-login-title">SGG</h1>
+              <p className="auth-login-sub">Sistema de Gestión Ganadera</p>
             </div>
           </div>
           <p className="auth-login-head-note">Acceso seguro con email y contraseña</p>

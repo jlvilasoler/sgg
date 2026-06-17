@@ -1,7 +1,7 @@
 @echo off
 cd /d "%~dp0"
 echo ========================================
-echo   SCG - Contabilidad Ganadera
+echo   SGG - Sistema de Gestión Ganadera
 echo ========================================
 echo.
 

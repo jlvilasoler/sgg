@@ -22,8 +22,10 @@ import { fetchBcuUsdUyu } from "./bcu-usd-uyu.js";
 import { fetchYahooUsdBrl } from "./yahoo-usd-brl.js";
 import { fetchInvestingUsdUyu } from "./investing-usd-uyu.js";
 import { normalizarTituloRubro } from "./text-normalize.js";
-import { parseStockGanaderoBuffer, parseStockGanaderoText } from "./parse-stock-ganadero-txt.js";
+import { parseStockGanaderoBuffer, parseStockGanaderoText, normalizeStockGanaderoRows } from "./parse-stock-ganadero-txt.js";
 import type { DispositivoMetaPatch } from "./stock-ganadero-db.js";
+import { parseTipoBaja, tipoBajaDesdeEstadoImport, type TipoBaja } from "./stock-ganadero-db.js";
+import { auditBajasDispositivos, auditStockMovimiento } from "./stock-audit.js";
 import { EMPRESAS, type Empresa, type PresupuestoInput } from "./types.js";
 
 const upload = multer({
@@ -43,6 +45,15 @@ const iconUpload = multer({
   },
 });
 
+function optionalTipoBaja(raw: unknown): TipoBaja | "" {
+  if (typeof raw !== "string" || !raw.trim()) return "";
+  try {
+    return parseTipoBaja(raw);
+  } catch {
+    return "";
+  }
+}
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const IS_PROD = process.env.NODE_ENV === "production";
 const IS_VERCEL = process.env.VERCEL === "1";
@@ -61,7 +72,7 @@ void dbReady
   })
   .catch((err) => {
     lastDbInitError = err instanceof Error ? err.message : String(err);
-    console.error("[SCG] Error al inicializar la base de datos:", err);
+    console.error("[SGG] Error al inicializar la base de datos:", err);
   });
 
 const app = express();
@@ -104,7 +115,7 @@ app.use(async (req, res, next) => {
     await dbReady;
     next();
   } catch (err) {
-    console.error("[SCG] Base de datos no disponible:", err);
+    console.error("[SGG] Base de datos no disponible:", err);
     const hint = !process.env.DATABASE_URL?.trim()
       ? IS_VERCEL
         ? "Configurá DATABASE_URL en Vercel (Supabase → Transaction pooler, puerto 6543)."
@@ -128,7 +139,7 @@ app.use(csrfOriginGuard);
 app.use(authMiddleware);
 
 registerAuthRoutes(app);
-console.info("[SCG Auth] Rutas de autenticación registradas");
+console.info("[SGG Auth] Rutas de autenticación registradas");
 
 function paramString(value: string | string[]): string {
   return Array.isArray(value) ? (value[0] ?? "") : value;
@@ -755,7 +766,8 @@ app.get("/api/stock-ganadero/dispositivos", async (req, res) => {
   const estadoDispositivo =
     estadoRaw === "MUERTO" ||
     estadoRaw === "VENDIDO" ||
-    estadoRaw === "FRIGORIFICO"
+    estadoRaw === "FRIGORIFICO" ||
+    estadoRaw === "PERDIDO"
       ? estadoRaw
       : undefined;
   res.json({
@@ -857,6 +869,13 @@ app.patch("/api/stock-ganadero/dispositivos/bulk", async (req, res) => {
       metaPatch,
       eids
     );
+    if (result.actualizados > 0) {
+      await auditStockMovimiento(req, "MODIFICACION", {
+        cantidad: result.actualizados,
+        resumen: `Modificación masiva de ${result.actualizados} dispositivo(s)`,
+        detalle: { claves: claves.slice(0, 25), patch: metaPatch },
+      });
+    }
     res.json({ ok: true, data: result });
   } catch (e) {
     res.status(400).json({
@@ -878,6 +897,11 @@ app.patch("/api/stock-ganadero/dispositivos/:clave/sexo", async (req, res) => {
       sexo,
       eid
     );
+    await auditStockMovimiento(req, "MODIFICACION", {
+      clave: req.params.clave,
+      resumen: `Cambió sexo del dispositivo ${req.params.clave}`,
+      detalle: { sexo: actualizado },
+    });
     res.json({ ok: true, data: { sexo: actualizado } });
   } catch (e) {
     res.status(400).json({
@@ -913,7 +937,11 @@ app.patch("/api/stock-ganadero/dispositivos/:clave", async (req, res) => {
       | "VIVO"
       | "MUERTO"
       | "VENDIDO"
-      | "FRIGORIFICO";
+      | "FRIGORIFICO"
+      | "PERDIDO";
+    const tipo_baja = optionalTipoBaja(body.tipo_baja);
+    const numero_guia =
+      typeof body.numero_guia === "string" ? body.numero_guia : "";
     const bajaMesRaw = body.baja_mes;
     const baja_mes =
       bajaMesRaw === null || bajaMesRaw === undefined || bajaMesRaw === ""
@@ -937,11 +965,23 @@ app.patch("/api/stock-ganadero/dispositivos/:clave", async (req, res) => {
         nacimiento_anio,
         observaciones,
         estado,
+        tipo_baja,
+        numero_guia,
         baja_mes,
         baja_anio,
       },
       eid
     );
+    await auditStockMovimiento(req, "MODIFICACION", {
+      clave: req.params.clave,
+      resumen: `Modificó dispositivo ${req.params.clave}`,
+      detalle: {
+        estado: data.estado,
+        tipo_baja: data.tipo_baja,
+        sexo: data.sexo,
+        empresa: data.empresa,
+      },
+    });
     res.json({ ok: true, data });
   } catch (e) {
     res.status(400).json({
@@ -964,6 +1004,11 @@ app.patch("/api/stock-ganadero/dispositivos/:clave/edad", async (req, res) => {
       edad,
       eid
     );
+    await auditStockMovimiento(req, "MODIFICACION", {
+      clave: req.params.clave,
+      resumen: `Actualizó edad del dispositivo ${req.params.clave}`,
+      detalle: { edad: actualizado },
+    });
     res.json({ ok: true, data: { edad: actualizado } });
   } catch (e) {
     res.status(400).json({
@@ -995,6 +1040,16 @@ app.post("/api/stock-ganadero/import/file", upload.single("file"), async (req, r
     const rows = parseStockGanaderoBuffer(file.buffer);
     const result = await db.stockGanadero.importRows(file.originalname || "import.txt", rows);
     const lote = await db.stockGanadero.getLote(result.lote_id);
+    if (result.insertados > 0) {
+      await auditStockMovimiento(req, "ALTA", {
+        cantidad: result.insertados,
+        resumen: `Importó ${result.insertados} lectura(s) desde archivo`,
+        detalle: {
+          archivo: lote?.nombre_archivo ?? file.originalname,
+          lote_id: result.lote_id,
+        },
+      });
+    }
     res.status(201).json({
       ok: true,
       message: `Importadas ${result.insertados} lectura(s) desde «${lote?.nombre_archivo ?? "archivo"}»`,
@@ -1012,9 +1067,49 @@ app.post("/api/stock-ganadero/import/text", async (req, res) => {
     const rows = parseStockGanaderoText(texto);
     const result = await db.stockGanadero.importRows(nombre, rows);
     const lote = await db.stockGanadero.getLote(result.lote_id);
+    if (result.insertados > 0) {
+      await auditStockMovimiento(req, "ALTA", {
+        cantidad: result.insertados,
+        resumen: `Importó ${result.insertados} lectura(s) desde texto`,
+        detalle: { archivo: nombre, lote_id: result.lote_id },
+      });
+    }
     res.status(201).json({
       ok: true,
       message: `Importadas ${result.insertados} lectura(s)`,
+      data: { ...result, lote },
+    });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: (e as Error).message });
+  }
+});
+
+app.post("/api/stock-ganadero/import/rows", async (req, res) => {
+  try {
+    const body = req.body as {
+      rows?: Array<{
+        eid?: string;
+        vid?: string;
+        fecha?: string;
+        hora?: string;
+        condicion?: string;
+      }>;
+      nombre_archivo?: string;
+    };
+    const rows = normalizeStockGanaderoRows(body.rows ?? []);
+    const nombre = String(body.nombre_archivo ?? "carga-manual").trim() || "carga-manual";
+    const result = await db.stockGanadero.importRows(nombre, rows);
+    const lote = await db.stockGanadero.getLote(result.lote_id);
+    if (result.insertados > 0) {
+      await auditStockMovimiento(req, "ALTA", {
+        cantidad: result.insertados,
+        resumen: `Carga manual: ${result.insertados} lectura(s)`,
+        detalle: { archivo: nombre, lote_id: result.lote_id },
+      });
+    }
+    res.status(201).json({
+      ok: true,
+      message: `Importadas ${result.insertados} lectura(s) (carga manual)`,
       data: { ...result, lote },
     });
   } catch (e) {
@@ -1030,18 +1125,78 @@ function parseEstadoBajaImport(raw: unknown): "VENDIDO" | "FRIGORIFICO" {
   throw new Error("Indicá el tipo de baja: VENDIDO o FRIGORIFICO.");
 }
 
+function parseTipoBajaForImport(body: {
+  tipo_baja?: unknown;
+  estado?: unknown;
+}): TipoBaja {
+  const rawTipo = String(body.tipo_baja ?? "").trim();
+  if (rawTipo) {
+    const tipo = parseTipoBaja(rawTipo);
+    if (tipo === "FRIGORIFICO") {
+      throw new Error(
+        "Tipo de baja inválido. Use VENTA_FRIGORIFICO, VENTA_PRODUCTOR, MUERTE o PERDIDO."
+      );
+    }
+    return tipo;
+  }
+  if (body.estado) {
+    return tipoBajaDesdeEstadoImport(parseEstadoBajaImport(body.estado));
+  }
+  throw new Error(
+    "Indicá el tipo de baja: VENTA_FRIGORIFICO, VENTA_PRODUCTOR, MUERTE o PERDIDO."
+  );
+}
+
+function etiquetaTipoBajaImport(tipo: TipoBaja): string {
+  switch (tipo) {
+    case "VENTA_FRIGORIFICO":
+      return "Venta Frigorífico";
+    case "VENTA_PRODUCTOR":
+      return "Venta productor";
+    case "MUERTE":
+      return "Muerte";
+    case "PERDIDO":
+      return "Perdido";
+    case "FRIGORIFICO":
+      return "Frigorífico";
+  }
+}
+
 function mensajeImportBaja(
   result: {
     actualizados: number;
     no_encontrados: number;
     duplicados_omitidos: number;
+    ambiguos?: number;
   },
-  estado: "VENDIDO" | "FRIGORIFICO"
+  tipo_baja: TipoBaja
 ): string {
-  const etiqueta = estado === "VENDIDO" ? "Vendido" : "Frigorífico";
+  const etiqueta = etiquetaTipoBajaImport(tipo_baja);
   let msg = `Se marcaron ${result.actualizados} dispositivo(s) como ${etiqueta}.`;
   if (result.no_encontrados > 0) {
     msg += ` ${result.no_encontrados} no estaban en el stock.`;
+  }
+  if ((result.ambiguos ?? 0) > 0) {
+    msg += ` ${result.ambiguos} con número ambiguo (varios coinciden).`;
+  }
+  if (result.duplicados_omitidos > 0) {
+    msg += ` ${result.duplicados_omitidos} duplicado(s) omitido(s).`;
+  }
+  return msg;
+}
+
+function mensajeImportBajaDetalle(result: {
+  actualizados: number;
+  no_encontrados: number;
+  duplicados_omitidos: number;
+  ambiguos?: number;
+}): string {
+  let msg = `Se registraron ${result.actualizados} baja(s).`;
+  if (result.no_encontrados > 0) {
+    msg += ` ${result.no_encontrados} no estaban en el stock.`;
+  }
+  if ((result.ambiguos ?? 0) > 0) {
+    msg += ` ${result.ambiguos} con número ambiguo (varios coinciden).`;
   }
   if (result.duplicados_omitidos > 0) {
     msg += ` ${result.duplicados_omitidos} duplicado(s) omitido(s).`;
@@ -1056,13 +1211,16 @@ app.post("/api/stock-ganadero/baja/file", upload.single("file"), async (req, res
       res.status(400).json({ ok: false, error: "Seleccioná un archivo .txt o .csv" });
       return;
     }
-    const estado = parseEstadoBajaImport(req.body?.estado);
+    const tipo_baja = parseTipoBajaForImport(req.body ?? {});
     const rows = parseStockGanaderoBuffer(file.buffer);
-    const result = await db.stockGanadero.importBaja(rows, estado);
+    const result = await db.stockGanadero.importBaja(rows, tipo_baja);
+    if (result.dispositivos_bajados.length > 0) {
+      await auditBajasDispositivos(req, result.dispositivos_bajados);
+    }
     res.status(201).json({
       ok: true,
-      message: mensajeImportBaja(result, estado),
-      data: { ...result, estado },
+      message: mensajeImportBaja(result, tipo_baja),
+      data: { ...result, tipo_baja },
     });
   } catch (e) {
     res.status(400).json({ ok: false, error: (e as Error).message });
@@ -1071,15 +1229,99 @@ app.post("/api/stock-ganadero/baja/file", upload.single("file"), async (req, res
 
 app.post("/api/stock-ganadero/baja/text", async (req, res) => {
   try {
-    const body = req.body as { texto?: string; estado?: string };
+    const body = req.body as { texto?: string; tipo_baja?: string; estado?: string };
     const texto = String(body.texto ?? "");
-    const estado = parseEstadoBajaImport(body.estado);
+    const tipo_baja = parseTipoBajaForImport(body);
     const rows = parseStockGanaderoText(texto);
-    const result = await db.stockGanadero.importBaja(rows, estado);
+    const result = await db.stockGanadero.importBaja(rows, tipo_baja);
+    if (result.dispositivos_bajados.length > 0) {
+      await auditBajasDispositivos(req, result.dispositivos_bajados);
+    }
     res.status(201).json({
       ok: true,
-      message: mensajeImportBaja(result, estado),
-      data: { ...result, estado },
+      message: mensajeImportBaja(result, tipo_baja),
+      data: { ...result, tipo_baja },
+    });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: (e as Error).message });
+  }
+});
+
+app.post("/api/stock-ganadero/baja/rows", async (req, res) => {
+  try {
+    const body = req.body as {
+      rows?: Array<{
+        eid?: string;
+        vid?: string;
+        fecha?: string;
+        hora?: string;
+        condicion?: string;
+      }>;
+      tipo_baja?: string;
+      estado?: string;
+    };
+    const tipo_baja = parseTipoBajaForImport(body);
+    const rows = normalizeStockGanaderoRows(body.rows ?? []);
+    const result = await db.stockGanadero.importBaja(rows, tipo_baja);
+    if (result.dispositivos_bajados.length > 0) {
+      await auditBajasDispositivos(req, result.dispositivos_bajados);
+    }
+    res.status(201).json({
+      ok: true,
+      message: mensajeImportBaja(result, tipo_baja),
+      data: { ...result, tipo_baja },
+    });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: (e as Error).message });
+  }
+});
+
+app.post("/api/stock-ganadero/baja/dispositivos", async (req, res) => {
+  try {
+    const body = req.body as {
+      items?: Array<{
+        numero?: string;
+        tipo_baja?: string;
+        fecha?: string;
+        numero_guia?: string;
+        observaciones?: string;
+      }>;
+      dispositivos?: string[];
+      estado?: string;
+    };
+
+    if (Array.isArray(body.items) && body.items.length > 0) {
+      const items = body.items.map((item) => ({
+        numero: String(item.numero ?? "").trim(),
+        tipo_baja: parseTipoBaja(item.tipo_baja),
+        fecha: String(item.fecha ?? "").trim(),
+        numero_guia: String(item.numero_guia ?? "").trim() || undefined,
+        observaciones: String(item.observaciones ?? "").trim() || undefined,
+      }));
+      const result = await db.stockGanadero.importBajaDetalle(items);
+      if (result.dispositivos_bajados.length > 0) {
+        await auditBajasDispositivos(req, result.dispositivos_bajados);
+      }
+      res.status(201).json({
+        ok: true,
+        message: mensajeImportBajaDetalle(result),
+        data: result,
+      });
+      return;
+    }
+
+    const tipo_baja = parseTipoBajaForImport(body);
+    const dispositivos = Array.isArray(body.dispositivos)
+      ? body.dispositivos.map((n) => String(n ?? "").trim()).filter(Boolean)
+      : [];
+    const result = await db.stockGanadero.importBajaNumeros(dispositivos, tipo_baja);
+    if (result.dispositivos_bajados.length > 0) {
+      await auditBajasDispositivos(req, result.dispositivos_bajados);
+    }
+    res.status(201).json({
+      ok: true,
+      message: mensajeImportBaja(result, tipo_baja),
+      data: { ...result, tipo_baja },
     });
   } catch (e) {
     res.status(400).json({ ok: false, error: (e as Error).message });
@@ -1092,6 +1334,10 @@ app.delete("/api/stock-ganadero/lotes/:id", async (req, res) => {
     res.status(404).json({ ok: false, error: "Lote no encontrado" });
     return;
   }
+  await auditStockMovimiento(req, "MODIFICACION", {
+    resumen: `Eliminó lote de importación #${id}`,
+    detalle: { lote_id: id },
+  });
   res.json({ ok: true, message: "Importación eliminada" });
 });
 
@@ -2159,7 +2405,7 @@ if (!IS_PROD) {
 if (IS_PROD && !IS_VERCEL) {
   if (!fs.existsSync(CLIENT_DIST)) {
     console.error(
-      "[SCG] Falta client/dist. Ejecutá: npm run build --prefix client"
+      "[SGG] Falta client/dist. Ejecutá: npm run build --prefix client"
     );
     process.exit(1);
   }
@@ -2176,7 +2422,7 @@ if (IS_PROD && !IS_VERCEL) {
 export default app;
 
 app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
-  console.error("[SCG] Error no capturado:", err);
+  console.error("[SGG] Error no capturado:", err);
   if (!res.headersSent) {
     res.status(500).json({
       ok: false,
@@ -2187,7 +2433,7 @@ app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
 
 if (!IS_VERCEL) {
   app.listen(PORT, HOST, () => {
-    const label = IS_PROD ? "SCG producción" : "API SCG";
+    const label = IS_PROD ? "SGG producción" : "API SGG";
     console.log(`${label}: http://${HOST === "0.0.0.0" ? "127.0.0.1" : HOST}:${PORT}`);
   });
 }

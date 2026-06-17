@@ -2,7 +2,8 @@ import type { Express, Request, Response, NextFunction } from "express";
 import type { CookieOptions } from "express";
 import * as authDb from "./auth-db.js";
 import type { Modulo, UserPublic } from "./auth-db.js";
-import { getDb } from "./database.js";
+import type { StockMovimientoTipo } from "./stock-auditoria-db.js";
+import { getDb, stockAuditoria } from "./database.js";
 import {
   artificialLoginDelay,
   clientIp,
@@ -57,7 +58,11 @@ function clearSessionCookie(res: Response): void {
 
 export function moduleFromApiPath(path: string): Modulo | null {
   const p = path.toLowerCase();
-  if (p.startsWith("/api/auth/users") || p.startsWith("/api/auth/role-permissions")) {
+  if (
+    p.startsWith("/api/auth/users") ||
+    p.startsWith("/api/auth/role-permissions") ||
+    p.startsWith("/api/auth/stock-movimientos")
+  ) {
     return "usuarios";
   }
   if (p.startsWith("/api/presupuesto") || p.startsWith("/api/resumen")) {
@@ -194,7 +199,7 @@ export function registerAuthRoutes(app: Express): void {
       res.cookie(SESSION_COOKIE, token, cookieOptions());
       res.json({ ok: true, data: result.user });
     } catch (e) {
-      console.error("[SCG Auth] Error en login:", e);
+      console.error("[SGG Auth] Error en login:", e);
       res.status(500).json({
         ok: false,
         error: "Error al iniciar sesión",
@@ -348,6 +353,34 @@ export function registerAuthRoutes(app: Express): void {
       res.status(400).json({
         ok: false,
         error: e instanceof Error ? e.message : "Error al actualizar usuario",
+      });
+    }
+  });
+
+  app.get("/api/auth/stock-movimientos", async (req, res) => {
+    if (!requireAdmin(req, res)) return;
+    try {
+      const userIdRaw = req.query.user_id;
+      const user_id =
+        userIdRaw !== undefined && userIdRaw !== ""
+          ? Number(userIdRaw)
+          : undefined;
+      const tipoRaw = String(req.query.tipo ?? "").toUpperCase();
+      const tipo =
+        tipoRaw === "ALTA" || tipoRaw === "BAJA" || tipoRaw === "MODIFICACION"
+          ? (tipoRaw as StockMovimientoTipo)
+          : undefined;
+      const limite = req.query.limite ? Number(req.query.limite) : undefined;
+      const data = await stockAuditoria.list({
+        user_id: Number.isFinite(user_id) ? user_id : undefined,
+        tipo,
+        limite: Number.isFinite(limite) ? limite : undefined,
+      });
+      res.json({ ok: true, data });
+    } catch (e) {
+      res.status(400).json({
+        ok: false,
+        error: e instanceof Error ? e.message : "Error al cargar movimientos",
       });
     }
   });

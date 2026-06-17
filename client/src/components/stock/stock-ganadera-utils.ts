@@ -1,4 +1,4 @@
-import type { DispositivoEstado, DispositivoSexo } from "../../types";
+import type { DispositivoEstado, DispositivoSexo, TipoBaja } from "../../types";
 
 /** Longitud del prefijo EID en RFID Tru-Test (ej. 858). */
 export const EID_PREFIX_LEN = 3;
@@ -36,6 +36,20 @@ export function dispositivoClave(eid: string, vid = ""): string {
   const ed = e.replace(/\D/g, "");
   const vd = v.replace(/\D/g, "");
   return vd ? ed + vd : ed;
+}
+
+/** Etiqueta legible para listados y buscadores (prioriza caravana visual). */
+export function etiquetaCaravana(d: {
+  eid: string;
+  vid: string;
+  clave: string;
+}): string {
+  const eid = d.eid?.trim();
+  const vid = d.vid?.trim();
+  if (vid && eid) return `${vid} · EID ${eid}`;
+  if (vid) return vid;
+  if (eid) return eid;
+  return d.clave;
 }
 
 export const MESES_NACIMIENTO = [
@@ -301,7 +315,69 @@ export const ESTADOS_DISPOSITIVO: ReadonlyArray<{
   { value: "MUERTO", label: "Muerto" },
   { value: "VENDIDO", label: "Vendido" },
   { value: "FRIGORIFICO", label: "Frigorífico" },
+  { value: "PERDIDO", label: "Perdido" },
 ];
+
+export const TIPOS_BAJA: ReadonlyArray<{
+  value: TipoBaja;
+  label: string;
+}> = [
+  { value: "VENTA_FRIGORIFICO", label: "Venta Frigorífico" },
+  { value: "VENTA_PRODUCTOR", label: "Venta productor" },
+  { value: "MUERTE", label: "Muerte" },
+  { value: "PERDIDO", label: "Perdido" },
+];
+
+export function fmtTipoBaja(tipo: TipoBaja | "" | undefined | null): string {
+  if (tipo === "FRIGORIFICO") return "Frigorífico";
+  return TIPOS_BAJA.find((t) => t.value === tipo)?.label ?? "—";
+}
+
+export function estadoDesdeTipoBaja(tipo: TipoBaja): DispositivoEstado {
+  switch (tipo) {
+    case "VENTA_FRIGORIFICO":
+    case "VENTA_PRODUCTOR":
+      return "VENDIDO";
+    case "FRIGORIFICO":
+      return "FRIGORIFICO";
+    case "MUERTE":
+      return "MUERTO";
+    case "PERDIDO":
+      return "PERDIDO";
+  }
+}
+
+export function tipoBajaDesdeDispositivo(dispositivo: {
+  estado: DispositivoEstado;
+  tipo_baja?: TipoBaja | "" | null;
+}): TipoBaja {
+  const tb = dispositivo.tipo_baja;
+  if (tb && tb !== "FRIGORIFICO" && TIPOS_BAJA.some((t) => t.value === tb)) {
+    return tb;
+  }
+  switch (normalizarEstadoDispositivo(dispositivo.estado)) {
+    case "MUERTO":
+      return "MUERTE";
+    case "PERDIDO":
+      return "PERDIDO";
+    case "VENDIDO":
+    case "FRIGORIFICO":
+      return "VENTA_FRIGORIFICO";
+    default:
+      return "VENTA_FRIGORIFICO";
+  }
+}
+
+export function requiereFechaTipoBaja(_tipo: TipoBaja): boolean {
+  return true;
+}
+
+export function fechaHoyIso(): string {
+  const d = new Date();
+  const mes = String(d.getMonth() + 1).padStart(2, "0");
+  const dia = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${mes}-${dia}`;
+}
 
 export function fmtEstadoDispositivo(estado: DispositivoEstado): string {
   return ESTADOS_DISPOSITIVO.find((e) => e.value === estado)?.label ?? "Vivo";
@@ -317,13 +393,19 @@ export function normalizarEstadoDispositivo(
 }
 
 export function requiereFechaBaja(estado: DispositivoEstado): boolean {
-  return estado === "MUERTO" || estado === "VENDIDO" || estado === "FRIGORIFICO";
+  return (
+    estado === "MUERTO" ||
+    estado === "VENDIDO" ||
+    estado === "FRIGORIFICO" ||
+    estado === "PERDIDO"
+  );
 }
 
 export function etiquetaFechaBaja(estado: DispositivoEstado): string {
   if (estado === "MUERTO") return "Muerte";
   if (estado === "VENDIDO") return "Venta";
   if (estado === "FRIGORIFICO") return "Frigorífico";
+  if (estado === "PERDIDO") return "Perdido";
   return "";
 }
 

@@ -1,4 +1,4 @@
-# SCG — Sistema de Contabilidad Ganadera
+# SGG — Sistema de Gestión Ganadera
 
 Stack: **React + TypeScript + HTML/CSS** (frontend) y **Node.js + Express + TypeScript** (API).
 

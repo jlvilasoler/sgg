@@ -21,7 +21,7 @@ function normalize(options: ConfirmOptions | string): ConfirmOptions {
   return options;
 }
 
-/** Diálogo de confirmación (mismo estilo SCG que Toastr). Reemplaza `window.confirm`. */
+/** Diálogo de confirmación (mismo estilo SGG que Toastr). Reemplaza `window.confirm`. */
 export function confirmAction(options: ConfirmOptions | string): Promise<boolean> {
   const opts = normalize(options);
   if (handler) return handler(opts);

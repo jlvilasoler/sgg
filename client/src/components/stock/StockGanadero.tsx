@@ -4,16 +4,13 @@ import StockGanadera from "./StockGanadera";
 import StockGanaderaSalidas from "./StockGanaderaSalidas";
 import StockGanaderoHistorial from "./StockGanaderoHistorial";
 import StockGanaderoImportar from "./StockGanaderoImportar";
-import StockGanaderoBajaManual from "./StockGanaderoBajaManual";
 import StockGanaderoImportarBaja from "./StockGanaderoImportarBaja";
 import StockGanaderoListado from "./StockGanaderoListado";
 
 type VistaStock =
   | "menu"
-  | "bajas"
   | "importar"
   | "importar_baja"
-  | "baja_manual"
   | "listado"
   | "historial"
   | "ganadera"
@@ -35,9 +32,9 @@ const SUBMENU = [
     color: "#2d6a4f",
   },
   {
-    id: "bajas" as const,
+    id: "importar_baja" as const,
     label: "Bajas de Dispositivos",
-    subtitle: "Archivo TXT y baja manual por caravana",
+    subtitle: "Archivo TXT o baja manual por caravana",
     icon: "📤",
     color: "#b45309",
   },
@@ -61,23 +58,6 @@ const SUBMENU = [
     subtitle: "Muertes, ventas y frigorífico registradas",
     icon: "🔻",
     color: "#9f1239",
-  },
-];
-
-const BAJAS_SUBMENU = [
-  {
-    id: "importar_baja" as const,
-    label: "Dar de baja archivo TXT",
-    subtitle: "Venta o frigorífico — importar listado de bajas",
-    icon: "📤",
-    color: "#b45309",
-  },
-  {
-    id: "baja_manual" as const,
-    label: "Dar de baja manual",
-    subtitle: "Cambiar estado por número de caravana",
-    icon: "✏️",
-    color: "#0d9488",
   },
 ];
 
@@ -107,7 +87,6 @@ export default function StockGanadero({
   }, [apiOnline, listRefresh]);
 
   const volverMenu = () => setVista("menu");
-  const volverBajas = () => setVista("bajas");
 
   if (vista === "importar") {
     return (
@@ -134,19 +113,7 @@ export default function StockGanadero({
         }}
         onError={onError}
         onSuccess={onSuccess}
-        onVolver={volverBajas}
-      />
-    );
-  }
-
-  if (vista === "baja_manual") {
-    return (
-      <StockGanaderoBajaManual
-        apiOnline={apiOnline}
-        onSaved={() => setListRefresh((k) => k + 1)}
-        onError={onError}
-        onSuccess={onSuccess}
-        onVolver={volverBajas}
+        onVolver={volverMenu}
       />
     );
   }
@@ -205,50 +172,6 @@ export default function StockGanadero({
         onVolver={volverMenu}
         onVerHistorial={() => setVista("historial")}
       />
-    );
-  }
-
-  if (vista === "bajas") {
-    return (
-      <div className="subseccion-panel configuracion-hub">
-        <button type="button" className="subseccion-back" onClick={volverMenu}>
-          ‹ Volver a Stock Ganadero
-        </button>
-        <div className="card configuracion-hub-card">
-          <div className="form-header">
-            <h2>Bajas de Dispositivos</h2>
-            <p className="muted">
-              Registrá salidas del stock por archivo TXT del lector o de forma
-              manual por número de caravana.
-            </p>
-          </div>
-          <nav className="app-grid app-grid-2" aria-label="Bajas de dispositivos">
-            {BAJAS_SUBMENU.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                className="app-card-btn"
-                onClick={() => setVista(item.id)}
-              >
-                <span
-                  className="app-card-icon"
-                  style={{
-                    background: `linear-gradient(145deg, ${item.color}, ${item.color}bb)`,
-                  }}
-                >
-                  <span className="app-icon-emoji" aria-hidden>
-                    {item.icon}
-                  </span>
-                </span>
-                <span className="app-card-text">
-                  <span className="app-card-label">{item.label}</span>
-                  <span className="app-card-sub">{item.subtitle}</span>
-                </span>
-              </button>
-            ))}
-          </nav>
-        </div>
-      </div>
     );
   }
 

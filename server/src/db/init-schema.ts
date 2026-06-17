@@ -36,12 +36,12 @@ export async function applySchema(): Promise<void> {
      WHERE table_schema = 'public' AND table_name = 'presupuesto' LIMIT 1`
   );
   if (exists.rows.length > 0) {
-    console.info("[SCG] Schema ya aplicado, omitiendo DDL");
+    console.info("[SGG] Schema ya aplicado, omitiendo DDL");
     return;
   }
 
   const schemaPath = resolveSchemaPath();
-  console.info("[SCG] Aplicando schema desde", schemaPath);
+  console.info("[SGG] Aplicando schema desde", schemaPath);
   const sql = fs.readFileSync(schemaPath, "utf8");
   const statements = splitSqlStatements(sql);
 
@@ -53,12 +53,12 @@ export async function applySchema(): Promise<void> {
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         if (/already exists/i.test(msg)) continue;
-        console.error("[SCG] Error en DDL:", stmt.slice(0, 120), "—", msg);
+        console.error("[SGG] Error en DDL:", stmt.slice(0, 120), "—", msg);
         throw err;
       }
     }
   } finally {
     client.release();
   }
-  console.info(`[SCG] Schema aplicado (${statements.length} sentencias)`);
+  console.info(`[SGG] Schema aplicado (${statements.length} sentencias)`);
 }

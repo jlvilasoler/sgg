@@ -29,6 +29,8 @@ import type {
   StockGanaderaDispositivo,
   StockGanaderaDispositivoDetalle,
   StockGanaderaDispositivoHistorial,
+  StockMovimientoAuditoria,
+  StockMovimientoTipo,
   DispositivoSexo,
   DispositivoEmpresa,
   DispositivoEstado,
@@ -370,6 +372,8 @@ export async function saveStockGanaderaDispositivo(
     nacimiento_anio: number | null;
     observaciones: string;
     estado: DispositivoEstado;
+    tipo_baja?: TipoBaja | "";
+    numero_guia?: string;
     baja_mes: number | null;
     baja_anio: number | null;
   },
@@ -384,6 +388,8 @@ export async function saveStockGanaderaDispositivo(
   nacimiento_anio: number | null;
   observaciones: string;
   estado: DispositivoEstado;
+  tipo_baja: TipoBaja | "";
+  numero_guia: string;
   baja_mes: number | null;
   baja_anio: number | null;
 }> {
@@ -398,6 +404,8 @@ export async function saveStockGanaderaDispositivo(
       nacimiento_anio: number | null;
       observaciones: string;
       estado: DispositivoEstado;
+      tipo_baja: TipoBaja | "";
+      numero_guia: string;
       baja_mes: number | null;
       baja_anio: number | null;
     };
@@ -477,24 +485,64 @@ export async function importStockGanaderoText(
   };
 }
 
+export async function importStockGanaderoRows(
+  rows: Array<{
+    eid: string;
+    vid?: string;
+    fecha: string;
+    hora?: string;
+    condicion?: string;
+  }>,
+  nombreArchivo = "carga-manual"
+): Promise<{ message: string; lote_id: number; insertados: number }> {
+  const json = await request<{
+    message: string;
+    data: { lote_id: number; insertados: number };
+  }>("/stock-ganadero/import/rows", {
+    method: "POST",
+    body: JSON.stringify({ rows, nombre_archivo: nombreArchivo }),
+  });
+  return {
+    message: json.message,
+    lote_id: json.data.lote_id,
+    insertados: json.data.insertados,
+  };
+}
+
 export type TipoBajaImport = "VENDIDO" | "FRIGORIFICO";
+
+export type TipoBaja =
+  | "VENTA_FRIGORIFICO"
+  | "FRIGORIFICO"
+  | "VENTA_PRODUCTOR"
+  | "MUERTE"
+  | "PERDIDO";
+
+export interface BajaDispositivoDetalleInput {
+  numero: string;
+  tipo_baja: TipoBaja;
+  fecha: string;
+  numero_guia?: string;
+  observaciones?: string;
+}
 
 export interface ImportBajaDispositivosResult {
   message: string;
   actualizados: number;
   no_encontrados: number;
   duplicados_omitidos: number;
+  ambiguos: number;
   muestra_no_encontrados: string[];
-  estado: TipoBajaImport;
+  muestra_ambiguos: string[];
 }
 
 export async function importStockGanaderoBajaFile(
   file: File,
-  estado: TipoBajaImport
+  tipo_baja: TipoBaja
 ): Promise<ImportBajaDispositivosResult> {
   const form = new FormData();
   form.append("file", file);
-  form.append("estado", estado);
+  form.append("tipo_baja", tipo_baja);
   let res: Response;
   try {
     res = await fetch(`${API}/stock-ganadero/baja/file`, {
@@ -513,8 +561,11 @@ export async function importStockGanaderoBajaFile(
       actualizados: number;
       no_encontrados: number;
       duplicados_omitidos: number;
+      ambiguos: number;
       muestra_no_encontrados: string[];
+      muestra_ambiguos: string[];
       estado: TipoBajaImport;
+      tipo_baja?: TipoBaja;
     };
   };
   if (!json.ok || !json.data) {
@@ -536,12 +587,70 @@ export async function importStockGanaderoBajaText(
       actualizados: number;
       no_encontrados: number;
       duplicados_omitidos: number;
+      ambiguos: number;
       muestra_no_encontrados: string[];
+      muestra_ambiguos: string[];
       estado: TipoBajaImport;
+      tipo_baja?: TipoBaja;
     };
   }>("/stock-ganadero/baja/text", {
     method: "POST",
     body: JSON.stringify({ texto, estado }),
+  });
+  return {
+    message: json.message,
+    ...json.data,
+  };
+}
+
+export async function importStockGanaderoBajaRows(
+  rows: Array<{
+    eid: string;
+    vid?: string;
+    fecha: string;
+    hora?: string;
+    condicion?: string;
+  }>,
+  estado: TipoBajaImport
+): Promise<ImportBajaDispositivosResult> {
+  const json = await request<{
+    message: string;
+    data: {
+      actualizados: number;
+      no_encontrados: number;
+      duplicados_omitidos: number;
+      ambiguos: number;
+      muestra_no_encontrados: string[];
+      muestra_ambiguos: string[];
+      estado: TipoBajaImport;
+      tipo_baja?: TipoBaja;
+    };
+  }>("/stock-ganadero/baja/rows", {
+    method: "POST",
+    body: JSON.stringify({ rows, estado }),
+  });
+  return {
+    message: json.message,
+    ...json.data,
+  };
+}
+
+export async function importStockGanaderoBajaDispositivos(
+  items: BajaDispositivoDetalleInput[]
+): Promise<ImportBajaDispositivosResult> {
+  const json = await request<{
+    message: string;
+    data: {
+      actualizados: number;
+      no_encontrados: number;
+      duplicados_omitidos: number;
+      ambiguos: number;
+      muestra_no_encontrados: string[];
+      muestra_ambiguos: string[];
+    };
+  }>("/stock-ganadero/baja/dispositivos", {
+    method: "POST",
+    body: JSON.stringify({ items }),
   });
   return {
     message: json.message,
@@ -1293,6 +1402,22 @@ export async function cambiarPasswordAuth(
 
 export async function fetchUsuarios(): Promise<AuthUser[]> {
   const json = await request<{ data: AuthUser[] }>("/auth/users");
+  return json.data;
+}
+
+export async function fetchStockMovimientosAuditoria(filters?: {
+  user_id?: number;
+  tipo?: StockMovimientoTipo;
+  limite?: number;
+}): Promise<StockMovimientoAuditoria[]> {
+  const params = new URLSearchParams();
+  if (filters?.user_id) params.set("user_id", String(filters.user_id));
+  if (filters?.tipo) params.set("tipo", filters.tipo);
+  if (filters?.limite) params.set("limite", String(filters.limite));
+  const q = params.toString();
+  const json = await request<{ data: StockMovimientoAuditoria[] }>(
+    `/auth/stock-movimientos${q ? `?${q}` : ""}`
+  );
   return json.data;
 }
 

@@ -1,6 +1,6 @@
 import type { TabId } from "./Header";
 import type { AuthUser } from "../types";
-import { canAccessScreen } from "../utils/auth-permissions";
+import { canAccessScreen, canAccessStockMovimientos } from "../utils/auth-permissions";
 
 export type ScreenId = "home" | TabId;
 
@@ -65,9 +65,16 @@ export const MENU_APPS: MenuApp[] = [
   {
     id: "stock_ganadero",
     label: "Stock Ganadero",
-    subtitle: "Importar lecturas EID desde archivo TXT",
+    subtitle: "Importar lecturas EID desde archivo o carga manual",
     icon: "🐄",
     color: "#6b4423",
+  },
+  {
+    id: "stock_movimientos",
+    label: "Movimientos Operaciones",
+    subtitle: "Registro de altas, bajas y modificaciones",
+    icon: "📒",
+    color: "#8b5a2b",
   },
   {
     id: "usuarios",
@@ -87,6 +94,7 @@ const SCREEN_TITLES: Record<TabId, string> = {
   recursos_humanos: "Recursos Humanos",
   ingresos_ventas: "Ingresos por ventas",
   stock_ganadero: "Stock Ganadero",
+  stock_movimientos: "Movimientos de Dispositivos",
   usuarios: "Usuarios y permisos",
 };
 
@@ -100,7 +108,10 @@ interface Props {
 }
 
 export default function HomeMenu({ user, onOpen }: Props) {
-  const apps = MENU_APPS.filter((app) => canAccessScreen(user, app.id));
+  const apps = MENU_APPS.filter((app) => {
+    if (app.id === "stock_movimientos") return canAccessStockMovimientos(user);
+    return canAccessScreen(user, app.id);
+  });
 
   return (
     <div className="layout-frame home-menu-inner">

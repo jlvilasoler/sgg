@@ -350,9 +350,9 @@ async function seedAdminIfEmpty(db: Db): Promise<void> {
       `INSERT INTO USERS (email, password_hash, nombre, rol, activo)
      VALUES (?, ?, ?, 'admin', 1)`
     )
-    .run(normalizeEmail(email), hash, "Administrador SCG");
+    .run(normalizeEmail(email), hash, "Administrador SGG");
 
-  console.info(`[SCG Auth] Usuario administrador creado: ${email}`);
+  console.info(`[SGG Auth] Usuario administrador creado: ${email}`);
 }
 
 /** Migra el admin por defecto anterior al correo principal configurado. */
@@ -384,7 +384,7 @@ async function migrateLegacyAdmin(db: Db): Promise<void> {
   } else {
     await db
       .prepare(
-        `UPDATE USERS SET email = ?, password_hash = ?, nombre = 'Administrador SCG',
+        `UPDATE USERS SET email = ?, password_hash = ?, nombre = 'Administrador SGG',
         rol = 'admin', activo = 1, actualizado_en = NOW()
        WHERE id = ?`
       )
@@ -392,7 +392,7 @@ async function migrateLegacyAdmin(db: Db): Promise<void> {
     await deleteAllUserSessions(db, legacy.id);
   }
 
-  console.info(`[SCG Auth] Administrador principal configurado: ${email}`);
+  console.info(`[SGG Auth] Administrador principal configurado: ${email}`);
 }
 
 /** Alinea email/contraseña del admin principal con SCG_ADMIN_* (o valores por defecto). */
@@ -425,7 +425,7 @@ async function syncPrimaryAdminCredentials(db: Db): Promise<void> {
       )
       .run(hash, row.id);
     await deleteAllUserSessions(db, row.id);
-    console.info(`[SCG Auth] Contraseña del administrador sincronizada: ${email}`);
+    console.info(`[SGG Auth] Contraseña del administrador sincronizada: ${email}`);
     return;
   }
 

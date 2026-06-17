@@ -4,21 +4,24 @@ import {
   fetchStockGanaderaDispositivos,
   saveStockGanaderaDispositivo,
 } from "../../api";
-import type { DispositivoEstado, StockGanaderaDispositivo } from "../../types";
+import type { StockGanaderaDispositivo, TipoBaja } from "../../types";
 import { fmtDate } from "../../utils";
 import BadgeEstadoDispositivo from "./BadgeEstadoDispositivo";
-import SelectEstadoDispositivo from "./SelectEstadoDispositivo";
 import {
   buildGrupo,
   dispositivoClave,
+  estadoDesdeTipoBaja,
   etiquetaFechaBaja,
   fechaBajaPorDefecto,
-  fmtEstadoDispositivo,
   fmtNacimiento,
+  fmtTipoBaja,
   listAniosNacimiento,
   MESES_NACIMIENTO,
   normalizarEstadoDispositivo,
   requiereFechaBaja,
+  requiereFechaTipoBaja,
+  TIPOS_BAJA,
+  tipoBajaDesdeDispositivo,
 } from "./stock-ganadera-utils";
 
 interface Props {
@@ -69,24 +72,26 @@ export default function StockGanaderoBajaManual({
   const [dispositivo, setDispositivo] = useState<StockGanaderaDispositivo | null>(
     null
   );
-  const [estado, setEstado] = useState<DispositivoEstado>("VIVO");
+  const [tipoBaja, setTipoBaja] = useState<TipoBaja>("VENTA_FRIGORIFICO");
   const [bajaMes, setBajaMes] = useState<number | null>(null);
   const [bajaAnio, setBajaAnio] = useState<number | null>(null);
+  const [numeroGuia, setNumeroGuia] = useState("");
   const [guardando, setGuardando] = useState(false);
 
   const aniosBaja = useMemo(() => listAniosNacimiento(), []);
+  const estado = estadoDesdeTipoBaja(tipoBaja);
 
   const cargarDispositivo = useCallback((d: StockGanaderaDispositivo) => {
     setDispositivo(d);
     setCandidatos([]);
-    const est = normalizarEstadoDispositivo(d.estado);
-    setEstado(est);
+    setTipoBaja(tipoBajaDesdeDispositivo(d));
     setBajaMes(d.baja_mes);
     setBajaAnio(d.baja_anio);
+    setNumeroGuia(d.numero_guia ?? "");
   }, []);
 
   useEffect(() => {
-    if (!requiereFechaBaja(estado)) {
+    if (!requiereFechaTipoBaja(tipoBaja)) {
       setBajaMes(null);
       setBajaAnio(null);
       return;
@@ -96,17 +101,20 @@ export default function StockGanaderoBajaManual({
       if (!bajaMes) setBajaMes(hoy.mes);
       if (!bajaAnio) setBajaAnio(hoy.anio);
     }
-  }, [estado]);
+  }, [tipoBaja, bajaMes, bajaAnio]);
 
   const estadoActual = dispositivo
     ? normalizarEstadoDispositivo(dispositivo.estado)
     : null;
+  const tipoBajaActual = dispositivo ? tipoBajaDesdeDispositivo(dispositivo) : null;
 
   const hayCambio =
     dispositivo !== null &&
     (estado !== estadoActual ||
-      (requiereFechaBaja(estado) &&
-        (bajaMes !== dispositivo.baja_mes || bajaAnio !== dispositivo.baja_anio)));
+      tipoBaja !== tipoBajaActual ||
+      (requiereFechaTipoBaja(tipoBaja) &&
+        (bajaMes !== dispositivo.baja_mes || bajaAnio !== dispositivo.baja_anio)) ||
+      numeroGuia.trim() !== (dispositivo.numero_guia ?? "").trim());
 
   const buscar = async () => {
     if (!apiOnline || buscando) return;
@@ -130,7 +138,7 @@ export default function StockGanaderoBajaManual({
   const guardar = async () => {
     if (!dispositivo || !apiOnline || guardando || !hayCambio) return;
 
-    if (requiereFechaBaja(estado) && (!bajaMes || !bajaAnio)) {
+    if (requiereFechaTipoBaja(tipoBaja) && (!bajaMes || !bajaAnio)) {
       onError(`Ingresá mes y año de ${etiquetaFechaBaja(estado).toLowerCase()}`);
       return;
     }
@@ -148,22 +156,26 @@ export default function StockGanaderoBajaManual({
           nacimiento_anio: dispositivo.nacimiento_anio,
           observaciones: dispositivo.observaciones ?? "",
           estado,
-          baja_mes: requiereFechaBaja(estado) ? bajaMes : null,
-          baja_anio: requiereFechaBaja(estado) ? bajaAnio : null,
+          tipo_baja: tipoBaja,
+          numero_guia: numeroGuia.trim(),
+          baja_mes: requiereFechaTipoBaja(tipoBaja) ? bajaMes : null,
+          baja_anio: requiereFechaTipoBaja(tipoBaja) ? bajaAnio : null,
         },
         dispositivo.eid
       );
 
-      const etiqueta = fmtEstadoDispositivo(estado);
+      const etiqueta = fmtTipoBaja(tipoBaja);
       onSuccess(
-        `Caravana ${dispositivo.vid || dispositivo.eid} actualizada a ${etiqueta}. El cambio queda registrado en toda la base.`,
-        "Estado actualizado"
+        `Caravana ${dispositivo.vid || dispositivo.eid} registrada como ${etiqueta}. El cambio queda registrado en toda la base.`,
+        "Baja registrada"
       );
       cargarDispositivo({
         ...dispositivo,
         estado,
-        baja_mes: requiereFechaBaja(estado) ? bajaMes : null,
-        baja_anio: requiereFechaBaja(estado) ? bajaAnio : null,
+        tipo_baja: tipoBaja,
+        numero_guia: numeroGuia.trim(),
+        baja_mes: requiereFechaTipoBaja(tipoBaja) ? bajaMes : null,
+        baja_anio: requiereFechaTipoBaja(tipoBaja) ? bajaAnio : null,
       });
       onSaved();
     } catch (e) {
@@ -177,9 +189,10 @@ export default function StockGanaderoBajaManual({
     setNumero("");
     setDispositivo(null);
     setCandidatos([]);
-    setEstado("VIVO");
+    setTipoBaja("VENTA_FRIGORIFICO");
     setBajaMes(null);
     setBajaAnio(null);
+    setNumeroGuia("");
   };
 
   return (
@@ -314,18 +327,25 @@ export default function StockGanaderoBajaManual({
             )}
           </div>
 
-          <div className="stock-baja-manual-cambio">
-            <div className="stock-baja-manual-campo">
-              <label htmlFor="stock-baja-manual-estado">Nuevo estado</label>
-              <SelectEstadoDispositivo
-                id="stock-baja-manual-estado"
-                value={estado}
+          <div className="stock-baja-manual-cambio stock-import-baja-datos">
+            <div className="stock-baja-manual-campo field stock-import-field">
+              <label htmlFor="stock-baja-manual-tipo">Tipo de baja</label>
+              <select
+                id="stock-baja-manual-tipo"
+                className="stock-import-select"
+                value={tipoBaja}
                 disabled={!apiOnline || guardando}
-                onChange={setEstado}
-              />
+                onChange={(e) => setTipoBaja(e.target.value as TipoBaja)}
+              >
+                {TIPOS_BAJA.map((t) => (
+                  <option key={t.value} value={t.value}>
+                    {t.label}
+                  </option>
+                ))}
+              </select>
             </div>
 
-            {requiereFechaBaja(estado) && (
+            {requiereFechaTipoBaja(tipoBaja) && (
               <div className="stock-baja-manual-fecha-baja">
                 <span className="stock-import-spec-label">
                   Fecha de {etiquetaFechaBaja(estado).toLowerCase()}
@@ -366,6 +386,19 @@ export default function StockGanaderoBajaManual({
                 </div>
               </div>
             )}
+
+            <div className="stock-baja-manual-campo field stock-import-field">
+              <label htmlFor="stock-baja-manual-guia">Número guía</label>
+              <input
+                id="stock-baja-manual-guia"
+                type="text"
+                className="stock-import-text"
+                value={numeroGuia}
+                disabled={!apiOnline || guardando}
+                placeholder="Opcional"
+                onChange={(e) => setNumeroGuia(e.target.value)}
+              />
+            </div>
           </div>
 
           <div className="stock-baja-manual-acciones">
@@ -381,12 +414,12 @@ export default function StockGanaderoBajaManual({
                   Guardando…
                 </>
               ) : (
-                <>Guardar estado</>
+                <>Guardar baja</>
               )}
             </button>
             {!hayCambio && (
               <p className="stock-baja-manual-sin-cambio muted">
-                Elegí un estado distinto al actual para guardar.
+                Elegí un tipo de baja distinto o modificá la fecha o guía para guardar.
               </p>
             )}
           </div>

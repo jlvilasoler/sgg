@@ -311,7 +311,7 @@ export default function Listado({ catalogos, apiOnline, onEdit, onDeleted, onErr
             ) : !apiOnline ? (
               <tr>
                 <td colSpan={COLS_TABLA} className="empty">
-                  API no conectada. Ejecutá <code>npm run dev</code> en la carpeta SCG.
+                  API no conectada. Ejecutá <code>npm run dev</code> en la carpeta del proyecto.
                 </td>
               </tr>
             ) : !rows?.length ? (

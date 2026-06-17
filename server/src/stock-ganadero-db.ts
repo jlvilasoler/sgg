@@ -1,5 +1,6 @@
 import type { Db } from "./db/pg-client.js";
 import type { StockGanaderoRowInput } from "./parse-stock-ganadero-txt.js";
+import { labelCategoriaSalidaDispositivo } from "./stock-ganadera-categoria.js";
 import { dispositivoClave, eidClave, splitEidVid } from "./stock-ganadero-id.js";
 
 export { dispositivoClave, eidClave, splitEidVid } from "./stock-ganadero-id.js";
@@ -109,8 +110,38 @@ async function clavesEidRepetidas(
 
 export async function initStockGanaderoTables(db: Db): Promise<void> {
   await migrateGrupoLibreColumn(db);
+  await migrateBajaMetaColumns(db);
   await migrateFechasSlashLatam(db);
   await migrateStockGanaderoDispositivoHistorial(db);
+}
+
+async function migrateBajaMetaColumns(db: Db): Promise<void> {
+  const done = (await db
+    .prepare(
+      `SELECT 1 AS ok FROM STOCK_GANADERO_DISPOSITIVO_HISTORIAL
+       WHERE clave = '__meta__' AND campo = 'baja_meta_cols' LIMIT 1`
+    )
+    .get()) as { ok: number } | undefined;
+  if (done) return;
+
+  for (const col of [
+    `ALTER TABLE STOCK_GANADERO_DISPOSITIVO ADD COLUMN tipo_baja TEXT NOT NULL DEFAULT ''`,
+    `ALTER TABLE STOCK_GANADERO_DISPOSITIVO ADD COLUMN numero_guia TEXT NOT NULL DEFAULT ''`,
+  ]) {
+    try {
+      await db.prepare(col).run();
+    } catch {
+      /* columna ya existe */
+    }
+  }
+
+  await db
+    .prepare(
+      `INSERT INTO STOCK_GANADERO_DISPOSITIVO_HISTORIAL
+         (clave, campo, etiqueta, valor_anterior, valor_nuevo)
+       VALUES ('__meta__', 'baja_meta_cols', '', '', '')`
+    )
+    .run();
 }
 
 async function migrateGrupoLibreColumn(db: Db): Promise<void> {
@@ -286,7 +317,14 @@ function grupoDesdeNacimiento(anio: number | null): string {
 
 export type DispositivoSexo = "" | "MACHO" | "HEMBRA";
 export type DispositivoEmpresa = "" | "GUAVIYU" | "CHIVILCOY";
-export type DispositivoEstado = "VIVO" | "MUERTO" | "VENDIDO" | "FRIGORIFICO";
+export type DispositivoEstado = "VIVO" | "MUERTO" | "VENDIDO" | "FRIGORIFICO" | "PERDIDO";
+
+export type TipoBaja =
+  | "VENTA_FRIGORIFICO"
+  | "FRIGORIFICO"
+  | "VENTA_PRODUCTOR"
+  | "MUERTE"
+  | "PERDIDO";
 
 const SEXOS_VALIDOS = new Set<DispositivoSexo>(["", "MACHO", "HEMBRA"]);
 const EMPRESAS_VALIDAS = new Set<DispositivoEmpresa>(["", "GUAVIYU", "CHIVILCOY"]);
@@ -295,7 +333,67 @@ const ESTADOS_VALIDOS = new Set<DispositivoEstado>([
   "MUERTO",
   "VENDIDO",
   "FRIGORIFICO",
+  "PERDIDO",
 ]);
+const TIPOS_BAJA_VALIDOS = new Set<TipoBaja>([
+  "VENTA_FRIGORIFICO",
+  "FRIGORIFICO",
+  "VENTA_PRODUCTOR",
+  "MUERTE",
+  "PERDIDO",
+]);
+
+function esEstadoConBaja(estado: DispositivoEstado): boolean {
+  return (
+    estado === "MUERTO" ||
+    estado === "VENDIDO" ||
+    estado === "FRIGORIFICO" ||
+    estado === "PERDIDO"
+  );
+}
+
+export function estadoDesdeTipoBaja(tipo: TipoBaja): DispositivoEstado {
+  switch (tipo) {
+    case "VENTA_FRIGORIFICO":
+    case "VENTA_PRODUCTOR":
+      return "VENDIDO";
+    case "FRIGORIFICO":
+      return "FRIGORIFICO";
+    case "MUERTE":
+      return "MUERTO";
+    case "PERDIDO":
+      return "PERDIDO";
+  }
+}
+
+export function tipoBajaDesdeEstadoImport(estado: "VENDIDO" | "FRIGORIFICO"): TipoBaja {
+  return estado === "VENDIDO" ? "VENTA_FRIGORIFICO" : "FRIGORIFICO";
+}
+
+function normalizarTipoBaja(raw: string | undefined | null): TipoBaja | "" {
+  const v = String(raw ?? "")
+    .trim()
+    .toUpperCase();
+  if (v === "VENDIDO" || v === "VENTA") return "VENTA_FRIGORIFICO";
+  if (TIPOS_BAJA_VALIDOS.has(v as TipoBaja)) return v as TipoBaja;
+  return "";
+}
+
+function normalizarNumeroGuia(raw: string | undefined | null): string {
+  return String(raw ?? "")
+    .trim()
+    .slice(0, 64);
+}
+
+export function parseTipoBaja(raw: unknown): TipoBaja {
+  const tipo = normalizarTipoBaja(String(raw ?? ""));
+  if (!tipo) {
+    throw new Error(
+      "Tipo de baja inválido. Use VENTA_FRIGORIFICO, VENTA_PRODUCTOR, MUERTE o PERDIDO."
+    );
+  }
+  return tipo;
+}
 
 const GRUPO_LIBRE_MAX = 48;
 
@@ -315,6 +413,8 @@ export interface DispositivoMetaInput {
   nacimiento_anio: number | null;
   observaciones: string;
   estado: DispositivoEstado;
+  tipo_baja: TipoBaja | "";
+  numero_guia: string;
   baja_mes: number | null;
   baja_anio: number | null;
 }
@@ -345,6 +445,7 @@ function aplicarEdadCalculada(meta: DispositivoMetaGuardada): DispositivoMetaGua
 
 interface DispositivoMetaRow {
   clave: string;
+  eid?: string;
   sexo: string;
   empresa: string;
   grupo: string;
@@ -354,6 +455,8 @@ interface DispositivoMetaRow {
   nacimiento_anio: number | null;
   observaciones: string;
   estado: string;
+  tipo_baja: string;
+  numero_guia: string;
   baja_mes: number | null;
   baja_anio: number | null;
 }
@@ -363,7 +466,7 @@ async function mapMetaDispositivos(
 ): Promise<Map<string, DispositivoMetaGuardada>> {
   const rows = (await db
     .prepare(
-      `SELECT clave, sexo, empresa, grupo, grupo_libre, edad, nacimiento_mes, nacimiento_anio, observaciones, estado, baja_mes, baja_anio
+      `SELECT clave, sexo, empresa, grupo, grupo_libre, edad, nacimiento_mes, nacimiento_anio, observaciones, estado, tipo_baja, numero_guia, baja_mes, baja_anio
        FROM STOCK_GANADERO_DISPOSITIVO`
     )
     .all()) as DispositivoMetaRow[];
@@ -413,9 +516,10 @@ function normalizarMetaDispositivo(row: Partial<DispositivoMetaRow>): Dispositiv
         ? row.baja_anio
         : null;
   const baja =
-    estado === "MUERTO" || estado === "VENDIDO" || estado === "FRIGORIFICO"
+    esEstadoConBaja(estado)
       ? { baja_mes: bajaMes, baja_anio: bajaAnio }
       : { baja_mes: null, baja_anio: null };
+  const tipo_baja = esEstadoConBaja(estado) ? normalizarTipoBaja(row.tipo_baja) : "";
   return aplicarEdadCalculada({
     sexo,
     empresa,
@@ -425,6 +529,8 @@ function normalizarMetaDispositivo(row: Partial<DispositivoMetaRow>): Dispositiv
     nacimiento_anio: anio,
     observaciones: String(row.observaciones ?? "").trim(),
     estado,
+    tipo_baja,
+    numero_guia: normalizarNumeroGuia(row.numero_guia),
     ...baja,
     edad: null,
   });
@@ -447,6 +553,8 @@ async function enrichDispositivosWithMeta(
     d.nacimiento_anio = info?.nacimiento_anio ?? null;
     d.observaciones = info?.observaciones ?? "";
     d.estado = info?.estado ?? "VIVO";
+    d.tipo_baja = info?.tipo_baja ?? "";
+    d.numero_guia = info?.numero_guia ?? "";
     d.baja_mes = info?.baja_mes ?? null;
     d.baja_anio = info?.baja_anio ?? null;
   }
@@ -496,16 +604,18 @@ function validarFechaBaja(
   nacimiento_mes: number | null,
   nacimiento_anio: number | null
 ): { baja_mes: number | null; baja_anio: number | null } {
-  if (estado !== "MUERTO" && estado !== "VENDIDO" && estado !== "FRIGORIFICO") {
+  if (!esEstadoConBaja(estado)) {
     return { baja_mes: null, baja_anio: null };
   }
   if (mes === null || anio === null) {
     const etiqueta =
       estado === "MUERTO"
         ? "muerte"
-        : estado === "VENDIDO"
-          ? "venta"
-          : "frigorífico";
+        : estado === "PERDIDO"
+          ? "pérdida"
+          : estado === "VENDIDO"
+            ? "venta"
+            : "frigorífico";
     throw new Error(`Ingresá mes y año de ${etiqueta}.`);
   }
   if (!Number.isInteger(mes) || mes < 1 || mes > 12) {
@@ -550,7 +660,7 @@ export async function saveStockGanaderaDispositivo(
   const grupo_libre = normalizarGrupoLibre(input.grupo_libre);
   const estadoRaw = String(input.estado ?? "VIVO").toUpperCase();
   if (!ESTADOS_VALIDOS.has(estadoRaw as DispositivoEstado)) {
-    throw new Error("Estado inválido. Use VIVO, MUERTO, VENDIDO o FRIGORIFICO.");
+    throw new Error("Estado inválido. Use VIVO, MUERTO, VENDIDO, FRIGORIFICO o PERDIDO.");
   }
   const estado = estadoRaw as DispositivoEstado;
   const baja = validarFechaBaja(
@@ -560,11 +670,25 @@ export async function saveStockGanaderaDispositivo(
     nacimiento.nacimiento_mes,
     nacimiento.nacimiento_anio
   );
+  const tipo_bajaRaw = esEstadoConBaja(estado)
+    ? normalizarTipoBaja(input.tipo_baja) ||
+      (estado === "MUERTO"
+        ? "MUERTE"
+        : estado === "PERDIDO"
+          ? "PERDIDO"
+          : estado === "FRIGORIFICO"
+            ? "FRIGORIFICO"
+            : "VENTA_FRIGORIFICO")
+    : "";
+  const tipoBajaGuardar: TipoBaja | "" = tipo_bajaRaw || "";
+  const numero_guia = esEstadoConBaja(estado)
+    ? normalizarNumeroGuia(input.numero_guia)
+    : "";
   const eidGuardar = eid.trim() || claveNorm;
 
   const anteriorRow = (await db
     .prepare(
-      `SELECT sexo, empresa, grupo, grupo_libre, nacimiento_mes, nacimiento_anio, observaciones, estado, baja_mes, baja_anio
+      `SELECT sexo, empresa, grupo, grupo_libre, nacimiento_mes, nacimiento_anio, observaciones, estado, tipo_baja, numero_guia, baja_mes, baja_anio
        FROM STOCK_GANADERO_DISPOSITIVO WHERE clave = ?`
     )
     .get(claveNorm)) as Partial<DispositivoMetaRow> | undefined;
@@ -580,6 +704,8 @@ export async function saveStockGanaderaDispositivo(
     nacimiento_anio: nacimiento.nacimiento_anio,
     observaciones,
     estado,
+    tipo_baja: tipoBajaGuardar,
+    numero_guia,
     baja_mes: baja.baja_mes,
     baja_anio: baja.baja_anio,
     edad,
@@ -587,9 +713,9 @@ export async function saveStockGanaderaDispositivo(
 
   await db.prepare(
     `INSERT INTO STOCK_GANADERO_DISPOSITIVO (
-       clave, eid, sexo, empresa, grupo, grupo_libre, edad, nacimiento_mes, nacimiento_anio, observaciones, estado, baja_mes, baja_anio, actualizado_en
+       clave, eid, sexo, empresa, grupo, grupo_libre, edad, nacimiento_mes, nacimiento_anio, observaciones, estado, tipo_baja, numero_guia, baja_mes, baja_anio, actualizado_en
      ) VALUES (
-       @clave, @eid, @sexo, @empresa, @grupo, @grupo_libre, @edad, @nacimiento_mes, @nacimiento_anio, @observaciones, @estado, @baja_mes, @baja_anio,
+       @clave, @eid, @sexo, @empresa, @grupo, @grupo_libre, @edad, @nacimiento_mes, @nacimiento_anio, @observaciones, @estado, @tipo_baja, @numero_guia, @baja_mes, @baja_anio,
        datetime('now', 'localtime')
      )
      ON CONFLICT(clave) DO UPDATE SET
@@ -602,6 +728,8 @@ export async function saveStockGanaderaDispositivo(
        nacimiento_anio = excluded.nacimiento_anio,
        observaciones = excluded.observaciones,
        estado = excluded.estado,
+       tipo_baja = excluded.tipo_baja,
+       numero_guia = excluded.numero_guia,
        baja_mes = excluded.baja_mes,
        baja_anio = excluded.baja_anio,
        eid = CASE WHEN excluded.eid != '' THEN excluded.eid ELSE STOCK_GANADERO_DISPOSITIVO.eid END,
@@ -618,6 +746,8 @@ export async function saveStockGanaderaDispositivo(
     nacimiento_anio: nacimiento.nacimiento_anio,
     observaciones,
     estado,
+    tipo_baja: tipoBajaGuardar,
+    numero_guia,
     baja_mes: baja.baja_mes,
     baja_anio: baja.baja_anio,
   });
@@ -634,6 +764,8 @@ export async function saveStockGanaderaDispositivo(
     nacimiento_anio: nacimiento.nacimiento_anio,
     observaciones,
     estado,
+    tipo_baja: tipoBajaGuardar,
+    numero_guia,
     baja_mes: baja.baja_mes,
     baja_anio: baja.baja_anio,
   };
@@ -659,6 +791,8 @@ function mergeMetaConPatch(
     nacimiento_anio: prev?.nacimiento_anio ?? null,
     observaciones: prev?.observaciones ?? "",
     estado: prev?.estado ?? "VIVO",
+    tipo_baja: prev?.tipo_baja ?? "",
+    numero_guia: prev?.numero_guia ?? "",
     baja_mes: prev?.baja_mes ?? null,
     baja_anio: prev?.baja_anio ?? null,
   };
@@ -669,6 +803,8 @@ function mergeMetaConPatch(
   if (patch.nacimiento_anio !== undefined) merged.nacimiento_anio = patch.nacimiento_anio;
   if (patch.observaciones !== undefined) merged.observaciones = patch.observaciones;
   if (patch.estado !== undefined) merged.estado = patch.estado;
+  if (patch.tipo_baja !== undefined) merged.tipo_baja = patch.tipo_baja;
+  if (patch.numero_guia !== undefined) merged.numero_guia = patch.numero_guia;
   if (patch.baja_mes !== undefined) merged.baja_mes = patch.baja_mes;
   if (patch.baja_anio !== undefined) merged.baja_anio = patch.baja_anio;
   return merged;
@@ -739,17 +875,146 @@ async function clavesRegistradasSet(db: Db): Promise<Set<string>> {
   return set;
 }
 
+export interface BajaDispositivoSnapshot {
+  clave: string;
+  eid: string;
+  vid: string;
+  numero: string;
+  primera_fecha: string;
+  fecha_baja: string;
+  dias_en_sistema: number | null;
+  categoria: string;
+  tipo_baja: TipoBaja;
+}
+
+interface AplicarBajaInput {
+  estado: DispositivoEstado;
+  tipo_baja: TipoBaja;
+  baja_mes: number;
+  baja_anio: number;
+  fecha_baja_iso?: string;
+  observaciones?: string;
+  numero_guia?: string;
+}
+
+function diasEntreFechasIso(desde: string, hasta: string): number | null {
+  const d1 = new Date(`${desde.trim()}T12:00:00`);
+  const d2 = new Date(`${hasta.trim()}T12:00:00`);
+  if (Number.isNaN(d1.getTime()) || Number.isNaN(d2.getTime())) return null;
+  return Math.max(0, Math.round((d2.getTime() - d1.getTime()) / 86_400_000));
+}
+
+function fechaBajaIsoDesdeMesAnio(mes: number, anio: number): string {
+  return `${anio}-${String(mes).padStart(2, "0")}-01`;
+}
+
+async function registroMetaPorClave(
+  db: Db,
+  claveNorm: string
+): Promise<{ eid: string; vid: string; primera_fecha: string } | null> {
+  const rows = (await db
+    .prepare(`SELECT eid, vid, fecha FROM STOCK_GANADERO_REGISTRO`)
+    .all()) as { eid: string; vid: string; fecha: string }[];
+
+  let primera_fecha = "";
+  let eid = "";
+  let vid = "";
+  for (const r of rows) {
+    if (dispositivoClave(r.eid, r.vid) !== claveNorm) continue;
+    if (!primera_fecha || r.fecha < primera_fecha) primera_fecha = r.fecha;
+    const parts = splitEidVid(r.eid, r.vid);
+    if (parts.vid) vid = parts.vid;
+    if (parts.eid) eid = parts.eid;
+  }
+  if (!primera_fecha) return null;
+  return { eid, vid, primera_fecha };
+}
+
+async function snapshotBajaDispositivo(
+  db: Db,
+  claveNorm: string,
+  fechaBajaIso: string,
+  tipo_baja: TipoBaja,
+  estado: DispositivoEstado,
+  baja_mes: number,
+  baja_anio: number,
+  edad: number | null,
+  sexo: DispositivoSexo,
+  nacimiento_mes: number | null,
+  nacimiento_anio: number | null,
+  eidFallback: string
+): Promise<BajaDispositivoSnapshot> {
+  const reg = await registroMetaPorClave(db, claveNorm);
+  const eid = reg?.eid || eidFallback.trim() || claveNorm.slice(0, 3);
+  const vid = reg?.vid || "";
+  const primera_fecha = reg?.primera_fecha ?? "";
+  const categoria = labelCategoriaSalidaDispositivo({
+    sexo,
+    edad,
+    nacimiento_mes,
+    nacimiento_anio,
+    estado,
+    baja_mes,
+    baja_anio,
+  });
+
+  return {
+    clave: claveNorm,
+    eid,
+    vid,
+    numero: vid || claveNorm,
+    primera_fecha,
+    fecha_baja: fechaBajaIso,
+    dias_en_sistema: primera_fecha
+      ? diasEntreFechasIso(primera_fecha, fechaBajaIso)
+      : null,
+    categoria,
+    tipo_baja,
+  };
+}
+
+/** Reconstruye datos de baja desde el dispositivo ya dado de baja (auditoría histórica). */
+export async function buildBajaSnapshotDesdeClave(
+  db: Db,
+  claveNorm: string
+): Promise<BajaDispositivoSnapshot | null> {
+  const row = (await db
+    .prepare(
+      `SELECT eid, sexo, nacimiento_mes, nacimiento_anio, estado, tipo_baja, baja_mes, baja_anio, edad
+       FROM STOCK_GANADERO_DISPOSITIVO WHERE clave = ?`
+    )
+    .get(claveNorm)) as Partial<DispositivoMetaRow> | undefined;
+  if (!row?.baja_mes || !row.baja_anio) return null;
+
+  const meta = normalizarMetaDispositivo(row);
+  const tipo_baja = normalizarTipoBaja(meta.tipo_baja) || "MUERTE";
+  const fecha_baja = fechaBajaIsoDesdeMesAnio(meta.baja_mes!, meta.baja_anio!);
+
+  return snapshotBajaDispositivo(
+    db,
+    claveNorm,
+    fecha_baja,
+    tipo_baja,
+    meta.estado,
+    meta.baja_mes!,
+    meta.baja_anio!,
+    meta.edad,
+    meta.sexo,
+    meta.nacimiento_mes,
+    meta.nacimiento_anio,
+    String(row.eid ?? "")
+  );
+}
+
 async function aplicarBajaDispositivo(
   db: Db,
   claveNorm: string,
   eid: string,
-  estado: "VENDIDO" | "FRIGORIFICO",
-  baja_mes: number,
-  baja_anio: number
-): Promise<void> {
+  input: AplicarBajaInput
+): Promise<BajaDispositivoSnapshot> {
   const anteriorRow = (await db
     .prepare(
-      `SELECT sexo, empresa, grupo, grupo_libre, nacimiento_mes, nacimiento_anio, observaciones, estado, baja_mes, baja_anio
+      `SELECT sexo, empresa, grupo, grupo_libre, nacimiento_mes, nacimiento_anio, observaciones, estado, tipo_baja, numero_guia, baja_mes, baja_anio
        FROM STOCK_GANADERO_DISPOSITIVO WHERE clave = ?`
     )
     .get(claveNorm)) as Partial<DispositivoMetaRow> | undefined;
@@ -757,14 +1022,17 @@ async function aplicarBajaDispositivo(
   const nacimiento_mes = anterior?.nacimiento_mes ?? null;
   const nacimiento_anio = anterior?.nacimiento_anio ?? null;
   const baja = validarFechaBaja(
-    estado,
-    baja_mes,
-    baja_anio,
+    input.estado,
+    input.baja_mes,
+    input.baja_anio,
     nacimiento_mes,
     nacimiento_anio
   );
   const edad = calcularEdadMeses(nacimiento_mes, nacimiento_anio);
   const eidGuardar = eid.trim() || claveNorm;
+  const obsNueva = String(input.observaciones ?? "").trim();
+  const observaciones = obsNueva || (anterior?.observaciones ?? "");
+  const numero_guia = normalizarNumeroGuia(input.numero_guia);
 
   const nuevo: DispositivoMetaGuardada = {
     sexo: anterior?.sexo ?? "",
@@ -773,8 +1041,10 @@ async function aplicarBajaDispositivo(
     grupo_libre: anterior?.grupo_libre ?? "",
     nacimiento_mes,
     nacimiento_anio,
-    observaciones: anterior?.observaciones ?? "",
-    estado,
+    observaciones,
+    estado: input.estado,
+    tipo_baja: input.tipo_baja,
+    numero_guia,
     baja_mes: baja.baja_mes,
     baja_anio: baja.baja_anio,
     edad,
@@ -782,13 +1052,16 @@ async function aplicarBajaDispositivo(
 
   await db.prepare(
     `INSERT INTO STOCK_GANADERO_DISPOSITIVO (
-       clave, eid, sexo, empresa, grupo, edad, nacimiento_mes, nacimiento_anio, observaciones, estado, baja_mes, baja_anio, actualizado_en
+       clave, eid, sexo, empresa, grupo, edad, nacimiento_mes, nacimiento_anio, observaciones, estado, tipo_baja, numero_guia, baja_mes, baja_anio, actualizado_en
      ) VALUES (
-       @clave, @eid, @sexo, @empresa, @grupo, @edad, @nacimiento_mes, @nacimiento_anio, @observaciones, @estado, @baja_mes, @baja_anio,
+       @clave, @eid, @sexo, @empresa, @grupo, @edad, @nacimiento_mes, @nacimiento_anio, @observaciones, @estado, @tipo_baja, @numero_guia, @baja_mes, @baja_anio,
        datetime('now', 'localtime')
      )
      ON CONFLICT(clave) DO UPDATE SET
        estado = excluded.estado,
+       tipo_baja = excluded.tipo_baja,
+       numero_guia = excluded.numero_guia,
+       observaciones = excluded.observaciones,
        baja_mes = excluded.baja_mes,
        baja_anio = excluded.baja_anio,
        edad = excluded.edad,
@@ -803,31 +1076,59 @@ async function aplicarBajaDispositivo(
     edad,
     nacimiento_mes,
     nacimiento_anio,
-    observaciones: nuevo.observaciones,
-    estado,
+    observaciones,
+    estado: input.estado,
+    tipo_baja: input.tipo_baja,
+    numero_guia,
     baja_mes: baja.baja_mes,
     baja_anio: baja.baja_anio,
   });
 
   await registrarHistorialCambiosDispositivo(db, claveNorm, anterior, nuevo);
+
+  const fechaBajaIso =
+    input.fecha_baja_iso?.trim() ||
+    fechaBajaIsoDesdeMesAnio(baja.baja_mes ?? input.baja_mes, baja.baja_anio ?? input.baja_anio);
+
+  return snapshotBajaDispositivo(
+    db,
+    claveNorm,
+    fechaBajaIso,
+    input.tipo_baja,
+    input.estado,
+    baja.baja_mes ?? input.baja_mes,
+    baja.baja_anio ?? input.baja_anio,
+    edad,
+    nuevo.sexo,
+    nacimiento_mes,
+    nacimiento_anio,
+    eidGuardar
+  );
 }
 
 export interface ImportBajaDispositivosResult {
   actualizados: number;
   no_encontrados: number;
   duplicados_omitidos: number;
+  ambiguos: number;
   muestra_no_encontrados: string[];
+  muestra_ambiguos: string[];
+  dispositivos_bajados: BajaDispositivoSnapshot[];
 }
 
 export async function importBajaDispositivos(
   db: Db,
   rows: StockGanaderoRowInput[],
-  estado: "VENDIDO" | "FRIGORIFICO"
+  tipo_baja: TipoBaja
 ): Promise<ImportBajaDispositivosResult> {
   if (!rows.length) throw new Error("El archivo no contiene dispositivos válidos.");
-  if (estado !== "VENDIDO" && estado !== "FRIGORIFICO") {
-    throw new Error("Estado inválido. Use VENDIDO o FRIGORIFICO.");
+  if (tipo_baja === "FRIGORIFICO" || !TIPOS_BAJA_VALIDOS.has(tipo_baja)) {
+    throw new Error(
+      "Tipo de baja inválido. Use VENTA_FRIGORIFICO, VENTA_PRODUCTOR, MUERTE o PERDIDO."
+    );
   }
+
+  const estado = estadoDesdeTipoBaja(tipo_baja);
 
   const registradas = await clavesRegistradasSet(db);
   const vistos = new Set<string>();
@@ -835,6 +1136,7 @@ export async function importBajaDispositivos(
   let no_encontrados = 0;
   let duplicados_omitidos = 0;
   const muestra_no_encontrados: string[] = [];
+  const dispositivos_bajados: BajaDispositivoSnapshot[] = [];
 
   await db.transaction(async (tx) => {
     for (const row of rows) {
@@ -861,14 +1163,14 @@ export async function importBajaDispositivos(
         );
       }
 
-      await aplicarBajaDispositivo(
-        tx,
-        claveNorm,
-        row.eid,
+      const snap = await aplicarBajaDispositivo(tx, claveNorm, row.eid, {
         estado,
-        fechaBaja.mes,
-        fechaBaja.anio
-      );
+        tipo_baja,
+        baja_mes: fechaBaja.mes,
+        baja_anio: fechaBaja.anio,
+        fecha_baja_iso: row.fecha.trim(),
+      });
+      dispositivos_bajados.push(snap);
       actualizados += 1;
     }
   });
@@ -881,8 +1183,202 @@ export async function importBajaDispositivos(
     actualizados,
     no_encontrados,
     duplicados_omitidos,
+    ambiguos: 0,
     muestra_no_encontrados,
+    muestra_ambiguos: [],
+    dispositivos_bajados,
   };
+}
+
+function fechaHoyIsoLocal(): string {
+  const d = new Date();
+  const mes = String(d.getMonth() + 1).padStart(2, "0");
+  const dia = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${mes}-${dia}`;
+}
+
+export async function claveRegistradaPorNumero(
+  db: Db,
+  numero: string
+): Promise<string | null> {
+  const registradas = await clavesRegistradasSet(db);
+  const claves = await resolverClavesRegistradasPorNumero(db, registradas, numero);
+  return claves.length === 1 ? claves[0]! : null;
+}
+
+async function resolverClavesRegistradasPorNumero(
+  db: Db,
+  registradas: Set<string>,
+  numero: string
+): Promise<string[]> {
+  const trimmed = numero.trim();
+  if (!trimmed) return [];
+
+  const candidatos = new Set<string>();
+  const claveDirecta = dispositivoClave(trimmed, "");
+  if (claveDirecta && registradas.has(claveDirecta)) {
+    candidatos.add(claveDirecta);
+  }
+
+  const digits = trimmed.replace(/\D/g, "");
+  if (digits) {
+    for (const clave of registradas) {
+      if (clave === digits || clave.endsWith(digits)) {
+        candidatos.add(clave);
+      }
+    }
+  }
+
+  const q = `%${trimmed.replace(/\s/g, "")}%`;
+  const rows = (await db
+    .prepare(
+      `SELECT DISTINCT eid, vid FROM STOCK_GANADERO_REGISTRO
+       WHERE eid LIKE @q OR vid LIKE @q`
+    )
+    .all({ q })) as { eid: string; vid: string }[];
+
+  for (const r of rows) {
+    const k = dispositivoClave(r.eid, r.vid);
+    if (k && registradas.has(k)) candidatos.add(k);
+  }
+
+  return [...candidatos];
+}
+
+async function eidParaClaveRegistrada(
+  db: Db,
+  claveNorm: string
+): Promise<string> {
+  const dispositivo = (await db
+    .prepare(`SELECT eid FROM STOCK_GANADERO_DISPOSITIVO WHERE clave = ?`)
+    .get(claveNorm)) as { eid?: string } | undefined;
+  if (dispositivo?.eid?.trim()) return dispositivo.eid.trim();
+
+  const rows = (await db
+    .prepare(`SELECT eid, vid FROM STOCK_GANADERO_REGISTRO`)
+    .all()) as { eid: string; vid: string }[];
+  for (const r of rows) {
+    if (dispositivoClave(r.eid, r.vid) === claveNorm) {
+      return splitEidVid(r.eid, r.vid).eid || r.eid.trim();
+    }
+  }
+  return claveNorm.slice(0, 3);
+}
+
+/** Baja manual por número de dispositivo con detalle completo. */
+export interface BajaDispositivoItemInput {
+  numero: string;
+  tipo_baja: TipoBaja;
+  fecha: string;
+  numero_guia?: string;
+  observaciones?: string;
+}
+
+export async function importBajaDetalle(
+  db: Db,
+  items: BajaDispositivoItemInput[]
+): Promise<ImportBajaDispositivosResult> {
+  const lista = items
+    .map((item) => ({
+      numero: item.numero.trim(),
+      tipo_baja: item.tipo_baja,
+      fecha: item.fecha.trim(),
+      numero_guia: item.numero_guia,
+      observaciones: item.observaciones,
+    }))
+    .filter((item) => item.numero);
+  if (!lista.length) throw new Error("Ingresá al menos un número de dispositivo.");
+
+  const registradas = await clavesRegistradasSet(db);
+  const vistos = new Set<string>();
+  let actualizados = 0;
+  let no_encontrados = 0;
+  let duplicados_omitidos = 0;
+  let ambiguos = 0;
+  const muestra_no_encontrados: string[] = [];
+  const muestra_ambiguos: string[] = [];
+  const dispositivos_bajados: BajaDispositivoSnapshot[] = [];
+
+  await db.transaction(async (tx) => {
+    for (const item of lista) {
+      const tipo_baja = parseTipoBaja(item.tipo_baja);
+      const estado = estadoDesdeTipoBaja(tipo_baja);
+      const fechaBaja = fechaIsoAMesAnio(item.fecha);
+      if (!fechaBaja) {
+        throw new Error(`Fecha inválida para ${item.numero}. Use formato AAAA-MM-DD.`);
+      }
+
+      const claves = await resolverClavesRegistradasPorNumero(tx, registradas, item.numero);
+      if (claves.length === 0) {
+        no_encontrados += 1;
+        if (muestra_no_encontrados.length < 8) muestra_no_encontrados.push(item.numero);
+        continue;
+      }
+      if (claves.length > 1) {
+        ambiguos += 1;
+        if (muestra_ambiguos.length < 8) muestra_ambiguos.push(item.numero);
+        continue;
+      }
+
+      const claveNorm = claves[0]!;
+      if (vistos.has(claveNorm)) {
+        duplicados_omitidos += 1;
+        continue;
+      }
+      vistos.add(claveNorm);
+
+      const eid = await eidParaClaveRegistrada(tx, claveNorm);
+      const snap = await aplicarBajaDispositivo(tx, claveNorm, eid, {
+        estado,
+        tipo_baja,
+        baja_mes: fechaBaja.mes,
+        baja_anio: fechaBaja.anio,
+        fecha_baja_iso: item.fecha,
+        numero_guia: item.numero_guia,
+        observaciones: item.observaciones,
+      });
+      dispositivos_bajados.push(snap);
+      actualizados += 1;
+    }
+  });
+
+  if (actualizados === 0 && no_encontrados === 0 && ambiguos === 0) {
+    throw new Error("No se procesó ningún dispositivo.");
+  }
+
+  return {
+    actualizados,
+    no_encontrados,
+    duplicados_omitidos,
+    ambiguos,
+    muestra_no_encontrados,
+    muestra_ambiguos,
+    dispositivos_bajados,
+  };
+}
+
+/** Baja manual por número (legado: fecha de hoy). */
+export async function importBajaPorNumeros(
+  db: Db,
+  numeros: string[],
+  tipo_baja: TipoBaja
+): Promise<ImportBajaDispositivosResult> {
+  const lista = numeros.map((n) => n.trim()).filter(Boolean);
+  if (!lista.length) throw new Error("Ingresá al menos un número de dispositivo.");
+  if (tipo_baja === "FRIGORIFICO" || !TIPOS_BAJA_VALIDOS.has(tipo_baja)) {
+    throw new Error(
+      "Tipo de baja inválido. Use VENTA_FRIGORIFICO, VENTA_PRODUCTOR, MUERTE o PERDIDO."
+    );
+  }
+
+  return importBajaDetalle(
+    db,
+    lista.map((numero) => ({
+      numero,
+      tipo_baja,
+      fecha: fechaHoyIsoLocal(),
+    }))
+  );
 }
 
 export async function updateStockGanaderaDispositivoSexo(
@@ -924,6 +1420,8 @@ export async function updateStockGanaderaDispositivoSexo(
       nacimiento_anio: anterior?.nacimiento_anio ?? null,
       observaciones: anterior?.observaciones ?? "",
       estado: anterior?.estado ?? "VIVO",
+      tipo_baja: anterior?.tipo_baja ?? "",
+      numero_guia: anterior?.numero_guia ?? "",
       baja_mes: anterior?.baja_mes ?? null,
       baja_anio: anterior?.baja_anio ?? null,
     });
@@ -1165,6 +1663,8 @@ export interface StockGanaderaDispositivo {
   nacimiento_anio: number | null;
   observaciones: string;
   estado: DispositivoEstado;
+  tipo_baja: TipoBaja | "";
+  numero_guia: string;
   baja_mes: number | null;
   baja_anio: number | null;
   primera_fecha: string;
@@ -1328,6 +1828,8 @@ function buildDispositivosFromRegistros(
         nacimiento_anio: null,
         observaciones: "",
         estado: "VIVO",
+        tipo_baja: "",
+        numero_guia: "",
         baja_mes: null,
         baja_anio: null,
         primera_fecha: r.fecha,
@@ -1412,6 +1914,7 @@ const ESTADOS_BAJA = new Set<DispositivoEstado>([
   "MUERTO",
   "VENDIDO",
   "FRIGORIFICO",
+  "PERDIDO",
 ]);
 
 function filtrarYOrdenarBajas(
@@ -1589,20 +2092,45 @@ function fmtHistorialGrupoLibre(v: string): string {
 function fmtHistorialFechaBaja(
   estado: DispositivoEstado,
   mes: number | null,
-  anio: number | null
+  anio: number | null,
+  tipoBaja?: TipoBaja | ""
 ): string {
-  if (estado !== "MUERTO" && estado !== "VENDIDO" && estado !== "FRIGORIFICO") {
+  if (!esEstadoConBaja(estado)) {
     return "—";
   }
   if (!mes || !anio) return "—";
   const nombre = MESES_HISTORIAL[mes] ?? String(mes);
-  const pref =
-    estado === "MUERTO"
+  const pref = tipoBaja
+    ? fmtHistorialTipoBaja(tipoBaja)
+    : estado === "MUERTO"
       ? "Muerte"
-      : estado === "VENDIDO"
-        ? "Venta"
-        : "Frigorífico";
+      : estado === "PERDIDO"
+        ? "Perdido"
+        : estado === "VENDIDO"
+          ? "Venta"
+          : "Frigorífico";
   return `${pref}: ${nombre} ${anio}`;
+}
+
+function fmtHistorialTipoBaja(tipo: TipoBaja | ""): string {
+  switch (tipo) {
+    case "VENTA_FRIGORIFICO":
+      return "Venta Frigorífico";
+    case "VENTA_PRODUCTOR":
+      return "Venta productor";
+    case "FRIGORIFICO":
+      return "Frigorífico";
+    case "MUERTE":
+      return "Muerte";
+    case "PERDIDO":
+      return "Perdido";
+    default:
+      return "—";
+  }
+}
+
+function fmtHistorialNumeroGuia(v: string): string {
+  return v.trim() || "—";
 }
 
 function fmtHistorialEstado(v: DispositivoEstado): string {
@@ -1615,6 +2143,8 @@ function fmtHistorialEstado(v: DispositivoEstado): string {
       return "Vendido";
     case "FRIGORIFICO":
       return "Frigorífico";
+    case "PERDIDO":
+      return "Perdido";
     default:
       return "Vivo";
   }
@@ -1723,8 +2253,11 @@ async function registrarHistorialCambiosDispositivo(
   const prevBaja = fmtHistorialFechaBaja(
     anterior?.estado ?? "VIVO",
     anterior?.baja_mes ?? null,
-    anterior?.baja_anio ?? null
+    anterior?.baja_anio ?? null,
+    anterior?.tipo_baja ?? ""
   );
+  const prevTipoBaja = fmtHistorialTipoBaja(anterior?.tipo_baja ?? "");
+  const prevGuia = fmtHistorialNumeroGuia(anterior?.numero_guia ?? "");
 
   const nextEmpresa = fmtHistorialEmpresa(nuevo.empresa);
   const nextGrupo = fmtHistorialGrupo(nuevo.grupo);
@@ -1739,8 +2272,11 @@ async function registrarHistorialCambiosDispositivo(
   const nextBaja = fmtHistorialFechaBaja(
     nuevo.estado,
     nuevo.baja_mes,
-    nuevo.baja_anio
+    nuevo.baja_anio,
+    nuevo.tipo_baja
   );
+  const nextTipoBaja = fmtHistorialTipoBaja(nuevo.tipo_baja);
+  const nextGuia = fmtHistorialNumeroGuia(nuevo.numero_guia);
 
   await insertHistorialFila(db, clave, "empresa", "Empresa", prevEmpresa, nextEmpresa);
   await insertHistorialFila(db, clave, "grupo", "Generación", prevGrupo, nextGrupo);
@@ -1770,11 +2306,13 @@ async function registrarHistorialCambiosDispositivo(
     nextObs
   );
   await insertHistorialFila(db, clave, "estado", "Estado", prevEstado, nextEstado);
+  await insertHistorialFila(db, clave, "tipo_baja", "Tipo de baja", prevTipoBaja, nextTipoBaja);
+  await insertHistorialFila(db, clave, "numero_guia", "Número guía", prevGuia, nextGuia);
   await insertHistorialFila(
     db,
     clave,
     "fecha_baja",
-    "Muerte / Venta / Frigorífico",
+    "Fecha de baja",
     prevBaja,
     nextBaja
   );

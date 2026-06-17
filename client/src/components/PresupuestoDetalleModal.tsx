@@ -89,9 +89,9 @@ export default function PresupuestoDetalleModal({ row, onClose }: Props) {
           <div className="presupuesto-modal-brand-inner">
             <LogoHereford className="presupuesto-modal-logo" />
             <div className="presupuesto-modal-brand-text">
-              <span className="presupuesto-modal-scg">SCG</span>
+              <span className="presupuesto-modal-scg">SGG</span>
               <span className="presupuesto-modal-scg-sub">
-                Sistema de Contabilidad Ganadera
+                Sistema de Gestión Ganadera
               </span>
             </div>
           </div>

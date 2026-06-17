@@ -16,6 +16,7 @@ import * as vsub from "./venta-sub-rubros-db.js";
 import * as vsubItems from "./venta-sub-rubro-items-db.js";
 import * as vgicon from "./venta-grupo-iconos-db.js";
 import * as stock from "./stock-ganadero-db.js";
+import * as stockAud from "./stock-auditoria-db.js";
 import * as auth from "./auth-db.js";
 import { applySchema } from "./db/init-schema.js";
 
@@ -102,10 +103,11 @@ export async function initDb(): Promise<void> {
         await runModuleSeeds();
       }
     } else if (!existing) {
-      console.warn("[SCG] Init en curso en otra instancia; omitiendo seeds pesados");
+      console.warn("[SGG] Init en curso en otra instancia; omitiendo seeds pesados");
     }
     await auth.initAuthTables(db);
     await stock.initStockGanaderoTables(db);
+    await stockAud.initStockAuditoriaTable(db);
   } finally {
     if (locked) await releaseAdvisoryLock();
   }
@@ -210,8 +212,12 @@ export const stockGanadero = {
     stock.listStockGanaderoRegistros(db, filters),
   importRows: (nombreArchivo: string, rows: stock.StockGanaderoRowInput[]) =>
     stock.importStockGanaderoRows(db, nombreArchivo, rows),
-  importBaja: (rows: stock.StockGanaderoRowInput[], estado: "VENDIDO" | "FRIGORIFICO") =>
-    stock.importBajaDispositivos(db, rows, estado),
+  importBaja: (rows: stock.StockGanaderoRowInput[], tipo_baja: stock.TipoBaja) =>
+    stock.importBajaDispositivos(db, rows, tipo_baja),
+  importBajaNumeros: (numeros: string[], tipo_baja: stock.TipoBaja) =>
+    stock.importBajaPorNumeros(db, numeros, tipo_baja),
+  importBajaDetalle: (items: stock.BajaDispositivoItemInput[]) =>
+    stock.importBajaDetalle(db, items),
   deleteLote: (id: number) => stock.deleteStockGanaderoLote(db, id),
   countRegistros: () => stock.countStockGanaderoRegistros(db),
   estadisticas: (filters?: stock.StockGanaderoFilters) =>
@@ -234,6 +240,13 @@ export const stockGanadero = {
   ) => stock.bulkPatchStockGanaderaDispositivos(db, claves, patch, eids),
   listHistorialCambios: (clave: string) =>
     stock.listStockGanaderaDispositivoHistorial(db, clave),
+};
+
+export const stockAuditoria = {
+  record: (input: stockAud.StockMovimientoAuditoriaInput) =>
+    stockAud.recordStockMovimientoAuditoria(db, input),
+  list: (filters?: stockAud.StockMovimientoAuditoriaFilters) =>
+    stockAud.listStockMovimientosAuditoria(db, filters),
 };
 
 export const ingresosVentas = {

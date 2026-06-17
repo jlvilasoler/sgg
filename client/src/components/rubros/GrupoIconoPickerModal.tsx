@@ -67,7 +67,7 @@ export default function GrupoIconoPickerModal({
         {!apiOnline && (
           <p className="icon-picker-offline" role="status">
             API desconectada: podés ver el banco, pero para guardar reiniciá{" "}
-            <code>npm run dev</code> en la carpeta SCG.
+            <code>npm run dev</code> en la carpeta del proyecto.
           </p>
         )}
 

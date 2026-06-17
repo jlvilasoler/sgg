@@ -14,8 +14,8 @@ export default function MainHeader({ user, onHome, onLogout }: Props) {
         <button type="button" className="main-brand" onClick={onHome} title="Volver al menú">
           <LogoHereford className="main-brand-icon" />
           <div>
-            <span className="main-brand-title">SCG</span>
-            <span className="main-brand-sub">Sistema de Contabilidad Ganadera</span>
+            <span className="main-brand-title">SGG</span>
+            <span className="main-brand-sub">Sistema de Gestión Ganadera</span>
           </div>
         </button>
 

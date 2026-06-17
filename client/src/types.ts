@@ -77,7 +77,14 @@ export interface StockGanaderoEstadisticas {
 
 export type DispositivoSexo = "" | "MACHO" | "HEMBRA";
 export type DispositivoEmpresa = "" | "GUAVIYU" | "CHIVILCOY";
-export type DispositivoEstado = "VIVO" | "MUERTO" | "VENDIDO" | "FRIGORIFICO";
+export type DispositivoEstado = "VIVO" | "MUERTO" | "VENDIDO" | "FRIGORIFICO" | "PERDIDO";
+
+export type TipoBaja =
+  | "VENTA_FRIGORIFICO"
+  | "FRIGORIFICO"
+  | "VENTA_PRODUCTOR"
+  | "MUERTE"
+  | "PERDIDO";
 
 export interface StockGanaderaDispositivo {
   clave: string;
@@ -92,6 +99,8 @@ export interface StockGanaderaDispositivo {
   nacimiento_anio: number | null;
   observaciones: string;
   estado: DispositivoEstado;
+  tipo_baja: TipoBaja | "";
+  numero_guia: string;
   baja_mes: number | null;
   baja_anio: number | null;
   primera_fecha: string;
@@ -119,6 +128,35 @@ export interface StockGanaderaDispositivoHistorial {
   valor_anterior: string;
   valor_nuevo: string;
   creado_en: string;
+}
+
+export type StockMovimientoTipo = "ALTA" | "BAJA" | "MODIFICACION";
+
+export interface StockMovimientoBajaDispositivo {
+  clave: string;
+  eid: string;
+  vid: string;
+  numero: string;
+  primera_fecha: string;
+  fecha_baja: string;
+  dias_en_sistema: number | null;
+  categoria: string;
+  tipo_baja: string;
+}
+
+export interface StockMovimientoAuditoria {
+  id: number;
+  user_id: number | null;
+  user_email: string;
+  user_nombre: string;
+  tipo: StockMovimientoTipo;
+  clave: string;
+  cantidad: number;
+  resumen: string;
+  detalle: string;
+  ip: string;
+  creado_en: string;
+  baja_dispositivo?: StockMovimientoBajaDispositivo | null;
 }
 
 export interface ResumenEmpresa {

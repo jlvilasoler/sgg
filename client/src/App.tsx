@@ -23,8 +23,9 @@ import Divisas from "./components/Divisas";
 import RecursosHumanos from "./components/RecursosHumanos";
 import IngresosVentas from "./components/ventas/IngresosVentas";
 import StockGanadero from "./components/stock/StockGanadero";
+import StockMovimientosAuditoria from "./components/stock/StockMovimientosAuditoria";
 import ConfirmDialogHost from "./components/ConfirmDialogHost";
-import { canAccessScreen } from "./utils/auth-permissions";
+import { canAccessScreen, canAccessStockMovimientos } from "./utils/auth-permissions";
 import { showToast } from "./utils/toast";
 
 export default function App() {
@@ -110,7 +111,16 @@ export default function App() {
   };
 
   const navigate = (id: TabId) => {
-    if (!user || !canAccessScreen(user, id)) {
+    if (!user) {
+      notify("No tenés permiso para acceder a ese módulo", false);
+      return;
+    }
+    if (id === "stock_movimientos") {
+      if (!canAccessStockMovimientos(user)) {
+        notify("Solo administradores pueden ver el registro de movimientos", false);
+        return;
+      }
+    } else if (!canAccessScreen(user, id)) {
       notify("No tenés permiso para acceder a ese módulo", false);
       return;
     }
@@ -164,7 +174,7 @@ export default function App() {
   if (booting || !authChecked) {
     return (
       <div className="loading-screen">
-        <p>Cargando SCG...</p>
+        <p>Cargando SGG...</p>
         <p className="muted">
           {import.meta.env.DEV
             ? "Iniciando conexión con la API local"
@@ -277,6 +287,13 @@ export default function App() {
                 apiOnline={apiOnline}
                 onError={(m) => notify(m, false)}
                 onSuccess={(m, t) => notify(m, true, t)}
+                onVolver={goHome}
+              />
+            )}
+            {screen === "stock_movimientos" && (
+              <StockMovimientosAuditoria
+                apiOnline={apiOnline}
+                onError={(m) => notify(m, false)}
                 onVolver={goHome}
               />
             )}

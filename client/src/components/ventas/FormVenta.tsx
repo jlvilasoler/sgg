@@ -115,7 +115,7 @@ export default function FormVenta({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!apiOnline) {
-      onError("Iniciá la API con npm run dev en la carpeta SCG");
+      onError("Iniciá la API con npm run dev en la carpeta del proyecto");
       return;
     }
     if (!form.concepto.trim()) {

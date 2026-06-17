@@ -426,7 +426,7 @@ export default function SubRubroListado({
     const grupo = iconPickerGrupo;
     if (!grupo) return;
     if (!apiOnline) {
-      onError("Conectá la API (npm run dev en la carpeta SCG) para guardar el icono.");
+      onError("Conectá la API (npm run dev en la carpeta del proyecto) para guardar el icono.");
       return;
     }
     setSubiendoIconoGrupo(grupo);

@@ -25,7 +25,7 @@ function configureToastr() {
   };
 }
 
-/** Notificación de éxito (estilo Toastr, tema SCG). */
+/** Notificación de éxito (estilo Toastr, tema SGG). */
 export function toastSuccess(message: string, title = "Éxito") {
   configureToastr();
   toastr.success(message, title);

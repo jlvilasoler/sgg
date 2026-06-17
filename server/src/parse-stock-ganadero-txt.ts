@@ -154,6 +154,54 @@ export function parseStockGanaderoText(text: string): StockGanaderoRowInput[] {
   return out;
 }
 
+/** Normaliza filas enviadas desde carga manual (formulario). */
+export function normalizeStockGanaderoRows(
+  raw: Array<{
+    eid?: string;
+    vid?: string;
+    fecha?: string;
+    hora?: string;
+    condicion?: string;
+  }>
+): StockGanaderoRowInput[] {
+  if (!Array.isArray(raw) || !raw.length) {
+    throw new Error("Agregá al menos una lectura válida.");
+  }
+
+  const out: StockGanaderoRowInput[] = [];
+  const errors: string[] = [];
+
+  raw.forEach((row, idx) => {
+    const eidRaw = String(row.eid ?? "").trim();
+    if (!eidRaw) {
+      errors.push(`Fila ${idx + 1}: EID obligatorio`);
+      return;
+    }
+    const fecha = parseFecha(String(row.fecha ?? ""));
+    if (!fecha) {
+      errors.push(`Fila ${idx + 1}: fecha inválida`);
+      return;
+    }
+    const horaRaw = String(row.hora ?? "").trim();
+    const { eid, vid } = splitEidVid(eidRaw, String(row.vid ?? "").trim());
+    out.push({
+      eid,
+      vid,
+      fecha,
+      hora: horaRaw ? parseTime(horaRaw) : "",
+      condicion: String(row.condicion ?? "").trim(),
+    });
+  });
+
+  if (!out.length) {
+    throw new Error(errors.slice(0, 3).join(". ") || "No hay lecturas válidas.");
+  }
+  if (errors.length) {
+    throw new Error(errors.slice(0, 3).join(". "));
+  }
+  return out;
+}
+
 export function parseStockGanaderoBuffer(buffer: Buffer): StockGanaderoRowInput[] {
   let text = buffer.toString("utf8");
   if (text.includes("\uFFFD") || /CONDICIÃ/.test(text)) {

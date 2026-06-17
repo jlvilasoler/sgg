@@ -17,7 +17,7 @@ export default function RubroVinculosMapaDiagrama({
     <div
       className="conn-mapa-global"
       role="img"
-      aria-label="Mapa SCG: rubros y sub-rubros vinculados"
+      aria-label="Mapa SGG: rubros y sub-rubros vinculados"
     >
       <div className="conn-mapa-frame">
         <header className="conn-mapa-scg-header">
@@ -25,9 +25,9 @@ export default function RubroVinculosMapaDiagrama({
             <span className="diagrama-nodo-icon" aria-hidden>
               🐄
             </span>
-            <span className="diagrama-nodo-label">SCG</span>
+            <span className="diagrama-nodo-label">SGG</span>
             <span className="diagrama-nodo-scg-sub muted">
-              Sistema de Contabilidad Ganadera
+              Sistema de Gestión Ganadera
             </span>
           </div>
         </header>

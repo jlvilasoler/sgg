@@ -1346,7 +1346,7 @@ body {
   font-size: 0.9rem;
 }
 
-/* —— Mapa global SCG → rubros → sub-rubros —— */
+/* —— Mapa global SGG → rubros → sub-rubros —— */
 .conn-mapa-global {
   --spine-x: 1.75rem;
   --conn-x: 1.15rem;
@@ -1367,7 +1367,7 @@ body {
   min-width: 20rem;
 }
 
-/* SCG centrado sobre el eje del tronco */
+/* SGG centrado sobre el eje del tronco */
 .conn-mapa-scg-header {
   position: relative;
   z-index: 2;
@@ -1414,7 +1414,7 @@ body {
   letter-spacing: 0.04em;
 }
 
-/* Tronco continuo desde SCG hacia abajo */
+/* Tronco continuo desde SGG hacia abajo */
 .conn-mapa-rubros-wrap {
   position: relative;
   padding-left: var(--rail);
@@ -3254,7 +3254,7 @@ textarea:focus {
   margin-bottom: 0.75rem;
 }
 
-/* —— Toastr (notificaciones SCG) —— */
+/* —— Toastr (notificaciones SGG) —— */
 #toast-container {
   z-index: 11000;
 }
@@ -4004,6 +4004,11 @@ select optgroup {
 .stock-badge-estado--frigorifico {
   color: #b45309;
   background: rgba(180, 83, 9, 0.14);
+}
+
+.stock-badge-estado--perdido {
+  color: #7c3aed;
+  background: rgba(124, 58, 237, 0.12);
 }
 
 .stock-badge-rep--inline {
@@ -8690,6 +8695,304 @@ select optgroup {
   }
 }
 
+/* Importar lecturas — layout alineado a Stock Ganadero */
+.stock-import-shell {
+  padding: 0;
+  overflow: hidden;
+}
+
+.stock-import-shell .form-header.stock-import-head {
+  padding: 1.25rem 1.5rem 1rem;
+  border-bottom: 1px solid var(--border);
+  margin: 0;
+}
+
+.stock-import-shell .form-header.stock-import-head h2 {
+  margin: 0 0 0.35rem;
+}
+
+.stock-import-shell .stock-import-offline {
+  margin: 0 1.25rem;
+}
+
+.stock-import-layout {
+  border-top: none;
+}
+
+.stock-import-sidebar {
+  padding-top: 0.65rem;
+}
+
+.stock-import-sidebar-head {
+  margin-bottom: 0.35rem;
+  padding-bottom: 0.45rem;
+}
+
+.stock-import-chips--sidebar {
+  padding: 0 0.1rem;
+}
+
+.stock-import-sidebar-note {
+  margin: 0 0 0.5rem;
+  font-size: 0.82rem;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.stock-import-sidebar-note:last-child {
+  margin-bottom: 0;
+}
+
+.stock-import-sidebar-note code {
+  font-size: 0.78em;
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.stock-import-main {
+  background: var(--bn-bg, #fff);
+}
+
+.stock-import-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--border);
+  background: #f7f8f9;
+}
+
+.stock-import-tab {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  padding: 0.75rem 1rem;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  background: transparent;
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  transition:
+    color 0.15s ease,
+    border-color 0.15s ease,
+    background 0.15s ease;
+}
+
+.stock-import-tab:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.65);
+}
+
+.stock-import-tab.is-active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+  background: #fff;
+}
+
+.stock-import-tab-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #fff;
+  background: var(--primary);
+}
+
+.stock-import-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 1.15rem;
+  padding: 1.15rem 1.25rem 1.35rem;
+  flex: 1;
+}
+
+.stock-import-pane-foot {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 0.25rem;
+  border-top: 1px solid var(--border);
+}
+
+.stock-import-btn {
+  min-width: 11rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+}
+
+.stock-import-btn .stock-import-spinner {
+  border-color: rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
+}
+
+.stock-import-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.stock-import-form-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.85rem 1rem;
+}
+
+@media (min-width: 640px) {
+  .stock-import-form-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .stock-import-field--eid {
+    grid-column: 1 / -1;
+  }
+
+  .stock-import-field--condicion {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (min-width: 900px) {
+  .stock-import-form-grid {
+    grid-template-columns: 2fr 1fr 1fr 1fr;
+  }
+
+  .stock-import-field--eid {
+    grid-column: auto;
+  }
+
+  .stock-import-field--condicion {
+    grid-column: 1 / -1;
+  }
+}
+
+.stock-import-field label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.stock-import-field input {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 2.35rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font: inherit;
+  font-size: 0.9rem;
+}
+
+.stock-import-field input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(45, 90, 61, 0.12);
+}
+
+.stock-import-field--eid input {
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  font-size: 0.95rem;
+  letter-spacing: 0.02em;
+}
+
+.stock-import-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.stock-import-queue {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.stock-import-queue-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.stock-import-queue-head h4 {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.stock-import-queue-table-wrap {
+  max-height: 16rem;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.stock-import-queue-table {
+  margin: 0;
+  font-size: 0.84rem;
+}
+
+.stock-import-queue-table th,
+.stock-import-queue-table td {
+  padding: 0.45rem 0.65rem;
+}
+
+.stock-import-queue-remove {
+  border: none;
+  background: none;
+  padding: 0;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 4px;
+  font-size: 1.15rem;
+  line-height: 1;
+  color: var(--muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  margin-top: 0.05rem;
+}
+
+.stock-import-queue-remove:hover:not(:disabled) {
+  color: #c62828;
+  background: rgba(198, 40, 40, 0.08);
+}
+
+.stock-import-queue-empty {
+  margin: 0;
+  padding: 0.85rem 1rem;
+  border-radius: 8px;
+  background: #f7f8f9;
+  border: 1px dashed var(--border);
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+@media (max-width: 900px) {
+  .stock-import-layout {
+    flex-direction: column;
+  }
+
+  .stock-import-sidebar {
+    width: 100%;
+    flex: none;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+}
+
 /* Importar bajas (venta / frigorífico) */
 .stock-import-hero--baja {
   background: linear-gradient(
@@ -8807,6 +9110,440 @@ select optgroup {
 .stock-import-action--baja-secondary .stock-import-spinner {
   border-color: rgba(180, 83, 9, 0.2);
   border-top-color: #b45309;
+}
+
+/* Importar bajas — layout alineado a lecturas */
+.stock-import-shell--baja .form-header.stock-import-head h2 {
+  color: var(--text);
+}
+
+.stock-import-sidebar--baja .stock-facet-sidebar-title {
+  color: #b45309;
+}
+
+.stock-baja-tipo-opciones--sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.stock-import-chip--baja {
+  color: #b45309;
+  background: rgba(180, 83, 9, 0.09);
+  border-color: rgba(180, 83, 9, 0.2);
+}
+
+.stock-import-tabs--baja .stock-import-tab.is-active {
+  color: #b45309;
+  border-bottom-color: #b45309;
+}
+
+.stock-import-tab-badge--baja {
+  background: #b45309;
+}
+
+.stock-import-pane-hint {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.stock-import-btn--baja {
+  color: #fff;
+  background: linear-gradient(180deg, #d97706 0%, #b45309 100%);
+  border: none;
+  box-shadow: 0 2px 8px rgba(180, 83, 9, 0.35);
+}
+
+.stock-import-btn--baja:hover:not(:disabled) {
+  color: #fff;
+  background: linear-gradient(180deg, #ea8c0c 0%, #c45f0a 100%);
+  box-shadow: 0 4px 14px rgba(180, 83, 9, 0.4);
+}
+
+.stock-import-btn--baja:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.stock-import-btn--baja .stock-import-spinner {
+  border-color: rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
+}
+
+.stock-import-btn-secondary--baja {
+  color: #7c2d12;
+  border-color: #e8c99a;
+}
+
+.stock-import-btn-secondary--baja:hover:not(:disabled) {
+  border-color: #b45309;
+  background: rgba(180, 83, 9, 0.05);
+  color: #b45309;
+}
+
+.stock-import-shell--baja .stock-import-field input:focus {
+  border-color: #b45309;
+  box-shadow: 0 0 0 2px rgba(180, 83, 9, 0.12);
+}
+
+.stock-import-shell--baja .stock-import-queue-empty {
+  background: rgba(180, 83, 9, 0.04);
+  border-color: rgba(180, 83, 9, 0.18);
+}
+
+.stock-import-form--solo-numero {
+  gap: 0.75rem;
+}
+
+.stock-import-field--numero label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.stock-import-numero-input {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 2.65rem;
+  padding: 0.55rem 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font: inherit;
+  font-size: 1rem;
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  letter-spacing: 0.02em;
+}
+
+.stock-import-numero-input:focus {
+  outline: none;
+  border-color: #b45309;
+  box-shadow: 0 0 0 2px rgba(180, 83, 9, 0.12);
+}
+
+.stock-import-field-hint {
+  margin: 0.35rem 0 0;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.stock-import-numero-lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(15.5rem, 1fr));
+  gap: 0.6rem;
+  max-height: 22rem;
+  overflow: auto;
+}
+
+.stock-import-numero-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  min-width: 0;
+}
+
+.stock-import-numero-item:last-child {
+  border-bottom: 1px solid var(--border);
+}
+
+.stock-import-numero-valor {
+  font-size: 1rem;
+  font-weight: 600;
+  word-break: break-all;
+  line-height: 1.35;
+  letter-spacing: 0.01em;
+}
+
+.stock-import-queue--confirmadas {
+  margin-top: 0.75rem;
+}
+
+.stock-import-numero-lista--confirmadas .stock-import-numero-item {
+  border-color: rgba(22, 101, 52, 0.25);
+  background: rgba(22, 101, 52, 0.04);
+}
+
+.stock-import-numero-item--confirmada {
+  gap: 0.5rem;
+}
+
+.stock-import-numero-check {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #166534;
+  background: rgba(22, 101, 52, 0.12);
+}
+
+.stock-import-numero-item--confirmada .stock-import-numero-valor {
+  flex: 1;
+  min-width: 0;
+}
+
+.stock-import-numero-tipo {
+  flex-shrink: 0;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+/* Buscador de caravanas activas */
+.stock-buscador-caravana {
+  position: relative;
+}
+
+.stock-buscador-caravana-input-wrap {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+}
+
+.stock-buscador-caravana-input {
+  flex: 1;
+  min-width: 0;
+  min-height: 2.65rem;
+  padding: 0.55rem 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 6px 0 0 6px;
+  font: inherit;
+  font-size: 0.95rem;
+}
+
+.stock-buscador-caravana-input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(45, 90, 61, 0.12);
+}
+
+.stock-buscador-caravana--baja .stock-buscador-caravana-input:focus {
+  border-color: #b45309;
+  box-shadow: 0 0 0 2px rgba(180, 83, 9, 0.12);
+}
+
+.stock-buscador-caravana-toggle {
+  flex: 0 0 2.65rem;
+  border: 1px solid var(--border);
+  border-left: none;
+  border-radius: 0 6px 6px 0;
+  background: #f7f8f9;
+  font: inherit;
+  font-size: 0.85rem;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.stock-buscador-caravana-toggle:hover:not(:disabled) {
+  background: #eef0f2;
+  color: var(--text);
+}
+
+.stock-buscador-caravana--baja .stock-buscador-caravana-toggle:hover:not(:disabled) {
+  background: rgba(180, 83, 9, 0.08);
+  color: #b45309;
+}
+
+.stock-buscador-caravana-panel {
+  position: absolute;
+  z-index: 40;
+  left: 0;
+  right: 0;
+  margin-top: 0.35rem;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.stock-buscador-caravana-meta {
+  margin: 0;
+  padding: 0.45rem 0.75rem 0.35rem;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.stock-buscador-caravana-lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: min(280px, 40vh);
+  overflow-y: auto;
+  border-top: 1px solid var(--border);
+}
+
+.stock-buscador-caravana-empty {
+  padding: 0.85rem 0.75rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.stock-buscador-caravana-opcion {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.12rem;
+  width: 100%;
+  padding: 0.55rem 0.75rem;
+  border: none;
+  border-bottom: 1px solid #f0f0f0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+
+.stock-buscador-caravana-opcion:hover {
+  background: #f0f7f2;
+}
+
+.stock-buscador-caravana--baja .stock-buscador-caravana-opcion:hover {
+  background: rgba(180, 83, 9, 0.06);
+}
+
+.stock-buscador-caravana-opcion-main {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.stock-buscador-caravana-opcion-sub {
+  font-size: 0.75rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.stock-import-seleccion-activa {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.35rem 0.5rem;
+  margin-top: 0.55rem;
+  padding: 0.55rem 0.7rem;
+  border-radius: 6px;
+  background: rgba(180, 83, 9, 0.07);
+  border: 1px solid rgba(180, 83, 9, 0.2);
+}
+
+.stock-import-seleccion-ayuda {
+  grid-column: 1 / -1;
+  margin: 0.15rem 0 0;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.stock-import-form-actions--baja {
+  justify-content: flex-end;
+}
+
+.stock-import-baja-datos {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem 1rem;
+}
+
+.stock-import-field--obs {
+  grid-column: 1 / -1;
+}
+
+.stock-import-select,
+.stock-import-date,
+.stock-import-text,
+.stock-import-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 2.65rem;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font: inherit;
+  font-size: 0.95rem;
+}
+
+.stock-import-textarea {
+  min-height: 4.5rem;
+  resize: vertical;
+}
+
+.stock-import-select:focus,
+.stock-import-date:focus,
+.stock-import-text:focus,
+.stock-import-textarea:focus {
+  outline: none;
+  border-color: #b45309;
+  box-shadow: 0 0 0 2px rgba(180, 83, 9, 0.12);
+}
+
+.stock-import-numero-item-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.stock-import-baja-meta {
+  font-size: 0.86rem;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.stock-import-numero-item--confirmada .stock-import-numero-item-body {
+  flex: 1;
+}
+
+@media (max-width: 720px) {
+  .stock-import-baja-datos {
+    grid-template-columns: 1fr;
+  }
+
+  .stock-import-numero-lista {
+    grid-template-columns: 1fr;
+  }
+}
+
+.stock-import-seleccion-label {
+  font-size: 0.78rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.stock-import-seleccion-clear {
+  margin-left: auto;
+  border: none;
+  background: none;
+  padding: 0;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 4px;
+  font-size: 1.15rem;
+  line-height: 1;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.stock-import-seleccion-clear:hover {
+  color: #c62828;
+  background: rgba(198, 40, 40, 0.08);
 }
 
 /* Dar de baja manual */
@@ -10523,6 +11260,259 @@ select optgroup {
   flex-wrap: wrap;
   gap: 0.5rem;
   align-items: center;
+}
+
+/* Auditoría de movimientos de caravanas */
+.stock-mov-auditoria {
+  padding: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+}
+
+.stock-mov-auditoria-filters {
+  align-items: flex-end;
+}
+
+.stock-mov-auditoria-kpis {
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+}
+
+.stock-mov-auditoria-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.stock-mov-auditoria-kpi {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 6px;
+  border: 1px solid var(--bn-border-soft);
+  background: var(--bn-surface);
+}
+
+.stock-mov-auditoria-kpi-label {
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--bn-muted);
+  letter-spacing: 0.02em;
+}
+
+.stock-mov-auditoria-kpi-valor {
+  font-size: 1.35rem;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--bn-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.stock-mov-auditoria-kpi--alta {
+  border-color: rgba(22, 101, 52, 0.22);
+  background: rgba(22, 101, 52, 0.06);
+}
+
+.stock-mov-auditoria-kpi--alta .stock-mov-auditoria-kpi-valor {
+  color: #166534;
+}
+
+.stock-mov-auditoria-kpi--baja {
+  border-color: rgba(180, 83, 9, 0.24);
+  background: rgba(180, 83, 9, 0.07);
+}
+
+.stock-mov-auditoria-kpi--baja .stock-mov-auditoria-kpi-valor {
+  color: #b45309;
+}
+
+.stock-mov-auditoria-kpi--mod {
+  border-color: rgba(29, 78, 216, 0.22);
+  background: rgba(29, 78, 216, 0.06);
+}
+
+.stock-mov-auditoria-kpi--mod .stock-mov-auditoria-kpi-valor {
+  color: #1d4ed8;
+}
+
+.stock-mov-auditoria-table-wrap {
+  max-height: none;
+  border: none;
+  border-radius: 0;
+}
+
+.stock-mov-auditoria-table {
+  width: 100%;
+}
+
+.stock-mov-auditoria-table th {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--bn-muted);
+  background: var(--bn-bg);
+}
+
+.stock-mov-auditoria-table tbody td {
+  vertical-align: top;
+  font-size: 0.88rem;
+}
+
+.stock-mov-auditoria-fecha {
+  white-space: nowrap;
+}
+
+.stock-mov-auditoria-fecha-dia {
+  display: block;
+  font-weight: 500;
+}
+
+.stock-mov-auditoria-fecha-hora {
+  display: block;
+  font-size: 0.78rem;
+  margin-top: 0.1rem;
+}
+
+.stock-mov-auditoria-usuario strong {
+  display: block;
+  font-weight: 600;
+}
+
+.stock-mov-auditoria-email {
+  display: block;
+  font-size: 0.78rem;
+  margin-top: 0.12rem;
+  word-break: break-all;
+}
+
+.stock-mov-auditoria-tipo {
+  display: inline-block;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.stock-mov-auditoria-tipo--alta {
+  color: #166534;
+  background: rgba(22, 101, 52, 0.12);
+}
+
+.stock-mov-auditoria-tipo--baja {
+  color: #b45309;
+  background: rgba(180, 83, 9, 0.14);
+}
+
+.stock-mov-auditoria-tipo--modificacion {
+  color: #1d4ed8;
+  background: rgba(29, 78, 216, 0.12);
+}
+
+.stock-mov-auditoria-resumen {
+  max-width: 22rem;
+  line-height: 1.45;
+}
+
+.stock-mov-auditoria-resumen-text {
+  display: block;
+}
+
+.stock-mov-auditoria-clave {
+  display: inline-block;
+  margin-top: 0.2rem;
+  font-size: 0.78rem;
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+  background: var(--bn-surface);
+  border: 1px solid var(--bn-border-soft);
+}
+
+.stock-mov-auditoria-dispositivo strong {
+  display: block;
+}
+
+.stock-mov-auditoria-eid {
+  display: block;
+  font-size: 0.78rem;
+  margin-top: 0.1rem;
+}
+
+.stock-mov-auditoria-col-detalle {
+  width: 6.5rem;
+}
+
+.stock-mov-auditoria-details {
+  font-size: 0.8rem;
+}
+
+.stock-mov-auditoria-details summary {
+  cursor: pointer;
+  color: var(--primary);
+  font-weight: 600;
+  list-style: none;
+}
+
+.stock-mov-auditoria-details summary::-webkit-details-marker {
+  display: none;
+}
+
+.stock-mov-auditoria-details pre {
+  margin: 0.45rem 0 0;
+  padding: 0.5rem 0.55rem;
+  max-width: 18rem;
+  max-height: 10rem;
+  overflow: auto;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  background: #f8f9fb;
+  border: 1px solid var(--bn-border-soft);
+  border-radius: 6px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.stock-mov-auditoria-empty-cell {
+  padding: 0 !important;
+  text-align: center;
+  background: var(--bn-bg);
+}
+
+.stock-mov-auditoria-empty,
+.stock-mov-auditoria-empty-msg {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 2.5rem 1rem;
+  color: var(--bn-muted);
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.stock-mov-auditoria-empty-icon {
+  font-size: 1.75rem;
+  opacity: 0.55;
+  margin-bottom: 0.15rem;
+}
+
+@media (max-width: 900px) {
+  .stock-mov-auditoria-kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 520px) {
+  .stock-mov-auditoria-kpi-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .usuarios-roles-overlay {
