@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   fetchStockGanaderaDispositivos,
 } from "../../api";
-import type { StockGanaderaDispositivo } from "../../types";
+import type { DispositivoEstado, StockGanaderaDispositivo } from "../../types";
 import { fmtDate } from "../../utils";
 import TablePagination, {
   paginateSlice,
@@ -10,11 +10,33 @@ import TablePagination, {
 } from "../TablePagination";
 import BadgeEstadoDispositivo from "./BadgeEstadoDispositivo";
 import IconoDispositivoWifi from "./IconoDispositivoWifi";
-import StockGanaderaBulkPanel from "./StockGanaderaBulkPanel";
+import StockGanaderaBulkModal from "./StockGanaderaBulkPanel";
 import StockGanaderaDetalle from "./StockGanaderaDetalle";
 import StockGanaderaEdadMiniTimeline from "./StockGanaderaEdadMiniTimeline";
 import StockGanaderaEditarModal from "./StockGanaderaEditarModal";
-import { fmtGrupo } from "./stock-ganadera-utils";
+import StockGanaderaFiltrosSidebar from "./StockGanaderaFiltrosSidebar";
+import { ESTADOS_DISPOSITIVO, fmtEstadoDispositivo, fmtGrupo } from "./stock-ganadera-utils";
+
+function toggleSet<T>(prev: Set<T>, value: T): Set<T> {
+  const next = new Set(prev);
+  if (next.has(value)) next.delete(value);
+  else next.add(value);
+  return next;
+}
+
+function aplicaFacetas(
+  rows: StockGanaderaDispositivo[],
+  filtroSexo: Set<string>,
+  filtroEmpresa: Set<string>,
+  filtroEstado: Set<DispositivoEstado>
+): StockGanaderaDispositivo[] {
+  return rows.filter((d) => {
+    if (filtroSexo.size > 0 && !filtroSexo.has(d.sexo || "")) return false;
+    if (filtroEmpresa.size > 0 && !filtroEmpresa.has(d.empresa || "")) return false;
+    if (filtroEstado.size > 0 && !filtroEstado.has(d.estado)) return false;
+    return true;
+  });
+}
 
 function fmtSexo(sexo: StockGanaderaDispositivo["sexo"]): string {
   return sexo || "—";
@@ -56,6 +78,13 @@ export default function StockGanadera({
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<PageSize>(30);
   const [seleccion, setSeleccion] = useState<Set<string>>(() => new Set());
+  const [filtroSexo, setFiltroSexo] = useState<Set<string>>(() => new Set());
+  const [filtroEmpresa, setFiltroEmpresa] = useState<Set<string>>(() => new Set());
+  const [filtroEstado, setFiltroEstado] = useState<Set<DispositivoEstado>>(
+    () => new Set()
+  );
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [filtrosMobileOpen, setFiltrosMobileOpen] = useState(false);
 
   const filtros = useMemo(
     () => ({
@@ -90,18 +119,45 @@ export default function StockGanadera({
   useEffect(() => {
     setPage(1);
     setSeleccion(new Set());
-  }, [busqueda, fechaDesde, fechaHasta, pageSize]);
+  }, [busqueda, fechaDesde, fechaHasta, pageSize, filtroSexo, filtroEmpresa, filtroEstado]);
 
-  const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
+  const filteredRows = useMemo(
+    () => aplicaFacetas(rows, filtroSexo, filtroEmpresa, filtroEstado),
+    [rows, filtroSexo, filtroEmpresa, filtroEstado]
+  );
+
+  const facetCounts = useMemo(() => {
+    const sexo: Record<string, number> = { MACHO: 0, HEMBRA: 0, "": 0 };
+    const empresa: Record<string, number> = { GUAVIYU: 0, CHIVILCOY: 0, "": 0 };
+    const estado: Record<string, number> = {};
+    for (const e of ESTADOS_DISPOSITIVO) estado[e.value] = 0;
+    for (const d of rows) {
+      sexo[d.sexo || ""] = (sexo[d.sexo || ""] ?? 0) + 1;
+      empresa[d.empresa || ""] = (empresa[d.empresa || ""] ?? 0) + 1;
+      estado[d.estado] = (estado[d.estado] ?? 0) + 1;
+    }
+    return { sexo, empresa, estado };
+  }, [rows]);
+
+  const hayFacetasActivas =
+    filtroSexo.size > 0 || filtroEmpresa.size > 0 || filtroEstado.size > 0;
+
+  const limpiarFacetas = () => {
+    setFiltroSexo(new Set());
+    setFiltroEmpresa(new Set());
+    setFiltroEstado(new Set());
+  };
+
+  const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
   const pageSafe = Math.min(page, totalPages);
   const rowsPagina = useMemo(
-    () => paginateSlice(rows, pageSafe, pageSize),
-    [rows, pageSafe, pageSize]
+    () => paginateSlice(filteredRows, pageSafe, pageSize),
+    [filteredRows, pageSafe, pageSize]
   );
 
   const seleccionados = useMemo(
-    () => rows.filter((r) => seleccion.has(r.clave)),
-    [rows, seleccion]
+    () => filteredRows.filter((r) => seleccion.has(r.clave)),
+    [filteredRows, seleccion]
   );
 
   const clavesPagina = useMemo(
@@ -136,7 +192,7 @@ export default function StockGanadera({
   };
 
   const seleccionarTodosFiltrados = () => {
-    setSeleccion(new Set(rows.map((r) => r.clave)));
+    setSeleccion(new Set(filteredRows.map((r) => r.clave)));
   };
 
   const limpiarSeleccion = () => setSeleccion(new Set());
@@ -145,13 +201,13 @@ export default function StockGanadera({
     let machos = 0;
     let hembras = 0;
     let sinDefinir = 0;
-    for (const d of rows) {
+    for (const d of filteredRows) {
       if (d.sexo === "MACHO") machos += 1;
       else if (d.sexo === "HEMBRA") hembras += 1;
       else sinDefinir += 1;
     }
     return { machos, hembras, sinDefinir };
-  }, [rows]);
+  }, [filteredRows]);
 
   const actualizarFila = (actualizado: StockGanaderaDispositivo) => {
     setRows((prev) =>
@@ -182,9 +238,11 @@ export default function StockGanadera({
           <p className="muted">
             {loading
               ? "Cargando…"
-              : rows.length === 0
-                ? "No hay dispositivos (EID) registrados. Importá lecturas para armar el stock."
-                : `${rows.length} dispositivo(s) según los filtros aplicados`}
+              : filteredRows.length === 0
+                ? rows.length === 0
+                  ? "No hay dispositivos (EID) registrados. Importá lecturas para armar el stock."
+                  : "Ningún dispositivo coincide con los filtros."
+                : `${filteredRows.length} dispositivo(s) según los filtros aplicados`}
           </p>
         </div>
 
@@ -198,7 +256,7 @@ export default function StockGanadera({
               <div className="stock-dash-card stock-dash-card--total">
                 <span className="stock-dash-label">Dispositivos</span>
                 <span className="stock-dash-valor">
-                  {loading ? "—" : rows.length}
+                  {loading ? "—" : filteredRows.length}
                 </span>
                 <span className="stock-dash-hint">Caravanas en el filtro</span>
               </div>
@@ -227,58 +285,186 @@ export default function StockGanadera({
           </section>
         )}
 
-        <section className="stock-ganadera-tools" aria-label="Filtros y edición masiva">
-          <div className="stock-ganadera-tools-filters filters mayusculas-auto">
-            <div className="field">
-              <label htmlFor="ganadera-f-desde">Desde</label>
-              <input
-                id="ganadera-f-desde"
-                type="date"
-                value={fechaDesde}
-                onChange={(e) => setFechaDesde(e.target.value)}
-              />
-            </div>
-            <div className="field">
-              <label htmlFor="ganadera-f-hasta">Hasta</label>
-              <input
-                id="ganadera-f-hasta"
-                type="date"
-                value={fechaHasta}
-                onChange={(e) => setFechaHasta(e.target.value)}
-              />
-            </div>
-            <div className="field flex-grow">
-              <label htmlFor="ganadera-busq">Buscar EID / VID</label>
-              <input
-                id="ganadera-busq"
-                type="search"
-                placeholder="EID, caravana visual…"
-                value={busqueda}
-                onChange={(e) => setBusqueda(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && load()}
-              />
-            </div>
-            <button type="button" className="btn btn-primary" onClick={load}>
-              Buscar
-            </button>
-          </div>
+        <div className="stock-ganadera-layout">
+          {apiOnline && (
+            <StockGanaderaFiltrosSidebar
+              fechaDesde={fechaDesde}
+              fechaHasta={fechaHasta}
+              onFechaDesde={setFechaDesde}
+              onFechaHasta={setFechaHasta}
+              filtroSexo={filtroSexo}
+              filtroEmpresa={filtroEmpresa}
+              filtroEstado={filtroEstado}
+              onToggleSexo={(k) => setFiltroSexo((p) => toggleSet(p, k))}
+              onToggleEmpresa={(k) => setFiltroEmpresa((p) => toggleSet(p, k))}
+              onToggleEstado={(e) => setFiltroEstado((p) => toggleSet(p, e))}
+              onLimpiarSexo={() => setFiltroSexo(new Set())}
+              onLimpiarEmpresa={() => setFiltroEmpresa(new Set())}
+              onLimpiarEstado={() => setFiltroEstado(new Set())}
+              counts={facetCounts}
+              onLimpiarFacetas={limpiarFacetas}
+              hayFacetasActivas={hayFacetasActivas}
+              mobileOpen={filtrosMobileOpen}
+              onMobileClose={() => setFiltrosMobileOpen(false)}
+            />
+          )}
 
-          <StockGanaderaBulkPanel
-            seleccionados={seleccionados}
-            totalFiltrados={rows.length}
-            apiOnline={apiOnline}
-            onSeleccionarTodosFiltrados={seleccionarTodosFiltrados}
-            onLimpiar={limpiarSeleccion}
-            onAplicado={() => {
-              limpiarSeleccion();
-              void load();
-            }}
-            onError={onError}
-            onSuccess={(msg) => onSuccess?.(msg)}
-          />
-        </section>
+          <div className="stock-ganadera-main">
+            <div className="stock-ganadera-search-bar mayusculas-auto">
+              <button
+                type="button"
+                className="stock-ganadera-filtros-mobile-btn"
+                onClick={() => setFiltrosMobileOpen(true)}
+                aria-label="Abrir filtros"
+              >
+                Filtros
+                {hayFacetasActivas ? (
+                  <span className="stock-ganadera-filtros-badge" aria-hidden />
+                ) : null}
+              </button>
+              <div className="stock-ganadera-search-field">
+                <label htmlFor="ganadera-busq" className="sr-only">
+                  Buscar EID / VID
+                </label>
+                <input
+                  id="ganadera-busq"
+                  type="search"
+                  placeholder="Buscar por EID o caravana visual…"
+                  value={busqueda}
+                  onChange={(e) => setBusqueda(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && load()}
+                />
+              </div>
+              <button type="button" className="btn btn-primary" onClick={load}>
+                Buscar
+              </button>
+            </div>
 
-        <div className="table-wrap table-wrap-stock-pro">
+            {(hayFacetasActivas || busqueda.trim() || fechaDesde || fechaHasta) && (
+              <div className="stock-ganadera-chips" aria-label="Filtros activos">
+                {busqueda.trim() ? (
+                  <span className="stock-ganadera-chip">
+                    Búsqueda: {busqueda.trim()}
+                    <button
+                      type="button"
+                      aria-label="Quitar búsqueda"
+                      onClick={() => setBusqueda("")}
+                    >
+                      ×
+                    </button>
+                  </span>
+                ) : null}
+                {fechaDesde ? (
+                  <span className="stock-ganadera-chip">
+                    Desde {fechaDesde}
+                    <button
+                      type="button"
+                      aria-label="Quitar fecha desde"
+                      onClick={() => setFechaDesde("")}
+                    >
+                      ×
+                    </button>
+                  </span>
+                ) : null}
+                {fechaHasta ? (
+                  <span className="stock-ganadera-chip">
+                    Hasta {fechaHasta}
+                    <button
+                      type="button"
+                      aria-label="Quitar fecha hasta"
+                      onClick={() => setFechaHasta("")}
+                    >
+                      ×
+                    </button>
+                  </span>
+                ) : null}
+                {[...filtroSexo].map((k) => (
+                  <span key={`sexo-${k}`} className="stock-ganadera-chip">
+                    Sexo: {k === "MACHO" ? "Macho" : k === "HEMBRA" ? "Hembra" : "Sin definir"}
+                    <button
+                      type="button"
+                      aria-label="Quitar filtro de sexo"
+                      onClick={() => setFiltroSexo((p) => toggleSet(p, k))}
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+                {[...filtroEmpresa].map((k) => (
+                  <span key={`emp-${k}`} className="stock-ganadera-chip">
+                    Empresa: {k || "Sin definir"}
+                    <button
+                      type="button"
+                      aria-label="Quitar filtro de empresa"
+                      onClick={() => setFiltroEmpresa((p) => toggleSet(p, k))}
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+                {[...filtroEstado].map((e) => (
+                  <span key={`est-${e}`} className="stock-ganadera-chip">
+                    Estado: {fmtEstadoDispositivo(e)}
+                    <button
+                      type="button"
+                      aria-label="Quitar filtro de estado"
+                      onClick={() => setFiltroEstado((p) => toggleSet(p, e))}
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+                <button
+                  type="button"
+                  className="stock-ganadera-chips-clear"
+                  onClick={() => {
+                    setBusqueda("");
+                    setFechaDesde("");
+                    setFechaHasta("");
+                    limpiarFacetas();
+                    void load();
+                  }}
+                >
+                  Limpiar todo
+                </button>
+              </div>
+            )}
+
+            {seleccionados.length > 0 && (
+              <div className="stock-ganadera-selection-bar">
+                <span className="stock-ganadera-selection-count">
+                  <strong>{seleccionados.length}</strong> seleccionado
+                  {seleccionados.length === 1 ? "" : "s"}
+                </span>
+                <div className="stock-ganadera-selection-actions">
+                  {seleccionados.length < filteredRows.length && (
+                    <button
+                      type="button"
+                      className="stock-bulk-link"
+                      onClick={seleccionarTodosFiltrados}
+                    >
+                      Seleccionar los {filteredRows.length} visibles
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-sm"
+                    onClick={() => setBulkOpen(true)}
+                  >
+                    Editar seleccionados
+                  </button>
+                  <button
+                    type="button"
+                    className="stock-bulk-link"
+                    onClick={limpiarSeleccion}
+                  >
+                    Quitar selección
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <div className="table-wrap table-wrap-stock-pro">
           <table className="data-table stock-ganadera-table stock-table-pro">
             <thead>
               <tr>
@@ -320,7 +506,7 @@ export default function StockGanadera({
                     API no conectada
                   </td>
                 </tr>
-              ) : rows.length === 0 ? (
+              ) : filteredRows.length === 0 ? (
                 <tr>
                   <td colSpan={11} className="empty">
                     Sin dispositivos para los filtros aplicados.
@@ -396,20 +582,39 @@ export default function StockGanadera({
               )}
             </tbody>
           </table>
+            </div>
+
+            {!loading && apiOnline && filteredRows.length > 0 && (
+              <TablePagination
+                total={filteredRows.length}
+                page={pageSafe}
+                pageSize={pageSize}
+                onPageChange={setPage}
+                onPageSizeChange={(size) => {
+                  setPageSize(size);
+                  setPage(1);
+                }}
+              />
+            )}
+          </div>
         </div>
 
-        {!loading && apiOnline && rows.length > 0 && (
-          <TablePagination
-            total={rows.length}
-            page={pageSafe}
-            pageSize={pageSize}
-            onPageChange={setPage}
-            onPageSizeChange={(size) => {
-              setPageSize(size);
-              setPage(1);
-            }}
-          />
-        )}
+        <StockGanaderaBulkModal
+          open={bulkOpen}
+          onClose={() => setBulkOpen(false)}
+          seleccionados={seleccionados}
+          totalFiltrados={filteredRows.length}
+          apiOnline={apiOnline}
+          onSeleccionarTodosFiltrados={seleccionarTodosFiltrados}
+          onLimpiar={limpiarSeleccion}
+          onAplicado={() => {
+            limpiarSeleccion();
+            setBulkOpen(false);
+            void load();
+          }}
+          onError={onError}
+          onSuccess={(msg) => onSuccess?.(msg)}
+        />
       </div>
 
       {editarDispositivo && (
