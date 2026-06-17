@@ -9386,26 +9386,41 @@ select optgroup {
 }
 
 .auth-login-password-wrap {
+  position: relative;
   display: flex;
-  gap: 0.35rem;
   align-items: stretch;
 }
 
 .auth-login-password-wrap input {
   flex: 1;
   min-width: 0;
+  padding-right: 2.75rem;
 }
 
 .auth-login-toggle-pw {
-  flex-shrink: 0;
-  padding: 0 0.65rem;
-  border: 1px solid var(--bn-border);
-  border-radius: 4px;
-  background: var(--bn-surface);
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  padding: 0;
+  border: none;
+  border-radius: 0 4px 4px 0;
+  background: transparent;
   color: var(--bn-muted);
-  font-size: 0.75rem;
-  font-weight: 500;
   cursor: pointer;
+}
+
+.auth-login-toggle-pw:hover {
+  color: var(--bn-text);
+}
+
+.auth-login-toggle-pw:focus-visible {
+  outline: 2px solid var(--bn-gold);
+  outline-offset: -2px;
 }
 
 .auth-login-offline {
