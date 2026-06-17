@@ -365,6 +365,7 @@ export async function saveStockGanaderaDispositivo(
     sexo: DispositivoSexo;
     empresa: DispositivoEmpresa;
     grupo: string;
+    grupo_libre: string;
     nacimiento_mes: number | null;
     nacimiento_anio: number | null;
     observaciones: string;
@@ -377,6 +378,7 @@ export async function saveStockGanaderaDispositivo(
   sexo: DispositivoSexo;
   empresa: DispositivoEmpresa;
   grupo: string;
+  grupo_libre: string;
   edad: number | null;
   nacimiento_mes: number | null;
   nacimiento_anio: number | null;
@@ -390,6 +392,7 @@ export async function saveStockGanaderaDispositivo(
       sexo: DispositivoSexo;
       empresa: DispositivoEmpresa;
       grupo: string;
+      grupo_libre: string;
       edad: number | null;
       nacimiento_mes: number | null;
       nacimiento_anio: number | null;

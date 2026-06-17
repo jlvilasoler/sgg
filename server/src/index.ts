@@ -907,6 +907,8 @@ app.patch("/api/stock-ganadero/dispositivos/:clave", async (req, res) => {
         : Number(anioRaw);
     const observaciones =
       typeof body.observaciones === "string" ? body.observaciones : "";
+    const grupo_libre =
+      typeof body.grupo_libre === "string" ? body.grupo_libre : "";
     const estado = String(body.estado ?? "VIVO").toUpperCase() as
       | "VIVO"
       | "MUERTO"
@@ -930,6 +932,7 @@ app.patch("/api/stock-ganadero/dispositivos/:clave", async (req, res) => {
         sexo,
         empresa,
         grupo: "",
+        grupo_libre,
         nacimiento_mes,
         nacimiento_anio,
         observaciones,

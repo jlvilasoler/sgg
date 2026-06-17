@@ -13,6 +13,7 @@ import {
   listAniosNacimiento,
   MESES_NACIMIENTO,
   normalizarEstadoDispositivo,
+  normalizarGrupoLibre,
   requiereFechaBaja,
 } from "./stock-ganadera-utils";
 
@@ -45,6 +46,7 @@ export default function StockGanaderaBulkModal({
   const [aplicarSexo, setAplicarSexo] = useState(false);
   const [aplicarNacimiento, setAplicarNacimiento] = useState(false);
   const [aplicarEstado, setAplicarEstado] = useState(false);
+  const [aplicarGrupoLibre, setAplicarGrupoLibre] = useState(false);
   const [aplicarObservaciones, setAplicarObservaciones] = useState(false);
 
   const [empresa, setEmpresa] = useState<DispositivoEmpresa>("");
@@ -55,6 +57,7 @@ export default function StockGanaderaBulkModal({
   const [bajaMes, setBajaMes] = useState<number | "">("");
   const [bajaAnio, setBajaAnio] = useState<number | "">("");
   const [observaciones, setObservaciones] = useState("");
+  const [grupoLibre, setGrupoLibre] = useState("");
   const [obsModoReemplazar, setObsModoReemplazar] = useState(true);
   const [guardando, setGuardando] = useState(false);
 
@@ -67,6 +70,7 @@ export default function StockGanaderaBulkModal({
       aplicarSexo ||
       aplicarNacimiento ||
       aplicarEstado ||
+      aplicarGrupoLibre ||
       aplicarObservaciones);
 
   const camposDeshabilitados = guardando;
@@ -96,6 +100,9 @@ export default function StockGanaderaBulkModal({
         patch.baja_mes = null;
         patch.baja_anio = null;
       }
+    }
+    if (aplicarGrupoLibre) {
+      patch.grupo_libre = normalizarGrupoLibre(grupoLibre);
     }
 
     const claves = seleccionados.map((d) => d.clave);
@@ -335,6 +342,29 @@ export default function StockGanaderaBulkModal({
               </div>
             )}
           </div>
+
+          <label
+            className={`stock-bulk-modal-field${aplicarGrupoLibre ? " is-active" : ""}`}
+          >
+            <span className="stock-bulk-modal-field-head">
+              <input
+                type="checkbox"
+                checked={aplicarGrupoLibre}
+                disabled={camposDeshabilitados}
+                onChange={(e) => setAplicarGrupoLibre(e.target.checked)}
+              />
+              Grupo
+            </span>
+            <input
+              type="text"
+              className="stock-observaciones-input mayusculas-auto"
+              maxLength={48}
+              placeholder="Texto libre (letras y números)…"
+              value={grupoLibre}
+              disabled={!aplicarGrupoLibre || camposDeshabilitados}
+              onChange={(e) => setGrupoLibre(normalizarGrupoLibre(e.target.value))}
+            />
+          </label>
 
           <div
             className={`stock-bulk-modal-field stock-bulk-modal-field--full${

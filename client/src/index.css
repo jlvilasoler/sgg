@@ -4354,8 +4354,6 @@ select optgroup {
   padding: 0.85rem 1rem 1rem;
   background: #f7f8f9;
   border-right: 1px solid var(--border);
-  overflow-y: auto;
-  max-height: calc(100vh - 8rem);
   position: sticky;
   top: 0;
   align-self: flex-start;
@@ -4465,6 +4463,26 @@ select optgroup {
 
 .stock-facet-option.is-checked .stock-facet-option-label {
   font-weight: 600;
+}
+
+.stock-facet-subtitle {
+  margin: 0.35rem 0 0.15rem;
+  padding: 0;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.stock-facet-subtitle:first-child {
+  margin-top: 0;
+}
+
+.stock-facet-options--scroll {
+  max-height: 11rem;
+  overflow-y: auto;
+  padding-right: 0.15rem;
 }
 
 .stock-facet-dates {
@@ -4599,6 +4617,7 @@ select optgroup {
     bottom: 0;
     z-index: 1100;
     max-height: none;
+    overflow-y: auto;
     width: min(18rem, 88vw);
     transform: translateX(-105%);
     transition: transform 0.2s ease;

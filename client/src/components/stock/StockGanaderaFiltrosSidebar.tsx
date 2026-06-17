@@ -1,11 +1,21 @@
 import type { ReactNode } from "react";
 import type { DispositivoEstado, DispositivoEmpresa } from "../../types";
-import { ESTADOS_DISPOSITIVO } from "./stock-ganadera-utils";
+import {
+  CATEGORIA_FILTRO_HEMBRA,
+  CATEGORIA_FILTRO_MACHO,
+  CATEGORIA_FILTRO_OTROS,
+  EDAD_FILTRO_OPCIONES,
+  ESTADOS_DISPOSITIVO,
+  labelGrupoLibreFiltro,
+} from "./stock-ganadera-utils";
 
 export interface FacetCounts {
   sexo: Record<string, number>;
   empresa: Record<string, number>;
   estado: Record<string, number>;
+  edad: Record<string, number>;
+  grupoLibre: Record<string, number>;
+  categoria: Record<string, number>;
 }
 
 interface Props {
@@ -16,12 +26,22 @@ interface Props {
   filtroSexo: Set<string>;
   filtroEmpresa: Set<string>;
   filtroEstado: Set<DispositivoEstado>;
+  filtroEdad: Set<string>;
+  filtroGrupoLibre: Set<string>;
+  filtroCategoria: Set<string>;
+  grupoLibreOpciones: string[];
   onToggleSexo: (key: string) => void;
   onToggleEmpresa: (key: string) => void;
   onToggleEstado: (estado: DispositivoEstado) => void;
+  onToggleEdad: (key: string) => void;
+  onToggleGrupoLibre: (key: string) => void;
+  onToggleCategoria: (key: string) => void;
   onLimpiarSexo: () => void;
   onLimpiarEmpresa: () => void;
   onLimpiarEstado: () => void;
+  onLimpiarEdad: () => void;
+  onLimpiarGrupoLibre: () => void;
+  onLimpiarCategoria: () => void;
   counts: FacetCounts;
   onLimpiarFacetas: () => void;
   hayFacetasActivas: boolean;
@@ -45,11 +65,13 @@ function FacetGroup({
   title,
   onClear,
   showClear,
+  scroll,
   children,
 }: {
   title: string;
   onClear?: () => void;
   showClear?: boolean;
+  scroll?: boolean;
   children: ReactNode;
 }) {
   return (
@@ -62,7 +84,11 @@ function FacetGroup({
           </button>
         ) : null}
       </div>
-      <div className="stock-facet-options">{children}</div>
+      <div
+        className={`stock-facet-options${scroll ? " stock-facet-options--scroll" : ""}`}
+      >
+        {children}
+      </div>
     </div>
   );
 }
@@ -95,12 +121,22 @@ export default function StockGanaderaFiltrosSidebar({
   filtroSexo,
   filtroEmpresa,
   filtroEstado,
+  filtroEdad,
+  filtroGrupoLibre,
+  filtroCategoria,
+  grupoLibreOpciones,
   onToggleSexo,
   onToggleEmpresa,
   onToggleEstado,
+  onToggleEdad,
+  onToggleGrupoLibre,
+  onToggleCategoria,
   onLimpiarSexo,
   onLimpiarEmpresa,
   onLimpiarEstado,
+  onLimpiarEdad,
+  onLimpiarGrupoLibre,
+  onLimpiarCategoria,
   counts,
   onLimpiarFacetas,
   hayFacetasActivas,
@@ -210,6 +246,89 @@ export default function StockGanaderaFiltrosSidebar({
             />
           ))}
         </FacetGroup>
+
+        <FacetGroup
+          title="Edad"
+          showClear={filtroEdad.size > 0}
+          onClear={onLimpiarEdad}
+        >
+          {EDAD_FILTRO_OPCIONES.filter((o) => (counts.edad[o.key] ?? 0) > 0).map(
+            (o) => (
+              <FacetOption
+                key={o.key}
+                checked={filtroEdad.has(o.key)}
+                label={o.label}
+                count={counts.edad[o.key] ?? 0}
+                onChange={() => onToggleEdad(o.key)}
+              />
+            )
+          )}
+        </FacetGroup>
+
+        <FacetGroup
+          title="Categoría"
+          showClear={filtroCategoria.size > 0}
+          onClear={onLimpiarCategoria}
+        >
+          <p className="stock-facet-subtitle">Hembras</p>
+          {CATEGORIA_FILTRO_HEMBRA.filter((o) => (counts.categoria[o.key] ?? 0) > 0).map(
+            (o) => (
+              <FacetOption
+                key={o.key}
+                checked={filtroCategoria.has(o.key)}
+                label={o.label}
+                count={counts.categoria[o.key] ?? 0}
+                onChange={() => onToggleCategoria(o.key)}
+              />
+            )
+          )}
+          <p className="stock-facet-subtitle">Machos</p>
+          {CATEGORIA_FILTRO_MACHO.filter((o) => (counts.categoria[o.key] ?? 0) > 0).map(
+            (o) => (
+              <FacetOption
+                key={o.key}
+                checked={filtroCategoria.has(o.key)}
+                label={o.label}
+                count={counts.categoria[o.key] ?? 0}
+                onChange={() => onToggleCategoria(o.key)}
+              />
+            )
+          )}
+          {CATEGORIA_FILTRO_OTROS.some((o) => (counts.categoria[o.key] ?? 0) > 0) ? (
+            <>
+              <p className="stock-facet-subtitle">Otros</p>
+              {CATEGORIA_FILTRO_OTROS.filter(
+                (o) => (counts.categoria[o.key] ?? 0) > 0
+              ).map((o) => (
+                <FacetOption
+                  key={o.key}
+                  checked={filtroCategoria.has(o.key)}
+                  label={o.label}
+                  count={counts.categoria[o.key] ?? 0}
+                  onChange={() => onToggleCategoria(o.key)}
+                />
+              ))}
+            </>
+          ) : null}
+        </FacetGroup>
+
+        {grupoLibreOpciones.length > 0 ? (
+          <FacetGroup
+            title="Grupo"
+            showClear={filtroGrupoLibre.size > 0}
+            onClear={onLimpiarGrupoLibre}
+          >
+            {grupoLibreOpciones.map((key) => (
+              <FacetOption
+                key={key || "sin"}
+                checked={filtroGrupoLibre.has(key)}
+                label={labelGrupoLibreFiltro(key)}
+                count={counts.grupoLibre[key] ?? 0}
+                onChange={() => onToggleGrupoLibre(key)}
+              />
+            ))}
+          </FacetGroup>
+        ) : null}
       </aside>
     </>
   );

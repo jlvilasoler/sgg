@@ -108,8 +108,37 @@ async function clavesEidRepetidas(
 }
 
 export async function initStockGanaderoTables(db: Db): Promise<void> {
+  await migrateGrupoLibreColumn(db);
   await migrateFechasSlashLatam(db);
   await migrateStockGanaderoDispositivoHistorial(db);
+}
+
+async function migrateGrupoLibreColumn(db: Db): Promise<void> {
+  const done = (await db
+    .prepare(
+      `SELECT 1 AS ok FROM STOCK_GANADERO_DISPOSITIVO_HISTORIAL
+       WHERE clave = '__meta__' AND campo = 'grupo_libre_col' LIMIT 1`
+    )
+    .get()) as { ok: number } | undefined;
+  if (done) return;
+
+  try {
+    await db
+      .prepare(
+        `ALTER TABLE STOCK_GANADERO_DISPOSITIVO ADD COLUMN grupo_libre TEXT NOT NULL DEFAULT ''`
+      )
+      .run();
+  } catch {
+    /* columna ya existe */
+  }
+
+  await db
+    .prepare(
+      `INSERT INTO STOCK_GANADERO_DISPOSITIVO_HISTORIAL
+         (clave, campo, etiqueta, valor_anterior, valor_nuevo)
+       VALUES ('__meta__', 'grupo_libre_col', '', '', '')`
+    )
+    .run();
 }
 
 async function migrateFechasSlashLatam(db: Db): Promise<void> {
@@ -268,10 +297,20 @@ const ESTADOS_VALIDOS = new Set<DispositivoEstado>([
   "FRIGORIFICO",
 ]);
 
+const GRUPO_LIBRE_MAX = 48;
+
+function normalizarGrupoLibre(val: string | undefined | null): string {
+  return String(val ?? "")
+    .trim()
+    .replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑüÜ\s]/g, "")
+    .slice(0, GRUPO_LIBRE_MAX);
+}
+
 export interface DispositivoMetaInput {
   sexo: DispositivoSexo;
   empresa: DispositivoEmpresa;
   grupo: string;
+  grupo_libre: string;
   nacimiento_mes: number | null;
   nacimiento_anio: number | null;
   observaciones: string;
@@ -309,6 +348,7 @@ interface DispositivoMetaRow {
   sexo: string;
   empresa: string;
   grupo: string;
+  grupo_libre: string;
   edad: number | null;
   nacimiento_mes: number | null;
   nacimiento_anio: number | null;
@@ -323,7 +363,7 @@ async function mapMetaDispositivos(
 ): Promise<Map<string, DispositivoMetaGuardada>> {
   const rows = (await db
     .prepare(
-      `SELECT clave, sexo, empresa, grupo, edad, nacimiento_mes, nacimiento_anio, observaciones, estado, baja_mes, baja_anio
+      `SELECT clave, sexo, empresa, grupo, grupo_libre, edad, nacimiento_mes, nacimiento_anio, observaciones, estado, baja_mes, baja_anio
        FROM STOCK_GANADERO_DISPOSITIVO`
     )
     .all()) as DispositivoMetaRow[];
@@ -380,6 +420,7 @@ function normalizarMetaDispositivo(row: Partial<DispositivoMetaRow>): Dispositiv
     sexo,
     empresa,
     grupo,
+    grupo_libre: normalizarGrupoLibre(row.grupo_libre),
     nacimiento_mes: mes,
     nacimiento_anio: anio,
     observaciones: String(row.observaciones ?? "").trim(),
@@ -400,6 +441,7 @@ async function enrichDispositivosWithMeta(
     d.sexo = info?.sexo ?? "";
     d.empresa = info?.empresa ?? "";
     d.grupo = info?.grupo ?? "";
+    d.grupo_libre = info?.grupo_libre ?? "";
     d.edad = info?.edad ?? null;
     d.nacimiento_mes = info?.nacimiento_mes ?? null;
     d.nacimiento_anio = info?.nacimiento_anio ?? null;
@@ -505,6 +547,7 @@ export async function saveStockGanaderaDispositivo(
   const grupo = grupoDesdeNacimiento(nacimiento.nacimiento_anio);
   const edad = calcularEdadMeses(nacimiento.nacimiento_mes, nacimiento.nacimiento_anio);
   const observaciones = String(input.observaciones ?? "").trim().slice(0, 2000);
+  const grupo_libre = normalizarGrupoLibre(input.grupo_libre);
   const estadoRaw = String(input.estado ?? "VIVO").toUpperCase();
   if (!ESTADOS_VALIDOS.has(estadoRaw as DispositivoEstado)) {
     throw new Error("Estado inválido. Use VIVO, MUERTO, VENDIDO o FRIGORIFICO.");
@@ -521,7 +564,7 @@ export async function saveStockGanaderaDispositivo(
 
   const anteriorRow = (await db
     .prepare(
-      `SELECT sexo, empresa, grupo, nacimiento_mes, nacimiento_anio, observaciones, estado, baja_mes, baja_anio
+      `SELECT sexo, empresa, grupo, grupo_libre, nacimiento_mes, nacimiento_anio, observaciones, estado, baja_mes, baja_anio
        FROM STOCK_GANADERO_DISPOSITIVO WHERE clave = ?`
     )
     .get(claveNorm)) as Partial<DispositivoMetaRow> | undefined;
@@ -532,6 +575,7 @@ export async function saveStockGanaderaDispositivo(
     sexo,
     empresa,
     grupo,
+    grupo_libre,
     nacimiento_mes: nacimiento.nacimiento_mes,
     nacimiento_anio: nacimiento.nacimiento_anio,
     observaciones,
@@ -543,15 +587,16 @@ export async function saveStockGanaderaDispositivo(
 
   await db.prepare(
     `INSERT INTO STOCK_GANADERO_DISPOSITIVO (
-       clave, eid, sexo, empresa, grupo, edad, nacimiento_mes, nacimiento_anio, observaciones, estado, baja_mes, baja_anio, actualizado_en
+       clave, eid, sexo, empresa, grupo, grupo_libre, edad, nacimiento_mes, nacimiento_anio, observaciones, estado, baja_mes, baja_anio, actualizado_en
      ) VALUES (
-       @clave, @eid, @sexo, @empresa, @grupo, @edad, @nacimiento_mes, @nacimiento_anio, @observaciones, @estado, @baja_mes, @baja_anio,
+       @clave, @eid, @sexo, @empresa, @grupo, @grupo_libre, @edad, @nacimiento_mes, @nacimiento_anio, @observaciones, @estado, @baja_mes, @baja_anio,
        datetime('now', 'localtime')
      )
      ON CONFLICT(clave) DO UPDATE SET
        sexo = excluded.sexo,
        empresa = excluded.empresa,
        grupo = excluded.grupo,
+       grupo_libre = excluded.grupo_libre,
        edad = excluded.edad,
        nacimiento_mes = excluded.nacimiento_mes,
        nacimiento_anio = excluded.nacimiento_anio,
@@ -567,6 +612,7 @@ export async function saveStockGanaderaDispositivo(
     sexo,
     empresa,
     grupo,
+    grupo_libre,
     edad,
     nacimiento_mes: nacimiento.nacimiento_mes,
     nacimiento_anio: nacimiento.nacimiento_anio,
@@ -582,6 +628,7 @@ export async function saveStockGanaderaDispositivo(
     sexo,
     empresa,
     grupo,
+    grupo_libre,
     edad,
     nacimiento_mes: nacimiento.nacimiento_mes,
     nacimiento_anio: nacimiento.nacimiento_anio,
@@ -607,6 +654,7 @@ function mergeMetaConPatch(
     sexo: prev?.sexo ?? "",
     empresa: prev?.empresa ?? "",
     grupo: prev?.grupo ?? "",
+    grupo_libre: prev?.grupo_libre ?? "",
     nacimiento_mes: prev?.nacimiento_mes ?? null,
     nacimiento_anio: prev?.nacimiento_anio ?? null,
     observaciones: prev?.observaciones ?? "",
@@ -616,6 +664,7 @@ function mergeMetaConPatch(
   };
   if (patch.sexo !== undefined) merged.sexo = patch.sexo;
   if (patch.empresa !== undefined) merged.empresa = patch.empresa;
+  if (patch.grupo_libre !== undefined) merged.grupo_libre = patch.grupo_libre;
   if (patch.nacimiento_mes !== undefined) merged.nacimiento_mes = patch.nacimiento_mes;
   if (patch.nacimiento_anio !== undefined) merged.nacimiento_anio = patch.nacimiento_anio;
   if (patch.observaciones !== undefined) merged.observaciones = patch.observaciones;
@@ -700,7 +749,7 @@ async function aplicarBajaDispositivo(
 ): Promise<void> {
   const anteriorRow = (await db
     .prepare(
-      `SELECT sexo, empresa, grupo, nacimiento_mes, nacimiento_anio, observaciones, estado, baja_mes, baja_anio
+      `SELECT sexo, empresa, grupo, grupo_libre, nacimiento_mes, nacimiento_anio, observaciones, estado, baja_mes, baja_anio
        FROM STOCK_GANADERO_DISPOSITIVO WHERE clave = ?`
     )
     .get(claveNorm)) as Partial<DispositivoMetaRow> | undefined;
@@ -721,6 +770,7 @@ async function aplicarBajaDispositivo(
     sexo: anterior?.sexo ?? "",
     empresa: anterior?.empresa ?? "",
     grupo: anterior?.grupo ?? "",
+    grupo_libre: anterior?.grupo_libre ?? "",
     nacimiento_mes,
     nacimiento_anio,
     observaciones: anterior?.observaciones ?? "",
@@ -846,7 +896,7 @@ export async function updateStockGanaderaDispositivoSexo(
   await assertDispositivoExiste(db, claveNorm);
 
   const anteriorRow = (await db
-    .prepare(`SELECT sexo, empresa, grupo, nacimiento_mes, nacimiento_anio, observaciones, estado, baja_mes, baja_anio
+    .prepare(`SELECT sexo, empresa, grupo, grupo_libre, nacimiento_mes, nacimiento_anio, observaciones, estado, baja_mes, baja_anio
               FROM STOCK_GANADERO_DISPOSITIVO WHERE clave = ?`)
     .get(claveNorm)) as Partial<DispositivoMetaRow> | undefined;
   const anterior = anteriorRow
@@ -868,6 +918,7 @@ export async function updateStockGanaderaDispositivoSexo(
       sexo,
       empresa: anterior?.empresa ?? "",
       grupo: anterior?.grupo ?? "",
+      grupo_libre: anterior?.grupo_libre ?? "",
       edad: anterior?.edad ?? null,
       nacimiento_mes: anterior?.nacimiento_mes ?? null,
       nacimiento_anio: anterior?.nacimiento_anio ?? null,
@@ -1108,6 +1159,7 @@ export interface StockGanaderaDispositivo {
   sexo: DispositivoSexo;
   empresa: DispositivoEmpresa;
   grupo: string;
+  grupo_libre: string;
   edad: number | null;
   nacimiento_mes: number | null;
   nacimiento_anio: number | null;
@@ -1270,6 +1322,7 @@ function buildDispositivosFromRegistros(
         sexo: "",
         empresa: "",
         grupo: "",
+        grupo_libre: "",
         edad: null,
         nacimiento_mes: null,
         nacimiento_anio: null,
@@ -1529,6 +1582,10 @@ function fmtHistorialGrupo(v: string): string {
   return v.trim() || "—";
 }
 
+function fmtHistorialGrupoLibre(v: string): string {
+  return v.trim() || "—";
+}
+
 function fmtHistorialFechaBaja(
   estado: DispositivoEstado,
   mes: number | null,
@@ -1655,6 +1712,7 @@ async function registrarHistorialCambiosDispositivo(
 ): Promise<void> {
   const prevEmpresa = fmtHistorialEmpresa(anterior?.empresa ?? "");
   const prevGrupo = fmtHistorialGrupo(anterior?.grupo ?? "");
+  const prevGrupoLibre = fmtHistorialGrupoLibre(anterior?.grupo_libre ?? "");
   const prevSexo = fmtHistorialSexo(anterior?.sexo ?? "");
   const prevNac = fmtHistorialNacimiento(
     anterior?.nacimiento_mes ?? null,
@@ -1670,6 +1728,7 @@ async function registrarHistorialCambiosDispositivo(
 
   const nextEmpresa = fmtHistorialEmpresa(nuevo.empresa);
   const nextGrupo = fmtHistorialGrupo(nuevo.grupo);
+  const nextGrupoLibre = fmtHistorialGrupoLibre(nuevo.grupo_libre);
   const nextSexo = fmtHistorialSexo(nuevo.sexo);
   const nextNac = fmtHistorialNacimiento(
     nuevo.nacimiento_mes,
@@ -1684,7 +1743,15 @@ async function registrarHistorialCambiosDispositivo(
   );
 
   await insertHistorialFila(db, clave, "empresa", "Empresa", prevEmpresa, nextEmpresa);
-  await insertHistorialFila(db, clave, "grupo", "Grupo", prevGrupo, nextGrupo);
+  await insertHistorialFila(db, clave, "grupo", "Generación", prevGrupo, nextGrupo);
+  await insertHistorialFila(
+    db,
+    clave,
+    "grupo_libre",
+    "Grupo",
+    prevGrupoLibre,
+    nextGrupoLibre
+  );
   await insertHistorialFila(db, clave, "sexo", "Sexo", prevSexo, nextSexo);
   await insertHistorialFila(
     db,

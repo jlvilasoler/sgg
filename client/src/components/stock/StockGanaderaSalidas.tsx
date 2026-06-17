@@ -13,6 +13,7 @@ import {
   calcularMesesEntreFechas,
   etiquetaFechaBaja,
   fmtGrupo,
+  fmtGrupoLibre,
   fmtNacimiento,
   listAniosNacimiento,
   MESES_NACIMIENTO,
@@ -298,6 +299,7 @@ export default function StockGanaderaSalidas({
                 <th className="stock-th stock-th--num">EID</th>
                 <th className="stock-th">VID</th>
                 <th className="stock-th">Empresa</th>
+                <th className="stock-th">Generación</th>
                 <th className="stock-th">Grupo</th>
                 <th className="stock-th">Sexo</th>
                 <th className="stock-th stock-th--estado">Motivo</th>
@@ -308,19 +310,19 @@ export default function StockGanaderaSalidas({
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={8} className="empty">
+                  <td colSpan={9} className="empty">
                     Cargando…
                   </td>
                 </tr>
               ) : !apiOnline ? (
                 <tr>
-                  <td colSpan={8} className="empty">
+                  <td colSpan={9} className="empty">
                     API no conectada
                   </td>
                 </tr>
               ) : rowsPagina.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="empty">
+                  <td colSpan={9} className="empty">
                     Sin salidas para los filtros aplicados.
                   </td>
                 </tr>
@@ -358,6 +360,9 @@ export default function StockGanaderaSalidas({
                       </td>
                       <td className="stock-td stock-td--muted">
                         {fmtGrupo(d.grupo)}
+                      </td>
+                      <td className="stock-td stock-td--muted">
+                        {fmtGrupoLibre(d.grupo_libre)}
                       </td>
                       <td
                         className={`stock-td stock-td--sexo ${claseCeldaSexo(d.sexo)}`}

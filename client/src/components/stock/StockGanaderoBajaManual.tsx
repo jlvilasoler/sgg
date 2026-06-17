@@ -143,6 +143,7 @@ export default function StockGanaderoBajaManual({
           sexo: dispositivo.sexo ?? "",
           empresa: dispositivo.empresa ?? "",
           grupo: buildGrupo(dispositivo.nacimiento_anio) || dispositivo.grupo || "",
+          grupo_libre: dispositivo.grupo_libre ?? "",
           nacimiento_mes: dispositivo.nacimiento_mes,
           nacimiento_anio: dispositivo.nacimiento_anio,
           observaciones: dispositivo.observaciones ?? "",

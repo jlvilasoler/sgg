@@ -20,6 +20,7 @@ import {
   listAniosNacimiento,
   MESES_NACIMIENTO,
   normalizarEstadoDispositivo,
+  normalizarGrupoLibre,
   requiereFechaBaja,
   resolverFechaBajaFormulario,
 } from "./stock-ganadera-utils";
@@ -52,6 +53,7 @@ export default function StockGanaderaEditarModal({
     dispositivo.nacimiento_anio
   );
   const [observaciones, setObservaciones] = useState(dispositivo.observaciones ?? "");
+  const [grupoLibre, setGrupoLibre] = useState(dispositivo.grupo_libre ?? "");
   const [estado, setEstado] = useState<DispositivoEstado>(
     normalizarEstadoDispositivo(dispositivo.estado)
   );
@@ -108,6 +110,7 @@ export default function StockGanaderaEditarModal({
   const hayCambios =
     empresa !== (dispositivo.empresa ?? "") ||
     grupoActual !== (dispositivo.grupo ?? "").trim().toUpperCase() ||
+    normalizarGrupoLibre(grupoLibre) !== normalizarGrupoLibre(dispositivo.grupo_libre ?? "") ||
     sexo !== (dispositivo.sexo ?? "") ||
     nacimientoMes !== dispositivo.nacimiento_mes ||
     nacimientoAnio !== dispositivo.nacimiento_anio ||
@@ -131,6 +134,7 @@ export default function StockGanaderaEditarModal({
           sexo,
           empresa,
           grupo: grupoActual,
+          grupo_libre: normalizarGrupoLibre(grupoLibre),
           nacimiento_mes: nacimientoMes,
           nacimiento_anio: nacimientoAnio,
           observaciones: observaciones.trim(),
@@ -309,11 +313,25 @@ export default function StockGanaderaEditarModal({
               </div>
 
               <div className="stock-edit-field stock-edit-field--grupo">
-                <label htmlFor="modal-ganadera-grupo">Grupo</label>
+                <label htmlFor="modal-ganadera-grupo">Generación</label>
                 <SelectGrupoDispositivo
                   id="modal-ganadera-grupo"
                   anio={nacimientoAnio}
                   disabled={guardando || !apiOnline}
+                />
+              </div>
+
+              <div className="stock-edit-field">
+                <label htmlFor="modal-ganadera-grupo-libre">Grupo</label>
+                <input
+                  id="modal-ganadera-grupo-libre"
+                  type="text"
+                  className="stock-observaciones-input mayusculas-auto"
+                  maxLength={48}
+                  placeholder="Texto libre (letras y números)…"
+                  value={grupoLibre}
+                  disabled={guardando || !apiOnline}
+                  onChange={(e) => setGrupoLibre(normalizarGrupoLibre(e.target.value))}
                 />
               </div>
 

@@ -86,6 +86,7 @@ export interface StockGanaderaDispositivo {
   sexo: DispositivoSexo;
   empresa: DispositivoEmpresa;
   grupo: string;
+  grupo_libre: string;
   edad: number | null;
   nacimiento_mes: number | null;
   nacimiento_anio: number | null;

@@ -6,7 +6,7 @@ interface Props {
   id?: string;
 }
 
-/** Grupo GEN + año, derivado automáticamente del año de nacimiento. */
+/** Generación GEN + año, derivada automáticamente del año de nacimiento. */
 export default function SelectGrupoDispositivo({
   anio,
   disabled: _disabled = false,
@@ -23,7 +23,7 @@ export default function SelectGrupoDispositivo({
       </span>
       <div
         className={`stock-grupo-auto-valor${anio === null ? " stock-grupo-auto-valor--empty" : ""}`}
-        aria-label={anio ? `Grupo ${GRUPO_PREFIX}${anio}` : "Grupo sin definir"}
+        aria-label={anio ? `Generación ${GRUPO_PREFIX}${anio}` : "Generación sin definir"}
       >
         {anio ?? "Sin año de nacimiento"}
       </div>

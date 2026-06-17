@@ -15,7 +15,23 @@ import StockGanaderaDetalle from "./StockGanaderaDetalle";
 import StockGanaderaEdadMiniTimeline from "./StockGanaderaEdadMiniTimeline";
 import StockGanaderaEditarModal from "./StockGanaderaEditarModal";
 import StockGanaderaFiltrosSidebar from "./StockGanaderaFiltrosSidebar";
-import { ESTADOS_DISPOSITIVO, fmtEstadoDispositivo, fmtGrupo } from "./stock-ganadera-utils";
+import type { CategoriaFiltroKey, EdadFiltroKey } from "./stock-ganadera-utils";
+import {
+  CATEGORIA_FILTRO_HEMBRA,
+  CATEGORIA_FILTRO_MACHO,
+  CATEGORIA_FILTRO_OTROS,
+  EDAD_FILTRO_OPCIONES,
+  categoriasDispositivo,
+  coincideCategoriaFiltro,
+  edadFiltroKey,
+  fmtEstadoDispositivo,
+  fmtGrupo,
+  fmtGrupoLibre,
+  grupoLibreFiltroKey,
+  labelCategoriaFiltro,
+  labelEdadFiltro,
+  labelGrupoLibreFiltro,
+} from "./stock-ganadera-utils";
 
 function toggleSet<T>(prev: Set<T>, value: T): Set<T> {
   const next = new Set(prev);
@@ -28,12 +44,23 @@ function aplicaFacetas(
   rows: StockGanaderaDispositivo[],
   filtroSexo: Set<string>,
   filtroEmpresa: Set<string>,
-  filtroEstado: Set<DispositivoEstado>
+  filtroEstado: Set<DispositivoEstado>,
+  filtroEdad: Set<string>,
+  filtroGrupoLibre: Set<string>,
+  filtroCategoria: Set<string>
 ): StockGanaderaDispositivo[] {
   return rows.filter((d) => {
     if (filtroSexo.size > 0 && !filtroSexo.has(d.sexo || "")) return false;
     if (filtroEmpresa.size > 0 && !filtroEmpresa.has(d.empresa || "")) return false;
     if (filtroEstado.size > 0 && !filtroEstado.has(d.estado)) return false;
+    if (filtroEdad.size > 0 && !filtroEdad.has(edadFiltroKey(d))) return false;
+    if (
+      filtroGrupoLibre.size > 0 &&
+      !filtroGrupoLibre.has(grupoLibreFiltroKey(d.grupo_libre ?? ""))
+    ) {
+      return false;
+    }
+    if (!coincideCategoriaFiltro(d, filtroCategoria)) return false;
     return true;
   });
 }
@@ -83,6 +110,13 @@ export default function StockGanadera({
   const [filtroEstado, setFiltroEstado] = useState<Set<DispositivoEstado>>(
     () => new Set()
   );
+  const [filtroEdad, setFiltroEdad] = useState<Set<string>>(() => new Set());
+  const [filtroGrupoLibre, setFiltroGrupoLibre] = useState<Set<string>>(
+    () => new Set()
+  );
+  const [filtroCategoria, setFiltroCategoria] = useState<Set<string>>(
+    () => new Set()
+  );
   const [bulkOpen, setBulkOpen] = useState(false);
   const [filtrosMobileOpen, setFiltrosMobileOpen] = useState(false);
 
@@ -119,33 +153,79 @@ export default function StockGanadera({
   useEffect(() => {
     setPage(1);
     setSeleccion(new Set());
-  }, [busqueda, fechaDesde, fechaHasta, pageSize, filtroSexo, filtroEmpresa, filtroEstado]);
+  }, [busqueda, fechaDesde, fechaHasta, pageSize, filtroSexo, filtroEmpresa, filtroEstado, filtroEdad, filtroGrupoLibre, filtroCategoria]);
 
   const filteredRows = useMemo(
-    () => aplicaFacetas(rows, filtroSexo, filtroEmpresa, filtroEstado),
-    [rows, filtroSexo, filtroEmpresa, filtroEstado]
+    () =>
+      aplicaFacetas(
+        rows,
+        filtroSexo,
+        filtroEmpresa,
+        filtroEstado,
+        filtroEdad,
+        filtroGrupoLibre,
+        filtroCategoria
+      ),
+    [rows, filtroSexo, filtroEmpresa, filtroEstado, filtroEdad, filtroGrupoLibre, filtroCategoria]
   );
 
   const facetCounts = useMemo(() => {
     const sexo: Record<string, number> = { MACHO: 0, HEMBRA: 0, "": 0 };
     const empresa: Record<string, number> = { GUAVIYU: 0, CHIVILCOY: 0, "": 0 };
     const estado: Record<string, number> = {};
-    for (const e of ESTADOS_DISPOSITIVO) estado[e.value] = 0;
+    const edad: Record<string, number> = {};
+    const grupoLibre: Record<string, number> = {};
+    const categoria: Record<string, number> = {};
+    for (const o of EDAD_FILTRO_OPCIONES) edad[o.key] = 0;
+    for (const o of [
+      ...CATEGORIA_FILTRO_HEMBRA,
+      ...CATEGORIA_FILTRO_MACHO,
+      ...CATEGORIA_FILTRO_OTROS,
+    ]) {
+      categoria[o.key] = 0;
+    }
     for (const d of rows) {
       sexo[d.sexo || ""] = (sexo[d.sexo || ""] ?? 0) + 1;
       empresa[d.empresa || ""] = (empresa[d.empresa || ""] ?? 0) + 1;
       estado[d.estado] = (estado[d.estado] ?? 0) + 1;
+      const edadKey = edadFiltroKey(d);
+      edad[edadKey] = (edad[edadKey] ?? 0) + 1;
+      const grupoKey = grupoLibreFiltroKey(d.grupo_libre ?? "");
+      grupoLibre[grupoKey] = (grupoLibre[grupoKey] ?? 0) + 1;
+      for (const cat of categoriasDispositivo(d)) {
+        categoria[cat] = (categoria[cat] ?? 0) + 1;
+      }
     }
-    return { sexo, empresa, estado };
+    return { sexo, empresa, estado, edad, grupoLibre, categoria };
   }, [rows]);
 
+  const grupoLibreOpciones = useMemo(() => {
+    const keys = Object.keys(facetCounts.grupoLibre).filter(
+      (k) => (facetCounts.grupoLibre[k] ?? 0) > 0
+    );
+    keys.sort((a, b) => {
+      if (a === "") return -1;
+      if (b === "") return 1;
+      return a.localeCompare(b, "es");
+    });
+    return keys;
+  }, [facetCounts.grupoLibre]);
+
   const hayFacetasActivas =
-    filtroSexo.size > 0 || filtroEmpresa.size > 0 || filtroEstado.size > 0;
+    filtroSexo.size > 0 ||
+    filtroEmpresa.size > 0 ||
+    filtroEstado.size > 0 ||
+    filtroEdad.size > 0 ||
+    filtroGrupoLibre.size > 0 ||
+    filtroCategoria.size > 0;
 
   const limpiarFacetas = () => {
     setFiltroSexo(new Set());
     setFiltroEmpresa(new Set());
     setFiltroEstado(new Set());
+    setFiltroEdad(new Set());
+    setFiltroGrupoLibre(new Set());
+    setFiltroCategoria(new Set());
   };
 
   const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
@@ -295,12 +375,22 @@ export default function StockGanadera({
               filtroSexo={filtroSexo}
               filtroEmpresa={filtroEmpresa}
               filtroEstado={filtroEstado}
+              filtroEdad={filtroEdad}
+              filtroGrupoLibre={filtroGrupoLibre}
+              filtroCategoria={filtroCategoria}
+              grupoLibreOpciones={grupoLibreOpciones}
               onToggleSexo={(k) => setFiltroSexo((p) => toggleSet(p, k))}
               onToggleEmpresa={(k) => setFiltroEmpresa((p) => toggleSet(p, k))}
               onToggleEstado={(e) => setFiltroEstado((p) => toggleSet(p, e))}
+              onToggleEdad={(k) => setFiltroEdad((p) => toggleSet(p, k))}
+              onToggleGrupoLibre={(k) => setFiltroGrupoLibre((p) => toggleSet(p, k))}
+              onToggleCategoria={(k) => setFiltroCategoria((p) => toggleSet(p, k))}
               onLimpiarSexo={() => setFiltroSexo(new Set())}
               onLimpiarEmpresa={() => setFiltroEmpresa(new Set())}
               onLimpiarEstado={() => setFiltroEstado(new Set())}
+              onLimpiarEdad={() => setFiltroEdad(new Set())}
+              onLimpiarGrupoLibre={() => setFiltroGrupoLibre(new Set())}
+              onLimpiarCategoria={() => setFiltroCategoria(new Set())}
               counts={facetCounts}
               onLimpiarFacetas={limpiarFacetas}
               hayFacetasActivas={hayFacetasActivas}
@@ -414,6 +504,42 @@ export default function StockGanadera({
                     </button>
                   </span>
                 ))}
+                {[...filtroEdad].map((k) => (
+                  <span key={`edad-${k}`} className="stock-ganadera-chip">
+                    Edad: {labelEdadFiltro(k as EdadFiltroKey)}
+                    <button
+                      type="button"
+                      aria-label="Quitar filtro de edad"
+                      onClick={() => setFiltroEdad((p) => toggleSet(p, k))}
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+                {[...filtroGrupoLibre].map((k) => (
+                  <span key={`grupo-${k || "sin"}`} className="stock-ganadera-chip">
+                    Grupo: {labelGrupoLibreFiltro(k)}
+                    <button
+                      type="button"
+                      aria-label="Quitar filtro de grupo"
+                      onClick={() => setFiltroGrupoLibre((p) => toggleSet(p, k))}
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+                {[...filtroCategoria].map((k) => (
+                  <span key={`cat-${k}`} className="stock-ganadera-chip">
+                    Categoría: {labelCategoriaFiltro(k as CategoriaFiltroKey)}
+                    <button
+                      type="button"
+                      aria-label="Quitar filtro de categoría"
+                      onClick={() => setFiltroCategoria((p) => toggleSet(p, k))}
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
                 <button
                   type="button"
                   className="stock-ganadera-chips-clear"
@@ -484,6 +610,7 @@ export default function StockGanadera({
                 <th className="stock-th stock-th--num">EID</th>
                 <th className="stock-th">VID</th>
                 <th className="stock-th">Empresa</th>
+                <th className="stock-th">Generación</th>
                 <th className="stock-th">Grupo</th>
                 <th className="stock-th">Sexo</th>
                 <th className="stock-th stock-th--edad">Edad</th>
@@ -496,19 +623,19 @@ export default function StockGanadera({
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={11} className="empty">
+                  <td colSpan={12} className="empty">
                     Cargando…
                   </td>
                 </tr>
               ) : !apiOnline ? (
                 <tr>
-                  <td colSpan={11} className="empty">
+                  <td colSpan={12} className="empty">
                     API no conectada
                   </td>
                 </tr>
               ) : filteredRows.length === 0 ? (
                 <tr>
-                  <td colSpan={11} className="empty">
+                  <td colSpan={12} className="empty">
                     Sin dispositivos para los filtros aplicados.
                   </td>
                 </tr>
@@ -549,6 +676,7 @@ export default function StockGanadera({
                       {fmtEmpresa(d.empresa)}
                     </td>
                     <td className="stock-td stock-td--muted">{fmtGrupo(d.grupo)}</td>
+                    <td className="stock-td stock-td--muted">{fmtGrupoLibre(d.grupo_libre)}</td>
                     <td className={`stock-td stock-td--sexo ${claseCeldaSexo(d.sexo)}`}>
                       {fmtSexo(d.sexo)}
                     </td>

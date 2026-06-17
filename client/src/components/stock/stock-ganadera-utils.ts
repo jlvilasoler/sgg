@@ -1,4 +1,4 @@
-import type { DispositivoEstado } from "../../types";
+import type { DispositivoEstado, DispositivoSexo } from "../../types";
 
 /** Longitud del prefijo EID en RFID Tru-Test (ej. 858). */
 export const EID_PREFIX_LEN = 3;
@@ -431,6 +431,163 @@ export function buildGrupo(anio: number | null): string {
 
 export function fmtGrupo(grupo: string): string {
   return grupo.trim() || "—";
+}
+
+const GRUPO_LIBRE_MAX = 48;
+
+export function normalizarGrupoLibre(val: string): string {
+  return val
+    .trim()
+    .replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑüÜ\s]/g, "")
+    .slice(0, GRUPO_LIBRE_MAX);
+}
+
+export function fmtGrupoLibre(grupoLibre: string): string {
+  return grupoLibre.trim() || "—";
+}
+
+export type EdadFiltroKey = "sin_fecha" | "0_12" | "13_24" | "25_36" | "37_mas";
+
+export const EDAD_FILTRO_OPCIONES: { key: EdadFiltroKey; label: string }[] = [
+  { key: "sin_fecha", label: "Sin fecha de nacimiento" },
+  { key: "0_12", label: "Hasta 12 meses" },
+  { key: "13_24", label: "13 a 24 meses" },
+  { key: "25_36", label: "25 a 36 meses" },
+  { key: "37_mas", label: "Más de 36 meses" },
+];
+
+export function edadMesesDispositivo(d: {
+  edad: number | null;
+  nacimiento_mes: number | null;
+  nacimiento_anio: number | null;
+}): number | null {
+  if (d.edad !== null && d.edad !== undefined) return d.edad;
+  return calcularEdadMeses(d.nacimiento_mes, d.nacimiento_anio);
+}
+
+export function edadFiltroKey(d: {
+  edad: number | null;
+  nacimiento_mes: number | null;
+  nacimiento_anio: number | null;
+}): EdadFiltroKey {
+  const meses = edadMesesDispositivo(d);
+  if (meses === null) return "sin_fecha";
+  if (meses <= 12) return "0_12";
+  if (meses <= 24) return "13_24";
+  if (meses <= 36) return "25_36";
+  return "37_mas";
+}
+
+export function labelEdadFiltro(key: EdadFiltroKey): string {
+  return EDAD_FILTRO_OPCIONES.find((o) => o.key === key)?.label ?? key;
+}
+
+export function grupoLibreFiltroKey(grupoLibre: string): string {
+  return grupoLibre.trim();
+}
+
+export function labelGrupoLibreFiltro(key: string): string {
+  return key.trim() || "Sin definir";
+}
+
+export type CategoriaFiltroKey =
+  | "TERNERA"
+  | "VAQUILLONA_1_2"
+  | "VAQUILLONA_MAS_2"
+  | "VACA"
+  | "TERNERO"
+  | "NOVILLO_1_2"
+  | "TORO_1_2"
+  | "NOVILLO_MAS_2"
+  | "TORO_MAS_2"
+  | "SIN_SEXO"
+  | "SIN_FECHA";
+
+export const CATEGORIA_FILTRO_HEMBRA: { key: CategoriaFiltroKey; label: string }[] = [
+  { key: "TERNERA", label: "Ternera" },
+  { key: "VAQUILLONA_1_2", label: "Vaquillona 1–2" },
+  { key: "VAQUILLONA_MAS_2", label: "Vaquillona +2" },
+  { key: "VACA", label: "Vaca" },
+];
+
+export const CATEGORIA_FILTRO_MACHO: { key: CategoriaFiltroKey; label: string }[] = [
+  { key: "TERNERO", label: "Ternero" },
+  { key: "NOVILLO_1_2", label: "Novillo 1–2" },
+  { key: "TORO_1_2", label: "Toro 1–2" },
+  { key: "NOVILLO_MAS_2", label: "Novillo +2" },
+  { key: "TORO_MAS_2", label: "Toro +2" },
+];
+
+export const CATEGORIA_FILTRO_OTROS: { key: CategoriaFiltroKey; label: string }[] = [
+  { key: "SIN_SEXO", label: "Sin sexo definido" },
+  { key: "SIN_FECHA", label: "Sin fecha de nacimiento" },
+];
+
+export function labelCategoriaFiltro(key: CategoriaFiltroKey): string {
+  const all = [
+    ...CATEGORIA_FILTRO_HEMBRA,
+    ...CATEGORIA_FILTRO_MACHO,
+    ...CATEGORIA_FILTRO_OTROS,
+  ];
+  return all.find((o) => o.key === key)?.label ?? key;
+}
+
+/** Categorías de evolución a la fecha de referencia (hoy o fecha de baja). */
+export function categoriasDispositivo(d: {
+  sexo: DispositivoSexo;
+  edad: number | null;
+  nacimiento_mes: number | null;
+  nacimiento_anio: number | null;
+  estado: DispositivoEstado;
+  baja_mes: number | null;
+  baja_anio: number | null;
+}): Set<CategoriaFiltroKey> {
+  if (!d.sexo) return new Set(["SIN_SEXO"]);
+
+  const edadMeses = edadMesesDispositivo(d);
+  if (edadMeses === null) return new Set(["SIN_FECHA"]);
+
+  const meses = mesesReferenciaTimeline(
+    d.estado,
+    edadMeses,
+    d.nacimiento_mes,
+    d.nacimiento_anio,
+    d.baja_mes,
+    d.baja_anio
+  );
+  if (meses === null) return new Set(["SIN_FECHA"]);
+
+  if (d.sexo === "HEMBRA") {
+    const etapa = etapaHembraDesdeMeses(meses);
+    const map: Record<EtapaEvolucionHembra["id"], CategoriaFiltroKey> = {
+      TERNERA: "TERNERA",
+      VAQUILLONA: "VAQUILLONA_1_2",
+      VAQUILLONA_MAS_2: "VAQUILLONA_MAS_2",
+      VACA: "VACA",
+    };
+    return new Set([map[etapa.id]]);
+  }
+
+  if (d.sexo === "MACHO") {
+    const etapa = etapaMachoDesdeMeses(meses);
+    if (etapa.id === "TERNERO") return new Set(["TERNERO"]);
+    if (etapa.id === "JOVEN_1_2") return new Set(["NOVILLO_1_2", "TORO_1_2"]);
+    return new Set(["NOVILLO_MAS_2", "TORO_MAS_2"]);
+  }
+
+  return new Set(["SIN_SEXO"]);
+}
+
+export function coincideCategoriaFiltro(
+  d: Parameters<typeof categoriasDispositivo>[0],
+  filtro: Set<string>
+): boolean {
+  if (filtro.size === 0) return true;
+  const cats = categoriasDispositivo(d);
+  for (const key of filtro) {
+    if (cats.has(key as CategoriaFiltroKey)) return true;
+  }
+  return false;
 }
 
 /** Años disponibles para nacimiento (actual hacia atrás). */

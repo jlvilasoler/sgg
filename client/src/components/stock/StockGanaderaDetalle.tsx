@@ -106,9 +106,15 @@ export default function StockGanaderaDetalle({
                   </span>
                 </div>
                 <div className="stock-ganadera-detalle-item">
-                  <span className="stock-ganadera-detalle-label">Grupo</span>
+                  <span className="stock-ganadera-detalle-label">Generación</span>
                   <span className="stock-ganadera-detalle-valor">
                     {detalle.grupo || "—"}
+                  </span>
+                </div>
+                <div className="stock-ganadera-detalle-item">
+                  <span className="stock-ganadera-detalle-label">Grupo</span>
+                  <span className="stock-ganadera-detalle-valor">
+                    {detalle.grupo_libre || "—"}
                   </span>
                 </div>
                 <div className="stock-ganadera-detalle-item">
