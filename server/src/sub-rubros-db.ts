@@ -254,15 +254,15 @@ export async function renameSubRubroGrupo(
     ).run({ anterior, nuevo });
 
     if (rubroOrigen) {
-      await updateRubro(db, rubroOrigen.id, {
+      await updateRubro(tx, rubroOrigen.id, {
         nombre: nuevo,
         activo: rubroOrigen.activo !== 0,
       });
     } else if (!rubroDestino) {
       try {
-        await insertRubro(db, { nombre: nuevo, activo: true });
+        await insertRubro(tx, { nombre: nuevo, activo: true });
       } catch (e) {
-        if (!(await getRubroByNombre(db, nuevo))) throw e;
+        if (!(await getRubroByNombre(tx, nuevo))) throw e;
       }
     }
 
