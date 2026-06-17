@@ -4210,22 +4210,66 @@ select optgroup {
   background: #f0f7f2;
 }
 
+.stock-ganadera-tools {
+  margin-bottom: 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.stock-ganadera-tools-filters {
+  margin-bottom: 0 !important;
+}
+
+.bn-ui .stock-ganadera-tools {
+  border-bottom: 1px solid var(--bn-border-soft);
+}
+
+.bn-ui .stock-ganadera-tools-filters {
+  padding-bottom: 0.85rem !important;
+}
+
 .stock-bulk-panel {
-  margin: 0 0 1rem;
-  padding: 0.85rem 1rem 1rem;
-  border: 1px solid #c5d9ca;
-  border-radius: 10px;
-  background: linear-gradient(180deg, #f6faf7 0%, #fff 100%);
-  box-shadow: 0 2px 8px rgba(45, 90, 61, 0.08);
+  margin: 0;
+  padding: 0.9rem 1.25rem 1rem;
+  border: none;
+  border-top: 1px solid #dce8df;
+  border-radius: 0;
+  background: #f8fbf9;
+  box-shadow: none;
+}
+
+.stock-bulk-panel--idle {
+  background: #fafbfa;
+}
+
+.stock-bulk-panel-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.65rem 1.25rem;
+  margin-bottom: 0.85rem;
+}
+
+.stock-bulk-panel-title-wrap {
+  flex: 1 1 14rem;
+  min-width: 0;
+}
+
+.stock-bulk-panel-title {
+  margin: 0 0 0.2rem;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text);
 }
 
 .stock-bulk-panel-head {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem 1rem;
-  margin-bottom: 0.35rem;
+  justify-content: flex-end;
+  gap: 0.5rem 0.85rem;
+  margin: 0;
+  flex: 0 0 auto;
 }
 
 .stock-bulk-panel-count {
@@ -4233,11 +4277,16 @@ select optgroup {
   flex-wrap: wrap;
   align-items: center;
   gap: 0.5rem 0.75rem;
-  font-size: 0.9rem;
+  font-size: 0.88rem;
+}
+
+.stock-bulk-panel-empty {
+  color: var(--muted);
+  font-weight: 500;
 }
 
 .stock-bulk-panel-count strong {
-  font-size: 1.15rem;
+  font-size: 1.1rem;
   color: var(--primary);
 }
 
@@ -4252,79 +4301,104 @@ select optgroup {
   cursor: pointer;
 }
 
-.stock-bulk-link:hover {
+.stock-bulk-link:hover:not(:disabled) {
   color: #1b4332;
 }
 
+.stock-bulk-link:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .stock-bulk-panel-hint {
-  margin: 0 0 0.75rem;
+  margin: 0;
   font-size: 0.82rem;
+  line-height: 1.35;
 }
 
 .stock-bulk-panel-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
-  gap: 0.65rem 1rem;
-  align-items: end;
-}
-
-.stock-bulk-field {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.4rem 0.5rem;
-  margin: 0;
-  font-size: 0.82rem;
-}
-
-.stock-bulk-field--nacimiento,
-.stock-bulk-field--estado,
-.stock-bulk-field--obs {
-  flex-direction: column;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.65rem;
   align-items: stretch;
 }
 
-.stock-bulk-field-check {
+.stock-bulk-field-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 0.65rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+}
+
+.stock-bulk-field-card.is-active {
+  border-color: #9ec4ad;
+  background: #fff;
+  box-shadow: inset 0 0 0 1px rgba(45, 90, 61, 0.12);
+}
+
+.stock-bulk-panel--idle .stock-bulk-field-card {
+  background: #f6f8f7;
+}
+
+.stock-bulk-field-card-head {
   display: flex;
   align-items: center;
   gap: 0.45rem;
   margin: 0;
   cursor: pointer;
+  user-select: none;
+}
+
+.stock-bulk-field-card--wide {
+  grid-column: span 1;
+}
+
+.stock-bulk-field-card--obs.span-all {
+  grid-column: 1 / -1;
 }
 
 .stock-bulk-field-label {
+  font-size: 0.76rem;
   font-weight: 600;
-  color: var(--text);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--muted);
   white-space: nowrap;
 }
 
-.stock-bulk-field .stock-edit-select,
-.stock-bulk-field .stock-sexo-select {
-  flex: 1;
-  min-width: 7rem;
+.stock-bulk-field-card .stock-edit-select,
+.stock-bulk-field-card .stock-sexo-select,
+.stock-bulk-field-card .stock-empresa-select,
+.stock-bulk-field-card .stock-estado-select {
+  width: 100%;
+  min-width: 0;
 }
 
 .stock-bulk-nacimiento-inputs {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 0.4rem;
   width: 100%;
 }
 
 .stock-bulk-nacimiento-inputs .stock-edit-select {
-  flex: 1;
-  min-width: 5.5rem;
+  min-width: 0;
 }
 
-.stock-bulk-field--obs.span-all {
-  grid-column: 1 / -1;
+.stock-bulk-obs-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.85rem;
 }
 
 .stock-bulk-obs-modo {
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
-  margin-right: 0.75rem;
   font-size: 0.8rem;
   cursor: pointer;
 }
@@ -4338,6 +4412,7 @@ select optgroup {
   font: inherit;
   resize: vertical;
   min-height: 2.5rem;
+  background: #fff;
 }
 
 .stock-bulk-panel-actions {
@@ -4346,6 +4421,27 @@ select optgroup {
   margin-top: 0.85rem;
   padding-top: 0.75rem;
   border-top: 1px solid #dce8df;
+}
+
+@media (max-width: 1100px) {
+  .stock-bulk-panel-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .stock-bulk-panel-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .stock-bulk-panel-top {
+    flex-direction: column;
+  }
+
+  .stock-bulk-panel-head {
+    justify-content: flex-start;
+    width: 100%;
+  }
 }
 
 .stock-table-pro .stock-td--sexo {
@@ -7367,11 +7463,10 @@ select optgroup {
 
 .stock-dash-head {
   display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.35rem 1rem;
-  margin-bottom: 0.6rem;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+  margin-bottom: 0.75rem;
 }
 
 .stock-dash-title {
@@ -7387,6 +7482,11 @@ select optgroup {
   margin: 0;
   font-size: 0.84rem;
   color: var(--muted);
+  line-height: 1.35;
+}
+
+.stock-dash-head .stock-dash-sub {
+  margin-top: 0;
 }
 
 .stock-dash-grid {
@@ -7396,43 +7496,58 @@ select optgroup {
 }
 
 .stock-dash-grid--sexo {
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
 }
 
-@media (max-width: 720px) {
+@media (max-width: 900px) {
   .stock-dash-grid--sexo {
     grid-template-columns: repeat(2, 1fr);
   }
 }
 
-@media (max-width: 420px) {
+@media (max-width: 480px) {
   .stock-dash-grid--sexo {
     grid-template-columns: 1fr;
   }
 }
 
 .stock-dash-card {
+  --stock-dash-accent: var(--primary);
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
-  padding: 0.65rem 0.75rem;
-  border-radius: 6px;
+  gap: 0.2rem;
+  min-height: 5.25rem;
+  padding: 0.85rem 1rem 0.8rem 1.15rem;
+  border-radius: 8px;
   border: 1px solid var(--border);
   background: #fff;
   text-align: left;
   font: inherit;
+  overflow: hidden;
+}
+
+.stock-dash-card::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.7rem;
+  bottom: 0.7rem;
+  width: 3px;
+  border-radius: 0 2px 2px 0;
+  background: var(--stock-dash-accent);
 }
 
 .stock-dash-card--total {
-  border-top: 3px solid var(--primary);
+  --stock-dash-accent: var(--primary);
 }
 
 .stock-dash-card--activos {
-  border-top: 3px solid #5a7aa8;
+  --stock-dash-accent: #5a7aa8;
 }
 
 .stock-dash-card--repetidos {
-  border-top: 3px solid #b45309;
+  --stock-dash-accent: #b45309;
   cursor: pointer;
   transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
 }
@@ -7454,15 +7569,15 @@ select optgroup {
 }
 
 .stock-dash-card--macho {
-  border-top: 3px solid #c62828;
+  --stock-dash-accent: #c62828;
 }
 
 .stock-dash-card--hembra {
-  border-top: 3px solid #2e7d32;
+  --stock-dash-accent: #2e7d32;
 }
 
 .stock-dash-card--sin-sexo {
-  border-top: 3px solid #6b7280;
+  --stock-dash-accent: #6b7280;
 }
 
 .stock-dash-grid--salidas {
@@ -7483,15 +7598,15 @@ select optgroup {
 }
 
 .stock-dash-card--muerto {
-  border-top: 3px solid #4b5563;
+  --stock-dash-accent: #4b5563;
 }
 
 .stock-dash-card--vendido {
-  border-top: 3px solid #1d4ed8;
+  --stock-dash-accent: #1d4ed8;
 }
 
 .stock-dash-card--frigorifico {
-  border-top: 3px solid #b45309;
+  --stock-dash-accent: #b45309;
 }
 
 .stock-dash-card--muerto:hover:not(:disabled),
@@ -7568,18 +7683,22 @@ select optgroup {
 }
 
 .stock-dash-label {
-  font-size: 0.76rem;
+  font-size: 0.78rem;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.01em;
   color: var(--muted);
+  line-height: 1.3;
 }
 
 .stock-dash-valor {
-  font-size: 1.25rem;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  margin: 0.1rem 0;
+  font-size: 1.35rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-  line-height: 1.25;
+  line-height: 1.2;
   color: var(--text);
 }
 
@@ -8514,9 +8633,15 @@ select optgroup {
   box-sizing: border-box;
 }
 
-.bn-ui .card .form-header .muted,
-.bn-ui .stock-dash-sub {
+.bn-ui .card .form-header .muted {
   margin-top: 0.45rem;
+  font-size: 0.84rem;
+  color: var(--bn-muted);
+  font-weight: 400;
+}
+
+.bn-ui .stock-dash-sub {
+  margin-top: 0;
   font-size: 0.84rem;
   color: var(--bn-muted);
   font-weight: 400;
@@ -8648,6 +8773,55 @@ select optgroup {
   margin-bottom: 0.65rem;
 }
 
+.bn-ui .stock-bulk-panel {
+  padding: 0.9rem 1.25rem 1rem;
+  background: var(--bn-bg);
+  border-top: 1px solid var(--bn-border-soft);
+}
+
+.bn-ui .stock-bulk-panel--idle {
+  background: var(--bn-bg);
+}
+
+.bn-ui .stock-bulk-panel-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--bn-text);
+}
+
+.bn-ui .stock-bulk-panel-hint {
+  color: var(--bn-muted);
+}
+
+.bn-ui .stock-bulk-field-card {
+  background: var(--bn-surface);
+  border-color: var(--bn-border);
+}
+
+.bn-ui .stock-bulk-panel--idle .stock-bulk-field-card {
+  background: var(--bn-surface);
+}
+
+.bn-ui .stock-bulk-field-card.is-active {
+  border-color: var(--bn-gold);
+  box-shadow: inset 0 0 0 1px rgba(240, 185, 11, 0.2);
+}
+
+.bn-ui .stock-bulk-field-label {
+  text-transform: none;
+  font-size: 0.72rem;
+  color: var(--bn-muted);
+}
+
+.bn-ui .stock-bulk-panel-actions {
+  border-top-color: var(--bn-border-soft);
+}
+
+.bn-ui .stock-bulk-obs-text {
+  background: #fff;
+  border-color: var(--bn-border);
+}
+
 .bn-ui .stock-dash-grid,
 .bn-ui .listado-indicadores-grid {
   gap: 0.65rem;
@@ -8655,28 +8829,11 @@ select optgroup {
 
 .bn-ui .stock-dash-card,
 .bn-ui .listado-indicador {
-  padding: 0.85rem 1rem;
+  padding: 0.85rem 1rem 0.8rem 1.15rem;
   background: var(--bn-surface);
   border: 1px solid var(--bn-border);
   border-radius: 8px;
-  border-top: none;
   box-shadow: none;
-}
-
-.bn-ui .stock-dash-card--total,
-.bn-ui .stock-dash-card--activos,
-.bn-ui .stock-dash-card--repetidos,
-.bn-ui .stock-dash-card--macho,
-.bn-ui .stock-dash-card--hembra,
-.bn-ui .stock-dash-card--sin-sexo,
-.bn-ui .stock-dash-card--muerto,
-.bn-ui .stock-dash-card--vendido,
-.bn-ui .stock-dash-card--frigorifico,
-.bn-ui .listado-indicador--pesos,
-.bn-ui .listado-indicador--usd,
-.bn-ui .listado-indicador--reales,
-.bn-ui .listado-indicador--saldo-total {
-  border-top: none;
 }
 
 .bn-ui .stock-dash-card.is-active,
@@ -8691,16 +8848,17 @@ select optgroup {
 
 .bn-ui .stock-dash-label,
 .bn-ui .listado-indicador-label {
-  font-size: 0.72rem;
+  font-size: 0.76rem;
   font-weight: 500;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.01em;
   text-transform: none;
   color: var(--bn-muted);
+  line-height: 1.3;
 }
 
 .bn-ui .stock-dash-valor,
 .bn-ui .listado-indicador-valor {
-  font-size: 1.2rem;
+  font-size: 1.35rem;
   font-weight: 600;
   color: var(--bn-text);
   letter-spacing: -0.02em;

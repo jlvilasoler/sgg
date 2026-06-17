@@ -56,6 +56,7 @@ export default function StockGanaderaBulkPanel({
 
   const anios = useMemo(() => listAniosNacimiento(), []);
   const n = seleccionados.length;
+  const sinSeleccion = n === 0;
   const puedeAplicar =
     apiOnline &&
     n > 0 &&
@@ -64,6 +65,8 @@ export default function StockGanaderaBulkPanel({
       aplicarNacimiento ||
       aplicarEstado ||
       aplicarObservaciones);
+
+  const camposDeshabilitados = sinSeleccion || guardando;
 
   const aplicar = async () => {
     if (!puedeAplicar || guardando) return;
@@ -155,66 +158,102 @@ export default function StockGanaderaBulkPanel({
     }
   };
 
-  if (n === 0) return null;
-
   return (
-    <section className="stock-bulk-panel" aria-label="Edición masiva">
-      <div className="stock-bulk-panel-head">
-        <div className="stock-bulk-panel-count">
-          <strong>{n}</strong> seleccionado{n === 1 ? "" : "s"}
-          {n < totalFiltrados && (
+    <section
+      className={`stock-bulk-panel${sinSeleccion ? " stock-bulk-panel--idle" : ""}`}
+      aria-label="Edición masiva"
+    >
+      <div className="stock-bulk-panel-top">
+        <div className="stock-bulk-panel-title-wrap">
+          <h3 className="stock-bulk-panel-title">Edición masiva</h3>
+          <p className="stock-bulk-panel-hint muted">
+            {sinSeleccion
+              ? "Seleccioná filas en la tabla, marcá los campos a cambiar y aplicá."
+              : "Marcá los campos que querés cambiar y aplicá a todos los seleccionados."}
+          </p>
+        </div>
+        <div className="stock-bulk-panel-head">
+          <div className="stock-bulk-panel-count">
+            {sinSeleccion ? (
+              <span className="stock-bulk-panel-empty">Ninguno seleccionado</span>
+            ) : (
+              <>
+                <strong>{n}</strong> seleccionado{n === 1 ? "" : "s"}
+              </>
+            )}
+            {totalFiltrados > 0 && n < totalFiltrados && (
+              <button
+                type="button"
+                className="stock-bulk-link"
+                onClick={onSeleccionarTodosFiltrados}
+                disabled={!apiOnline || guardando}
+              >
+                Seleccionar los {totalFiltrados} del filtro
+              </button>
+            )}
+          </div>
+          {!sinSeleccion && (
             <button
               type="button"
               className="stock-bulk-link"
-              onClick={onSeleccionarTodosFiltrados}
+              onClick={onLimpiar}
+              disabled={guardando}
             >
-              Seleccionar los {totalFiltrados} del filtro
+              Quitar selección
             </button>
           )}
         </div>
-        <button type="button" className="stock-bulk-link" onClick={onLimpiar}>
-          Quitar selección
-        </button>
       </div>
 
-      <p className="stock-bulk-panel-hint muted">
-        Marcá los campos que querés cambiar y aplicá a todos los seleccionados.
-      </p>
-
       <div className="stock-bulk-panel-grid">
-        <label className="stock-bulk-field">
-          <input
-            type="checkbox"
-            checked={aplicarEmpresa}
-            onChange={(e) => setAplicarEmpresa(e.target.checked)}
-          />
-          <span className="stock-bulk-field-label">Empresa</span>
+        <div
+          className={`stock-bulk-field-card${aplicarEmpresa ? " is-active" : ""}`}
+        >
+          <label className="stock-bulk-field-card-head">
+            <input
+              type="checkbox"
+              checked={aplicarEmpresa}
+              disabled={camposDeshabilitados}
+              onChange={(e) => setAplicarEmpresa(e.target.checked)}
+            />
+            <span className="stock-bulk-field-label">Empresa</span>
+          </label>
           <SelectEmpresaDispositivo
             value={empresa}
             onChange={setEmpresa}
-            disabled={!aplicarEmpresa || guardando}
+            disabled={!aplicarEmpresa || camposDeshabilitados}
           />
-        </label>
+        </div>
 
-        <label className="stock-bulk-field">
-          <input
-            type="checkbox"
-            checked={aplicarSexo}
-            onChange={(e) => setAplicarSexo(e.target.checked)}
-          />
-          <span className="stock-bulk-field-label">Sexo</span>
+        <div
+          className={`stock-bulk-field-card${aplicarSexo ? " is-active" : ""}`}
+        >
+          <label className="stock-bulk-field-card-head">
+            <input
+              type="checkbox"
+              checked={aplicarSexo}
+              disabled={camposDeshabilitados}
+              onChange={(e) => setAplicarSexo(e.target.checked)}
+            />
+            <span className="stock-bulk-field-label">Sexo</span>
+          </label>
           <SelectSexoDispositivo
             value={sexo}
             onChange={setSexo}
-            disabled={!aplicarSexo || guardando}
+            disabled={!aplicarSexo || camposDeshabilitados}
           />
-        </label>
+        </div>
 
-        <div className="stock-bulk-field stock-bulk-field--nacimiento">
-          <label className="stock-bulk-field-check">
+        <div
+          className={`stock-bulk-field-card stock-bulk-field-card--wide${
+            aplicarNacimiento ? " is-active" : ""
+          }`}
+        >
+          <label className="stock-bulk-field-card-head">
             <input
               type="checkbox"
               checked={aplicarNacimiento}
+              disabled={camposDeshabilitados}
               onChange={(e) => setAplicarNacimiento(e.target.checked)}
             />
             <span className="stock-bulk-field-label">Nacimiento</span>
@@ -223,7 +262,7 @@ export default function StockGanaderaBulkPanel({
             <select
               className="stock-edit-select"
               value={nacimientoMes}
-              disabled={!aplicarNacimiento || guardando}
+              disabled={!aplicarNacimiento || camposDeshabilitados}
               onChange={(e) =>
                 setNacimientoMes(e.target.value ? Number(e.target.value) : "")
               }
@@ -238,7 +277,7 @@ export default function StockGanaderaBulkPanel({
             <select
               className="stock-edit-select"
               value={nacimientoAnio}
-              disabled={!aplicarNacimiento || guardando}
+              disabled={!aplicarNacimiento || camposDeshabilitados}
               onChange={(e) =>
                 setNacimientoAnio(e.target.value ? Number(e.target.value) : "")
               }
@@ -253,11 +292,16 @@ export default function StockGanaderaBulkPanel({
           </div>
         </div>
 
-        <div className="stock-bulk-field stock-bulk-field--estado">
-          <label className="stock-bulk-field-check">
+        <div
+          className={`stock-bulk-field-card stock-bulk-field-card--wide${
+            aplicarEstado ? " is-active" : ""
+          }`}
+        >
+          <label className="stock-bulk-field-card-head">
             <input
               type="checkbox"
               checked={aplicarEstado}
+              disabled={camposDeshabilitados}
               onChange={(e) => setAplicarEstado(e.target.checked)}
             />
             <span className="stock-bulk-field-label">Estado</span>
@@ -265,14 +309,14 @@ export default function StockGanaderaBulkPanel({
           <SelectEstadoDispositivo
             value={estado}
             onChange={setEstado}
-            disabled={!aplicarEstado || guardando}
+            disabled={!aplicarEstado || camposDeshabilitados}
           />
           {aplicarEstado && requiereFechaBaja(estado) && (
             <div className="stock-bulk-nacimiento-inputs">
               <select
                 className="stock-edit-select"
                 value={bajaMes}
-                disabled={guardando}
+                disabled={camposDeshabilitados}
                 onChange={(e) =>
                   setBajaMes(e.target.value ? Number(e.target.value) : "")
                 }
@@ -287,7 +331,7 @@ export default function StockGanaderaBulkPanel({
               <select
                 className="stock-edit-select"
                 value={bajaAnio}
-                disabled={guardando}
+                disabled={camposDeshabilitados}
                 onChange={(e) =>
                   setBajaAnio(e.target.value ? Number(e.target.value) : "")
                 }
@@ -303,41 +347,52 @@ export default function StockGanaderaBulkPanel({
           )}
         </div>
 
-        <div className="stock-bulk-field stock-bulk-field--obs span-all">
-          <label className="stock-bulk-field-check">
+        <div
+          className={`stock-bulk-field-card stock-bulk-field-card--obs span-all${
+            aplicarObservaciones ? " is-active" : ""
+          }`}
+        >
+          <label className="stock-bulk-field-card-head">
             <input
               type="checkbox"
               checked={aplicarObservaciones}
+              disabled={camposDeshabilitados}
               onChange={(e) => setAplicarObservaciones(e.target.checked)}
             />
             <span className="stock-bulk-field-label">Observaciones</span>
           </label>
-          <label className="stock-bulk-obs-modo">
-            <input
-              type="radio"
-              name="obs-modo"
-              checked={obsModoReemplazar}
-              disabled={!aplicarObservaciones || guardando}
-              onChange={() => setObsModoReemplazar(true)}
-            />
-            Reemplazar
-          </label>
-          <label className="stock-bulk-obs-modo">
-            <input
-              type="radio"
-              name="obs-modo"
-              checked={!obsModoReemplazar}
-              disabled={!aplicarObservaciones || guardando}
-              onChange={() => setObsModoReemplazar(false)}
-            />
-            Agregar al final
-          </label>
+          <div className="stock-bulk-obs-row">
+            <label className="stock-bulk-obs-modo">
+              <input
+                type="radio"
+                name="obs-modo"
+                checked={obsModoReemplazar}
+                disabled={!aplicarObservaciones || camposDeshabilitados}
+                onChange={() => setObsModoReemplazar(true)}
+              />
+              Reemplazar
+            </label>
+            <label className="stock-bulk-obs-modo">
+              <input
+                type="radio"
+                name="obs-modo"
+                checked={!obsModoReemplazar}
+                disabled={!aplicarObservaciones || camposDeshabilitados}
+                onChange={() => setObsModoReemplazar(false)}
+              />
+              Agregar al final
+            </label>
+          </div>
           <textarea
             className="stock-bulk-obs-text"
             rows={2}
-            placeholder="Texto para todos los seleccionados…"
+            placeholder={
+              sinSeleccion
+                ? "Seleccioná dispositivos para editar observaciones…"
+                : "Texto para todos los seleccionados…"
+            }
             value={observaciones}
-            disabled={!aplicarObservaciones || guardando}
+            disabled={!aplicarObservaciones || camposDeshabilitados}
             onChange={(e) => setObservaciones(e.target.value)}
           />
         </div>
@@ -350,7 +405,11 @@ export default function StockGanaderaBulkPanel({
           disabled={!puedeAplicar || guardando}
           onClick={() => void aplicar()}
         >
-          {guardando ? "Aplicando…" : `Aplicar a ${n} dispositivo${n === 1 ? "" : "s"}`}
+          {guardando
+            ? "Aplicando…"
+            : sinSeleccion
+              ? "Seleccioná dispositivos"
+              : `Aplicar a ${n} dispositivo${n === 1 ? "" : "s"}`}
         </button>
       </div>
     </section>

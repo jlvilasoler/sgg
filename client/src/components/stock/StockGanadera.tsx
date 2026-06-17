@@ -227,54 +227,56 @@ export default function StockGanadera({
           </section>
         )}
 
-        <div className="filters mayusculas-auto">
-          <div className="field">
-            <label htmlFor="ganadera-f-desde">Desde</label>
-            <input
-              id="ganadera-f-desde"
-              type="date"
-              value={fechaDesde}
-              onChange={(e) => setFechaDesde(e.target.value)}
-            />
+        <section className="stock-ganadera-tools" aria-label="Filtros y edición masiva">
+          <div className="stock-ganadera-tools-filters filters mayusculas-auto">
+            <div className="field">
+              <label htmlFor="ganadera-f-desde">Desde</label>
+              <input
+                id="ganadera-f-desde"
+                type="date"
+                value={fechaDesde}
+                onChange={(e) => setFechaDesde(e.target.value)}
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="ganadera-f-hasta">Hasta</label>
+              <input
+                id="ganadera-f-hasta"
+                type="date"
+                value={fechaHasta}
+                onChange={(e) => setFechaHasta(e.target.value)}
+              />
+            </div>
+            <div className="field flex-grow">
+              <label htmlFor="ganadera-busq">Buscar EID / VID</label>
+              <input
+                id="ganadera-busq"
+                type="search"
+                placeholder="EID, caravana visual…"
+                value={busqueda}
+                onChange={(e) => setBusqueda(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && load()}
+              />
+            </div>
+            <button type="button" className="btn btn-primary" onClick={load}>
+              Buscar
+            </button>
           </div>
-          <div className="field">
-            <label htmlFor="ganadera-f-hasta">Hasta</label>
-            <input
-              id="ganadera-f-hasta"
-              type="date"
-              value={fechaHasta}
-              onChange={(e) => setFechaHasta(e.target.value)}
-            />
-          </div>
-          <div className="field flex-grow">
-            <label htmlFor="ganadera-busq">Buscar EID / VID</label>
-            <input
-              id="ganadera-busq"
-              type="search"
-              placeholder="EID, caravana visual…"
-              value={busqueda}
-              onChange={(e) => setBusqueda(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && load()}
-            />
-          </div>
-          <button type="button" className="btn btn-primary" onClick={load}>
-            Buscar
-          </button>
-        </div>
 
-        <StockGanaderaBulkPanel
-          seleccionados={seleccionados}
-          totalFiltrados={rows.length}
-          apiOnline={apiOnline}
-          onSeleccionarTodosFiltrados={seleccionarTodosFiltrados}
-          onLimpiar={limpiarSeleccion}
-          onAplicado={() => {
-            limpiarSeleccion();
-            void load();
-          }}
-          onError={onError}
-          onSuccess={(msg) => onSuccess?.(msg)}
-        />
+          <StockGanaderaBulkPanel
+            seleccionados={seleccionados}
+            totalFiltrados={rows.length}
+            apiOnline={apiOnline}
+            onSeleccionarTodosFiltrados={seleccionarTodosFiltrados}
+            onLimpiar={limpiarSeleccion}
+            onAplicado={() => {
+              limpiarSeleccion();
+              void load();
+            }}
+            onError={onError}
+            onSuccess={(msg) => onSuccess?.(msg)}
+          />
+        </section>
 
         <div className="table-wrap table-wrap-stock-pro">
           <table className="data-table stock-ganadera-table stock-table-pro">
