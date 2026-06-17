@@ -165,7 +165,8 @@ export default function StockGanaderaHistorialCambiosModal({
                 Todavía no hay cambios registrados en este dispositivo.
               </p>
               <p className="stock-hist-empty-hint">
-                Al guardar la ficha, cada modificación quedará registrada acá.
+                Los cambios de condición al importar lecturas y las ediciones de la
+                ficha quedan registrados acá con fecha y hora.
               </p>
             </div>
           ) : (
@@ -262,7 +263,7 @@ export default function StockGanaderaHistorialCambiosModal({
 
         <footer className="stock-hist-footer">
           <p className="stock-hist-footer-note">
-            Registro automático al guardar la ficha del animal
+            Incluye cambios de condición por nuevas lecturas y ediciones de la ficha
           </p>
           <button type="button" className="btn btn-primary stock-hist-close-btn" onClick={onClose}>
             Cerrar

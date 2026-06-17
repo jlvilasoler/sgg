@@ -7,6 +7,7 @@ import TablePagination, {
   type PageSize,
 } from "../TablePagination";
 import BadgeEstadoDispositivo from "./BadgeEstadoDispositivo";
+import StockGanaderaHistorialCambiosModal from "./StockGanaderaHistorialCambiosModal";
 import { fmtEdadMeses, fmtNacimiento } from "./stock-ganadera-utils";
 
 interface Props {
@@ -28,6 +29,7 @@ export default function StockGanaderaDetalle({
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<PageSize>(20);
+  const [verHistorialCambios, setVerHistorialCambios] = useState(false);
 
   const load = useCallback(async () => {
     if (!apiOnline) {
@@ -190,6 +192,16 @@ export default function StockGanaderaDetalle({
               </div>
             </section>
 
+            <div className="stock-ganadera-detalle-actions">
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => setVerHistorialCambios(true)}
+              >
+                Historial de cambios
+              </button>
+            </div>
+
             <h3 className="stock-ganadera-detalle-titulo">Historial de lecturas</h3>
 
             <div className="table-wrap">
@@ -238,6 +250,17 @@ export default function StockGanaderaDetalle({
           </>
         )}
       </div>
+
+      {verHistorialCambios && detalle && (
+        <StockGanaderaHistorialCambiosModal
+          clave={detalle.clave}
+          vid={detalle.vid}
+          eid={detalle.eid}
+          apiOnline={apiOnline}
+          onClose={() => setVerHistorialCambios(false)}
+          onError={onError}
+        />
+      )}
     </div>
   );
 }

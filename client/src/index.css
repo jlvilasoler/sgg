@@ -4046,6 +4046,12 @@ select optgroup {
   word-break: break-word;
 }
 
+.stock-ganadera-detalle-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin: 0 0 1rem;
+}
+
 .stock-ganadera-detalle-titulo {
   margin: 0 0 0.65rem;
   font-size: 0.9rem;

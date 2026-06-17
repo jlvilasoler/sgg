@@ -105,6 +105,7 @@ export async function initDb(): Promise<void> {
       console.warn("[SCG] Init en curso en otra instancia; omitiendo seeds pesados");
     }
     await auth.initAuthTables(db);
+    await stock.initStockGanaderoTables(db);
   } finally {
     if (locked) await releaseAdvisoryLock();
   }

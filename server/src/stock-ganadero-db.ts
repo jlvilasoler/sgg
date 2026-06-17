@@ -107,11 +107,31 @@ async function clavesEidRepetidas(
   return repetidas;
 }
 
-export async function initStockGanaderoTables(_db: Db): Promise<void> {}
+export async function initStockGanaderoTables(db: Db): Promise<void> {
+  await migrateStockGanaderoDispositivoHistorial(db);
+}
 
 async function migrateSyncGrupoDesdeNacimiento(_db: Db): Promise<void> {}
 
-async function migrateStockGanaderoDispositivoHistorial(_db: Db): Promise<void> {}
+async function migrateStockGanaderoDispositivoHistorial(db: Db): Promise<void> {
+  const done = (await db
+    .prepare(
+      `SELECT 1 AS ok FROM STOCK_GANADERO_DISPOSITIVO_HISTORIAL
+       WHERE clave = '__meta__' AND campo = 'backfill_condicion' LIMIT 1`
+    )
+    .get()) as { ok: number } | undefined;
+  if (done) return;
+
+  await backfillHistorialCondicionDesdeLecturas(db);
+
+  await db
+    .prepare(
+      `INSERT INTO STOCK_GANADERO_DISPOSITIVO_HISTORIAL
+         (clave, campo, etiqueta, valor_anterior, valor_nuevo)
+       VALUES ('__meta__', 'backfill_condicion', '', '', '')`
+    )
+    .run();
+}
 
 async function migrateSplitEidVid(_db: Db): Promise<void> {}
 
@@ -846,6 +866,8 @@ export async function importStockGanaderoRows(
   if (!rows.length) throw new Error("El archivo no contiene lecturas válidas.");
 
   return db.transaction(async (tx) => {
+    const ultimaLecturaPorClave = await mapUltimaLecturaPorClave(tx);
+
     const lote = await tx
       .prepare(
         `INSERT INTO STOCK_GANADERO_LOTE (nombre_archivo, filas) VALUES (@nombre_archivo, @filas)`
@@ -858,7 +880,10 @@ export async function importStockGanaderoRows(
        VALUES (@lote_id, @eid, @vid, @fecha, @hora, @condicion)`
     );
     for (const r of rows) {
-      await ins.run({
+      const clave = dispositivoClave(r.eid, r.vid);
+      const prev = clave ? ultimaLecturaPorClave.get(clave) : undefined;
+
+      const inserted = await ins.run({
         lote_id,
         eid: r.eid,
         vid: r.vid,
@@ -866,6 +891,35 @@ export async function importStockGanaderoRows(
         hora: r.hora,
         condicion: r.condicion,
       });
+
+      if (clave && prev) {
+        const prevCondicion = prev.condicion ?? "";
+        const nuevaCondicion = r.condicion ?? "";
+        if (
+          fmtHistorialCondicion(prevCondicion) !== fmtHistorialCondicion(nuevaCondicion)
+        ) {
+          await registrarHistorialCondicionLectura(
+            tx,
+            clave,
+            prevCondicion,
+            nuevaCondicion,
+            r.fecha,
+            r.hora
+          );
+        }
+      }
+
+      if (clave) {
+        const nuevaLectura: LecturaResumen = {
+          id: inserted.lastInsertRowid,
+          fecha: r.fecha,
+          hora: r.hora,
+          condicion: r.condicion ?? "",
+        };
+        if (!prev || esLecturaMasReciente(nuevaLectura, prev)) {
+          ultimaLecturaPorClave.set(clave, nuevaLectura);
+        }
+      }
     }
     return { lote_id, insertados: rows.length };
   });
@@ -916,6 +970,16 @@ export interface StockGanaderaDispositivoDetalle extends StockGanaderaDispositiv
   lotes_distintos: number;
 }
 
+interface LecturaPunto {
+  fecha: string;
+  hora: string;
+  id?: number;
+}
+
+interface LecturaResumen extends LecturaPunto {
+  condicion: string;
+}
+
 function compareFechaHora(
   a: { fecha: string; hora: string },
   b: { fecha: string; hora: string }
@@ -926,16 +990,104 @@ function compareFechaHora(
   return (a.hora || "").localeCompare(b.hora || "");
 }
 
+/** La lectura más reciente gana; si empatan fecha/hora, gana el id mayor (último insertado). */
+function esLecturaMasReciente(a: LecturaPunto, b: LecturaPunto): boolean {
+  const cmp = compareFechaHora(a, b);
+  if (cmp > 0) return true;
+  if (cmp < 0) return false;
+  return (a.id ?? 0) > (b.id ?? 0);
+}
+
+function esLecturaMasAntigua(a: LecturaPunto, b: LecturaPunto): boolean {
+  const cmp = compareFechaHora(a, b);
+  if (cmp < 0) return true;
+  if (cmp > 0) return false;
+  return (a.id ?? 0) < (b.id ?? 0);
+}
+
+async function mapUltimaLecturaPorClave(db: Db): Promise<Map<string, LecturaResumen>> {
+  const rows = (await db
+    .prepare(
+      `SELECT id, eid, vid, fecha, hora, condicion FROM STOCK_GANADERO_REGISTRO`
+    )
+    .all()) as StockGanaderoRegistro[];
+
+  const map = new Map<string, LecturaResumen>();
+  for (const r of rows) {
+    const { eid, vid } = splitEidVid(r.eid, r.vid);
+    const clave = dispositivoClave(eid, vid);
+    if (!clave) continue;
+
+    const lectura: LecturaResumen = {
+      id: r.id,
+      fecha: r.fecha,
+      hora: r.hora,
+      condicion: r.condicion ?? "",
+    };
+    const prev = map.get(clave);
+    if (!prev || esLecturaMasReciente(lectura, prev)) {
+      map.set(clave, lectura);
+    }
+  }
+  return map;
+}
+
+async function backfillHistorialCondicionDesdeLecturas(db: Db): Promise<void> {
+  const rows = (await db
+    .prepare(
+      `SELECT id, eid, vid, fecha, hora, condicion
+       FROM STOCK_GANADERO_REGISTRO
+       ORDER BY fecha ASC, hora ASC, id ASC`
+    )
+    .all()) as StockGanaderoRegistro[];
+
+  const ultimaCondicionPorClave = new Map<string, string>();
+
+  for (const r of rows) {
+    const { eid, vid } = splitEidVid(r.eid, r.vid);
+    const clave = dispositivoClave(eid, vid);
+    if (!clave) continue;
+
+    const condicion = String(r.condicion ?? "");
+    const prev = ultimaCondicionPorClave.get(clave);
+    if (prev !== undefined) {
+      const prevFmt = fmtHistorialCondicion(prev);
+      const nextFmt = fmtHistorialCondicion(condicion);
+      if (prevFmt !== nextFmt) {
+        await insertHistorialFila(
+          db,
+          clave,
+          "condicion",
+          "Condición (lectura)",
+          prevFmt,
+          nextFmt,
+          timestampLectura(r.fecha, r.hora)
+        );
+      }
+    }
+    ultimaCondicionPorClave.set(clave, condicion);
+  }
+}
+
 function buildDispositivosFromRegistros(
   registros: StockGanaderoRegistro[],
   repetidasClaves: Set<string>
 ): StockGanaderaDispositivo[] {
   const map = new Map<string, StockGanaderaDispositivo>();
+  const ultimaIdPorClave = new Map<string, number>();
+  const primeraIdPorClave = new Map<string, number>();
 
   for (const r of registros) {
     const { eid, vid } = splitEidVid(r.eid, r.vid);
     const clave = dispositivoClave(eid, vid);
     if (!clave) continue;
+
+    const lectura: LecturaResumen = {
+      id: r.id,
+      fecha: r.fecha,
+      hora: r.hora,
+      condicion: r.condicion ?? "",
+    };
 
     const prev = map.get(clave);
     if (!prev) {
@@ -960,25 +1112,36 @@ function buildDispositivosFromRegistros(
         total_lecturas: 1,
         es_repetido: repetidasClaves.has(clave),
       });
+      ultimaIdPorClave.set(clave, r.id);
+      primeraIdPorClave.set(clave, r.id);
       continue;
     }
 
     prev.total_lecturas += 1;
     if (vid && !prev.vid) prev.vid = vid;
 
-    if (compareFechaHora(r, { fecha: prev.primera_fecha, hora: "" }) < 0) {
+    const primeraId = primeraIdPorClave.get(clave) ?? r.id;
+    const primeraLectura: LecturaPunto = {
+      id: primeraId,
+      fecha: prev.primera_fecha,
+      hora: "",
+    };
+    if (esLecturaMasAntigua(lectura, primeraLectura)) {
       prev.primera_fecha = r.fecha;
+      primeraIdPorClave.set(clave, r.id);
     }
 
-    if (
-      compareFechaHora(r, {
-        fecha: prev.ultima_fecha,
-        hora: prev.ultima_hora,
-      }) >= 0
-    ) {
+    const ultimaId = ultimaIdPorClave.get(clave) ?? r.id;
+    const ultimaLectura: LecturaPunto = {
+      id: ultimaId,
+      fecha: prev.ultima_fecha,
+      hora: prev.ultima_hora,
+    };
+    if (esLecturaMasReciente(lectura, ultimaLectura)) {
       prev.ultima_fecha = r.fecha;
       prev.ultima_hora = r.hora;
       prev.ultima_condicion = r.condicion;
+      ultimaIdPorClave.set(clave, r.id);
       if (vid) prev.vid = vid;
       prev.eid = eid;
     }
@@ -1214,27 +1377,77 @@ function fmtHistorialObs(v: string): string {
   return t || "—";
 }
 
+function fmtHistorialCondicion(v: string): string {
+  const t = String(v ?? "").trim();
+  return t || "—";
+}
+
+function timestampLectura(fecha: string, hora: string): string {
+  const f = fecha.trim();
+  if (!f) return "";
+  return `${f} ${hora.trim() || "00:00:00"}`;
+}
+
 async function insertHistorialFila(
   db: Db,
   clave: string,
   campo: string,
   etiqueta: string,
   valorAnterior: string,
-  valorNuevo: string
+  valorNuevo: string,
+  creadoEn?: string
 ): Promise<void> {
   if (valorAnterior === valorNuevo) return;
-  await db.prepare(
-    `INSERT INTO STOCK_GANADERO_DISPOSITIVO_HISTORIAL
-       (clave, campo, etiqueta, valor_anterior, valor_nuevo, creado_en)
-     VALUES (@clave, @campo, @etiqueta, @valor_anterior, @valor_nuevo,
-             datetime('now', 'localtime'))`
-  ).run({
+  if (creadoEn?.trim()) {
+    await db
+      .prepare(
+        `INSERT INTO STOCK_GANADERO_DISPOSITIVO_HISTORIAL
+           (clave, campo, etiqueta, valor_anterior, valor_nuevo, creado_en)
+         VALUES (@clave, @campo, @etiqueta, @valor_anterior, @valor_nuevo, @creado_en)`
+      )
+      .run({
+        clave,
+        campo,
+        etiqueta,
+        valor_anterior: valorAnterior,
+        valor_nuevo: valorNuevo,
+        creado_en: creadoEn.trim(),
+      });
+    return;
+  }
+  await db
+    .prepare(
+      `INSERT INTO STOCK_GANADERO_DISPOSITIVO_HISTORIAL
+         (clave, campo, etiqueta, valor_anterior, valor_nuevo, creado_en)
+       VALUES (@clave, @campo, @etiqueta, @valor_anterior, @valor_nuevo,
+               datetime('now', 'localtime'))`
+    )
+    .run({
+      clave,
+      campo,
+      etiqueta,
+      valor_anterior: valorAnterior,
+      valor_nuevo: valorNuevo,
+    });
+}
+
+async function registrarHistorialCondicionLectura(
+  db: Db,
+  clave: string,
+  condicionAnterior: string,
+  condicionNueva: string,
+  fecha: string,
+  hora: string
+): Promise<void> {
+  await insertHistorialFila(
+    db,
     clave,
-    campo,
-    etiqueta,
-    valor_anterior: valorAnterior,
-    valor_nuevo: valorNuevo,
-  });
+    "condicion",
+    "Condición (lectura)",
+    fmtHistorialCondicion(condicionAnterior),
+    fmtHistorialCondicion(condicionNueva),
+    timestampLectura(fecha, hora)
+  );
 }
 
 async function registrarHistorialCambiosDispositivo(
@@ -1314,7 +1527,7 @@ export async function listStockGanaderaDispositivoHistorial(
     .prepare(
       `SELECT id, clave, campo, etiqueta, valor_anterior, valor_nuevo, creado_en
        FROM STOCK_GANADERO_DISPOSITIVO_HISTORIAL
-       WHERE clave = ?
+       WHERE clave = ? AND clave != '__meta__'
        ORDER BY creado_en DESC, id DESC`
     )
     .all(claveNorm)) as StockGanaderaDispositivoHistorial[];
