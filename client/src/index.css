@@ -10875,6 +10875,54 @@ select optgroup {
   min-height: 4.5rem;
 }
 
+/* Rubro / sub-rubro / concepto: misma altura que los select del formulario */
+.bn-ui form.card.form-card {
+  --form-control-h: 2.35rem;
+}
+
+.bn-ui form.card.form-card .form-grid > .field > select {
+  height: var(--form-control-h);
+  min-height: var(--form-control-h);
+  box-sizing: border-box;
+}
+
+.bn-ui form.card.form-card .form-grid > .field > .concepto-input-group {
+  height: var(--form-control-h);
+  min-height: var(--form-control-h);
+  box-sizing: border-box;
+  border: 1px solid var(--bn-border);
+  border-radius: 4px;
+  background: var(--bn-surface);
+}
+
+.bn-ui form.card.form-card .concepto-input-group .concepto-unificado {
+  padding: 0 0.55rem;
+  font-size: 0.84rem;
+  line-height: 1.25;
+  align-self: stretch;
+}
+
+.bn-ui form.card.form-card .concepto-input-group .concepto-acciones {
+  padding: 0.2rem 0.25rem;
+  gap: 0.2rem;
+  align-self: stretch;
+  border-left-color: var(--bn-border);
+  background: var(--bn-surface);
+}
+
+.bn-ui form.card.form-card .concepto-input-group .concepto-btn {
+  width: calc(var(--form-control-h) - 0.45rem);
+  height: calc(var(--form-control-h) - 0.45rem);
+  min-width: calc(var(--form-control-h) - 0.45rem);
+  min-height: calc(var(--form-control-h) - 0.45rem);
+  flex-shrink: 0;
+}
+
+.bn-ui form.card.form-card .concepto-input-group:focus-within {
+  border-color: var(--bn-accent, var(--primary));
+  box-shadow: 0 0 0 2px rgba(240, 185, 11, 0.2);
+}
+
 .bn-ui .form-grid input:hover,
 .bn-ui .form-grid select:hover,
 .bn-ui .form-grid textarea:hover,
