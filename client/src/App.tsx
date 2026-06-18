@@ -229,6 +229,7 @@ export default function App() {
             {screen === "registro" && (
               <FormGasto
                 catalogos={catalogos}
+                currentUser={user}
                 editRow={editRow}
                 apiOnline={apiOnline}
                 onSaved={onSaved}

@@ -26,7 +26,8 @@ import { parseStockGanaderoBuffer, parseStockGanaderoText, normalizeStockGanader
 import type { DispositivoMetaPatch } from "./stock-ganadero-db.js";
 import { parseTipoBaja, tipoBajaDesdeEstadoImport, type TipoBaja } from "./stock-ganadero-db.js";
 import { auditBajasDispositivos, auditStockMovimiento } from "./stock-audit.js";
-import { EMPRESAS, type Empresa, type PresupuestoInput } from "./types.js";
+import { EMPRESAS, type Empresa, type Presupuesto, type PresupuestoInput } from "./types.js";
+import type { UserPublic } from "./auth-db.js";
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -272,15 +273,30 @@ app.get("/api/catalogos", async (_req, res) => {
   res.json({ ok: true, ...(await db.getCatalogos()) });
 });
 
-app.get("/api/presupuesto", async (req, res) => {
-  const data = await db.listPresupuesto({
+function puedeAccederPresupuesto(row: Presupuesto, user: UserPublic): boolean {
+  if (user.rol === "admin") return true;
+  const owner = (row.ingresado_por_email ?? "").trim().toLowerCase();
+  return owner !== "" && owner === user.email.trim().toLowerCase();
+}
+
+function presupuestoListFilters(req: Request): db.ListFilters {
+  const user = req.user!;
+  const filters: db.ListFilters = {
     empresa: req.query.empresa as string | undefined,
     rubro: req.query.rubro as string | undefined,
     responsable_gasto: req.query.responsable_gasto as string | undefined,
     fecha_desde: req.query.fecha_desde as string | undefined,
     fecha_hasta: req.query.fecha_hasta as string | undefined,
     busqueda: req.query.busqueda as string | undefined,
-  });
+  };
+  if (user.rol !== "admin") {
+    filters.ingresado_por_email = user.email;
+  }
+  return filters;
+}
+
+app.get("/api/presupuesto", async (req, res) => {
+  const data = await db.listPresupuesto(presupuestoListFilters(req));
   res.json({ ok: true, data });
 });
 
@@ -302,13 +318,21 @@ app.get("/api/presupuesto/:id", async (req, res) => {
     res.status(404).json({ ok: false, error: "Registro no encontrado" });
     return;
   }
+  if (!puedeAccederPresupuesto(reg, req.user!)) {
+    res.status(403).json({ ok: false, error: "No tenés permiso para ver este registro" });
+    return;
+  }
   res.json({ ok: true, data: reg });
 });
 
 app.post("/api/presupuesto", async (req, res) => {
   try {
     const payload = await parseBody(req);
-    const newId = await db.insertPresupuesto(payload);
+    const user = req.user!;
+    const newId = await db.insertPresupuesto(payload, {
+      email: user.email,
+      nombre: user.nombre,
+    });
     const reg = await db.getPresupuesto(newId);
     res.status(201).json({
       ok: true,
@@ -324,6 +348,15 @@ app.post("/api/presupuesto", async (req, res) => {
 app.put("/api/presupuesto/:id", async (req, res) => {
   try {
     const id = Number(req.params.id);
+    const prev = await db.getPresupuesto(id);
+    if (!prev) {
+      res.status(404).json({ ok: false, error: "Registro no encontrado" });
+      return;
+    }
+    if (!puedeAccederPresupuesto(prev, req.user!)) {
+      res.status(403).json({ ok: false, error: "No tenés permiso para modificar este registro" });
+      return;
+    }
     const payload = await parseBody(req);
     if (!await db.updatePresupuesto(id, payload)) {
       res.status(404).json({ ok: false, error: "Registro no encontrado" });
@@ -341,6 +374,15 @@ app.put("/api/presupuesto/:id", async (req, res) => {
 
 app.delete("/api/presupuesto/:id", async (req, res) => {
   const id = Number(req.params.id);
+  const prev = await db.getPresupuesto(id);
+  if (!prev) {
+    res.status(404).json({ ok: false, error: "Registro no encontrado" });
+    return;
+  }
+  if (!puedeAccederPresupuesto(prev, req.user!)) {
+    res.status(403).json({ ok: false, error: "No tenés permiso para eliminar este registro" });
+    return;
+  }
   if (!await db.deletePresupuesto(id)) {
     res.status(404).json({ ok: false, error: "Registro no encontrado" });
     return;

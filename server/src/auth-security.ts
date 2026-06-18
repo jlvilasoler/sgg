@@ -89,6 +89,20 @@ function originMatchesHost(origin: string, host: string): boolean {
   }
 }
 
+/** Vite puede usar 5174, 5175… si el puerto por defecto está ocupado. */
+function isLocalDevOrigin(origin: string): boolean {
+  try {
+    const url = new URL(origin);
+    const host = url.hostname.toLowerCase();
+    return (
+      url.protocol === "http:" &&
+      (host === "localhost" || host === "127.0.0.1")
+    );
+  } catch {
+    return false;
+  }
+}
+
 /** SPA y API en el mismo dominio (p. ej. Vercel): el navegador puede omitir Origin. */
 function isTrustedSameSiteRequest(req: Request): boolean {
   const host = requestHost(req);
@@ -150,6 +164,7 @@ export function isAllowedClientOrigin(origin: string, req?: Request): boolean {
     const host = requestHost(req);
     if (host && originMatchesHost(origin, host)) return true;
   }
+  if (!IS_PROD && isLocalDevOrigin(origin)) return true;
   const allowed = getAllowedClientOrigins();
   return allowed.some(
     (candidate) =>

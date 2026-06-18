@@ -21,6 +21,8 @@ export interface Presupuesto {
   tc_reales: number;
   saldo_usd: number;
   creado_en?: string;
+  ingresado_por_email?: string;
+  ingresado_por_nombre?: string;
 }
 
 export type PresupuestoForm = Omit<Presupuesto, "id" | "nro_registro" | "creado_en">;

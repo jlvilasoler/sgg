@@ -21,6 +21,8 @@ CREATE TABLE IF NOT EXISTS PRESUPUESTO (
   sub_rubro TEXT NOT NULL DEFAULT '',
   funcionario_cedula TEXT NOT NULL DEFAULT '',
   observaciones TEXT NOT NULL DEFAULT '',
+  ingresado_por_email TEXT NOT NULL DEFAULT '',
+  ingresado_por_nombre TEXT NOT NULL DEFAULT '',
   creado_en TIMESTAMPTZ DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_presupuesto_empresa ON PRESUPUESTO(empresa);

@@ -124,7 +124,7 @@ async function syncSubRubrosFromPresupuesto(db: Db): Promise<void> {
 
 export async function listSubRubros(db: Db, soloActivos = false): Promise<SubRubro[]> {
   let query = "SELECT * FROM SUB_RUBROS";
-  if (soloActivos) query += " WHERE (activo = 1 OR activo IS TRUE)";
+  if (soloActivos) query += " WHERE activo = 1";
   query += " ORDER BY LOWER(grupo) ASC, LOWER(nombre) ASC";
   return (await db.prepare(query).all()) as SubRubro[];
 }
@@ -135,7 +135,7 @@ export async function listSubRubrosNombres(db: Db): Promise<string[]> {
 
 export async function listSubRubrosGrupos(db: Db): Promise<string[]> {
   const fromDb = (await db
-    .prepare(`SELECT DISTINCT grupo FROM SUB_RUBROS ORDER BY LOWER(grupo) ASC`)
+    .prepare(`SELECT DISTINCT grupo FROM SUB_RUBROS`)
     .all()) as { grupo: string }[];
   const set = new Set<string>([...GRUPOS_SUB_RUBRO, ...fromDb.map((r) => r.grupo)]);
   return [...set].sort((a, b) => a.localeCompare(b, "es"));
@@ -386,7 +386,7 @@ export async function deleteSubRubro(db: Db, id: number): Promise<boolean> {
 export async function subRubroExistsActivo(db: Db, nombre: string): Promise<boolean> {
   const row = await db
     .prepare(
-      "SELECT 1 FROM SUB_RUBROS WHERE LOWER(nombre) = LOWER(?) AND (activo = 1 OR activo IS TRUE)"
+      "SELECT 1 FROM SUB_RUBROS WHERE LOWER(nombre) = LOWER(?) AND activo = 1"
     )
     .get(nombre.trim());
   return !!row;

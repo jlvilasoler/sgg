@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { deletePresupuesto, fetchPresupuesto } from "../api";
-import type { Presupuesto } from "../types";
+import type { AuthUser, Presupuesto } from "../types";
 import { confirmAction } from "../utils/confirm";
 import { empresaClass, empresaCorta, fmtDate, fmtNum } from "../utils";
 import { IconEditar, IconEliminar, IconVer } from "./icons/ActionIcons";
@@ -10,10 +10,11 @@ import TablePagination, {
   type PageSize,
 } from "./TablePagination";
 
-const COLS_TABLA = 12;
+const COLS_BASE = 12;
 
 interface Props {
   apiOnline: boolean;
+  currentUser: AuthUser;
   onEdit: (row: Presupuesto) => void;
   onError: (msg: string) => void;
   onDeleted?: () => void;
@@ -37,11 +38,14 @@ function CeldaTexto({
 
 export default function GastoHistorialTabla({
   apiOnline,
+  currentUser,
   onEdit,
   onError,
   onDeleted,
   refreshKey = 0,
 }: Props) {
+  const esAdmin = currentUser.rol === "admin";
+  const colsTabla = esAdmin ? COLS_BASE + 1 : COLS_BASE;
   const [rows, setRows] = useState<Presupuesto[]>([]);
   const [busqueda, setBusqueda] = useState("");
   const [loading, setLoading] = useState(true);
@@ -125,8 +129,12 @@ export default function GastoHistorialTabla({
                 : !apiOnline
                   ? "Sin conexión con la API"
                   : rows.length === 0
-                    ? "Sin documentos cargados todavía"
-                    : `${rows.length} documento${rows.length === 1 ? "" : "s"} en total`}
+                    ? esAdmin
+                      ? "Sin documentos cargados todavía"
+                      : "No ingresaste documentos todavía"
+                    : esAdmin
+                      ? `${rows.length} documento${rows.length === 1 ? "" : "s"} de todos los usuarios`
+                      : `${rows.length} documento${rows.length === 1 ? "" : "s"} ingresados por vos`}
             </p>
           </div>
         </header>
@@ -158,6 +166,7 @@ export default function GastoHistorialTabla({
               <col className="col-razon" />
               <col className="col-concepto" />
               <col className="col-fact" />
+              {esAdmin ? <col className="col-usuario" /> : null}
               <col className="col-pesos" />
               <col className="col-usd" />
               <col className="col-reales" />
@@ -175,6 +184,7 @@ export default function GastoHistorialTabla({
                 <th title="Razón social proveedor">Razón</th>
                 <th>Concepto</th>
                 <th title="Número de factura">Fact.</th>
+                {esAdmin ? <th title="Usuario que ingresó el documento">Ingresó</th> : null}
                 <th className="num">$</th>
                 <th className="num">USD</th>
                 <th className="num">R$</th>
@@ -187,19 +197,19 @@ export default function GastoHistorialTabla({
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={COLS_TABLA} className="empty">
+                  <td colSpan={colsTabla} className="empty">
                     Cargando…
                   </td>
                 </tr>
               ) : !apiOnline ? (
                 <tr>
-                  <td colSpan={COLS_TABLA} className="empty">
+                  <td colSpan={colsTabla} className="empty">
                     API no conectada. Ejecutá <code>npm run dev</code> en la carpeta del proyecto.
                   </td>
                 </tr>
               ) : rows.length === 0 ? (
                 <tr>
-                  <td colSpan={COLS_TABLA} className="empty">
+                  <td colSpan={colsTabla} className="empty">
                     No hay documentos{busqueda.trim() ? " para esa búsqueda" : ""}.
                   </td>
                 </tr>
@@ -228,6 +238,14 @@ export default function GastoHistorialTabla({
                     <td>
                       <CeldaTexto value={r.nro_factura} vacio="" />
                     </td>
+                    {esAdmin ? (
+                      <td title={r.ingresado_por_email || undefined}>
+                        <CeldaTexto
+                          value={r.ingresado_por_nombre || r.ingresado_por_email}
+                          vacio="—"
+                        />
+                      </td>
+                    ) : null}
                     <td className="num listado-pro-num">{fmtNum(r.pesos)}</td>
                     <td className="num listado-pro-num">{fmtNum(r.dolares_usd)}</td>
                     <td className="num listado-pro-num">{fmtNum(r.reales)}</td>

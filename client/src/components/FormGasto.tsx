@@ -11,6 +11,7 @@ import {
 } from "../api";
 import type { SubRubroItem } from "../types";
 import type {
+  AuthUser,
   Catalogos,
   Empresa,
   FuncionarioSelectorItem,
@@ -33,6 +34,7 @@ const SUB_RUBRO_AGREGAR = "__agregar_sub_rubro__";
 
 interface Props {
   catalogos: Catalogos;
+  currentUser: AuthUser;
   editRow: Presupuesto | null;
   apiOnline: boolean;
   onSaved: () => void;
@@ -87,6 +89,7 @@ const initial = (): FormState => ({
 
 export default function FormGasto({
   catalogos,
+  currentUser,
   editRow,
   apiOnline,
   onSaved,
@@ -993,6 +996,7 @@ export default function FormGasto({
 
     <GastoHistorialTabla
       apiOnline={apiOnline}
+      currentUser={currentUser}
       onEdit={onEdit}
       onError={onError}
       refreshKey={historialKey}

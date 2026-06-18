@@ -70,6 +70,34 @@ async function runModuleSeeds(): Promise<void> {
   await sub.migrateUnificarGruposIconos(db);
 }
 
+async function presupuestoColumnExists(column: string): Promise<boolean> {
+  const r = await getPool().query(
+    `SELECT 1 FROM information_schema.columns
+     WHERE table_schema = 'public' AND table_name = 'presupuesto' AND column_name = $1
+     LIMIT 1`,
+    [column.toLowerCase()]
+  );
+  return r.rows.length > 0;
+}
+
+async function migratePresupuestoIngresadoPor(db: PgDb): Promise<void> {
+  const cols: Array<{ name: string; ddl: string }> = [
+    {
+      name: "ingresado_por_email",
+      ddl: `ALTER TABLE presupuesto ADD COLUMN ingresado_por_email TEXT NOT NULL DEFAULT ''`,
+    },
+    {
+      name: "ingresado_por_nombre",
+      ddl: `ALTER TABLE presupuesto ADD COLUMN ingresado_por_nombre TEXT NOT NULL DEFAULT ''`,
+    },
+  ];
+  for (const col of cols) {
+    if (await presupuestoColumnExists(col.name)) continue;
+    await db.prepare(col.ddl).run();
+    console.info(`[SGG] Migración: columna ${col.name} agregada a presupuesto`);
+  }
+}
+
 async function connectWithRetry(attempts = 4): Promise<void> {
   let lastErr: unknown;
   for (let i = 0; i < attempts; i++) {
@@ -108,6 +136,7 @@ export async function initDb(): Promise<void> {
     await auth.initAuthTables(db);
     await stock.initStockGanaderoTables(db);
     await stockAud.initStockAuditoriaTable(db);
+    await migratePresupuestoIngresadoPor(db);
   } finally {
     if (locked) await releaseAdvisoryLock();
   }
@@ -270,19 +299,29 @@ export const proveedores = {
   delete: (id: number) => prov.deleteProveedor(db, id),
 };
 
-export async function insertPresupuesto(data: PresupuestoInput): Promise<number> {
+export async function insertPresupuesto(
+  data: PresupuestoInput,
+  ingresadoPor?: { email: string; nombre: string }
+): Promise<number> {
   const nro_registro = await allocNroRegistro();
   const result = await db.prepare(`
     INSERT INTO PRESUPUESTO (
       nro_registro, empresa, fecha, codigo_proveedor, razon_social_proveedor,
       concepto, observaciones, rubro, sub_rubro, responsable_gasto, funcionario_cedula, nro_factura,
-      pesos, dolares_usd, reales, tc_usd, tc_reales, saldo_usd
+      pesos, dolares_usd, reales, tc_usd, tc_reales, saldo_usd,
+      ingresado_por_email, ingresado_por_nombre
     ) VALUES (
       @nro_registro, @empresa, @fecha, @codigo_proveedor, @razon_social_proveedor,
       @concepto, @observaciones, @rubro, @sub_rubro, @responsable_gasto, @funcionario_cedula, @nro_factura,
-      @pesos, @dolares_usd, @reales, @tc_usd, @tc_reales, @saldo_usd
+      @pesos, @dolares_usd, @reales, @tc_usd, @tc_reales, @saldo_usd,
+      @ingresado_por_email, @ingresado_por_nombre
     )
-  `).run({ ...data, nro_registro });
+  `).run({
+    ...data,
+    nro_registro,
+    ingresado_por_email: ingresadoPor?.email?.trim() ?? "",
+    ingresado_por_nombre: ingresadoPor?.nombre?.trim() ?? "",
+  });
   return Number(result.lastInsertRowid);
 }
 
@@ -320,12 +359,17 @@ export interface ListFilters {
   fecha_desde?: string;
   fecha_hasta?: string;
   busqueda?: string;
+  ingresado_por_email?: string;
 }
 
 export async function listPresupuesto(filters: ListFilters = {}): Promise<Presupuesto[]> {
   let query = "SELECT * FROM PRESUPUESTO WHERE 1=1";
   const params: Record<string, string> = {};
 
+  if (filters.ingresado_por_email) {
+    query += " AND LOWER(ingresado_por_email) = LOWER(@ingresado_por_email)";
+    params.ingresado_por_email = filters.ingresado_por_email.trim();
+  }
   if (filters.empresa) {
     query += " AND empresa = @empresa";
     params.empresa = filters.empresa;

@@ -49,11 +49,12 @@ function sameNombre(a: string, b: string): boolean {
 }
 
 async function listDistinctGrupos(db: Db): Promise<string[]> {
-  return (
-    (await db
-      .prepare("SELECT DISTINCT grupo FROM SUB_RUBROS ORDER BY LOWER(grupo)")
-      .all()) as { grupo: string }[]
-  ).map((r) => r.grupo);
+  const rows = (await db
+    .prepare("SELECT DISTINCT grupo FROM SUB_RUBROS")
+    .all()) as { grupo: string }[];
+  return rows
+    .map((r) => r.grupo)
+    .sort((a, b) => a.localeCompare(b, "es", { sensitivity: "accent" }));
 }
 
 function gruposExplicitosParaRubro(rubroNombre: string): string[] {

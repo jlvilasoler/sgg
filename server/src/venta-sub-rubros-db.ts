@@ -51,7 +51,7 @@ export async function listVentaSubRubros(
 
 export async function listVentaSubRubrosGrupos(db: Db): Promise<string[]> {
   const fromDb = (await db
-    .prepare(`SELECT DISTINCT grupo FROM VENTA_SUB_RUBROS ORDER BY LOWER(grupo) ASC`)
+    .prepare(`SELECT DISTINCT grupo FROM VENTA_SUB_RUBROS`)
     .all()) as { grupo: string }[];
   const set = new Set<string>([...VENTA_GRUPOS_SUB_RUBRO, ...fromDb.map((r) => r.grupo)]);
   return [...set].sort((a, b) => a.localeCompare(b, "es"));

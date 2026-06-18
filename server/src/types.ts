@@ -50,6 +50,8 @@ export interface PresupuestoInput {
 export interface Presupuesto extends PresupuestoInput {
   id: number;
   nro_registro: number;
+  ingresado_por_email?: string;
+  ingresado_por_nombre?: string;
   creado_en?: string;
 }
 
