@@ -2,6 +2,7 @@ import type { Db } from "./db/pg-client.js";
 import {
   getRubroByNombre,
   insertRubro,
+  rubroExistsActivo,
   updateRubro,
 } from "./rubros-db.js";
 import { normalizarTituloRubro } from "./text-normalize.js";
@@ -123,7 +124,7 @@ async function syncSubRubrosFromPresupuesto(db: Db): Promise<void> {
 
 export async function listSubRubros(db: Db, soloActivos = false): Promise<SubRubro[]> {
   let query = "SELECT * FROM SUB_RUBROS";
-  if (soloActivos) query += " WHERE activo = 1";
+  if (soloActivos) query += " WHERE (activo = 1 OR activo IS TRUE)";
   query += " ORDER BY LOWER(grupo) ASC, LOWER(nombre) ASC";
   return (await db.prepare(query).all()) as SubRubro[];
 }
@@ -138,6 +139,82 @@ export async function listSubRubrosGrupos(db: Db): Promise<string[]> {
     .all()) as { grupo: string }[];
   const set = new Set<string>([...GRUPOS_SUB_RUBRO, ...fromDb.map((r) => r.grupo)]);
   return [...set].sort((a, b) => a.localeCompare(b, "es"));
+}
+
+function grupoClaveOrden(grupo: string): string {
+  if (esGrupoAlambradosLegacy(grupo)) return GRUPO_ALAMBRADOS.toLocaleLowerCase("es-UY");
+  return grupo.trim().toLocaleLowerCase("es-UY");
+}
+
+function grupoTituloCanon(grupo: string): string {
+  if (esGrupoAlambradosLegacy(grupo)) return GRUPO_ALAMBRADOS;
+  return normalizarTituloRubro(grupo);
+}
+
+function esSubRubroActivo(activo: unknown): boolean {
+  return activo === 1 || activo === true;
+}
+
+/** Grupos (rubros) y sub-rubros activos tal como en Configuración → Rubros. */
+export async function getCatalogoGruposParaGastos(db: Db): Promise<{
+  rubros: string[];
+  sub_rubros_por_rubro: Record<string, string[]>;
+}> {
+  const all = await listSubRubros(db, false);
+  if (all.length === 0) {
+    return { rubros: [], sub_rubros_por_rubro: {} };
+  }
+
+  const buckets = new Map<string, { titulo: string; subs: string[] }>();
+  for (const row of all) {
+    const clave = grupoClaveOrden(row.grupo);
+    const titulo = grupoTituloCanon(row.grupo);
+    let bucket = buckets.get(clave);
+    if (!bucket) {
+      bucket = { titulo, subs: [] };
+      buckets.set(clave, bucket);
+    }
+    if (!esSubRubroActivo(row.activo)) continue;
+    if (
+      !bucket.subs.some(
+        (s) => s.localeCompare(row.nombre, "es", { sensitivity: "accent" }) === 0
+      )
+    ) {
+      bucket.subs.push(row.nombre);
+    }
+  }
+
+  let rubros = [...buckets.values()]
+    .filter((b) => b.subs.length > 0)
+    .map((b) => b.titulo)
+    .sort((a, b) => a.localeCompare(b, "es", { sensitivity: "accent" }));
+
+  // Si ningún sub-rubro está activo, mostrar igual los grupos del catálogo (como en Rubros).
+  if (rubros.length === 0) {
+    rubros = [...buckets.values()]
+      .map((b) => b.titulo)
+      .sort((a, b) => a.localeCompare(b, "es", { sensitivity: "accent" }));
+  }
+
+  const sub_rubros_por_rubro: Record<string, string[]> = {};
+  for (const b of buckets.values()) {
+    sub_rubros_por_rubro[b.titulo] = b.subs.sort((a, b) =>
+      a.localeCompare(b, "es", { sensitivity: "accent" })
+    );
+  }
+
+  return { rubros, sub_rubros_por_rubro };
+}
+
+/** Rubro válido al cargar gasto: grupo del catálogo o rubro contable legacy activo. */
+export async function rubroGastoValido(db: Db, nombre: string): Promise<boolean> {
+  const n = nombre.trim();
+  if (!n) return false;
+  const { rubros } = await getCatalogoGruposParaGastos(db);
+  if (rubros.some((r) => r.localeCompare(n, "es", { sensitivity: "accent" }) === 0)) {
+    return true;
+  }
+  return rubroExistsActivo(db, n);
 }
 
 export async function getSubRubroById(db: Db, id: number): Promise<SubRubro | undefined> {
@@ -308,7 +385,9 @@ export async function deleteSubRubro(db: Db, id: number): Promise<boolean> {
 
 export async function subRubroExistsActivo(db: Db, nombre: string): Promise<boolean> {
   const row = await db
-    .prepare("SELECT 1 FROM SUB_RUBROS WHERE LOWER(nombre) = LOWER(?) AND activo = 1")
+    .prepare(
+      "SELECT 1 FROM SUB_RUBROS WHERE LOWER(nombre) = LOWER(?) AND (activo = 1 OR activo IS TRUE)"
+    )
     .get(nombre.trim());
   return !!row;
 }

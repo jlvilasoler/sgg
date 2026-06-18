@@ -8,4 +8,5 @@ export type TabId =
   | "ingresos_ventas"
   | "stock_ganadero"
   | "stock_movimientos"
+  | "registro_actividad"
   | "usuarios";

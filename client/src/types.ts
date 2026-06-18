@@ -170,6 +170,16 @@ export interface AuthActividadLog {
   creado_en: string;
 }
 
+export interface UsuarioOnline {
+  email: string;
+  nombre: string;
+  rol: string;
+  ip: string | null;
+  pantalla: string | null;
+  ultimo_visto: string;
+  hace_segundos: number;
+}
+
 export interface ResumenEmpresa {
   empresa: string;
   cantidad: number;

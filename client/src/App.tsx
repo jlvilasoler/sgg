@@ -6,6 +6,7 @@ import {
   fetchCurrentUser,
   fetchPresupuestoById,
   logoutAuth,
+  enviarPresencia,
   registrarPantallaActividad,
 } from "./api";
 import { DEFAULT_CATALOGOS } from "./constants";
@@ -16,6 +17,7 @@ import MainHeader from "./components/MainHeader";
 import AppFooter from "./components/AppFooter";
 import LoginScreen from "./components/LoginScreen";
 import Usuarios from "./components/Usuarios";
+import UsuariosActividad from "./components/UsuariosActividad";
 import FormGasto from "./components/FormGasto";
 import Listado from "./components/Listado";
 import Resumen from "./components/Resumen";
@@ -26,7 +28,7 @@ import IngresosVentas from "./components/ventas/IngresosVentas";
 import StockGanadero from "./components/stock/StockGanadero";
 import StockMovimientosAuditoria from "./components/stock/StockMovimientosAuditoria";
 import ConfirmDialogHost from "./components/ConfirmDialogHost";
-import { canAccessScreen, canAccessStockMovimientos } from "./utils/auth-permissions";
+import { canAccessScreen, canAccessStockMovimientos, canAccessUsuarioActividad } from "./utils/auth-permissions";
 import { showToast } from "./utils/toast";
 
 export default function App() {
@@ -40,6 +42,8 @@ export default function App() {
   const [editRow, setEditRow] = useState<Presupuesto | null>(null);
   const [listKey, setListKey] = useState(0);
   const hadUserRef = useRef(false);
+  const screenRef = useRef<ScreenId>("home");
+  screenRef.current = screen;
 
   const notify = useCallback((msg: string, ok = true, title?: string) => {
     showToast(msg, ok, title);
@@ -92,6 +96,14 @@ export default function App() {
   }, [user]);
 
   useEffect(() => {
+    if (!user || !apiOnline) return;
+    const tick = () => enviarPresencia(screenRef.current);
+    tick();
+    const id = window.setInterval(tick, 40_000);
+    return () => window.clearInterval(id);
+  }, [user, apiOnline, screen]);
+
+  useEffect(() => {
     const onUnauthorized = () => {
       const wasLoggedIn = hadUserRef.current;
       setUser(null);
@@ -120,6 +132,11 @@ export default function App() {
     if (id === "stock_movimientos") {
       if (!canAccessStockMovimientos(user)) {
         notify("Solo administradores pueden ver el registro de movimientos", false);
+        return;
+      }
+    } else if (id === "registro_actividad") {
+      if (!canAccessUsuarioActividad(user)) {
+        notify("Solo administradores pueden ver el registro de actividad", false);
         return;
       }
     } else if (!canAccessScreen(user, id)) {
@@ -216,6 +233,7 @@ export default function App() {
                 apiOnline={apiOnline}
                 onSaved={onSaved}
                 onCancelEdit={() => setEditRow(null)}
+                onEdit={onEdit}
                 onCatalogosChanged={refreshCatalogos}
                 onError={(m) => notify(m, false)}
                 onSuccess={(m, t) => notify(m, true, t)}
@@ -295,6 +313,13 @@ export default function App() {
             )}
             {screen === "stock_movimientos" && (
               <StockMovimientosAuditoria
+                apiOnline={apiOnline}
+                onError={(m) => notify(m, false)}
+                onVolver={goHome}
+              />
+            )}
+            {screen === "registro_actividad" && (
+              <UsuariosActividad
                 apiOnline={apiOnline}
                 onError={(m) => notify(m, false)}
                 onVolver={goHome}

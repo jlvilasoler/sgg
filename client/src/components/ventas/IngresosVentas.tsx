@@ -1,5 +1,8 @@
 import { useState } from "react";
 import type { IngresoVenta } from "../../types";
+import { HubMenuCard } from "../HubMenuCard";
+import type { HubIconId } from "../icons/HubMenuIcons";
+import { HUB_ICON_THEMES, HubMenuIcon } from "../icons/HubMenuIcons";
 import FormVenta from "./FormVenta";
 import VentaListado from "./VentaListado";
 import VentaRubros from "./VentaRubros";
@@ -13,27 +16,29 @@ interface Props {
   onVolver: () => void;
 }
 
-const SUBMENU = [
+const SUBMENU: {
+  id: "ingresar" | "listado" | "rubros";
+  label: string;
+  subtitle: string;
+  icon: HubIconId;
+}[] = [
   {
-    id: "ingresar" as const,
+    id: "ingresar",
     label: "Documentos a ingresar por ventas",
     subtitle: "Registrar factura o ingreso por venta",
-    icon: "📄",
-    color: "#1a6b4a",
+    icon: "ventas_ingresar",
   },
   {
-    id: "listado" as const,
+    id: "listado",
     label: "Listado de documentos",
     subtitle: "Ver, editar y eliminar ingresos",
-    icon: "📋",
-    color: "#1d4e89",
+    icon: "ventas_listado",
   },
   {
-    id: "rubros" as const,
+    id: "rubros",
     label: "Rubros ingresos por ventas",
     subtitle: "Rubros, sub-rubros e ítems del catálogo",
-    icon: "🏷️",
-    color: "#b85c00",
+    icon: "ventas_rubros",
   },
 ];
 
@@ -116,27 +121,14 @@ export default function IngresosVentas({
         </div>
         <nav className="app-grid app-grid-3" aria-label="Ingresos por ventas">
           {SUBMENU.map((item) => (
-            <button
+            <HubMenuCard
               key={item.id}
-              type="button"
-              className="app-card-btn"
+              label={item.label}
+              subtitle={item.subtitle}
+              theme={HUB_ICON_THEMES[item.icon]}
+              icon={<HubMenuIcon id={item.icon} />}
               onClick={() => setVista(item.id)}
-            >
-              <span
-                className="app-card-icon"
-                style={{
-                  background: `linear-gradient(145deg, ${item.color}, ${item.color}bb)`,
-                }}
-              >
-                <span className="app-icon-emoji" aria-hidden>
-                  {item.icon}
-                </span>
-              </span>
-              <span className="app-card-text">
-                <span className="app-card-label">{item.label}</span>
-                <span className="app-card-sub">{item.subtitle}</span>
-              </span>
-            </button>
+            />
           ))}
         </nav>
       </div>

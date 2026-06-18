@@ -1,7 +1,10 @@
 import { useState } from "react";
+import { HubMenuCard } from "./HubMenuCard";
 import Proveedores from "./Proveedores";
 import Responsables from "./Responsables";
 import Rubros from "./Rubros";
+import type { HubIconId } from "./icons/HubMenuIcons";
+import { HUB_ICON_THEMES, HubMenuIcon } from "./icons/HubMenuIcons";
 
 type ModuloConfig = "menu" | "responsables" | "proveedores" | "rubros";
 
@@ -13,27 +16,29 @@ interface Props {
   onVolver: () => void;
 }
 
-const MODULOS = [
+const MODULOS: {
+  id: "responsables" | "proveedores" | "rubros";
+  label: string;
+  subtitle: string;
+  icon: HubIconId;
+}[] = [
   {
-    id: "responsables" as const,
+    id: "responsables",
     label: "Presupuesto asignado",
     subtitle: "Personas a quien se asigna el gasto",
-    icon: "👤",
-    color: "#4a6fa5",
+    icon: "config_responsables",
   },
   {
-    id: "proveedores" as const,
+    id: "proveedores",
     label: "Proveedores",
     subtitle: "Catálogo de proveedores",
-    icon: "🏢",
-    color: "#5c4b8a",
+    icon: "config_proveedores",
   },
   {
-    id: "rubros" as const,
+    id: "rubros",
     label: "Rubros",
     subtitle: "Rubros y sub-rubros del catálogo",
-    icon: "🏷️",
-    color: "#b85c00",
+    icon: "config_rubros",
   },
 ];
 
@@ -98,27 +103,14 @@ export default function Configuracion({
         </div>
         <nav className="app-grid app-grid-3" aria-label="Configuración">
           {MODULOS.map((item) => (
-            <button
+            <HubMenuCard
               key={item.id}
-              type="button"
-              className="app-card-btn"
+              label={item.label}
+              subtitle={item.subtitle}
+              theme={HUB_ICON_THEMES[item.icon]}
+              icon={<HubMenuIcon id={item.icon} />}
               onClick={() => setModulo(item.id)}
-            >
-              <span
-                className="app-card-icon"
-                style={{
-                  background: `linear-gradient(145deg, ${item.color}, ${item.color}bb)`,
-                }}
-              >
-                <span className="app-icon-emoji" aria-hidden>
-                  {item.icon}
-                </span>
-              </span>
-              <span className="app-card-text">
-                <span className="app-card-label">{item.label}</span>
-                <span className="app-card-sub">{item.subtitle}</span>
-              </span>
-            </button>
+            />
           ))}
         </nav>
       </div>

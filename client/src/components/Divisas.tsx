@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { HubMenuCard } from "./HubMenuCard";
+import { HUB_ICON_THEMES, HubMenuIcon } from "./icons/HubMenuIcons";
 import DivisasMonedaHub from "./divisas/DivisasMonedaHub";
 import {
   DIVISAS_MONEDA_LIST,
@@ -34,27 +36,14 @@ export default function Divisas({ apiOnline, onError, onSuccess }: Props) {
       </p>
       <nav className="app-grid app-grid-2" aria-label="Monedas en divisas">
         {DIVISAS_MONEDA_LIST.map((m) => (
-          <button
+          <HubMenuCard
             key={m.id}
-            type="button"
-            className="app-card-btn"
+            label={m.titulo}
+            subtitle={m.subtitulo}
+            theme={HUB_ICON_THEMES[m.icon]}
+            icon={<HubMenuIcon id={m.icon} />}
             onClick={() => setMoneda(m.id)}
-          >
-            <span
-              className="app-card-icon"
-              style={{
-                background: `linear-gradient(145deg, ${m.color}, ${m.color}bb)`,
-              }}
-            >
-              <span className="app-icon-emoji divisas-moneda-icon" aria-hidden>
-                {m.icon}
-              </span>
-            </span>
-            <span className="app-card-text">
-              <span className="app-card-label">{m.titulo}</span>
-              <span className="app-card-sub">{m.subtitulo}</span>
-            </span>
-          </button>
+          />
         ))}
       </nav>
     </div>

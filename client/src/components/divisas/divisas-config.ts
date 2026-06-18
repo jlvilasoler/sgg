@@ -1,3 +1,4 @@
+import type { HubIconId } from "../icons/HubMenuIcons";
 import { PAR_DIVISA_LABELS, type ParDivisa } from "../../types";
 
 export type DivisasMonedaId = "dolares" | "reales";
@@ -7,8 +8,7 @@ export interface DivisasMonedaConfig {
   par: ParDivisa;
   titulo: string;
   subtitulo: string;
-  icon: string;
-  color: string;
+  icon: HubIconId;
   /** Importación automática al abrir histórico */
   autoImport: "bcu" | "yahoo" | null;
   importLabel: string;
@@ -22,8 +22,7 @@ export const DIVISAS_MONEDAS: Record<DivisasMonedaId, DivisasMonedaConfig> = {
     par: "UYU_USD",
     titulo: "Dólares",
     subtitulo: PAR_DIVISA_LABELS.UYU_USD,
-    icon: "$",
-    color: "#0d6e6e",
+    icon: "divisas_usd",
     autoImport: "bcu",
     importLabel: "Importar USD → $U (BCU)",
     importHint:
@@ -35,8 +34,7 @@ export const DIVISAS_MONEDAS: Record<DivisasMonedaId, DivisasMonedaConfig> = {
     par: "BRL_USD",
     titulo: "Reales",
     subtitulo: PAR_DIVISA_LABELS.BRL_USD,
-    icon: "R$",
-    color: "#1a6b3c",
+    icon: "divisas_brl",
     autoImport: "yahoo",
     importLabel: "Importar USD → R$ (histórico)",
     importHint:

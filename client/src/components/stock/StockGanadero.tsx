@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
 import { fetchStockGanaderoResumen } from "../../api";
+import { HubMenuCard } from "../HubMenuCard";
+import type { HubIconId } from "../icons/HubMenuIcons";
+import { HUB_ICON_THEMES, HubMenuIcon } from "../icons/HubMenuIcons";
 import StockGanadera from "./StockGanadera";
 import StockGanaderaSalidas from "./StockGanaderaSalidas";
 import StockGanaderoHistorial from "./StockGanaderoHistorial";
@@ -23,41 +26,41 @@ interface Props {
   onVolver: () => void;
 }
 
-const SUBMENU = [
+const SUBMENU: {
+  id: Exclude<VistaStock, "menu" | "historial">;
+  label: string;
+  subtitle: string;
+  icon: HubIconId;
+}[] = [
   {
-    id: "importar" as const,
+    id: "importar",
     label: "Alta de Dispositivo",
     subtitle: "Lecturas EID del bastón / lector RFID",
-    icon: "📥",
-    color: "#2d6a4f",
+    icon: "stock_alta",
   },
   {
-    id: "importar_baja" as const,
-    label: "Bajas de Dispositivos",
+    id: "importar_baja",
+    label: "Baja de Dispositivo",
     subtitle: "Archivo TXT o baja manual por caravana",
-    icon: "📤",
-    color: "#b45309",
+    icon: "stock_baja",
   },
   {
-    id: "listado" as const,
+    id: "listado",
     label: "Lecturas importadas",
     subtitle: "Ver, filtrar y gestionar importaciones",
-    icon: "📋",
-    color: "#1d4e89",
+    icon: "stock_lecturas",
   },
   {
-    id: "ganadera" as const,
+    id: "ganadera",
     label: "Stock Ganadero",
     subtitle: "Dispositivos EID y detalle de cada caravana",
-    icon: "🐄",
-    color: "#6b4c9a",
+    icon: "stock_dispositivos",
   },
   {
-    id: "salidas" as const,
+    id: "salidas",
     label: "Salidas del sistema",
     subtitle: "Muertes, ventas y frigorífico registradas",
-    icon: "🔻",
-    color: "#9f1239",
+    icon: "stock_salidas",
   },
 ];
 
@@ -197,27 +200,14 @@ export default function StockGanadero({
         </div>
         <nav className="app-grid" aria-label="Stock Ganadero">
           {SUBMENU.map((item) => (
-            <button
+            <HubMenuCard
               key={item.id}
-              type="button"
-              className="app-card-btn"
+              label={item.label}
+              subtitle={item.subtitle}
+              theme={HUB_ICON_THEMES[item.icon]}
+              icon={<HubMenuIcon id={item.icon} />}
               onClick={() => setVista(item.id)}
-            >
-              <span
-                className="app-card-icon"
-                style={{
-                  background: `linear-gradient(145deg, ${item.color}, ${item.color}bb)`,
-                }}
-              >
-                <span className="app-icon-emoji" aria-hidden>
-                  {item.icon}
-                </span>
-              </span>
-              <span className="app-card-text">
-                <span className="app-card-label">{item.label}</span>
-                <span className="app-card-sub">{item.subtitle}</span>
-              </span>
-            </button>
+            />
           ))}
         </nav>
       </div>

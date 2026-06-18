@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   createPresupuesto,
   createSubRubroByRubro,
@@ -6,6 +6,7 @@ import {
   esRubroRemuneracion,
   fetchSiguienteNumeroOperacion,
   fetchSubRubroItemsByNombre,
+  fetchSubRubros,
   updatePresupuesto,
 } from "../api";
 import type { SubRubroItem } from "../types";
@@ -18,10 +19,12 @@ import type {
 } from "../types";
 import { formatNumeroOperacion, todayIso } from "../utils";
 import { aMayusculas } from "../utils/formText";
-import { rubroTituloCanon } from "../utils/grupoRubro";
+import { grupoClaveOrden, grupoTituloCanon, rubroTituloCanon } from "../utils/grupoRubro";
+import { buildRubrosCatalogoGasto, type RubrosCatalogoGasto } from "../utils/rubros-catalogo";
 import { IconCancelar, IconConfirmar } from "./icons/ActionIcons";
 import ImporteMoneda from "./ImporteMoneda";
 import SelectorProveedor from "./SelectorProveedor";
+import GastoHistorialTabla from "./GastoHistorialTabla";
 
 /** Valores internos del select de concepto (no se guardan en PRESUPUESTO). */
 const CONCEPTO_OTRO = "__otro__";
@@ -34,6 +37,7 @@ interface Props {
   apiOnline: boolean;
   onSaved: () => void;
   onCancelEdit: () => void;
+  onEdit: (row: Presupuesto) => void;
   onCatalogosChanged?: () => void | Promise<void>;
   onError: (msg: string) => void;
   onSuccess: (msg: string, title?: string) => void;
@@ -87,6 +91,7 @@ export default function FormGasto({
   apiOnline,
   onSaved,
   onCancelEdit,
+  onEdit,
   onCatalogosChanged,
   onError,
   onSuccess,
@@ -105,29 +110,60 @@ export default function FormGasto({
   const [subRubroNuevoNombre, setSubRubroNuevoNombre] = useState("");
   const [subRubroGuardando, setSubRubroGuardando] = useState(false);
   const [subRubrosLocales, setSubRubrosLocales] = useState<Record<string, string[]>>({});
+  const [rubrosCatalogo, setRubrosCatalogo] = useState<RubrosCatalogoGasto>({
+    rubros: [],
+    sub_rubros_por_rubro: {},
+  });
+  const [historialKey, setHistorialKey] = useState(0);
 
-  const rubroFormCanon = form.rubro ? rubroTituloCanon(form.rubro) : "";
+  const loadRubrosCatalogo = useCallback(async () => {
+    if (!apiOnline) return;
+    try {
+      const rows = await fetchSubRubros(false);
+      setRubrosCatalogo(buildRubrosCatalogoGasto(rows));
+    } catch {
+      /* mantener catálogo previo */
+    }
+  }, [apiOnline]);
+
+  useEffect(() => {
+    void loadRubrosCatalogo();
+  }, [loadRubrosCatalogo]);
+
+  const catalogoRubros = useMemo(() => {
+    if (rubrosCatalogo.rubros.length > 0) return rubrosCatalogo;
+    return {
+      rubros: catalogos.rubros,
+      sub_rubros_por_rubro: catalogos.sub_rubros_por_rubro,
+    };
+  }, [rubrosCatalogo, catalogos.rubros, catalogos.sub_rubros_por_rubro]);
+
+  const rubroFormCanon = form.rubro ? grupoTituloCanon(form.rubro) : "";
 
   const rubroOptions = useMemo(() => {
     const seen = new Map<string, string>();
-    for (const r of catalogos.rubros) {
-      const canon = rubroTituloCanon(r);
-      const key = canon.toLocaleLowerCase("es-UY");
+    for (const r of catalogoRubros.rubros) {
+      const canon = grupoTituloCanon(r);
+      const key = grupoClaveOrden(canon);
       if (!seen.has(key)) seen.set(key, canon);
     }
     if (rubroFormCanon) {
-      const key = rubroFormCanon.toLocaleLowerCase("es-UY");
+      const key = grupoClaveOrden(rubroFormCanon);
       if (!seen.has(key)) seen.set(key, rubroFormCanon);
     }
     return [...seen.values()].sort((a, b) => a.localeCompare(b, "es"));
-  }, [catalogos.rubros, rubroFormCanon]);
+  }, [catalogoRubros.rubros, rubroFormCanon]);
 
   const subRubrosDelRubro = useMemo(() => {
     if (!rubroFormCanon) return [];
-    const map = catalogos.sub_rubros_por_rubro;
-    let base: string[] = [];
-    if (map[rubroFormCanon]?.length) base = map[rubroFormCanon];
-    else {
+    const map = catalogoRubros.sub_rubros_por_rubro;
+    let base: string[] = map[rubroFormCanon] ?? [];
+    if (!base.length) {
+      const clave = grupoClaveOrden(rubroFormCanon);
+      const key = Object.keys(map).find((k) => grupoClaveOrden(k) === clave);
+      base = key ? (map[key] ?? []) : [];
+    }
+    if (!base.length) {
       const key = Object.keys(map).find(
         (k) =>
           rubroTituloCanon(k).localeCompare(rubroFormCanon, "es", {
@@ -138,7 +174,7 @@ export default function FormGasto({
     }
     const extra = subRubrosLocales[rubroFormCanon] ?? [];
     return [...new Set([...base, ...extra])].sort((a, b) => a.localeCompare(b, "es"));
-  }, [catalogos.sub_rubros_por_rubro, rubroFormCanon, subRubrosLocales]);
+  }, [catalogoRubros.sub_rubros_por_rubro, rubroFormCanon, subRubrosLocales]);
 
   const subRubroOptions = useMemo(() => {
     if (!form.rubro) return [];
@@ -230,6 +266,12 @@ export default function FormGasto({
     catalogos.responsables,
     form.responsable_gasto,
   ]);
+
+  useEffect(() => {
+    if (!apiOnline || rubroOptions.length > 0) return;
+    void loadRubrosCatalogo();
+    void onCatalogosChanged?.();
+  }, [apiOnline, rubroOptions.length, loadRubrosCatalogo, onCatalogosChanged]);
 
   useEffect(() => {
     if (editRow) {
@@ -423,6 +465,7 @@ export default function FormGasto({
       setSubRubroModoAgregar(false);
       setSubRubroNuevoNombre("");
       setForm((f) => ({ ...f, sub_rubro: creado.nombre, concepto: "" }));
+      await loadRubrosCatalogo();
       await onCatalogosChanged?.();
       onSuccess(`Sub-rubro «${creado.nombre}» agregado`, "Catálogo");
     } catch (e) {
@@ -480,7 +523,7 @@ export default function FormGasto({
     setForm((f) => {
       const next = { ...f, [key]: val };
       if (key === "rubro") {
-        next.rubro = rubroTituloCanon(String(val));
+        next.rubro = grupoTituloCanon(String(val));
         next.sub_rubro = "";
         if (!esRubroRemuneracion(next.rubro, "")) {
           next.funcionario_cedula = "";
@@ -531,12 +574,14 @@ export default function FormGasto({
         setNumeroOperacion("");
       }
       onSaved();
+      setHistorialKey((k) => k + 1);
     } catch (err) {
       onError(err instanceof Error ? err.message : "Error al guardar");
     }
   };
 
   return (
+    <div className="form-gasto-layout">
     <form className="card form-card" onSubmit={handleSubmit}>
       <div className="form-header">
         <h2>
@@ -619,8 +664,15 @@ export default function FormGasto({
             required
             value={form.rubro}
             onChange={(e) => set("rubro", e.target.value)}
+            disabled={!apiOnline}
           >
-            <option value="">Seleccionar...</option>
+            <option value="">
+              {!apiOnline
+                ? "Sin conexión con la API"
+                : rubroOptions.length === 0
+                  ? "Cargando rubros…"
+                  : "Seleccionar..."}
+            </option>
             {rubroOptions.map((r) => (
               <option key={r} value={r}>
                 {r}
@@ -938,5 +990,14 @@ export default function FormGasto({
         </button>
       </div>
     </form>
+
+    <GastoHistorialTabla
+      apiOnline={apiOnline}
+      onEdit={onEdit}
+      onError={onError}
+      refreshKey={historialKey}
+      onDeleted={() => setHistorialKey((k) => k + 1)}
+    />
+    </div>
   );
 }

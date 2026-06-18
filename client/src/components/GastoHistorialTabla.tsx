@@ -1,0 +1,287 @@
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { deletePresupuesto, fetchPresupuesto } from "../api";
+import type { Presupuesto } from "../types";
+import { confirmAction } from "../utils/confirm";
+import { empresaClass, empresaCorta, fmtDate, fmtNum } from "../utils";
+import { IconEditar, IconEliminar, IconVer } from "./icons/ActionIcons";
+import PresupuestoDetalleModal from "./PresupuestoDetalleModal";
+import TablePagination, {
+  paginateSlice,
+  type PageSize,
+} from "./TablePagination";
+
+const COLS_TABLA = 12;
+
+interface Props {
+  apiOnline: boolean;
+  onEdit: (row: Presupuesto) => void;
+  onError: (msg: string) => void;
+  onDeleted?: () => void;
+  refreshKey?: number;
+}
+
+function CeldaTexto({
+  value,
+  vacio = "—",
+}: {
+  value: string | null | undefined;
+  vacio?: string;
+}) {
+  const texto = (value ?? "").trim() || vacio;
+  return (
+    <span className="cell-ellipsis" title={texto !== vacio ? texto : undefined}>
+      {texto}
+    </span>
+  );
+}
+
+export default function GastoHistorialTabla({
+  apiOnline,
+  onEdit,
+  onError,
+  onDeleted,
+  refreshKey = 0,
+}: Props) {
+  const [rows, setRows] = useState<Presupuesto[]>([]);
+  const [busqueda, setBusqueda] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<PageSize>(20);
+  const [detalleRow, setDetalleRow] = useState<Presupuesto | null>(null);
+
+  const load = useCallback(async () => {
+    if (!apiOnline) {
+      setRows([]);
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    try {
+      const data = await fetchPresupuesto({
+        busqueda: busqueda.trim() || undefined,
+      });
+      setRows(data);
+    } catch (e) {
+      onError(e instanceof Error ? e.message : "Error al cargar documentos");
+      setRows([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [apiOnline, busqueda, onError]);
+
+  useEffect(() => {
+    void load();
+  }, [load, refreshKey]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [busqueda, pageSize]);
+
+  const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
+  const pageSafe = Math.min(page, totalPages);
+
+  const rowsPagina = useMemo(
+    () => paginateSlice(rows, pageSafe, pageSize),
+    [rows, pageSafe, pageSize]
+  );
+
+  const handleDelete = async (id: number) => {
+    const ok = await confirmAction({
+      title: "Eliminar registro",
+      message:
+        "¿Eliminar este documento de PRESUPUESTO? Esta acción no se puede deshacer.",
+      confirmText: "Eliminar",
+      variant: "danger",
+    });
+    if (!ok) return;
+    try {
+      await deletePresupuesto(id);
+      if (detalleRow?.id === id) setDetalleRow(null);
+      onDeleted?.();
+      await load();
+    } catch (e) {
+      onError(e instanceof Error ? e.message : "Error al eliminar");
+    }
+  };
+
+  const handleEdit = (row: Presupuesto) => {
+    onEdit(row);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  return (
+    <section className="listado-pro form-gasto-historial" aria-label="Documentos ingresados">
+      {detalleRow && (
+        <PresupuestoDetalleModal row={detalleRow} onClose={() => setDetalleRow(null)} />
+      )}
+
+      <div className="listado-pro-shell">
+        <header className="listado-pro-head">
+          <div className="listado-pro-head-main">
+            <h2 className="listado-pro-head-title">Documentos ingresados</h2>
+            <p className="listado-pro-head-sub">
+              {loading
+                ? "Actualizando…"
+                : !apiOnline
+                  ? "Sin conexión con la API"
+                  : rows.length === 0
+                    ? "Sin documentos cargados todavía"
+                    : `${rows.length} documento${rows.length === 1 ? "" : "s"} en total`}
+            </p>
+          </div>
+        </header>
+
+        <div className="filters listado-pro-filters mayusculas-auto form-gasto-historial-filters">
+          <div className="field flex-grow">
+            <label htmlFor="gasto-hist-busqueda">Buscar</label>
+            <input
+              type="search"
+              id="gasto-hist-busqueda"
+              placeholder="Proveedor, factura, concepto, rubro…"
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && void load()}
+            />
+          </div>
+          <button type="button" className="btn btn-primary listado-pro-search-btn" onClick={() => void load()}>
+            Buscar
+          </button>
+        </div>
+
+        <div className="table-wrap table-wrap-presupuesto listado-pro-table-wrap">
+          <table className="data-table data-table-presupuesto listado-pro-table">
+            <colgroup>
+              <col className="col-nro" />
+              <col className="col-empresa" />
+              <col className="col-fecha" />
+              <col className="col-cod" />
+              <col className="col-razon" />
+              <col className="col-concepto" />
+              <col className="col-fact" />
+              <col className="col-pesos" />
+              <col className="col-usd" />
+              <col className="col-reales" />
+              <col className="col-saldo" />
+              <col className="col-acciones" />
+            </colgroup>
+            <thead>
+              <tr>
+                <th className="num" title="Número de registro">
+                  N°
+                </th>
+                <th title="Empresa">Emp.</th>
+                <th>Fecha</th>
+                <th title="Código proveedor">Cód.</th>
+                <th title="Razón social proveedor">Razón</th>
+                <th>Concepto</th>
+                <th title="Número de factura">Fact.</th>
+                <th className="num">$</th>
+                <th className="num">USD</th>
+                <th className="num">R$</th>
+                <th className="num" title="Total en USD">
+                  TOTAL USD
+                </th>
+                <th className="col-acciones-h" aria-label="Acciones" />
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr>
+                  <td colSpan={COLS_TABLA} className="empty">
+                    Cargando…
+                  </td>
+                </tr>
+              ) : !apiOnline ? (
+                <tr>
+                  <td colSpan={COLS_TABLA} className="empty">
+                    API no conectada. Ejecutá <code>npm run dev</code> en la carpeta del proyecto.
+                  </td>
+                </tr>
+              ) : rows.length === 0 ? (
+                <tr>
+                  <td colSpan={COLS_TABLA} className="empty">
+                    No hay documentos{busqueda.trim() ? " para esa búsqueda" : ""}.
+                  </td>
+                </tr>
+              ) : (
+                rowsPagina.map((r) => (
+                  <tr key={r.id} className="listado-pro-row">
+                    <td className="num listado-pro-num">{r.nro_registro}</td>
+                    <td className="td-empresa">
+                      <span
+                        className={`empresa-badge empresa-badge--compact ${empresaClass(r.empresa)}`}
+                        title={r.empresa}
+                      >
+                        {empresaCorta(r.empresa)}
+                      </span>
+                    </td>
+                    <td className="td-fecha">{fmtDate(r.fecha)}</td>
+                    <td>
+                      <CeldaTexto value={r.codigo_proveedor} vacio="" />
+                    </td>
+                    <td>
+                      <CeldaTexto value={r.razon_social_proveedor} vacio="" />
+                    </td>
+                    <td>
+                      <CeldaTexto value={r.concepto} vacio="" />
+                    </td>
+                    <td>
+                      <CeldaTexto value={r.nro_factura} vacio="" />
+                    </td>
+                    <td className="num listado-pro-num">{fmtNum(r.pesos)}</td>
+                    <td className="num listado-pro-num">{fmtNum(r.dolares_usd)}</td>
+                    <td className="num listado-pro-num">{fmtNum(r.reales)}</td>
+                    <td className="num listado-pro-num listado-pro-num--total">
+                      {fmtNum(r.saldo_usd)}
+                    </td>
+                    <td className="actions-cell actions-cell--icons">
+                      <div className="actions-cell-inner">
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-icon-only btn-ver-detalle"
+                          onClick={() => setDetalleRow(r)}
+                          title="Ver detalle"
+                          aria-label="Ver detalle"
+                        >
+                          <IconVer size={15} />
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-icon-only btn-edit"
+                          onClick={() => handleEdit(r)}
+                          title="Editar"
+                          aria-label="Editar"
+                        >
+                          <IconEditar size={15} />
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-icon-only btn-delete"
+                          onClick={() => void handleDelete(r.id)}
+                          title="Borrar"
+                          aria-label="Borrar"
+                        >
+                          <IconEliminar size={15} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {!loading && apiOnline && rows.length > 0 ? (
+          <TablePagination
+            total={rows.length}
+            page={pageSafe}
+            pageSize={pageSize}
+            onPageChange={setPage}
+            onPageSizeChange={setPageSize}
+          />
+        ) : null}
+      </div>
+    </section>
+  );
+}

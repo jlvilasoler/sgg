@@ -31,6 +31,7 @@ import type {
   StockGanaderaDispositivoHistorial,
   StockMovimientoAuditoria,
   AuthActividadLog,
+  UsuarioOnline,
   StockMovimientoTipo,
   DispositivoSexo,
   DispositivoEmpresa,
@@ -1438,8 +1439,24 @@ export async function fetchAuthActividad(filters?: {
   return json.data;
 }
 
+/** Mantiene presencia activa (fire-and-forget). */
+export function enviarPresencia(pantalla?: string): void {
+  void request<{ ok: boolean }>("/auth/presencia", {
+    method: "POST",
+    body: JSON.stringify({ pantalla: pantalla ?? "" }),
+  }).catch(() => {
+    /* no bloquear la UI */
+  });
+}
+
+export async function fetchUsuariosOnline(): Promise<UsuarioOnline[]> {
+  const json = await request<{ data: UsuarioOnline[] }>("/auth/actividad/online");
+  return json.data;
+}
+
 /** Registra navegación (fire-and-forget). */
 export function registrarPantallaActividad(pantalla: string): void {
+  enviarPresencia(pantalla);
   void request<{ ok: boolean }>("/auth/actividad/pantalla", {
     method: "POST",
     body: JSON.stringify({ pantalla }),

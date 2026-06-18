@@ -1,5 +1,8 @@
 import { useState } from "react";
 import type { Proveedor } from "../types";
+import { HubMenuCard } from "./HubMenuCard";
+import type { HubIconId } from "./icons/HubMenuIcons";
+import { HUB_ICON_THEMES, HubMenuIcon } from "./icons/HubMenuIcons";
 import ProveedorIngresar from "./proveedores/ProveedorIngresar";
 import ProveedorListado from "./proveedores/ProveedorListado";
 
@@ -13,20 +16,23 @@ interface Props {
   onVolver?: () => void;
 }
 
-const SUBMENU = [
+const SUBMENU: {
+  id: "ingresar" | "listado";
+  label: string;
+  subtitle: string;
+  icon: HubIconId;
+}[] = [
   {
-    id: "ingresar" as const,
+    id: "ingresar",
     label: "Ingresar proveedor",
     subtitle: "Alta o edición en PROVEEDORES",
-    icon: "➕",
-    color: "#2d6a4f",
+    icon: "prov_ingresar",
   },
   {
-    id: "listado" as const,
+    id: "listado",
     label: "Listado proveedores",
     subtitle: "Buscar, editar y eliminar",
-    icon: "📑",
-    color: "#1d4e89",
+    icon: "prov_listado",
   },
 ];
 
@@ -94,25 +100,14 @@ export default function Proveedores({ apiOnline, onError, onSuccess, onVolver }:
       )}
       <nav className="app-grid app-grid-2" aria-label="Opciones de proveedores">
         {SUBMENU.map((item) => (
-          <button
+          <HubMenuCard
             key={item.id}
-            type="button"
-            className="app-card-btn"
+            label={item.label}
+            subtitle={item.subtitle}
+            theme={HUB_ICON_THEMES[item.icon]}
+            icon={<HubMenuIcon id={item.icon} />}
             onClick={() => (item.id === "ingresar" ? abrirIngresar() : abrirListado())}
-          >
-            <span
-              className="app-card-icon"
-              style={{ background: `linear-gradient(145deg, ${item.color}, ${item.color}bb)` }}
-            >
-              <span className="app-icon-emoji" aria-hidden>
-                {item.icon}
-              </span>
-            </span>
-            <span className="app-card-text">
-              <span className="app-card-label">{item.label}</span>
-              <span className="app-card-sub">{item.subtitle}</span>
-            </span>
-          </button>
+          />
         ))}
       </nav>
     </div>

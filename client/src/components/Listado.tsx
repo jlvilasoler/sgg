@@ -4,6 +4,10 @@ import { FILTRO_SIN_RESPONSABLE } from "../constants";
 import type { Catalogos, Presupuesto } from "../types";
 import { confirmAction } from "../utils/confirm";
 import { empresaClass, empresaCorta, fmtDate, fmtNum } from "../utils";
+import {
+  exportPresupuestoListadoExcel,
+  exportPresupuestoListadoPdf,
+} from "../utils/export-presupuesto-listado";
 import { IconEditar, IconEliminar, IconVer } from "./icons/ActionIcons";
 import PresupuestoDetalleModal from "./PresupuestoDetalleModal";
 
@@ -41,6 +45,7 @@ export default function Listado({ catalogos, apiOnline, onEdit, onDeleted, onErr
   const [busqueda, setBusqueda] = useState("");
   const [rows, setRows] = useState<Presupuesto[] | null>(null);
   const [loading, setLoading] = useState(true);
+  const [exportando, setExportando] = useState<"excel" | "pdf" | null>(null);
   const [detalleRow, setDetalleRow] = useState<Presupuesto | null>(null);
 
   const load = useCallback(async () => {
@@ -99,6 +104,49 @@ export default function Listado({ catalogos, apiOnline, onEdit, onDeleted, onErr
     setFechaHasta("");
     setBusqueda("");
   };
+
+  const subtituloExport = useMemo(() => {
+    const partes: string[] = [];
+    if (empresa) partes.push(`Empresa: ${empresa}`);
+    if (rubro) partes.push(`Rubro: ${rubro}`);
+    if (responsable) {
+      partes.push(
+        responsable === FILTRO_SIN_RESPONSABLE
+          ? "Pto. asign.: Sin asignar"
+          : `Pto. asign.: ${responsable}`
+      );
+    }
+    if (fechaDesde) partes.push(`Desde: ${fmtDate(fechaDesde)}`);
+    if (fechaHasta) partes.push(`Hasta: ${fmtDate(fechaHasta)}`);
+    if (busqueda.trim()) partes.push(`Búsqueda: ${busqueda.trim()}`);
+    return partes.length ? partes.join(" · ") : "Todos los filtros";
+  }, [empresa, rubro, responsable, fechaDesde, fechaHasta, busqueda]);
+
+  const exportar = async (formato: "excel" | "pdf") => {
+    if (!apiOnline) {
+      onError("Conectá la API para exportar");
+      return;
+    }
+    if (loading) return;
+    if (!rows?.length) {
+      onError("No hay registros para exportar con los filtros actuales");
+      return;
+    }
+    setExportando(formato);
+    try {
+      if (formato === "excel") {
+        await exportPresupuestoListadoExcel(rows);
+      } else {
+        await exportPresupuestoListadoPdf(rows, subtituloExport);
+      }
+    } catch (e) {
+      onError(e instanceof Error ? e.message : "Error al exportar");
+    } finally {
+      setExportando(null);
+    }
+  };
+
+  const puedeExportar = apiOnline && !loading && (rows?.length ?? 0) > 0;
 
   const handleDelete = async (id: number) => {
     const ok = await confirmAction({
@@ -264,6 +312,28 @@ export default function Listado({ catalogos, apiOnline, onEdit, onDeleted, onErr
           </div>
         </div>
       </section>
+
+      <div className="listado-pro-export-bar" aria-label="Exportar listado">
+        <span className="listado-pro-export-label">Descargar</span>
+        <button
+          type="button"
+          className="btn btn-sm listado-pro-export-btn"
+          disabled={!puedeExportar || exportando !== null}
+          onClick={() => void exportar("excel")}
+          title="Descargar tabla en Excel"
+        >
+          {exportando === "excel" ? "Exportando…" : "Excel"}
+        </button>
+        <button
+          type="button"
+          className="btn btn-sm listado-pro-export-btn"
+          disabled={!puedeExportar || exportando !== null}
+          onClick={() => void exportar("pdf")}
+          title="Descargar tabla en PDF"
+        >
+          {exportando === "pdf" ? "Exportando…" : "PDF"}
+        </button>
+      </div>
 
       <div className="table-wrap table-wrap-presupuesto listado-pro-table-wrap">
         <table className="data-table data-table-presupuesto listado-pro-table">

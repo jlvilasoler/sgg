@@ -1,5 +1,8 @@
 import { useState } from "react";
 import type { Responsable } from "../types";
+import { HubMenuCard } from "./HubMenuCard";
+import type { HubIconId } from "./icons/HubMenuIcons";
+import { HUB_ICON_THEMES, HubMenuIcon } from "./icons/HubMenuIcons";
 import ResponsableIngresar from "./responsables/ResponsableIngresar";
 import ResponsableListado from "./responsables/ResponsableListado";
 
@@ -14,20 +17,23 @@ interface Props {
   onVolver?: () => void;
 }
 
-const SUBMENU = [
+const SUBMENU: {
+  id: "ingresar" | "listado";
+  label: string;
+  subtitle: string;
+  icon: HubIconId;
+}[] = [
   {
-    id: "ingresar" as const,
+    id: "ingresar",
     label: "Ingresar nombre",
     subtitle: "Alta o edición en presupuesto asignado",
-    icon: "➕",
-    color: "#4a6fa5",
+    icon: "resp_ingresar",
   },
   {
-    id: "listado" as const,
+    id: "listado",
     label: "Listado nombres",
     subtitle: "Ver, activar/desactivar y eliminar",
-    icon: "👥",
-    color: "#3d5a80",
+    icon: "resp_listado",
   },
 ];
 
@@ -100,28 +106,17 @@ export default function Responsables({
       </p>
       <nav className="app-grid app-grid-2" aria-label="Opciones de presupuesto asignado">
         {SUBMENU.map((item) => (
-          <button
+          <HubMenuCard
             key={item.id}
-            type="button"
-            className="app-card-btn"
+            label={item.label}
+            subtitle={item.subtitle}
+            theme={HUB_ICON_THEMES[item.icon]}
+            icon={<HubMenuIcon id={item.icon} />}
             onClick={() => {
               setEditResponsable(null);
               setVista(item.id);
             }}
-          >
-            <span
-              className="app-card-icon"
-              style={{ background: `linear-gradient(145deg, ${item.color}, ${item.color}bb)` }}
-            >
-              <span className="app-icon-emoji" aria-hidden>
-                {item.icon}
-              </span>
-            </span>
-            <span className="app-card-text">
-              <span className="app-card-label">{item.label}</span>
-              <span className="app-card-sub">{item.subtitle}</span>
-            </span>
-          </button>
+          />
         ))}
       </nav>
     </div>

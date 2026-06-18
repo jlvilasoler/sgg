@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { fetchAuthActividad, fetchUsuarios } from "../api";
-import type { AuthActividadLog } from "../types";
+import { fetchAuthActividad, fetchUsuarios, fetchUsuariosOnline } from "../api";
+import type { AuthActividadLog, UsuarioOnline } from "../types";
 
 const EVENTO_LABELS: Record<string, string> = {
   login_ok: "Inicio de sesión",
@@ -60,10 +60,19 @@ function tipoBadgeClass(evento: string): string {
   return "usuarios-act-tipo--otro";
 }
 
+function fmtHaceSegundos(seg: number): string {
+  if (seg < 10) return "ahora";
+  if (seg < 60) return `hace ${seg}s`;
+  const min = Math.floor(seg / 60);
+  return `hace ${min} min`;
+}
+
 export default function UsuariosActividad({ apiOnline, onError, onVolver }: Props) {
   const [rows, setRows] = useState<AuthActividadLog[]>([]);
+  const [online, setOnline] = useState<UsuarioOnline[]>([]);
   const [usuarios, setUsuarios] = useState<{ email: string; nombre: string }[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingOnline, setLoadingOnline] = useState(true);
   const [filtroEmail, setFiltroEmail] = useState("");
   const [filtroEvento, setFiltroEvento] = useState("");
 
@@ -102,6 +111,28 @@ export default function UsuariosActividad({ apiOnline, onError, onVolver }: Prop
     void load();
   }, [load]);
 
+  const loadOnline = useCallback(async () => {
+    if (!apiOnline) {
+      setOnline([]);
+      setLoadingOnline(false);
+      return;
+    }
+    try {
+      setOnline(await fetchUsuariosOnline());
+    } catch {
+      /* no interrumpir la vista principal */
+    } finally {
+      setLoadingOnline(false);
+    }
+  }, [apiOnline]);
+
+  useEffect(() => {
+    void loadOnline();
+    if (!apiOnline) return;
+    const id = window.setInterval(() => void loadOnline(), 12_000);
+    return () => window.clearInterval(id);
+  }, [apiOnline, loadOnline]);
+
   const stats = useMemo(() => {
     return rows.reduce(
       (acc, row) => {
@@ -126,7 +157,7 @@ export default function UsuariosActividad({ apiOnline, onError, onVolver }: Prop
   return (
     <div className="subseccion-panel usuarios-actividad">
       <button type="button" className="subseccion-back" onClick={onVolver}>
-        ‹ Volver a Usuarios
+        ‹ Volver al menú
       </button>
 
       <div className="card usuarios-panel listado-pro-shell">
@@ -190,8 +221,57 @@ export default function UsuariosActividad({ apiOnline, onError, onVolver }: Prop
           </button>
         </div>
 
+        <section className="usuarios-actividad-online" aria-label="Usuarios en línea">
+          <div className="usuarios-actividad-online-head">
+            <h3 className="usuarios-actividad-online-title">
+              <span className="usuarios-online-pulse" aria-hidden />
+              En línea ahora
+              <span className="usuarios-actividad-online-count">
+                {loadingOnline || !apiOnline ? "—" : online.length}
+              </span>
+            </h3>
+            <span className="usuarios-actividad-online-hint">
+              Actividad en los últimos 3 min · se actualiza cada 12 s
+            </span>
+          </div>
+          {!apiOnline ? (
+            <p className="usuarios-actividad-online-empty muted">Sin conexión con la API</p>
+          ) : loadingOnline ? (
+            <p className="usuarios-actividad-online-empty muted">Consultando usuarios activos…</p>
+          ) : online.length === 0 ? (
+            <p className="usuarios-actividad-online-empty muted">
+              Nadie está usando la app en este momento
+            </p>
+          ) : (
+            <ul className="usuarios-online-list">
+              {online.map((u) => (
+                <li key={u.email} className="usuarios-online-item">
+                  <span className="usuarios-online-dot" title="Activo" />
+                  <div className="usuarios-online-main">
+                    <strong>{u.nombre}</strong>
+                    <span className="muted usuarios-act-email">{u.email}</span>
+                  </div>
+                  <div className="usuarios-online-meta">
+                    {u.pantalla ? (
+                      <span className="usuarios-online-pantalla">{u.pantalla}</span>
+                    ) : null}
+                    <span className="usuarios-online-hace">{fmtHaceSegundos(u.hace_segundos)}</span>
+                    {u.ip ? <span className="usuarios-online-ip muted">{u.ip}</span> : null}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
         <section className="usuarios-actividad-kpis" aria-label="Resumen">
           <div className="usuarios-actividad-kpi-grid">
+            <div className="usuarios-actividad-kpi usuarios-actividad-kpi--online">
+              <span className="usuarios-actividad-kpi-label">En línea</span>
+              <span className="usuarios-actividad-kpi-valor">
+                {loadingOnline || !apiOnline ? "—" : online.length}
+              </span>
+            </div>
             <div className="usuarios-actividad-kpi">
               <span className="usuarios-actividad-kpi-label">Registros</span>
               <span className="usuarios-actividad-kpi-valor">

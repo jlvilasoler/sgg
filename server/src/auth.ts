@@ -9,6 +9,7 @@ import {
   PANTALLA_LABELS,
   recordUserActivity,
 } from "./user-activity.js";
+import { listOnlineUsers, removeUserPresence, touchUserPresence } from "./user-presence.js";
 import {
   artificialLoginDelay,
   clientIp,
@@ -137,6 +138,8 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
 
   req.user = user;
 
+  touchUserPresence(user, { ip: clientIp(req) });
+
   attachApiActivityLogger(req, res);
 
   const modulo = moduleFromApiPath(path);
@@ -206,6 +209,10 @@ export function registerAuthRoutes(app: Express): void {
       });
 
       res.cookie(SESSION_COOKIE, token, cookieOptions());
+      touchUserPresence(result.user, {
+        ip,
+        pantalla: PANTALLA_LABELS.home,
+      });
       res.json({ ok: true, data: result.user });
     } catch (e) {
       console.error("[SGG Auth] Error en login:", e);
@@ -225,6 +232,7 @@ export function registerAuthRoutes(app: Express): void {
       await authDb.deleteSession(getDb(), token);
     }
     if (user) {
+      removeUserPresence(user.email);
       await recordUserActivity(user, "logout", "Cierre de sesión", {
         ip: clientIp(req),
         userAgent: req.headers["user-agent"],
@@ -245,6 +253,7 @@ export function registerAuthRoutes(app: Express): void {
       res.status(401).json({ ok: false, error: "No autenticado" });
       return;
     }
+    touchUserPresence(user, { ip: clientIp(req) });
     res.json({ ok: true, data: user });
   });
 
@@ -382,6 +391,25 @@ export function registerAuthRoutes(app: Express): void {
     }
   });
 
+  app.get("/api/auth/actividad/online", async (req, res) => {
+    if (!requireAdmin(req, res)) return;
+    res.json({ ok: true, data: listOnlineUsers() });
+  });
+
+  app.post("/api/auth/presencia", async (req, res) => {
+    const user = req.user;
+    if (!user) {
+      res.status(401).json({ ok: false, error: "No autenticado" });
+      return;
+    }
+    const pantalla = String(req.body?.pantalla ?? "").trim().slice(0, 120) || undefined;
+    touchUserPresence(user, {
+      ip: clientIp(req),
+      pantalla: pantalla ? (PANTALLA_LABELS[pantalla] ?? pantalla) : undefined,
+    });
+    res.json({ ok: true });
+  });
+
   app.get("/api/auth/actividad", async (req, res) => {
     if (!requireAdmin(req, res)) return;
     try {
@@ -415,6 +443,7 @@ export function registerAuthRoutes(app: Express): void {
         return;
       }
       const label = PANTALLA_LABELS[pantalla] ?? pantalla;
+      touchUserPresence(user, { ip: clientIp(req), pantalla: label });
       await recordUserActivity(user, "navegacion", `Accedió a: ${label}`, {
         ip: clientIp(req),
         userAgent: req.headers["user-agent"],

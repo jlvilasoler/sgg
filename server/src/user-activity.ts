@@ -137,5 +137,6 @@ export const PANTALLA_LABELS: Record<string, string> = {
   ingresos_ventas: "Ingresos por ventas",
   stock_ganadero: "Stock Ganadero",
   stock_movimientos: "Movimientos de dispositivos",
+  registro_actividad: "Registro de actividad",
   usuarios: "Usuarios y permisos",
 };

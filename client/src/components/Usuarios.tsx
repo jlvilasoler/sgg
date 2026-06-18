@@ -12,8 +12,6 @@ import {
 } from "../utils/password-policy";
 
 import UsuariosRolesModal from "./UsuariosRolesModal";
-import UsuariosActividad from "./UsuariosActividad";
-import { canAccessUsuarioActividad } from "../utils/auth-permissions";
 
 interface Props {
   apiOnline: boolean;
@@ -71,9 +69,6 @@ export default function Usuarios({
   const [saving, setSaving] = useState(false);
   const [rolesModalOpen, setRolesModalOpen] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [vista, setVista] = useState<"usuarios" | "actividad">("usuarios");
-
-  const puedeVerActividad = canAccessUsuarioActividad(currentUser);
 
   const load = useCallback(async () => {
     if (!apiOnline) {
@@ -181,16 +176,6 @@ export default function Usuarios({
 
   const showForm = creating || editing !== null;
 
-  if (vista === "actividad" && puedeVerActividad) {
-    return (
-      <UsuariosActividad
-        apiOnline={apiOnline}
-        onError={onError}
-        onVolver={() => setVista("usuarios")}
-      />
-    );
-  }
-
   return (
     <div className="subseccion-panel">
       <button type="button" className="subseccion-back" onClick={onVolver}>
@@ -208,20 +193,6 @@ export default function Usuarios({
             </p>
           </div>
           <div className="usuarios-head-actions">
-            {puedeVerActividad ? (
-              <button
-                type="button"
-                className="btn btn-ghost usuarios-actividad-btn"
-                disabled={!apiOnline || showForm}
-                onClick={() => setVista("actividad")}
-                title="Registro de actividad de usuarios"
-              >
-                <span className="usuarios-actividad-btn-icon" aria-hidden="true">
-                  📋
-                </span>
-                Registro de actividad
-              </button>
-            ) : null}
             <button
               type="button"
               className="btn btn-ghost"

@@ -410,6 +410,7 @@ export const rubros = {
   update: (id: number, data: rub.RubroInput) => rub.updateRubro(db, id, data),
   delete: (id: number) => rub.deleteRubro(db, id),
   existsActivo: (nombre: string) => rub.rubroExistsActivo(db, nombre),
+  gastoValido: (nombre: string) => sub.rubroGastoValido(db, nombre),
 };
 
 export const responsables = {
@@ -509,11 +510,14 @@ export async function getCatalogos(): Promise<{
   responsables: string[];
   funcionarios: Awaited<ReturnType<typeof func.listFuncionariosParaSelector>>;
 }> {
+  const { rubros, sub_rubros_por_rubro: porGrupo } =
+    await sub.getCatalogoGruposParaGastos(db);
+  const porRubroContable = await vinc.getMapSubRubrosPorRubro(db, true);
   return {
     empresas: [...EMPRESAS],
-    rubros: await rub.listRubrosNombres(db),
+    rubros,
     sub_rubros: await sub.listSubRubrosNombres(db),
-    sub_rubros_por_rubro: await vinc.getMapSubRubrosPorRubro(db, true),
+    sub_rubros_por_rubro: { ...porRubroContable, ...porGrupo },
     responsables: await resp.listResponsablesNombres(db),
     funcionarios: await func.listFuncionariosParaSelector(db),
   };

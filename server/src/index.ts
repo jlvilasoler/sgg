@@ -185,8 +185,10 @@ async function parseBody(req: Request): Promise<PresupuestoInput> {
   let funcionario_cedula = String(body.funcionario_cedula ?? "").trim();
   if (!concepto) throw new Error("El concepto es obligatorio.");
   if (!rubro) throw new Error("El rubro es obligatorio.");
-  if (!await db.rubros.existsActivo(rubro)) {
-    throw new Error("El rubro debe existir en el catálogo RUBROS y estar activo.");
+  if (!await db.rubros.gastoValido(rubro)) {
+    throw new Error(
+      "El rubro debe existir en Configuración → Rubros (grupo con sub-rubros activos)."
+    );
   }
   if (sub_rubro) {
     if (!await db.subRubros.existsActivo(sub_rubro)) {

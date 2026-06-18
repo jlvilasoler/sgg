@@ -1,0 +1,93 @@
+import type { Presupuesto } from "../types";
+import { empresaCorta, fmtDate, fmtNum } from "../utils";
+
+const EXPORT_HEADERS = [
+  "N°",
+  "Emp.",
+  "Fecha",
+  "Cód.",
+  "Razón",
+  "Concepto",
+  "Fact.",
+  "$ ARS",
+  "USD",
+  "R$",
+  "TOTAL USD",
+] as const;
+
+function filaExport(r: Presupuesto): Record<(typeof EXPORT_HEADERS)[number], string | number> {
+  return {
+    "N°": r.nro_registro,
+    "Emp.": empresaCorta(r.empresa),
+    Fecha: fmtDate(r.fecha),
+    "Cód.": r.codigo_proveedor ?? "",
+    Razón: r.razon_social_proveedor ?? "",
+    Concepto: r.concepto ?? "",
+    "Fact.": r.nro_factura ?? "",
+    "$ ARS": Number(r.pesos) || 0,
+    USD: Number(r.dolares_usd) || 0,
+    "R$": Number(r.reales) || 0,
+    "TOTAL USD": Number(r.saldo_usd) || 0,
+  };
+}
+
+function nombreArchivo(extension: "xlsx" | "pdf"): string {
+  const hoy = new Date().toISOString().slice(0, 10);
+  return `historial-operaciones-${hoy}.${extension}`;
+}
+
+export async function exportPresupuestoListadoExcel(rows: Presupuesto[]): Promise<void> {
+  const XLSX = await import("xlsx");
+  const data = rows.map(filaExport);
+  const ws = XLSX.utils.json_to_sheet(data, { header: [...EXPORT_HEADERS] });
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Operaciones");
+  XLSX.writeFile(wb, nombreArchivo("xlsx"));
+}
+
+export async function exportPresupuestoListadoPdf(
+  rows: Presupuesto[],
+  subtitulo?: string
+): Promise<void> {
+  const { jsPDF } = await import("jspdf");
+  const autoTable = (await import("jspdf-autotable")).default;
+
+  const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+  doc.setFontSize(14);
+  doc.text("Historial de operaciones", 14, 14);
+  if (subtitulo) {
+    doc.setFontSize(9);
+    doc.setTextColor(100);
+    doc.text(subtitulo, 14, 20);
+    doc.setTextColor(0);
+  }
+
+  const body = rows.map((r) => {
+    const f = filaExport(r);
+    return EXPORT_HEADERS.map((h) => {
+      const v = f[h];
+      if (h === "$ ARS" || h === "USD" || h === "R$" || h === "TOTAL USD") {
+        return fmtNum(Number(v));
+      }
+      return String(v ?? "");
+    });
+  });
+
+  autoTable(doc, {
+    head: [[...EXPORT_HEADERS]],
+    body,
+    startY: subtitulo ? 24 : 18,
+    styles: { fontSize: 7, cellPadding: 1.5 },
+    headStyles: { fillColor: [45, 90, 61], textColor: 255 },
+    columnStyles: {
+      0: { halign: "right", cellWidth: 12 },
+      7: { halign: "right" },
+      8: { halign: "right" },
+      9: { halign: "right" },
+      10: { halign: "right" },
+    },
+    margin: { left: 10, right: 10 },
+  });
+
+  doc.save(nombreArchivo("pdf"));
+}

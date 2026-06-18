@@ -1,4 +1,7 @@
 import { useState } from "react";
+import { HubMenuCard } from "./HubMenuCard";
+import type { HubIconId } from "./icons/HubMenuIcons";
+import { HUB_ICON_THEMES, HubMenuIcon } from "./icons/HubMenuIcons";
 import FuncionarioForm from "./rrhh/FuncionarioForm";
 import FuncionarioListado from "./rrhh/FuncionarioListado";
 import SueldosJornales from "./rrhh/SueldosJornales";
@@ -15,20 +18,23 @@ interface Props {
   onEditGasto?: (id: number) => void;
 }
 
-const SUBMENU = [
+const SUBMENU: {
+  id: "funcionarios" | "sueldos";
+  label: string;
+  subtitle: string;
+  icon: HubIconId;
+}[] = [
   {
-    id: "funcionarios" as const,
+    id: "funcionarios",
     label: "Funcionarios",
     subtitle: "Datos personales y cuenta bancaria",
-    icon: "👤",
-    color: "#5b4b8a",
+    icon: "rrhh_funcionarios",
   },
   {
-    id: "sueldos" as const,
+    id: "sueldos",
     label: "Sueldos y Jornales",
     subtitle: "Pagos por cédula y resumen de gastos",
-    icon: "💵",
-    color: "#2d6a4f",
+    icon: "rrhh_sueldos",
   },
 ];
 
@@ -130,10 +136,12 @@ export default function RecursosHumanos({
         </div>
         <nav className="app-grid app-grid-2" aria-label="Recursos Humanos">
           {SUBMENU.map((item) => (
-            <button
+            <HubMenuCard
               key={item.id}
-              type="button"
-              className="app-card-btn"
+              label={item.label}
+              subtitle={item.subtitle}
+              theme={HUB_ICON_THEMES[item.icon]}
+              icon={<HubMenuIcon id={item.icon} />}
               onClick={() => {
                 if (item.id === "funcionarios") {
                   setEditFuncionario(null);
@@ -143,22 +151,7 @@ export default function RecursosHumanos({
                   setVista("sueldos");
                 }
               }}
-            >
-              <span
-                className="app-card-icon"
-                style={{
-                  background: `linear-gradient(145deg, ${item.color}, ${item.color}bb)`,
-                }}
-              >
-                <span className="app-icon-emoji" aria-hidden>
-                  {item.icon}
-                </span>
-              </span>
-              <span className="app-card-text">
-                <span className="app-card-label">{item.label}</span>
-                <span className="app-card-sub">{item.subtitle}</span>
-              </span>
-            </button>
+            />
           ))}
         </nav>
       </div>

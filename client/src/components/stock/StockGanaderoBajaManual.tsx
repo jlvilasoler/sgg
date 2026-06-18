@@ -198,7 +198,7 @@ export default function StockGanaderoBajaManual({
   return (
     <div className="subseccion-panel stock-import-page stock-baja-manual-page">
       <button type="button" className="subseccion-back" onClick={onVolver}>
-        ‹ Volver a Bajas de Dispositivos
+        ‹ Volver a Baja de Dispositivo
       </button>
 
       <div className="stock-import-hero card stock-import-hero--manual">

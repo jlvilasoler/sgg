@@ -1,7 +1,6 @@
 import type { Catalogos, Empresa } from "./types";
 
-export const EMPRESAS: Empresa[] = [
-  "GANADERA GUAVIYU",
+export const EMPRESAS: Empresa[] = [  "GANADERA GUAVIYU",
   "GANADERA CHIVILCOY",
 ];
 
@@ -30,7 +29,7 @@ export const FILTRO_SIN_RESPONSABLE = "__none__";
 
 export const DEFAULT_CATALOGOS: Catalogos = {
   empresas: EMPRESAS,
-  rubros: [...RUBROS_DEFAULT],
+  rubros: [],
   sub_rubros: [],
   sub_rubros_por_rubro: {},
   responsables: [...RESPONSABLES_DEFAULT],
