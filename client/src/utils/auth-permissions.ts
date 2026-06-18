@@ -40,6 +40,10 @@ export function canAccessStockMovimientos(user: AuthUser | null): boolean {
   return user?.rol === "admin";
 }
 
+export function canAccessUsuarioActividad(user: AuthUser | null): boolean {
+  return user?.rol === "admin";
+}
+
 export function moduloForScreen(screen: TabId): Modulo {
   return SCREEN_MODULO[screen];
 }

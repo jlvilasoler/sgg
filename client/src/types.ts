@@ -159,6 +159,17 @@ export interface StockMovimientoAuditoria {
   baja_dispositivo?: StockMovimientoBajaDispositivo | null;
 }
 
+export interface AuthActividadLog {
+  id: number;
+  evento: string;
+  email: string | null;
+  user_nombre: string | null;
+  ip: string | null;
+  user_agent: string | null;
+  detalle: string | null;
+  creado_en: string;
+}
+
 export interface ResumenEmpresa {
   empresa: string;
   cantidad: number;

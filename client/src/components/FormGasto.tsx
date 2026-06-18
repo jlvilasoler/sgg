@@ -599,6 +599,8 @@ export default function FormGasto({
             set("razon_social_proveedor", aMayusculas(razon));
           }}
           onError={onError}
+          onSuccess={onSuccess}
+          onProveedorCreado={() => void onCatalogosChanged?.()}
         />
 
         <div className="field">

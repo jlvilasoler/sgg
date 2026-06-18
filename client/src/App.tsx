@@ -6,6 +6,7 @@ import {
   fetchCurrentUser,
   fetchPresupuestoById,
   logoutAuth,
+  registrarPantallaActividad,
 } from "./api";
 import { DEFAULT_CATALOGOS } from "./constants";
 import type { AuthUser, Catalogos, Presupuesto } from "./types";
@@ -108,6 +109,7 @@ export default function App() {
   const goHome = () => {
     setScreen("home");
     setEditRow(null);
+    registrarPantallaActividad("home");
   };
 
   const navigate = (id: TabId) => {
@@ -126,6 +128,7 @@ export default function App() {
     }
     setScreen(id);
     if (id !== "registro") setEditRow(null);
+    registrarPantallaActividad(id);
   };
 
   const onLogin = (u: AuthUser) => {

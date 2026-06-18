@@ -218,6 +218,56 @@ export async function recordAuthEvent(
     );
 }
 
+export interface AuthAuditLogRow {
+  id: number;
+  evento: string;
+  email: string | null;
+  user_nombre: string | null;
+  ip: string | null;
+  user_agent: string | null;
+  detalle: string | null;
+  creado_en: string;
+}
+
+export interface AuthAuditLogFilters {
+  email?: string;
+  evento?: string;
+  limite?: number;
+  offset?: number;
+}
+
+export async function listAuthAuditLog(
+  db: Db,
+  filters?: AuthAuditLogFilters
+): Promise<AuthAuditLogRow[]> {
+  const limite = Math.min(300, Math.max(1, filters?.limite ?? 100));
+  const offset = Math.max(0, filters?.offset ?? 0);
+
+  let sql = `SELECT a.id, a.evento, a.email, a.ip, a.user_agent, a.detalle, a.creado_en,
+                    u.nombre AS user_nombre
+             FROM AUTH_AUDIT_LOG a
+             LEFT JOIN USERS u ON LOWER(TRIM(u.email)) = LOWER(TRIM(a.email))
+             WHERE 1=1`;
+  const params: Record<string, unknown> = { limite, offset };
+
+  if (filters?.email?.trim()) {
+    sql += ` AND LOWER(a.email) LIKE LOWER(@email)`;
+    params.email = `%${filters.email.trim()}%`;
+  }
+  if (filters?.evento?.trim()) {
+    sql += ` AND a.evento = @evento`;
+    params.evento = filters.evento.trim();
+  }
+
+  sql += ` ORDER BY a.creado_en DESC, a.id DESC LIMIT @limite OFFSET @offset`;
+
+  const rows = (await db.prepare(sql).all(params)) as AuthAuditLogRow[];
+  return rows.map((r) => ({
+    ...r,
+    creado_en: pgTimestampString(r.creado_en) ?? "",
+  }));
+}
+
 export async function initAuthTables(db: Db): Promise<void> {
   await seedRolePermissionsIfEmpty(db);
   await purgeExpiredSessions(db);

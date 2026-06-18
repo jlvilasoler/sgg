@@ -30,6 +30,7 @@ import type {
   StockGanaderaDispositivoDetalle,
   StockGanaderaDispositivoHistorial,
   StockMovimientoAuditoria,
+  AuthActividadLog,
   StockMovimientoTipo,
   DispositivoSexo,
   DispositivoEmpresa,
@@ -1419,6 +1420,32 @@ export async function fetchStockMovimientosAuditoria(filters?: {
     `/auth/stock-movimientos${q ? `?${q}` : ""}`
   );
   return json.data;
+}
+
+export async function fetchAuthActividad(filters?: {
+  email?: string;
+  evento?: string;
+  limite?: number;
+}): Promise<AuthActividadLog[]> {
+  const params = new URLSearchParams();
+  if (filters?.email) params.set("email", filters.email);
+  if (filters?.evento) params.set("evento", filters.evento);
+  if (filters?.limite) params.set("limite", String(filters.limite));
+  const q = params.toString();
+  const json = await request<{ data: AuthActividadLog[] }>(
+    `/auth/actividad${q ? `?${q}` : ""}`
+  );
+  return json.data;
+}
+
+/** Registra navegación (fire-and-forget). */
+export function registrarPantallaActividad(pantalla: string): void {
+  void request<{ ok: boolean }>("/auth/actividad/pantalla", {
+    method: "POST",
+    body: JSON.stringify({ pantalla }),
+  }).catch(() => {
+    /* no bloquear la UI */
+  });
 }
 
 export async function crearUsuario(data: UserForm): Promise<AuthUser> {

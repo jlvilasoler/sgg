@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { deleteFuncionario, fetchFuncionarios } from "../../api";
 import type { Funcionario } from "../../types";
 import { confirmAction } from "../../utils/confirm";
+
 interface Props {
   apiOnline: boolean;
   onNuevo: () => void;
@@ -43,9 +44,19 @@ export default function FuncionarioListado({
   }, [apiOnline, busqueda, soloActivos, onError]);
 
   useEffect(() => {
-    const t = setTimeout(load, 280);
+    const t = setTimeout(() => void load(), 280);
     return () => clearTimeout(t);
   }, [load]);
+
+  const stats = useMemo(() => {
+    const activos = rows.filter((r) => r.activo).length;
+    return { total: rows.length, activos, inactivos: rows.length - activos };
+  }, [rows]);
+
+  const resetFiltros = () => {
+    setBusqueda("");
+    setSoloActivos(false);
+  };
 
   const borrar = async (f: Funcionario) => {
     const ok = await confirmAction({
@@ -58,148 +69,229 @@ export default function FuncionarioListado({
     try {
       await deleteFuncionario(f.id);
       onSuccess("Funcionario eliminado");
-      load();
+      void load();
     } catch (e) {
       onError(e instanceof Error ? e.message : "Error al eliminar");
     }
   };
+
+  const subtitulo = loading
+    ? "Actualizando…"
+    : !apiOnline
+      ? "Sin conexión con la API"
+      : soloActivos
+        ? `${stats.total} funcionario${stats.total === 1 ? "" : "s"} que trabajan hoy`
+        : `${stats.total} funcionario${stats.total === 1 ? "" : "s"} en el listado`;
+
+  const emptyMsg = soloActivos
+    ? "No hay funcionarios que trabajen hoy. Desmarcá el filtro o registrá uno nuevo."
+    : busqueda.trim()
+      ? "Ningún funcionario coincide con la búsqueda."
+      : "No hay funcionarios registrados todavía.";
 
   return (
     <div className="subseccion-panel">
       <button type="button" className="subseccion-back" onClick={onVolver}>
         ‹ Volver a Recursos Humanos
       </button>
-      <div className="card">
-        <div className="form-header">
-          <h2>Funcionarios</h2>
-          <p className="muted">
-            {loading
-              ? "Cargando…"
-              : `${rows.length} registro(s)${soloActivos ? " (solo quienes trabajan hoy)" : ""}. Solo quienes trabajan hoy aparecen al registrar gastos de sueldos.`}
-          </p>
-        </div>
 
-        <div className="listado-toolbar">
-          <div className="filters filters-inline mayusculas-auto">
-            <div className="field">
+      <div className="listado-pro rrhh-func-listado">
+        <div className="listado-pro-shell">
+          <header className="rrhh-func-head">
+            <div className="rrhh-func-head-main">
+              <h2 className="listado-pro-head-title">Funcionarios</h2>
+              <p className="listado-pro-head-sub">
+                {subtitulo}
+                {!loading && apiOnline ? (
+                  <span className="rrhh-func-head-hint">
+                    {" "}
+                    · Solo quienes trabajan hoy aparecen al cargar sueldos.
+                  </span>
+                ) : null}
+              </p>
+            </div>
+            <div className="rrhh-func-head-actions">
+              <button
+                type="button"
+                className="btn btn-primary"
+                disabled={!apiOnline}
+                onClick={onNuevo}
+              >
+                + Nuevo funcionario
+              </button>
+            </div>
+          </header>
+
+          <div className="filters listado-pro-filters rrhh-func-filters mayusculas-auto">
+            <div className="field rrhh-func-search">
               <label htmlFor="busq-func">Buscar</label>
               <input
                 id="busq-func"
                 value={busqueda}
+                disabled={!apiOnline || loading}
                 onChange={(e) => setBusqueda(e.target.value)}
                 placeholder="Cédula, nombre, celular, email…"
               />
             </div>
-            <label className="inline-check">
+            <label className="inline-check rrhh-func-check">
               <input
                 type="checkbox"
                 checked={soloActivos}
+                disabled={!apiOnline || loading}
                 onChange={(e) => setSoloActivos(e.target.checked)}
               />
               Solo quienes trabajan hoy
             </label>
+            <button
+              type="button"
+              className="btn listado-pro-reset-btn"
+              disabled={!apiOnline || loading || (!busqueda && !soloActivos)}
+              onClick={resetFiltros}
+            >
+              Limpiar
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary listado-pro-search-btn"
+              disabled={!apiOnline || loading}
+              onClick={() => void load()}
+            >
+              Actualizar
+            </button>
           </div>
-          <button
-            type="button"
-            className="btn btn-accent"
-            disabled={!apiOnline}
-            onClick={onNuevo}
-          >
-            + Nuevo funcionario
-          </button>
-        </div>
 
-        <div className="table-wrap">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Cédula</th>
-                <th>Nombre</th>
-                <th>Ciudad</th>
-                <th>Contacto</th>
-                <th>Banco / Cuenta</th>
-                <th>Estado</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
+          <section
+            className="listado-indicadores listado-pro-indicadores rrhh-func-kpis"
+            aria-label="Resumen de funcionarios"
+          >
+            <div className="rrhh-func-kpi-grid">
+              <div className="rrhh-func-kpi">
+                <span className="rrhh-func-kpi-label">Total listado</span>
+                <span className="rrhh-func-kpi-valor">
+                  {loading || !apiOnline ? "—" : stats.total}
+                </span>
+              </div>
+              <div className="rrhh-func-kpi rrhh-func-kpi--activo">
+                <span className="rrhh-func-kpi-label">Trabajan hoy</span>
+                <span className="rrhh-func-kpi-valor">
+                  {loading || !apiOnline ? "—" : stats.activos}
+                </span>
+              </div>
+              <div className="rrhh-func-kpi rrhh-func-kpi--inactivo">
+                <span className="rrhh-func-kpi-label">No activos</span>
+                <span className="rrhh-func-kpi-valor">
+                  {loading || !apiOnline ? "—" : stats.inactivos}
+                </span>
+              </div>
+            </div>
+          </section>
+
+          <div className="table-wrap listado-pro-table-wrap rrhh-func-table-wrap">
+            <table className="data-table listado-pro-table rrhh-func-table">
+              <thead>
                 <tr>
-                  <td colSpan={7} className="muted">
-                    Cargando…
-                  </td>
+                  <th>Cédula</th>
+                  <th>Nombre</th>
+                  <th>Ciudad</th>
+                  <th>Contacto</th>
+                  <th>Banco / Cuenta</th>
+                  <th>Estado</th>
+                  <th className="col-acciones" />
                 </tr>
-              ) : rows.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="muted">
-                    {soloActivos
-                      ? "No hay funcionarios que trabajen hoy en la empresa. Desmarcá el filtro para ver quienes ya no trabajan, o registrá uno nuevo."
-                      : busqueda.trim()
-                        ? "Ningún funcionario coincide con la búsqueda."
-                        : "No hay funcionarios. Usá «Nuevo funcionario» para empezar."}
-                  </td>
-                </tr>
-              ) : (
-                rows.map((f) => (
-                  <tr key={f.id}>
-                    <td>
-                      <strong>{f.cedula}</strong>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr>
+                    <td colSpan={7} className="rrhh-func-empty-cell">
+                      <div className="rrhh-func-empty-msg">Cargando funcionarios…</div>
                     </td>
-                    <td>
-                      {f.apellido}, {f.nombre}
-                    </td>
-                    <td>
-                      {f.ciudad}
-                      {f.departamento ? ` (${f.departamento})` : ""}
-                    </td>
-                    <td className="muted small-cell">
-                      {f.celular || "—"}
-                      {f.email ? (
-                        <>
-                          <br />
-                          <span className="rrhh-email-cell">{f.email}</span>
-                        </>
-                      ) : null}
-                    </td>
-                    <td className="muted small-cell">
-                      {f.banco || "—"}
-                      {f.cuenta ? ` · ${f.cuenta}` : ""}
-                    </td>
-                    <td>
-                      <span className={f.activo ? "badge-ok" : "badge-muted"}>
-                        {f.activo ? "ACTIVO" : "NO ACTIVO"}
-                      </span>
-                    </td>
-                    <td className="actions-cell">
-                      <div className="actions-cell-inner">
-                        <button
-                          type="button"
-                          className="btn btn-sm btn-primary"
-                          onClick={() => onVerPagos(f.cedula)}
-                        >
-                          Pagos
-                        </button>
-                        <button
-                          type="button"
-                          className="btn btn-sm"
-                          onClick={() => onEdit(f)}
-                        >
-                          Editar
-                        </button>
-                        <button
-                          type="button"
-                          className="btn btn-sm btn-danger"
-                          onClick={() => borrar(f)}
-                        >
-                          Eliminar
-                        </button>
+                  </tr>
+                ) : rows.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="rrhh-func-empty-cell">
+                      <div className="rrhh-func-empty" role="status">
+                        <span className="rrhh-func-empty-icon" aria-hidden="true">
+                          👤
+                        </span>
+                        <span>{emptyMsg}</span>
+                        {!busqueda.trim() && !soloActivos ? (
+                          <button
+                            type="button"
+                            className="btn btn-primary rrhh-func-empty-btn"
+                            disabled={!apiOnline}
+                            onClick={onNuevo}
+                          >
+                            + Nuevo funcionario
+                          </button>
+                        ) : null}
                       </div>
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : (
+                  rows.map((f) => (
+                    <tr key={f.id} className={`listado-pro-row${!f.activo ? " rrhh-func-row--inactivo" : ""}`}>
+                      <td className="listado-pro-num">
+                        <strong>{f.cedula}</strong>
+                      </td>
+                      <td>
+                        <span className="rrhh-func-nombre">
+                          {f.apellido}, {f.nombre}
+                        </span>
+                      </td>
+                      <td>
+                        {f.ciudad || "—"}
+                        {f.departamento ? (
+                          <span className="muted rrhh-func-depto"> ({f.departamento})</span>
+                        ) : null}
+                      </td>
+                      <td className="rrhh-func-contacto">
+                        {f.celular ? <span>{f.celular}</span> : <span className="muted">—</span>}
+                        {f.email ? (
+                          <span className="muted rrhh-func-email">{f.email}</span>
+                        ) : null}
+                      </td>
+                      <td className="muted small-cell rrhh-func-banco">
+                        {f.banco || "—"}
+                        {f.cuenta ? <span className="rrhh-func-cuenta"> · {f.cuenta}</span> : null}
+                      </td>
+                      <td>
+                        <span
+                          className={`rrhh-func-estado ${f.activo ? "rrhh-func-estado--activo" : "rrhh-func-estado--inactivo"}`}
+                        >
+                          {f.activo ? "Trabaja hoy" : "No activo"}
+                        </span>
+                      </td>
+                      <td className="actions-cell">
+                        <div className="actions-cell-inner rrhh-func-actions">
+                          <button
+                            type="button"
+                            className="btn btn-ghost btn-xs"
+                            onClick={() => onVerPagos(f.cedula)}
+                          >
+                            Pagos
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-ghost btn-xs"
+                            onClick={() => onEdit(f)}
+                          >
+                            Editar
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-ghost btn-xs rrhh-func-btn-danger"
+                            onClick={() => void borrar(f)}
+                          >
+                            Eliminar
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>

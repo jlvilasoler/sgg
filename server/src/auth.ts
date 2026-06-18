@@ -5,6 +5,11 @@ import type { Modulo, UserPublic } from "./auth-db.js";
 import type { StockMovimientoTipo } from "./stock-auditoria-db.js";
 import { getDb, stockAuditoria } from "./database.js";
 import {
+  attachApiActivityLogger,
+  PANTALLA_LABELS,
+  recordUserActivity,
+} from "./user-activity.js";
+import {
   artificialLoginDelay,
   clientIp,
   getAllowedClientOrigins,
@@ -57,11 +62,13 @@ function clearSessionCookie(res: Response): void {
 }
 
 export function moduleFromApiPath(path: string): Modulo | null {
+  if (path === "/api/auth/actividad/pantalla") return null;
   const p = path.toLowerCase();
   if (
     p.startsWith("/api/auth/users") ||
     p.startsWith("/api/auth/role-permissions") ||
-    p.startsWith("/api/auth/stock-movimientos")
+    p.startsWith("/api/auth/stock-movimientos") ||
+    p.startsWith("/api/auth/actividad")
   ) {
     return "usuarios";
   }
@@ -129,6 +136,8 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
   }
 
   req.user = user;
+
+  attachApiActivityLogger(req, res);
 
   const modulo = moduleFromApiPath(path);
   if (modulo && !user.permisos.includes(modulo)) {
@@ -210,8 +219,16 @@ export function registerAuthRoutes(app: Express): void {
 
   app.post("/api/auth/logout", async (req, res) => {
     const token = req.cookies?.[SESSION_COOKIE] as string | undefined;
+    let user: UserPublic | null = null;
     if (token) {
+      user = await authDb.getUserBySessionToken(getDb(), token);
       await authDb.deleteSession(getDb(), token);
+    }
+    if (user) {
+      await recordUserActivity(user, "logout", "Cierre de sesión", {
+        ip: clientIp(req),
+        userAgent: req.headers["user-agent"],
+      });
     }
     clearSessionCookie(res);
     res.json({ ok: true });
@@ -247,6 +264,10 @@ export function registerAuthRoutes(app: Express): void {
       const actual = String(req.body?.password_actual ?? "").slice(0, 128);
       const nueva = String(req.body?.password_nueva ?? "").slice(0, 128);
       await authDb.changeOwnPassword(getDb(), user.id, actual, nueva);
+      await recordUserActivity(user, "password_changed", "Cambió su contraseña", {
+        ip: clientIp(req),
+        userAgent: req.headers["user-agent"],
+      });
       clearSessionCookie(res);
       res.json({
         ok: true,
@@ -348,11 +369,61 @@ export function registerAuthRoutes(app: Express): void {
       }
 
       const user = await authDb.updateUser(getDb(), id, updateData);
+      await recordUserActivity(req.user!, "user_updated", `Actualizó usuario: ${user.email}`, {
+        ip: clientIp(req),
+        userAgent: req.headers["user-agent"],
+      });
       res.json({ ok: true, data: user });
     } catch (e) {
       res.status(400).json({
         ok: false,
         error: e instanceof Error ? e.message : "Error al actualizar usuario",
+      });
+    }
+  });
+
+  app.get("/api/auth/actividad", async (req, res) => {
+    if (!requireAdmin(req, res)) return;
+    try {
+      const email = String(req.query.email ?? "").trim() || undefined;
+      const evento = String(req.query.evento ?? "").trim() || undefined;
+      const limite = req.query.limite ? Number(req.query.limite) : undefined;
+      const data = await authDb.listAuthAuditLog(getDb(), {
+        email,
+        evento,
+        limite: Number.isFinite(limite) ? limite : undefined,
+      });
+      res.json({ ok: true, data });
+    } catch (e) {
+      res.status(400).json({
+        ok: false,
+        error: e instanceof Error ? e.message : "Error al cargar actividad",
+      });
+    }
+  });
+
+  app.post("/api/auth/actividad/pantalla", async (req, res) => {
+    const user = req.user;
+    if (!user) {
+      res.status(401).json({ ok: false, error: "No autenticado" });
+      return;
+    }
+    try {
+      const pantalla = String(req.body?.pantalla ?? "").trim().slice(0, 64);
+      if (!pantalla) {
+        res.status(400).json({ ok: false, error: "Pantalla requerida" });
+        return;
+      }
+      const label = PANTALLA_LABELS[pantalla] ?? pantalla;
+      await recordUserActivity(user, "navegacion", `Accedió a: ${label}`, {
+        ip: clientIp(req),
+        userAgent: req.headers["user-agent"],
+      });
+      res.json({ ok: true });
+    } catch (e) {
+      res.status(400).json({
+        ok: false,
+        error: e instanceof Error ? e.message : "Error al registrar navegación",
       });
     }
   });

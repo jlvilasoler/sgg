@@ -214,6 +214,7 @@ export default function FormVenta({
               set("razon_social_proveedor", razon);
             }}
             onError={onError}
+            onSuccess={onSuccess}
           />
 
           <div className="field span-3">

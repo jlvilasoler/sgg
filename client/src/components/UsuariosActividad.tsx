@@ -1,0 +1,278 @@
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { fetchAuthActividad, fetchUsuarios } from "../api";
+import type { AuthActividadLog } from "../types";
+
+const EVENTO_LABELS: Record<string, string> = {
+  login_ok: "Inicio de sesión",
+  login_fail: "Intento de login fallido",
+  login_fail_unknown: "Login con email desconocido",
+  login_blocked_locked: "Login bloqueado",
+  account_locked: "Cuenta bloqueada",
+  logout: "Cierre de sesión",
+  user_created: "Usuario creado",
+  user_updated: "Usuario actualizado",
+  role_permissions_updated: "Permisos actualizados",
+  password_changed: "Contraseña cambiada",
+  navegacion: "Navegación",
+  accion: "Acción",
+};
+
+const EVENTO_OPCIONES = [
+  { value: "", label: "Todos los tipos" },
+  { value: "login_ok", label: "Inicio de sesión" },
+  { value: "logout", label: "Cierre de sesión" },
+  { value: "navegacion", label: "Navegación" },
+  { value: "accion", label: "Acciones en el sistema" },
+  { value: "login_fail", label: "Intentos fallidos" },
+  { value: "user_updated", label: "Usuarios modificados" },
+  { value: "user_created", label: "Usuarios creados" },
+];
+
+interface Props {
+  apiOnline: boolean;
+  onError: (msg: string) => void;
+  onVolver: () => void;
+}
+
+function fmtFecha(iso: string): { fecha: string; hora: string } {
+  try {
+    const d = new Date(iso.replace(" ", "T"));
+    return {
+      fecha: d.toLocaleDateString("es-UY", { dateStyle: "short" }),
+      hora: d.toLocaleTimeString("es-UY", { timeStyle: "short" }),
+    };
+  } catch {
+    return { fecha: iso, hora: "" };
+  }
+}
+
+function labelEvento(evento: string): string {
+  return EVENTO_LABELS[evento] ?? evento.replace(/_/g, " ");
+}
+
+function tipoBadgeClass(evento: string): string {
+  if (evento === "login_ok") return "usuarios-act-tipo--login";
+  if (evento === "logout") return "usuarios-act-tipo--logout";
+  if (evento.startsWith("login_fail") || evento === "account_locked")
+    return "usuarios-act-tipo--fail";
+  if (evento === "navegacion") return "usuarios-act-tipo--nav";
+  if (evento === "accion") return "usuarios-act-tipo--accion";
+  return "usuarios-act-tipo--otro";
+}
+
+export default function UsuariosActividad({ apiOnline, onError, onVolver }: Props) {
+  const [rows, setRows] = useState<AuthActividadLog[]>([]);
+  const [usuarios, setUsuarios] = useState<{ email: string; nombre: string }[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filtroEmail, setFiltroEmail] = useState("");
+  const [filtroEvento, setFiltroEvento] = useState("");
+
+  useEffect(() => {
+    if (!apiOnline) {
+      setUsuarios([]);
+      return;
+    }
+    void fetchUsuarios()
+      .then((list) => setUsuarios(list.map((u) => ({ email: u.email, nombre: u.nombre }))))
+      .catch(() => setUsuarios([]));
+  }, [apiOnline]);
+
+  const load = useCallback(async () => {
+    if (!apiOnline) {
+      setRows([]);
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    try {
+      const data = await fetchAuthActividad({
+        email: filtroEmail || undefined,
+        evento: filtroEvento || undefined,
+        limite: 150,
+      });
+      setRows(data);
+    } catch (e) {
+      onError(e instanceof Error ? e.message : "Error al cargar actividad");
+    } finally {
+      setLoading(false);
+    }
+  }, [apiOnline, filtroEmail, filtroEvento, onError]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const stats = useMemo(() => {
+    return rows.reduce(
+      (acc, row) => {
+        acc.total += 1;
+        if (row.evento === "login_ok") acc.logins += 1;
+        else if (row.evento === "navegacion") acc.navegacion += 1;
+        else if (row.evento === "accion") acc.acciones += 1;
+        return acc;
+      },
+      { total: 0, logins: 0, navegacion: 0, acciones: 0 }
+    );
+  }, [rows]);
+
+  const subtitulo = loading
+    ? "Actualizando…"
+    : !apiOnline
+      ? "Sin conexión con la API"
+      : rows.length === 0
+        ? "Sin registros de actividad todavía"
+        : `${stats.total} registro${stats.total === 1 ? "" : "s"} (últimos 150)`;
+
+  return (
+    <div className="subseccion-panel usuarios-actividad">
+      <button type="button" className="subseccion-back" onClick={onVolver}>
+        ‹ Volver a Usuarios
+      </button>
+
+      <div className="card usuarios-panel listado-pro-shell">
+        <header className="listado-pro-head usuarios-actividad-head">
+          <div className="listado-pro-head-main">
+            <h2 className="listado-pro-head-title">Registro de actividad</h2>
+            <p className="listado-pro-head-sub">{subtitulo}</p>
+          </div>
+        </header>
+
+        <div className="filters listado-pro-filters usuarios-actividad-filters">
+          <div className="field">
+            <label htmlFor="ua-filtro-usuario">Usuario</label>
+            <select
+              id="ua-filtro-usuario"
+              value={filtroEmail}
+              disabled={!apiOnline || loading}
+              onChange={(e) => setFiltroEmail(e.target.value)}
+            >
+              <option value="">Todos</option>
+              {usuarios.map((u) => (
+                <option key={u.email} value={u.email}>
+                  {u.nombre}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="field">
+            <label htmlFor="ua-filtro-evento">Tipo</label>
+            <select
+              id="ua-filtro-evento"
+              value={filtroEvento}
+              disabled={!apiOnline || loading}
+              onChange={(e) => setFiltroEvento(e.target.value)}
+            >
+              {EVENTO_OPCIONES.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <button
+            type="button"
+            className="btn listado-pro-reset-btn"
+            disabled={!apiOnline || loading || (!filtroEmail && !filtroEvento)}
+            onClick={() => {
+              setFiltroEmail("");
+              setFiltroEvento("");
+            }}
+          >
+            Limpiar
+          </button>
+          <button
+            type="button"
+            className="btn btn-primary listado-pro-search-btn"
+            disabled={!apiOnline || loading}
+            onClick={() => void load()}
+          >
+            Actualizar
+          </button>
+        </div>
+
+        <section className="usuarios-actividad-kpis" aria-label="Resumen">
+          <div className="usuarios-actividad-kpi-grid">
+            <div className="usuarios-actividad-kpi">
+              <span className="usuarios-actividad-kpi-label">Registros</span>
+              <span className="usuarios-actividad-kpi-valor">
+                {loading || !apiOnline ? "—" : stats.total}
+              </span>
+            </div>
+            <div className="usuarios-actividad-kpi usuarios-actividad-kpi--login">
+              <span className="usuarios-actividad-kpi-label">Logins</span>
+              <span className="usuarios-actividad-kpi-valor">
+                {loading || !apiOnline ? "—" : stats.logins}
+              </span>
+            </div>
+            <div className="usuarios-actividad-kpi usuarios-actividad-kpi--nav">
+              <span className="usuarios-actividad-kpi-label">Navegación</span>
+              <span className="usuarios-actividad-kpi-valor">
+                {loading || !apiOnline ? "—" : stats.navegacion}
+              </span>
+            </div>
+            <div className="usuarios-actividad-kpi usuarios-actividad-kpi--accion">
+              <span className="usuarios-actividad-kpi-label">Acciones</span>
+              <span className="usuarios-actividad-kpi-valor">
+                {loading || !apiOnline ? "—" : stats.acciones}
+              </span>
+            </div>
+          </div>
+        </section>
+
+        <div className="table-wrap listado-pro-table-wrap">
+          <table className="data-table listado-pro-table usuarios-actividad-table">
+            <thead>
+              <tr>
+                <th>Fecha y hora</th>
+                <th>Usuario</th>
+                <th>Tipo</th>
+                <th>Actividad</th>
+                <th>IP</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr>
+                  <td colSpan={5} className="empty">
+                    Cargando actividad…
+                  </td>
+                </tr>
+              ) : rows.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="empty">
+                    Sin registros de actividad
+                  </td>
+                </tr>
+              ) : (
+                rows.map((row) => {
+                  const { fecha, hora } = fmtFecha(row.creado_en);
+                  return (
+                    <tr key={row.id}>
+                      <td className="usuarios-act-fecha">
+                        <span>{fecha}</span>
+                        {hora ? <span className="muted">{hora}</span> : null}
+                      </td>
+                      <td>
+                        <strong>{row.user_nombre || row.email || "—"}</strong>
+                        {row.email ? (
+                          <span className="muted usuarios-act-email">{row.email}</span>
+                        ) : null}
+                      </td>
+                      <td>
+                        <span className={`usuarios-act-tipo ${tipoBadgeClass(row.evento)}`}>
+                          {labelEvento(row.evento)}
+                        </span>
+                      </td>
+                      <td className="usuarios-act-detalle">{row.detalle || "—"}</td>
+                      <td className="muted small-cell">{row.ip || "—"}</td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
