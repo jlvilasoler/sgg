@@ -281,6 +281,10 @@ function puedeAccederPresupuesto(row: Presupuesto, user: UserPublic): boolean {
   return owner !== "" && owner === user.email.trim().toLowerCase();
 }
 
+function queryFlag(value: unknown): boolean {
+  return value === "1" || value === "true" || value === "yes";
+}
+
 function presupuestoListFilters(req: Request): db.ListFilters {
   const user = req.user!;
   const filters: db.ListFilters = {
@@ -291,13 +295,21 @@ function presupuestoListFilters(req: Request): db.ListFilters {
     fecha_hasta: req.query.fecha_hasta as string | undefined,
     busqueda: req.query.busqueda as string | undefined,
   };
-  const soloMios =
-    req.query.solo_mios === "1" ||
-    req.query.solo_mios === "true" ||
-    req.query.solo_mios === "yes";
-  if (soloMios) {
-    filters.ingresado_por_email = user.email;
+  const soloMios = queryFlag(req.query.solo_mios);
+  const verTodos = queryFlag(req.query.ver_todos);
+
+  if (user.rol === "admin") {
+    if (soloMios) {
+      filters.ingresado_por_email = user.email;
+    }
+    return filters;
   }
+
+  if (verTodos && (user.rol === "editor" || user.rol === "consulta")) {
+    return filters;
+  }
+
+  filters.ingresado_por_email = user.email;
   return filters;
 }
 

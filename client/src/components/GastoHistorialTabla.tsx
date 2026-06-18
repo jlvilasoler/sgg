@@ -63,7 +63,6 @@ export default function GastoHistorialTabla({
     try {
       const data = await fetchPresupuesto({
         busqueda: busqueda.trim() || undefined,
-        solo_mios: !esAdmin,
       });
       setRows(data);
     } catch (e) {

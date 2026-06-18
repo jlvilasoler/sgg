@@ -129,13 +129,15 @@ export async function fetchPresupuesto(filters: {
   fecha_desde?: string;
   fecha_hasta?: string;
   busqueda?: string;
-  /** Solo documentos del usuario actual (p. ej. tabla bajo el formulario de gasto). */
+  /** Historial global (Presupuesto). Editor/consulta: requiere este flag en el servidor. */
+  ver_todos?: boolean;
+  /** Admin: filtrar solo documentos propios. */
   solo_mios?: boolean;
 }): Promise<Presupuesto[]> {
   const params = new URLSearchParams();
   Object.entries(filters).forEach(([k, v]) => {
-    if (k === "solo_mios") {
-      if (v) params.set("solo_mios", "1");
+    if (k === "solo_mios" || k === "ver_todos") {
+      if (v) params.set(k, "1");
       return;
     }
     if (v) params.set(k, String(v));

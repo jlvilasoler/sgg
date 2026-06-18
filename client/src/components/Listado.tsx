@@ -66,6 +66,7 @@ export default function Listado({ catalogos, apiOnline, onEdit, onDeleted, onErr
         fecha_desde: fechaDesde || undefined,
         fecha_hasta: fechaHasta || undefined,
         busqueda: busqueda.trim() || undefined,
+        ver_todos: true,
       });
       setRows(data);
     } catch (e) {
