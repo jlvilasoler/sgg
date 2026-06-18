@@ -122,14 +122,47 @@ body {
   height: 3.5rem;
   flex-shrink: 0;
   display: block;
-  object-fit: cover;
-  object-position: center center;
-  border-radius: var(--radius-btn);
-  background: var(--header-green-dark);
-  border: none;
-  outline: none;
-  box-shadow: none;
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.35));
+  border-radius: 50%;
+  filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.28));
+}
+
+/* —— Logo SGG —— */
+@keyframes sgg-logo-enter {
+  0% {
+    opacity: 0;
+    transform: scale(0.88);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.sgg-logo {
+  display: block;
+  overflow: visible;
+  transform-origin: center center;
+  animation: sgg-logo-enter 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.sgg-logo__ring-gold {
+  /* Anillo dorado fijo, centrado */
+  vector-effect: non-scaling-stroke;
+}
+
+.main-brand:hover .sgg-logo,
+.auth-login-brand:hover .sgg-logo,
+.pd-brand-inner:hover .sgg-logo {
+  filter: drop-shadow(0 3px 8px rgba(240, 185, 11, 0.22));
+  transition: filter 0.35s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sgg-logo {
+    animation: none !important;
+    opacity: 1;
+    transform: none;
+  }
 }
 
 .main-brand-title {
@@ -3307,13 +3340,12 @@ textarea:focus {
 }
 
 .pd-brand-logo {
-  width: 2.75rem;
-  height: 2.75rem;
+  width: 2.85rem;
+  height: 2.85rem;
   flex-shrink: 0;
-  border-radius: 8px;
-  object-fit: cover;
-  background: var(--header-green-dark);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.22);
+  display: block;
+  border-radius: 50%;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.22));
 }
 
 .pd-brand-text {
@@ -11578,9 +11610,12 @@ select optgroup {
 }
 
 .auth-login-logo {
-  width: 2.75rem;
-  height: 2.75rem;
+  width: 3rem;
+  height: 3rem;
   flex-shrink: 0;
+  display: block;
+  border-radius: 50%;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
 }
 
 .auth-login-title {

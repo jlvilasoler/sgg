@@ -1,4 +1,4 @@
-import LogoHereford from "./LogoHereford";
+import LogoSgg from "./LogoSgg";
 import type { AuthUser } from "../types";
 
 interface Props {
@@ -12,7 +12,7 @@ export default function MainHeader({ user, onHome, onLogout }: Props) {
     <header className="main-header">
       <div className="layout-frame main-header-inner">
         <button type="button" className="main-brand" onClick={onHome} title="Volver al menú">
-          <LogoHereford className="main-brand-icon" />
+          <LogoSgg className="main-brand-icon" />
           <div>
             <span className="main-brand-title">SGG</span>
             <span className="main-brand-sub">Sistema de Gestión Ganadera</span>

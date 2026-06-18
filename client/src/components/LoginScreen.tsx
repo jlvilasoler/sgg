@@ -2,7 +2,7 @@ import { useState, type FormEvent } from "react";
 import { loginAuth } from "../api";
 import { apiConnectionError, apiOfflineMessage } from "../utils/api-messages";
 import type { AuthUser } from "../types";
-import LogoHereford from "./LogoHereford";
+import LogoSgg from "./LogoSgg";
 
 function PasswordEyeIcon({ open }: { open: boolean }) {
   if (open) {
@@ -81,7 +81,7 @@ export default function LoginScreen({ apiOnline, onLogin, onError }: Props) {
       <div className="auth-login-shell">
         <header className="auth-login-head">
           <div className="auth-login-brand">
-            <LogoHereford className="auth-login-logo" />
+            <LogoSgg className="auth-login-logo" />
             <div>
               <h1 className="auth-login-title">SGG</h1>
               <p className="auth-login-sub">Sistema de Gestión Ganadera</p>

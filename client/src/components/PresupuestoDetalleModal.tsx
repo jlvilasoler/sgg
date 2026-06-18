@@ -1,7 +1,7 @@
 import { useEffect, type ReactNode } from "react";
 import type { Presupuesto } from "../types";
 import { empresaClass, fmtDate, fmtNum, formatNumeroOperacion } from "../utils";
-import LogoHereford from "./LogoHereford";
+import LogoSgg from "./LogoSgg";
 
 interface Props {
   row: Presupuesto;
@@ -232,7 +232,7 @@ export default function PresupuestoDetalleModal({ row, onClose }: Props) {
       >
         <header className="pd-brand">
           <div className="pd-brand-inner">
-            <LogoHereford className="pd-brand-logo" />
+            <LogoSgg className="pd-brand-logo" />
             <div className="pd-brand-text">
               <span className="pd-brand-scg">SGG</span>
               <span className="pd-brand-sub">Sistema de Gestión Ganadera</span>
