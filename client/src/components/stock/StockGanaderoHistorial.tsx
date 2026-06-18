@@ -135,7 +135,7 @@ export default function StockGanaderoHistorial({
               ) : lotes.length === 0 ? (
                 <tr>
                   <td colSpan={4} className="empty">
-                    Sin importaciones. Cargá un archivo desde «Importar archivo TXT».
+                    Sin importaciones. Cargá un archivo desde «Alta de Dispositivo».
                   </td>
                 </tr>
               ) : (

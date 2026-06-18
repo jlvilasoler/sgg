@@ -215,7 +215,7 @@ export default function StockGanaderoImportar({
       <div className="card stock-import-shell">
         <div className="form-header stock-import-head">
           <div>
-            <h2>Importar lecturas</h2>
+            <h2>Alta de Dispositivo</h2>
             <p className="muted">
               Cargá el export del bastón o lector RFID, o ingresá lecturas una a una.
               Cada registro guarda fecha, hora y condición del animal.

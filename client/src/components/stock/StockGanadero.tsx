@@ -26,7 +26,7 @@ interface Props {
 const SUBMENU = [
   {
     id: "importar" as const,
-    label: "Importar archivo TXT",
+    label: "Alta de Dispositivo",
     subtitle: "Lecturas EID del bastón / lector RFID",
     icon: "📥",
     color: "#2d6a4f",
