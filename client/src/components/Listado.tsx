@@ -353,22 +353,36 @@ export default function Listado({ catalogos, apiOnline, onEdit, onDeleted, onErr
           </colgroup>
           <thead>
             <tr>
-              <th className="num" title="Número de registro">
+              <th className="num" title="Número de registro" data-col="nro">
                 N°
               </th>
-              <th title="Empresa">Emp.</th>
-              <th>Fecha</th>
-              <th title="Código proveedor">Cód.</th>
-              <th title="Razón social proveedor">Razón</th>
-              <th>Concepto</th>
-              <th title="Número de factura">Fact.</th>
-              <th className="num">$</th>
-              <th className="num">USD</th>
-              <th className="num">R$</th>
-              <th className="num" title="Total en USD">
+              <th title="Empresa" data-col="empresa">
+                Emp.
+              </th>
+              <th data-col="fecha">Fecha</th>
+              <th title="Código proveedor" data-col="cod">
+                Cód.
+              </th>
+              <th title="Razón social proveedor" data-col="razon">
+                Razón
+              </th>
+              <th data-col="concepto">Concepto</th>
+              <th title="Número de factura" data-col="fact">
+                Fact.
+              </th>
+              <th className="num" data-col="pesos">
+                $
+              </th>
+              <th className="num" data-col="usd">
+                USD
+              </th>
+              <th className="num" data-col="reales">
+                R$
+              </th>
+              <th className="num" title="Total en USD" data-col="saldo">
                 TOTAL USD
               </th>
-              <th className="col-acciones-h" aria-label="Acciones" />
+              <th className="col-acciones-h" aria-label="Acciones" data-col="acciones" />
             </tr>
           </thead>
           <tbody>
@@ -393,8 +407,10 @@ export default function Listado({ catalogos, apiOnline, onEdit, onDeleted, onErr
             ) : (
               rows.map((r) => (
                 <tr key={r.id} className="listado-pro-row">
-                  <td className="num listado-pro-num">{r.nro_registro}</td>
-                  <td className="td-empresa">
+                  <td className="num listado-pro-num" data-col="nro">
+                    {r.nro_registro}
+                  </td>
+                  <td className="td-empresa" data-col="empresa">
                     <span
                       className={`empresa-badge empresa-badge--compact ${empresaClass(r.empresa)}`}
                       title={r.empresa}
@@ -402,26 +418,34 @@ export default function Listado({ catalogos, apiOnline, onEdit, onDeleted, onErr
                       {empresaCorta(r.empresa)}
                     </span>
                   </td>
-                  <td className="td-fecha">{fmtDate(r.fecha)}</td>
-                  <td>
+                  <td className="td-fecha" data-col="fecha">
+                    {fmtDate(r.fecha)}
+                  </td>
+                  <td data-col="cod">
                     <CeldaTexto value={r.codigo_proveedor} vacio="" />
                   </td>
-                  <td>
+                  <td data-col="razon">
                     <CeldaTexto value={r.razon_social_proveedor} vacio="" />
                   </td>
-                  <td>
+                  <td data-col="concepto">
                     <CeldaTexto value={r.concepto} vacio="" />
                   </td>
-                  <td>
+                  <td data-col="fact">
                     <CeldaTexto value={r.nro_factura} vacio="" />
                   </td>
-                  <td className="num listado-pro-num">{fmtNum(r.pesos)}</td>
-                  <td className="num listado-pro-num">{fmtNum(r.dolares_usd)}</td>
-                  <td className="num listado-pro-num">{fmtNum(r.reales)}</td>
-                  <td className="num listado-pro-num listado-pro-num--total">
+                  <td className="num listado-pro-num" data-col="pesos">
+                    {fmtNum(r.pesos)}
+                  </td>
+                  <td className="num listado-pro-num" data-col="usd">
+                    {fmtNum(r.dolares_usd)}
+                  </td>
+                  <td className="num listado-pro-num" data-col="reales">
+                    {fmtNum(r.reales)}
+                  </td>
+                  <td className="num listado-pro-num listado-pro-num--total" data-col="saldo">
                     {fmtNum(r.saldo_usd)}
                   </td>
-                  <td className="actions-cell actions-cell--icons">
+                  <td className="actions-cell actions-cell--icons" data-col="acciones">
                     <div className="actions-cell-inner">
                       <button
                         type="button"

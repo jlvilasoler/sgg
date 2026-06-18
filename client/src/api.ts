@@ -129,10 +129,16 @@ export async function fetchPresupuesto(filters: {
   fecha_desde?: string;
   fecha_hasta?: string;
   busqueda?: string;
+  /** Solo documentos del usuario actual (p. ej. tabla bajo el formulario de gasto). */
+  solo_mios?: boolean;
 }): Promise<Presupuesto[]> {
   const params = new URLSearchParams();
   Object.entries(filters).forEach(([k, v]) => {
-    if (v) params.set(k, v);
+    if (k === "solo_mios") {
+      if (v) params.set("solo_mios", "1");
+      return;
+    }
+    if (v) params.set(k, String(v));
   });
   const q = params.toString() ? `?${params}` : "";
   const json = await request<{ data: Presupuesto[] }>(`/presupuesto${q}`);

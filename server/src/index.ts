@@ -274,7 +274,9 @@ app.get("/api/catalogos", async (_req, res) => {
 });
 
 function puedeAccederPresupuesto(row: Presupuesto, user: UserPublic): boolean {
-  if (user.rol === "admin") return true;
+  if (user.rol === "admin" || user.rol === "editor" || user.rol === "consulta") {
+    return true;
+  }
   const owner = (row.ingresado_por_email ?? "").trim().toLowerCase();
   return owner !== "" && owner === user.email.trim().toLowerCase();
 }
@@ -289,7 +291,11 @@ function presupuestoListFilters(req: Request): db.ListFilters {
     fecha_hasta: req.query.fecha_hasta as string | undefined,
     busqueda: req.query.busqueda as string | undefined,
   };
-  if (user.rol !== "admin") {
+  const soloMios =
+    req.query.solo_mios === "1" ||
+    req.query.solo_mios === "true" ||
+    req.query.solo_mios === "yes";
+  if (soloMios) {
     filters.ingresado_por_email = user.email;
   }
   return filters;
