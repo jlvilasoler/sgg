@@ -11794,6 +11794,179 @@ select optgroup {
   background: rgba(0, 0, 0, 0.22) !important;
 }
 
+.main-header-user-avatar-btn {
+  position: relative;
+  flex-shrink: 0;
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  border-radius: 999px;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.main-header-user-avatar-btn:hover {
+  transform: scale(1.04);
+}
+
+.main-header-user-avatar-btn:focus-visible {
+  outline: 2px solid rgba(240, 185, 11, 0.85);
+  outline-offset: 2px;
+}
+
+.main-header-user-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.95rem;
+  height: 1.95rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: #1e3d2a;
+  background: linear-gradient(145deg, #f8f6f0 0%, #e8efe9 100%);
+  border: 1.5px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.16);
+}
+
+.main-header-user-avatar--lg {
+  width: 2.75rem;
+  height: 2.75rem;
+  font-size: 0.95rem;
+}
+
+.main-header-user-avatar-lock {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  width: 0.95rem;
+  height: 0.95rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  color: #1e3d2a;
+  background: var(--bn-gold);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
+  pointer-events: none;
+}
+
+/* —— Modal cambiar contraseña —— */
+.cambiar-pw-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10050;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(15, 28, 20, 0.52);
+  backdrop-filter: blur(4px);
+}
+
+.cambiar-pw-modal {
+  width: min(440px, 100%);
+  background: var(--surface);
+  border-radius: 12px;
+  box-shadow: 0 22px 56px rgba(15, 28, 20, 0.26);
+  overflow: hidden;
+}
+
+.cambiar-pw-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 1.1rem 1.25rem;
+  background: linear-gradient(
+    125deg,
+    var(--header-green-dark) 0%,
+    var(--header-green) 55%,
+    #3a6b4d 100%
+  );
+  color: #f8f6f0;
+}
+
+.cambiar-pw-head-user {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.cambiar-pw-head h2 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.cambiar-pw-sub {
+  margin: 0.15rem 0 0;
+  font-size: 0.75rem;
+  opacity: 0.88;
+  word-break: break-word;
+}
+
+.cambiar-pw-close {
+  color: #fff !important;
+  border-color: rgba(255, 255, 255, 0.28) !important;
+  background: rgba(0, 0, 0, 0.12) !important;
+  min-width: 2rem;
+  padding: 0.25rem !important;
+}
+
+.cambiar-pw-form {
+  padding: 1.1rem 1.25rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.cambiar-pw-hint {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.cambiar-pw-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+}
+
+.cambiar-pw-input-wrap input {
+  width: 100%;
+  padding-right: 2.5rem;
+}
+
+.cambiar-pw-toggle {
+  position: absolute;
+  right: 0.25rem;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.68rem !important;
+  font-weight: 600;
+  min-width: 2.4rem;
+  padding: 0.2rem 0.35rem !important;
+}
+
+.cambiar-pw-note {
+  margin: 0;
+  font-size: 0.76rem;
+  line-height: 1.4;
+}
+
+.cambiar-pw-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border);
+}
+
 .usuarios-panel {
   padding: 0;
   overflow: hidden;

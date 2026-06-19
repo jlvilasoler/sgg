@@ -219,7 +219,19 @@ export default function App() {
 
   return (
     <div className="app-shell">
-      <MainHeader user={user} onHome={goHome} onLogout={() => void onLogout()} />
+      <MainHeader
+        user={user}
+        onHome={goHome}
+        onLogout={() => void onLogout()}
+        onPasswordChanged={(msg) => {
+          setUser(null);
+          setScreen("home");
+          setEditRow(null);
+          hadUserRef.current = false;
+          notify(msg, true, "Contraseña actualizada");
+        }}
+        onError={(m) => notify(m, false)}
+      />
 
       <div className="layout-content">
         {screen === "home" ? (

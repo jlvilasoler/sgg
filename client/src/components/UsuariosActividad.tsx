@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { fetchAuthActividad, fetchUsuarios, fetchUsuariosOnline } from "../api";
 import type { AuthActividadLog, UsuarioOnline } from "../types";
+import TablePagination, { type PageSize } from "./TablePagination";
 
 const EVENTO_LABELS: Record<string, string> = {
   login_ok: "Inicio de sesión",
@@ -69,12 +70,21 @@ function fmtHaceSegundos(seg: number): string {
 
 export default function UsuariosActividad({ apiOnline, onError, onVolver }: Props) {
   const [rows, setRows] = useState<AuthActividadLog[]>([]);
+  const [total, setTotal] = useState(0);
+  const [resumen, setResumen] = useState({
+    total: 0,
+    logins: 0,
+    navegacion: 0,
+    acciones: 0,
+  });
   const [online, setOnline] = useState<UsuarioOnline[]>([]);
   const [usuarios, setUsuarios] = useState<{ email: string; nombre: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingOnline, setLoadingOnline] = useState(true);
   const [filtroEmail, setFiltroEmail] = useState("");
   const [filtroEvento, setFiltroEvento] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<PageSize>(20);
 
   useEffect(() => {
     if (!apiOnline) {
@@ -86,26 +96,44 @@ export default function UsuariosActividad({ apiOnline, onError, onVolver }: Prop
       .catch(() => setUsuarios([]));
   }, [apiOnline]);
 
+  useEffect(() => {
+    setPage(1);
+  }, [filtroEmail, filtroEvento, pageSize]);
+
+  useEffect(() => {
+    const maxPage = Math.max(1, Math.ceil(total / pageSize));
+    if (page > maxPage) setPage(maxPage);
+  }, [total, pageSize, page]);
+
   const load = useCallback(async () => {
     if (!apiOnline) {
       setRows([]);
+      setTotal(0);
+      setResumen({ total: 0, logins: 0, navegacion: 0, acciones: 0 });
       setLoading(false);
       return;
     }
     setLoading(true);
     try {
-      const data = await fetchAuthActividad({
+      const offset = (page - 1) * pageSize;
+      const result = await fetchAuthActividad({
         email: filtroEmail || undefined,
         evento: filtroEvento || undefined,
-        limite: 150,
+        limite: pageSize,
+        offset,
       });
-      setRows(data);
+      setRows(result.items);
+      setTotal(result.total);
+      setResumen(result.resumen);
     } catch (e) {
       onError(e instanceof Error ? e.message : "Error al cargar actividad");
+      setRows([]);
+      setTotal(0);
+      setResumen({ total: 0, logins: 0, navegacion: 0, acciones: 0 });
     } finally {
       setLoading(false);
     }
-  }, [apiOnline, filtroEmail, filtroEvento, onError]);
+  }, [apiOnline, filtroEmail, filtroEvento, page, pageSize, onError]);
 
   useEffect(() => {
     void load();
@@ -133,26 +161,16 @@ export default function UsuariosActividad({ apiOnline, onError, onVolver }: Prop
     return () => window.clearInterval(id);
   }, [apiOnline, loadOnline]);
 
-  const stats = useMemo(() => {
-    return rows.reduce(
-      (acc, row) => {
-        acc.total += 1;
-        if (row.evento === "login_ok") acc.logins += 1;
-        else if (row.evento === "navegacion") acc.navegacion += 1;
-        else if (row.evento === "accion") acc.acciones += 1;
-        return acc;
-      },
-      { total: 0, logins: 0, navegacion: 0, acciones: 0 }
-    );
-  }, [rows]);
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const pageSafe = Math.min(page, totalPages);
 
   const subtitulo = loading
     ? "Actualizando…"
     : !apiOnline
       ? "Sin conexión con la API"
-      : rows.length === 0
+      : total === 0
         ? "Sin registros de actividad todavía"
-        : `${stats.total} registro${stats.total === 1 ? "" : "s"} (últimos 150)`;
+        : `${total} registro${total === 1 ? "" : "s"} en el historial`;
 
   return (
     <div className="subseccion-panel usuarios-actividad">
@@ -275,25 +293,25 @@ export default function UsuariosActividad({ apiOnline, onError, onVolver }: Prop
             <div className="usuarios-actividad-kpi">
               <span className="usuarios-actividad-kpi-label">Registros</span>
               <span className="usuarios-actividad-kpi-valor">
-                {loading || !apiOnline ? "—" : stats.total}
+                {loading || !apiOnline ? "—" : resumen.total}
               </span>
             </div>
             <div className="usuarios-actividad-kpi usuarios-actividad-kpi--login">
               <span className="usuarios-actividad-kpi-label">Logins</span>
               <span className="usuarios-actividad-kpi-valor">
-                {loading || !apiOnline ? "—" : stats.logins}
+                {loading || !apiOnline ? "—" : resumen.logins}
               </span>
             </div>
             <div className="usuarios-actividad-kpi usuarios-actividad-kpi--nav">
               <span className="usuarios-actividad-kpi-label">Navegación</span>
               <span className="usuarios-actividad-kpi-valor">
-                {loading || !apiOnline ? "—" : stats.navegacion}
+                {loading || !apiOnline ? "—" : resumen.navegacion}
               </span>
             </div>
             <div className="usuarios-actividad-kpi usuarios-actividad-kpi--accion">
               <span className="usuarios-actividad-kpi-label">Acciones</span>
               <span className="usuarios-actividad-kpi-valor">
-                {loading || !apiOnline ? "—" : stats.acciones}
+                {loading || !apiOnline ? "—" : resumen.acciones}
               </span>
             </div>
           </div>
@@ -352,6 +370,19 @@ export default function UsuariosActividad({ apiOnline, onError, onVolver }: Prop
             </tbody>
           </table>
         </div>
+
+        {!loading && apiOnline && total > 0 && (
+          <TablePagination
+            total={total}
+            page={pageSafe}
+            pageSize={pageSize}
+            onPageChange={setPage}
+            onPageSizeChange={(size) => {
+              setPageSize(size);
+              setPage(1);
+            }}
+          />
+        )}
       </div>
     </div>
   );

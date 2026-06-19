@@ -129,7 +129,7 @@ export async function fetchPresupuesto(filters: {
   fecha_desde?: string;
   fecha_hasta?: string;
   busqueda?: string;
-  /** Historial global (Presupuesto). Editor/consulta: requiere este flag en el servidor. */
+  /** Historial global (Presupuesto). Gestor/consulta: requiere este flag en el servidor. */
   ver_todos?: boolean;
   /** Admin: filtrar solo documentos propios. */
   solo_mios?: boolean;
@@ -1435,16 +1435,33 @@ export async function fetchAuthActividad(filters?: {
   email?: string;
   evento?: string;
   limite?: number;
-}): Promise<AuthActividadLog[]> {
+  offset?: number;
+}): Promise<{
+  items: AuthActividadLog[];
+  total: number;
+  resumen: { total: number; logins: number; navegacion: number; acciones: number };
+}> {
   const params = new URLSearchParams();
   if (filters?.email) params.set("email", filters.email);
   if (filters?.evento) params.set("evento", filters.evento);
-  if (filters?.limite) params.set("limite", String(filters.limite));
+  if (filters?.limite != null) params.set("limite", String(filters.limite));
+  if (filters?.offset != null) params.set("offset", String(filters.offset));
   const q = params.toString();
-  const json = await request<{ data: AuthActividadLog[] }>(
-    `/auth/actividad${q ? `?${q}` : ""}`
-  );
-  return json.data;
+  const json = await request<{
+    data: AuthActividadLog[];
+    total: number;
+    resumen: { total: number; logins: number; navegacion: number; acciones: number };
+  }>(`/auth/actividad${q ? `?${q}` : ""}`);
+  return {
+    items: json.data,
+    total: json.total ?? json.data.length,
+    resumen: json.resumen ?? {
+      total: json.total ?? json.data.length,
+      logins: 0,
+      navegacion: 0,
+      acciones: 0,
+    },
+  };
 }
 
 /** Mantiene presencia activa (fire-and-forget). */

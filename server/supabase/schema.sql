@@ -255,7 +255,7 @@ CREATE TABLE IF NOT EXISTS USERS (
   email TEXT NOT NULL,
   password_hash TEXT NOT NULL,
   nombre TEXT NOT NULL,
-  rol TEXT NOT NULL CHECK (rol IN ('admin', 'editor', 'consulta')),
+  rol TEXT NOT NULL CHECK (rol IN ('admin', 'editor', 'gestor_n2', 'consulta')),
   activo INTEGER NOT NULL DEFAULT 1,
   creado_en TIMESTAMPTZ DEFAULT NOW(),
   actualizado_en TIMESTAMPTZ DEFAULT NOW(),
@@ -294,7 +294,7 @@ CREATE TABLE IF NOT EXISTS ROLE_ESCRITURA (
 );
 
 CREATE TABLE IF NOT EXISTS ROLE_PERMISOS (
-  rol TEXT NOT NULL CHECK (rol IN ('admin', 'editor', 'consulta')),
+  rol TEXT NOT NULL CHECK (rol IN ('admin', 'editor', 'gestor_n2', 'consulta')),
   modulo TEXT NOT NULL,
   acceso INTEGER NOT NULL DEFAULT 0,
   PRIMARY KEY (rol, modulo)

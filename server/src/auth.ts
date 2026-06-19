@@ -35,6 +35,13 @@ const PUBLIC_PATHS = new Set(["/api/health", "/api/auth/login"]);
 
 const WRITE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
+function canWriteInModulo(user: UserPublic, modulo: Modulo | null): boolean {
+  if (!user.puede_escribir) return false;
+  if (!modulo) return true;
+  const soloLectura = authDb.ROLES_MODULO_SOLO_LECTURA[user.rol];
+  return !(soloLectura?.includes(modulo));
+}
+
 declare global {
   namespace Express {
     interface Request {
@@ -151,11 +158,14 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
   if (
     modulo &&
     WRITE_METHODS.has(req.method.toUpperCase()) &&
-    !user.puede_escribir
+    !canWriteInModulo(user, modulo)
   ) {
     res.status(403).json({
       ok: false,
-      error: "Tu rol solo permite consultar datos, no modificarlos",
+      error:
+        user.rol === "gestor_n2" && modulo === "divisas"
+          ? "Gestor N2 solo puede consultar divisas, no modificarlas"
+          : "Tu rol solo permite consultar datos, no modificarlos",
     });
     return;
   }
@@ -305,7 +315,7 @@ export function registerAuthRoutes(app: Express): void {
         password: String(req.body?.password ?? ""),
         activo: req.body?.activo !== false,
       };
-      if (!["admin", "editor", "consulta"].includes(data.rol)) {
+      if (!authDb.isValidRol(data.rol)) {
         res.status(400).json({ ok: false, error: "Rol inválido" });
         return;
       }
@@ -337,7 +347,7 @@ export function registerAuthRoutes(app: Express): void {
       if (body.email !== undefined) updateData.email = String(body.email);
       if (body.nombre !== undefined) updateData.nombre = String(body.nombre);
       if (body.rol !== undefined) {
-        if (!["admin", "editor", "consulta"].includes(body.rol)) {
+        if (!authDb.isValidRol(body.rol)) {
           res.status(400).json({ ok: false, error: "Rol inválido" });
           return;
         }
@@ -416,12 +426,19 @@ export function registerAuthRoutes(app: Express): void {
       const email = String(req.query.email ?? "").trim() || undefined;
       const evento = String(req.query.evento ?? "").trim() || undefined;
       const limite = req.query.limite ? Number(req.query.limite) : undefined;
-      const data = await authDb.listAuthAuditLog(getDb(), {
+      const offset = req.query.offset ? Number(req.query.offset) : undefined;
+      const page = await authDb.listAuthAuditLog(getDb(), {
         email,
         evento,
         limite: Number.isFinite(limite) ? limite : undefined,
+        offset: Number.isFinite(offset) ? offset : undefined,
       });
-      res.json({ ok: true, data });
+      res.json({
+        ok: true,
+        data: page.rows,
+        total: page.total,
+        resumen: page.resumen,
+      });
     } catch (e) {
       res.status(400).json({
         ok: false,
@@ -494,7 +511,7 @@ export function registerAuthRoutes(app: Express): void {
     if (!requireAdmin(req, res)) return;
     try {
       const rol = String(req.params.rol) as authDb.Rol;
-      if (!["admin", "editor", "consulta"].includes(rol)) {
+      if (!authDb.isValidRol(rol)) {
         res.status(400).json({ ok: false, error: "Rol inválido" });
         return;
       }

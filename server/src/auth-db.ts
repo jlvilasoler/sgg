@@ -7,7 +7,13 @@ import {
   validatePasswordStrength,
 } from "./auth-security.js";
 
-export type Rol = "admin" | "editor" | "consulta";
+export type Rol = "admin" | "editor" | "gestor_n2" | "consulta";
+
+export const ALL_ROLES: Rol[] = ["admin", "editor", "gestor_n2", "consulta"];
+
+export function isValidRol(value: string): value is Rol {
+  return ALL_ROLES.includes(value as Rol);
+}
 
 export type Modulo =
   | "presupuesto"
@@ -30,7 +36,8 @@ export const MODULOS: Modulo[] = [
 
 export const ROL_LABELS: Record<Rol, string> = {
   admin: "Administrador",
-  editor: "Editor",
+  editor: "Gestor N1",
+  gestor_n2: "Gestor N2",
   consulta: "Consulta",
 };
 
@@ -46,8 +53,15 @@ export const MODULO_LABELS: Record<Modulo, string> = {
 
 export const ROL_DESCRIPCION: Record<Rol, string> = {
   admin: "Acceso total al sistema (no editable)",
-  editor: "Acceso y edición según sectores habilitados",
+  editor: "Gestión operativa según sectores habilitados (sin usuarios ni ventas)",
+  gestor_n2:
+    "Gastos, configuración, stock, RRHH y resumen. Divisas solo lectura. Sin ventas ni usuarios.",
   consulta: "Solo lectura en los sectores habilitados",
+};
+
+/** Módulos en los que el rol puede ver pero no crear/editar/borrar. */
+export const ROLES_MODULO_SOLO_LECTURA: Partial<Record<Rol, Modulo[]>> = {
+  gestor_n2: ["divisas"],
 };
 
 export interface ModuloAccesoConfig {
@@ -121,6 +135,14 @@ const DUMMY_PASSWORD_HASH = bcrypt.hashSync(
   BCRYPT_ROUNDS
 );
 
+const GESTOR_N2_MODULOS: Modulo[] = [
+  "presupuesto",
+  "configuracion",
+  "divisas",
+  "rrhh",
+  "stock",
+];
+
 const DEFAULT_ROLE_ACCESS: Record<
   Rol,
   { puede_escribir: boolean; modulos: Modulo[] }
@@ -129,6 +151,10 @@ const DEFAULT_ROLE_ACCESS: Record<
   editor: {
     puede_escribir: true,
     modulos: MODULOS.filter((m) => m !== "usuarios"),
+  },
+  gestor_n2: {
+    puede_escribir: true,
+    modulos: GESTOR_N2_MODULOS,
   },
   consulta: {
     puede_escribir: false,
@@ -236,19 +262,27 @@ export interface AuthAuditLogFilters {
   offset?: number;
 }
 
-export async function listAuthAuditLog(
-  db: Db,
-  filters?: AuthAuditLogFilters
-): Promise<AuthAuditLogRow[]> {
-  const limite = Math.min(300, Math.max(1, filters?.limite ?? 100));
-  const offset = Math.max(0, filters?.offset ?? 0);
+export interface AuthAuditLogResumen {
+  total: number;
+  logins: number;
+  navegacion: number;
+  acciones: number;
+}
 
-  let sql = `SELECT a.id, a.evento, a.email, a.ip, a.user_agent, a.detalle, a.creado_en,
-                    u.nombre AS user_nombre
-             FROM AUTH_AUDIT_LOG a
+export interface AuthAuditLogPage {
+  rows: AuthAuditLogRow[];
+  total: number;
+  resumen: AuthAuditLogResumen;
+}
+
+function authAuditLogWhere(filters?: AuthAuditLogFilters): {
+  sql: string;
+  params: Record<string, unknown>;
+} {
+  let sql = ` FROM AUTH_AUDIT_LOG a
              LEFT JOIN USERS u ON LOWER(TRIM(u.email)) = LOWER(TRIM(a.email))
              WHERE 1=1`;
-  const params: Record<string, unknown> = { limite, offset };
+  const params: Record<string, unknown> = {};
 
   if (filters?.email?.trim()) {
     sql += ` AND LOWER(a.email) LIKE LOWER(@email)`;
@@ -259,17 +293,61 @@ export async function listAuthAuditLog(
     params.evento = filters.evento.trim();
   }
 
-  sql += ` ORDER BY a.creado_en DESC, a.id DESC LIMIT @limite OFFSET @offset`;
+  return { sql, params };
+}
+
+export async function listAuthAuditLog(
+  db: Db,
+  filters?: AuthAuditLogFilters
+): Promise<AuthAuditLogPage> {
+  const limite = Math.min(100, Math.max(1, filters?.limite ?? 20));
+  const offset = Math.max(0, filters?.offset ?? 0);
+  const { sql: whereSql, params: whereParams } = authAuditLogWhere(filters);
+
+  const countRow = (await db
+    .prepare(
+      `SELECT COUNT(*) AS total,
+              SUM(CASE WHEN a.evento = 'login_ok' THEN 1 ELSE 0 END) AS logins,
+              SUM(CASE WHEN a.evento = 'navegacion' THEN 1 ELSE 0 END) AS navegacion,
+              SUM(CASE WHEN a.evento = 'accion' THEN 1 ELSE 0 END) AS acciones
+       ${whereSql}`
+    )
+    .get(whereParams)) as {
+    total: number;
+    logins: number;
+    navegacion: number;
+    acciones: number;
+  };
+
+  const params = { ...whereParams, limite, offset };
+  const sql = `SELECT a.id, a.evento, a.email, a.ip, a.user_agent, a.detalle, a.creado_en,
+                      u.nombre AS user_nombre
+               ${whereSql}
+               ORDER BY a.creado_en DESC, a.id DESC
+               LIMIT @limite OFFSET @offset`;
 
   const rows = (await db.prepare(sql).all(params)) as AuthAuditLogRow[];
-  return rows.map((r) => ({
-    ...r,
-    creado_en: pgTimestampString(r.creado_en) ?? "",
-  }));
+  const total = pgNum(countRow?.total);
+
+  return {
+    rows: rows.map((r) => ({
+      ...r,
+      creado_en: pgTimestampString(r.creado_en) ?? "",
+    })),
+    total,
+    resumen: {
+      total,
+      logins: pgNum(countRow?.logins),
+      navegacion: pgNum(countRow?.navegacion),
+      acciones: pgNum(countRow?.acciones),
+    },
+  };
 }
 
 export async function initAuthTables(db: Db): Promise<void> {
+  await migrateGestorN2Role(db);
   await seedRolePermissionsIfEmpty(db);
+  await ensureGestorN2RolePermissions(db);
   await purgeExpiredSessions(db);
   await seedAdminIfEmpty(db);
   await migrateLegacyAdmin(db);
@@ -279,6 +357,56 @@ export async function initAuthTables(db: Db): Promise<void> {
   } else if (process.env.SCG_ADMIN_SYNC_ON_START === "1") {
     await syncPrimaryAdminCredentials(db);
   }
+}
+
+async function migrateGestorN2Role(db: Db): Promise<void> {
+  const tables = ["users", "role_escritura", "role_permisos"] as const;
+  for (const table of tables) {
+    const rows = (await db
+      .prepare(
+        `SELECT c.conname AS name, pg_get_constraintdef(c.oid) AS def
+         FROM pg_constraint c
+         JOIN pg_class t ON c.conrelid = t.oid
+         WHERE t.relname = ? AND c.contype = 'c'
+           AND pg_get_constraintdef(c.oid) ILIKE '%rol%'`
+      )
+      .all(table)) as { name: string; def: string }[];
+
+    const current = rows[0];
+    if (current?.def?.includes("gestor_n2")) continue;
+
+    for (const row of rows) {
+      await db.prepare(`ALTER TABLE ${table} DROP CONSTRAINT "${row.name}"`).run();
+    }
+    await db
+      .prepare(
+        `ALTER TABLE ${table}
+         ADD CONSTRAINT ${table}_rol_check
+         CHECK (rol IN ('admin', 'editor', 'gestor_n2', 'consulta'))`
+      )
+      .run();
+    console.info(`[SGG Auth] Rol gestor_n2 habilitado en tabla ${table}`);
+  }
+}
+
+async function ensureGestorN2RolePermissions(db: Db): Promise<void> {
+  const exists = (await db
+    .prepare("SELECT 1 AS ok FROM ROLE_ESCRITURA WHERE rol = 'gestor_n2'")
+    .get()) as { ok: number } | undefined;
+  if (exists) return;
+
+  const def = DEFAULT_ROLE_ACCESS.gestor_n2;
+  await db
+    .prepare("INSERT INTO ROLE_ESCRITURA (rol, puede_escribir) VALUES ('gestor_n2', ?)")
+    .run(def.puede_escribir ? 1 : 0);
+
+  const insMod = await db.prepare(
+    "INSERT INTO ROLE_PERMISOS (rol, modulo, acceso) VALUES ('gestor_n2', ?, ?)"
+  );
+  for (const modulo of MODULOS) {
+    await insMod.run(modulo, def.modulos.includes(modulo) ? 1 : 0);
+  }
+  console.info("[SGG Auth] Permisos por defecto creados para Gestor N2");
 }
 
 async function seedRolePermissionsIfEmpty(db: Db): Promise<void> {
@@ -294,7 +422,7 @@ async function seedRolePermissionsIfEmpty(db: Db): Promise<void> {
     "INSERT INTO ROLE_PERMISOS (rol, modulo, acceso) VALUES (?, ?, ?)"
   );
 
-  for (const rol of ["admin", "editor", "consulta"] as Rol[]) {
+  for (const rol of ALL_ROLES) {
     const def = DEFAULT_ROLE_ACCESS[rol];
     await insEsc.run(rol, def.puede_escribir ? 1 : 0);
     for (const modulo of MODULOS) {
@@ -304,7 +432,7 @@ async function seedRolePermissionsIfEmpty(db: Db): Promise<void> {
 }
 
 export async function listRolePermissions(db: Db): Promise<RolPermisosConfig[]> {
-  const roles: Rol[] = ["admin", "editor", "consulta"];
+  const roles: Rol[] = ALL_ROLES;
   const result: RolPermisosConfig[] = [];
 
   for (const rol of roles) {
@@ -352,7 +480,7 @@ export async function updateRolePermissions(
   );
 
   for (const modulo of MODULOS) {
-    if (modulo === "usuarios") {
+    if (modulo === "usuarios" || (rol === "gestor_n2" && modulo === "ventas")) {
       await upsert.run(rol, modulo, 0);
       continue;
     }

@@ -5,7 +5,7 @@ import {
   fetchUsuarios,
 } from "../api";
 import type { AuthUser, Rol, UserForm } from "../types";
-import { ROL_DESCRIPCION, ROL_LABELS } from "../utils/auth-permissions";
+import { ALL_ROLES, ROL_DESCRIPCION, ROL_LABELS } from "../types";
 import {
   PASSWORD_POLICY_HINT,
   validatePasswordStrength,
@@ -22,7 +22,7 @@ interface Props {
   onPermissionsChanged?: () => void;
 }
 
-const ROLES: Rol[] = ["admin", "editor", "consulta"];
+const ROLES: Rol[] = ALL_ROLES;
 
 function IconoOjo({ visible }: { visible: boolean }) {
   if (visible) {
