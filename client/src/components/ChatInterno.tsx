@@ -6,7 +6,6 @@ import {
   enviarChatMensaje,
   enviarPresencia,
   fetchChatBootstrap,
-  fetchChatChannels,
   fetchChatContacts,
   fetchChatMessages,
   fetchChatPresence,
@@ -200,12 +199,6 @@ export default function ChatInterno({
     },
     [onUnreadChange]
   );
-
-  const loadChannels = useCallback(async () => {
-    const data = await fetchChatChannels();
-    setChannels(data);
-    return data;
-  }, []);
 
   const loadContacts = useCallback(async () => {
     const data = await fetchChatContacts();
