@@ -72,6 +72,11 @@ export const MENU_APPS: MenuApp[] = [
     label: "Usuarios",
     subtitle: "Cuentas, roles y permisos del sistema",
   },
+  {
+    id: "chat",
+    label: "Chat interno",
+    subtitle: "Mensajes con el equipo y mensajes directos",
+  },
 ];
 
 const SCREEN_TITLES: Record<TabId, string> = {
@@ -86,6 +91,7 @@ const SCREEN_TITLES: Record<TabId, string> = {
   stock_movimientos: "Movimientos de Dispositivos",
   registro_actividad: "Registro de actividad",
   usuarios: "Usuarios y permisos",
+  chat: "Chat interno",
 };
 
 export function getScreenTitle(id: TabId): string {
@@ -99,6 +105,7 @@ interface Props {
 
 export default function HomeMenu({ user, onOpen }: Props) {
   const apps = MENU_APPS.filter((app) => {
+    if (app.id === "chat") return true;
     if (app.id === "stock_movimientos") return canAccessStockMovimientos(user);
     if (app.id === "registro_actividad") return canAccessUsuarioActividad(user);
     return canAccessScreen(user, app.id);

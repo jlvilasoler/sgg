@@ -426,6 +426,13 @@ export type Modulo =
   | "stock"
   | "usuarios";
 
+export type AvatarTipo = "iniciales" | "foto";
+
+export interface UserAvatar {
+  tipo: AvatarTipo;
+  url: string | null;
+}
+
 export interface AuthUser {
   id: number;
   email: string;
@@ -437,6 +444,7 @@ export interface AuthUser {
   puede_escribir: boolean;
   creado_en: string;
   ultimo_acceso: string | null;
+  avatar: UserAvatar;
 }
 
 export interface UserForm {
@@ -465,4 +473,28 @@ export interface RolPermisosConfig {
 export interface RolPermisosInput {
   puede_escribir: boolean;
   modulos: Partial<Record<Modulo, boolean>>;
+}
+
+export interface ChatMessage {
+  id: number;
+  sender_id: number;
+  sender_nombre: string;
+  recipient_id: number;
+  body: string;
+  creado_en: string;
+  es_propio: boolean;
+}
+
+export interface ChatContact {
+  id: number;
+  nombre: string;
+  rol_label: string;
+  unread_count: number;
+  last_message: string | null;
+  last_message_at: string | null;
+}
+
+export interface ChatUnreadSummary {
+  total: number;
+  general: number;
 }

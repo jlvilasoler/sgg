@@ -38,6 +38,7 @@ const SCREEN_MODULO: Record<TabId, Modulo> = {
   stock_movimientos: "usuarios",
   registro_actividad: "usuarios",
   usuarios: "usuarios",
+  chat: "presupuesto",
 };
 
 export function canAccessStockMovimientos(user: AuthUser | null): boolean {
@@ -52,8 +53,13 @@ export function moduloForScreen(screen: TabId): Modulo {
   return SCREEN_MODULO[screen];
 }
 
+export function canAccessChat(user: AuthUser | null): boolean {
+  return Boolean(user);
+}
+
 export function canAccessScreen(user: AuthUser | null, screen: TabId): boolean {
   if (!user) return false;
+  if (screen === "chat") return canAccessChat(user);
   return user.permisos.includes(moduloForScreen(screen));
 }
 

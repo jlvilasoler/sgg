@@ -18,6 +18,7 @@ import * as vgicon from "./venta-grupo-iconos-db.js";
 import * as stock from "./stock-ganadero-db.js";
 import * as stockAud from "./stock-auditoria-db.js";
 import * as auth from "./auth-db.js";
+import * as chat from "./chat-db.js";
 import { applySchema } from "./db/init-schema.js";
 
 let db: PgDb;
@@ -134,6 +135,7 @@ export async function initDb(): Promise<void> {
       console.warn("[SGG] Init en curso en otra instancia; omitiendo seeds pesados");
     }
     await auth.initAuthTables(db);
+    await chat.initChatTables(db);
     await stock.initStockGanaderoTables(db);
     await stockAud.initStockAuditoriaTable(db);
     await migratePresupuestoIngresadoPor(db);

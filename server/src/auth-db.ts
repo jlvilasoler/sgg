@@ -6,6 +6,8 @@ import {
   isValidSessionTokenFormat,
   validatePasswordStrength,
 } from "./auth-security.js";
+import { avatarDtoFromRow, migrateUserAvatarColumns } from "./user-avatar-db.js";
+import type { UserAvatarDto } from "./user-avatar-db.js";
 
 export type Rol = "admin" | "editor" | "gestor_n2" | "consulta";
 
@@ -96,6 +98,8 @@ export interface UserRow {
   ultimo_acceso: string | null;
   failed_login_attempts?: number;
   locked_until?: string | null;
+  avatar_tipo?: string;
+  avatar_archivo?: string;
 }
 
 export interface UserPublic {
@@ -109,6 +113,7 @@ export interface UserPublic {
   puede_escribir: boolean;
   creado_en: string;
   ultimo_acceso: string | null;
+  avatar: UserAvatarDto;
 }
 
 export interface UserInput {
@@ -213,6 +218,7 @@ export async function toUserPublic(row: UserRow, db: Db): Promise<UserPublic> {
     puede_escribir: caps.puede_escribir,
     creado_en: pgTimestampString(row.creado_en) ?? "",
     ultimo_acceso: pgTimestampString(row.ultimo_acceso),
+    avatar: avatarDtoFromRow(row.id, row),
   };
 }
 
@@ -345,6 +351,7 @@ export async function listAuthAuditLog(
 }
 
 export async function initAuthTables(db: Db): Promise<void> {
+  await migrateUserAvatarColumns(db);
   await migrateGestorN2Role(db);
   await seedRolePermissionsIfEmpty(db);
   await ensureGestorN2RolePermissions(db);

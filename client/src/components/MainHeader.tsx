@@ -1,12 +1,16 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import LogoSgg from "./LogoSgg";
-import CambiarPasswordModal, { userInicialesFromNombre } from "./CambiarPasswordModal";
+import MiCuentaModal from "./MiCuentaModal";
+import UserAvatar from "./UserAvatar";
+import ChatPanel from "./ChatPanel";
+import { fetchChatUnread } from "../api";
 import type { AuthUser } from "../types";
 
 interface Props {
   user: AuthUser;
   onHome: () => void;
   onLogout: () => void;
+  onUserUpdated?: (user: AuthUser) => void;
   onPasswordChanged?: (message: string) => void;
   onError?: (message: string) => void;
 }
@@ -15,15 +19,35 @@ export default function MainHeader({
   user,
   onHome,
   onLogout,
+  onUserUpdated,
   onPasswordChanged,
   onError,
 }: Props) {
-  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+  const [cuentaModalOpen, setCuentaModalOpen] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatUnread, setChatUnread] = useState(0);
+
+  const refreshUnread = useCallback(async () => {
+    try {
+      const data = await fetchChatUnread();
+      setChatUnread(data.total);
+    } catch {
+      /* silencioso */
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshUnread();
+    const id = window.setInterval(() => void refreshUnread(), 20000);
+    return () => window.clearInterval(id);
+  }, [refreshUnread]);
 
   const handlePasswordSuccess = (message: string) => {
-    setPasswordModalOpen(false);
+    setCuentaModalOpen(false);
     onPasswordChanged?.(message);
   };
+
+  const avatar = user.avatar ?? { tipo: "iniciales" as const, url: null };
 
   return (
     <>
@@ -43,54 +67,94 @@ export default function MainHeader({
                 Solo lectura
               </span>
             )}
+
             <button
               type="button"
-              className="main-header-user-avatar-btn"
-              onClick={() => setPasswordModalOpen(true)}
-              title="Cambiar contraseña"
-              aria-label={`${user.nombre}: cambiar contraseña`}
+              className={`main-header-chat-btn${chatOpen ? " main-header-chat-btn--active" : ""}`}
+              onClick={() => setChatOpen((v) => !v)}
+              title="Chat interno (clic para abrir/cerrar)"
+              aria-label={`Chat interno${chatUnread > 0 ? `, ${chatUnread} sin leer` : ""}`}
             >
-              <span className="main-header-user-avatar" aria-hidden>
-                {userInicialesFromNombre(user.nombre)}
-              </span>
-              <span className="main-header-user-avatar-lock" aria-hidden>
-                <svg width="9" height="9" viewBox="0 0 24 24" fill="none">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden>
+                <path
+                  d="M5 18.5V8.8a2.2 2.2 0 0 1 2.2-2.2h9.6A2.2 2.2 0 0 1 19 8.8v5.4a2.2 2.2 0 0 1-2.2 2.2H9.5L5 18.5Z"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinejoin="round"
+                />
+                <path d="M8.5 10h7M8.5 13h4.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+              </svg>
+              {chatUnread > 0 && (
+                <span className="main-header-chat-badge">
+                  {chatUnread > 99 ? "99+" : chatUnread}
+                </span>
+              )}
+            </button>
+
+            <div className="main-header-user-panel">
+              <button
+                type="button"
+                className="main-header-user-trigger"
+                onClick={() => setCuentaModalOpen(true)}
+                title={`${user.rol_label} · ${user.email}`}
+                aria-label={`${user.nombre}: mi cuenta y foto de perfil`}
+              >
+                <UserAvatar nombre={user.nombre} avatar={avatar} showLock />
+
+                <span className="main-header-user-identity">
+                  <span className="main-header-user-name">{user.nombre}</span>
+                  <span className="main-header-user-meta">
+                    <span className="main-header-user-role-chip" data-rol={user.rol}>
+                      {user.rol_label}
+                    </span>
+                    <span className="main-header-user-email">{user.email}</span>
+                  </span>
+                </span>
+              </button>
+
+              <span className="main-header-user-divider" aria-hidden />
+
+              <button
+                type="button"
+                className="main-header-user-logout"
+                onClick={onLogout}
+                title="Cerrar sesión"
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
                   <path
-                    d="M7 11V8a5 5 0 0 1 10 0v3"
+                    d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"
                     stroke="currentColor"
                     strokeWidth="2"
                     strokeLinecap="round"
                   />
-                  <rect
-                    x="5"
-                    y="11"
-                    width="14"
-                    height="10"
-                    rx="2"
+                  <path
+                    d="M16 17l5-5-5-5M21 12H9"
                     stroke="currentColor"
                     strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
                   />
                 </svg>
-              </span>
-            </button>
-            <div className="main-header-user-info">
-              <span className="main-header-user-name">{user.nombre}</span>
-              <span className="main-header-user-meta">
-                {user.rol_label} · {user.email}
-              </span>
+                <span>Salir</span>
+              </button>
             </div>
-            <button type="button" className="btn btn-ghost main-header-logout" onClick={onLogout}>
-              Salir
-            </button>
           </div>
         </div>
       </header>
 
-      <CambiarPasswordModal
+      <ChatPanel
         user={user}
-        open={passwordModalOpen}
-        onClose={() => setPasswordModalOpen(false)}
-        onSuccess={handlePasswordSuccess}
+        open={chatOpen}
+        onClose={() => setChatOpen(false)}
+        onUnreadChange={setChatUnread}
+      />
+
+      <MiCuentaModal
+        user={user}
+        open={cuentaModalOpen}
+        onClose={() => setCuentaModalOpen(false)}
+        onUserUpdated={(u) => onUserUpdated?.(u)}
+        onPasswordChanged={handlePasswordSuccess}
         onError={(msg) => onError?.(msg)}
       />
     </>

@@ -1,7 +1,13 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import type { CookieOptions } from "express";
+import multer from "multer";
 import * as authDb from "./auth-db.js";
 import type { Modulo, UserPublic } from "./auth-db.js";
+import {
+  clearUserAvatar,
+  resolveUserAvatarFilePath,
+  saveUserAvatarFoto,
+} from "./user-avatar-db.js";
 import type { StockMovimientoTipo } from "./stock-auditoria-db.js";
 import { getDb, stockAuditoria } from "./database.js";
 import {
@@ -28,6 +34,18 @@ export {
 } from "./auth-security.js";
 
 export const SESSION_COOKIE = "scg_session";
+
+const avatarUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 2 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (/^image\/(jpeg|png|webp|gif)$/i.test(file.mimetype)) {
+      cb(null, true);
+      return;
+    }
+    cb(new Error("Formato no permitido. Usá JPG, PNG, WebP o GIF."));
+  },
+});
 
 const IS_PROD = process.env.NODE_ENV === "production";
 
@@ -296,6 +314,86 @@ export function registerAuthRoutes(app: Express): void {
       res.status(400).json({
         ok: false,
         error: e instanceof Error ? e.message : "Error al cambiar contraseña",
+      });
+    }
+  });
+
+  app.get("/api/auth/avatar/:userId/imagen", async (req, res) => {
+    const user = req.user;
+    if (!user) {
+      res.status(401).json({ ok: false, error: "No autenticado" });
+      return;
+    }
+    const userId = Number(req.params.userId);
+    if (!Number.isFinite(userId)) {
+      res.status(400).json({ ok: false, error: "ID inválido" });
+      return;
+    }
+    if (user.id !== userId && user.rol !== "admin") {
+      res.status(403).json({ ok: false, error: "Sin permiso" });
+      return;
+    }
+    const filePath = await resolveUserAvatarFilePath(getDb(), userId);
+    if (!filePath) {
+      res.status(404).json({ ok: false, error: "Sin foto de perfil" });
+      return;
+    }
+    res.sendFile(filePath, { maxAge: 0 }, (err) => {
+      if (err && !res.headersSent) {
+        res.status(404).json({ ok: false, error: "Sin foto de perfil" });
+      }
+    });
+  });
+
+  app.post(
+    "/api/auth/avatar/foto",
+    avatarUpload.single("foto"),
+    async (req, res) => {
+      const user = req.user;
+      if (!user) {
+        res.status(401).json({ ok: false, error: "No autenticado" });
+        return;
+      }
+      try {
+        const file = req.file;
+        if (!file?.buffer?.length) {
+          res.status(400).json({ ok: false, error: "Seleccioná una imagen" });
+          return;
+        }
+        await saveUserAvatarFoto(getDb(), user.id, file.buffer, file.mimetype);
+        const updated = await authDb.getUserById(getDb(), user.id);
+        if (!updated) {
+          res.status(404).json({ ok: false, error: "Usuario no encontrado" });
+          return;
+        }
+        res.json({ ok: true, data: updated });
+      } catch (e) {
+        res.status(400).json({
+          ok: false,
+          error: e instanceof Error ? e.message : "Error al subir foto",
+        });
+      }
+    }
+  );
+
+  app.delete("/api/auth/avatar", async (req, res) => {
+    const user = req.user;
+    if (!user) {
+      res.status(401).json({ ok: false, error: "No autenticado" });
+      return;
+    }
+    try {
+      await clearUserAvatar(getDb(), user.id);
+      const updated = await authDb.getUserById(getDb(), user.id);
+      if (!updated) {
+        res.status(404).json({ ok: false, error: "Usuario no encontrado" });
+        return;
+      }
+      res.json({ ok: true, data: updated });
+    } catch (e) {
+      res.status(400).json({
+        ok: false,
+        error: e instanceof Error ? e.message : "Error al quitar foto",
       });
     }
   });

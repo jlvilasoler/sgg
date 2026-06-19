@@ -41,6 +41,9 @@ import type {
   Rol,
   RolPermisosConfig,
   RolPermisosInput,
+  ChatMessage,
+  ChatContact,
+  ChatUnreadSummary,
 } from "./types";
 import { apiConnectionError } from "./utils/api-messages";
 
@@ -1408,6 +1411,92 @@ export async function cambiarPasswordAuth(
     body: JSON.stringify({ password_actual, password_nueva }),
   });
   return json.message ?? "Contraseña actualizada";
+}
+
+async function avatarMutation(path: string, options?: RequestInit): Promise<AuthUser> {
+  let res: Response;
+  try {
+    res = await fetch(`${API}${path}`, {
+      ...FETCH_INIT,
+      ...options,
+      credentials: "include",
+    });
+  } catch {
+    throw new Error(apiConnectionError());
+  }
+  const json = (await res.json()) as { ok?: boolean; data?: AuthUser; error?: string };
+  if (!res.ok || !json.ok || !json.data) {
+    throw new Error(json.error ?? "Error al actualizar foto de perfil");
+  }
+  return json.data;
+}
+
+export async function subirAvatarFoto(file: File): Promise<AuthUser> {
+  const fd = new FormData();
+  fd.append("foto", file);
+  return avatarMutation("/auth/avatar/foto", { method: "POST", body: fd });
+}
+
+export async function quitarAvatarFoto(): Promise<AuthUser> {
+  return avatarMutation("/auth/avatar", { method: "DELETE" });
+}
+
+/* —— Chat interno —— */
+
+export async function fetchChatMessages(
+  peerId: number,
+  opts?: { since_id?: number; before_id?: number; limit?: number }
+): Promise<ChatMessage[]> {
+  const params = new URLSearchParams({ peer_id: String(peerId) });
+  if (opts?.since_id) params.set("since_id", String(opts.since_id));
+  if (opts?.before_id) params.set("before_id", String(opts.before_id));
+  if (opts?.limit) params.set("limit", String(opts.limit));
+  const json = await request<{ data: { messages: ChatMessage[] } }>(
+    `/chat/messages?${params}`
+  );
+  return json.data.messages;
+}
+
+export async function enviarChatMensaje(
+  peerId: number,
+  body: string
+): Promise<ChatMessage> {
+  const json = await request<{ data: ChatMessage }>("/chat/messages", {
+    method: "POST",
+    body: JSON.stringify({ peer_id: peerId, body }),
+  });
+  return json.data;
+}
+
+export async function marcarChatLeido(
+  peerId: number,
+  lastMessageId: number
+): Promise<ChatUnreadSummary> {
+  const json = await request<{ data: ChatUnreadSummary }>("/chat/read", {
+    method: "POST",
+    body: JSON.stringify({ peer_id: peerId, last_message_id: lastMessageId }),
+  });
+  return json.data;
+}
+
+export async function fetchChatUnread(): Promise<ChatUnreadSummary> {
+  const json = await request<{ data: ChatUnreadSummary }>("/chat/unread");
+  return json.data;
+}
+
+export async function fetchChatContacts(): Promise<{
+  contacts: ChatContact[];
+  general_unread: number;
+  total_unread: number;
+}> {
+  const json = await request<{
+    data: {
+      contacts: ChatContact[];
+      general_unread: number;
+      total_unread: number;
+    };
+  }>("/chat/contacts");
+  return json.data;
 }
 
 export async function fetchUsuarios(): Promise<AuthUser[]> {

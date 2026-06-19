@@ -172,6 +172,18 @@ function IconUsuarios({ className }: IconProps) {
   );
 }
 
+function IconChat({ className }: IconProps) {
+  return (
+    <IconShell className={className}>
+      <path
+        d="M5 18.5V8.8a2.2 2.2 0 0 1 2.2-2.2h9.6A2.2 2.2 0 0 1 19 8.8v5.4a2.2 2.2 0 0 1-2.2 2.2H9.5L5 18.5Z"
+        {...stroke}
+      />
+      <path d="M8.5 10h7M8.5 13h4.5" {...stroke} />
+    </IconShell>
+  );
+}
+
 const ICONS: Record<TabId, (props: IconProps) => ReactNode> = {
   registro: IconRegistro,
   listado: IconListado,
@@ -184,6 +196,7 @@ const ICONS: Record<TabId, (props: IconProps) => ReactNode> = {
   stock_movimientos: IconStockMovimientos,
   registro_actividad: IconRegistroActividad,
   usuarios: IconUsuarios,
+  chat: IconChat,
 };
 
 export function MenuAppIcon({ id, className }: { id: TabId; className?: string }) {
@@ -252,5 +265,10 @@ export const MENU_APP_THEMES: Record<TabId, MenuAppTheme> = {
     accent: "#4f46e5",
     accentSoft: "linear-gradient(145deg, #eef2ff 0%, #e0e7ff 52%, #c7d2fe 100%)",
     accentGlow: "rgba(79, 70, 229, 0.28)",
+  },
+  chat: {
+    accent: "#0d9488",
+    accentSoft: "linear-gradient(145deg, #f0fdfa 0%, #ccfbf1 52%, #99f6e4 100%)",
+    accentGlow: "rgba(13, 148, 136, 0.28)",
   },
 };

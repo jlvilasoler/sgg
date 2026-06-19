@@ -9,4 +9,5 @@ export type TabId =
   | "stock_ganadero"
   | "stock_movimientos"
   | "registro_actividad"
-  | "usuarios";
+  | "usuarios"
+  | "chat";

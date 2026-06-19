@@ -27,6 +27,7 @@ import RecursosHumanos from "./components/RecursosHumanos";
 import IngresosVentas from "./components/ventas/IngresosVentas";
 import StockGanadero from "./components/stock/StockGanadero";
 import StockMovimientosAuditoria from "./components/stock/StockMovimientosAuditoria";
+import ChatInterno from "./components/ChatInterno";
 import ConfirmDialogHost from "./components/ConfirmDialogHost";
 import { canAccessScreen, canAccessStockMovimientos, canAccessUsuarioActividad } from "./utils/auth-permissions";
 import { showToast } from "./utils/toast";
@@ -223,6 +224,7 @@ export default function App() {
         user={user}
         onHome={goHome}
         onLogout={() => void onLogout()}
+        onUserUpdated={setUser}
         onPasswordChanged={(msg) => {
           setUser(null);
           setScreen("home");
@@ -347,6 +349,9 @@ export default function App() {
                 onSuccess={(m) => notify(m, true)}
                 onPermissionsChanged={() => void refreshUser()}
               />
+            )}
+            {screen === "chat" && (
+              <ChatInterno user={user} variant="page" onClose={goHome} />
             )}
           </main>
         )}

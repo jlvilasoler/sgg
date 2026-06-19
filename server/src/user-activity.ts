@@ -5,18 +5,18 @@ import { getDb } from "./database.js";
 import { clientIp } from "./auth-security.js";
 
 export const AUTH_EVENTO_LABELS: Record<string, string> = {
-  login_ok: "Inicio de sesión",
+  login_ok: "Inicio de sesi?n",
   login_fail: "Intento de login fallido",
   login_fail_unknown: "Login con email desconocido",
   login_blocked_locked: "Login bloqueado (cuenta bloqueada)",
   account_locked: "Cuenta bloqueada por intentos",
-  logout: "Cierre de sesión",
+  logout: "Cierre de sesi?n",
   user_created: "Usuario creado",
   user_updated: "Usuario actualizado",
   role_permissions_updated: "Permisos de rol actualizados",
-  password_changed: "Contraseña cambiada",
-  navegacion: "Navegación en la app",
-  accion: "Acción en el sistema",
+  password_changed: "Contrase?a cambiada",
+  navegacion: "Navegaci?n en la app",
+  accion: "Acci?n en el sistema",
 };
 
 export function labelAuthEvento(evento: string): string {
@@ -48,54 +48,54 @@ export function describeApiActivity(method: string, path: string): string | null
   const p = path.toLowerCase();
 
   if (p.startsWith("/api/presupuesto")) {
-    if (m === "POST") return "Creó un registro de presupuesto/gasto";
-    if (m === "PUT" || m === "PATCH") return "Modificó un registro de presupuesto/gasto";
-    if (m === "DELETE") return "Eliminó un registro de presupuesto/gasto";
+    if (m === "POST") return "Cre? un registro de presupuesto/gasto";
+    if (m === "PUT" || m === "PATCH") return "Modific? un registro de presupuesto/gasto";
+    if (m === "DELETE") return "Elimin? un registro de presupuesto/gasto";
   }
   if (p.startsWith("/api/proveedores")) {
-    if (m === "POST") return "Creó un proveedor";
-    if (m === "PUT" || m === "PATCH") return "Modificó un proveedor";
-    if (m === "DELETE") return "Eliminó un proveedor";
+    if (m === "POST") return "Cre? un proveedor";
+    if (m === "PUT" || m === "PATCH") return "Modific? un proveedor";
+    if (m === "DELETE") return "Elimin? un proveedor";
   }
   if (p.startsWith("/api/rubros") || p.startsWith("/api/sub-rubros")) {
-    if (m === "POST") return "Creó un rubro o sub-rubro";
-    if (m === "PUT" || m === "PATCH") return "Modificó configuración de rubros";
-    if (m === "DELETE") return "Eliminó un rubro o sub-rubro";
+    if (m === "POST") return "Cre? un rubro o sub-rubro";
+    if (m === "PUT" || m === "PATCH") return "Modific? configuraci?n de rubros";
+    if (m === "DELETE") return "Elimin? un rubro o sub-rubro";
   }
   if (p.startsWith("/api/divisas")) {
-    if (m === "POST") return "Importó o cargó tipos de cambio";
-    if (m === "DELETE") return "Eliminó un registro de divisas";
+    if (m === "POST") return "Import? o carg? tipos de cambio";
+    if (m === "DELETE") return "Elimin? un registro de divisas";
   }
   if (p.startsWith("/api/rrhh") || p.startsWith("/api/funcionarios")) {
-    if (m === "POST") return "Registró datos de RRHH";
-    if (m === "PUT" || m === "PATCH") return "Modificó datos de RRHH";
-    if (m === "DELETE") return "Eliminó un registro de RRHH";
+    if (m === "POST") return "Registr? datos de RRHH";
+    if (m === "PUT" || m === "PATCH") return "Modific? datos de RRHH";
+    if (m === "DELETE") return "Elimin? un registro de RRHH";
   }
   if (p.startsWith("/api/ingresos-ventas") || p.startsWith("/api/venta-")) {
-    if (m === "POST") return "Registró un ingreso por venta";
-    if (m === "PUT" || m === "PATCH") return "Modificó un ingreso por venta";
-    if (m === "DELETE") return "Eliminó un ingreso por venta";
+    if (m === "POST") return "Registr? un ingreso por venta";
+    if (m === "PUT" || m === "PATCH") return "Modific? un ingreso por venta";
+    if (m === "DELETE") return "Elimin? un ingreso por venta";
   }
   if (p.startsWith("/api/stock-ganadero")) {
-    if (p.includes("/baja")) return "Registró bajas de dispositivos";
+    if (p.includes("/baja")) return "Registr? bajas de dispositivos";
     if (p.includes("/import") || p.includes("/file") || p.includes("/text"))
-      return "Importó lecturas de dispositivos (alta)";
-    if (m === "POST") return "Cargó datos en stock ganadero";
-    if (m === "PUT" || m === "PATCH") return "Modificó un dispositivo del stock";
-    if (m === "DELETE") return "Eliminó datos del stock ganadero";
+      return "Import? lecturas de dispositivos (alta)";
+    if (m === "POST") return "Carg? datos en stock ganadero";
+    if (m === "PUT" || m === "PATCH") return "Modific? un dispositivo del stock";
+    if (m === "DELETE") return "Elimin? datos del stock ganadero";
   }
   if (p.startsWith("/api/auth/users")) {
-    if (m === "POST") return "Creó un usuario";
-    if (m === "PATCH") return "Actualizó un usuario";
+    if (m === "POST") return "Cre? un usuario";
+    if (m === "PATCH") return "Actualiz? un usuario";
   }
   if (p.startsWith("/api/auth/role-permissions")) {
-    if (m === "PATCH") return "Actualizó permisos de un rol";
+    if (m === "PATCH") return "Actualiz? permisos de un rol";
   }
   if (p.startsWith("/api/auth/cambiar-password")) {
-    return "Cambió su contraseña";
+    return "Cambi? su contrase?a";
   }
 
-  return `Operación ${m} en ${path.replace(/^\/api\//, "")}`;
+  return `Operaci?n ${m} en ${path.replace(/^\/api\//, "")}`;
 }
 
 const SKIP_ACTIVITY_PATHS = new Set([
@@ -103,6 +103,9 @@ const SKIP_ACTIVITY_PATHS = new Set([
   "/api/auth/actividad/pantalla",
   "/api/auth/me",
   "/api/health",
+  "/api/chat/unread",
+  "/api/chat/messages",
+  "/api/chat/contacts",
 ]);
 
 export function attachApiActivityLogger(req: Request, res: import("express").Response): void {
@@ -127,11 +130,11 @@ export function attachApiActivityLogger(req: Request, res: import("express").Res
 }
 
 export const PANTALLA_LABELS: Record<string, string> = {
-  home: "Menú principal",
+  home: "Men? principal",
   registro: "Ingresar gasto",
   listado: "Presupuesto / listado de gastos",
   resumen: "Resumen",
-  configuracion: "Configuración",
+  configuracion: "Configuraci?n",
   divisas: "Divisas",
   recursos_humanos: "Recursos Humanos",
   ingresos_ventas: "Ingresos por ventas",
@@ -139,4 +142,5 @@ export const PANTALLA_LABELS: Record<string, string> = {
   stock_movimientos: "Movimientos de dispositivos",
   registro_actividad: "Registro de actividad",
   usuarios: "Usuarios y permisos",
+  chat: "Chat interno",
 };

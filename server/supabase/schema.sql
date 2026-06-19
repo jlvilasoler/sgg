@@ -261,7 +261,9 @@ CREATE TABLE IF NOT EXISTS USERS (
   actualizado_en TIMESTAMPTZ DEFAULT NOW(),
   ultimo_acceso TIMESTAMPTZ,
   failed_login_attempts INTEGER NOT NULL DEFAULT 0,
-  locked_until TIMESTAMPTZ
+  locked_until TIMESTAMPTZ,
+  avatar_tipo TEXT NOT NULL DEFAULT 'iniciales',
+  avatar_archivo TEXT NOT NULL DEFAULT ''
 );
 CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON USERS (LOWER(email));
 
@@ -286,6 +288,24 @@ CREATE TABLE IF NOT EXISTS AUTH_AUDIT_LOG (
   creado_en TIMESTAMPTZ DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_auth_audit_creado ON AUTH_AUDIT_LOG(creado_en);
+
+CREATE TABLE IF NOT EXISTS CHAT_MESSAGES (
+  id SERIAL PRIMARY KEY,
+  sender_id INTEGER NOT NULL REFERENCES USERS(id) ON DELETE CASCADE,
+  recipient_id INTEGER NOT NULL DEFAULT 0,
+  body TEXT NOT NULL,
+  creado_en TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_chat_messages_general ON CHAT_MESSAGES(creado_en DESC);
+CREATE INDEX IF NOT EXISTS idx_chat_messages_dm ON CHAT_MESSAGES(sender_id, recipient_id, creado_en DESC);
+
+CREATE TABLE IF NOT EXISTS CHAT_READ_STATE (
+  user_id INTEGER NOT NULL REFERENCES USERS(id) ON DELETE CASCADE,
+  peer_id INTEGER NOT NULL DEFAULT 0,
+  last_read_message_id INTEGER NOT NULL DEFAULT 0,
+  actualizado_en TIMESTAMPTZ DEFAULT NOW(),
+  PRIMARY KEY (user_id, peer_id)
+);
 
 CREATE TABLE IF NOT EXISTS ROLE_ESCRITURA (
   rol TEXT PRIMARY KEY CHECK (rol IN ('admin', 'editor', 'consulta')),
