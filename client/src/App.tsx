@@ -40,6 +40,7 @@ export default function App() {
   const [catalogos, setCatalogos] = useState<Catalogos>(DEFAULT_CATALOGOS);
   const [apiOnline, setApiOnline] = useState(false);
   const [booting, setBooting] = useState(true);
+  const [bootPhase, setBootPhase] = useState<"api" | "db">("api");
   const [editRow, setEditRow] = useState<Presupuesto | null>(null);
   const [listKey, setListKey] = useState(0);
   const hadUserRef = useRef(false);
@@ -61,24 +62,25 @@ export default function App() {
   }, [user]);
 
   const connectApi = useCallback(async () => {
-    const ok = await checkApiHealth();
+    const health = await checkApiHealth();
+    const ok = health.online && health.ready;
     setApiOnline(ok);
+    setBootPhase(health.online && !health.ready ? "db" : "api");
     if (ok) {
       const me = await fetchCurrentUser();
       setUser(me);
+      setAuthChecked(true);
+      setBooting(false);
       if (me) {
-        try {
-          const c = await fetchCatalogos();
-          setCatalogos(c);
-        } catch {
-          setCatalogos(DEFAULT_CATALOGOS);
-        }
+        void fetchCatalogos()
+          .then((c) => setCatalogos(c))
+          .catch(() => setCatalogos(DEFAULT_CATALOGOS));
       }
-    } else {
+    } else if (!health.online) {
       setUser(null);
+      setAuthChecked(true);
+      setBooting(false);
     }
-    setAuthChecked(true);
-    setBooting(false);
     return ok;
   }, []);
 
@@ -88,9 +90,9 @@ export default function App() {
 
   useEffect(() => {
     if (apiOnline) return;
-    const interval = setInterval(() => void connectApi(), 4000);
+    const interval = setInterval(() => void connectApi(), booting ? 800 : 4000);
     return () => clearInterval(interval);
-  }, [apiOnline, connectApi]);
+  }, [apiOnline, booting, connectApi]);
 
   useEffect(() => {
     if (user) hadUserRef.current = true;
@@ -195,11 +197,13 @@ export default function App() {
   if (booting || !authChecked) {
     return (
       <div className="loading-screen">
-        <p>Cargando SGG...</p>
+        <p>Cargando SAG...</p>
         <p className="muted">
-          {import.meta.env.DEV
-            ? "Iniciando conexión con la API local"
-            : "Conectando con el servidor"}
+          {bootPhase === "db"
+            ? "Iniciando base de datos…"
+            : import.meta.env.DEV
+              ? "Conectando con la API local…"
+              : "Conectando con el servidor…"}
         </p>
       </div>
     );

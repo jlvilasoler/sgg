@@ -2502,7 +2502,7 @@ app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
 
 if (!IS_VERCEL) {
   app.listen(PORT, HOST, () => {
-    const label = IS_PROD ? "SGG producción" : "API SGG";
+    const label = IS_PROD ? "SAG producción" : "API SAG";
     console.log(`${label}: http://${HOST === "0.0.0.0" ? "127.0.0.1" : HOST}:${PORT}`);
   });
 }

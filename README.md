@@ -1,4 +1,4 @@
-# SGG — Sistema de Gestión Ganadera
+# SAG — Sistema de Administración Ganadera
 
 Stack: **React + TypeScript + HTML/CSS** (frontend) y **Node.js + Express + TypeScript** (API).
 

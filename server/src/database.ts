@@ -120,7 +120,7 @@ export async function initDb(): Promise<void> {
   db = new PgDb();
 
   const existing = await schemaAlreadyApplied();
-  const lockWaitMs = existing ? 8_000 : 50_000;
+  const lockWaitMs = existing ? 3_000 : 50_000;
   const locked = await tryAdvisoryLock(lockWaitMs);
 
   try {
@@ -134,10 +134,12 @@ export async function initDb(): Promise<void> {
     } else if (!existing) {
       console.warn("[SGG] Init en curso en otra instancia; omitiendo seeds pesados");
     }
-    await auth.initAuthTables(db);
-    await chat.initChatTables(db);
-    await stock.initStockGanaderoTables(db);
-    await stockAud.initStockAuditoriaTable(db);
+    await Promise.all([
+      auth.initAuthTables(db),
+      chat.initChatTables(db),
+      stock.initStockGanaderoTables(db),
+      stockAud.initStockAuditoriaTable(db),
+    ]);
     await migratePresupuestoIngresadoPor(db);
   } finally {
     if (locked) await releaseAdvisoryLock();

@@ -1,25 +1,75 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  buscarChatMensajes,
+  crearChatCanal,
+  enviarChatAdjunto,
   enviarChatMensaje,
+  enviarPresencia,
+  fetchChatBootstrap,
+  fetchChatChannels,
   fetchChatContacts,
   fetchChatMessages,
+  fetchChatPresence,
+  guardarChatWallpaper,
   marcarChatLeido,
+  renombrarChatCanal,
 } from "../api";
-import type { AuthUser, ChatContact, ChatMessage } from "../types";
+import type { AuthUser, ChatChannel, ChatContact, ChatMessage, ChatSearchHit } from "../types";
+import { formatChatPresence, presenceStatusClass } from "../utils/chat-presence";
+import { bubbleColorForSender, bubbleStyleVars } from "../utils/chat-bubble-colors";
+import { isDirectMessagePeer, isGroupChannelPeer, peerTabLabel } from "../utils/chat-peers";
+import { playChatNotificationSound } from "../utils/chat-notification-sound";
+import { resaltarTexto, truncarConHighlight } from "../utils/chat-search";
+import UserAvatar, { DEFAULT_USER_AVATAR } from "./UserAvatar";
+import ChatEmojiPicker from "./chat/ChatEmojiPicker";
+import ChatMessageAttachmentView from "./chat/ChatMessageAttachment";
+import ChatWallpaperPicker from "./chat/ChatWallpaperPicker";
+import { chatWallpaperClass } from "./chat/chat-wallpapers";
 
 export const CHAT_GENERAL_PEER_ID = 0;
 
-function iniciales(nombre: string): string {
-  const parts = nombre.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "?";
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-}
+const MESSAGES_PAGE = 50;
 
-function formatHora(iso: string): string {
+function formatFechaHoraMensaje(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "";
-  return d.toLocaleTimeString("es-UY", { hour: "2-digit", minute: "2-digit" });
+  const fecha = d.toLocaleDateString("es-UY", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+  const hora = d.toLocaleTimeString("es-UY", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  return `${fecha} · ${hora}`;
+}
+
+function ChatChannelAvatar({
+  channel,
+  className = "",
+}: {
+  channel: ChatChannel;
+  className?: string;
+}) {
+  return (
+    <span
+      className={`chat-interno-channel-avatar${
+        channel.es_sistema ? " chat-interno-channel-avatar--team" : " chat-interno-channel-avatar--group"
+      }${className ? ` ${className}` : ""}`}
+      aria-hidden
+    >
+      {channel.es_sistema ? (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" stroke="currentColor" strokeWidth="1.8" />
+          <circle cx="9.5" cy="7" r="3.5" stroke="currentColor" strokeWidth="1.8" />
+          <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" stroke="currentColor" strokeWidth="1.8" />
+        </svg>
+      ) : (
+        "#"
+      )}
+    </span>
+  );
 }
 
 function formatDia(iso: string): string {
@@ -30,7 +80,12 @@ function formatDia(iso: string): string {
   ayer.setDate(hoy.getDate() - 1);
   if (d.toDateString() === hoy.toDateString()) return "Hoy";
   if (d.toDateString() === ayer.toDateString()) return "Ayer";
-  return d.toLocaleDateString("es-UY", { weekday: "long", day: "numeric", month: "short" });
+  return d.toLocaleDateString("es-UY", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
 }
 
 function truncar(texto: string, max: number): string {
@@ -52,20 +107,65 @@ export default function ChatInterno({
   onUnreadChange,
 }: Props) {
   const [peerId, setPeerId] = useState(CHAT_GENERAL_PEER_ID);
+  const [openTabs, setOpenTabs] = useState<number[]>([CHAT_GENERAL_PEER_ID]);
+  const [channels, setChannels] = useState<ChatChannel[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [contacts, setContacts] = useState<ChatContact[]>([]);
-  const [generalUnread, setGeneralUnread] = useState(0);
+  const [onlineCount, setOnlineCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [draft, setDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(variant === "page");
+  const [emojiOpen, setEmojiOpen] = useState(false);
+  const [hasMoreOlder, setHasMoreOlder] = useState(false);
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const [highlightId, setHighlightId] = useState<number | null>(null);
+  const [highlightTerm, setHighlightTerm] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchAllChats, setSearchAllChats] = useState(false);
+  const [searchResults, setSearchResults] = useState<ChatSearchHit[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [wallpaperOpen, setWallpaperOpen] = useState(false);
+  const [wallpaperByPeer, setWallpaperByPeer] = useState<Record<number, string>>({});
+  const [savingWallpaper, setSavingWallpaper] = useState(false);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [pendingPreview, setPendingPreview] = useState<string | null>(null);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
+  const [renamingChannelId, setRenamingChannelId] = useState<number | null>(null);
+  const [renameDraft, setRenameDraft] = useState("");
+  const [creatingChannel, setCreatingChannel] = useState(false);
+  const [newChannelName, setNewChannelName] = useState("");
+  const [incomingAlert, setIncomingAlert] = useState(false);
+  const [incomingSender, setIncomingSender] = useState<string | null>(null);
 
   const listRef = useRef<HTMLDivElement>(null);
   const draftRef = useRef<HTMLTextAreaElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const lastIdRef = useRef(0);
   const peerRef = useRef(peerId);
+  const loadingOlderRef = useRef(false);
+  const skipPeerLoadRef = useRef(false);
+  const draftByPeerRef = useRef<Record<number, string>>({});
+  const prevTotalUnreadRef = useRef(0);
+  const contactsInitializedRef = useRef(false);
+  const bootstrappedRef = useRef(false);
   peerRef.current = peerId;
+  loadingOlderRef.current = loadingOlder;
+
+  const pendingPreviewRef = useRef<string | null>(null);
+
+  const clearPendingFile = useCallback(() => {
+    setPendingFile(null);
+    if (pendingPreviewRef.current) {
+      URL.revokeObjectURL(pendingPreviewRef.current);
+      pendingPreviewRef.current = null;
+    }
+    setPendingPreview(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }, []);
 
   const scrollToBottom = useCallback((smooth = false) => {
     const el = listRef.current;
@@ -79,9 +179,14 @@ export default function ChatInterno({
       if (!last) return;
       try {
         const unread = await marcarChatLeido(targetPeer, last.id);
+        prevTotalUnreadRef.current = unread.total;
         onUnreadChange?.(unread.total);
-        if (targetPeer === CHAT_GENERAL_PEER_ID) {
-          setGeneralUnread(unread.general);
+        if (isGroupChannelPeer(targetPeer)) {
+          setChannels((prev) =>
+            prev.map((c) =>
+              c.peer_id === targetPeer ? { ...c, unread_count: 0 } : c
+            )
+          );
         } else {
           setContacts((prev) =>
             prev.map((c) =>
@@ -96,13 +201,68 @@ export default function ChatInterno({
     [onUnreadChange]
   );
 
+  const loadChannels = useCallback(async () => {
+    const data = await fetchChatChannels();
+    setChannels(data);
+    return data;
+  }, []);
+
   const loadContacts = useCallback(async () => {
     const data = await fetchChatContacts();
+    if (contactsInitializedRef.current && data.total_unread > prevTotalUnreadRef.current) {
+      playChatNotificationSound();
+    }
+    contactsInitializedRef.current = true;
+    prevTotalUnreadRef.current = data.total_unread;
     setContacts(data.contacts);
-    setGeneralUnread(data.general_unread);
+    setOnlineCount(data.online_count);
     onUnreadChange?.(data.total_unread);
     return data;
   }, [onUnreadChange]);
+
+  const refreshPresence = useCallback(async () => {
+    try {
+      const data = await fetchChatPresence();
+      setOnlineCount(data.online_count);
+      setContacts((prev) =>
+        prev.map((c) => ({
+          ...c,
+          presencia: data.users[c.id] ?? c.presencia,
+        }))
+      );
+    } catch {
+      /* silencioso */
+    }
+  }, []);
+
+  const scrollToMessage = useCallback((messageId: number) => {
+    const el = listRef.current?.querySelector(`[data-msg-id="${messageId}"]`);
+    el?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, []);
+
+  const loadMessagesAround = useCallback(
+    async (targetPeer: number, messageId: number) => {
+      setLoading(true);
+      setError(null);
+      try {
+        const msgs = await fetchChatMessages(targetPeer, {
+          around_id: messageId,
+          limit: 60,
+        });
+        if (peerRef.current !== targetPeer) return;
+        setMessages(msgs);
+        lastIdRef.current = msgs[msgs.length - 1]?.id ?? 0;
+        setHasMoreOlder(msgs.length >= 40);
+        if (msgs.length > 0) void markRead(targetPeer, msgs);
+        requestAnimationFrame(() => scrollToMessage(messageId));
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Error al cargar mensajes");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [markRead, scrollToMessage]
+  );
 
   const loadMessages = useCallback(
     async (targetPeer: number, opts?: { initial?: boolean }) => {
@@ -110,10 +270,11 @@ export default function ChatInterno({
       if (initial) setLoading(true);
       setError(null);
       try {
-        const msgs = await fetchChatMessages(targetPeer, { limit: 100 });
+        const msgs = await fetchChatMessages(targetPeer, { limit: MESSAGES_PAGE });
         if (peerRef.current !== targetPeer) return;
         setMessages(msgs);
         lastIdRef.current = msgs[msgs.length - 1]?.id ?? 0;
+        setHasMoreOlder(msgs.length >= MESSAGES_PAGE);
         if (msgs.length > 0) {
           void markRead(targetPeer, msgs);
         }
@@ -129,6 +290,49 @@ export default function ChatInterno({
     [markRead, scrollToBottom]
   );
 
+  const loadOlderMessages = useCallback(async () => {
+    if (loadingOlderRef.current || !hasMoreOlder) return;
+    const targetPeer = peerRef.current;
+    const firstId = messages[0]?.id;
+    if (!firstId) return;
+
+    const container = listRef.current;
+    const prevHeight = container?.scrollHeight ?? 0;
+    setLoadingOlder(true);
+    try {
+      const older = await fetchChatMessages(targetPeer, {
+        before_id: firstId,
+        limit: MESSAGES_PAGE,
+      });
+      if (peerRef.current !== targetPeer) return;
+      if (older.length === 0) {
+        setHasMoreOlder(false);
+        return;
+      }
+      setHasMoreOlder(older.length >= MESSAGES_PAGE);
+      setMessages((prev) => {
+        const ids = new Set(prev.map((m) => m.id));
+        return [...older.filter((m) => !ids.has(m.id)), ...prev];
+      });
+      requestAnimationFrame(() => {
+        if (container) {
+          container.scrollTop = container.scrollHeight - prevHeight;
+        }
+      });
+    } catch {
+      /* silencioso */
+    } finally {
+      setLoadingOlder(false);
+    }
+  }, [hasMoreOlder, messages]);
+
+  const notifyIncoming = useCallback((incoming: ChatMessage[]) => {
+    if (incoming.length === 0) return;
+    playChatNotificationSound();
+    setIncomingSender(incoming[incoming.length - 1]?.sender_nombre ?? null);
+    setIncomingAlert(true);
+  }, []);
+
   const pollNew = useCallback(async () => {
     const targetPeer = peerRef.current;
     const since = lastIdRef.current;
@@ -136,6 +340,8 @@ export default function ChatInterno({
     try {
       const nuevos = await fetchChatMessages(targetPeer, { since_id: since, limit: 50 });
       if (nuevos.length === 0 || peerRef.current !== targetPeer) return;
+      const incoming = nuevos.filter((m) => !m.es_propio);
+      if (incoming.length > 0) notifyIncoming(incoming);
       setMessages((prev) => {
         const merged = [...prev, ...nuevos];
         lastIdRef.current = merged[merged.length - 1]?.id ?? since;
@@ -146,58 +352,308 @@ export default function ChatInterno({
     } catch {
       /* silencioso en polling */
     }
-  }, [markRead, scrollToBottom]);
+  }, [markRead, scrollToBottom, notifyIncoming]);
 
   useEffect(() => {
+    let cancelled = false;
     void (async () => {
+      setLoading(true);
+      setError(null);
       try {
-        await loadContacts();
-        await loadMessages(peerId, { initial: true });
+        const data = await fetchChatBootstrap(peerId, MESSAGES_PAGE);
+        if (cancelled) return;
+        bootstrappedRef.current = true;
+        setChannels(data.channels);
+        setContacts(data.contacts);
+        setOnlineCount(data.online_count);
+        setWallpaperByPeer(data.wallpapers.by_peer);
+        setMessages(data.messages);
+        lastIdRef.current = data.messages[data.messages.length - 1]?.id ?? 0;
+        setHasMoreOlder(data.messages.length >= MESSAGES_PAGE);
+        contactsInitializedRef.current = true;
+        prevTotalUnreadRef.current = data.total_unread;
+        onUnreadChange?.(data.total_unread);
+        if (data.messages.length > 0) void markRead(peerId, data.messages);
+        requestAnimationFrame(() => scrollToBottom(false));
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Error al iniciar chat");
-        setLoading(false);
+        if (!cancelled) {
+          setError(e instanceof Error ? e.message : "Error al iniciar chat");
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
       }
     })();
+    return () => {
+      cancelled = true;
+    };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps -- mount only
 
   useEffect(() => {
+    return () => {
+      if (pendingPreviewRef.current) URL.revokeObjectURL(pendingPreviewRef.current);
+    };
+  }, []);
+
+  const selectWallpaper = async (wallpaperId: string) => {
+    const targetPeer = peerRef.current;
+    setSavingWallpaper(true);
+    try {
+      const saved = await guardarChatWallpaper(targetPeer, wallpaperId);
+      setWallpaperByPeer((prev) => ({
+        ...prev,
+        [saved.peer_id]: saved.wallpaper_id,
+      }));
+      setWallpaperOpen(false);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "No se pudo guardar el fondo");
+    } finally {
+      setSavingWallpaper(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!bootstrappedRef.current) return;
+    if (skipPeerLoadRef.current) return;
     void loadMessages(peerId, { initial: true });
+    setHighlightId(null);
+    setHighlightTerm("");
+    setSearchResults([]);
+    setWallpaperOpen(false);
+    setIncomingAlert(false);
+    setIncomingSender(null);
+    clearPendingFile();
     if (variant === "panel") setSidebarOpen(false);
-  }, [peerId, loadMessages, variant]);
+  }, [peerId, loadMessages, variant, clearPendingFile]);
+
+  useEffect(() => {
+    if (!incomingAlert) return;
+    const id = window.setTimeout(() => setIncomingAlert(false), 5000);
+    return () => window.clearTimeout(id);
+  }, [incomingAlert]);
+
+  useEffect(() => {
+    if (!searchOpen) return;
+    searchRef.current?.focus();
+  }, [searchOpen]);
+
+  useEffect(() => {
+    if (!searchOpen) return;
+    const q = searchQuery.trim();
+    if (q.length < 2) {
+      setSearchResults([]);
+      setSearching(false);
+      return;
+    }
+    setSearching(true);
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        try {
+          const hits = await buscarChatMensajes(q, {
+            peer_id: searchAllChats ? undefined : peerId,
+            limit: 40,
+          });
+          setSearchResults(hits);
+        } catch {
+          setSearchResults([]);
+        } finally {
+          setSearching(false);
+        }
+      })();
+    }, 320);
+    return () => window.clearTimeout(timer);
+  }, [searchQuery, searchOpen, searchAllChats, peerId]);
+
+  const onMessagesScroll = () => {
+    const el = listRef.current;
+    if (!el || loadingOlderRef.current || !hasMoreOlder) return;
+    if (el.scrollTop < 80) void loadOlderMessages();
+  };
+
+  const goToSearchHit = async (hit: ChatSearchHit) => {
+    const term = searchQuery.trim();
+    setSearchOpen(false);
+    setSearchQuery("");
+    setSearchResults([]);
+    setHighlightId(hit.id);
+    setHighlightTerm(term);
+    window.setTimeout(() => {
+      setHighlightId(null);
+      setHighlightTerm("");
+    }, 3200);
+
+    if (hit.peer_id !== peerId) {
+      skipPeerLoadRef.current = true;
+      draftByPeerRef.current[peerId] = draft;
+      setOpenTabs((prev) => (prev.includes(hit.peer_id) ? prev : [...prev, hit.peer_id]));
+      setPeerId(hit.peer_id);
+      setDraft(draftByPeerRef.current[hit.peer_id] ?? "");
+      peerRef.current = hit.peer_id;
+      await loadMessagesAround(hit.peer_id, hit.id);
+      skipPeerLoadRef.current = false;
+      return;
+    }
+
+    const exists = messages.some((m) => m.id === hit.id);
+    if (exists) {
+      scrollToMessage(hit.id);
+      return;
+    }
+    await loadMessagesAround(peerId, hit.id);
+  };
 
   useEffect(() => {
     const pollMsgs = window.setInterval(() => void pollNew(), 4000);
     const pollContacts = window.setInterval(() => void loadContacts(), 12000);
+    const pollPresence = window.setInterval(() => void refreshPresence(), 12000);
     return () => {
       window.clearInterval(pollMsgs);
       window.clearInterval(pollContacts);
+      window.clearInterval(pollPresence);
     };
-  }, [pollNew, loadContacts]);
+  }, [pollNew, loadContacts, refreshPresence]);
 
-  const selectPeer = (id: number) => {
+  useEffect(() => {
+    enviarPresencia("chat");
+    const id = window.setInterval(() => enviarPresencia("chat"), 25000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  const openChannel = (id: number) => {
+    draftByPeerRef.current[peerId] = draft;
+    setOpenTabs((prev) => (prev.includes(id) ? prev : [...prev, id]));
     setPeerId(id);
-    setDraft("");
+    setDraft(draftByPeerRef.current[id] ?? "");
     if (variant === "panel") setSidebarOpen(false);
   };
 
-  const peerLabel =
-    peerId === CHAT_GENERAL_PEER_ID
-      ? "Equipo SGG"
-      : contacts.find((c) => c.id === peerId)?.nombre ?? "Mensaje directo";
+  const closeTab = (id: number) => {
+    if (openTabs.length <= 1) return;
+    const nextTabs = openTabs.filter((t) => t !== id);
+    setOpenTabs(nextTabs);
+    delete draftByPeerRef.current[id];
+    if (peerId === id) {
+      const next = nextTabs[nextTabs.length - 1];
+      openChannel(next);
+    }
+  };
 
-  const peerSubtitle =
-    peerId === CHAT_GENERAL_PEER_ID
-      ? "Canal general · todos los usuarios"
-      : contacts.find((c) => c.id === peerId)?.rol_label ?? "";
+  const crearCanal = async () => {
+    const nombre = newChannelName.trim();
+    if (nombre.length < 2) {
+      setError("El nombre del canal debe tener al menos 2 caracteres");
+      return;
+    }
+    setError(null);
+    try {
+      const channel = await crearChatCanal(nombre);
+      setChannels((prev) =>
+        [...prev, channel].sort((a, b) => {
+          if (a.es_sistema !== b.es_sistema) return a.es_sistema ? -1 : 1;
+          return a.nombre.localeCompare(b.nombre, "es");
+        })
+      );
+      setCreatingChannel(false);
+      setNewChannelName("");
+      openChannel(channel.peer_id);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "No se pudo crear el canal");
+    }
+  };
+
+  const guardarRenombre = async () => {
+    if (renamingChannelId === null) return;
+    const nombre = renameDraft.trim();
+    if (nombre.length < 2) {
+      setError("El nombre del canal debe tener al menos 2 caracteres");
+      return;
+    }
+    setError(null);
+    try {
+      const updated = await renombrarChatCanal(renamingChannelId, nombre);
+      setChannels((prev) =>
+        prev
+          .map((c) => (c.id === updated.id ? updated : c))
+          .sort((a, b) => {
+            if (a.es_sistema !== b.es_sistema) return a.es_sistema ? -1 : 1;
+            return a.nombre.localeCompare(b.nombre, "es");
+          })
+      );
+      setRenamingChannelId(null);
+      setRenameDraft("");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "No se pudo renombrar el canal");
+    }
+  };
+
+  const activeChannel =
+    isGroupChannelPeer(peerId) ? channels.find((c) => c.peer_id === peerId) ?? null : null;
+
+  const peerContact =
+    isDirectMessagePeer(peerId) ? contacts.find((c) => c.id === peerId) ?? null : null;
+
+  const peerLabel = peerTabLabel(peerId, channels, contacts);
+  const currentWallpaper = wallpaperByPeer[peerId] ?? "default";
+  const wallpaperClass = chatWallpaperClass(currentWallpaper);
+
+  const peerSubtitle = isGroupChannelPeer(peerId)
+    ? activeChannel?.es_sistema
+      ? onlineCount > 0
+        ? `${onlineCount} en línea ahora · canal del equipo`
+        : "Canal del equipo · todos los usuarios"
+      : "Canal grupal · todos los usuarios"
+    : formatChatPresence(peerContact?.presencia);
+
+  const onlineContacts = contacts.filter((c) => c.presencia.online);
+
+  useEffect(() => {
+    draftByPeerRef.current[peerId] = draft;
+  }, [draft, peerId]);
+
+  useEffect(() => {
+    setEmojiOpen(false);
+    setSearchOpen(false);
+    setRenamingChannelId(null);
+  }, [peerId]);
+
+  const insertEmoji = (emoji: string) => {
+    const el = draftRef.current;
+    if (!el) {
+      setDraft((prev) => prev + emoji);
+      return;
+    }
+    const start = el.selectionStart ?? draft.length;
+    const end = el.selectionEnd ?? draft.length;
+    const next = draft.slice(0, start) + emoji + draft.slice(end);
+    setDraft(next);
+    requestAnimationFrame(() => {
+      el.focus();
+      const pos = start + emoji.length;
+      el.setSelectionRange(pos, pos);
+    });
+  };
+
+  const onPickFile = (file: File | null) => {
+    clearPendingFile();
+    if (!file) return;
+    setPendingFile(file);
+    if (file.type.startsWith("image/")) {
+      const url = URL.createObjectURL(file);
+      pendingPreviewRef.current = url;
+      setPendingPreview(url);
+    }
+  };
 
   const send = async () => {
     const text = draft.trim();
-    if (!text || sending) return;
+    if (sending || (!text && !pendingFile)) return;
     setSending(true);
     setError(null);
     try {
-      const msg = await enviarChatMensaje(peerId, text);
+      const msg = pendingFile
+        ? await enviarChatAdjunto(peerId, pendingFile, text)
+        : await enviarChatMensaje(peerId, text);
       setDraft("");
+      clearPendingFile();
       setMessages((prev) => {
         const next = [...prev, msg];
         lastIdRef.current = msg.id;
@@ -241,26 +697,93 @@ export default function ChatInterno({
           )}
         </div>
 
-        <button
-          type="button"
-          className={`chat-interno-channel${peerId === CHAT_GENERAL_PEER_ID ? " chat-interno-channel--active" : ""}`}
-          onClick={() => selectPeer(CHAT_GENERAL_PEER_ID)}
-        >
-          <span className="chat-interno-channel-avatar chat-interno-channel-avatar--team" aria-hidden>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-              <path d="M17 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" stroke="currentColor" strokeWidth="1.8" />
-              <circle cx="9.5" cy="7" r="3.5" stroke="currentColor" strokeWidth="1.8" />
-              <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" stroke="currentColor" strokeWidth="1.8" />
-            </svg>
-          </span>
-          <span className="chat-interno-channel-body">
-            <span className="chat-interno-channel-name">Equipo SGG</span>
-            <span className="chat-interno-channel-preview">Canal general de la empresa</span>
-          </span>
-          {generalUnread > 0 && (
-            <span className="chat-interno-badge">{generalUnread > 99 ? "99+" : generalUnread}</span>
-          )}
-        </button>
+        <div className="chat-interno-sidebar-section-head">
+          <p className="chat-interno-sidebar-label">Canales</p>
+          <button
+            type="button"
+            className="chat-interno-channel-add"
+            onClick={() => {
+              setCreatingChannel((v) => !v);
+              setNewChannelName("");
+            }}
+            title="Nuevo canal"
+            aria-label="Crear canal"
+          >
+            +
+          </button>
+        </div>
+
+        {creatingChannel && (
+          <div className="chat-interno-channel-create">
+            <input
+              type="text"
+              className="chat-interno-channel-create-input"
+              placeholder="Nombre del canal…"
+              value={newChannelName}
+              maxLength={60}
+              onChange={(e) => setNewChannelName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") void crearCanal();
+                if (e.key === "Escape") setCreatingChannel(false);
+              }}
+            />
+            <button type="button" className="btn btn-sm btn-primary" onClick={() => void crearCanal()}>
+              Crear
+            </button>
+          </div>
+        )}
+
+        <div className="chat-interno-channels">
+          {channels.map((ch) => (
+            <button
+              key={ch.id}
+              type="button"
+              className={`chat-interno-channel${peerId === ch.peer_id ? " chat-interno-channel--active" : ""}`}
+              onClick={() => openChannel(ch.peer_id)}
+            >
+              <ChatChannelAvatar channel={ch} />
+              <span className="chat-interno-channel-body">
+                <span className="chat-interno-channel-name">{ch.nombre}</span>
+                <span className="chat-interno-channel-preview">
+                  {ch.es_sistema && onlineCount > 0
+                    ? `${onlineCount} ${onlineCount === 1 ? "persona en línea" : "personas en línea"}`
+                    : ch.last_message
+                      ? truncar(ch.last_message, 42)
+                      : "Sin mensajes"}
+                </span>
+              </span>
+              {ch.unread_count > 0 && (
+                <span className="chat-interno-badge">
+                  {ch.unread_count > 99 ? "99+" : ch.unread_count}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+
+        {onlineContacts.length > 0 && (
+          <>
+            <p className="chat-interno-sidebar-label">
+              En línea ({onlineContacts.length})
+            </p>
+            <div className="chat-interno-online-strip">
+              {onlineContacts.map((c) => (
+                <button
+                  key={`online-${c.id}`}
+                  type="button"
+                  className={`chat-interno-online-chip${peerId === c.id ? " chat-interno-online-chip--active" : ""}`}
+                  title={`${c.nombre} · ${formatChatPresence(c.presencia)}`}
+                  onClick={() => openChannel(c.id)}
+                >
+                  <span className="chat-interno-avatar-wrap chat-interno-avatar-wrap--online">
+                    <UserAvatar nombre={c.nombre} avatar={c.avatar} variant="chat-channel" />
+                  </span>
+                  <span className="chat-interno-online-chip-name">{c.nombre.split(" ")[0]}</span>
+                </button>
+              ))}
+            </div>
+          </>
+        )}
 
         <p className="chat-interno-sidebar-label">Personas</p>
         <div className="chat-interno-contacts">
@@ -269,15 +792,30 @@ export default function ChatInterno({
               key={c.id}
               type="button"
               className={`chat-interno-channel${peerId === c.id ? " chat-interno-channel--active" : ""}`}
-              onClick={() => selectPeer(c.id)}
+              onClick={() => openChannel(c.id)}
             >
-              <span className="chat-interno-channel-avatar" aria-hidden>
-                {iniciales(c.nombre)}
+              <span
+                className={`chat-interno-avatar-wrap${
+                  c.presencia.online
+                    ? " chat-interno-avatar-wrap--online"
+                    : " chat-interno-avatar-wrap--offline"
+                }`}
+              >
+                <UserAvatar
+                  nombre={c.nombre}
+                  avatar={c.avatar}
+                  variant="chat-channel"
+                />
               </span>
               <span className="chat-interno-channel-body">
                 <span className="chat-interno-channel-name">{c.nombre}</span>
+                <span
+                  className={`chat-interno-channel-status ${presenceStatusClass(c.presencia)}`}
+                >
+                  {formatChatPresence(c.presencia)}
+                </span>
                 <span className="chat-interno-channel-preview">
-                  {c.last_message ? truncar(c.last_message, 42) : c.rol_label}
+                  {c.last_message ? truncar(c.last_message, 42) : "Sin mensajes"}
                 </span>
               </span>
               {c.unread_count > 0 && (
@@ -301,9 +839,90 @@ export default function ChatInterno({
             </svg>
           </button>
           <div className="chat-interno-main-head-text">
-            <h3>{peerLabel}</h3>
-            <p>{peerSubtitle}</p>
+            {activeChannel && (
+              <ChatChannelAvatar channel={activeChannel} className="chat-interno-main-head-avatar" />
+            )}
+            {peerContact && (
+              <span
+                className={`chat-interno-avatar-wrap${
+                  peerContact.presencia.online
+                    ? " chat-interno-avatar-wrap--online"
+                    : " chat-interno-avatar-wrap--offline"
+                }`}
+              >
+                <UserAvatar
+                  nombre={peerContact.nombre}
+                  avatar={peerContact.avatar}
+                  variant="chat-channel"
+                  className="chat-interno-main-head-avatar"
+                />
+              </span>
+            )}
+            <div>
+              {renamingChannelId !== null && activeChannel?.id === renamingChannelId ? (
+                <div className="chat-interno-rename-row">
+                  <input
+                    type="text"
+                    className="chat-interno-rename-input"
+                    value={renameDraft}
+                    maxLength={60}
+                    onChange={(e) => setRenameDraft(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") void guardarRenombre();
+                      if (e.key === "Escape") setRenamingChannelId(null);
+                    }}
+                    autoFocus
+                  />
+                  <button type="button" className="btn btn-sm btn-primary" onClick={() => void guardarRenombre()}>
+                    Guardar
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-ghost"
+                    onClick={() => setRenamingChannelId(null)}
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              ) : (
+                <div className="chat-interno-main-head-title-row">
+                  <h3 className={incomingAlert ? "chat-interno-main-head-name--alert" : undefined}>
+                    {peerLabel}
+                  </h3>
+                  {incomingAlert && (
+                    <span className="chat-interno-incoming-badge" role="status" aria-live="polite">
+                      {isGroupChannelPeer(peerId) && incomingSender
+                        ? `Nuevo mensaje · ${incomingSender}`
+                        : "Nuevo mensaje"}
+                    </span>
+                  )}
+                </div>
+              )}
+              <p className={presenceStatusClass(peerContact?.presencia)}>{peerSubtitle}</p>
+            </div>
           </div>
+          {activeChannel && renamingChannelId === null && (
+            <button
+              type="button"
+              className="chat-interno-rename-btn"
+              onClick={() => {
+                setRenamingChannelId(activeChannel.id);
+                setRenameDraft(activeChannel.nombre);
+              }}
+              title="Renombrar canal"
+              aria-label="Renombrar canal"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+                <path
+                  d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
+          )}
           {variant === "panel" && onClose && (
             <button
               type="button"
@@ -320,9 +939,154 @@ export default function ChatInterno({
               Volver
             </button>
           )}
+          <button
+            type="button"
+            className={`chat-interno-wallpaper-btn${wallpaperOpen ? " chat-interno-wallpaper-btn--active" : ""}`}
+            onClick={() => {
+              setWallpaperOpen((v) => !v);
+              setSearchOpen(false);
+              setEmojiOpen(false);
+            }}
+            title="Cambiar fondo del chat"
+            aria-label="Cambiar fondo del chat"
+            aria-expanded={wallpaperOpen}
+          >
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden>
+              <rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" strokeWidth="1.8" />
+              <circle cx="8.5" cy="10" r="1.5" fill="currentColor" />
+              <path
+                d="M3 15l4.5-4 3 3 5.5-6 4 4"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+          <button
+            type="button"
+            className={`chat-interno-search-btn${searchOpen ? " chat-interno-search-btn--active" : ""}`}
+            onClick={() => {
+              setSearchOpen((v) => !v);
+              setWallpaperOpen(false);
+            }}
+            title="Buscar en el chat"
+            aria-label="Buscar mensajes"
+            aria-expanded={searchOpen}
+          >
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden>
+              <circle cx="11" cy="11" r="6.5" stroke="currentColor" strokeWidth="1.8" />
+              <path d="M16 16l4.5 4.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+            </svg>
+          </button>
         </header>
 
-        <div className="chat-interno-messages" ref={listRef} role="log" aria-live="polite">
+        {openTabs.length > 1 && (
+          <div className="chat-interno-tabs" role="tablist" aria-label="Canales abiertos">
+            {openTabs.map((tabPeer) => (
+              <div
+                key={tabPeer}
+                className={`chat-interno-tab${tabPeer === peerId ? " chat-interno-tab--active" : ""}`}
+              >
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={tabPeer === peerId}
+                  className="chat-interno-tab-btn"
+                  onClick={() => openChannel(tabPeer)}
+                >
+                  {peerTabLabel(tabPeer, channels, contacts)}
+                </button>
+                <button
+                  type="button"
+                  className="chat-interno-tab-close"
+                  onClick={() => closeTab(tabPeer)}
+                  aria-label={`Cerrar ${peerTabLabel(tabPeer, channels, contacts)}`}
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {wallpaperOpen && (
+          <ChatWallpaperPicker
+            currentId={currentWallpaper}
+            peerLabel={peerLabel}
+            saving={savingWallpaper}
+            onSelect={(id) => void selectWallpaper(id)}
+            onClose={() => setWallpaperOpen(false)}
+          />
+        )}
+
+        {searchOpen && (
+          <div className="chat-interno-search-panel">
+            <input
+              ref={searchRef}
+              type="search"
+              className="chat-interno-search-input"
+              placeholder={
+                searchAllChats
+                  ? "Buscar en todas las conversaciones…"
+                  : "Buscar en esta conversación…"
+              }
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            <label className="chat-interno-search-scope">
+              <input
+                type="checkbox"
+                checked={searchAllChats}
+                onChange={(e) => setSearchAllChats(e.target.checked)}
+              />
+              Buscar en todos los chats
+            </label>
+            <div className="chat-interno-search-results" role="listbox" aria-label="Resultados de búsqueda">
+              {searchQuery.trim().length < 2 ? (
+                <p className="chat-interno-search-hint muted">Escribí al menos 2 caracteres</p>
+              ) : searching ? (
+                <p className="chat-interno-search-hint muted">Buscando…</p>
+              ) : searchResults.length === 0 ? (
+                <p className="chat-interno-search-hint muted">Sin resultados</p>
+              ) : (
+                searchResults.map((hit) => (
+                  <button
+                    key={hit.id}
+                    type="button"
+                    className="chat-interno-search-hit"
+                    onClick={() => void goToSearchHit(hit)}
+                  >
+                    <span className="chat-interno-search-hit-meta">
+                      <strong>{hit.peer_label}</strong>
+                      <span>{hit.sender_nombre}</span>
+                      <time dateTime={hit.creado_en}>{formatFechaHoraMensaje(hit.creado_en)}</time>
+                    </span>
+                    <span className="chat-interno-search-hit-body">
+                      {truncarConHighlight(hit.body, searchQuery)}
+                    </span>
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+
+        <div
+          className={`chat-interno-messages${wallpaperClass ? ` ${wallpaperClass}` : ""}`}
+          ref={listRef}
+          role="log"
+          aria-live="polite"
+          onScroll={onMessagesScroll}
+        >
+          {loadingOlder && (
+            <p className="chat-interno-load-older">Cargando mensajes anteriores…</p>
+          )}
+          {!loadingOlder && hasMoreOlder && messages.length > 0 && (
+            <p className="chat-interno-load-older chat-interno-load-older--hint muted">
+              Subí para ver mensajes más antiguos
+            </p>
+          )}
           {loading ? (
             <p className="chat-interno-status">Cargando mensajes…</p>
           ) : messages.length === 0 ? (
@@ -335,24 +1099,50 @@ export default function ChatInterno({
               const day = formatDia(m.creado_en);
               const showDay = day !== lastDay;
               if (showDay) lastDay = day;
+              const bubbleColor = bubbleColorForSender(m.sender_id, m.es_propio);
               return (
                 <div key={m.id}>
                   {showDay && <div className="chat-interno-day">{day}</div>}
                   <div
-                    className={`chat-interno-bubble-row${m.es_propio ? " chat-interno-bubble-row--own" : ""}`}
+                    data-msg-id={m.id}
+                    className={`chat-interno-bubble-row${m.es_propio ? " chat-interno-bubble-row--own" : ""}${
+                      highlightId === m.id ? " chat-interno-bubble-row--highlight" : ""
+                    }`}
                   >
                     {!m.es_propio && (
-                      <span className="chat-interno-bubble-avatar" aria-hidden>
-                        {iniciales(m.sender_nombre)}
-                      </span>
+                      <UserAvatar
+                        nombre={m.sender_nombre}
+                        avatar={m.sender_avatar ?? DEFAULT_USER_AVATAR}
+                        variant="chat-bubble"
+                      />
                     )}
-                    <div className={`chat-interno-bubble${m.es_propio ? " chat-interno-bubble--own" : ""}`}>
-                      {!m.es_propio && peerId === CHAT_GENERAL_PEER_ID && (
+                    <div
+                      className={`chat-interno-bubble${m.es_propio ? " chat-interno-bubble--own" : " chat-interno-bubble--other"}`}
+                      style={bubbleStyleVars(bubbleColor)}
+                    >
+                      {!m.es_propio && isGroupChannelPeer(peerId) && (
                         <span className="chat-interno-bubble-author">{m.sender_nombre}</span>
                       )}
-                      <p className="chat-interno-bubble-text">{m.body}</p>
-                      <time className="chat-interno-bubble-time" dateTime={m.creado_en}>
-                        {formatHora(m.creado_en)}
+                      {m.attachment && (
+                        <ChatMessageAttachmentView
+                          messageId={m.id}
+                          attachment={m.attachment}
+                          onImageClick={setImagePreviewUrl}
+                        />
+                      )}
+                      {m.body.trim() && (
+                        <p className="chat-interno-bubble-text">
+                          {highlightTerm && highlightId === m.id
+                            ? resaltarTexto(m.body, highlightTerm)
+                            : m.body}
+                        </p>
+                      )}
+                      <time
+                        className="chat-interno-bubble-time"
+                        dateTime={m.creado_en}
+                        title={formatFechaHoraMensaje(m.creado_en)}
+                      >
+                        {formatFechaHoraMensaje(m.creado_en)}
                       </time>
                     </div>
                   </div>
@@ -364,12 +1154,94 @@ export default function ChatInterno({
 
         {error && <p className="chat-interno-error">{error}</p>}
 
+        {pendingFile && (
+          <div className="chat-interno-pending-file">
+            {pendingPreview ? (
+              <img src={pendingPreview} alt="" className="chat-interno-pending-thumb" />
+            ) : (
+              <span className="chat-interno-pending-file-icon" aria-hidden>
+                📎
+              </span>
+            )}
+            <span className="chat-interno-pending-name">{pendingFile.name}</span>
+            <button
+              type="button"
+              className="chat-interno-pending-remove"
+              onClick={clearPendingFile}
+              aria-label="Quitar adjunto"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
         <footer className="chat-interno-compose">
+          <input
+            ref={fileInputRef}
+            type="file"
+            className="chat-interno-file-input"
+            accept="image/jpeg,image/png,image/webp,image/gif,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip,.rar"
+            onChange={(e) => onPickFile(e.target.files?.[0] ?? null)}
+          />
+          <div className="chat-interno-compose-tools">
+            <button
+              type="button"
+              className="chat-interno-attach-btn"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={sending}
+              aria-label="Adjuntar foto o archivo"
+              title="Adjuntar foto o archivo"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
+                <path
+                  d="M21.44 11.05l-8.49 8.49a5.5 5.5 0 0 1-7.78-7.78l9.19-9.19a3.5 3.5 0 0 1 4.95 4.95l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
+            <button
+              type="button"
+              className={`chat-interno-emoji-btn${emojiOpen ? " chat-interno-emoji-btn--active" : ""}`}
+              onClick={() => {
+                setEmojiOpen((v) => !v);
+                setWallpaperOpen(false);
+              }}
+              disabled={sending}
+              aria-label="Insertar emoji"
+              aria-expanded={emojiOpen}
+              title="Emojis"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
+                <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.8" />
+                <path
+                  d="M8.5 10.2h.01M15.5 10.2h.01"
+                  stroke="currentColor"
+                  strokeWidth="2.2"
+                  strokeLinecap="round"
+                />
+                <path
+                  d="M8.8 14.4c.9 1.1 2.1 1.7 3.2 1.7s2.3-.6 3.2-1.7"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </button>
+            {emojiOpen && (
+              <ChatEmojiPicker
+                onPick={insertEmoji}
+                onClose={() => setEmojiOpen(false)}
+              />
+            )}
+          </div>
           <textarea
             ref={draftRef}
             className="chat-interno-input"
             rows={1}
-            placeholder={`Mensaje para ${peerId === CHAT_GENERAL_PEER_ID ? "el equipo" : peerLabel}…`}
+            placeholder={`Mensaje para ${isGroupChannelPeer(peerId) ? activeChannel?.nombre ?? "el canal" : peerLabel}…`}
             value={draft}
             disabled={sending}
             onChange={(e) => setDraft(e.target.value)}
@@ -379,7 +1251,7 @@ export default function ChatInterno({
           <button
             type="button"
             className="chat-interno-send"
-            disabled={sending || !draft.trim()}
+            disabled={sending || (!draft.trim() && !pendingFile)}
             onClick={() => void send()}
             aria-label="Enviar mensaje"
           >
@@ -395,9 +1267,20 @@ export default function ChatInterno({
           </button>
         </footer>
         <p className="chat-interno-compose-hint muted">
-          Enter para enviar · Shift+Enter para nueva línea
+          Enter para enviar · Shift+Enter para nueva línea · Máx. 12 MB por archivo
         </p>
       </section>
+
+      {imagePreviewUrl && (
+        <button
+          type="button"
+          className="chat-interno-image-lightbox"
+          aria-label="Cerrar imagen"
+          onClick={() => setImagePreviewUrl(null)}
+        >
+          <img src={imagePreviewUrl} alt="Vista ampliada" />
+        </button>
+      )}
 
       {sidebarOpen && variant === "panel" && (
         <button

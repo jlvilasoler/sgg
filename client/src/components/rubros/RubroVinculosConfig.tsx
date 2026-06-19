@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { APP_NAME } from "../../brand";
 import {
   fetchRubroVinculos,
   fetchRubroVinculosMapa,
@@ -294,7 +295,7 @@ export default function RubroVinculosConfig({
             Resumen de todos los vínculos configurados. Hacé clic en un rubro para editarlo arriba.
           </p>
           <p className="vinculos-mapa-leyenda muted">
-            Todo parte del cuadro <strong>SGG</strong>: líneas al <strong>rubro</strong> contable,
+            Todo parte del cuadro <strong>{APP_NAME}</strong>: líneas al <strong>rubro</strong> contable,
             luego al <strong>grupo</strong> y a cada <strong>sub-rubro</strong>. Clic en un rubro
             para editarlo arriba.
           </p>

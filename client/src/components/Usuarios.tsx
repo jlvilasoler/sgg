@@ -5,13 +5,14 @@ import {
   fetchUsuarios,
 } from "../api";
 import type { AuthUser, Rol, UserForm } from "../types";
-import { ALL_ROLES, ROL_DESCRIPCION, ROL_LABELS } from "../types";
+import { ALL_ROLES, ROL_DESCRIPCION, ROL_LABELS_DETALLE } from "../types";
 import {
   PASSWORD_POLICY_HINT,
   validatePasswordStrength,
 } from "../utils/password-policy";
 
 import UsuariosRolesModal from "./UsuariosRolesModal";
+import UserAvatar from "./UserAvatar";
 
 interface Props {
   apiOnline: boolean;
@@ -244,7 +245,7 @@ export default function Usuarios({
                 >
                   {ROLES.map((r) => (
                     <option key={r} value={r}>
-                      {ROL_LABELS[r]}
+                      {ROL_LABELS_DETALLE[r]}
                     </option>
                   ))}
                 </select>
@@ -335,10 +336,13 @@ export default function Usuarios({
                 rows.map((u) => (
                   <tr key={u.id} className={!u.activo ? "usuarios-row--inactivo" : ""}>
                     <td>
-                      <strong>{u.nombre}</strong>
-                      {u.id === currentUser.id && (
-                        <span className="usuarios-badge-you">Tú</span>
-                      )}
+                      <div className="usuarios-table-user">
+                        <UserAvatar nombre={u.nombre} avatar={u.avatar} variant="list" />
+                        <strong>{u.nombre}</strong>
+                        {u.id === currentUser.id && (
+                          <span className="usuarios-badge-you">Tú</span>
+                        )}
+                      </div>
                     </td>
                     <td>{u.email}</td>
                     <td>

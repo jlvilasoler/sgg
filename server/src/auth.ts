@@ -4,6 +4,7 @@ import multer from "multer";
 import * as authDb from "./auth-db.js";
 import type { Modulo, UserPublic } from "./auth-db.js";
 import {
+  avatarDtoFromRow,
   clearUserAvatar,
   resolveUserAvatarFilePath,
   saveUserAvatarFoto,
@@ -501,7 +502,26 @@ export function registerAuthRoutes(app: Express): void {
 
   app.get("/api/auth/actividad/online", async (req, res) => {
     if (!requireAdmin(req, res)) return;
-    res.json({ ok: true, data: listOnlineUsers() });
+    const db = getDb();
+    const base = listOnlineUsers();
+    const data = [];
+    for (const u of base) {
+      const row = (await db
+        .prepare(
+          `SELECT id, avatar_tipo, avatar_archivo, actualizado_en FROM USERS WHERE id = ?`
+        )
+        .get(u.id)) as {
+        id: number;
+        avatar_tipo?: string;
+        avatar_archivo?: string;
+        actualizado_en?: string;
+      } | undefined;
+      data.push({
+        ...u,
+        avatar: row ? avatarDtoFromRow(row.id, row) : { tipo: "iniciales" as const, url: null },
+      });
+    }
+    res.json({ ok: true, data });
   });
 
   app.post("/api/auth/presencia", async (req, res) => {

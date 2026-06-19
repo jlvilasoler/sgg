@@ -173,9 +173,11 @@ export interface AuthActividadLog {
 }
 
 export interface UsuarioOnline {
+  id: number;
   email: string;
   nombre: string;
   rol: string;
+  avatar: UserAvatar;
   ip: string | null;
   pantalla: string | null;
   ultimo_visto: string;
@@ -404,6 +406,14 @@ export const ALL_ROLES: Rol[] = ["admin", "editor", "gestor_n2", "consulta"];
 
 export const ROL_LABELS: Record<Rol, string> = {
   admin: "Administrador",
+  editor: "Gestor",
+  gestor_n2: "Gestor",
+  consulta: "Consulta",
+};
+
+/** Etiquetas con nivel (solo administración de usuarios y permisos). */
+export const ROL_LABELS_DETALLE: Record<Rol, string> = {
+  admin: "Administrador",
   editor: "Gestor N1",
   gestor_n2: "Gestor N2",
   consulta: "Consulta",
@@ -475,20 +485,55 @@ export interface RolPermisosInput {
   modulos: Partial<Record<Modulo, boolean>>;
 }
 
+export interface ChatChannel {
+  id: number;
+  peer_id: number;
+  nombre: string;
+  es_sistema: boolean;
+  unread_count: number;
+  last_message: string | null;
+  last_message_at: string | null;
+}
+
+export interface ChatMessageAttachment {
+  tipo: "imagen" | "archivo";
+  nombre: string;
+  mime: string;
+  tamano: number;
+  url: string;
+}
+
 export interface ChatMessage {
   id: number;
   sender_id: number;
   sender_nombre: string;
+  sender_avatar: UserAvatar;
   recipient_id: number;
   body: string;
   creado_en: string;
   es_propio: boolean;
+  attachment: ChatMessageAttachment | null;
+}
+
+export interface ChatSearchHit extends ChatMessage {
+  peer_id: number;
+  peer_label: string;
+}
+
+export interface ChatUserPresence {
+  id: number;
+  online: boolean;
+  ultimo_visto: string | null;
+  hace_segundos: number | null;
+  online_desde_segundos: number | null;
 }
 
 export interface ChatContact {
   id: number;
   nombre: string;
   rol_label: string;
+  avatar: UserAvatar;
+  presencia: ChatUserPresence;
   unread_count: number;
   last_message: string | null;
   last_message_at: string | null;

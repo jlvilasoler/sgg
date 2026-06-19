@@ -1,6 +1,7 @@
 import { useEffect, type ReactNode } from "react";
 import type { Presupuesto } from "../types";
 import { empresaClass, fmtDate, fmtNum, formatNumeroOperacion } from "../utils";
+import { APP_FULL_NAME, APP_NAME } from "../brand";
 import LogoSgg from "./LogoSgg";
 
 interface Props {
@@ -234,8 +235,8 @@ export default function PresupuestoDetalleModal({ row, onClose }: Props) {
           <div className="pd-brand-inner">
             <LogoSgg className="pd-brand-logo" />
             <div className="pd-brand-text">
-              <span className="pd-brand-scg">SGG</span>
-              <span className="pd-brand-sub">Sistema de Gestión Ganadera</span>
+              <span className="pd-brand-scg">{APP_NAME}</span>
+              <span className="pd-brand-sub">{APP_FULL_NAME}</span>
             </div>
           </div>
           <button type="button" className="pd-brand-close" onClick={onClose} aria-label="Cerrar">

@@ -1,7 +1,9 @@
 /**
- * Logo SGG: ícono del usuario dentro del escudo circular.
+ * Logo SAG: ícono del usuario dentro del escudo circular.
  * logo1 legacy → public/logo-hereford.png
  */
+import { APP_FULL_NAME, APP_NAME } from "../brand";
+
 type LogoVariant = "badge" | "mark";
 
 interface Props {
@@ -27,7 +29,7 @@ function VacaMarcaIcon({ x, y, size }: { x: number; y: number; size: number }) {
 export default function LogoSgg({
   className = "",
   variant = "badge",
-  title = "SGG — Sistema de Gestión Ganadera",
+  title = `${APP_NAME} — ${APP_FULL_NAME}`,
 }: Props) {
   const id = variant === "badge" ? "sgg-logo-badge" : "sgg-logo-mark";
   const rootClass = ["sgg-logo", className].filter(Boolean).join(" ");

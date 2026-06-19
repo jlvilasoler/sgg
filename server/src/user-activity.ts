@@ -106,6 +106,11 @@ const SKIP_ACTIVITY_PATHS = new Set([
   "/api/chat/unread",
   "/api/chat/messages",
   "/api/chat/contacts",
+  "/api/chat/presence",
+  "/api/chat/search",
+  "/api/chat/wallpapers",
+  "/api/chat/channels",
+  "/api/chat/attachments",
 ]);
 
 export function attachApiActivityLogger(req: Request, res: import("express").Response): void {

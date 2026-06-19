@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { fetchAuthActividad, fetchUsuarios, fetchUsuariosOnline } from "../api";
 import type { AuthActividadLog, UsuarioOnline } from "../types";
+import UserAvatar from "./UserAvatar";
 import TablePagination, { type PageSize } from "./TablePagination";
 
 const EVENTO_LABELS: Record<string, string> = {
@@ -264,7 +265,7 @@ export default function UsuariosActividad({ apiOnline, onError, onVolver }: Prop
             <ul className="usuarios-online-list">
               {online.map((u) => (
                 <li key={u.email} className="usuarios-online-item">
-                  <span className="usuarios-online-dot" title="Activo" />
+                  <UserAvatar nombre={u.nombre} avatar={u.avatar} variant="list" />
                   <div className="usuarios-online-main">
                     <strong>{u.nombre}</strong>
                     <span className="muted usuarios-act-email">{u.email}</span>

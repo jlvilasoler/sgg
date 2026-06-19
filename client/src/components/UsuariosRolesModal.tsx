@@ -4,7 +4,7 @@ import {
   fetchRolePermissions,
 } from "../api";
 import type { Modulo, Rol, RolPermisosConfig, RolPermisosInput } from "../types";
-import { ROL_LABELS } from "../utils/auth-permissions";
+import { ROL_LABELS_DETALLE } from "../utils/auth-permissions";
 
 interface Props {
   open: boolean;
@@ -87,7 +87,7 @@ export default function UsuariosRolesModal({
     try {
       const updated = await actualizarRolePermissions(activeRol, draft);
       setRoles((prev) => prev.map((r) => (r.rol === updated.rol ? updated : r)));
-      onSuccess(`Permisos de ${ROL_LABELS[activeRol]} actualizados`);
+      onSuccess(`Permisos de ${ROL_LABELS_DETALLE[activeRol]} actualizados`);
       onSaved?.();
     } catch (e) {
       onError(e instanceof Error ? e.message : "Error al guardar permisos");
@@ -132,7 +132,7 @@ export default function UsuariosRolesModal({
                   }`}
                   onClick={() => selectRol(rol)}
                 >
-                  {ROL_LABELS[rol]}
+                  {ROL_LABELS_DETALLE[rol]}
                 </button>
               ))}
             </div>
@@ -221,7 +221,7 @@ export default function UsuariosRolesModal({
                   disabled={saving || !apiOnline}
                   onClick={save}
                 >
-                  {saving ? "Guardando…" : `Guardar ${ROL_LABELS[activeRol]}`}
+                  {saving ? "Guardando…" : `Guardar ${ROL_LABELS_DETALLE[activeRol]}`}
                 </button>
               )}
             </footer>

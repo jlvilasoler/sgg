@@ -1,20 +1,8 @@
 import type { TabId } from "../components/Header";
-import type { AuthUser, Modulo, Rol } from "../types";
+import type { AuthUser, Modulo } from "../types";
+import { ROL_LABELS, ROL_LABELS_DETALLE, ROL_DESCRIPCION } from "../types";
 
-export const ROL_LABELS: Record<Rol, string> = {
-  admin: "Administrador",
-  editor: "Gestor N1",
-  gestor_n2: "Gestor N2",
-  consulta: "Consulta",
-};
-
-export const ROL_DESCRIPCION: Record<Rol, string> = {
-  admin: "Acceso total al sistema (no editable)",
-  editor: "Gestión operativa según sectores habilitados (sin usuarios ni ventas)",
-  gestor_n2:
-    "Gastos, configuración, stock, RRHH y resumen. Divisas solo lectura. Sin ventas ni usuarios.",
-  consulta: "Solo lectura en los sectores habilitados",
-};
+export { ROL_LABELS, ROL_LABELS_DETALLE, ROL_DESCRIPCION };
 
 export const MODULO_LABELS: Record<Modulo, string> = {
   presupuesto: "Presupuesto y gastos",

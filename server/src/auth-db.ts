@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import type { Db } from "./db/pg-client.js";
+import { DEFAULT_ADMIN_NAME } from "./brand.js";
 import {
   hashSessionToken,
   isValidSessionTokenFormat,
@@ -38,8 +39,8 @@ export const MODULOS: Modulo[] = [
 
 export const ROL_LABELS: Record<Rol, string> = {
   admin: "Administrador",
-  editor: "Gestor N1",
-  gestor_n2: "Gestor N2",
+  editor: "Gestor",
+  gestor_n2: "Gestor",
   consulta: "Consulta",
 };
 
@@ -535,7 +536,7 @@ async function seedAdminIfEmpty(db: Db): Promise<void> {
       `INSERT INTO USERS (email, password_hash, nombre, rol, activo)
      VALUES (?, ?, ?, 'admin', 1)`
     )
-    .run(normalizeEmail(email), hash, "Administrador SGG");
+    .run(normalizeEmail(email), hash, DEFAULT_ADMIN_NAME);
 
   console.info(`[SGG Auth] Usuario administrador creado: ${email}`);
 }
@@ -569,11 +570,11 @@ async function migrateLegacyAdmin(db: Db): Promise<void> {
   } else {
     await db
       .prepare(
-        `UPDATE USERS SET email = ?, password_hash = ?, nombre = 'Administrador SGG',
+        `UPDATE USERS SET email = ?, password_hash = ?, nombre = ?,
         rol = 'admin', activo = 1, actualizado_en = NOW()
        WHERE id = ?`
       )
-      .run(normalizedEmail, hash, legacy.id);
+      .run(normalizedEmail, hash, DEFAULT_ADMIN_NAME, legacy.id);
     await deleteAllUserSessions(db, legacy.id);
   }
 

@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { loginAuth } from "../api";
 import { apiConnectionError, apiOfflineMessage } from "../utils/api-messages";
+import { APP_FULL_NAME, APP_NAME } from "../brand";
 import type { AuthUser } from "../types";
 import LogoSgg from "./LogoSgg";
 
@@ -83,8 +84,8 @@ export default function LoginScreen({ apiOnline, onLogin, onError }: Props) {
           <div className="auth-login-brand">
             <LogoSgg className="auth-login-logo" />
             <div>
-              <h1 className="auth-login-title">SGG</h1>
-              <p className="auth-login-sub">Sistema de Gestión Ganadera</p>
+              <h1 className="auth-login-title">{APP_NAME}</h1>
+              <p className="auth-login-sub">{APP_FULL_NAME}</p>
             </div>
           </div>
           <p className="auth-login-head-note">Acceso seguro con email y contraseña</p>

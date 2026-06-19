@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import LogoSgg from "./LogoSgg";
 import MiCuentaModal from "./MiCuentaModal";
 import UserAvatar from "./UserAvatar";
 import ChatPanel from "./ChatPanel";
 import { fetchChatUnread } from "../api";
+import { playChatNotificationSound } from "../utils/chat-notification-sound";
+import { APP_FULL_NAME, APP_NAME } from "../brand";
 import type { AuthUser } from "../types";
 
 interface Props {
@@ -26,10 +28,19 @@ export default function MainHeader({
   const [cuentaModalOpen, setCuentaModalOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const [chatUnread, setChatUnread] = useState(0);
+  const prevUnreadRef = useRef(0);
+  const unreadInitializedRef = useRef(false);
+  const chatOpenRef = useRef(chatOpen);
+  chatOpenRef.current = chatOpen;
 
   const refreshUnread = useCallback(async () => {
     try {
       const data = await fetchChatUnread();
+      if (unreadInitializedRef.current && !chatOpenRef.current && data.total > prevUnreadRef.current) {
+        playChatNotificationSound();
+      }
+      unreadInitializedRef.current = true;
+      prevUnreadRef.current = data.total;
       setChatUnread(data.total);
     } catch {
       /* silencioso */
@@ -56,8 +67,8 @@ export default function MainHeader({
           <button type="button" className="main-brand" onClick={onHome} title="Volver al menú">
             <LogoSgg className="main-brand-icon" />
             <div>
-              <span className="main-brand-title">SGG</span>
-              <span className="main-brand-sub">Sistema de Gestión Ganadera</span>
+              <span className="main-brand-title">{APP_NAME}</span>
+              <span className="main-brand-sub">{APP_FULL_NAME}</span>
             </div>
           </button>
 

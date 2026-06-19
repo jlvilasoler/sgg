@@ -1,6 +1,8 @@
 import { useState } from "react";
 import type { UserAvatar as UserAvatarType } from "../types";
 
+export const DEFAULT_USER_AVATAR: UserAvatarType = { tipo: "iniciales", url: null };
+
 function userIniciales(nombre: string): string {
   const parts = nombre.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return "?";
@@ -8,37 +10,71 @@ function userIniciales(nombre: string): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
+export type UserAvatarVariant =
+  | "header-sm"
+  | "header-lg"
+  | "chat-channel"
+  | "chat-bubble"
+  | "list";
+
 interface Props {
   nombre: string;
-  avatar: UserAvatarType;
+  avatar?: UserAvatarType | null;
+  variant?: UserAvatarVariant;
+  /** @deprecated Usar variant="header-lg" */
   size?: "sm" | "lg";
   showLock?: boolean;
   className?: string;
 }
 
+function circleClass(variant: UserAvatarVariant, showFoto: boolean): string {
+  const foto = showFoto ? " user-avatar--foto" : "";
+  switch (variant) {
+    case "header-lg":
+      return `main-header-user-avatar main-header-user-avatar--lg${foto}`;
+    case "chat-channel":
+      return `chat-interno-channel-avatar${foto}`;
+    case "chat-bubble":
+      return `chat-interno-bubble-avatar${foto}`;
+    case "list":
+      return `usuarios-table-avatar${foto}`;
+    default:
+      return `main-header-user-avatar${foto}`;
+  }
+}
+
+function wrapClass(variant: UserAvatarVariant): string {
+  if (variant === "header-sm" || variant === "header-lg") {
+    return "main-header-user-avatar-btn";
+  }
+  return "user-avatar-wrap";
+}
+
 export default function UserAvatar({
   nombre,
   avatar,
+  variant,
   size = "sm",
   showLock = false,
   className = "",
 }: Props) {
   const [imgError, setImgError] = useState(false);
-  const showFoto = avatar.tipo === "foto" && avatar.url && !imgError;
-  const sizeClass = size === "lg" ? "main-header-user-avatar--lg" : "";
+  const resolvedVariant: UserAvatarVariant =
+    variant ?? (size === "lg" ? "header-lg" : "header-sm");
+  const av = avatar ?? DEFAULT_USER_AVATAR;
+  const showFoto = av.tipo === "foto" && !!av.url && !imgError;
 
   return (
-    <span className={`main-header-user-avatar-btn${className ? ` ${className}` : ""}`} aria-hidden>
-      <span
-        className={`main-header-user-avatar ${sizeClass}${
-          showFoto ? " main-header-user-avatar--foto" : ""
-        }`}
-      >
+    <span
+      className={`${wrapClass(resolvedVariant)}${className ? ` ${className}` : ""}`}
+      aria-hidden
+    >
+      <span className={circleClass(resolvedVariant, showFoto)}>
         {showFoto ? (
           <img
-            src={avatar.url!}
+            src={av.url!}
             alt=""
-            className="main-header-user-avatar-img"
+            className="user-avatar-img"
             onError={() => setImgError(true)}
           />
         ) : (

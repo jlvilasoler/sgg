@@ -16,7 +16,7 @@ export default function handler(
     try {
       app(req, res);
     } catch (err) {
-      console.error("[SGG API] Error al invocar Express:", err);
+      console.error("[SAG API] Error al invocar Express:", err);
       if (!res.headersSent) {
         res.statusCode = 500;
         res.setHeader("Content-Type", "application/json");

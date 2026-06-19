@@ -61,7 +61,7 @@ export async function fetchYahooUsdBrl(
   let json: unknown;
   try {
     const res = await fetch(url, {
-      headers: { "User-Agent": "Mozilla/5.0 (compatible; SGG/1.0)" },
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; SAG/1.0)" },
       signal: controller.signal,
     });
     if (!res.ok) {

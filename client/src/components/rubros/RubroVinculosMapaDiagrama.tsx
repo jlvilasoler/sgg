@@ -1,4 +1,5 @@
 import type { RubroVinculoMapaItem } from "../../types";
+import { APP_FULL_NAME, APP_NAME } from "../../brand";
 import { iconoRubro } from "../../utils/catalogoIconos";
 import RubroVinculosSubtree from "./RubroVinculosSubtree";
 
@@ -17,7 +18,7 @@ export default function RubroVinculosMapaDiagrama({
     <div
       className="conn-mapa-global"
       role="img"
-      aria-label="Mapa SGG: rubros y sub-rubros vinculados"
+      aria-label={`Mapa ${APP_NAME}: rubros y sub-rubros vinculados`}
     >
       <div className="conn-mapa-frame">
         <header className="conn-mapa-scg-header">
@@ -25,9 +26,9 @@ export default function RubroVinculosMapaDiagrama({
             <span className="diagrama-nodo-icon" aria-hidden>
               🐄
             </span>
-            <span className="diagrama-nodo-label">SGG</span>
+            <span className="diagrama-nodo-label">{APP_NAME}</span>
             <span className="diagrama-nodo-scg-sub muted">
-              Sistema de Gestión Ganadera
+              {APP_FULL_NAME}
             </span>
           </div>
         </header>

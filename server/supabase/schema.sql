@@ -1,4 +1,4 @@
--- SGG — esquema PostgreSQL (Supabase)
+-- SAG — esquema PostgreSQL (Supabase)
 -- Ejecutar en SQL Editor de Supabase o vía init automático al arrancar.
 
 CREATE TABLE IF NOT EXISTS PRESUPUESTO (
@@ -294,7 +294,12 @@ CREATE TABLE IF NOT EXISTS CHAT_MESSAGES (
   sender_id INTEGER NOT NULL REFERENCES USERS(id) ON DELETE CASCADE,
   recipient_id INTEGER NOT NULL DEFAULT 0,
   body TEXT NOT NULL,
-  creado_en TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  creado_en TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  attachment_tipo TEXT,
+  attachment_nombre TEXT,
+  attachment_mime TEXT,
+  attachment_tamano INTEGER,
+  attachment_archivo TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_chat_messages_general ON CHAT_MESSAGES(creado_en DESC);
 CREATE INDEX IF NOT EXISTS idx_chat_messages_dm ON CHAT_MESSAGES(sender_id, recipient_id, creado_en DESC);
@@ -305,6 +310,30 @@ CREATE TABLE IF NOT EXISTS CHAT_READ_STATE (
   last_read_message_id INTEGER NOT NULL DEFAULT 0,
   actualizado_en TIMESTAMPTZ DEFAULT NOW(),
   PRIMARY KEY (user_id, peer_id)
+);
+
+CREATE TABLE IF NOT EXISTS CHAT_WALLPAPER (
+  user_id INTEGER NOT NULL REFERENCES USERS(id) ON DELETE CASCADE,
+  peer_id INTEGER NOT NULL DEFAULT 0,
+  wallpaper_id TEXT NOT NULL DEFAULT 'default',
+  actualizado_en TIMESTAMPTZ DEFAULT NOW(),
+  PRIMARY KEY (user_id, peer_id)
+);
+
+CREATE TABLE IF NOT EXISTS CHAT_CHANNELS (
+  id SERIAL PRIMARY KEY,
+  nombre TEXT NOT NULL,
+  peer_id INTEGER NOT NULL UNIQUE,
+  es_sistema INTEGER NOT NULL DEFAULT 0,
+  creado_por INTEGER REFERENCES USERS(id) ON DELETE SET NULL,
+  creado_en TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  actualizado_en TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS CHAT_CHANNEL_MEMBERS (
+  channel_id INTEGER NOT NULL REFERENCES CHAT_CHANNELS(id) ON DELETE CASCADE,
+  user_id INTEGER NOT NULL REFERENCES USERS(id) ON DELETE CASCADE,
+  PRIMARY KEY (channel_id, user_id)
 );
 
 CREATE TABLE IF NOT EXISTS ROLE_ESCRITURA (

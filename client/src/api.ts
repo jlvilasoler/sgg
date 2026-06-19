@@ -44,6 +44,9 @@ import type {
   ChatMessage,
   ChatContact,
   ChatUnreadSummary,
+  ChatUserPresence,
+  ChatSearchHit,
+  ChatChannel,
 } from "./types";
 import { apiConnectionError } from "./utils/api-messages";
 
@@ -89,20 +92,26 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   return json as T;
 }
 
-export async function checkApiHealth(): Promise<boolean> {
+export interface ApiHealthStatus {
+  online: boolean;
+  ready: boolean;
+}
+
+export async function checkApiHealth(): Promise<ApiHealthStatus> {
   try {
     const res = await fetch(`${API}/health`, {
       ...FETCH_INIT,
       cache: "no-store",
+      signal: AbortSignal.timeout(5000),
     });
-    if (!res.ok) return false;
+    if (!res.ok) return { online: false, ready: false };
     const json = (await res.json()) as { ok?: boolean; ready?: boolean };
-    if (json.ok !== true) return false;
-    // En local, esperar a que la DB termine de inicializar (Vite arranca antes).
-    if (import.meta.env.DEV && json.ready === false) return false;
-    return true;
+    if (json.ok !== true) return { online: false, ready: false };
+    const ready = json.ready !== false;
+    if (import.meta.env.DEV && !ready) return { online: true, ready: false };
+    return { online: true, ready: true };
   } catch {
-    return false;
+    return { online: false, ready: false };
   }
 }
 
@@ -1445,16 +1454,30 @@ export async function quitarAvatarFoto(): Promise<AuthUser> {
 
 export async function fetchChatMessages(
   peerId: number,
-  opts?: { since_id?: number; before_id?: number; limit?: number }
+  opts?: { since_id?: number; before_id?: number; around_id?: number; limit?: number }
 ): Promise<ChatMessage[]> {
   const params = new URLSearchParams({ peer_id: String(peerId) });
   if (opts?.since_id) params.set("since_id", String(opts.since_id));
   if (opts?.before_id) params.set("before_id", String(opts.before_id));
+  if (opts?.around_id) params.set("around_id", String(opts.around_id));
   if (opts?.limit) params.set("limit", String(opts.limit));
   const json = await request<{ data: { messages: ChatMessage[] } }>(
     `/chat/messages?${params}`
   );
   return json.data.messages;
+}
+
+export async function buscarChatMensajes(
+  query: string,
+  opts?: { peer_id?: number; limit?: number }
+): Promise<ChatSearchHit[]> {
+  const params = new URLSearchParams({ q: query.trim() });
+  if (opts?.peer_id !== undefined) params.set("peer_id", String(opts.peer_id));
+  if (opts?.limit) params.set("limit", String(opts.limit));
+  const json = await request<{ data: { hits: ChatSearchHit[] } }>(
+    `/chat/search?${params}`
+  );
+  return json.data.hits;
 }
 
 export async function enviarChatMensaje(
@@ -1466,6 +1489,38 @@ export async function enviarChatMensaje(
     body: JSON.stringify({ peer_id: peerId, body }),
   });
   return json.data;
+}
+
+export async function enviarChatAdjunto(
+  peerId: number,
+  file: File,
+  body = ""
+): Promise<ChatMessage> {
+  const fd = new FormData();
+  fd.append("archivo", file);
+  fd.append("peer_id", String(peerId));
+  if (body.trim()) fd.append("body", body.trim());
+
+  let res: Response;
+  try {
+    res = await fetch(`${API}/chat/messages/attachment`, {
+      ...FETCH_INIT,
+      method: "POST",
+      body: fd,
+    });
+  } catch {
+    throw new Error(apiConnectionError());
+  }
+
+  const json = (await res.json()) as { ok?: boolean; data?: ChatMessage; error?: string };
+  if (!res.ok || !json.ok || !json.data) {
+    throw new Error(json.error ?? "Error al enviar adjunto");
+  }
+  return json.data;
+}
+
+export function chatAttachmentUrl(messageId: number): string {
+  return `${API}/chat/attachments/${messageId}`;
 }
 
 export async function marcarChatLeido(
@@ -1488,14 +1543,110 @@ export async function fetchChatContacts(): Promise<{
   contacts: ChatContact[];
   general_unread: number;
   total_unread: number;
+  online_count: number;
 }> {
   const json = await request<{
     data: {
       contacts: ChatContact[];
       general_unread: number;
       total_unread: number;
+      online_count: number;
     };
   }>("/chat/contacts");
+  return json.data;
+}
+
+export async function fetchChatPresence(): Promise<{
+  users: Record<number, ChatUserPresence>;
+  online_count: number;
+}> {
+  const json = await request<{
+    data: {
+      users: Record<number, ChatUserPresence>;
+      online_count: number;
+    };
+  }>("/chat/presence");
+  return json.data;
+}
+
+export async function fetchChatWallpapers(): Promise<{
+  presets: { id: string; label: string }[];
+  by_peer: Record<number, string>;
+}> {
+  const json = await request<{
+    data: {
+      presets: { id: string; label: string }[];
+      by_peer: Record<number, string>;
+    };
+  }>("/chat/wallpapers");
+  return json.data;
+}
+
+export async function guardarChatWallpaper(
+  peerId: number,
+  wallpaperId: string
+): Promise<{ peer_id: number; wallpaper_id: string }> {
+  const json = await request<{
+    data: { peer_id: number; wallpaper_id: string };
+  }>("/chat/wallpaper", {
+    method: "PUT",
+    body: JSON.stringify({ peer_id: peerId, wallpaper_id: wallpaperId }),
+  });
+  return json.data;
+}
+
+export async function fetchChatBootstrap(peerId = 0, limit = 50): Promise<{
+  channels: ChatChannel[];
+  contacts: ChatContact[];
+  wallpapers: { presets: Array<{ id: string; label: string }>; by_peer: Record<number, string> };
+  messages: ChatMessage[];
+  total_unread: number;
+  general_unread: number;
+  online_count: number;
+  peer_id: number;
+}> {
+  const params = new URLSearchParams();
+  params.set("peer_id", String(peerId));
+  params.set("limit", String(limit));
+  const json = await request<{
+    data: {
+      channels: ChatChannel[];
+      contacts: ChatContact[];
+      wallpapers: { presets: Array<{ id: string; label: string }>; by_peer: Record<number, string> };
+      messages: ChatMessage[];
+      total_unread: number;
+      general_unread: number;
+      online_count: number;
+      peer_id: number;
+    };
+  }>(`/chat/bootstrap?${params}`);
+  return json.data;
+}
+
+export async function fetchChatChannels(): Promise<ChatChannel[]> {
+  const json = await request<{ data: { channels: ChatChannel[] } }>("/chat/channels");
+  return json.data.channels;
+}
+
+export async function crearChatCanal(nombre: string): Promise<ChatChannel> {
+  const json = await request<{ data: ChatChannel }>("/chat/channels", {
+    method: "POST",
+    body: JSON.stringify({ nombre }),
+  });
+  return json.data;
+}
+
+export async function renombrarChatCanal(
+  channelId: number,
+  nombre: string
+): Promise<ChatChannel> {
+  const json = await request<{ data: ChatChannel }>(
+    `/chat/channels/${channelId}/rename`,
+    {
+      method: "PUT",
+      body: JSON.stringify({ nombre }),
+    }
+  );
   return json.data;
 }
 
