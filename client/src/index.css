@@ -11873,7 +11873,7 @@ select optgroup {
   background: rgba(255, 255, 255, 0.14);
 }
 
-.main-header-user-logout {
+.main-header-panel-action {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
@@ -11887,15 +11887,16 @@ select optgroup {
   letter-spacing: 0.02em;
   cursor: pointer;
   border-radius: 0;
+  flex-shrink: 0;
   transition: background 0.15s ease, color 0.15s ease;
 }
 
-.main-header-user-logout:hover {
+.main-header-panel-action:hover {
   background: rgba(255, 255, 255, 0.08);
   color: #fff;
 }
 
-.main-header-user-logout:focus-visible {
+.main-header-panel-action:focus-visible {
   outline: 2px solid rgba(240, 185, 11, 0.85);
   outline-offset: 2px;
 }
@@ -12048,6 +12049,44 @@ select optgroup {
   border: 1px solid rgba(255, 255, 255, 0.7);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
   pointer-events: none;
+}
+
+.main-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.main-header-back-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  height: 2.35rem;
+  padding: 0 0.7rem 0 0.55rem;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.16);
+  color: #f8f6f0;
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.main-header-back-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.28);
+  color: #ffe08a;
+}
+
+.main-header-back-btn:focus-visible {
+  outline: 2px solid rgba(240, 185, 11, 0.85);
+  outline-offset: 2px;
 }
 
 .main-header-chat-btn {

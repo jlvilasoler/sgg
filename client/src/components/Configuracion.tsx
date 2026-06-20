@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { HubMenuCard } from "./HubMenuCard";
+import { useHeaderBackStep } from "../header-back";
 import Proveedores from "./Proveedores";
 import Responsables from "./Responsables";
 import Rubros from "./Rubros";
@@ -50,6 +51,7 @@ export default function Configuracion({
   onVolver,
 }: Props) {
   const [modulo, setModulo] = useState<ModuloConfig>("menu");
+  useHeaderBackStep(modulo !== "menu", () => setModulo("menu"), "Configuración");
 
   if (modulo === "responsables") {
     return (

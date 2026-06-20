@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { HubMenuCard } from "./HubMenuCard";
+import { useHeaderBackContext } from "../header-back";
 import { HUB_ICON_THEMES, HubMenuIcon } from "./icons/HubMenuIcons";
 import DivisasMonedaHub from "./divisas/DivisasMonedaHub";
 import {
@@ -16,6 +17,20 @@ interface Props {
 
 export default function Divisas({ apiOnline, onError, onSuccess }: Props) {
   const [moneda, setMoneda] = useState<DivisasMonedaId | null>(null);
+  const headerBack = useHeaderBackContext();
+
+  useEffect(() => {
+    if (!headerBack) return;
+    if (moneda) {
+      headerBack.setStep({
+        onBack: () => setMoneda(null),
+        destinationLabel: "Divisas",
+      });
+    } else {
+      headerBack.setStep(null);
+    }
+    return () => headerBack.setStep(null);
+  }, [moneda, headerBack]);
 
   if (moneda) {
     return (

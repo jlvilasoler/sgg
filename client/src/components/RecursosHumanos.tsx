@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { HubMenuCard } from "./HubMenuCard";
+import { useHeaderBackContext } from "../header-back";
 import type { HubIconId } from "./icons/HubMenuIcons";
 import { HUB_ICON_THEMES, HubMenuIcon } from "./icons/HubMenuIcons";
 import FuncionarioForm from "./rrhh/FuncionarioForm";
@@ -51,10 +52,34 @@ export default function RecursosHumanos({
   const [listRefresh, setListRefresh] = useState(0);
   const [cedulaSueldos, setCedulaSueldos] = useState("");
 
-  const volverMenu = () => {
+  const volverMenu = useCallback(() => {
     setVista("menu");
     setEditFuncionario(null);
-  };
+  }, []);
+
+  const headerBack = useHeaderBackContext();
+  useEffect(() => {
+    if (!headerBack) return;
+    if (vista === "menu") {
+      headerBack.setStep(null);
+      return;
+    }
+    if (vista === "funcionario-form") {
+      headerBack.setStep({
+        onBack: () => {
+          setEditFuncionario(null);
+          setVista("funcionarios");
+        },
+        destinationLabel: "Funcionarios",
+      });
+      return () => headerBack.setStep(null);
+    }
+    headerBack.setStep({
+      onBack: volverMenu,
+      destinationLabel: "Recursos Humanos",
+    });
+    return () => headerBack.setStep(null);
+  }, [vista, volverMenu, headerBack]);
 
   if (vista === "funcionario-form") {
     return (

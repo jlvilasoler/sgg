@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { fetchStockGanaderoResumen } from "../../api";
+import { useHeaderBackStep } from "../../header-back";
 import { HubMenuCard } from "../HubMenuCard";
 import type { HubIconId } from "../icons/HubMenuIcons";
 import { HUB_ICON_THEMES, HubMenuIcon } from "../icons/HubMenuIcons";
@@ -89,7 +90,8 @@ export default function StockGanadero({
       .catch(() => setResumen({ lotes: 0, registros: 0, dispositivos: 0 }));
   }, [apiOnline, listRefresh]);
 
-  const volverMenu = () => setVista("menu");
+  const volverMenu = useCallback(() => setVista("menu"), []);
+  useHeaderBackStep(vista !== "menu", volverMenu, "Stock Ganadero");
 
   if (vista === "importar") {
     return (

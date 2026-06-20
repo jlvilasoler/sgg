@@ -89,12 +89,22 @@ body {
     padding: 0.3rem 0.45rem;
   }
 
-  .main-header-user-logout span {
+  .main-header-panel-action--logout span {
     display: none;
   }
 
-  .main-header-user-logout {
+  .main-header-panel-action--logout {
     padding: 0 0.55rem;
+  }
+
+  .main-header-back-label {
+    display: none;
+  }
+
+  .main-header-back-btn {
+    width: 2.35rem;
+    padding: 0;
+    justify-content: center;
   }
 
   .main-header-badge {

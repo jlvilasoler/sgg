@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { IngresoVenta } from "../../types";
 import { HubMenuCard } from "../HubMenuCard";
+import { useHeaderBackContext } from "../../header-back";
 import type { HubIconId } from "../icons/HubMenuIcons";
 import { HUB_ICON_THEMES, HubMenuIcon } from "../icons/HubMenuIcons";
 import FormVenta from "./FormVenta";
@@ -52,10 +53,34 @@ export default function IngresosVentas({
   const [editRow, setEditRow] = useState<IngresoVenta | null>(null);
   const [listRefresh, setListRefresh] = useState(0);
 
-  const volverMenu = () => {
+  const volverMenu = useCallback(() => {
     setVista("menu");
     setEditRow(null);
-  };
+  }, []);
+
+  const headerBack = useHeaderBackContext();
+  useEffect(() => {
+    if (!headerBack) return;
+    if (vista === "menu") {
+      headerBack.setStep(null);
+      return;
+    }
+    if (vista === "ingresar" && editRow) {
+      headerBack.setStep({
+        onBack: () => {
+          setEditRow(null);
+          setVista("listado");
+        },
+        destinationLabel: "Listado de documentos",
+      });
+      return () => headerBack.setStep(null);
+    }
+    headerBack.setStep({
+      onBack: volverMenu,
+      destinationLabel: "Ingresos por ventas",
+    });
+    return () => headerBack.setStep(null);
+  }, [vista, editRow, volverMenu, headerBack]);
 
   if (vista === "ingresar") {
     return (

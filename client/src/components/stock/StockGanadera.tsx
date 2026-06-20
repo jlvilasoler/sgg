@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   fetchStockGanaderaDispositivos,
 } from "../../api";
+import { useHeaderBackStep } from "../../header-back";
 import type { DispositivoEstado, StockGanaderaDispositivo } from "../../types";
 import { fmtDate } from "../../utils";
 import TablePagination, {
@@ -109,6 +110,8 @@ export default function StockGanadera({
   const [editarDispositivo, setEditarDispositivo] =
     useState<StockGanaderaDispositivo | null>(null);
   const [detalleClave, setDetalleClave] = useState<string | null>(null);
+  const volverDetalle = useCallback(() => setDetalleClave(null), []);
+  useHeaderBackStep(!!detalleClave, volverDetalle, "Stock Ganadero");
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<PageSize>(30);

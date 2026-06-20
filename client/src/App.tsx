@@ -13,7 +13,7 @@ import { DEFAULT_CATALOGOS } from "./constants";
 import type { AuthUser, Catalogos, Presupuesto } from "./types";
 import type { TabId } from "./components/Header";
 import HomeMenu, { type ScreenId } from "./components/HomeMenu";
-import MainHeader from "./components/MainHeader";
+import MainHeaderNav from "./components/MainHeaderNav";
 import AppFooter from "./components/AppFooter";
 import LoginScreen from "./components/LoginScreen";
 import Usuarios from "./components/Usuarios";
@@ -29,6 +29,7 @@ import StockGanadero from "./components/stock/StockGanadero";
 import StockMovimientosAuditoria from "./components/stock/StockMovimientosAuditoria";
 import ChatInterno from "./components/ChatInterno";
 import ConfirmDialogHost from "./components/ConfirmDialogHost";
+import { HeaderBackProvider } from "./header-back";
 import { canAccessScreen, canAccessStockMovimientos, canAccessUsuarioActividad } from "./utils/auth-permissions";
 import { showToast } from "./utils/toast";
 
@@ -37,6 +38,7 @@ export default function App() {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
   const [screen, setScreen] = useState<ScreenId>("home");
+  const [navHistory, setNavHistory] = useState<ScreenId[]>([]);
   const [catalogos, setCatalogos] = useState<Catalogos>(DEFAULT_CATALOGOS);
   const [apiOnline, setApiOnline] = useState(false);
   const [booting, setBooting] = useState(true);
@@ -45,7 +47,9 @@ export default function App() {
   const [listKey, setListKey] = useState(0);
   const hadUserRef = useRef(false);
   const screenRef = useRef<ScreenId>("home");
+  const navHistoryRef = useRef<ScreenId[]>([]);
   screenRef.current = screen;
+  navHistoryRef.current = navHistory;
 
   const notify = useCallback((msg: string, ok = true, title?: string) => {
     showToast(msg, ok, title);
@@ -110,6 +114,8 @@ export default function App() {
     const onUnauthorized = () => {
       const wasLoggedIn = hadUserRef.current;
       setUser(null);
+      setNavHistory([]);
+      navHistoryRef.current = [];
       setScreen("home");
       setEditRow(null);
       hadUserRef.current = false;
@@ -122,9 +128,29 @@ export default function App() {
   }, [notify]);
 
   const goHome = () => {
+    navHistoryRef.current = [];
+    setNavHistory([]);
     setScreen("home");
     setEditRow(null);
     registrarPantallaActividad("home");
+  };
+
+  const goBackScreen = () => {
+    const h = navHistoryRef.current;
+    if (h.length === 0) return;
+    const prev = h[h.length - 1]!;
+    const next = h.slice(0, -1);
+    navHistoryRef.current = next;
+    setNavHistory(next);
+    setScreen(prev);
+    if (prev !== "registro") setEditRow(null);
+    registrarPantallaActividad(prev);
+  };
+
+  const pushNavHistory = () => {
+    const next = [...navHistoryRef.current, screenRef.current];
+    navHistoryRef.current = next;
+    setNavHistory(next);
   };
 
   const navigate = (id: TabId) => {
@@ -146,6 +172,7 @@ export default function App() {
       notify("No tenés permiso para acceder a ese módulo", false);
       return;
     }
+    if (screenRef.current !== id) pushNavHistory();
     setScreen(id);
     if (id !== "registro") setEditRow(null);
     registrarPantallaActividad(id);
@@ -153,6 +180,8 @@ export default function App() {
 
   const onLogin = (u: AuthUser) => {
     setUser(u);
+    navHistoryRef.current = [];
+    setNavHistory([]);
     setScreen("home");
     void (async () => {
       try {
@@ -172,6 +201,8 @@ export default function App() {
       /* cerrar sesión local aunque falle la API */
     }
     setUser(null);
+    navHistoryRef.current = [];
+    setNavHistory([]);
     setScreen("home");
     setEditRow(null);
     setCatalogos(DEFAULT_CATALOGOS);
@@ -190,8 +221,10 @@ export default function App() {
   };
 
   const onEdit = (row: Presupuesto) => {
+    if (screenRef.current !== "registro") pushNavHistory();
     setEditRow(row);
     setScreen("registro");
+    registrarPantallaActividad("registro");
   };
 
   if (booting || !authChecked) {
@@ -223,21 +256,27 @@ export default function App() {
   }
 
   return (
-    <div className="app-shell">
-      <MainHeader
-        user={user}
-        onHome={goHome}
-        onLogout={() => void onLogout()}
-        onUserUpdated={setUser}
-        onPasswordChanged={(msg) => {
-          setUser(null);
-          setScreen("home");
-          setEditRow(null);
-          hadUserRef.current = false;
-          notify(msg, true, "Contraseña actualizada");
-        }}
-        onError={(m) => notify(m, false)}
-      />
+    <HeaderBackProvider>
+      <div className="app-shell">
+        <MainHeaderNav
+          user={user}
+          screen={screen}
+          navHistory={navHistory}
+          onHome={goHome}
+          onGoBackScreen={goBackScreen}
+          onLogout={() => void onLogout()}
+          onUserUpdated={setUser}
+          onPasswordChanged={(msg) => {
+            setUser(null);
+            navHistoryRef.current = [];
+            setNavHistory([]);
+            setScreen("home");
+            setEditRow(null);
+            hadUserRef.current = false;
+            notify(msg, true, "Contraseña actualizada");
+          }}
+          onError={(m) => notify(m, false)}
+        />
 
       <div className="layout-content">
         {screen === "home" ? (
@@ -355,7 +394,7 @@ export default function App() {
               />
             )}
             {screen === "chat" && (
-              <ChatInterno user={user} variant="page" onClose={goHome} />
+              <ChatInterno user={user} variant="page" onClose={goBackScreen} />
             )}
           </main>
         )}
@@ -364,5 +403,6 @@ export default function App() {
       <AppFooter apiOnline={apiOnline} />
       <ConfirmDialogHost />
     </div>
+    </HeaderBackProvider>
   );
 }

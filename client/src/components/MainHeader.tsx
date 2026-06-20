@@ -11,6 +11,9 @@ import type { AuthUser } from "../types";
 interface Props {
   user: AuthUser;
   onHome: () => void;
+  showBack?: boolean;
+  onBack?: () => void;
+  backTitle?: string;
   onLogout: () => void;
   onUserUpdated?: (user: AuthUser) => void;
   onPasswordChanged?: (message: string) => void;
@@ -20,6 +23,9 @@ interface Props {
 export default function MainHeader({
   user,
   onHome,
+  showBack = false,
+  onBack,
+  backTitle,
   onLogout,
   onUserUpdated,
   onPasswordChanged,
@@ -79,28 +85,51 @@ export default function MainHeader({
               </span>
             )}
 
-            <button
-              type="button"
-              className={`main-header-chat-btn${chatOpen ? " main-header-chat-btn--active" : ""}`}
-              onClick={() => setChatOpen((v) => !v)}
-              title="Chat interno (clic para abrir/cerrar)"
-              aria-label={`Chat interno${chatUnread > 0 ? `, ${chatUnread} sin leer` : ""}`}
-            >
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden>
-                <path
-                  d="M5 18.5V8.8a2.2 2.2 0 0 1 2.2-2.2h9.6A2.2 2.2 0 0 1 19 8.8v5.4a2.2 2.2 0 0 1-2.2 2.2H9.5L5 18.5Z"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                  strokeLinejoin="round"
-                />
-                <path d="M8.5 10h7M8.5 13h4.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-              </svg>
-              {chatUnread > 0 && (
-                <span className="main-header-chat-badge">
-                  {chatUnread > 99 ? "99+" : chatUnread}
-                </span>
+            <div className="main-header-actions">
+              {showBack && onBack && (
+                <button
+                  type="button"
+                  className="main-header-back-btn"
+                  onClick={onBack}
+                  title={backTitle ? `Volver a ${backTitle}` : "Volver a la pantalla anterior"}
+                  aria-label={backTitle ? `Volver a ${backTitle}` : "Volver a la pantalla anterior"}
+                >
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
+                    <path
+                      d="M15 18l-6-6 6-6"
+                      stroke="currentColor"
+                      strokeWidth="2.2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                  <span className="main-header-back-label">Volver</span>
+                </button>
               )}
-            </button>
+
+              <button
+                type="button"
+                className={`main-header-chat-btn${chatOpen ? " main-header-chat-btn--active" : ""}`}
+                onClick={() => setChatOpen((v) => !v)}
+                title="Chat interno (clic para abrir/cerrar)"
+                aria-label={`Chat interno${chatUnread > 0 ? `, ${chatUnread} sin leer` : ""}`}
+              >
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden>
+                  <path
+                    d="M5 18.5V8.8a2.2 2.2 0 0 1 2.2-2.2h9.6A2.2 2.2 0 0 1 19 8.8v5.4a2.2 2.2 0 0 1-2.2 2.2H9.5L5 18.5Z"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinejoin="round"
+                  />
+                  <path d="M8.5 10h7M8.5 13h4.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                </svg>
+                {chatUnread > 0 && (
+                  <span className="main-header-chat-badge">
+                    {chatUnread > 99 ? "99+" : chatUnread}
+                  </span>
+                )}
+              </button>
+            </div>
 
             <div className="main-header-user-panel">
               <button
@@ -127,7 +156,7 @@ export default function MainHeader({
 
               <button
                 type="button"
-                className="main-header-user-logout"
+                className="main-header-panel-action main-header-panel-action--logout"
                 onClick={onLogout}
                 title="Cerrar sesión"
               >
