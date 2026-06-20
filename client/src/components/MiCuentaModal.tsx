@@ -6,6 +6,7 @@ import {
   validatePasswordStrength,
 } from "../utils/password-policy";
 import UserAvatar from "./UserAvatar";
+import PasswordVisibilityToggle from "./PasswordVisibilityToggle";
 
 interface Props {
   user: AuthUser;
@@ -33,6 +34,7 @@ export default function MiCuentaModal({
   const [confirmar, setConfirmar] = useState("");
   const [showActual, setShowActual] = useState(false);
   const [showNueva, setShowNueva] = useState(false);
+  const [showConfirmar, setShowConfirmar] = useState(false);
   const [savingPw, setSavingPw] = useState(false);
   const [savingFoto, setSavingFoto] = useState(false);
   const [fotoAmpliada, setFotoAmpliada] = useState(false);
@@ -62,6 +64,7 @@ export default function MiCuentaModal({
     setConfirmar("");
     setShowActual(false);
     setShowNueva(false);
+    setShowConfirmar(false);
   };
 
   const handleClose = () => {
@@ -230,7 +233,7 @@ export default function MiCuentaModal({
 
           <div className="field">
             <label htmlFor="pw-actual">Contraseña actual</label>
-            <div className="cambiar-pw-input-wrap">
+            <div className="password-field-row">
               <input
                 id="pw-actual"
                 type={showActual ? "text" : "password"}
@@ -239,21 +242,16 @@ export default function MiCuentaModal({
                 disabled={busy}
                 onChange={(e) => setActual(e.target.value)}
               />
-              <button
-                type="button"
-                className="auth-login-toggle-pw cambiar-pw-toggle"
-                onClick={() => setShowActual((v) => !v)}
-                tabIndex={-1}
-                aria-label={showActual ? "Ocultar contraseña" : "Mostrar contraseña"}
-              >
-                {showActual ? "Ocultar" : "Ver"}
-              </button>
+              <PasswordVisibilityToggle
+                visible={showActual}
+                onToggle={() => setShowActual((v) => !v)}
+              />
             </div>
           </div>
 
           <div className="field">
             <label htmlFor="pw-nueva">Nueva contraseña</label>
-            <div className="cambiar-pw-input-wrap">
+            <div className="password-field-row">
               <input
                 id="pw-nueva"
                 type={showNueva ? "text" : "password"}
@@ -262,28 +260,29 @@ export default function MiCuentaModal({
                 disabled={busy}
                 onChange={(e) => setNueva(e.target.value)}
               />
-              <button
-                type="button"
-                className="auth-login-toggle-pw cambiar-pw-toggle"
-                onClick={() => setShowNueva((v) => !v)}
-                tabIndex={-1}
-                aria-label={showNueva ? "Ocultar contraseña" : "Mostrar contraseña"}
-              >
-                {showNueva ? "Ocultar" : "Ver"}
-              </button>
+              <PasswordVisibilityToggle
+                visible={showNueva}
+                onToggle={() => setShowNueva((v) => !v)}
+              />
             </div>
           </div>
 
           <div className="field">
             <label htmlFor="pw-confirmar">Confirmar nueva contraseña</label>
-            <input
-              id="pw-confirmar"
-              type={showNueva ? "text" : "password"}
-              autoComplete="new-password"
-              value={confirmar}
-              disabled={busy}
-              onChange={(e) => setConfirmar(e.target.value)}
-            />
+            <div className="password-field-row">
+              <input
+                id="pw-confirmar"
+                type={showConfirmar ? "text" : "password"}
+                autoComplete="new-password"
+                value={confirmar}
+                disabled={busy}
+                onChange={(e) => setConfirmar(e.target.value)}
+              />
+              <PasswordVisibilityToggle
+                visible={showConfirmar}
+                onToggle={() => setShowConfirmar((v) => !v)}
+              />
+            </div>
           </div>
 
           <p className="cambiar-pw-note muted">

@@ -13769,6 +13769,28 @@ select optgroup {
   line-height: 1.4;
 }
 
+.password-field-row {
+  display: flex;
+  align-items: stretch;
+  gap: 0.4rem;
+}
+
+.password-field-row input {
+  flex: 1;
+  min-width: 0;
+}
+
+.password-field-row input[type="password"],
+.password-field-row input[type="text"] {
+  padding-right: 0.55rem;
+}
+
+/* Ocultar el "Ver" nativo del navegador (Edge/Chrome en español) */
+.password-field-row input[type="password"]::-ms-reveal,
+.password-field-row input[type="password"]::-ms-clear {
+  display: none;
+}
+
 .cambiar-pw-input-wrap {
   position: relative;
   display: flex;
@@ -13777,18 +13799,39 @@ select optgroup {
 
 .cambiar-pw-input-wrap input {
   width: 100%;
-  padding-right: 2.5rem;
+  padding-right: 2.75rem;
 }
 
-.cambiar-pw-toggle {
-  position: absolute;
-  right: 0.25rem;
-  top: 50%;
-  transform: translateY(-50%);
-  font-size: 0.68rem !important;
-  font-weight: 600;
-  min-width: 2.4rem;
-  padding: 0.2rem 0.35rem !important;
+.password-visibility-toggle {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  min-height: 2.35rem;
+  padding: 0;
+  border: 1px solid var(--border, #d8dce2);
+  border-radius: 4px;
+  background: var(--surface, #fff);
+  color: #5c6678;
+  cursor: pointer;
+}
+
+.password-visibility-toggle:hover {
+  color: #1e3d2a;
+  border-color: #b8c0cc;
+  background: #f7f8fa;
+}
+
+.password-visibility-toggle:focus-visible {
+  outline: 2px solid var(--bn-gold, #f0b90b);
+  outline-offset: 1px;
+}
+
+.password-visibility-toggle svg {
+  display: block;
+  flex-shrink: 0;
+  pointer-events: none;
 }
 
 .cambiar-pw-note {
