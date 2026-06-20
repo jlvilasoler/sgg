@@ -409,7 +409,7 @@ export default function App() {
         )}
       </div>
 
-      <AppFooter apiOnline={apiOnline} />
+      <AppFooter />
       <ConfirmDialogHost />
     </div>
     </HeaderBackProvider>
