@@ -8,6 +8,7 @@ import multer from "multer";
 import path from "path";
 import { fileURLToPath } from "url";
 import * as db from "./database.js";
+import { closePool, dbCapacityHint, isDbCapacityError } from "./db/pg-client.js";
 import {
   apiRateLimiter,
   authMiddleware,
@@ -132,6 +133,9 @@ app.use(async (req, res, next) => {
           ? "Contraseña o usuario incorrectos en DATABASE_URL. Usuario pooler: postgres.mxcrpumaadtixlmnlgmj (no solo postgres). Reseteá la contraseña en Supabase → Database y pegá la URI completa."
           : lastDbInitError?.includes("Transaction pooler")
           ? lastDbInitError
+          : lastDbInitError?.includes("EMAXCONN") ||
+              lastDbInitError?.includes("max clients reached")
+            ? dbCapacityHint()
           : "Revisá que DATABASE_URL sea la del pooler (6543) y que el proyecto Supabase esté activo.";
     res.status(503).json({
       ok: false,
@@ -2643,17 +2647,51 @@ export default app;
 
 app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
   console.error("[SGG] Error no capturado:", err);
-  if (!res.headersSent) {
-    res.status(500).json({
+  if (res.headersSent) return;
+  if (isDbCapacityError(err)) {
+    res.status(503).json({
       ok: false,
-      error: err instanceof Error ? err.message : "Error interno del servidor",
+      error: "Base de datos saturada",
+      hint: dbCapacityHint(),
+      detail: err instanceof Error ? err.message : String(err),
     });
+    return;
   }
+  res.status(500).json({
+    ok: false,
+    error: err instanceof Error ? err.message : "Error interno del servidor",
+  });
 });
 
+async function shutdownPool(signal: string): Promise<void> {
+  console.info(`[SGG] ${signal}: cerrando pool de DB…`);
+  try {
+    await closePool();
+  } catch {
+    /* ignore */
+  }
+}
+
 if (!IS_VERCEL) {
-  app.listen(PORT, HOST, () => {
+  for (const signal of ["SIGINT", "SIGTERM"] as const) {
+    process.once(signal, () => {
+      void shutdownPool(signal).finally(() => process.exit(0));
+    });
+  }
+}
+
+if (!IS_VERCEL) {
+  const server = app.listen(PORT, HOST, () => {
     const label = IS_PROD ? "SAG producción" : "API SAG";
     console.log(`${label}: http://${HOST === "0.0.0.0" ? "127.0.0.1" : HOST}:${PORT}`);
+  });
+  server.on("error", (err: NodeJS.ErrnoException) => {
+    if (err.code === "EADDRINUSE") {
+      console.error(
+        `[SGG] Puerto ${PORT} en uso. Cerrá la otra instancia de npm run dev antes de reiniciar.`
+      );
+      process.exit(1);
+    }
+    throw err;
   });
 }

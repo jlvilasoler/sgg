@@ -9,6 +9,7 @@ import {
   resolveUserAvatarFilePath,
   saveUserAvatarFoto,
 } from "./user-avatar-db.js";
+import { dbCapacityHint, isDbCapacityError } from "./db/pg-client.js";
 import type { StockMovimientoTipo } from "./stock-auditoria-db.js";
 import { getDb, stockAuditoria } from "./database.js";
 import {
@@ -247,6 +248,15 @@ export function registerAuthRoutes(app: Express): void {
       res.json({ ok: true, data: result.user });
     } catch (e) {
       console.error("[SGG Auth] Error en login:", e);
+      if (isDbCapacityError(e)) {
+        res.status(503).json({
+          ok: false,
+          error: "Base de datos saturada",
+          hint: dbCapacityHint(),
+          detail: e instanceof Error ? e.message : String(e),
+        });
+        return;
+      }
       res.status(500).json({
         ok: false,
         error: "Error al iniciar sesión",

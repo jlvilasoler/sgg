@@ -135,13 +135,11 @@ export async function initDb(): Promise<void> {
     } else if (!existing) {
       console.warn("[SGG] Init en curso en otra instancia; omitiendo seeds pesados");
     }
-    await Promise.all([
-      auth.initAuthTables(db),
-      chat.initChatTables(db),
-      stock.initStockGanaderoTables(db),
-      stockAud.initStockAuditoriaTable(db),
-      pgan.initPreciosGanadoTable(db),
-    ]);
+    await auth.initAuthTables(db);
+    await chat.initChatTables(db);
+    await stock.initStockGanaderoTables(db);
+    await stockAud.initStockAuditoriaTable(db);
+    await pgan.initPreciosGanadoTable(db);
     await migratePresupuestoIngresadoPor(db);
   } finally {
     if (locked) await releaseAdvisoryLock();

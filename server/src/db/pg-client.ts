@@ -7,6 +7,32 @@ type PgPoolClient = pg.PoolClient;
 
 let pool: PgPool | null = null;
 
+export function isDbCapacityError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  return /EMAXCONN|max clients reached|too many clients|Connection terminated unexpectedly/i.test(
+    msg
+  );
+}
+
+export function dbCapacityHint(): string {
+  return (
+    "Supabase limitó las conexiones simultáneas. Detené todas las instancias de npm run dev " +
+    "(Administrador de tareas → procesos node) y volvé a iniciar una sola."
+  );
+}
+
+function poolMaxSize(connectionString: string): number {
+  const fromEnv = Number(process.env.SCG_DB_POOL_MAX);
+  if (Number.isFinite(fromEnv) && fromEnv > 0) {
+    return Math.min(10, Math.floor(fromEnv));
+  }
+  if (process.env.VERCEL === "1") return 1;
+  // Transaction pooler multiplexa; session pooler (5432) tiene límite bajo en Supabase.
+  if (/pooler\.supabase\.com:6543/i.test(connectionString)) return 5;
+  if (/pooler\.supabase\.com/i.test(connectionString)) return 3;
+  return 5;
+}
+
 export function getPool(): PgPool {
   if (!pool) {
     const raw = process.env.DATABASE_URL?.trim();
@@ -17,14 +43,21 @@ export function getPool(): PgPool {
     }
     const connectionString = normalizeDatabaseUrl(raw);
     const useSsl = !connectionString.includes("localhost");
+    const max = poolMaxSize(connectionString);
     pool = new Pool({
       connectionString,
       ssl: useSsl ? { rejectUnauthorized: false } : false,
-      max: process.env.VERCEL ? 1 : 10,
-      idleTimeoutMillis: process.env.VERCEL ? 0 : 10_000,
-      allowExitOnIdle: Boolean(process.env.VERCEL),
-      connectionTimeoutMillis: process.env.VERCEL ? 60_000 : 15_000,
+      max,
+      idleTimeoutMillis: process.env.VERCEL === "1" ? 0 : 8_000,
+      allowExitOnIdle: true,
+      connectionTimeoutMillis: process.env.VERCEL === "1" ? 60_000 : 15_000,
     });
+    pool.on("error", (err) => {
+      console.error("[SGG DB] Error en pool Postgres:", err.message);
+    });
+    if (!process.env.VERCEL) {
+      console.info(`[SGG DB] Pool Postgres max=${max}`);
+    }
   }
   return pool;
 }
@@ -46,12 +79,17 @@ function normalizeDatabaseUrl(url: string): string {
   // sslmode en la URL fuerza verificación de certificado y falla con Supabase pooler.
   u = u.replace(/([?&])sslmode=[^&]*/gi, "$1").replace(/\?&/, "?").replace(/[?&]$/, "");
 
-  // Session pooler (5432): transacciones e init largos. Transaction (6543) cuelga en Vercel y en dev local.
-  if (/pooler\.supabase\.com:6543/i.test(u)) {
+  // Transaction pooler (6543): multiplexa conexiones — recomendado por Supabase.
+  // Session pooler (5432 en pooler): límite ~15 conexiones; solo con SCG_DB_SESSION=1.
+  if (/pooler\.supabase\.com:6543/i.test(u) && process.env.SCG_DB_SESSION === "1") {
     u = u.replace(":6543", ":5432");
   }
 
   u = u.replace(/([?&])pgbouncer=[^&]*/gi, "$1").replace(/\?&/, "?").replace(/[?&]$/, "");
+
+  if (/pooler\.supabase\.com:6543/i.test(u) && !/[?&]pgbouncer=/i.test(u)) {
+    u += `${u.includes("?") ? "&" : "?"}pgbouncer=true`;
+  }
 
   if (/pooler\.supabase\.com/i.test(u) && /^postgres(?:ql)?:\/\/postgres:/i.test(u)) {
     throw new Error(
