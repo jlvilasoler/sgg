@@ -4,6 +4,7 @@ import MiCuentaModal from "./MiCuentaModal";
 import UserAvatar from "./UserAvatar";
 import ChatPanel from "./ChatPanel";
 import { fetchChatUnread } from "../api";
+import { canAccessChat } from "../utils/auth-permissions";
 import { playChatNotificationSound } from "../utils/chat-notification-sound";
 import { APP_FULL_NAME, APP_NAME } from "../brand";
 import type { AuthUser } from "../types";
@@ -62,6 +63,7 @@ export default function MainHeader({
   }, [syncToastOffset]);
 
   const refreshUnread = useCallback(async () => {
+    if (!canAccessChat(user)) return;
     try {
       const data = await fetchChatUnread();
       if (unreadInitializedRef.current && !chatOpenRef.current && data.total > prevUnreadRef.current) {
@@ -73,13 +75,20 @@ export default function MainHeader({
     } catch {
       /* silencioso */
     }
-  }, []);
+  }, [user]);
 
   useEffect(() => {
+    if (!canAccessChat(user)) {
+      setChatOpen(false);
+      setChatUnread(0);
+      return;
+    }
     void refreshUnread();
     const id = window.setInterval(() => void refreshUnread(), 20000);
     return () => window.clearInterval(id);
-  }, [refreshUnread]);
+  }, [refreshUnread, user]);
+
+  const showChat = canAccessChat(user);
 
   const handlePasswordSuccess = (message: string) => {
     setCuentaModalOpen(false);
@@ -129,28 +138,30 @@ export default function MainHeader({
                 </button>
               )}
 
-              <button
-                type="button"
-                className={`main-header-chat-btn${chatOpen ? " main-header-chat-btn--active" : ""}`}
-                onClick={() => setChatOpen((v) => !v)}
-                title="Chat interno (clic para abrir/cerrar)"
-                aria-label={`Chat interno${chatUnread > 0 ? `, ${chatUnread} sin leer` : ""}`}
-              >
-                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden>
-                  <path
-                    d="M5 18.5V8.8a2.2 2.2 0 0 1 2.2-2.2h9.6A2.2 2.2 0 0 1 19 8.8v5.4a2.2 2.2 0 0 1-2.2 2.2H9.5L5 18.5Z"
-                    stroke="currentColor"
-                    strokeWidth="1.8"
-                    strokeLinejoin="round"
-                  />
-                  <path d="M8.5 10h7M8.5 13h4.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-                </svg>
-                {chatUnread > 0 && (
-                  <span className="main-header-chat-badge">
-                    {chatUnread > 99 ? "99+" : chatUnread}
-                  </span>
-                )}
-              </button>
+              {showChat && (
+                <button
+                  type="button"
+                  className={`main-header-chat-btn${chatOpen ? " main-header-chat-btn--active" : ""}`}
+                  onClick={() => setChatOpen((v) => !v)}
+                  title="Chat interno (clic para abrir/cerrar)"
+                  aria-label={`Chat interno${chatUnread > 0 ? `, ${chatUnread} sin leer` : ""}`}
+                >
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden>
+                    <path
+                      d="M5 18.5V8.8a2.2 2.2 0 0 1 2.2-2.2h9.6A2.2 2.2 0 0 1 19 8.8v5.4a2.2 2.2 0 0 1-2.2 2.2H9.5L5 18.5Z"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinejoin="round"
+                    />
+                    <path d="M8.5 10h7M8.5 13h4.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                  </svg>
+                  {chatUnread > 0 && (
+                    <span className="main-header-chat-badge">
+                      {chatUnread > 99 ? "99+" : chatUnread}
+                    </span>
+                  )}
+                </button>
+              )}
             </div>
 
             <div className="main-header-user-panel">
@@ -204,12 +215,14 @@ export default function MainHeader({
         </div>
       </header>
 
-      <ChatPanel
-        user={user}
-        open={chatOpen}
-        onClose={() => setChatOpen(false)}
-        onUnreadChange={setChatUnread}
-      />
+      {showChat && (
+        <ChatPanel
+          user={user}
+          open={chatOpen}
+          onClose={() => setChatOpen(false)}
+          onUnreadChange={setChatUnread}
+        />
+      )}
 
       <MiCuentaModal
         user={user}

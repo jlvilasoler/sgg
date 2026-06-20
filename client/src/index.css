@@ -15026,6 +15026,16 @@ select optgroup {
   background: #fffdf6;
 }
 
+.usuarios-roles-modulo--locked {
+  cursor: default;
+  opacity: 0.92;
+}
+
+.usuarios-roles-modulo--locked.usuarios-roles-modulo--on {
+  border-color: #c8d6c8;
+  background: #f6faf6;
+}
+
 .usuarios-roles-modulo input {
   margin: 0 0 0.15rem;
   accent-color: var(--bn-gold);

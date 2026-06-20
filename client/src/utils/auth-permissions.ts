@@ -8,6 +8,8 @@ export const MODULO_LABELS: Record<Modulo, string> = {
   presupuesto: "Presupuesto y gastos",
   configuracion: "Configuración",
   divisas: "Divisas",
+  precios_ganado: "Precios de Ganado",
+  chat: "Chat interno",
   rrhh: "Recursos Humanos",
   ventas: "Ingresos por ventas",
   stock: "Stock ganadero",
@@ -20,14 +22,14 @@ const SCREEN_MODULO: Record<TabId, Modulo> = {
   resumen: "presupuesto",
   configuracion: "configuracion",
   divisas: "divisas",
-  precios_ganado: "divisas",
+  precios_ganado: "precios_ganado",
   recursos_humanos: "rrhh",
   ingresos_ventas: "ventas",
   stock_ganadero: "stock",
   stock_movimientos: "usuarios",
   registro_actividad: "usuarios",
   usuarios: "usuarios",
-  chat: "presupuesto",
+  chat: "chat",
 };
 
 export function canAccessStockMovimientos(user: AuthUser | null): boolean {
@@ -38,17 +40,20 @@ export function canAccessUsuarioActividad(user: AuthUser | null): boolean {
   return user?.rol === "admin";
 }
 
+export function canAccessChat(user: AuthUser | null): boolean {
+  return Boolean(user?.permisos.includes("chat"));
+}
+
+export function canAccessPreciosGanado(user: AuthUser | null): boolean {
+  return Boolean(user?.permisos.includes("precios_ganado"));
+}
+
 export function moduloForScreen(screen: TabId): Modulo {
   return SCREEN_MODULO[screen];
 }
 
-export function canAccessChat(user: AuthUser | null): boolean {
-  return Boolean(user);
-}
-
 export function canAccessScreen(user: AuthUser | null, screen: TabId): boolean {
   if (!user) return false;
-  if (screen === "chat") return canAccessChat(user);
   return user.permisos.includes(moduloForScreen(screen));
 }
 

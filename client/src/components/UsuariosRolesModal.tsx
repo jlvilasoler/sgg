@@ -17,6 +17,8 @@ interface Props {
 
 const ROLES_EDITABLES: Rol[] = ["editor", "consulta"];
 
+const MODULOS_SIEMPRE_ACTIVOS: Modulo[] = ["chat", "precios_ganado"];
+
 function toInput(config: RolPermisosConfig): RolPermisosInput {
   const modulos: Partial<Record<Modulo, boolean>> = {};
   for (const m of config.modulos) {
@@ -70,7 +72,7 @@ export default function UsuariosRolesModal({
   };
 
   const toggleModulo = (modulo: Modulo, acceso: boolean) => {
-    if (!draft || modulo === "usuarios") return;
+    if (!draft || modulo === "usuarios" || MODULOS_SIEMPRE_ACTIVOS.includes(modulo)) return;
     setDraft((d) =>
       d
         ? {
@@ -180,21 +182,27 @@ export default function UsuariosRolesModal({
                     <div className="usuarios-roles-grid">
                       {activeConfig.modulos
                         .filter((m) => m.modulo !== "usuarios")
-                        .map((m) => (
+                        .map((m) => {
+                          const siempreActivo = MODULOS_SIEMPRE_ACTIVOS.includes(m.modulo);
+                          const activo = siempreActivo || Boolean(draft.modulos[m.modulo]);
+                          return (
                           <label
                             key={m.modulo}
                             className={`usuarios-roles-modulo${
-                              draft.modulos[m.modulo] ? " usuarios-roles-modulo--on" : ""
-                            }`}
+                              activo ? " usuarios-roles-modulo--on" : ""
+                            }${siempreActivo ? " usuarios-roles-modulo--locked" : ""}`}
                           >
                             <input
                               type="checkbox"
-                              checked={Boolean(draft.modulos[m.modulo])}
+                              checked={activo}
+                              disabled={siempreActivo}
                               onChange={(e) => toggleModulo(m.modulo, e.target.checked)}
                             />
                             <span className="usuarios-roles-modulo-label">{m.label}</span>
                             <span className="usuarios-roles-modulo-hint">
-                              {draft.modulos[m.modulo]
+                              {siempreActivo
+                                ? "Todos los usuarios"
+                                : activo
                                 ? activeRol === "consulta"
                                   ? "Solo lectura"
                                   : draft.puede_escribir
@@ -203,7 +211,8 @@ export default function UsuariosRolesModal({
                                 : "Sin acceso"}
                             </span>
                           </label>
-                        ))}
+                        );
+                        })}
                     </div>
                   </>
                 )

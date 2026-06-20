@@ -490,6 +490,8 @@ export type Modulo =
   | "presupuesto"
   | "configuracion"
   | "divisas"
+  | "precios_ganado"
+  | "chat"
   | "rrhh"
   | "ventas"
   | "stock"

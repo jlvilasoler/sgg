@@ -111,7 +111,6 @@ interface Props {
 
 export default function HomeMenu({ user, onOpen }: Props) {
   const apps = MENU_APPS.filter((app) => {
-    if (app.id === "chat") return true;
     if (app.id === "stock_movimientos") return canAccessStockMovimientos(user);
     if (app.id === "registro_actividad") return canAccessUsuarioActividad(user);
     return canAccessScreen(user, app.id);

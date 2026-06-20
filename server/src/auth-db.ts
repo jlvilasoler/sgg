@@ -22,6 +22,8 @@ export type Modulo =
   | "presupuesto"
   | "configuracion"
   | "divisas"
+  | "precios_ganado"
+  | "chat"
   | "rrhh"
   | "ventas"
   | "stock"
@@ -31,6 +33,8 @@ export const MODULOS: Modulo[] = [
   "presupuesto",
   "configuracion",
   "divisas",
+  "precios_ganado",
+  "chat",
   "rrhh",
   "ventas",
   "stock",
@@ -48,6 +52,8 @@ export const MODULO_LABELS: Record<Modulo, string> = {
   presupuesto: "Presupuesto y gastos",
   configuracion: "Configuración",
   divisas: "Divisas",
+  precios_ganado: "Precios de Ganado",
+  chat: "Chat interno",
   rrhh: "Recursos Humanos",
   ventas: "Ingresos por ventas",
   stock: "Stock ganadero",
@@ -145,6 +151,8 @@ const GESTOR_N2_MODULOS: Modulo[] = [
   "presupuesto",
   "configuracion",
   "divisas",
+  "precios_ganado",
+  "chat",
   "rrhh",
   "stock",
 ];
@@ -356,6 +364,7 @@ export async function initAuthTables(db: Db): Promise<void> {
   await migrateGestorN2Role(db);
   await seedRolePermissionsIfEmpty(db);
   await ensureGestorN2RolePermissions(db);
+  await migrateModulosPreciosGanadoYChat(db);
   await purgeExpiredSessions(db);
   await seedAdminIfEmpty(db);
   await migrateLegacyAdmin(db);
@@ -417,6 +426,27 @@ async function ensureGestorN2RolePermissions(db: Db): Promise<void> {
   console.info("[SGG Auth] Permisos por defecto creados para Gestor N2");
 }
 
+/** chat y precios_ganado: acceso para todos los roles (política del sistema). */
+const MODULOS_TODOS_LOS_USUARIOS: Modulo[] = ["chat", "precios_ganado"];
+
+async function migrateModulosPreciosGanadoYChat(db: Db): Promise<void> {
+  const upsert = await db.prepare(
+    `INSERT INTO ROLE_PERMISOS (rol, modulo, acceso)
+     VALUES (?, ?, 1)
+     ON CONFLICT (rol, modulo) DO UPDATE SET acceso = 1`
+  );
+
+  for (const modulo of MODULOS_TODOS_LOS_USUARIOS) {
+    for (const rol of ALL_ROLES) {
+      await upsert.run(rol, modulo);
+    }
+  }
+
+  console.info(
+    "[SGG Auth] Chat y Precios de Ganado habilitados para todos los roles"
+  );
+}
+
 async function seedRolePermissionsIfEmpty(db: Db): Promise<void> {
   const count = (await db
     .prepare("SELECT COUNT(*) AS n FROM ROLE_ESCRITURA")
@@ -460,7 +490,10 @@ export async function listRolePermissions(db: Db): Promise<RolPermisosConfig[]> 
       modulos: MODULOS.map((modulo) => ({
         modulo,
         label: MODULO_LABELS[modulo],
-        acceso: rol === "admin" ? true : (accesoMap.get(modulo) ?? false),
+        acceso:
+          rol === "admin" || MODULOS_TODOS_LOS_USUARIOS.includes(modulo)
+            ? true
+            : (accesoMap.get(modulo) ?? false),
       })),
       editable: rol !== "admin",
     });
@@ -490,6 +523,11 @@ export async function updateRolePermissions(
   for (const modulo of MODULOS) {
     if (modulo === "usuarios" || (rol === "gestor_n2" && modulo === "ventas")) {
       await upsert.run(rol, modulo, 0);
+      continue;
+    }
+    if (MODULOS_TODOS_LOS_USUARIOS.includes(modulo)) {
+      await upsert.run(rol, modulo, 1);
+      enabledCount += 1;
       continue;
     }
     const acceso = Boolean(modulosInput[modulo]);
