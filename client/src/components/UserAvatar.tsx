@@ -72,6 +72,7 @@ export default function UserAvatar({
       <span className={circleClass(resolvedVariant, showFoto)}>
         {showFoto ? (
           <img
+            key={av.url}
             src={av.url!}
             alt=""
             className="user-avatar-img"

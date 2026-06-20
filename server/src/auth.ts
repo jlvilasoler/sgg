@@ -332,8 +332,9 @@ export function registerAuthRoutes(app: Express): void {
       res.status(400).json({ ok: false, error: "ID inválido" });
       return;
     }
-    if (user.id !== userId && user.rol !== "admin") {
-      res.status(403).json({ ok: false, error: "Sin permiso" });
+    const target = await authDb.getUserById(getDb(), userId);
+    if (!target?.activo) {
+      res.status(404).json({ ok: false, error: "Usuario no encontrado" });
       return;
     }
     const filePath = await resolveUserAvatarFilePath(getDb(), userId);
