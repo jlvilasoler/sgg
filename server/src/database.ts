@@ -3,6 +3,7 @@ import type { Presupuesto, PresupuestoInput, ResumenEmpresa, ResumenRubro } from
 import { EMPRESAS } from "./types.js";
 import * as prov from "./proveedores-db.js";
 import * as div from "./divisas-db.js";
+import * as pgan from "./precios-ganado-db.js";
 import * as rub from "./rubros-db.js";
 import * as resp from "./responsables-db.js";
 import * as sub from "./sub-rubros-db.js";
@@ -139,6 +140,7 @@ export async function initDb(): Promise<void> {
       chat.initChatTables(db),
       stock.initStockGanaderoTables(db),
       stockAud.initStockAuditoriaTable(db),
+      pgan.initPreciosGanadoTable(db),
     ]);
     await migratePresupuestoIngresadoPor(db);
   } finally {
@@ -193,6 +195,28 @@ export const divisas = {
     div.importBatch(db, rows, options),
   labels: div.PAR_LABELS,
   pares: div.PARES_DIVISA,
+};
+
+export const preciosGanado = {
+  list: (filters?: Parameters<typeof pgan.listPreciosGanado>[1]) =>
+    pgan.listPreciosGanado(db, filters),
+  ultimaSemana: (segmento: pgan.SegmentoPreciosGanado) =>
+    pgan.getUltimaSemanaGuardada(db, segmento),
+  semanaGuardada: (
+    segmento: pgan.SegmentoPreciosGanado,
+    anio: number,
+    semana: number
+  ) => pgan.semanaYaGuardada(db, segmento, anio, semana),
+  pivotSemanas: (rows: pgan.PrecioGanado[]) => pgan.pivotSemanas(rows),
+  resumenLocal: (segmento: pgan.SegmentoPreciosGanado) =>
+    pgan.getResumenLocal(db, segmento),
+  registrarSync: (input: Parameters<typeof pgan.registrarSyncPreciosGanado>[1]) =>
+    pgan.registrarSyncPreciosGanado(db, input),
+  importBatch: (rows: pgan.PrecioGanadoInput[], options?: { solo_nuevos?: boolean }) =>
+    pgan.importBatchPreciosGanado(db, rows, options),
+  categoriasPorSegmento: pgan.categoriasPorSegmento,
+  labelsPorSegmento: pgan.labelsPorSegmento,
+  segmentos: pgan.SEGMENTOS_PRECIOS_GANADO,
 };
 
 export const ventaSubRubros = {

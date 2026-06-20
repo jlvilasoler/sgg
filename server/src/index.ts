@@ -22,6 +22,10 @@ import { parseDivisasBuffer, parseDivisasText } from "./parse-divisas-file.js";
 import { fetchBcuUsdUyu } from "./bcu-usd-uyu.js";
 import { fetchYahooUsdBrl } from "./yahoo-usd-brl.js";
 import { fetchInvestingUsdUyu } from "./investing-usd-uyu.js";
+import { parseAcgGanadoGordoHtml } from "./acg-ganado-gordo.js";
+import { parseAcgGanadoReposicionHtml } from "./acg-ganado-reposicion.js";
+import { fetchAcgHomeHtml } from "./acg-page.js";
+import type { SegmentoPreciosGanado, PrecioGanadoInput } from "./precios-ganado-db.js";
 import { normalizarTituloRubro } from "./text-normalize.js";
 import { parseStockGanaderoBuffer, parseStockGanaderoText, normalizeStockGanaderoRows } from "./parse-stock-ganadero-txt.js";
 import type { DispositivoMetaPatch } from "./stock-ganadero-db.js";
@@ -90,8 +94,8 @@ app.use(express.json({ limit: "512kb" }));
 
 app.get("/api/health", (_req, res) => {
   if (lastDbInitError) {
-    res.status(503).json({
-      ok: false,
+    res.json({
+      ok: true,
       service: "scg-api",
       database: "postgres",
       ready: false,
@@ -2347,6 +2351,153 @@ app.post("/api/divisas/import/text", async (req, res) => {
     });
   } catch (e) {
     res.status(400).json({ ok: false, error: (e as Error).message });
+  }
+});
+
+function parseSegmentoPreciosGanado(
+  raw: unknown,
+  fallback: SegmentoPreciosGanado | "ALL"
+): SegmentoPreciosGanado | "ALL" {
+  if (raw === "REPOSICION") return "REPOSICION";
+  if (raw === "GORDO") return "GORDO";
+  if (raw === "ALL") return "ALL";
+  return fallback;
+}
+
+async function importPreciosGanadoDesdeHtml(
+  html: string,
+  segmento: SegmentoPreciosGanado
+) {
+  const fetched =
+    segmento === "REPOSICION"
+      ? parseAcgGanadoReposicionHtml(html)
+      : parseAcgGanadoGordoHtml(html);
+  const { semana, rows } = fetched;
+  const precios = Object.fromEntries(rows.map((r) => [r.categoria, r.valor]));
+
+  const yaSemana = await db.preciosGanado.semanaGuardada(
+    segmento,
+    semana.anio,
+    semana.semana
+  );
+  const result = await db.preciosGanado.importBatch(rows, { solo_nuevos: false });
+
+  let resultado: "insertado" | "actualizado" | "sin_cambios" = "sin_cambios";
+  if (result.insertados > 0 && !yaSemana) resultado = "insertado";
+  else if (result.actualizados > 0) resultado = "actualizado";
+  else if (result.insertados > 0) resultado = "insertado";
+
+  await db.preciosGanado.registrarSync({
+    segmento,
+    anio: semana.anio,
+    semana: semana.semana,
+    fecha_desde: semana.fecha_desde,
+    fecha_hasta: semana.fecha_hasta,
+    precios,
+    resultado,
+    detalle:
+      resultado === "insertado"
+        ? "Semana nueva registrada."
+        : resultado === "actualizado"
+          ? "Precios actualizados."
+          : "Semana sin cambios en los valores.",
+  });
+
+  const msg =
+    resultado === "insertado"
+      ? `Semana N°${semana.semana} registrada (${result.insertados} precio(s)).`
+      : resultado === "actualizado"
+        ? `Semana N°${semana.semana} actualizada (${result.actualizados} precio(s)).`
+        : `Semana N°${semana.semana} sin cambios (${semana.fecha_desde} → ${semana.fecha_hasta}).`;
+
+  return {
+    segmento,
+    message: msg,
+    total: rows.length,
+    semana,
+    rango: { desde: semana.fecha_desde, hasta: semana.fecha_hasta },
+    ya_actualizado: resultado === "sin_cambios",
+    guardado_local: true,
+    resultado,
+    ...result,
+  };
+}
+
+app.get("/api/precios-ganado", async (req, res) => {
+  const segmento = parseSegmentoPreciosGanado(req.query.segmento, "GORDO") as SegmentoPreciosGanado;
+  const rows = await db.preciosGanado.list({
+    segmento,
+    categoria: req.query.categoria as PrecioGanadoInput["categoria"] | undefined,
+    fecha_desde: req.query.fecha_desde as string | undefined,
+    fecha_hasta: req.query.fecha_hasta as string | undefined,
+  });
+  const semanas = db.preciosGanado.pivotSemanas(rows);
+  const resumen_local = await db.preciosGanado.resumenLocal(segmento);
+  res.json({
+    ok: true,
+    segmento,
+    data: rows,
+    semanas,
+    ultima: semanas[0] ?? null,
+    resumen_local,
+    categorias: db.preciosGanado.categoriasPorSegmento(segmento),
+    labels: db.preciosGanado.labelsPorSegmento(segmento),
+  });
+});
+
+app.post("/api/precios-ganado/import/acg", async (req, res) => {
+  const body = (req.body ?? {}) as { segmento?: string };
+  const segmentoReq = parseSegmentoPreciosGanado(body.segmento, "ALL");
+
+  try {
+    const html = await fetchAcgHomeHtml();
+    const segmentos: SegmentoPreciosGanado[] =
+      segmentoReq === "ALL" ? ["GORDO", "REPOSICION"] : [segmentoReq];
+
+    const results = [];
+    for (const segmento of segmentos) {
+      results.push(await importPreciosGanadoDesdeHtml(html, segmento));
+    }
+
+    const totalInsertados = results.reduce((n, r) => n + r.insertados, 0);
+    const totalActualizados = results.reduce((n, r) => n + r.actualizados, 0);
+    const message =
+      segmentoReq === "ALL"
+        ? totalInsertados + totalActualizados > 0
+          ? "Precios actualizados."
+          : "Los precios ya están al día."
+        : results[0]!.message;
+
+    res.json({
+      ok: true,
+      message,
+      segmento: segmentoReq,
+      resultados: results,
+      insertados: totalInsertados,
+      actualizados: totalActualizados,
+      ignorados: results.reduce((n, r) => n + r.ignorados, 0),
+      sin_cambios: results.reduce((n, r) => n + r.sin_cambios, 0),
+      total: results.reduce((n, r) => n + r.total, 0),
+    });
+  } catch (e) {
+    const errMsg = (e as Error).message;
+    const segmentoError =
+      segmentoReq === "ALL" ? ("GORDO" as SegmentoPreciosGanado) : segmentoReq;
+    try {
+      await db.preciosGanado.registrarSync({
+        segmento: segmentoError,
+        anio: 0,
+        semana: 0,
+        fecha_desde: "",
+        fecha_hasta: "",
+        precios: {},
+        resultado: "error",
+        detalle: errMsg,
+      });
+    } catch {
+      /* log opcional si la tabla sync aún no existe */
+    }
+    res.status(400).json({ ok: false, error: errMsg });
   }
 });
 

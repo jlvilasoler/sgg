@@ -60,6 +60,43 @@ CREATE TABLE IF NOT EXISTS DIVISAS_TC (
   UNIQUE (fecha, par)
 );
 
+CREATE TABLE IF NOT EXISTS PRECIOS_GANADO_ACG (
+  id SERIAL PRIMARY KEY,
+  anio INTEGER NOT NULL,
+  semana INTEGER NOT NULL,
+  fecha_desde TEXT NOT NULL,
+  fecha_hasta TEXT NOT NULL,
+  segmento TEXT NOT NULL DEFAULT 'GORDO' CHECK (segmento IN ('GORDO', 'REPOSICION')),
+  categoria TEXT NOT NULL CHECK (categoria IN ('NOVILLO', 'VACA', 'VAQUILLONA', 'TERNERO', 'TERNERA', 'VACA_INVERNADA')),
+  valor DOUBLE PRECISION NOT NULL,
+  unidad TEXT NOT NULL DEFAULT 'USD_KG_CUARTA_BALANZA',
+  fuente TEXT NOT NULL DEFAULT 'ACG',
+  creado_en TIMESTAMPTZ DEFAULT NOW(),
+  actualizado_en TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (anio, semana, segmento, categoria)
+);
+
+CREATE TABLE IF NOT EXISTS PRECIOS_GANADO_ACG_SYNC (
+  id SERIAL PRIMARY KEY,
+  segmento TEXT NOT NULL DEFAULT 'GORDO' CHECK (segmento IN ('GORDO', 'REPOSICION')),
+  anio INTEGER NOT NULL,
+  semana INTEGER NOT NULL,
+  fecha_desde TEXT NOT NULL,
+  fecha_hasta TEXT NOT NULL,
+  novillo DOUBLE PRECISION,
+  vaca DOUBLE PRECISION,
+  vaquillona DOUBLE PRECISION,
+  ternero DOUBLE PRECISION,
+  ternera DOUBLE PRECISION,
+  vaca_invernada DOUBLE PRECISION,
+  resultado TEXT NOT NULL CHECK (resultado IN ('insertado', 'actualizado', 'sin_cambios', 'error')),
+  detalle TEXT NOT NULL DEFAULT '',
+  creado_en TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_precios_ganado_fecha_hasta ON PRECIOS_GANADO_ACG(fecha_hasta DESC);
+CREATE INDEX IF NOT EXISTS idx_precios_ganado_segmento ON PRECIOS_GANADO_ACG(segmento, fecha_hasta DESC);
+CREATE INDEX IF NOT EXISTS idx_precios_ganado_sync_creado ON PRECIOS_GANADO_ACG_SYNC(creado_en DESC);
+
 CREATE TABLE IF NOT EXISTS RUBROS (
   id SERIAL PRIMARY KEY,
   nombre TEXT NOT NULL,

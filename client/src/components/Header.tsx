@@ -4,6 +4,7 @@ export type TabId =
   | "resumen"
   | "configuracion"
   | "divisas"
+  | "precios_ganado"
   | "recursos_humanos"
   | "ingresos_ventas"
   | "stock_ganadero"

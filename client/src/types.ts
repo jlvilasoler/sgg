@@ -400,6 +400,65 @@ export const PAR_DIVISA_TC_LABEL: Record<ParDivisa, string> = {
   BRL_USD: "Reales brasileños por 1 USD",
 };
 
+export type CategoriaGanadoGordo = "NOVILLO" | "VACA" | "VAQUILLONA";
+export type CategoriaGanadoReposicion = "TERNERO" | "TERNERA" | "VACA_INVERNADA";
+export type CategoriaPrecioGanado = CategoriaGanadoGordo | CategoriaGanadoReposicion;
+export type SegmentoPreciosGanado = "GORDO" | "REPOSICION";
+
+export interface PrecioGanado {
+  id: number;
+  anio: number;
+  semana: number;
+  fecha_desde: string;
+  fecha_hasta: string;
+  segmento: SegmentoPreciosGanado;
+  categoria: CategoriaPrecioGanado;
+  valor: number;
+  unidad: string;
+  fuente: string;
+}
+
+export interface SemanaPreciosGanado {
+  anio: number;
+  semana: number;
+  fecha_desde: string;
+  fecha_hasta: string;
+  segmento: SegmentoPreciosGanado;
+  fuente: string;
+  precios: Partial<Record<CategoriaPrecioGanado, number>>;
+}
+
+export interface PrecioGanadoResumenLocal {
+  total_semanas: number;
+  total_registros: number;
+  ultima_sincronizacion: string | null;
+  ultima_semana_guardada: { anio: number; semana: number; fecha_hasta: string } | null;
+}
+
+export const CATEGORIA_GANADO_GORDO_LABELS: Record<CategoriaGanadoGordo, string> = {
+  NOVILLO: "Novillo",
+  VACA: "Vaca",
+  VAQUILLONA: "Vaquillona",
+};
+
+export const CATEGORIA_GANADO_REPOSICION_LABELS: Record<
+  CategoriaGanadoReposicion,
+  string
+> = {
+  TERNERO: "Ternero",
+  TERNERA: "Ternera",
+  VACA_INVERNADA: "Vaca de invernada",
+};
+
+/** @deprecated usar CATEGORIA_GANADO_GORDO_LABELS */
+export const CATEGORIA_GANADO_LABELS = CATEGORIA_GANADO_GORDO_LABELS;
+
+export const PRECIO_GANADO_GORDO_UNIDAD_LABEL = "USD/kg en cuarta balanza";
+export const PRECIO_GANADO_REPOSICION_UNIDAD_LABEL = "USD/kg en pie";
+
+/** @deprecated usar PRECIO_GANADO_GORDO_UNIDAD_LABEL */
+export const PRECIO_GANADO_UNIDAD_LABEL = PRECIO_GANADO_GORDO_UNIDAD_LABEL;
+
 export type Rol = "admin" | "editor" | "gestor_n2" | "consulta";
 
 export const ALL_ROLES: Rol[] = ["admin", "editor", "gestor_n2", "consulta"];

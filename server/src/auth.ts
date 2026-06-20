@@ -114,6 +114,7 @@ export function moduleFromApiPath(path: string): Modulo | null {
     return "configuracion";
   }
   if (p.startsWith("/api/divisas")) return "divisas";
+  if (p.startsWith("/api/precios-ganado")) return "divisas";
   if (p.startsWith("/api/funcionarios") || p.startsWith("/api/rrhh")) {
     return "rrhh";
   }

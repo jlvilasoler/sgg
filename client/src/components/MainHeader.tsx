@@ -38,6 +38,28 @@ export default function MainHeader({
   const unreadInitializedRef = useRef(false);
   const chatOpenRef = useRef(chatOpen);
   chatOpenRef.current = chatOpen;
+  const headerRef = useRef<HTMLElement>(null);
+
+  const syncToastOffset = useCallback(() => {
+    const el = headerRef.current;
+    const gap = 12;
+    const offset = el ? el.getBoundingClientRect().height + gap : 16;
+    document.documentElement.style.setProperty("--toast-top-offset", `${offset}px`);
+  }, []);
+
+  useEffect(() => {
+    const el = headerRef.current;
+    if (!el) return;
+    syncToastOffset();
+    const ro = new ResizeObserver(() => syncToastOffset());
+    ro.observe(el);
+    window.addEventListener("resize", syncToastOffset);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", syncToastOffset);
+      document.documentElement.style.setProperty("--toast-top-offset", "1rem");
+    };
+  }, [syncToastOffset]);
 
   const refreshUnread = useCallback(async () => {
     try {
@@ -68,7 +90,7 @@ export default function MainHeader({
 
   return (
     <>
-      <header className="main-header">
+      <header ref={headerRef} className="main-header">
         <div className="layout-frame main-header-inner">
           <button type="button" className="main-brand" onClick={onHome} title="Volver al menú">
             <LogoSgg className="main-brand-icon" />

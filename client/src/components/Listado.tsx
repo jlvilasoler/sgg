@@ -17,6 +17,7 @@ interface Props {
   onEdit: (row: Presupuesto) => void;
   onDeleted: () => void;
   onError: (msg: string) => void;
+  onSuccess?: (msg: string) => void;
 }
 
 const COLS_TABLA = 12;
@@ -36,7 +37,7 @@ function CeldaTexto({
   );
 }
 
-export default function Listado({ catalogos, apiOnline, onEdit, onDeleted, onError }: Props) {
+export default function Listado({ catalogos, apiOnline, onEdit, onDeleted, onError, onSuccess }: Props) {
   const [empresa, setEmpresa] = useState("");
   const [rubro, setRubro] = useState("");
   const [responsable, setResponsable] = useState("");
@@ -137,8 +138,10 @@ export default function Listado({ catalogos, apiOnline, onEdit, onDeleted, onErr
     try {
       if (formato === "excel") {
         await exportPresupuestoListadoExcel(rows);
+        onSuccess?.("Excel descargado.");
       } else {
         await exportPresupuestoListadoPdf(rows, subtituloExport);
+        onSuccess?.("PDF descargado.");
       }
     } catch (e) {
       onError(e instanceof Error ? e.message : "Error al exportar");
@@ -318,10 +321,11 @@ export default function Listado({ catalogos, apiOnline, onEdit, onDeleted, onErr
         <span className="listado-pro-export-label">Descargar</span>
         <button
           type="button"
-          className="btn btn-sm listado-pro-export-btn"
+          className="btn btn-sm listado-pro-export-btn listado-pro-export-btn--excel"
           disabled={!puedeExportar || exportando !== null}
           onClick={() => void exportar("excel")}
           title="Descargar tabla en Excel"
+          aria-label="Descargar tabla en Excel"
         >
           {exportando === "excel" ? "Exportando…" : "Excel"}
         </button>

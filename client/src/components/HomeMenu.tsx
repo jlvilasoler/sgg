@@ -43,6 +43,11 @@ export const MENU_APPS: MenuApp[] = [
     subtitle: "USD → pesos y reales",
   },
   {
+    id: "precios_ganado",
+    label: "Precios de Ganado",
+    subtitle: "Gordo y reposición (USD/kg)",
+  },
+  {
     id: "recursos_humanos",
     label: "Recursos Humanos",
     subtitle: "Funcionarios, sueldos y jornales",
@@ -85,6 +90,7 @@ const SCREEN_TITLES: Record<TabId, string> = {
   resumen: "Resumen",
   configuracion: "Configuración",
   divisas: "Divisas",
+  precios_ganado: "Precios de Ganado",
   recursos_humanos: "Recursos Humanos",
   ingresos_ventas: "Ingresos por ventas",
   stock_ganadero: "Stock Ganadero",

@@ -23,6 +23,10 @@ import type {
   TipoCambio,
   TipoCambioForm,
   DivisaIndicadores,
+  PrecioGanado,
+  SemanaPreciosGanado,
+  PrecioGanadoResumenLocal,
+  SegmentoPreciosGanado,
   StockGanaderoLote,
   StockGanaderoRegistro,
   StockGanaderoEstadisticas,
@@ -104,11 +108,15 @@ export async function checkApiHealth(): Promise<ApiHealthStatus> {
       cache: "no-store",
       signal: AbortSignal.timeout(5000),
     });
-    if (!res.ok) return { online: false, ready: false };
-    const json = (await res.json()) as { ok?: boolean; ready?: boolean };
+    let json: { ok?: boolean; ready?: boolean };
+    try {
+      json = (await res.json()) as { ok?: boolean; ready?: boolean };
+    } catch {
+      return { online: false, ready: false };
+    }
     if (json.ok !== true) return { online: false, ready: false };
-    const ready = json.ready !== false;
-    if (import.meta.env.DEV && !ready) return { online: true, ready: false };
+    const ready = json.ready === true;
+    if (!ready) return { online: true, ready: false };
     return { online: true, ready: true };
   } catch {
     return { online: false, ready: false };
@@ -1206,6 +1214,64 @@ export async function fetchDivisas(filters?: {
     ultimos: json.ultimos,
     indicadores: json.indicadores,
   };
+}
+
+export async function fetchPreciosGanado(filters?: {
+  segmento?: SegmentoPreciosGanado;
+  categoria?: string;
+  fecha_desde?: string;
+  fecha_hasta?: string;
+}): Promise<{
+  segmento: SegmentoPreciosGanado;
+  data: PrecioGanado[];
+  semanas: SemanaPreciosGanado[];
+  ultima: SemanaPreciosGanado | null;
+  resumen_local: PrecioGanadoResumenLocal;
+  categorias: string[];
+  labels: Record<string, string>;
+}> {
+  const params = new URLSearchParams();
+  if (filters) {
+    Object.entries(filters).forEach(([k, v]) => {
+      if (v) params.set(k, v);
+    });
+  }
+  const q = params.toString() ? `?${params}` : "";
+  const json = await request<{
+    segmento: SegmentoPreciosGanado;
+    data: PrecioGanado[];
+    semanas: SemanaPreciosGanado[];
+    ultima: SemanaPreciosGanado | null;
+    resumen_local: PrecioGanadoResumenLocal;
+    categorias: string[];
+    labels: Record<string, string>;
+  }>(`/precios-ganado${q}`);
+  return {
+    segmento: json.segmento,
+    data: json.data,
+    semanas: json.semanas,
+    ultima: json.ultima,
+    resumen_local: json.resumen_local,
+    categorias: json.categorias,
+    labels: json.labels,
+  };
+}
+
+export async function importPreciosGanadoAcg(options?: {
+  segmento?: SegmentoPreciosGanado | "ALL";
+}): Promise<{
+  message: string;
+  insertados: number;
+  actualizados: number;
+  ignorados: number;
+  sin_cambios?: number;
+  total: number;
+  segmento?: SegmentoPreciosGanado | "ALL";
+}> {
+  return request("/precios-ganado/import/acg", {
+    method: "POST",
+    body: JSON.stringify(options ?? { segmento: "ALL" }),
+  });
 }
 
 export async function insertDivisa(data: TipoCambioForm): Promise<void> {

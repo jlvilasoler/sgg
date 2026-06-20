@@ -20,6 +20,7 @@ const SCREEN_MODULO: Record<TabId, Modulo> = {
   resumen: "presupuesto",
   configuracion: "configuracion",
   divisas: "divisas",
+  precios_ganado: "divisas",
   recursos_humanos: "rrhh",
   ingresos_ventas: "ventas",
   stock_ganadero: "stock",

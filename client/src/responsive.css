@@ -490,7 +490,7 @@ body {
 
 /* —— Toasts en móvil —— */
 @media (max-width: 480px) {
-  #toast-container {
+  #toast-container.toast-top-right {
     left: 0.65rem !important;
     right: 0.65rem !important;
     width: auto !important;

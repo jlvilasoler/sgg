@@ -23,6 +23,7 @@ import Listado from "./components/Listado";
 import Resumen from "./components/Resumen";
 import Configuracion from "./components/Configuracion";
 import Divisas from "./components/Divisas";
+import PreciosGanado from "./components/precios-ganado/PreciosGanado";
 import RecursosHumanos from "./components/RecursosHumanos";
 import IngresosVentas from "./components/ventas/IngresosVentas";
 import StockGanadero from "./components/stock/StockGanadero";
@@ -308,6 +309,7 @@ export default function App() {
                   setListKey((k) => k + 1);
                 }}
                 onError={(m) => notify(m, false)}
+                onSuccess={(m) => notify(m, true)}
               />
             )}
             {screen === "resumen" && (
@@ -328,6 +330,13 @@ export default function App() {
             )}
             {screen === "divisas" && (
               <Divisas
+                apiOnline={apiOnline}
+                onError={(m) => notify(m, false)}
+                onSuccess={(m) => notify(m, true)}
+              />
+            )}
+            {screen === "precios_ganado" && (
+              <PreciosGanado
                 apiOnline={apiOnline}
                 onError={(m) => notify(m, false)}
                 onSuccess={(m) => notify(m, true)}

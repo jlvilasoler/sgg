@@ -1,3 +1,4 @@
+import * as XLSX from "xlsx";
 import type { Presupuesto } from "../types";
 import { empresaCorta, fmtDate, fmtNum } from "../utils";
 
@@ -36,13 +37,41 @@ function nombreArchivo(extension: "xlsx" | "pdf"): string {
   return `historial-operaciones-${hoy}.${extension}`;
 }
 
+function descargarBlob(blob: Blob, nombre: string): void {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = nombre;
+  link.rel = "noopener";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
 export async function exportPresupuestoListadoExcel(rows: Presupuesto[]): Promise<void> {
-  const XLSX = await import("xlsx");
   const data = rows.map(filaExport);
   const ws = XLSX.utils.json_to_sheet(data, { header: [...EXPORT_HEADERS] });
+  ws["!cols"] = [
+    { wch: 6 },
+    { wch: 12 },
+    { wch: 12 },
+    { wch: 8 },
+    { wch: 28 },
+    { wch: 22 },
+    { wch: 10 },
+    { wch: 12 },
+    { wch: 10 },
+    { wch: 10 },
+    { wch: 12 },
+  ];
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Operaciones");
-  XLSX.writeFile(wb, nombreArchivo("xlsx"));
+  const buffer = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+  const blob = new Blob([buffer], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+  descargarBlob(blob, nombreArchivo("xlsx"));
 }
 
 export async function exportPresupuestoListadoPdf(
