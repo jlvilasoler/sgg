@@ -32,8 +32,8 @@ function variacionSemanal(puntos: number[]): number | null {
 function MiniSparkline({
   points,
   color,
-  width = 92,
-  height = 36,
+  width = 168,
+  height = 76,
 }: {
   points: number[];
   color: string;
@@ -153,20 +153,22 @@ export default function PreciosGanadoKpiCards({
             className="pg-kpi-card"
             style={{ "--pg-kpi-accent": color } as CSSProperties}
           >
-            <div className="pg-kpi-card-top">
+            <div className="pg-kpi-card-body">
               <div className="pg-kpi-card-symbol">
                 <span className="pg-kpi-dot" aria-hidden />
                 <span className="pg-kpi-name">{label}</span>
               </div>
+              <div className="pg-kpi-price-row">
+                <strong className={`pg-kpi-price${valor == null ? " pg-kpi-price--idle" : ""}`}>
+                  {valor != null ? fmtNum(valor, 2) : "—"}
+                </strong>
+                <span className="pg-kpi-unit">{config.unidadLabel}</span>
+              </div>
+              <VariacionBadge pct={pct} />
+            </div>
+            <div className="pg-kpi-card-chart">
               <MiniSparkline points={puntos} color={color} />
             </div>
-            <div className="pg-kpi-price-row">
-              <strong className={`pg-kpi-price${valor == null ? " pg-kpi-price--idle" : ""}`}>
-                {valor != null ? fmtNum(valor, 2) : "—"}
-              </strong>
-              <span className="pg-kpi-unit">{config.unidadLabel}</span>
-            </div>
-            <VariacionBadge pct={pct} />
           </article>
         ))}
       </div>

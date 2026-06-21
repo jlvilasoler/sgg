@@ -252,6 +252,7 @@ export default function App() {
           onLogin={onLogin}
           onError={(m) => notify(m, false)}
         />
+        <AppFooter user={null} />
         <ConfirmDialogHost />
       </div>
     );
@@ -280,7 +281,7 @@ export default function App() {
           onError={(m) => notify(m, false)}
         />
 
-        {screen === "home" && <HomeMarketTicker apiOnline={apiOnline} />}
+        <HomeMarketTicker apiOnline={apiOnline} />
 
       <div className="layout-content">
         {screen === "home" ? (
@@ -412,7 +413,7 @@ export default function App() {
         )}
       </div>
 
-      <AppFooter />
+      <AppFooter user={user} />
       <ConfirmDialogHost />
     </div>
     </HeaderBackProvider>

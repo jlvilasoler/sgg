@@ -159,7 +159,7 @@ export default function PreciosGanadoPanel({
 
   return (
     <div className="subseccion-panel">
-      <div className="card precios-ganado-ultimos">
+      <div className="precios-ganado-ultimos">
         <PreciosGanadoKpiCards
           config={config}
           ultima={displayUltima}

@@ -11,8 +11,10 @@ import TablePagination, {
 import type { DivisaIndicadores, TipoCambio } from "../../types";
 import { PAR_DIVISA_LABELS, PAR_DIVISA_TC_LABEL } from "../../types";
 import type { DivisasMonedaConfig } from "./divisas-config";
-import { buildTcTendenciaMap, fmtDate, fmtMesAnio, fmtNum } from "./divisas-utils";
+import { buildTcTendenciaMap, fmtDate } from "./divisas-utils";
 import TcValorConTendencia from "./TcValorConTendencia";
+import DivisasChart from "./DivisasChart";
+import DivisasKpiCards from "./DivisasKpiCards";
 
 interface Props {
   config: DivisasMonedaConfig;
@@ -166,56 +168,15 @@ export default function DivisasHistorial({
       </button>
 
       {indicadores?.ultimo && (
-        <div className="card divisas-ultimos">
-          <h3>Indicadores — {PAR_DIVISA_LABELS[par]}</h3>
-          <div className="divisas-ultimos-grid divisas-ultimos-grid-3">
-            <div className="divisas-ultimo-item">
-              <span className="divisas-ultimo-par">Último TC registrado</span>
-              <strong>{fmtNum(indicadores.ultimo.valor, 4)}</strong>
-              <span className="muted">{fmtDate(indicadores.ultimo.fecha)}</span>
-            </div>
-            <div className="divisas-ultimo-item">
-              <span className="divisas-ultimo-par">
-                Promedio del mes
-                {indicadores.promedio_mes
-                  ? ` (${fmtMesAnio(indicadores.promedio_mes.mes)})`
-                  : ""}
-              </span>
-              {indicadores.promedio_mes ? (
-                <>
-                  <strong>{fmtNum(indicadores.promedio_mes.valor, 4)}</strong>
-                  <span className="muted">
-                    {indicadores.promedio_mes.dias} día
-                    {indicadores.promedio_mes.dias === 1 ? "" : "s"} cotizados
-                  </span>
-                </>
-              ) : (
-                <span className="muted">Sin datos del mes en curso</span>
-              )}
-            </div>
-            <div className="divisas-ultimo-item">
-              <span className="divisas-ultimo-par">
-                Cierre último mes cerrado
-                {indicadores.cierre_mes_anterior
-                  ? ` (${fmtMesAnio(indicadores.cierre_mes_anterior.mes)})`
-                  : ""}
-              </span>
-              {indicadores.cierre_mes_anterior ? (
-                <>
-                  <strong>
-                    {fmtNum(indicadores.cierre_mes_anterior.valor, 4)}
-                  </strong>
-                  <span className="muted">
-                    {fmtDate(indicadores.cierre_mes_anterior.fecha)}
-                  </span>
-                </>
-              ) : (
-                <span className="muted">Sin cierre del mes anterior</span>
-              )}
-            </div>
-          </div>
-        </div>
+        <DivisasKpiCards
+          config={config}
+          indicadores={indicadores}
+          rows={rows}
+          refreshing={loading}
+        />
       )}
+
+      <DivisasChart key={config.id} rows={rows} config={config} refreshing={loading} />
 
       <div className="card">
         <div className="form-header">

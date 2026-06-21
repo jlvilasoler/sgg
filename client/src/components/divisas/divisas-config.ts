@@ -14,6 +14,7 @@ export interface DivisasMonedaConfig {
   importLabel: string;
   importHint: string;
   columnaCsv: string;
+  chartColor: string;
 }
 
 export const DIVISAS_MONEDAS: Record<DivisasMonedaId, DivisasMonedaConfig> = {
@@ -28,6 +29,7 @@ export const DIVISAS_MONEDAS: Record<DivisasMonedaId, DivisasMonedaConfig> = {
     importHint:
       "Cotización oficial del BCU (TCC): dólares estadounidenses a pesos uruguayos — cuántos $U equivalen a 1 USD. Los datos quedan guardados, no se editan ni eliminan, y al abrir se completan solo los días nuevos.",
     columnaCsv: "uyu_usd",
+    chartColor: "#f0b90b",
   },
   reales: {
     id: "reales",
@@ -40,6 +42,7 @@ export const DIVISAS_MONEDAS: Record<DivisasMonedaId, DivisasMonedaConfig> = {
     importHint:
       "Histórico diario: dólares estadounidenses a reales brasileños — cuántos R$ equivalen a 1 USD. Los datos quedan guardados, no se editan ni eliminan, y al abrir se completan solo los días nuevos.",
     columnaCsv: "brl_usd",
+    chartColor: "#2ebd85",
   },
 };
 

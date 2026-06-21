@@ -1,4 +1,4 @@
-import type { ParDivisa, SemanaPreciosGanado, TipoCambio } from "../types";
+import type { ParDivisa, SemanaPreciosGanado, TipoCambio, CategoriaPrecioGanado } from "../types";
 import {
   CATEGORIA_GANADO_GORDO_LABELS,
   CATEGORIA_GANADO_REPOSICION_LABELS,
@@ -10,6 +10,7 @@ export interface HomeTickerItem {
   id: string;
   label: string;
   value: string;
+  unit?: string;
   changePct: number | null;
   group: "divisas" | "gordo" | "reposicion";
 }
@@ -67,12 +68,14 @@ function buildGanadoItems(
   if (!ultima) return [];
 
   return config.categorias.map((cat) => {
-    const valor = ultima.precios[cat];
-    const prev = anterior?.precios[cat];
+    const key = cat as CategoriaPrecioGanado;
+    const valor = ultima.precios[key];
+    const prev = anterior?.precios[key];
     return {
       id: `${group}-${cat}`,
       label: `${prefix} ${labels[cat as keyof typeof labels]}`,
       value: valor != null ? fmtNum(valor, 2) : "—",
+      unit: valor != null ? "USD/kg" : undefined,
       changePct: valor != null ? variacionPct(valor, prev) : null,
       group,
     };

@@ -1,4 +1,3 @@
-import { useState } from "react";
 import type { DivisasMonedaConfig } from "./divisas-config";
 import DivisasHistorial from "./DivisasHistorial";
 
@@ -17,11 +16,9 @@ export default function DivisasMonedaHub({
   onSuccess,
   onVolverDivisas,
 }: Props) {
-  const [refreshKey] = useState(0);
-
   return (
     <DivisasHistorial
-      key={refreshKey}
+      key={config.id}
       config={config}
       apiOnline={apiOnline}
       onError={onError}

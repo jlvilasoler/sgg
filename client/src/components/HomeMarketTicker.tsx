@@ -37,7 +37,10 @@ function TickerStrip({ items }: { items: HomeTickerItem[] }) {
         <span key={`${item.id}-${idx}`} className="home-ticker-item" data-group={item.group}>
           <span className="home-ticker-label">{item.label}</span>
           <ChangeBadge pct={item.changePct} />
-          <span className="home-ticker-value">{item.value}</span>
+          <span className="home-ticker-value-wrap">
+            <span className="home-ticker-value">{item.value}</span>
+            {item.unit && <span className="home-ticker-unit">{item.unit}</span>}
+          </span>
           <span className="home-ticker-sep" aria-hidden />
         </span>
       ))}

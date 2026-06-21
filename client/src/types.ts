@@ -396,8 +396,8 @@ export const PAR_DIVISA_LABELS: Record<ParDivisa, string> = {
 
 /** Etiqueta corta para columnas y campos de valor TC. */
 export const PAR_DIVISA_TC_LABEL: Record<ParDivisa, string> = {
-  UYU_USD: "Pesos uruguayos por 1 USD",
-  BRL_USD: "Reales brasileños por 1 USD",
+  UYU_USD: "",
+  BRL_USD: "",
 };
 
 export type CategoriaGanadoGordo = "NOVILLO" | "VACA" | "VAQUILLONA";

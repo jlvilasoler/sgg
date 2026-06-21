@@ -1,6 +1,6 @@
 import type { HomeTickerItem } from "./home-market-ticker-data";
 
-const STORAGE_KEY = "scg-home-ticker-cache-v1";
+const STORAGE_KEY = "scg-home-ticker-cache-v2";
 
 let memoryItems: HomeTickerItem[] | null = null;
 
