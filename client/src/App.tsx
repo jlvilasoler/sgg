@@ -13,6 +13,7 @@ import { DEFAULT_CATALOGOS } from "./constants";
 import type { AuthUser, Catalogos, Presupuesto } from "./types";
 import type { TabId } from "./components/Header";
 import HomeMenu, { type ScreenId } from "./components/HomeMenu";
+import HomeMarketTicker from "./components/HomeMarketTicker";
 import MainHeaderNav from "./components/MainHeaderNav";
 import AppFooter from "./components/AppFooter";
 import LoginScreen from "./components/LoginScreen";
@@ -278,6 +279,8 @@ export default function App() {
           }}
           onError={(m) => notify(m, false)}
         />
+
+        {screen === "home" && <HomeMarketTicker apiOnline={apiOnline} />}
 
       <div className="layout-content">
         {screen === "home" ? (
