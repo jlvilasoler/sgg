@@ -10994,6 +10994,40 @@ button.sg-kpi-card:disabled {
   border-top: 1px solid var(--border);
 }
 
+.stock-import-undo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+  padding: 0.85rem 1rem;
+  border-radius: 8px;
+  background: #f4f9f5;
+  border: 1px solid rgba(26, 92, 56, 0.18);
+}
+
+.stock-import-undo-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.stock-import-undo-text strong {
+  font-size: 0.88rem;
+  color: var(--text);
+}
+
+.stock-import-undo-text span {
+  font-size: 0.82rem;
+  color: var(--muted);
+  word-break: break-word;
+}
+
+.stock-import-undo-btn {
+  flex-shrink: 0;
+}
+
 .stock-import-btn {
   min-width: 11rem;
   display: inline-flex;

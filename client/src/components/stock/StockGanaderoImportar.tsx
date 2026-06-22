@@ -1,5 +1,12 @@
-import { useCallback, useId, useRef, useState, type FormEvent } from "react";
-import { importStockGanaderoFile, importStockGanaderoRows } from "../../api";
+import { useCallback, useEffect, useId, useRef, useState, type FormEvent } from "react";
+import {
+  deleteStockGanaderoLote,
+  fetchStockGanaderoLotes,
+  importStockGanaderoFile,
+  importStockGanaderoRows,
+} from "../../api";
+import type { StockGanaderoLote } from "../../types";
+import { confirmAction } from "../../utils/confirm";
 
 interface Props {
   apiOnline: boolean;
@@ -30,6 +37,23 @@ interface FormLectura {
 
 const COLUMNAS = ["EID", "VID", "Date", "Time", "Condición"] as const;
 const EXTENSIONES_ACEPTADAS = [".txt", ".csv"] as const;
+const CARGA_MANUAL_LOTE = "carga-manual";
+
+interface UltimaImportacionArchivo {
+  id: number;
+  nombre: string;
+  filas: number;
+}
+
+function esImportacionPorArchivo(lote: Pick<StockGanaderoLote, "nombre_archivo">): boolean {
+  return lote.nombre_archivo !== CARGA_MANUAL_LOTE;
+}
+
+function ultimaImportacionDesdeLotes(lotes: StockGanaderoLote[]): UltimaImportacionArchivo | null {
+  const lote = lotes.find(esImportacionPorArchivo);
+  if (!lote) return null;
+  return { id: lote.id, nombre: lote.nombre_archivo, filas: lote.filas };
+}
 
 function fechaHoy(): string {
   return new Date().toISOString().slice(0, 10);
@@ -99,8 +123,28 @@ export default function StockGanaderoImportar({
   const [form, setForm] = useState<FormLectura>(() => formVacio());
   const [pendientes, setPendientes] = useState<LecturaManual[]>([]);
   const [importing, setImporting] = useState(false);
+  const [undoing, setUndoing] = useState(false);
+  const [ultimaImportacionArchivo, setUltimaImportacionArchivo] =
+    useState<UltimaImportacionArchivo | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const cargarUltimaImportacionArchivo = useCallback(async () => {
+    if (!apiOnline) {
+      setUltimaImportacionArchivo(null);
+      return;
+    }
+    try {
+      const lotes = await fetchStockGanaderoLotes();
+      setUltimaImportacionArchivo(ultimaImportacionDesdeLotes(lotes));
+    } catch {
+      setUltimaImportacionArchivo(null);
+    }
+  }, [apiOnline]);
+
+  useEffect(() => {
+    void cargarUltimaImportacionArchivo();
+  }, [cargarUltimaImportacionArchivo]);
 
   const pickFile = useCallback(
     (f: File | null) => {
@@ -137,6 +181,11 @@ export default function StockGanaderoImportar({
     try {
       const r = await importStockGanaderoFile(file);
       onSuccess(r.message, "Importación completada");
+      setUltimaImportacionArchivo({
+        id: r.lote_id,
+        nombre: file.name,
+        filas: r.insertados,
+      });
       setFile(null);
       if (inputRef.current) inputRef.current.value = "";
       onImported();
@@ -204,6 +253,29 @@ export default function StockGanaderoImportar({
         condicion,
       }))
     );
+  };
+
+  const deshacerUltimaImportacionArchivo = async () => {
+    if (!ultimaImportacionArchivo) return;
+    const { id, nombre, filas } = ultimaImportacionArchivo;
+    const ok = await confirmAction({
+      title: "Deshacer importación",
+      message: `¿Eliminar la importación de «${nombre}»? Se quitarán ${filas} lectura(s) de ese archivo.`,
+      confirmText: "Deshacer",
+      variant: "danger",
+    });
+    if (!ok) return;
+    setUndoing(true);
+    try {
+      await deleteStockGanaderoLote(id);
+      onSuccess("Importación deshecha", "Listo");
+      await cargarUltimaImportacionArchivo();
+      onImported();
+    } catch (e) {
+      onError(e instanceof Error ? e.message : "Error al deshacer importación");
+    } finally {
+      setUndoing(false);
+    }
   };
 
   return (
@@ -365,6 +437,26 @@ export default function StockGanaderoImportar({
                     </>
                   )}
                 </div>
+
+                {ultimaImportacionArchivo && (
+                  <div className="stock-import-undo" role="status">
+                    <div className="stock-import-undo-text">
+                      <strong>Última importación por archivo</strong>
+                      <span>
+                        «{ultimaImportacionArchivo.nombre}» — {ultimaImportacionArchivo.filas}{" "}
+                        lectura{ultimaImportacionArchivo.filas === 1 ? "" : "s"}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm stock-import-undo-btn"
+                      disabled={!apiOnline || importing || undoing}
+                      onClick={() => void deshacerUltimaImportacionArchivo()}
+                    >
+                      {undoing ? "Deshaciendo…" : "Deshacer"}
+                    </button>
+                  </div>
+                )}
 
                 <div className="stock-import-pane-foot">
                   <button
