@@ -9,7 +9,7 @@ import {
   exportPresupuestoListadoPdf,
 } from "../utils/export-presupuesto-listado";
 import { IconEditar, IconEliminar, IconVer } from "./icons/ActionIcons";
-import PresupuestoDetalleModal from "./PresupuestoDetalleModal";
+import PresupuestoDetallePanel from "./PresupuestoDetalleModal";
 
 interface Props {
   catalogos: Catalogos;
@@ -171,12 +171,18 @@ export default function Listado({ catalogos, apiOnline, onEdit, onDeleted, onErr
     }
   };
 
+  if (detalleRow) {
+    return (
+      <PresupuestoDetallePanel
+        row={detalleRow}
+        onVolver={() => setDetalleRow(null)}
+        volverLabel="Volver al historial"
+      />
+    );
+  }
+
   return (
     <div className="listado-pro">
-      {detalleRow && (
-        <PresupuestoDetalleModal row={detalleRow} onClose={() => setDetalleRow(null)} />
-      )}
-
       <div className="listado-pro-shell">
         <header className="listado-pro-head">
           <div className="listado-pro-head-main">

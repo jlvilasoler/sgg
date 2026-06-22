@@ -3,13 +3,14 @@ import {
   actualizarRolePermissions,
   fetchRolePermissions,
 } from "../api";
+import { useHeaderBackStep } from "../header-back";
 import type { Modulo, Rol, RolPermisosConfig, RolPermisosInput } from "../types";
 import { ROL_LABELS_DETALLE } from "../utils/auth-permissions";
+import SubseccionInlinePanel from "./SubseccionInlinePanel";
 
 interface Props {
-  open: boolean;
   apiOnline: boolean;
-  onClose: () => void;
+  onVolver: () => void;
   onError: (msg: string) => void;
   onSuccess: (msg: string) => void;
   onSaved?: () => void;
@@ -17,7 +18,11 @@ interface Props {
 
 const ROLES_EDITABLES: Rol[] = ["editor", "consulta"];
 
-const MODULOS_SIEMPRE_ACTIVOS: Modulo[] = ["chat", "precios_ganado"];
+const MODULOS_SIEMPRE_ACTIVOS: Modulo[] = [
+  "chat",
+  "precios_ganado",
+  "simulador_venta_ganado",
+];
 
 function toInput(config: RolPermisosConfig): RolPermisosInput {
   const modulos: Partial<Record<Modulo, boolean>> = {};
@@ -30,10 +35,9 @@ function toInput(config: RolPermisosConfig): RolPermisosInput {
   };
 }
 
-export default function UsuariosRolesModal({
-  open,
+export default function UsuariosRolesPanel({
   apiOnline,
-  onClose,
+  onVolver,
   onError,
   onSuccess,
   onSaved,
@@ -43,6 +47,8 @@ export default function UsuariosRolesModal({
   const [draft, setDraft] = useState<RolPermisosInput | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  useHeaderBackStep(true, onVolver, "Usuarios");
 
   const activeConfig = roles.find((r) => r.rol === activeRol) ?? null;
 
@@ -62,8 +68,8 @@ export default function UsuariosRolesModal({
   }, [apiOnline, onError]);
 
   useEffect(() => {
-    if (open) void load();
-  }, [open, load]);
+    void load();
+  }, [load]);
 
   const selectRol = (rol: Rol) => {
     setActiveRol(rol);
@@ -98,94 +104,99 @@ export default function UsuariosRolesModal({
     }
   };
 
-  if (!open) return null;
-
   const adminConfig = roles.find((r) => r.rol === "admin");
 
   return (
-    <div className="usuarios-roles-overlay" role="presentation" onClick={onClose}>
-      <div
-        className="usuarios-roles-modal"
-        role="dialog"
-        aria-labelledby="usuarios-roles-title"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <header className="usuarios-roles-head">
-          <div>
-            <h2 id="usuarios-roles-title">Permisos por tipo de usuario</h2>
-            <p>Definí qué sectores puede ver y modificar cada rol del sistema.</p>
-          </div>
-          <button type="button" className="btn btn-ghost usuarios-roles-close" onClick={onClose}>
-            ✕
+    <SubseccionInlinePanel
+      onVolver={onVolver}
+      volverLabel="Volver a Usuarios"
+      title="Permisos por tipo de usuario"
+      description="Definí qué sectores puede ver y modificar cada rol del sistema."
+      cardClassName="usuarios-roles-inline"
+      footer={
+        <>
+          <button type="button" className="btn btn-ghost" onClick={onVolver}>
+            Volver
           </button>
-        </header>
+          {ROLES_EDITABLES.includes(activeRol) && (
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={saving || !apiOnline}
+              onClick={() => void save()}
+            >
+              {saving ? "Guardando…" : `Guardar ${ROL_LABELS_DETALLE[activeRol]}`}
+            </button>
+          )}
+        </>
+      }
+    >
+      {loading ? (
+        <p className="usuarios-roles-loading">Cargando configuración…</p>
+      ) : (
+        <>
+          <div className="usuarios-roles-tabs">
+            {(["admin", "editor", "consulta"] as Rol[]).map((rol) => (
+              <button
+                key={rol}
+                type="button"
+                className={`usuarios-roles-tab usuarios-roles-tab--${rol}${
+                  activeRol === rol ? " usuarios-roles-tab--active" : ""
+                }`}
+                onClick={() => selectRol(rol)}
+              >
+                {ROL_LABELS_DETALLE[rol]}
+              </button>
+            ))}
+          </div>
 
-        {loading ? (
-          <p className="usuarios-roles-loading">Cargando configuración…</p>
-        ) : (
-          <>
-            <div className="usuarios-roles-tabs">
-              {(["admin", "editor", "consulta"] as Rol[]).map((rol) => (
-                <button
-                  key={rol}
-                  type="button"
-                  className={`usuarios-roles-tab usuarios-roles-tab--${rol}${
-                    activeRol === rol ? " usuarios-roles-tab--active" : ""
-                  }`}
-                  onClick={() => selectRol(rol)}
-                >
-                  {ROL_LABELS_DETALLE[rol]}
-                </button>
-              ))}
-            </div>
+          <div className="usuarios-roles-body">
+            {activeRol === "admin" && adminConfig ? (
+              <div className="usuarios-roles-admin-note">
+                <p>
+                  <strong>Administrador:</strong> acceso total a todos los sectores, incluida la
+                  gestión de usuarios. Este rol no se puede restringir.
+                </p>
+                <ul className="usuarios-roles-admin-list">
+                  {adminConfig.modulos.map((m) => (
+                    <li key={m.modulo}>✓ {m.label}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : (
+              activeConfig &&
+              draft && (
+                <>
+                  <p className="usuarios-roles-desc">{activeConfig.descripcion}</p>
 
-            <div className="usuarios-roles-body">
-              {activeRol === "admin" && adminConfig ? (
-                <div className="usuarios-roles-admin-note">
-                  <p>
-                    <strong>Administrador:</strong> acceso total a todos los sectores, incluida la
-                    gestión de usuarios. Este rol no se puede restringir.
-                  </p>
-                  <ul className="usuarios-roles-admin-list">
-                    {adminConfig.modulos.map((m) => (
-                      <li key={m.modulo}>✓ {m.label}</li>
-                    ))}
-                  </ul>
-                </div>
-              ) : (
-                activeConfig &&
-                draft && (
-                  <>
-                    <p className="usuarios-roles-desc">{activeConfig.descripcion}</p>
+                  {activeRol === "editor" && (
+                    <label className="usuarios-roles-write-toggle inline-check">
+                      <input
+                        type="checkbox"
+                        checked={draft.puede_escribir}
+                        onChange={(e) =>
+                          setDraft((d) =>
+                            d ? { ...d, puede_escribir: e.target.checked } : d
+                          )
+                        }
+                      />
+                      Permitir crear, editar y eliminar datos
+                    </label>
+                  )}
 
-                    {activeRol === "editor" && (
-                      <label className="usuarios-roles-write-toggle inline-check">
-                        <input
-                          type="checkbox"
-                          checked={draft.puede_escribir}
-                          onChange={(e) =>
-                            setDraft((d) =>
-                              d ? { ...d, puede_escribir: e.target.checked } : d
-                            )
-                          }
-                        />
-                        Permitir crear, editar y eliminar datos
-                      </label>
-                    )}
+                  {activeRol === "consulta" && (
+                    <p className="usuarios-roles-readonly-note">
+                      El rol Consulta solo puede ver información; no puede modificar registros.
+                    </p>
+                  )}
 
-                    {activeRol === "consulta" && (
-                      <p className="usuarios-roles-readonly-note">
-                        El rol Consulta solo puede ver información; no puede modificar registros.
-                      </p>
-                    )}
-
-                    <div className="usuarios-roles-grid">
-                      {activeConfig.modulos
-                        .filter((m) => m.modulo !== "usuarios")
-                        .map((m) => {
-                          const siempreActivo = MODULOS_SIEMPRE_ACTIVOS.includes(m.modulo);
-                          const activo = siempreActivo || Boolean(draft.modulos[m.modulo]);
-                          return (
+                  <div className="usuarios-roles-grid">
+                    {activeConfig.modulos
+                      .filter((m) => m.modulo !== "usuarios")
+                      .map((m) => {
+                        const siempreActivo = MODULOS_SIEMPRE_ACTIVOS.includes(m.modulo);
+                        const activo = siempreActivo || Boolean(draft.modulos[m.modulo]);
+                        return (
                           <label
                             key={m.modulo}
                             className={`usuarios-roles-modulo${
@@ -203,40 +214,26 @@ export default function UsuariosRolesModal({
                               {siempreActivo
                                 ? "Todos los usuarios"
                                 : activo
-                                ? activeRol === "consulta"
-                                  ? "Solo lectura"
-                                  : draft.puede_escribir
-                                    ? "Ver y editar"
-                                    : "Solo lectura"
-                                : "Sin acceso"}
+                                  ? activeRol === "consulta"
+                                    ? "Solo lectura"
+                                    : draft.puede_escribir
+                                      ? "Ver y editar"
+                                      : "Solo lectura"
+                                  : "Sin acceso"}
                             </span>
                           </label>
                         );
-                        })}
-                    </div>
-                  </>
-                )
-              )}
-            </div>
-
-            <footer className="usuarios-roles-foot">
-              <button type="button" className="btn btn-ghost" onClick={onClose}>
-                Cerrar
-              </button>
-              {ROLES_EDITABLES.includes(activeRol) && (
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  disabled={saving || !apiOnline}
-                  onClick={save}
-                >
-                  {saving ? "Guardando…" : `Guardar ${ROL_LABELS_DETALLE[activeRol]}`}
-                </button>
-              )}
-            </footer>
-          </>
-        )}
-      </div>
-    </div>
+                      })}
+                  </div>
+                </>
+              )
+            )}
+          </div>
+        </>
+      )}
+    </SubseccionInlinePanel>
   );
 }
+
+/** @deprecated Usar UsuariosRolesPanel */
+export { UsuariosRolesPanel as UsuariosRolesModal };

@@ -97,6 +97,75 @@ CREATE INDEX IF NOT EXISTS idx_precios_ganado_fecha_hasta ON PRECIOS_GANADO_ACG(
 CREATE INDEX IF NOT EXISTS idx_precios_ganado_segmento ON PRECIOS_GANADO_ACG(segmento, fecha_hasta DESC);
 CREATE INDEX IF NOT EXISTS idx_precios_ganado_sync_creado ON PRECIOS_GANADO_ACG_SYNC(creado_en DESC);
 
+CREATE TABLE IF NOT EXISTS SIMULADOR_VENTA_GANADO (
+  id SERIAL PRIMARY KEY,
+  tipo TEXT NOT NULL CHECK (tipo IN ('EN_PIE', 'CUARTA_BALANZA')),
+  segmento TEXT NOT NULL CHECK (segmento IN ('GORDO', 'REPOSICION')),
+  categoria TEXT NOT NULL,
+  modo_kg TEXT NOT NULL CHECK (modo_kg IN ('TOTAL', 'CABEZAS')),
+  precio_usd_kg DOUBLE PRECISION NOT NULL,
+  precio_ref_anio INTEGER,
+  precio_ref_semana INTEGER,
+  precio_ref_fecha_hasta TEXT,
+  cantidad_animales DOUBLE PRECISION,
+  kg_promedio DOUBLE PRECISION,
+  kg_total DOUBLE PRECISION NOT NULL,
+  total_usd DOUBLE PRECISION NOT NULL,
+  total_usd_por_cabeza DOUBLE PRECISION,
+  notas TEXT,
+  destacada INTEGER NOT NULL DEFAULT 0,
+  venta_realizada INTEGER NOT NULL DEFAULT 0,
+  venta_realizada_en TIMESTAMPTZ,
+  real_precio_usd_kg DOUBLE PRECISION,
+  real_cantidad_animales DOUBLE PRECISION,
+  real_kg_promedio DOUBLE PRECISION,
+  real_kg_total DOUBLE PRECISION,
+  real_total_usd DOUBLE PRECISION,
+  real_total_usd_por_cabeza DOUBLE PRECISION,
+  real_notas TEXT,
+  numero_operacion TEXT,
+  usuario_id INTEGER,
+  creado_en TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_sim_venta_ganado_numero_operacion
+  ON SIMULADOR_VENTA_GANADO(numero_operacion)
+  WHERE numero_operacion IS NOT NULL AND numero_operacion != '';
+CREATE TABLE IF NOT EXISTS SIMULADOR_VENTA_GANADO_OP_SEQ (
+  tipo TEXT PRIMARY KEY CHECK (tipo IN ('EN_PIE', 'CUARTA_BALANZA')),
+  last_num INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_sim_venta_ganado_tipo ON SIMULADOR_VENTA_GANADO(tipo, creado_en DESC);
+CREATE INDEX IF NOT EXISTS idx_sim_venta_ganado_user ON SIMULADOR_VENTA_GANADO(usuario_id, creado_en DESC);
+
+CREATE TABLE IF NOT EXISTS SIMULADOR_VENTA_GANADO_AUDITORIA (
+  id SERIAL PRIMARY KEY,
+  simulacion_id INTEGER,
+  numero_operacion TEXT NOT NULL DEFAULT '',
+  user_id INTEGER REFERENCES USERS(id) ON DELETE SET NULL,
+  user_email TEXT NOT NULL DEFAULT '',
+  user_nombre TEXT NOT NULL DEFAULT '',
+  tipo TEXT NOT NULL,
+  resumen TEXT NOT NULL DEFAULT '',
+  detalle TEXT NOT NULL DEFAULT '',
+  ip TEXT NOT NULL DEFAULT '',
+  creado_en TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_sim_venta_audit_sim ON SIMULADOR_VENTA_GANADO_AUDITORIA(simulacion_id);
+CREATE INDEX IF NOT EXISTS idx_sim_venta_audit_numero ON SIMULADOR_VENTA_GANADO_AUDITORIA(numero_operacion);
+CREATE INDEX IF NOT EXISTS idx_sim_venta_audit_creado ON SIMULADOR_VENTA_GANADO_AUDITORIA(creado_en DESC);
+
+CREATE TABLE IF NOT EXISTS SIMULADOR_VENTA_GANADO_DISPOSITIVO (
+  id SERIAL PRIMARY KEY,
+  simulacion_id INTEGER NOT NULL,
+  clave TEXT NOT NULL,
+  eid TEXT NOT NULL DEFAULT '',
+  vid TEXT NOT NULL DEFAULT '',
+  creado_en TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (simulacion_id, clave)
+);
+CREATE INDEX IF NOT EXISTS idx_sim_venta_disp_sim ON SIMULADOR_VENTA_GANADO_DISPOSITIVO(simulacion_id);
+CREATE INDEX IF NOT EXISTS idx_sim_venta_disp_clave ON SIMULADOR_VENTA_GANADO_DISPOSITIVO(clave);
+
 CREATE TABLE IF NOT EXISTS RUBROS (
   id SERIAL PRIMARY KEY,
   nombre TEXT NOT NULL,
@@ -265,7 +334,11 @@ CREATE TABLE IF NOT EXISTS STOCK_GANADERO_DISPOSITIVO_HISTORIAL (
   etiqueta TEXT NOT NULL DEFAULT '',
   valor_anterior TEXT NOT NULL DEFAULT '',
   valor_nuevo TEXT NOT NULL DEFAULT '',
-  creado_en TIMESTAMPTZ DEFAULT NOW()
+  creado_en TIMESTAMPTZ DEFAULT NOW(),
+  user_id INTEGER,
+  user_email TEXT NOT NULL DEFAULT '',
+  user_nombre TEXT NOT NULL DEFAULT '',
+  origen TEXT NOT NULL DEFAULT ''
 );
 CREATE INDEX IF NOT EXISTS idx_stock_disp_hist_clave ON STOCK_GANADERO_DISPOSITIVO_HISTORIAL(clave);
 CREATE INDEX IF NOT EXISTS idx_stock_disp_hist_fecha ON STOCK_GANADERO_DISPOSITIVO_HISTORIAL(creado_en);

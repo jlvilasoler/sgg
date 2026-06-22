@@ -130,6 +130,10 @@ export interface StockGanaderaDispositivoHistorial {
   valor_anterior: string;
   valor_nuevo: string;
   creado_en: string;
+  user_id: number | null;
+  user_email: string;
+  user_nombre: string;
+  origen: string;
 }
 
 export type StockMovimientoTipo = "ALTA" | "BAJA" | "MODIFICACION";
@@ -456,6 +460,138 @@ export const CATEGORIA_GANADO_LABELS = CATEGORIA_GANADO_GORDO_LABELS;
 export const PRECIO_GANADO_GORDO_UNIDAD_LABEL = "USD/kg en cuarta balanza";
 export const PRECIO_GANADO_REPOSICION_UNIDAD_LABEL = "USD/kg en pie";
 
+export type SimuladorVentaTipo = "EN_PIE" | "CUARTA_BALANZA";
+export type SimuladorModoKg = "TOTAL" | "CABEZAS";
+
+export interface SimuladorVentaRealInput {
+  precio_usd_kg: number;
+  cantidad_animales?: number | null;
+  kg_promedio?: number | null;
+  kg_total: number;
+  total_usd: number;
+  total_usd_por_cabeza?: number | null;
+  notas?: string | null;
+}
+
+export interface SimuladorVentaGanadoRow {
+  id: number;
+  numero_operacion: string;
+  tipo: SimuladorVentaTipo;
+  segmento: SegmentoPreciosGanado;
+  categoria: CategoriaPrecioGanado;
+  modo_kg: SimuladorModoKg;
+  precio_usd_kg: number;
+  precio_ref_anio: number | null;
+  precio_ref_semana: number | null;
+  precio_ref_fecha_hasta: string | null;
+  cantidad_animales: number | null;
+  kg_promedio: number | null;
+  kg_total: number;
+  total_usd: number;
+  total_usd_por_cabeza: number | null;
+  notas: string | null;
+  destacada: boolean;
+  venta_realizada: boolean;
+  venta_realizada_en: string | null;
+  real_precio_usd_kg: number | null;
+  real_cantidad_animales: number | null;
+  real_kg_promedio: number | null;
+  real_kg_total: number | null;
+  real_total_usd: number | null;
+  real_total_usd_por_cabeza: number | null;
+  real_notas: string | null;
+  usuario_id: number | null;
+  usuario_nombre: string | null;
+  creado_en: string;
+  dispositivos_count: number;
+}
+
+export interface SimuladorVentaDispositivoRow {
+  id: number;
+  simulacion_id: number;
+  clave: string;
+  eid: string;
+  vid: string;
+  creado_en: string;
+}
+
+export type SimuladorVentaAuditoriaTipo =
+  | "CREAR"
+  | "ACTUALIZAR"
+  | "DESTACAR"
+  | "QUITAR_DESTACADO"
+  | "VENTA_REAL_REGISTRADA"
+  | "VENTA_REAL_ACTUALIZADA"
+  | "VENTA_REAL_ANULADA"
+  | "ELIMINAR";
+
+export interface SimuladorVentaOperacionSnapshot {
+  id: number;
+  numero_operacion: string;
+  tipo: string;
+  segmento: string;
+  categoria: string;
+  simulacion: {
+    modo_kg: string;
+    precio_usd_kg: number;
+    precio_ref_anio: number | null;
+    precio_ref_semana: number | null;
+    precio_ref_fecha_hasta: string | null;
+    cantidad_animales: number | null;
+    kg_promedio: number | null;
+    kg_total: number;
+    total_usd: number;
+    total_usd_por_cabeza: number | null;
+    notas: string | null;
+  };
+  venta_real: {
+    venta_realizada: boolean;
+    venta_realizada_en: string | null;
+    precio_usd_kg: number | null;
+    cantidad_animales: number | null;
+    kg_promedio: number | null;
+    kg_total: number | null;
+    total_usd: number | null;
+    total_usd_por_cabeza: number | null;
+    notas: string | null;
+  } | null;
+  destacada: boolean;
+  usuario_id: number | null;
+  usuario_nombre: string | null;
+  creado_en: string;
+}
+
+export interface SimuladorVentaAuditoriaDetalle {
+  antes?: SimuladorVentaOperacionSnapshot | null;
+  despues?: SimuladorVentaOperacionSnapshot | null;
+  cambios?: string[];
+  historico?: boolean;
+}
+
+export interface SimuladorVentaAuditoriaRow {
+  id: number;
+  simulacion_id: number | null;
+  numero_operacion: string;
+  user_id: number | null;
+  user_email: string;
+  user_nombre: string;
+  tipo: SimuladorVentaAuditoriaTipo;
+  resumen: string;
+  detalle: SimuladorVentaAuditoriaDetalle | null;
+  ip: string;
+  creado_en: string;
+}
+
+export interface SimuladorPreciosReferencia {
+  tipo: SimuladorVentaTipo;
+  segmento: SegmentoPreciosGanado;
+  ultima: SemanaPreciosGanado | null;
+  precios: Partial<Record<CategoriaPrecioGanado, number>>;
+  labels: Record<string, string>;
+  categorias: readonly string[];
+  siguiente_numero_operacion: string;
+}
+
 /** @deprecated usar PRECIO_GANADO_GORDO_UNIDAD_LABEL */
 export const PRECIO_GANADO_UNIDAD_LABEL = PRECIO_GANADO_GORDO_UNIDAD_LABEL;
 
@@ -491,6 +627,7 @@ export type Modulo =
   | "configuracion"
   | "divisas"
   | "precios_ganado"
+  | "simulador_venta_ganado"
   | "chat"
   | "rrhh"
   | "ventas"

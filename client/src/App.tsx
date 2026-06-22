@@ -25,14 +25,21 @@ import Resumen from "./components/Resumen";
 import Configuracion from "./components/Configuracion";
 import Divisas from "./components/Divisas";
 import PreciosGanado from "./components/precios-ganado/PreciosGanado";
+import SimuladorVentaGanado from "./components/simulador-venta/SimuladorVentaGanado";
 import RecursosHumanos from "./components/RecursosHumanos";
 import IngresosVentas from "./components/ventas/IngresosVentas";
 import StockGanadero from "./components/stock/StockGanadero";
 import StockMovimientosAuditoria from "./components/stock/StockMovimientosAuditoria";
-import ChatInterno from "./components/ChatInterno";
+import ChatPanel from "./components/ChatPanel";
+import MiCuentaPanel from "./components/MiCuentaModal";
 import ConfirmDialogHost from "./components/ConfirmDialogHost";
 import { HeaderBackProvider } from "./header-back";
-import { canAccessScreen, canAccessStockMovimientos, canAccessUsuarioActividad } from "./utils/auth-permissions";
+import {
+  canAccessChat,
+  canAccessScreen,
+  canAccessStockMovimientos,
+  canAccessUsuarioActividad,
+} from "./utils/auth-permissions";
 import { showToast } from "./utils/toast";
 
 export default function App() {
@@ -47,6 +54,8 @@ export default function App() {
   const [bootPhase, setBootPhase] = useState<"api" | "db">("api");
   const [editRow, setEditRow] = useState<Presupuesto | null>(null);
   const [listKey, setListKey] = useState(0);
+  const [cuentaOpen, setCuentaOpen] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
   const hadUserRef = useRef(false);
   const screenRef = useRef<ScreenId>("home");
   const navHistoryRef = useRef<ScreenId[]>([]);
@@ -174,6 +183,11 @@ export default function App() {
       notify("No tenés permiso para acceder a ese módulo", false);
       return;
     }
+    if (id === "chat") {
+      setCuentaOpen(false);
+      setChatOpen(true);
+      return;
+    }
     if (screenRef.current !== id) pushNavHistory();
     setScreen(id);
     if (id !== "registro") setEditRow(null);
@@ -268,8 +282,10 @@ export default function App() {
           onHome={goHome}
           onGoBackScreen={goBackScreen}
           onLogout={() => void onLogout()}
+          onOpenCuenta={() => setCuentaOpen(true)}
           onUserUpdated={setUser}
           onPasswordChanged={(msg) => {
+            setCuentaOpen(false);
             setUser(null);
             navHistoryRef.current = [];
             setNavHistory([]);
@@ -284,7 +300,26 @@ export default function App() {
         <HomeMarketTicker apiOnline={apiOnline} />
 
       <div className="layout-content">
-        {screen === "home" ? (
+        {cuentaOpen ? (
+          <main className="layout-frame page-main bn-ui">
+            <MiCuentaPanel
+              user={user}
+              onVolver={() => setCuentaOpen(false)}
+              onUserUpdated={setUser}
+              onPasswordChanged={(msg) => {
+                setCuentaOpen(false);
+                setUser(null);
+                navHistoryRef.current = [];
+                setNavHistory([]);
+                setScreen("home");
+                setEditRow(null);
+                hadUserRef.current = false;
+                notify(msg, true, "Contraseña actualizada");
+              }}
+              onError={(m) => notify(m, false)}
+            />
+          </main>
+        ) : screen === "home" ? (
           <HomeMenu user={user} onOpen={navigate} />
         ) : (
           <main className="layout-frame page-main bn-ui">
@@ -341,6 +376,14 @@ export default function App() {
             )}
             {screen === "precios_ganado" && (
               <PreciosGanado
+                apiOnline={apiOnline}
+                onError={(m) => notify(m, false)}
+                onSuccess={(m) => notify(m, true)}
+              />
+            )}
+            {screen === "simulador_venta_ganado" && (
+              <SimuladorVentaGanado
+                user={user}
                 apiOnline={apiOnline}
                 onError={(m) => notify(m, false)}
                 onSuccess={(m) => notify(m, true)}
@@ -406,14 +449,22 @@ export default function App() {
                 onPermissionsChanged={() => void refreshUser()}
               />
             )}
-            {screen === "chat" && (
-              <ChatInterno user={user} variant="page" onClose={goBackScreen} />
-            )}
           </main>
         )}
       </div>
 
-      <AppFooter user={user} />
+      {user && canAccessChat(user) && (
+        <ChatPanel user={user} open={chatOpen} onClose={() => setChatOpen(false)} />
+      )}
+
+      <AppFooter
+        user={user}
+        chatOpen={chatOpen}
+        onOpenChat={() => {
+          setCuentaOpen(false);
+          setChatOpen((open) => !open);
+        }}
+      />
       <ConfirmDialogHost />
     </div>
     </HeaderBackProvider>

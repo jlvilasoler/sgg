@@ -9,6 +9,7 @@ export const MODULO_LABELS: Record<Modulo, string> = {
   configuracion: "Configuración",
   divisas: "Divisas",
   precios_ganado: "Precios de Ganado",
+  simulador_venta_ganado: "Simulador venta ganado",
   chat: "Chat interno",
   rrhh: "Recursos Humanos",
   ventas: "Ingresos por ventas",
@@ -23,6 +24,7 @@ const SCREEN_MODULO: Record<TabId, Modulo> = {
   configuracion: "configuracion",
   divisas: "divisas",
   precios_ganado: "precios_ganado",
+  simulador_venta_ganado: "simulador_venta_ganado",
   recursos_humanos: "rrhh",
   ingresos_ventas: "ventas",
   stock_ganadero: "stock",
@@ -40,12 +42,28 @@ export function canAccessUsuarioActividad(user: AuthUser | null): boolean {
   return user?.rol === "admin";
 }
 
+/** Módulos visibles para cualquier usuario autenticado. */
+const MODULOS_ACCESO_TODOS: Modulo[] = [
+  "chat",
+  "precios_ganado",
+  "simulador_venta_ganado",
+];
+
 export function canAccessChat(user: AuthUser | null): boolean {
-  return Boolean(user?.permisos.includes("chat"));
+  return Boolean(user);
 }
 
 export function canAccessPreciosGanado(user: AuthUser | null): boolean {
-  return Boolean(user?.permisos.includes("precios_ganado"));
+  return Boolean(user);
+}
+
+export function canAccessSimuladorVentaGanado(user: AuthUser | null): boolean {
+  return Boolean(user);
+}
+
+/** Simulador venta: todos los usuarios autenticados pueden crear y editar. */
+export function canWriteSimuladorVentaGanado(user: AuthUser | null): boolean {
+  return Boolean(user);
 }
 
 export function moduloForScreen(screen: TabId): Modulo {
@@ -54,7 +72,9 @@ export function moduloForScreen(screen: TabId): Modulo {
 
 export function canAccessScreen(user: AuthUser | null, screen: TabId): boolean {
   if (!user) return false;
-  return user.permisos.includes(moduloForScreen(screen));
+  const mod = moduloForScreen(screen);
+  if (MODULOS_ACCESO_TODOS.includes(mod)) return true;
+  return user.permisos.includes(mod);
 }
 
 export function canWrite(user: AuthUser | null): boolean {

@@ -23,6 +23,7 @@ export type Modulo =
   | "configuracion"
   | "divisas"
   | "precios_ganado"
+  | "simulador_venta_ganado"
   | "chat"
   | "rrhh"
   | "ventas"
@@ -34,6 +35,7 @@ export const MODULOS: Modulo[] = [
   "configuracion",
   "divisas",
   "precios_ganado",
+  "simulador_venta_ganado",
   "chat",
   "rrhh",
   "ventas",
@@ -53,6 +55,7 @@ export const MODULO_LABELS: Record<Modulo, string> = {
   configuracion: "Configuración",
   divisas: "Divisas",
   precios_ganado: "Precios de Ganado",
+  simulador_venta_ganado: "Simulador venta ganado",
   chat: "Chat interno",
   rrhh: "Recursos Humanos",
   ventas: "Ingresos por ventas",
@@ -152,6 +155,7 @@ const GESTOR_N2_MODULOS: Modulo[] = [
   "configuracion",
   "divisas",
   "precios_ganado",
+  "simulador_venta_ganado",
   "chat",
   "rrhh",
   "stock",
@@ -194,9 +198,12 @@ export async function roleCapabilities(
     )
     .all(rol)) as { modulo: string }[];
 
-  const permisos = modRows
-    .map((r) => r.modulo as Modulo)
-    .filter((m) => MODULOS.includes(m));
+  const permisos = [
+    ...new Set([
+      ...modRows.map((r) => r.modulo as Modulo).filter((m) => MODULOS.includes(m)),
+      ...MODULOS_TODOS_LOS_USUARIOS,
+    ]),
+  ].sort();
 
   return {
     permisos,
@@ -426,8 +433,15 @@ async function ensureGestorN2RolePermissions(db: Db): Promise<void> {
   console.info("[SGG Auth] Permisos por defecto creados para Gestor N2");
 }
 
-/** chat y precios_ganado: acceso para todos los roles (política del sistema). */
-const MODULOS_TODOS_LOS_USUARIOS: Modulo[] = ["chat", "precios_ganado"];
+/** Acceso al módulo para todos los roles (política del sistema). */
+export const MODULOS_TODOS_LOS_USUARIOS: Modulo[] = [
+  "chat",
+  "precios_ganado",
+  "simulador_venta_ganado",
+];
+
+/** Escritura permitida aunque el rol sea solo lectura (p. ej. consulta). */
+export const MODULOS_ESCRITURA_TODOS_LOS_USUARIOS: Modulo[] = ["simulador_venta_ganado"];
 
 async function migrateModulosPreciosGanadoYChat(db: Db): Promise<void> {
   const upsert = await db.prepare(
@@ -443,7 +457,7 @@ async function migrateModulosPreciosGanadoYChat(db: Db): Promise<void> {
   }
 
   console.info(
-    "[SGG Auth] Chat y Precios de Ganado habilitados para todos los roles"
+    "[SGG Auth] Chat, Precios de Ganado y Simulador venta habilitados para todos los roles"
   );
 }
 

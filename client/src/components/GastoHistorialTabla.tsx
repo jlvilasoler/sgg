@@ -4,7 +4,7 @@ import type { AuthUser, Presupuesto } from "../types";
 import { confirmAction } from "../utils/confirm";
 import { empresaClass, empresaCorta, fmtDate, fmtNum } from "../utils";
 import { IconEditar, IconEliminar, IconVer } from "./icons/ActionIcons";
-import PresupuestoDetalleModal from "./PresupuestoDetalleModal";
+import PresupuestoDetallePanel from "./PresupuestoDetalleModal";
 import TablePagination, {
   paginateSlice,
   type PageSize,
@@ -113,12 +113,18 @@ export default function GastoHistorialTabla({
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  if (detalleRow) {
+    return (
+      <PresupuestoDetallePanel
+        row={detalleRow}
+        onVolver={() => setDetalleRow(null)}
+        volverLabel="Volver a documentos ingresados"
+      />
+    );
+  }
+
   return (
     <section className="listado-pro form-gasto-historial" aria-label="Documentos ingresados">
-      {detalleRow && (
-        <PresupuestoDetalleModal row={detalleRow} onClose={() => setDetalleRow(null)} />
-      )}
-
       <div className="listado-pro-shell">
         <header className="listado-pro-head">
           <div className="listado-pro-head-main">

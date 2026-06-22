@@ -1,5 +1,6 @@
 import type { Db } from "./db/pg-client.js";
 import type { StockGanaderoRowInput } from "./parse-stock-ganadero-txt.js";
+import { listClavesDispositivosEnVentasCerradas } from "./simulador-venta-dispositivos-db.js";
 import { labelCategoriaSalidaDispositivo } from "./stock-ganadera-categoria.js";
 import { dispositivoClave, eidClave, splitEidVid } from "./stock-ganadero-id.js";
 
@@ -113,6 +114,38 @@ export async function initStockGanaderoTables(db: Db): Promise<void> {
   await migrateBajaMetaColumns(db);
   await migrateFechasSlashLatam(db);
   await migrateStockGanaderoDispositivoHistorial(db);
+  await migrateHistorialAutorColumns(db);
+}
+
+async function migrateHistorialAutorColumns(db: Db): Promise<void> {
+  const done = (await db
+    .prepare(
+      `SELECT 1 AS ok FROM STOCK_GANADERO_DISPOSITIVO_HISTORIAL
+       WHERE clave = '__meta__' AND campo = 'historial_autor_v1' LIMIT 1`
+    )
+    .get()) as { ok: number } | undefined;
+  if (done) return;
+
+  for (const col of [
+    `ALTER TABLE STOCK_GANADERO_DISPOSITIVO_HISTORIAL ADD COLUMN user_id INTEGER`,
+    `ALTER TABLE STOCK_GANADERO_DISPOSITIVO_HISTORIAL ADD COLUMN user_email TEXT NOT NULL DEFAULT ''`,
+    `ALTER TABLE STOCK_GANADERO_DISPOSITIVO_HISTORIAL ADD COLUMN user_nombre TEXT NOT NULL DEFAULT ''`,
+    `ALTER TABLE STOCK_GANADERO_DISPOSITIVO_HISTORIAL ADD COLUMN origen TEXT NOT NULL DEFAULT ''`,
+  ]) {
+    try {
+      await db.prepare(col).run();
+    } catch {
+      /* columna ya existe */
+    }
+  }
+
+  await db
+    .prepare(
+      `INSERT INTO STOCK_GANADERO_DISPOSITIVO_HISTORIAL
+         (clave, campo, etiqueta, valor_anterior, valor_nuevo)
+       VALUES ('__meta__', 'historial_autor_v1', '', '', '')`
+    )
+    .run();
 }
 
 async function migrateBajaMetaColumns(db: Db): Promise<void> {
@@ -640,7 +673,8 @@ export async function saveStockGanaderaDispositivo(
   db: Db,
   clave: string,
   input: DispositivoMetaInput,
-  eid = ""
+  eid = "",
+  autor?: HistorialAutor
 ): Promise<DispositivoMetaGuardada> {
   const claveNorm = normalizarClaveDispositivo(clave);
   await assertDispositivoExiste(db, claveNorm);
@@ -752,7 +786,7 @@ export async function saveStockGanaderaDispositivo(
     baja_anio: baja.baja_anio,
   });
 
-  await registrarHistorialCambiosDispositivo(db, claveNorm, anterior, nuevo);
+  await registrarHistorialCambiosDispositivo(db, claveNorm, anterior, nuevo, autor);
 
   return {
     sexo,
@@ -814,7 +848,8 @@ export async function bulkPatchStockGanaderaDispositivos(
   db: Db,
   claves: string[],
   patch: DispositivoMetaPatch,
-  eids: Record<string, string> = {}
+  eids: Record<string, string> = {},
+  autor?: HistorialAutor
 ): Promise<BulkPatchDispositivosResult> {
   const keys = [...new Set(claves.map((c) => c.trim()).filter(Boolean))];
   if (!keys.length) throw new Error("Seleccioná al menos un dispositivo.");
@@ -833,7 +868,7 @@ export async function bulkPatchStockGanaderaDispositivos(
         const prev = meta.get(claveNorm) ?? null;
         const input = mergeMetaConPatch(prev, patch);
         const eid = eids[clave] ?? eids[claveNorm] ?? "";
-        await saveStockGanaderaDispositivo(tx, claveNorm, input, eid);
+        await saveStockGanaderaDispositivo(tx, claveNorm, input, eid, autor);
         actualizados += 1;
       } catch (e) {
         errores.push({
@@ -1010,7 +1045,8 @@ async function aplicarBajaDispositivo(
   db: Db,
   claveNorm: string,
   eid: string,
-  input: AplicarBajaInput
+  input: AplicarBajaInput,
+  autor?: HistorialAutor
 ): Promise<BajaDispositivoSnapshot> {
   const anteriorRow = (await db
     .prepare(
@@ -1084,7 +1120,7 @@ async function aplicarBajaDispositivo(
     baja_anio: baja.baja_anio,
   });
 
-  await registrarHistorialCambiosDispositivo(db, claveNorm, anterior, nuevo);
+  await registrarHistorialCambiosDispositivo(db, claveNorm, anterior, nuevo, autor);
 
   const fechaBajaIso =
     input.fecha_baja_iso?.trim() ||
@@ -1106,6 +1142,152 @@ async function aplicarBajaDispositivo(
   );
 }
 
+export async function getEstadoDispositivoStock(
+  db: Db,
+  clave: string
+): Promise<DispositivoEstado> {
+  const claveNorm = normalizarClaveDispositivo(clave);
+  const row = (await db
+    .prepare(`SELECT estado FROM STOCK_GANADERO_DISPOSITIVO WHERE clave = ?`)
+    .get(claveNorm)) as { estado?: string } | undefined;
+  if (!row?.estado) return "VIVO";
+  const estadoRaw = String(row.estado).toUpperCase();
+  return ESTADOS_VALIDOS.has(estadoRaw as DispositivoEstado)
+    ? (estadoRaw as DispositivoEstado)
+    : "VIVO";
+}
+
+export async function aplicarBajaDispositivoStock(
+  db: Db,
+  clave: string,
+  eid: string,
+  opts: {
+    tipo_baja: TipoBaja;
+    fecha_baja_iso: string;
+    observaciones?: string;
+    numero_guia?: string;
+    autor?: HistorialAutor;
+  }
+): Promise<BajaDispositivoSnapshot> {
+  const claveNorm = normalizarClaveDispositivo(clave);
+  await assertDispositivoExiste(db, claveNorm);
+  const estadoActual = await getEstadoDispositivoStock(db, claveNorm);
+  if (estadoActual !== "VIVO") {
+    throw new Error(
+      `El dispositivo no está activo en stock (estado ${estadoActual}).`
+    );
+  }
+  const fechaBaja = fechaIsoAMesAnio(opts.fecha_baja_iso);
+  if (!fechaBaja) {
+    throw new Error("Fecha de embarque inválida para registrar la baja.");
+  }
+  const estado = estadoDesdeTipoBaja(opts.tipo_baja);
+  return aplicarBajaDispositivo(db, claveNorm, eid, {
+    estado,
+    tipo_baja: opts.tipo_baja,
+    baja_mes: fechaBaja.mes,
+    baja_anio: fechaBaja.anio,
+    fecha_baja_iso: opts.fecha_baja_iso,
+    observaciones: opts.observaciones,
+    numero_guia: opts.numero_guia,
+  }, opts.autor);
+}
+
+export async function restaurarDispositivoVivoStock(
+  db: Db,
+  clave: string,
+  eid = "",
+  autor?: HistorialAutor
+): Promise<boolean> {
+  const claveNorm = normalizarClaveDispositivo(clave);
+  await assertDispositivoExiste(db, claveNorm);
+  const anteriorRow = (await db
+    .prepare(
+      `SELECT sexo, empresa, grupo, grupo_libre, nacimiento_mes, nacimiento_anio, observaciones, estado, tipo_baja, numero_guia, baja_mes, baja_anio
+       FROM STOCK_GANADERO_DISPOSITIVO WHERE clave = ?`
+    )
+    .get(claveNorm)) as Partial<DispositivoMetaRow> | undefined;
+
+  const eidGuardar = eid.trim() || claveNorm;
+
+  if (!anteriorRow) {
+    await db.prepare(
+      `INSERT INTO STOCK_GANADERO_DISPOSITIVO (
+         clave, eid, sexo, empresa, grupo, grupo_libre, edad, nacimiento_mes, nacimiento_anio, observaciones, estado, tipo_baja, numero_guia, baja_mes, baja_anio, actualizado_en
+       ) VALUES (
+         @clave, @eid, '', '', '', '', NULL, NULL, NULL, '', 'VIVO', '', '', NULL, NULL,
+         datetime('now', 'localtime')
+       )`
+    ).run({ clave: claveNorm, eid: eidGuardar });
+    return true;
+  }
+
+  const anterior = normalizarMetaDispositivo(anteriorRow);
+  if (anterior.estado === "VIVO" && !anterior.tipo_baja && !anterior.baja_mes && !anterior.baja_anio) {
+    return false;
+  }
+
+  const nacimiento_mes = anterior.nacimiento_mes;
+  const nacimiento_anio = anterior.nacimiento_anio;
+  const edad = calcularEdadMeses(nacimiento_mes, nacimiento_anio);
+  const nuevo: DispositivoMetaGuardada = {
+    ...anterior,
+    estado: "VIVO",
+    tipo_baja: "",
+    numero_guia: "",
+    baja_mes: null,
+    baja_anio: null,
+    edad,
+  };
+
+  await db.prepare(
+    `INSERT INTO STOCK_GANADERO_DISPOSITIVO (
+       clave, eid, sexo, empresa, grupo, grupo_libre, edad, nacimiento_mes, nacimiento_anio, observaciones, estado, tipo_baja, numero_guia, baja_mes, baja_anio, actualizado_en
+     ) VALUES (
+       @clave, @eid, @sexo, @empresa, @grupo, @grupo_libre, @edad, @nacimiento_mes, @nacimiento_anio, @observaciones, @estado, @tipo_baja, @numero_guia, @baja_mes, @baja_anio,
+       datetime('now', 'localtime')
+     )
+     ON CONFLICT(clave) DO UPDATE SET
+       estado = excluded.estado,
+       tipo_baja = excluded.tipo_baja,
+       numero_guia = excluded.numero_guia,
+       baja_mes = excluded.baja_mes,
+       baja_anio = excluded.baja_anio,
+       edad = excluded.edad,
+       observaciones = excluded.observaciones,
+       eid = CASE WHEN excluded.eid != '' THEN excluded.eid ELSE STOCK_GANADERO_DISPOSITIVO.eid END,
+       actualizado_en = datetime('now', 'localtime')`
+  ).run({
+    clave: claveNorm,
+    eid: eidGuardar,
+    sexo: nuevo.sexo,
+    empresa: nuevo.empresa,
+    grupo: nuevo.grupo,
+    grupo_libre: nuevo.grupo_libre,
+    edad,
+    nacimiento_mes,
+    nacimiento_anio,
+    observaciones: nuevo.observaciones,
+    estado: "VIVO",
+    tipo_baja: "",
+    numero_guia: "",
+    baja_mes: null,
+    baja_anio: null,
+  });
+
+  await registrarHistorialCambiosDispositivo(db, claveNorm, anterior, nuevo, autor);
+  return true;
+}
+
+export async function countStockGanaderaDispositivosActivos(db: Db): Promise<number> {
+  const [dispositivos, ventasClaves] = await Promise.all([
+    listStockGanaderaDispositivos(db),
+    listClavesDispositivosEnVentasCerradas(db),
+  ]);
+  const ventas = new Set(ventasClaves);
+  return dispositivos.filter((d) => d.estado === "VIVO" && !ventas.has(d.clave)).length;
+}
+
 export interface ImportBajaDispositivosResult {
   actualizados: number;
   no_encontrados: number;
@@ -1119,7 +1301,8 @@ export interface ImportBajaDispositivosResult {
 export async function importBajaDispositivos(
   db: Db,
   rows: StockGanaderoRowInput[],
-  tipo_baja: TipoBaja
+  tipo_baja: TipoBaja,
+  autor?: HistorialAutor
 ): Promise<ImportBajaDispositivosResult> {
   if (!rows.length) throw new Error("El archivo no contiene dispositivos válidos.");
   if (tipo_baja === "FRIGORIFICO" || !TIPOS_BAJA_VALIDOS.has(tipo_baja)) {
@@ -1169,7 +1352,7 @@ export async function importBajaDispositivos(
         baja_mes: fechaBaja.mes,
         baja_anio: fechaBaja.anio,
         fecha_baja_iso: row.fecha.trim(),
-      });
+      }, autor ?? { origen: "IMPORT", user_nombre: "Importación de bajas" });
       dispositivos_bajados.push(snap);
       actualizados += 1;
     }
@@ -1276,7 +1459,8 @@ export interface BajaDispositivoItemInput {
 
 export async function importBajaDetalle(
   db: Db,
-  items: BajaDispositivoItemInput[]
+  items: BajaDispositivoItemInput[],
+  autor?: HistorialAutor
 ): Promise<ImportBajaDispositivosResult> {
   const lista = items
     .map((item) => ({
@@ -1336,7 +1520,7 @@ export async function importBajaDetalle(
         fecha_baja_iso: item.fecha,
         numero_guia: item.numero_guia,
         observaciones: item.observaciones,
-      });
+      }, autor ?? { origen: "IMPORT", user_nombre: "Importación de bajas" });
       dispositivos_bajados.push(snap);
       actualizados += 1;
     }
@@ -1361,7 +1545,8 @@ export async function importBajaDetalle(
 export async function importBajaPorNumeros(
   db: Db,
   numeros: string[],
-  tipo_baja: TipoBaja
+  tipo_baja: TipoBaja,
+  autor?: HistorialAutor
 ): Promise<ImportBajaDispositivosResult> {
   const lista = numeros.map((n) => n.trim()).filter(Boolean);
   if (!lista.length) throw new Error("Ingresá al menos un número de dispositivo.");
@@ -1377,7 +1562,8 @@ export async function importBajaPorNumeros(
       numero,
       tipo_baja,
       fecha: fechaHoyIsoLocal(),
-    }))
+    })),
+    autor
   );
 }
 
@@ -1385,7 +1571,8 @@ export async function updateStockGanaderaDispositivoSexo(
   db: Db,
   clave: string,
   sexo: DispositivoSexo,
-  eid = ""
+  eid = "",
+  autor?: HistorialAutor
 ): Promise<DispositivoSexo> {
   const claveNorm = normalizarClaveDispositivo(clave);
   if (!SEXOS_VALIDOS.has(sexo)) throw new Error("Sexo inválido. Use MACHO o HEMBRA.");
@@ -1424,7 +1611,7 @@ export async function updateStockGanaderaDispositivoSexo(
       numero_guia: anterior?.numero_guia ?? "",
       baja_mes: anterior?.baja_mes ?? null,
       baja_anio: anterior?.baja_anio ?? null,
-    });
+    }, autor);
   }
 
   return sexo;
@@ -1785,7 +1972,8 @@ async function backfillHistorialCondicionDesdeLecturas(db: Db): Promise<void> {
           "Condición (lectura)",
           prevFmt,
           nextFmt,
-          timestampLectura(r.fecha, r.hora)
+          timestampLectura(r.fecha, r.hora),
+          HISTORIAL_AUTOR_LECTURA
         );
       }
     }
@@ -2071,7 +2259,49 @@ export interface StockGanaderaDispositivoHistorial {
   valor_anterior: string;
   valor_nuevo: string;
   creado_en: string;
+  user_id: number | null;
+  user_email: string;
+  user_nombre: string;
+  origen: string;
 }
+
+export type HistorialOrigen =
+  | "FICHA"
+  | "MASIVO"
+  | "BAJA"
+  | "IMPORT"
+  | "LECTURA"
+  | "VENTA"
+  | "SISTEMA"
+  | "";
+
+export interface HistorialAutor {
+  user_id?: number | null;
+  user_email?: string;
+  user_nombre?: string;
+  origen?: HistorialOrigen | string;
+}
+
+export const HISTORIAL_AUTOR_LECTURA: HistorialAutor = {
+  user_id: null,
+  user_email: "",
+  user_nombre: "Importación de lecturas",
+  origen: "LECTURA",
+};
+
+export const HISTORIAL_AUTOR_VENTA: HistorialAutor = {
+  user_id: null,
+  user_email: "",
+  user_nombre: "Simulador de ventas",
+  origen: "VENTA",
+};
+
+export const HISTORIAL_AUTOR_SISTEMA: HistorialAutor = {
+  user_id: null,
+  user_email: "",
+  user_nombre: "Sistema",
+  origen: "SISTEMA",
+};
 
 function fmtHistorialSexo(v: DispositivoSexo): string {
   return v || "—";
@@ -2105,7 +2335,7 @@ function fmtHistorialFechaBaja(
     : estado === "MUERTO"
       ? "Muerte"
       : estado === "PERDIDO"
-        ? "Perdido"
+        ? "Extraviado"
         : estado === "VENDIDO"
           ? "Venta"
           : "Frigorífico";
@@ -2123,7 +2353,7 @@ function fmtHistorialTipoBaja(tipo: TipoBaja | ""): string {
     case "MUERTE":
       return "Muerte";
     case "PERDIDO":
-      return "Perdido";
+      return "Extraviado";
     default:
       return "—";
   }
@@ -2144,7 +2374,7 @@ function fmtHistorialEstado(v: DispositivoEstado): string {
     case "FRIGORIFICO":
       return "Frigorífico";
     case "PERDIDO":
-      return "Perdido";
+      return "Extraviado";
     default:
       return "Vivo";
   }
@@ -2172,6 +2402,11 @@ function timestampLectura(fecha: string, hora: string): string {
   return `${f} ${hora.trim() || "00:00:00"}`;
 }
 
+function fmtHistorialEdad(v: number | null | undefined): string {
+  if (v === null || v === undefined) return "—";
+  return `${v} meses`;
+}
+
 async function insertHistorialFila(
   db: Db,
   clave: string,
@@ -2179,15 +2414,20 @@ async function insertHistorialFila(
   etiqueta: string,
   valorAnterior: string,
   valorNuevo: string,
-  creadoEn?: string
+  creadoEn?: string,
+  autor?: HistorialAutor
 ): Promise<void> {
   if (valorAnterior === valorNuevo) return;
+  const user_id = autor?.user_id ?? null;
+  const user_email = String(autor?.user_email ?? "").trim().slice(0, 200);
+  const user_nombre = String(autor?.user_nombre ?? "").trim().slice(0, 120);
+  const origen = String(autor?.origen ?? "").trim().slice(0, 32);
   if (creadoEn?.trim()) {
     await db
       .prepare(
         `INSERT INTO STOCK_GANADERO_DISPOSITIVO_HISTORIAL
-           (clave, campo, etiqueta, valor_anterior, valor_nuevo, creado_en)
-         VALUES (@clave, @campo, @etiqueta, @valor_anterior, @valor_nuevo, @creado_en)`
+           (clave, campo, etiqueta, valor_anterior, valor_nuevo, creado_en, user_id, user_email, user_nombre, origen)
+         VALUES (@clave, @campo, @etiqueta, @valor_anterior, @valor_nuevo, @creado_en, @user_id, @user_email, @user_nombre, @origen)`
       )
       .run({
         clave,
@@ -2196,15 +2436,19 @@ async function insertHistorialFila(
         valor_anterior: valorAnterior,
         valor_nuevo: valorNuevo,
         creado_en: creadoEn.trim(),
+        user_id,
+        user_email,
+        user_nombre,
+        origen,
       });
     return;
   }
   await db
     .prepare(
       `INSERT INTO STOCK_GANADERO_DISPOSITIVO_HISTORIAL
-         (clave, campo, etiqueta, valor_anterior, valor_nuevo, creado_en)
+         (clave, campo, etiqueta, valor_anterior, valor_nuevo, creado_en, user_id, user_email, user_nombre, origen)
        VALUES (@clave, @campo, @etiqueta, @valor_anterior, @valor_nuevo,
-               datetime('now', 'localtime'))`
+               datetime('now', 'localtime'), @user_id, @user_email, @user_nombre, @origen)`
     )
     .run({
       clave,
@@ -2212,6 +2456,10 @@ async function insertHistorialFila(
       etiqueta,
       valor_anterior: valorAnterior,
       valor_nuevo: valorNuevo,
+      user_id,
+      user_email,
+      user_nombre,
+      origen,
     });
 }
 
@@ -2230,7 +2478,8 @@ async function registrarHistorialCondicionLectura(
     "Condición (lectura)",
     fmtHistorialCondicion(condicionAnterior),
     fmtHistorialCondicion(condicionNueva),
-    timestampLectura(fecha, hora)
+    timestampLectura(fecha, hora),
+    HISTORIAL_AUTOR_LECTURA
   );
 }
 
@@ -2238,7 +2487,8 @@ async function registrarHistorialCambiosDispositivo(
   db: Db,
   clave: string,
   anterior: DispositivoMetaGuardada | null,
-  nuevo: DispositivoMetaGuardada
+  nuevo: DispositivoMetaGuardada,
+  autor?: HistorialAutor
 ): Promise<void> {
   const prevEmpresa = fmtHistorialEmpresa(anterior?.empresa ?? "");
   const prevGrupo = fmtHistorialGrupo(anterior?.grupo ?? "");
@@ -2250,6 +2500,7 @@ async function registrarHistorialCambiosDispositivo(
   );
   const prevObs = fmtHistorialObs(anterior?.observaciones ?? "");
   const prevEstado = fmtHistorialEstado(anterior?.estado ?? "VIVO");
+  const prevEdad = fmtHistorialEdad(anterior?.edad ?? null);
   const prevBaja = fmtHistorialFechaBaja(
     anterior?.estado ?? "VIVO",
     anterior?.baja_mes ?? null,
@@ -2269,6 +2520,7 @@ async function registrarHistorialCambiosDispositivo(
   );
   const nextObs = fmtHistorialObs(nuevo.observaciones);
   const nextEstado = fmtHistorialEstado(nuevo.estado);
+  const nextEdad = fmtHistorialEdad(nuevo.edad);
   const nextBaja = fmtHistorialFechaBaja(
     nuevo.estado,
     nuevo.baja_mes,
@@ -2278,24 +2530,38 @@ async function registrarHistorialCambiosDispositivo(
   const nextTipoBaja = fmtHistorialTipoBaja(nuevo.tipo_baja);
   const nextGuia = fmtHistorialNumeroGuia(nuevo.numero_guia);
 
-  await insertHistorialFila(db, clave, "empresa", "Empresa", prevEmpresa, nextEmpresa);
-  await insertHistorialFila(db, clave, "grupo", "Generación", prevGrupo, nextGrupo);
+  await insertHistorialFila(db, clave, "empresa", "Empresa", prevEmpresa, nextEmpresa, undefined, autor);
+  await insertHistorialFila(db, clave, "grupo", "Generación", prevGrupo, nextGrupo, undefined, autor);
   await insertHistorialFila(
     db,
     clave,
     "grupo_libre",
     "Grupo",
     prevGrupoLibre,
-    nextGrupoLibre
+    nextGrupoLibre,
+    undefined,
+    autor
   );
-  await insertHistorialFila(db, clave, "sexo", "Sexo", prevSexo, nextSexo);
+  await insertHistorialFila(db, clave, "sexo", "Sexo", prevSexo, nextSexo, undefined, autor);
   await insertHistorialFila(
     db,
     clave,
     "nacimiento",
     "Fecha de nacimiento",
     prevNac,
-    nextNac
+    nextNac,
+    undefined,
+    autor
+  );
+  await insertHistorialFila(
+    db,
+    clave,
+    "edad",
+    "Edad calculada",
+    prevEdad,
+    nextEdad,
+    undefined,
+    autor
   );
   await insertHistorialFila(
     db,
@@ -2303,18 +2569,22 @@ async function registrarHistorialCambiosDispositivo(
     "observaciones",
     "Observaciones",
     prevObs,
-    nextObs
+    nextObs,
+    undefined,
+    autor
   );
-  await insertHistorialFila(db, clave, "estado", "Estado", prevEstado, nextEstado);
-  await insertHistorialFila(db, clave, "tipo_baja", "Tipo de baja", prevTipoBaja, nextTipoBaja);
-  await insertHistorialFila(db, clave, "numero_guia", "Número guía", prevGuia, nextGuia);
+  await insertHistorialFila(db, clave, "estado", "Estado", prevEstado, nextEstado, undefined, autor);
+  await insertHistorialFila(db, clave, "tipo_baja", "Tipo de baja", prevTipoBaja, nextTipoBaja, undefined, autor);
+  await insertHistorialFila(db, clave, "numero_guia", "Número guía", prevGuia, nextGuia, undefined, autor);
   await insertHistorialFila(
     db,
     clave,
     "fecha_baja",
     "Fecha de baja",
     prevBaja,
-    nextBaja
+    nextBaja,
+    undefined,
+    autor
   );
 }
 
@@ -2327,7 +2597,8 @@ export async function listStockGanaderaDispositivoHistorial(
 
   return (await db
     .prepare(
-      `SELECT id, clave, campo, etiqueta, valor_anterior, valor_nuevo, creado_en
+      `SELECT id, clave, campo, etiqueta, valor_anterior, valor_nuevo, creado_en,
+              user_id, user_email, user_nombre, origen
        FROM STOCK_GANADERO_DISPOSITIVO_HISTORIAL
        WHERE clave = ? AND clave != '__meta__'
        ORDER BY creado_en DESC, id DESC`

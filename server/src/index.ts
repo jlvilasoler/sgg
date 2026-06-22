@@ -27,11 +27,18 @@ import { parseAcgGanadoGordoHtml } from "./acg-ganado-gordo.js";
 import { parseAcgGanadoReposicionHtml } from "./acg-ganado-reposicion.js";
 import { fetchAcgHomeHtml } from "./acg-page.js";
 import type { SegmentoPreciosGanado, PrecioGanadoInput } from "./precios-ganado-db.js";
+import * as simVenta from "./simulador-venta-ganado-db.js";
+import {
+  auditSimuladorActualizacion,
+  auditSimuladorCreacion,
+  auditSimuladorEliminacion,
+  auditSimuladorPatch,
+} from "./simulador-venta-audit.js";
 import { normalizarTituloRubro } from "./text-normalize.js";
 import { parseStockGanaderoBuffer, parseStockGanaderoText, normalizeStockGanaderoRows } from "./parse-stock-ganadero-txt.js";
 import type { DispositivoMetaPatch } from "./stock-ganadero-db.js";
 import { parseTipoBaja, tipoBajaDesdeEstadoImport, type TipoBaja } from "./stock-ganadero-db.js";
-import { auditBajasDispositivos, auditStockMovimiento } from "./stock-audit.js";
+import { auditBajasDispositivos, auditStockMovimiento, historialAutorFromRequest } from "./stock-audit.js";
 import { EMPRESAS, type Empresa, type Presupuesto, type PresupuestoInput } from "./types.js";
 import type { UserPublic } from "./auth-db.js";
 
@@ -837,6 +844,26 @@ app.get("/api/stock-ganadero/estadisticas", async (req, res) => {
   });
 });
 
+app.get("/api/stock-ganadero/salidas", async (req, res) => {
+  const loteId = req.query.lote_id ? Number(req.query.lote_id) : undefined;
+  const estadoRaw = String(req.query.estado_dispositivo ?? "").toUpperCase();
+  const estadoDispositivo =
+    estadoRaw === "MUERTO" ||
+    estadoRaw === "VENDIDO" ||
+    estadoRaw === "FRIGORIFICO" ||
+    estadoRaw === "PERDIDO"
+      ? estadoRaw
+      : undefined;
+  const { data, bajas_reparadas } = await db.stockGanadero.listSalidas({
+    lote_id: loteId && Number.isFinite(loteId) ? loteId : undefined,
+    busqueda: req.query.busqueda as string | undefined,
+    fecha_desde: req.query.fecha_desde as string | undefined,
+    fecha_hasta: req.query.fecha_hasta as string | undefined,
+    estado_dispositivo: estadoDispositivo,
+  });
+  res.json({ ok: true, data, bajas_reparadas });
+});
+
 app.get("/api/stock-ganadero/dispositivos", async (req, res) => {
   const loteId = req.query.lote_id ? Number(req.query.lote_id) : undefined;
   const estadoRaw = String(req.query.estado_dispositivo ?? "").toUpperCase();
@@ -944,7 +971,8 @@ app.patch("/api/stock-ganadero/dispositivos/bulk", async (req, res) => {
     const result = await db.stockGanadero.bulkPatchDispositivos(
       claves,
       metaPatch,
-      eids
+      eids,
+      historialAutorFromRequest(req, "MASIVO")
     );
     if (result.actualizados > 0) {
       await auditStockMovimiento(req, "MODIFICACION", {
@@ -972,7 +1000,8 @@ app.patch("/api/stock-ganadero/dispositivos/:clave/sexo", async (req, res) => {
     const actualizado = await db.stockGanadero.updateDispositivoSexo(
       req.params.clave,
       sexo,
-      eid
+      eid,
+      historialAutorFromRequest(req, "FICHA")
     );
     await auditStockMovimiento(req, "MODIFICACION", {
       clave: req.params.clave,
@@ -1047,7 +1076,8 @@ app.patch("/api/stock-ganadero/dispositivos/:clave", async (req, res) => {
         baja_mes,
         baja_anio,
       },
-      eid
+      eid,
+      historialAutorFromRequest(req, "FICHA")
     );
     await auditStockMovimiento(req, "MODIFICACION", {
       clave: req.params.clave,
@@ -1103,8 +1133,17 @@ app.get("/api/stock-ganadero/resumen", async (_req, res) => {
       lotes: lotes.length,
       registros: await db.stockGanadero.countRegistros(),
       dispositivos: await db.stockGanadero.countDispositivos(),
+      ventas_dispositivos: await db.simuladorVentaDispositivos.countEnVentasCerradas(),
     },
   });
+});
+
+app.get("/api/stock-ganadero/ventas-dispositivos", async (_req, res) => {
+  const [total, claves] = await Promise.all([
+    db.simuladorVentaDispositivos.countEnVentasCerradas(),
+    db.simuladorVentaDispositivos.listClavesEnVentasCerradas(),
+  ]);
+  res.json({ ok: true, data: { total, claves } });
 });
 
 app.post("/api/stock-ganadero/import/file", upload.single("file"), async (req, res) => {
@@ -1233,7 +1272,7 @@ function etiquetaTipoBajaImport(tipo: TipoBaja): string {
     case "MUERTE":
       return "Muerte";
     case "PERDIDO":
-      return "Perdido";
+      return "Extraviado";
     case "FRIGORIFICO":
       return "Frigorífico";
   }
@@ -1290,7 +1329,11 @@ app.post("/api/stock-ganadero/baja/file", upload.single("file"), async (req, res
     }
     const tipo_baja = parseTipoBajaForImport(req.body ?? {});
     const rows = parseStockGanaderoBuffer(file.buffer);
-    const result = await db.stockGanadero.importBaja(rows, tipo_baja);
+    const result = await db.stockGanadero.importBaja(
+      rows,
+      tipo_baja,
+      historialAutorFromRequest(req, "IMPORT")
+    );
     if (result.dispositivos_bajados.length > 0) {
       await auditBajasDispositivos(req, result.dispositivos_bajados);
     }
@@ -1310,7 +1353,11 @@ app.post("/api/stock-ganadero/baja/text", async (req, res) => {
     const texto = String(body.texto ?? "");
     const tipo_baja = parseTipoBajaForImport(body);
     const rows = parseStockGanaderoText(texto);
-    const result = await db.stockGanadero.importBaja(rows, tipo_baja);
+    const result = await db.stockGanadero.importBaja(
+      rows,
+      tipo_baja,
+      historialAutorFromRequest(req, "IMPORT")
+    );
     if (result.dispositivos_bajados.length > 0) {
       await auditBajasDispositivos(req, result.dispositivos_bajados);
     }
@@ -1339,7 +1386,11 @@ app.post("/api/stock-ganadero/baja/rows", async (req, res) => {
     };
     const tipo_baja = parseTipoBajaForImport(body);
     const rows = normalizeStockGanaderoRows(body.rows ?? []);
-    const result = await db.stockGanadero.importBaja(rows, tipo_baja);
+    const result = await db.stockGanadero.importBaja(
+      rows,
+      tipo_baja,
+      historialAutorFromRequest(req, "IMPORT")
+    );
     if (result.dispositivos_bajados.length > 0) {
       await auditBajasDispositivos(req, result.dispositivos_bajados);
     }
@@ -1375,7 +1426,10 @@ app.post("/api/stock-ganadero/baja/dispositivos", async (req, res) => {
         numero_guia: String(item.numero_guia ?? "").trim() || undefined,
         observaciones: String(item.observaciones ?? "").trim() || undefined,
       }));
-      const result = await db.stockGanadero.importBajaDetalle(items);
+      const result = await db.stockGanadero.importBajaDetalle(
+        items,
+        historialAutorFromRequest(req, "IMPORT")
+      );
       if (result.dispositivos_bajados.length > 0) {
         await auditBajasDispositivos(req, result.dispositivos_bajados);
       }
@@ -1391,7 +1445,11 @@ app.post("/api/stock-ganadero/baja/dispositivos", async (req, res) => {
     const dispositivos = Array.isArray(body.dispositivos)
       ? body.dispositivos.map((n) => String(n ?? "").trim()).filter(Boolean)
       : [];
-    const result = await db.stockGanadero.importBajaNumeros(dispositivos, tipo_baja);
+    const result = await db.stockGanadero.importBajaNumeros(
+      dispositivos,
+      tipo_baja,
+      historialAutorFromRequest(req, "IMPORT")
+    );
     if (result.dispositivos_bajados.length > 0) {
       await auditBajasDispositivos(req, result.dispositivos_bajados);
     }
@@ -2503,6 +2561,387 @@ app.post("/api/precios-ganado/import/acg", async (req, res) => {
     }
     res.status(400).json({ ok: false, error: errMsg });
   }
+});
+
+function parseSimuladorVentaTipo(raw: unknown): simVenta.SimuladorVentaTipo | null {
+  if (raw === "EN_PIE" || raw === "CUARTA_BALANZA") return raw;
+  return null;
+}
+
+function parseSimuladorVentaGanadoBody(
+  body: unknown
+):
+  | { input: simVenta.SimuladorVentaGanadoInput }
+  | { error: string } {
+  const b = (body ?? {}) as Record<string, unknown>;
+  const tipo = parseSimuladorVentaTipo(b.tipo);
+  if (!tipo) return { error: "tipo inválido" };
+
+  const categoria = String(b.categoria ?? "").trim();
+  const categorias = db.simuladorVentaGanado.categoriasPorTipo(tipo);
+  if (!categorias.includes(categoria)) {
+    return { error: "Categoría inválida para este tipo de venta" };
+  }
+
+  const modo_kg = b.modo_kg === "CABEZAS" ? "CABEZAS" : "TOTAL";
+  const precio_usd_kg = Number(b.precio_usd_kg);
+  const kg_total = Number(b.kg_total);
+  const total_usd = Number(b.total_usd);
+
+  if (!Number.isFinite(precio_usd_kg) || precio_usd_kg <= 0) {
+    return { error: "Precio USD/kg inválido" };
+  }
+  if (!Number.isFinite(kg_total) || kg_total <= 0) {
+    return { error: "Kg total inválido" };
+  }
+  if (!Number.isFinite(total_usd) || total_usd <= 0) {
+    return { error: "Total USD inválido" };
+  }
+
+  const cantidad_animales =
+    b.cantidad_animales != null && b.cantidad_animales !== ""
+      ? Number(b.cantidad_animales)
+      : null;
+  const kg_promedio =
+    b.kg_promedio != null && b.kg_promedio !== "" ? Number(b.kg_promedio) : null;
+
+  if (modo_kg === "CABEZAS") {
+    if (!cantidad_animales || cantidad_animales <= 0 || !Number.isFinite(cantidad_animales)) {
+      return { error: "Cantidad de animales inválida" };
+    }
+    if (!kg_promedio || kg_promedio <= 0 || !Number.isFinite(kg_promedio)) {
+      return { error: "Kg promedio inválido" };
+    }
+  }
+
+  return {
+    input: {
+      tipo,
+      categoria: categoria as simVenta.SimuladorVentaGanadoInput["categoria"],
+      modo_kg,
+      precio_usd_kg,
+      precio_ref_anio: b.precio_ref_anio != null ? Number(b.precio_ref_anio) : null,
+      precio_ref_semana: b.precio_ref_semana != null ? Number(b.precio_ref_semana) : null,
+      precio_ref_fecha_hasta: b.precio_ref_fecha_hasta ? String(b.precio_ref_fecha_hasta) : null,
+      cantidad_animales,
+      kg_promedio,
+      kg_total,
+      total_usd,
+      total_usd_por_cabeza:
+        b.total_usd_por_cabeza != null ? Number(b.total_usd_por_cabeza) : null,
+      notas: b.notas ? String(b.notas).slice(0, 500) : null,
+    },
+  };
+}
+
+function parseSimuladorVentaRealInput(
+  body: Record<string, unknown>,
+  modo_kg: simVenta.SimuladorModoKg
+): simVenta.SimuladorVentaRealInput | { error: string } {
+  const precio_usd_kg = Number(body.precio_usd_kg);
+  const kg_total = Number(body.kg_total);
+  const total_usd = Number(body.total_usd);
+
+  if (!Number.isFinite(precio_usd_kg) || precio_usd_kg <= 0) {
+    return { error: "Precio USD/kg real inválido" };
+  }
+  if (!Number.isFinite(kg_total) || kg_total <= 0) {
+    return { error: "Kg total real inválido" };
+  }
+  if (!Number.isFinite(total_usd) || total_usd <= 0) {
+    return { error: "Total USD real inválido" };
+  }
+
+  const cantidad_animales =
+    body.cantidad_animales != null && body.cantidad_animales !== ""
+      ? Number(body.cantidad_animales)
+      : null;
+  const kg_promedio =
+    body.kg_promedio != null && body.kg_promedio !== "" ? Number(body.kg_promedio) : null;
+
+  if (modo_kg === "CABEZAS") {
+    if (!cantidad_animales || cantidad_animales <= 0 || !Number.isFinite(cantidad_animales)) {
+      return { error: "Cantidad de animales real inválida" };
+    }
+    if (!kg_promedio || kg_promedio <= 0 || !Number.isFinite(kg_promedio)) {
+      return { error: "Kg promedio real inválido" };
+    }
+  }
+
+  return {
+    precio_usd_kg,
+    cantidad_animales,
+    kg_promedio,
+    kg_total,
+    total_usd,
+    total_usd_por_cabeza:
+      body.total_usd_por_cabeza != null ? Number(body.total_usd_por_cabeza) : null,
+    notas: body.notas ? String(body.notas).slice(0, 500) : null,
+  };
+}
+
+app.get("/api/simulador-venta-ganado/precios-referencia", async (req, res) => {
+  const tipo = parseSimuladorVentaTipo(req.query.tipo);
+  if (!tipo) {
+    res.status(400).json({ ok: false, error: "tipo inválido (EN_PIE o CUARTA_BALANZA)" });
+    return;
+  }
+  const ref = await db.simuladorVentaGanado.preciosReferencia(tipo);
+  res.json({ ok: true, ...ref });
+});
+
+app.get("/api/simulador-venta-ganado", async (req, res) => {
+  const tipo = parseSimuladorVentaTipo(req.query.tipo) ?? undefined;
+  const limitRaw = Number(req.query.limit);
+  const limit = Number.isFinite(limitRaw) ? limitRaw : undefined;
+  const data = await db.simuladorVentaGanado.list({ tipo, limit });
+  res.json({ ok: true, data });
+});
+
+app.post("/api/simulador-venta-ganado", async (req, res) => {
+  try {
+    const parsed = parseSimuladorVentaGanadoBody(req.body);
+    if ("error" in parsed) {
+      res.status(400).json({ ok: false, error: parsed.error });
+      return;
+    }
+
+    const row = await db.simuladorVentaGanado.insert({
+      ...parsed.input,
+      usuario_id: req.user!.id,
+    });
+    await auditSimuladorCreacion(req, row);
+
+    res.json({ ok: true, data: row, message: "Simulación guardada" });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: (e as Error).message });
+  }
+});
+
+app.put("/api/simulador-venta-ganado/:id", async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isFinite(id) || id <= 0) {
+    res.status(400).json({ ok: false, error: "ID inválido" });
+    return;
+  }
+  try {
+    const parsed = parseSimuladorVentaGanadoBody(req.body);
+    if ("error" in parsed) {
+      res.status(400).json({ ok: false, error: parsed.error });
+      return;
+    }
+
+    const antes = await db.simuladorVentaGanado.getById(id);
+    if (!antes) {
+      res.status(404).json({ ok: false, error: "Simulación no encontrada" });
+      return;
+    }
+
+    const row = await db.simuladorVentaGanado.update(id, parsed.input);
+    await auditSimuladorActualizacion(req, antes, row);
+    res.json({ ok: true, data: row, message: "Simulación actualizada" });
+  } catch (e) {
+    const msg = (e as Error).message;
+    res.status(msg.includes("no encontrada") ? 404 : 400).json({ ok: false, error: msg });
+  }
+});
+
+app.patch("/api/simulador-venta-ganado/:id", async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isFinite(id) || id <= 0) {
+    res.status(400).json({ ok: false, error: "ID inválido" });
+    return;
+  }
+  const body = (req.body ?? {}) as Record<string, unknown>;
+  const patch: Parameters<typeof db.simuladorVentaGanado.patch>[1] = {};
+
+  const antes = await db.simuladorVentaGanado.getById(id);
+  if (!antes) {
+    res.status(404).json({ ok: false, error: "Simulación no encontrada" });
+    return;
+  }
+
+  if (typeof body.destacada === "boolean") patch.destacada = body.destacada;
+  if (typeof body.venta_realizada === "boolean") patch.venta_realizada = body.venta_realizada;
+
+  if (body.valores_reales != null && typeof body.valores_reales === "object") {
+    const parsed = parseSimuladorVentaRealInput(
+      body.valores_reales as Record<string, unknown>,
+      antes.modo_kg
+    );
+    if ("error" in parsed) {
+      res.status(400).json({ ok: false, error: parsed.error });
+      return;
+    }
+    patch.valores_reales = parsed;
+  }
+
+  if (Object.keys(patch).length === 0) {
+    res.status(400).json({
+      ok: false,
+      error: "Indicá destacada, venta_realizada o valores_reales",
+    });
+    return;
+  }
+  try {
+    const row = await db.simuladorVentaGanado.patch(id, patch);
+    let restaurados = 0;
+    if (patch.venta_realizada === false) {
+      restaurados = await db.simuladorVentaDispositivos.revertStock(id);
+      await db.simuladorVentaDispositivos.clear(id);
+      if (restaurados > 0) {
+        await auditStockMovimiento(req, "MODIFICACION", {
+          resumen: `${restaurados} dispositivo(s) restaurado(s) al anular venta ${antes?.numero_operacion ?? id}`,
+          cantidad: restaurados,
+          detalle: { simulacion_id: id, restaurados },
+        });
+      }
+    }
+    await auditSimuladorPatch(req, antes, row, patch);
+    const message =
+      patch.venta_realizada === false
+        ? restaurados > 0
+          ? `Venta anulada — ${restaurados} dispositivo(s) vuelven al stock activo`
+          : "Venta anulada — la operación volvió a pendiente"
+        : "Simulación actualizada";
+    res.json({ ok: true, data: row, restaurados, message });
+  } catch (e) {
+    const msg = (e as Error).message;
+    res.status(msg.includes("no encontrada") ? 404 : 400).json({ ok: false, error: msg });
+  }
+});
+
+app.delete("/api/simulador-venta-ganado/:id", async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isFinite(id) || id <= 0) {
+    res.status(400).json({ ok: false, error: "ID inválido" });
+    return;
+  }
+  try {
+    const existing = await db.simuladorVentaGanado.getById(id);
+    if (!existing) {
+      res.status(404).json({ ok: false, error: "Simulación no encontrada" });
+      return;
+    }
+    if (existing.real_total_usd != null) {
+      res.status(400).json({
+        ok: false,
+        error: "No se puede eliminar una operación con venta real registrada",
+      });
+      return;
+    }
+    await auditSimuladorEliminacion(req, existing);
+    await db.simuladorVentaGanado.delete(id);
+    res.json({ ok: true, message: "Simulación eliminada" });
+  } catch (e) {
+    const msg = (e as Error).message;
+    res.status(msg.includes("no encontrada") ? 404 : 400).json({ ok: false, error: msg });
+  }
+});
+
+app.get("/api/simulador-venta-ganado/:id/dispositivos", async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isFinite(id) || id <= 0) {
+    res.status(400).json({ ok: false, error: "ID inválido" });
+    return;
+  }
+  const existing = await db.simuladorVentaGanado.getById(id);
+  if (!existing) {
+    res.status(404).json({ ok: false, error: "Simulación no encontrada" });
+    return;
+  }
+  if (existing.real_total_usd == null) {
+    res.status(400).json({ ok: false, error: "La venta aún no está cerrada" });
+    return;
+  }
+  const data = await db.simuladorVentaDispositivos.list(id);
+  res.json({ ok: true, data });
+});
+
+app.put("/api/simulador-venta-ganado/:id/dispositivos", async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isFinite(id) || id <= 0) {
+    res.status(400).json({ ok: false, error: "ID inválido" });
+    return;
+  }
+  const existing = await db.simuladorVentaGanado.getById(id);
+  if (!existing) {
+    res.status(404).json({ ok: false, error: "Simulación no encontrada" });
+    return;
+  }
+  if (existing.real_total_usd == null) {
+    res.status(400).json({ ok: false, error: "La venta aún no está cerrada" });
+    return;
+  }
+
+  const raw = (req.body as { dispositivos?: unknown })?.dispositivos;
+  if (!Array.isArray(raw)) {
+    res.status(400).json({ ok: false, error: "dispositivos debe ser un array" });
+    return;
+  }
+
+  const items = raw
+    .map((item) => {
+      if (!item || typeof item !== "object") return null;
+      const o = item as Record<string, unknown>;
+      const clave = String(o.clave ?? "").trim();
+      if (!clave) return null;
+      return {
+        clave,
+        eid: String(o.eid ?? "").trim(),
+        vid: String(o.vid ?? "").trim(),
+      };
+    })
+    .filter(Boolean) as { clave: string; eid: string; vid: string }[];
+
+  try {
+    const { data, bajados, restaurados } = await db.simuladorVentaDispositivos.replaceWithStock(
+      existing,
+      items
+    );
+    if (bajados.length > 0) {
+      await auditBajasDispositivos(req, bajados);
+    }
+    if (restaurados > 0) {
+      await auditStockMovimiento(req, "MODIFICACION", {
+        resumen: `${restaurados} dispositivo(s) restaurado(s) en stock (venta ${existing.numero_operacion})`,
+        cantidad: restaurados,
+        detalle: { simulacion_id: id, restaurados },
+      });
+    }
+    const parts: string[] = [];
+    if (data.length > 0) parts.push(`${data.length} dispositivo(s) vinculado(s) a la venta`);
+    if (bajados.length > 0) parts.push(`${bajados.length} dado(s) de baja en stock`);
+    if (restaurados > 0) parts.push(`${restaurados} restaurado(s) al stock activo`);
+    const message =
+      parts.length > 0 ? parts.join(" · ") : "Sin dispositivos vinculados a la venta";
+    res.json({
+      ok: true,
+      data,
+      bajados: bajados.length,
+      restaurados,
+      message,
+    });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: (e as Error).message });
+  }
+});
+
+app.get("/api/simulador-venta-ganado/:id/auditoria", async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isFinite(id) || id <= 0) {
+    res.status(400).json({ ok: false, error: "ID inválido" });
+    return;
+  }
+  const existing = await db.simuladorVentaGanado.getById(id);
+  if (!existing) {
+    res.status(404).json({ ok: false, error: "Simulación no encontrada" });
+    return;
+  }
+  const limitRaw = Number(req.query.limit);
+  const limit = Number.isFinite(limitRaw) ? limitRaw : undefined;
+  const data = await db.simuladorVentaAuditoria.list({ simulacion_id: id, limite: limit });
+  res.json({ ok: true, data, labels: db.simuladorVentaAuditoria.labels });
 });
 
 app.get("/api/resumen", async (req, res) => {

@@ -17,9 +17,14 @@ import * as vsub from "./venta-sub-rubros-db.js";
 import * as vsubItems from "./venta-sub-rubro-items-db.js";
 import * as vgicon from "./venta-grupo-iconos-db.js";
 import * as stock from "./stock-ganadero-db.js";
+import * as stockSalidas from "./stock-ganadera-salidas.js";
 import * as stockAud from "./stock-auditoria-db.js";
 import * as auth from "./auth-db.js";
 import * as chat from "./chat-db.js";
+import * as simVenta from "./simulador-venta-ganado-db.js";
+import * as simVentaAud from "./simulador-venta-auditoria-db.js";
+import * as simVentaDisp from "./simulador-venta-dispositivos-db.js";
+import * as simVentaStock from "./simulador-venta-stock-sync.js";
 import { applySchema } from "./db/init-schema.js";
 
 let db: PgDb;
@@ -140,6 +145,9 @@ export async function initDb(): Promise<void> {
     await stock.initStockGanaderoTables(db);
     await stockAud.initStockAuditoriaTable(db);
     await pgan.initPreciosGanadoTable(db);
+    await simVenta.initSimuladorVentaGanadoTable(db);
+    await simVentaAud.initSimuladorVentaAuditoriaTable(db);
+    await simVentaDisp.initSimuladorVentaDispositivosTable(db);
     await migratePresupuestoIngresadoPor(db);
   } finally {
     if (locked) await releaseAdvisoryLock();
@@ -217,6 +225,48 @@ export const preciosGanado = {
   segmentos: pgan.SEGMENTOS_PRECIOS_GANADO,
 };
 
+export const simuladorVentaGanado = {
+  preciosReferencia: (tipo: simVenta.SimuladorVentaTipo) =>
+    simVenta.getPreciosReferenciaSimulador(db, tipo),
+  list: (filters?: Parameters<typeof simVenta.listSimulacionesVentaGanado>[1]) =>
+    simVenta.listSimulacionesVentaGanado(db, filters),
+  insert: (input: simVenta.SimuladorVentaGanadoInput) =>
+    simVenta.insertSimulacionVentaGanado(db, input),
+  getById: (id: number) => simVenta.getSimulacionVentaGanadoById(db, id),
+  update: (id: number, input: simVenta.SimuladorVentaGanadoInput) =>
+    simVenta.updateSimulacionVentaGanado(db, id, input),
+  patch: (id: number, patch: Parameters<typeof simVenta.patchSimulacionVentaGanado>[2]) =>
+    simVenta.patchSimulacionVentaGanado(db, id, patch),
+  delete: (id: number) => simVenta.deleteSimulacionVentaGanado(db, id),
+  tipos: simVenta.SIMULADOR_VENTA_TIPOS,
+  categoriasPorTipo: simVenta.categoriasPorTipo,
+  labelsPorTipo: simVenta.labelsPorTipo,
+};
+
+export const simuladorVentaAuditoria = {
+  list: (filters?: Parameters<typeof simVentaAud.listSimuladorVentaAuditoria>[1]) =>
+    simVentaAud.listSimuladorVentaAuditoria(db, filters),
+  record: (input: simVentaAud.SimuladorVentaAuditoriaInput) =>
+    simVentaAud.recordSimuladorVentaAuditoria(db, input),
+  labels: simVentaAud.SIMULADOR_VENTA_AUDITORIA_LABELS,
+};
+
+export const simuladorVentaDispositivos = {
+  list: (simulacionId: number) => simVentaDisp.listDispositivosBySimulacion(db, simulacionId),
+  count: (simulacionId: number) => simVentaDisp.countDispositivosBySimulacion(db, simulacionId),
+  replace: (simulacionId: number, items: simVentaDisp.SimuladorVentaDispositivoInput[]) =>
+    simVentaDisp.replaceDispositivosBySimulacion(db, simulacionId, items),
+  replaceWithStock: (
+    simulacion: simVenta.SimuladorVentaGanadoRow,
+    items: simVentaDisp.SimuladorVentaDispositivoInput[]
+  ) => simVentaStock.syncAndReplaceSimuladorVentaDispositivos(db, simulacion, items),
+  revertStock: (simulacionId: number) =>
+    simVentaStock.revertirStockDispositivosSimulacion(db, simulacionId),
+  clear: (simulacionId: number) => simVentaDisp.clearDispositivosBySimulacion(db, simulacionId),
+  countEnVentasCerradas: () => simVentaDisp.countDispositivosEnVentasCerradas(db),
+  listClavesEnVentasCerradas: () => simVentaDisp.listClavesDispositivosEnVentasCerradas(db),
+};
+
 export const ventaSubRubros = {
   list: (soloActivos?: boolean) => vsub.listVentaSubRubros(db, soloActivos ?? false),
   listGrupos: () => vsub.listVentaSubRubrosGrupos(db),
@@ -267,32 +317,50 @@ export const stockGanadero = {
     stock.listStockGanaderoRegistros(db, filters),
   importRows: (nombreArchivo: string, rows: stock.StockGanaderoRowInput[]) =>
     stock.importStockGanaderoRows(db, nombreArchivo, rows),
-  importBaja: (rows: stock.StockGanaderoRowInput[], tipo_baja: stock.TipoBaja) =>
-    stock.importBajaDispositivos(db, rows, tipo_baja),
-  importBajaNumeros: (numeros: string[], tipo_baja: stock.TipoBaja) =>
-    stock.importBajaPorNumeros(db, numeros, tipo_baja),
-  importBajaDetalle: (items: stock.BajaDispositivoItemInput[]) =>
-    stock.importBajaDetalle(db, items),
+  importBaja: (
+    rows: stock.StockGanaderoRowInput[],
+    tipo_baja: stock.TipoBaja,
+    autor?: stock.HistorialAutor
+  ) => stock.importBajaDispositivos(db, rows, tipo_baja, autor),
+  importBajaNumeros: (
+    numeros: string[],
+    tipo_baja: stock.TipoBaja,
+    autor?: stock.HistorialAutor
+  ) => stock.importBajaPorNumeros(db, numeros, tipo_baja, autor),
+  importBajaDetalle: (items: stock.BajaDispositivoItemInput[], autor?: stock.HistorialAutor) =>
+    stock.importBajaDetalle(db, items, autor),
   deleteLote: (id: number) => stock.deleteStockGanaderoLote(db, id),
   countRegistros: () => stock.countStockGanaderoRegistros(db),
   estadisticas: (filters?: stock.StockGanaderoFilters) =>
     stock.getStockGanaderoEstadisticas(db, filters),
   listDispositivos: (filters?: stock.StockGanaderoFilters) =>
     stock.listStockGanaderaDispositivos(db, filters),
+  listSalidas: (filters?: stock.StockGanaderoFilters) =>
+    stockSalidas.listSalidasSistemaDispositivos(db, filters),
   getDispositivo: (clave: string, filters?: stock.StockGanaderoFilters) =>
     stock.getStockGanaderaDispositivoDetalle(db, clave, filters),
-  countDispositivos: () => stock.countStockGanaderaDispositivos(db),
-  updateDispositivoSexo: (clave: string, sexo: stock.DispositivoSexo, eid?: string) =>
-    stock.updateStockGanaderaDispositivoSexo(db, clave, sexo, eid),
+  countDispositivos: () => stock.countStockGanaderaDispositivosActivos(db),
+  countDispositivosTotal: () => stock.countStockGanaderaDispositivos(db),
+  updateDispositivoSexo: (
+    clave: string,
+    sexo: stock.DispositivoSexo,
+    eid?: string,
+    autor?: stock.HistorialAutor
+  ) => stock.updateStockGanaderaDispositivoSexo(db, clave, sexo, eid, autor),
   updateDispositivoEdad: (clave: string, edad: number | null, eid?: string) =>
     stock.updateStockGanaderaDispositivoEdad(db, clave, edad, eid),
-  saveDispositivo: (clave: string, input: stock.DispositivoMetaInput, eid?: string) =>
-    stock.saveStockGanaderaDispositivo(db, clave, input, eid),
+  saveDispositivo: (
+    clave: string,
+    input: stock.DispositivoMetaInput,
+    eid?: string,
+    autor?: stock.HistorialAutor
+  ) => stock.saveStockGanaderaDispositivo(db, clave, input, eid, autor),
   bulkPatchDispositivos: (
     claves: string[],
     patch: stock.DispositivoMetaPatch,
-    eids?: Record<string, string>
-  ) => stock.bulkPatchStockGanaderaDispositivos(db, claves, patch, eids),
+    eids?: Record<string, string>,
+    autor?: stock.HistorialAutor
+  ) => stock.bulkPatchStockGanaderaDispositivos(db, claves, patch, eids, autor),
   listHistorialCambios: (clave: string) =>
     stock.listStockGanaderaDispositivoHistorial(db, clave),
 };

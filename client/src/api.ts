@@ -27,6 +27,15 @@ import type {
   SemanaPreciosGanado,
   PrecioGanadoResumenLocal,
   SegmentoPreciosGanado,
+  SimuladorVentaTipo,
+  SimuladorVentaGanadoRow,
+  SimuladorVentaDispositivoRow,
+  SimuladorVentaAuditoriaRow,
+  SimuladorVentaAuditoriaTipo,
+  SimuladorVentaAuditoriaDetalle,
+  SimuladorPreciosReferencia,
+  SimuladorModoKg,
+  SimuladorVentaRealInput,
   StockGanaderoLote,
   StockGanaderoRegistro,
   StockGanaderoEstadisticas,
@@ -308,11 +317,59 @@ export async function fetchStockGanaderoResumen(): Promise<{
   lotes: number;
   registros: number;
   dispositivos: number;
+  ventas_dispositivos: number;
 }> {
   const json = await request<{
-    data: { lotes: number; registros: number; dispositivos: number };
+    data: {
+      lotes: number;
+      registros: number;
+      dispositivos: number;
+      ventas_dispositivos: number;
+    };
   }>("/stock-ganadero/resumen");
   return json.data;
+}
+
+export async function fetchStockGanaderaVentasDispositivos(): Promise<{
+  total: number;
+  claves: string[];
+}> {
+  const json = await request<{ data: { total: number; claves: string[] } }>(
+    "/stock-ganadero/ventas-dispositivos"
+  );
+  return json.data;
+}
+
+export async function fetchStockGanaderaSalidas(filters: {
+  busqueda?: string;
+  fecha_desde?: string;
+  fecha_hasta?: string;
+  estado_dispositivo?: DispositivoEstado;
+} = {}): Promise<{
+  dispositivos: StockGanaderaDispositivo[];
+  bajasReparadas: number;
+}> {
+  const params = new URLSearchParams();
+  if (filters.busqueda?.trim()) params.set("busqueda", filters.busqueda.trim());
+  if (filters.fecha_desde) params.set("fecha_desde", filters.fecha_desde);
+  if (filters.fecha_hasta) params.set("fecha_hasta", filters.fecha_hasta);
+  if (
+    filters.estado_dispositivo === "MUERTO" ||
+    filters.estado_dispositivo === "VENDIDO" ||
+    filters.estado_dispositivo === "FRIGORIFICO" ||
+    filters.estado_dispositivo === "PERDIDO"
+  ) {
+    params.set("estado_dispositivo", filters.estado_dispositivo);
+  }
+  const q = params.toString() ? `?${params}` : "";
+  const json = await request<{
+    data: StockGanaderaDispositivo[];
+    bajas_reparadas: number;
+  }>(`/stock-ganadero/salidas${q}`);
+  return {
+    dispositivos: json.data,
+    bajasReparadas: json.bajas_reparadas ?? 0,
+  };
 }
 
 export async function fetchStockGanaderaDispositivos(filters: {
@@ -332,7 +389,8 @@ export async function fetchStockGanaderaDispositivos(filters: {
   if (
     filters.estado_dispositivo === "MUERTO" ||
     filters.estado_dispositivo === "VENDIDO" ||
-    filters.estado_dispositivo === "FRIGORIFICO"
+    filters.estado_dispositivo === "FRIGORIFICO" ||
+    filters.estado_dispositivo === "PERDIDO"
   ) {
     params.set("estado_dispositivo", filters.estado_dispositivo);
   }
@@ -1271,6 +1329,153 @@ export async function importPreciosGanadoAcg(options?: {
   return request("/precios-ganado/import/acg", {
     method: "POST",
     body: JSON.stringify(options ?? { segmento: "ALL" }),
+  });
+}
+
+export async function fetchSimuladorPreciosReferencia(
+  tipo: SimuladorVentaTipo
+): Promise<SimuladorPreciosReferencia> {
+  const json = await request<SimuladorPreciosReferencia & { ok: boolean }>(
+    `/simulador-venta-ganado/precios-referencia?tipo=${tipo}`
+  );
+  return {
+    tipo: json.tipo,
+    segmento: json.segmento,
+    ultima: json.ultima,
+    precios: json.precios,
+    labels: json.labels,
+    categorias: json.categorias,
+    siguiente_numero_operacion: json.siguiente_numero_operacion,
+  };
+}
+
+export async function fetchSimulacionesVentaGanado(filters?: {
+  tipo?: SimuladorVentaTipo;
+  limit?: number;
+}): Promise<SimuladorVentaGanadoRow[]> {
+  const params = new URLSearchParams();
+  if (filters?.tipo) params.set("tipo", filters.tipo);
+  if (filters?.limit != null) params.set("limit", String(filters.limit));
+  const q = params.toString() ? `?${params}` : "";
+  const json = await request<{ ok: boolean; data: SimuladorVentaGanadoRow[] }>(
+    `/simulador-venta-ganado${q}`
+  );
+  return json.data;
+}
+
+export async function saveSimulacionVentaGanado(data: {
+  tipo: SimuladorVentaTipo;
+  categoria: string;
+  modo_kg: SimuladorModoKg;
+  precio_usd_kg: number;
+  precio_ref_anio?: number | null;
+  precio_ref_semana?: number | null;
+  precio_ref_fecha_hasta?: string | null;
+  cantidad_animales?: number | null;
+  kg_promedio?: number | null;
+  kg_total: number;
+  total_usd: number;
+  total_usd_por_cabeza?: number | null;
+  notas?: string | null;
+}): Promise<{ data: SimuladorVentaGanadoRow; message: string }> {
+  return request("/simulador-venta-ganado", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteSimulacionVentaGanado(id: number): Promise<{ message: string }> {
+  return request(`/simulador-venta-ganado/${id}`, { method: "DELETE" });
+}
+
+export async function updateSimulacionVentaGanado(
+  id: number,
+  data: {
+    tipo: SimuladorVentaTipo;
+    categoria: string;
+    modo_kg: SimuladorModoKg;
+    precio_usd_kg: number;
+    precio_ref_anio?: number | null;
+    precio_ref_semana?: number | null;
+    precio_ref_fecha_hasta?: string | null;
+    cantidad_animales?: number | null;
+    kg_promedio?: number | null;
+    kg_total: number;
+    total_usd: number;
+    total_usd_por_cabeza?: number | null;
+    notas?: string | null;
+  }
+): Promise<{ data: SimuladorVentaGanadoRow; message: string }> {
+  return request(`/simulador-venta-ganado/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function patchSimulacionVentaGanado(
+  id: number,
+  patch: {
+    destacada?: boolean;
+    venta_realizada?: boolean;
+    valores_reales?: SimuladorVentaRealInput;
+  }
+): Promise<{ data: SimuladorVentaGanadoRow; message: string; restaurados?: number }> {
+  return request(`/simulador-venta-ganado/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(patch),
+  });
+}
+
+export async function fetchSimuladorVentaAuditoria(
+  id: number,
+  limit?: number
+): Promise<{
+  data: SimuladorVentaAuditoriaRow[];
+  labels: Record<SimuladorVentaAuditoriaTipo, string>;
+}> {
+  const q = limit != null ? `?limit=${limit}` : "";
+  const json = await request<{
+    ok: boolean;
+    data: Array<Omit<SimuladorVentaAuditoriaRow, "detalle"> & { detalle: string }>;
+    labels: Record<SimuladorVentaAuditoriaTipo, string>;
+  }>(`/simulador-venta-ganado/${id}/auditoria${q}`);
+
+  const data = json.data.map((row) => {
+    let detalle: SimuladorVentaAuditoriaDetalle | null = null;
+    if (row.detalle?.trim()) {
+      try {
+        detalle = JSON.parse(row.detalle) as SimuladorVentaAuditoriaDetalle;
+      } catch {
+        detalle = null;
+      }
+    }
+    return { ...row, detalle };
+  });
+
+  return { data, labels: json.labels };
+}
+
+export async function fetchSimuladorVentaDispositivos(
+  id: number
+): Promise<SimuladorVentaDispositivoRow[]> {
+  const json = await request<{ ok: boolean; data: SimuladorVentaDispositivoRow[] }>(
+    `/simulador-venta-ganado/${id}/dispositivos`
+  );
+  return json.data;
+}
+
+export async function saveSimuladorVentaDispositivos(
+  id: number,
+  dispositivos: Array<{ clave: string; eid: string; vid: string }>
+): Promise<{
+  data: SimuladorVentaDispositivoRow[];
+  message: string;
+  restaurados?: number;
+  bajados?: number;
+}> {
+  return request(`/simulador-venta-ganado/${id}/dispositivos`, {
+    method: "PUT",
+    body: JSON.stringify({ dispositivos }),
   });
 }
 

@@ -49,7 +49,7 @@ const TIPOS_BAJA_HINTS: Partial<Record<TipoBaja, string>> = {
   VENTA_FRIGORIFICO: "Dispositivos vendidos a frigorífico — estado Vendido",
   VENTA_PRODUCTOR: "Venta a productor — estado Vendido",
   MUERTE: "Muerte — estado Muerto",
-  PERDIDO: "Perdido — estado Perdido",
+  PERDIDO: "Extraviado — estado Extraviado",
 };
 
 function esArchivoStockValido(f: File): boolean {

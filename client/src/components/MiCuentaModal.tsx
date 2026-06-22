@@ -1,17 +1,19 @@
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
+import { createPortal } from "react-dom";
 import { cambiarPasswordAuth, quitarAvatarFoto, subirAvatarFoto } from "../api";
+import { useHeaderBackStep } from "../header-back";
 import type { AuthUser } from "../types";
 import {
   PASSWORD_POLICY_HINT,
   validatePasswordStrength,
 } from "../utils/password-policy";
+import SubseccionInlinePanel from "./SubseccionInlinePanel";
 import UserAvatar from "./UserAvatar";
 import PasswordVisibilityToggle from "./PasswordVisibilityToggle";
 
 interface Props {
   user: AuthUser;
-  open: boolean;
-  onClose: () => void;
+  onVolver: () => void;
   onUserUpdated: (user: AuthUser) => void;
   onPasswordChanged: (message: string) => void;
   onError: (message: string) => void;
@@ -19,11 +21,11 @@ interface Props {
 
 const MAX_FOTO_MB = 2;
 const FOTO_TIPOS = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+const PW_FORM_ID = "mi-cuenta-pw-form";
 
-export default function MiCuentaModal({
+export default function MiCuentaPanel({
   user,
-  open,
-  onClose,
+  onVolver,
   onUserUpdated,
   onPasswordChanged,
   onError,
@@ -39,23 +41,23 @@ export default function MiCuentaModal({
   const [savingFoto, setSavingFoto] = useState(false);
   const [fotoAmpliada, setFotoAmpliada] = useState(false);
 
-  const tieneFoto = user.avatar.tipo === "foto" && !!user.avatar.url;
-
-  useEffect(() => {
-    if (!open) setFotoAmpliada(false);
-  }, [open]);
+  useHeaderBackStep(true, onVolver, "Menú principal");
 
   useEffect(() => {
     if (!fotoAmpliada) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setFotoAmpliada(false);
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    document.addEventListener("keydown", onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prevOverflow;
+    };
   }, [fotoAmpliada]);
 
-  if (!open) return null;
-
+  const tieneFoto = user.avatar.tipo === "foto" && !!user.avatar.url;
   const busy = savingPw || savingFoto;
 
   const resetPasswordFields = () => {
@@ -67,10 +69,10 @@ export default function MiCuentaModal({
     setShowConfirmar(false);
   };
 
-  const handleClose = () => {
+  const handleVolver = () => {
     if (busy) return;
     resetPasswordFields();
-    onClose();
+    onVolver();
   };
 
   const handleFotoChange = async (e: ChangeEvent<HTMLInputElement>) => {
@@ -145,41 +147,38 @@ export default function MiCuentaModal({
 
   return (
     <>
-    <div className="cambiar-pw-overlay" role="presentation" onClick={handleClose}>
-      <div
-        className="cambiar-pw-modal mi-cuenta-modal"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="mi-cuenta-title"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <header className="cambiar-pw-head">
-          <div className="cambiar-pw-head-user">
-            <UserAvatar nombre={user.nombre} avatar={user.avatar} size="lg" />
-            <div>
-              <h2 id="mi-cuenta-title">Mi cuenta</h2>
-              <p className="cambiar-pw-sub">
-                {user.nombre} · {user.email}
-              </p>
+      <SubseccionInlinePanel
+        onVolver={handleVolver}
+        volverLabel="Volver al menú"
+        title="Mi cuenta"
+        cardClassName="mi-cuenta-page"
+        footer={
+          <div className="mi-cuenta-page-foot">
+            <p className="mi-cuenta-page-foot-note muted">
+              Al cambiar la contraseña se cerrará tu sesión por seguridad.
+            </p>
+            <div className="mi-cuenta-page-foot-actions">
+              <button type="button" className="btn btn-ghost" onClick={handleVolver} disabled={busy}>
+                Volver
+              </button>
+              <button
+                type="submit"
+                form={PW_FORM_ID}
+                className="btn btn-primary"
+                disabled={busy}
+              >
+                {savingPw ? "Guardando…" : "Actualizar contraseña"}
+              </button>
             </div>
           </div>
-          <button
-            type="button"
-            className="btn btn-ghost cambiar-pw-close"
-            onClick={handleClose}
-            disabled={busy}
-            aria-label="Cerrar"
-          >
-            ✕
-          </button>
-        </header>
-
-        <section className="mi-cuenta-foto">
-          <div className="mi-cuenta-foto-preview">
+        }
+      >
+        <section className="mi-cuenta-perfil" aria-label="Perfil">
+          <div className="mi-cuenta-perfil-avatar-col">
             {tieneFoto ? (
               <button
                 type="button"
-                className="mi-cuenta-foto-thumb-btn"
+                className="mi-cuenta-foto-thumb-btn mi-cuenta-perfil-avatar-btn"
                 onClick={() => setFotoAmpliada(true)}
                 title="Ver foto más grande"
                 aria-label="Ver foto de perfil ampliada"
@@ -189,149 +188,166 @@ export default function MiCuentaModal({
             ) : (
               <UserAvatar nombre={user.nombre} avatar={user.avatar} size="lg" />
             )}
-            <div className="mi-cuenta-foto-text">
-              <strong>Foto de perfil</strong>
-              <p className="muted">
-                Se muestra en el círculo del encabezado. La imagen se recorta en forma circular.
-                {tieneFoto ? " Clic en la foto para verla más grande." : ""}
-              </p>
-            </div>
           </div>
-          <div className="mi-cuenta-foto-actions">
-            <input
-              ref={fileRef}
-              type="file"
-              accept="image/jpeg,image/png,image/webp,image/gif"
-              className="mi-cuenta-foto-input"
-              disabled={busy}
-              onChange={(e) => void handleFotoChange(e)}
-            />
-            <button
-              type="button"
-              className="btn btn-secondary"
-              disabled={busy}
-              onClick={() => fileRef.current?.click()}
-            >
-              {savingFoto ? "Subiendo…" : user.avatar.tipo === "foto" ? "Cambiar foto" : "Subir foto"}
-            </button>
-            {user.avatar.tipo === "foto" && (
-              <button
-                type="button"
-                className="btn btn-ghost"
+
+          <div className="mi-cuenta-perfil-body">
+            <div className="mi-cuenta-perfil-identity">
+              <strong className="mi-cuenta-perfil-name">{user.nombre}</strong>
+              <span className="mi-cuenta-perfil-email">{user.email}</span>
+              <span className="mi-cuenta-perfil-role" data-rol={user.rol}>
+                {user.rol_label}
+              </span>
+            </div>
+
+            <div className="mi-cuenta-perfil-tools">
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                className="mi-cuenta-foto-input"
                 disabled={busy}
-                onClick={() => void handleQuitarFoto()}
-              >
-                Quitar foto
-              </button>
-            )}
+                onChange={(e) => void handleFotoChange(e)}
+              />
+              <div className="mi-cuenta-perfil-actions">
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  disabled={busy}
+                  onClick={() => fileRef.current?.click()}
+                >
+                  {savingFoto
+                    ? "Subiendo…"
+                    : user.avatar.tipo === "foto"
+                      ? "Cambiar foto"
+                      : "Subir foto"}
+                </button>
+                {user.avatar.tipo === "foto" && (
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    disabled={busy}
+                    onClick={() => void handleQuitarFoto()}
+                  >
+                    Quitar foto
+                  </button>
+                )}
+              </div>
+              {tieneFoto ? (
+                <span className="mi-cuenta-perfil-hint muted">Clic en la foto para ampliar</span>
+              ) : (
+                <span className="mi-cuenta-perfil-hint muted">
+                  JPG, PNG, WebP o GIF · máx. {MAX_FOTO_MB} MB
+                </span>
+              )}
+            </div>
           </div>
         </section>
 
-        <form className="cambiar-pw-form" onSubmit={(e) => void submitPassword(e)}>
-          <h3 className="mi-cuenta-section-title">Cambiar contraseña</h3>
-          <p className="cambiar-pw-hint muted">{PASSWORD_POLICY_HINT}</p>
-
-          <div className="field">
-            <label htmlFor="pw-actual">Contraseña actual</label>
-            <div className="password-field-row">
-              <input
-                id="pw-actual"
-                type={showActual ? "text" : "password"}
-                autoComplete="current-password"
-                value={actual}
-                disabled={busy}
-                onChange={(e) => setActual(e.target.value)}
-              />
-              <PasswordVisibilityToggle
-                visible={showActual}
-                onToggle={() => setShowActual((v) => !v)}
-              />
-            </div>
+        <section className="mi-cuenta-pw" aria-labelledby="mi-cuenta-pw-title">
+          <div className="mi-cuenta-pw-head">
+            <h3 id="mi-cuenta-pw-title" className="mi-cuenta-pw-title">
+              Contraseña
+            </h3>
+            <p className="mi-cuenta-pw-hint muted">{PASSWORD_POLICY_HINT}</p>
           </div>
 
-          <div className="field">
-            <label htmlFor="pw-nueva">Nueva contraseña</label>
-            <div className="password-field-row">
-              <input
-                id="pw-nueva"
-                type={showNueva ? "text" : "password"}
-                autoComplete="new-password"
-                value={nueva}
-                disabled={busy}
-                onChange={(e) => setNueva(e.target.value)}
-              />
-              <PasswordVisibilityToggle
-                visible={showNueva}
-                onToggle={() => setShowNueva((v) => !v)}
-              />
+          <form id={PW_FORM_ID} className="mi-cuenta-pw-form" onSubmit={(e) => void submitPassword(e)}>
+            <div className="field">
+              <label htmlFor="pw-actual">Actual</label>
+              <div className="password-field-row">
+                <input
+                  id="pw-actual"
+                  type={showActual ? "text" : "password"}
+                  autoComplete="current-password"
+                  value={actual}
+                  disabled={busy}
+                  onChange={(e) => setActual(e.target.value)}
+                />
+                <PasswordVisibilityToggle
+                  visible={showActual}
+                  onToggle={() => setShowActual((v) => !v)}
+                />
+              </div>
             </div>
-          </div>
 
-          <div className="field">
-            <label htmlFor="pw-confirmar">Confirmar nueva contraseña</label>
-            <div className="password-field-row">
-              <input
-                id="pw-confirmar"
-                type={showConfirmar ? "text" : "password"}
-                autoComplete="new-password"
-                value={confirmar}
-                disabled={busy}
-                onChange={(e) => setConfirmar(e.target.value)}
-              />
-              <PasswordVisibilityToggle
-                visible={showConfirmar}
-                onToggle={() => setShowConfirmar((v) => !v)}
-              />
+            <div className="field">
+              <label htmlFor="pw-nueva">Nueva</label>
+              <div className="password-field-row">
+                <input
+                  id="pw-nueva"
+                  type={showNueva ? "text" : "password"}
+                  autoComplete="new-password"
+                  value={nueva}
+                  disabled={busy}
+                  onChange={(e) => setNueva(e.target.value)}
+                />
+                <PasswordVisibilityToggle
+                  visible={showNueva}
+                  onToggle={() => setShowNueva((v) => !v)}
+                />
+              </div>
             </div>
-          </div>
 
-          <p className="cambiar-pw-note muted">
-            Por seguridad, al guardar se cerrará tu sesión y deberás iniciar sesión con la nueva
-            contraseña.
-          </p>
+            <div className="field">
+              <label htmlFor="pw-confirmar">Confirmar</label>
+              <div className="password-field-row">
+                <input
+                  id="pw-confirmar"
+                  type={showConfirmar ? "text" : "password"}
+                  autoComplete="new-password"
+                  value={confirmar}
+                  disabled={busy}
+                  onChange={(e) => setConfirmar(e.target.value)}
+                />
+                <PasswordVisibilityToggle
+                  visible={showConfirmar}
+                  onToggle={() => setShowConfirmar((v) => !v)}
+                />
+              </div>
+            </div>
+          </form>
+        </section>
+      </SubseccionInlinePanel>
 
-          <footer className="cambiar-pw-foot">
-            <button type="button" className="btn btn-ghost" onClick={handleClose} disabled={busy}>
-              Cerrar
-            </button>
-            <button type="submit" className="btn btn-primary" disabled={busy}>
-              {savingPw ? "Guardando…" : "Actualizar contraseña"}
-            </button>
-          </footer>
-        </form>
-      </div>
-    </div>
-
-    {fotoAmpliada && user.avatar.url && (
-      <div
-        className="mi-cuenta-foto-lightbox"
-        role="presentation"
-        onClick={() => setFotoAmpliada(false)}
-      >
-        <div
-          className="mi-cuenta-foto-lightbox-panel"
-          role="dialog"
-          aria-modal="true"
-          aria-label={`Foto de perfil de ${user.nombre}`}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <button
-            type="button"
-            className="btn btn-ghost mi-cuenta-foto-lightbox-close"
-            onClick={() => setFotoAmpliada(false)}
-            aria-label="Cerrar vista ampliada"
-          >
-            ✕
-          </button>
-          <img
-            src={user.avatar.url}
-            alt={`Foto de perfil de ${user.nombre}`}
-            className="mi-cuenta-foto-lightbox-img"
-          />
-          <p className="mi-cuenta-foto-lightbox-caption">{user.nombre}</p>
-        </div>
-      </div>
-    )}
+      {fotoAmpliada && user.avatar.url
+        ? createPortal(
+            <div
+              className="mi-cuenta-foto-modal-overlay"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="mi-cuenta-foto-modal-title"
+              onClick={(e) => {
+                if (e.target === e.currentTarget) setFotoAmpliada(false);
+              }}
+            >
+              <div className="card mi-cuenta-foto-modal">
+                <div className="form-header mi-cuenta-foto-modal-head">
+                  <h2 id="mi-cuenta-foto-modal-title">Foto de perfil</h2>
+                </div>
+                <div className="mi-cuenta-foto-modal-body">
+                  <img
+                    src={user.avatar.url}
+                    alt={`Foto de perfil de ${user.nombre}`}
+                    className="mi-cuenta-foto-modal-img"
+                  />
+                </div>
+                <footer className="mi-cuenta-foto-modal-foot">
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    onClick={() => setFotoAmpliada(false)}
+                  >
+                    Volver
+                  </button>
+                </footer>
+              </div>
+            </div>,
+            document.body
+          )
+        : null}
     </>
   );
 }
+
+/** @deprecated Usar MiCuentaPanel */
+export { MiCuentaPanel as MiCuentaModal };

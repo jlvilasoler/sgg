@@ -67,6 +67,83 @@ function bajaDispositivoDeFila(
   return null;
 }
 
+function TipoBadge({ tipo }: { tipo: StockMovimientoTipo }) {
+  return (
+    <span className={`stock-mov-auditoria-tipo stock-mov-auditoria-tipo--${tipo.toLowerCase()}`}>
+      {TIPO_LABELS[tipo]}
+    </span>
+  );
+}
+
+function DetalleBaja({ baja, fallbackClave }: { baja: StockMovimientoBajaDispositivo | null; fallbackClave: string }) {
+  const numero = baja?.numero || fallbackClave || "—";
+
+  return (
+    <div className="stock-mov-detalle stock-mov-detalle--baja">
+      <div className="stock-mov-detalle-device">
+        <strong className="stock-mov-detalle-device-num num">{numero}</strong>
+        {baja?.eid ? (
+          <span className="stock-mov-detalle-device-eid muted">EID {baja.eid}</span>
+        ) : null}
+        {baja?.vid ? (
+          <span className="stock-mov-detalle-device-vid muted num">{baja.vid}</span>
+        ) : null}
+      </div>
+      <div className="stock-mov-detalle-chips" aria-label="Datos de la baja">
+        <span className="stock-mov-detalle-chip">
+          <span className="stock-mov-detalle-chip-k">Alta</span>
+          <span className="stock-mov-detalle-chip-v">{fmtFechaSolo(baja?.primera_fecha ?? "")}</span>
+        </span>
+        <span className="stock-mov-detalle-chip">
+          <span className="stock-mov-detalle-chip-k">Baja</span>
+          <span className="stock-mov-detalle-chip-v">{fmtFechaSolo(baja?.fecha_baja ?? "")}</span>
+        </span>
+        <span className="stock-mov-detalle-chip">
+          <span className="stock-mov-detalle-chip-k">Tiempo</span>
+          <span className="stock-mov-detalle-chip-v">{fmtTiempoEnSistema(baja?.dias_en_sistema)}</span>
+        </span>
+        <span className="stock-mov-detalle-chip">
+          <span className="stock-mov-detalle-chip-k">Categoría</span>
+          <span className="stock-mov-detalle-chip-v">{baja?.categoria || "—"}</span>
+        </span>
+        {baja?.tipo_baja ? (
+          <span className="stock-mov-detalle-chip stock-mov-detalle-chip--motivo">
+            <span className="stock-mov-detalle-chip-k">Motivo</span>
+            <span className="stock-mov-detalle-chip-v">{baja.tipo_baja}</span>
+          </span>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function DetalleGeneral({ row }: { row: StockMovimientoAuditoria }) {
+  return (
+    <div className="stock-mov-detalle stock-mov-detalle--texto">
+      <p className="stock-mov-detalle-resumen">{row.resumen || "—"}</p>
+      {(row.cantidad > 1 || row.clave) && (
+        <div className="stock-mov-detalle-badges">
+          {row.cantidad > 1 ? (
+            <span className="stock-mov-detalle-badge num">
+              {row.cantidad} dispositivo{row.cantidad === 1 ? "" : "s"}
+            </span>
+          ) : null}
+          {row.clave ? (
+            <span className="stock-mov-detalle-badge stock-mov-detalle-badge--clave num">{row.clave}</span>
+          ) : null}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DetalleMovimiento({ row }: { row: StockMovimientoAuditoria }) {
+  if (row.tipo === "BAJA") {
+    return <DetalleBaja baja={bajaDispositivoDeFila(row)} fallbackClave={row.clave} />;
+  }
+  return <DetalleGeneral row={row} />;
+}
+
 export default function StockMovimientosAuditoria({
   apiOnline,
   onError,
@@ -132,8 +209,7 @@ export default function StockMovimientosAuditoria({
     );
   }, [rows]);
 
-  const vistaBajas = filtroTipo === "BAJA" || rows.some((r) => r.tipo === "BAJA");
-  const colCount = vistaBajas ? 8 : 5;
+  const colCount = 4;
 
   const subtitulo = loading
     ? "Actualizando…"
@@ -240,22 +316,8 @@ export default function StockMovimientosAuditoria({
               <tr>
                 <th>Fecha</th>
                 <th>Usuario</th>
-                {vistaBajas ? (
-                  <>
-                    <th>Tipo</th>
-                    <th>Dispositivo</th>
-                    <th>Alta</th>
-                    <th>Baja</th>
-                    <th>Tiempo en sistema</th>
-                    <th>Categoría al salir</th>
-                  </>
-                ) : (
-                  <>
-                    <th>Tipo</th>
-                    <th className="num">Cant.</th>
-                    <th>Resumen</th>
-                  </>
-                )}
+                <th>Tipo</th>
+                <th>Detalle</th>
               </tr>
             </thead>
             <tbody>
@@ -282,10 +344,12 @@ export default function StockMovimientosAuditoria({
               ) : (
                 rows.map((row) => {
                   const { fecha, hora } = fmtFecha(row.creado_en);
-                  const baja = row.tipo === "BAJA" ? bajaDispositivoDeFila(row) : null;
 
                   return (
-                    <tr key={row.id} className="listado-pro-row">
+                    <tr
+                      key={row.id}
+                      className={`listado-pro-row stock-mov-auditoria-row stock-mov-auditoria-row--${row.tipo.toLowerCase()}`}
+                    >
                       <td className="td-fecha stock-mov-auditoria-fecha">
                         <span className="stock-mov-auditoria-fecha-dia">{fecha}</span>
                         {hora ? (
@@ -298,54 +362,12 @@ export default function StockMovimientosAuditoria({
                           <span className="stock-mov-auditoria-email muted">{row.user_email}</span>
                         ) : null}
                       </td>
-                      {vistaBajas ? (
-                        <>
-                          <td>
-                            <span
-                              className={`stock-mov-auditoria-tipo stock-mov-auditoria-tipo--${row.tipo.toLowerCase()}`}
-                            >
-                              {TIPO_LABELS[row.tipo]}
-                            </span>
-                          </td>
-                          {row.tipo === "BAJA" ? (
-                            <>
-                              <td className="stock-mov-auditoria-dispositivo num">
-                                <strong>{baja?.numero || row.clave || "—"}</strong>
-                                {baja?.eid ? (
-                                  <span className="muted stock-mov-auditoria-eid">
-                                    EID {baja.eid}
-                                  </span>
-                                ) : null}
-                              </td>
-                              <td>{fmtFechaSolo(baja?.primera_fecha ?? "")}</td>
-                              <td>{fmtFechaSolo(baja?.fecha_baja ?? "")}</td>
-                              <td>{fmtTiempoEnSistema(baja?.dias_en_sistema)}</td>
-                              <td>{baja?.categoria || "—"}</td>
-                            </>
-                          ) : (
-                            <td colSpan={5} className="stock-mov-auditoria-resumen">
-                              <span className="stock-mov-auditoria-resumen-text">{row.resumen}</span>
-                            </td>
-                          )}
-                        </>
-                      ) : (
-                        <>
-                          <td>
-                            <span
-                              className={`stock-mov-auditoria-tipo stock-mov-auditoria-tipo--${row.tipo.toLowerCase()}`}
-                            >
-                              {TIPO_LABELS[row.tipo]}
-                            </span>
-                          </td>
-                          <td className="num listado-pro-num">{row.cantidad}</td>
-                          <td className="stock-mov-auditoria-resumen">
-                            <span className="stock-mov-auditoria-resumen-text">{row.resumen}</span>
-                            {row.clave ? (
-                              <span className="stock-mov-auditoria-clave muted num">{row.clave}</span>
-                            ) : null}
-                          </td>
-                        </>
-                      )}
+                      <td className="stock-mov-auditoria-tipo-cell">
+                        <TipoBadge tipo={row.tipo} />
+                      </td>
+                      <td className="stock-mov-auditoria-detalle-cell">
+                        <DetalleMovimiento row={row} />
+                      </td>
                     </tr>
                   );
                 })

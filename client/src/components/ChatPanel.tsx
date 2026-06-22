@@ -22,13 +22,12 @@ export default function ChatPanel({ user, open, onClose, onUnreadChange }: Props
   if (!open) return null;
 
   return (
-    <div className="chat-panel-overlay" role="presentation" onClick={onClose}>
+    <div className="chat-panel-overlay" role="presentation">
       <div
         className="chat-panel-drawer"
         role="dialog"
         aria-modal="false"
         aria-label="Chat interno"
-        onClick={(e) => e.stopPropagation()}
       >
         <ChatInterno
           user={user}

@@ -11,7 +11,7 @@ import {
   validatePasswordStrength,
 } from "../utils/password-policy";
 
-import UsuariosRolesModal from "./UsuariosRolesModal";
+import UsuariosRolesPanel from "./UsuariosRolesModal";
 import UserAvatar from "./UserAvatar";
 
 interface Props {
@@ -176,6 +176,18 @@ export default function Usuarios({
   };
 
   const showForm = creating || editing !== null;
+
+  if (rolesModalOpen) {
+    return (
+      <UsuariosRolesPanel
+        apiOnline={apiOnline}
+        onVolver={() => setRolesModalOpen(false)}
+        onError={onError}
+        onSuccess={onSuccess}
+        onSaved={onPermissionsChanged}
+      />
+    );
+  }
 
   return (
     <div className="subseccion-panel">
@@ -386,15 +398,6 @@ export default function Usuarios({
           </table>
         </div>
       </div>
-
-      <UsuariosRolesModal
-        open={rolesModalOpen}
-        apiOnline={apiOnline}
-        onClose={() => setRolesModalOpen(false)}
-        onError={onError}
-        onSuccess={onSuccess}
-        onSaved={onPermissionsChanged}
-      />
     </div>
   );
 }

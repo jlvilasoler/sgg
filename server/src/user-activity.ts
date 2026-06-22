@@ -142,6 +142,7 @@ export const PANTALLA_LABELS: Record<string, string> = {
   configuracion: "Configuraci?n",
   divisas: "Divisas",
   precios_ganado: "Precios de Ganado",
+  simulador_venta_ganado: "Simulador venta ganado",
   recursos_humanos: "Recursos Humanos",
   ingresos_ventas: "Ingresos por ventas",
   stock_ganadero: "Stock Ganadero",

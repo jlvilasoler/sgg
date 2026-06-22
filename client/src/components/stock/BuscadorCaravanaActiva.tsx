@@ -1,14 +1,33 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { fetchStockGanaderaDispositivos } from "../../api";
+import { fetchStockGanaderaDispositivos, fetchStockGanaderaVentasDispositivos } from "../../api";
 import type { StockGanaderaDispositivo } from "../../types";
-import { etiquetaCaravana } from "./stock-ganadera-utils";
+import { dispositivoActivoEnStock } from "./stock-ganadera-utils";
+import {
+  categoriasDispositivo,
+  coincideCategoriaFiltro,
+  etiquetaCaravana,
+  labelCategoriaFiltro,
+} from "./stock-ganadera-utils";
+
+interface CategoriaSelectConfig {
+  id: string;
+  value: string;
+  disabled?: boolean;
+  options: { value: string; label: string }[];
+  onChange: (value: string) => void;
+}
 
 interface Props {
   id: string;
   apiOnline: boolean;
   disabled?: boolean;
-  variant?: "default" | "baja";
+  variant?: "default" | "baja" | "dispositivos";
   excludeClaves?: Set<string>;
+  /** Si tiene claves, solo muestra dispositivos con esa categoría de evolución. */
+  filtroCategoria?: Set<string>;
+  filtroCategoriaLabel?: string;
+  /** Select integrado en la barra de búsqueda (opcional). */
+  categoriaSelect?: CategoriaSelectConfig;
   refreshKey?: number;
   onError?: (msg: string) => void;
   onSelect: (dispositivo: StockGanaderaDispositivo) => void;
@@ -25,12 +44,50 @@ function coincideBusqueda(d: StockGanaderaDispositivo, q: string): boolean {
   return etiquetaCaravana(d).toLowerCase().includes(t);
 }
 
+function textosBuscador(variant: Props["variant"]) {
+  if (variant === "dispositivos") {
+    return {
+      errorCargar: "Error al cargar dispositivos activos",
+      placeholder: "Buscar dispositivo activo por EID o VID…",
+      toggleAbierto: "Cerrar listado",
+      toggleCerrado: "Ver dispositivos activos",
+      metaLoading: "Cargando dispositivos activos…",
+      metaCount: (n: number, filtro?: string, busq?: number) =>
+        `${n} dispositivo(s)${filtro ? ` · ${filtro}` : " activo(s)"}${
+          busq != null ? ` · ${busq} coincidencia(s)` : ""
+        }`,
+      emptyBusqueda: "Sin coincidencias con el filtro y la búsqueda.",
+      emptySinCoincidencias: "Sin coincidencias en el stock activo.",
+      emptyCategoria: (label: string) => `No hay dispositivos activos en ${label}.`,
+      emptyGeneral: "No hay dispositivos activos disponibles.",
+    };
+  }
+  return {
+    errorCargar: "Error al cargar caravanas activas",
+    placeholder: "Buscar caravana activa por EID o VID…",
+    toggleAbierto: "Cerrar listado",
+    toggleCerrado: "Ver caravanas activas",
+    metaLoading: "Cargando caravanas activas…",
+    metaCount: (n: number, filtro?: string, busq?: number) =>
+      `${n} caravana(s)${filtro ? ` · ${filtro}` : " activa(s)"}${
+        busq != null ? ` · ${busq} coincidencia(s)` : ""
+      }`,
+    emptyBusqueda: "Sin coincidencias con el filtro y la búsqueda.",
+    emptySinCoincidencias: "Sin coincidencias en el stock activo.",
+    emptyCategoria: (label: string) => `No hay caravanas activas en ${label}.`,
+    emptyGeneral: "No hay caravanas activas disponibles.",
+  };
+}
+
 export default function BuscadorCaravanaActiva({
   id,
   apiOnline,
   disabled = false,
   variant = "default",
   excludeClaves,
+  filtroCategoria,
+  filtroCategoriaLabel,
+  categoriaSelect,
   refreshKey = 0,
   onError,
   onSelect,
@@ -41,6 +98,7 @@ export default function BuscadorCaravanaActiva({
   const [abierto, setAbierto] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const txt = textosBuscador(variant);
 
   useEffect(() => {
     if (!apiOnline) {
@@ -50,13 +108,24 @@ export default function BuscadorCaravanaActiva({
     let cancel = false;
     setLoading(true);
     fetchStockGanaderaDispositivos({})
-      .then((rows) => {
+      .then(async (rows) => {
         if (cancel) return;
-        setActivos(rows.filter((d) => d.estado === "VIVO"));
+        if (variant === "dispositivos") {
+          try {
+            const ventas = await fetchStockGanaderaVentasDispositivos();
+            if (cancel) return;
+            const ventasSet = new Set(ventas.claves);
+            setActivos(rows.filter((d) => dispositivoActivoEnStock(d, ventasSet)));
+          } catch {
+            setActivos(rows.filter((d) => d.estado === "VIVO"));
+          }
+        } else {
+          setActivos(rows.filter((d) => d.estado === "VIVO"));
+        }
       })
       .catch((e) => {
         if (cancel) return;
-        onError?.(e instanceof Error ? e.message : "Error al cargar caravanas activas");
+        onError?.(e instanceof Error ? e.message : txt.errorCargar);
         setActivos([]);
       })
       .finally(() => {
@@ -65,7 +134,7 @@ export default function BuscadorCaravanaActiva({
     return () => {
       cancel = true;
     };
-  }, [apiOnline, refreshKey, onError]);
+  }, [apiOnline, refreshKey, onError, txt.errorCargar]);
 
   useEffect(() => {
     if (!abierto) return;
@@ -78,16 +147,20 @@ export default function BuscadorCaravanaActiva({
     return () => document.removeEventListener("mousedown", onDocClick);
   }, [abierto]);
 
-  const disponibles = useMemo(
-    () =>
-      activos.filter((d) => !excludeClaves?.has(d.clave)),
-    [activos, excludeClaves]
-  );
+  const disponibles = useMemo(() => {
+    let rows = activos.filter((d) => !excludeClaves?.has(d.clave));
+    if (filtroCategoria?.size) {
+      rows = rows.filter((d) => coincideCategoriaFiltro(d, filtroCategoria));
+    }
+    return rows;
+  }, [activos, excludeClaves, filtroCategoria]);
 
   const lista = useMemo(() => {
     const filtrada = disponibles.filter((d) => coincideBusqueda(d, busqueda));
     return filtrada.slice(0, 80);
   }, [disponibles, busqueda]);
+
+  const filtroActivo = Boolean(filtroCategoria?.size);
 
   const elegir = (d: StockGanaderaDispositivo) => {
     onSelect(d);
@@ -102,19 +175,36 @@ export default function BuscadorCaravanaActiva({
 
   const variantClass =
     variant === "baja" ? " stock-buscador-caravana--baja" : "";
+  const conCategoria = Boolean(categoriaSelect);
 
   return (
     <div
-      className={`stock-buscador-caravana${variantClass}`}
+      className={`stock-buscador-caravana${variantClass}${conCategoria ? " stock-buscador-caravana--con-cat" : ""}`}
       ref={rootRef}
     >
       <div className="stock-buscador-caravana-input-wrap">
+        {categoriaSelect ? (
+          <select
+            id={categoriaSelect.id}
+            className="stock-buscador-caravana-cat"
+            value={categoriaSelect.value}
+            disabled={disabled || !apiOnline || categoriaSelect.disabled}
+            aria-label="Filtrar por categoría"
+            onChange={(e) => categoriaSelect.onChange(e.target.value)}
+          >
+            {categoriaSelect.options.map((o) => (
+              <option key={o.value || "__todas__"} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        ) : null}
         <input
           ref={inputRef}
           id={id}
           type="search"
           className="mayusculas-auto stock-buscador-caravana-input"
-          placeholder="Buscar caravana activa por EID o VID…"
+          placeholder={txt.placeholder}
           value={busqueda}
           disabled={disabled || !apiOnline}
           autoComplete="off"
@@ -138,7 +228,7 @@ export default function BuscadorCaravanaActiva({
           type="button"
           className="stock-buscador-caravana-toggle"
           disabled={disabled || !apiOnline}
-          aria-label={abierto ? "Cerrar listado" : "Ver caravanas activas"}
+          aria-label={abierto ? txt.toggleAbierto : txt.toggleCerrado}
           aria-expanded={abierto}
           onClick={() => (abierto ? setAbierto(false) : abrir())}
         >
@@ -150,10 +240,12 @@ export default function BuscadorCaravanaActiva({
         <div className="stock-buscador-caravana-panel" role="listbox">
           <p className="stock-buscador-caravana-meta">
             {loading
-              ? "Cargando caravanas activas…"
-              : `${disponibles.length} caravana(s) activa(s)${
-                  busqueda.trim() ? ` · ${lista.length} coincidencia(s)` : ""
-                }`}
+              ? txt.metaLoading
+              : txt.metaCount(
+                  disponibles.length,
+                  filtroActivo && filtroCategoriaLabel ? filtroCategoriaLabel : undefined,
+                  busqueda.trim() ? lista.length : undefined
+                )}
           </p>
           <ul className="stock-buscador-caravana-lista">
             {lista.length === 0 ? (
@@ -161,8 +253,12 @@ export default function BuscadorCaravanaActiva({
                 {loading
                   ? "Cargando…"
                   : busqueda.trim()
-                    ? "Sin coincidencias en el stock activo."
-                    : "No hay caravanas activas disponibles."}
+                    ? filtroActivo
+                      ? txt.emptyBusqueda
+                      : txt.emptySinCoincidencias
+                    : filtroActivo
+                      ? txt.emptyCategoria(filtroCategoriaLabel ?? "esta categoría")
+                      : txt.emptyGeneral}
               </li>
             ) : (
               lista.map((d) => (
@@ -176,12 +272,20 @@ export default function BuscadorCaravanaActiva({
                     <span className="stock-buscador-caravana-opcion-main num">
                       {etiquetaCaravana(d)}
                     </span>
-                    {d.sexo ? (
-                      <span className="stock-buscador-caravana-opcion-sub">
-                        {d.sexo}
-                        {d.empresa ? ` · ${d.empresa}` : ""}
-                      </span>
-                    ) : null}
+                    {(() => {
+                      const cats = [...categoriasDispositivo(d)];
+                      const catTxt =
+                        cats.length > 0
+                          ? cats.map((k) => labelCategoriaFiltro(k)).join(" · ")
+                          : "";
+                      const extra = [catTxt, d.sexo, d.empresa].filter(Boolean);
+                      if (!extra.length) return null;
+                      return (
+                        <span className="stock-buscador-caravana-opcion-sub">
+                          {extra.join(" · ")}
+                        </span>
+                      );
+                    })()}
                   </button>
                 </li>
               ))

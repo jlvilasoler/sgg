@@ -1,12 +1,13 @@
-import { useEffect, type ReactNode } from "react";
+import { type ReactNode } from "react";
+import { useHeaderBackStep } from "../header-back";
 import type { Presupuesto } from "../types";
 import { empresaClass, fmtDate, fmtNum, formatNumeroOperacion } from "../utils";
-import { APP_FULL_NAME, APP_NAME } from "../brand";
-import LogoSgg from "./LogoSgg";
+import SubseccionInlinePanel from "./SubseccionInlinePanel";
 
 interface Props {
   row: Presupuesto;
-  onClose: () => void;
+  onVolver: () => void;
+  volverLabel?: string;
 }
 
 type MonedaPrincipal = "UYU" | "USD" | "BRL";
@@ -35,15 +36,13 @@ function Campo({
   value,
   mono,
   empty = "—",
-  destacado,
-  ancho,
+  full,
 }: {
   label: string;
   value: string | number | null | undefined;
   mono?: boolean;
   empty?: string;
-  destacado?: boolean;
-  ancho?: "full";
+  full?: boolean;
 }) {
   const raw =
     value === null || value === undefined
@@ -53,25 +52,16 @@ function Campo({
         : String(value);
   const texto = raw.trim() || empty;
   const vacio = texto === empty;
+
   return (
-    <div
-      className={[
-        "pd-campo",
-        destacado ? "pd-campo--destacado" : "",
-        ancho === "full" ? "pd-campo--full" : "",
-      ]
-        .filter(Boolean)
-        .join(" ")}
-    >
-      <span className="pd-campo-label">{label}</span>
+    <div className={`presupuesto-detalle-campo${full ? " presupuesto-detalle-campo--full" : ""}`}>
+      <span className="presupuesto-detalle-label">{label}</span>
       <span
         className={[
-          "pd-campo-valor",
-          mono ? "pd-campo-valor--mono" : "",
-          vacio ? "pd-campo-valor--vacio" : "",
-        ]
-          .filter(Boolean)
-          .join(" ")}
+          "presupuesto-detalle-valor",
+          mono ? " num" : "",
+          vacio ? " presupuesto-detalle-valor--vacio" : "",
+        ].join("")}
         title={texto !== empty ? texto : undefined}
       >
         {texto}
@@ -80,35 +70,31 @@ function Campo({
   );
 }
 
-function Seccion({
+function Bloque({
   titulo,
   icono,
   children,
-  grid = "dos",
-  clase,
+  cols = 2,
 }: {
   titulo: string;
   icono: ReactNode;
   children: ReactNode;
-  grid?: "dos" | "tres" | "uno";
-  clase?: string;
+  cols?: 1 | 2 | 3;
 }) {
   return (
-    <section className={`pd-seccion${clase ? ` ${clase}` : ""}`}>
-      <header className="pd-seccion-head">
-        <span className="pd-seccion-icon" aria-hidden>
+    <section className="presupuesto-detalle-block">
+      <h3 className="presupuesto-detalle-block-title">
+        <span className="presupuesto-detalle-block-icon" aria-hidden>
           {icono}
         </span>
-        <h4 className="pd-seccion-titulo">{titulo}</h4>
-      </header>
+        {titulo}
+      </h3>
       <div
         className={[
-          "pd-seccion-grid",
-          grid === "tres" ? "pd-seccion-grid--tres" : "",
-          grid === "uno" ? "pd-seccion-grid--uno" : "",
-        ]
-          .filter(Boolean)
-          .join(" ")}
+          "presupuesto-detalle-fields",
+          cols === 3 ? " presupuesto-detalle-fields--3" : "",
+          cols === 1 ? " presupuesto-detalle-fields--1" : "",
+        ].join("")}
       >
         {children}
       </div>
@@ -172,27 +158,14 @@ function IconNote() {
   );
 }
 
-function IconClose() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path d="M18 6 6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-export default function PresupuestoDetalleModal({ row, onClose }: Props) {
-  useEffect(() => {
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => {
-      document.body.style.overflow = prev;
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [onClose]);
+export default function PresupuestoDetallePanel({
+  row,
+  onVolver,
+  volverLabel = "Volver al listado",
+}: Props) {
+  const backDestination =
+    volverLabel.replace(/^Volver al?\s+/i, "").trim() || "Listado";
+  useHeaderBackStep(true, onVolver, backDestination);
 
   const cedula = (row.funcionario_cedula ?? "").trim();
   const obs = (row.observaciones ?? "").trim();
@@ -207,153 +180,137 @@ export default function PresupuestoDetalleModal({ row, onClose }: Props) {
       label: "Pesos",
       valor: row.pesos,
       activo: principal === "UYU",
+      fmt: (v: number) => `$ ${fmtNum(v)}`,
     },
     {
       id: "USD" as const,
       label: "Dólares",
       valor: row.dolares_usd,
       activo: principal === "USD",
+      fmt: (v: number) => `${fmtNum(v)} USD`,
     },
     {
       id: "BRL" as const,
       label: "Reales",
       valor: row.reales,
       activo: principal === "BRL",
+      fmt: (v: number) => `${fmtNum(v)} R$`,
     },
-  ];
+  ] as const;
 
   return (
-    <div className="pd-overlay" role="presentation" onClick={onClose}>
-      <div
-        className="pd-dialog"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="pd-titulo"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <header className="pd-brand">
-          <div className="pd-brand-inner">
-            <LogoSgg className="pd-brand-logo" />
-            <div className="pd-brand-text">
-              <span className="pd-brand-scg">{APP_NAME}</span>
-              <span className="pd-brand-sub">{APP_FULL_NAME}</span>
-            </div>
-          </div>
-          <button type="button" className="pd-brand-close" onClick={onClose} aria-label="Cerrar">
-            <IconClose />
-          </button>
-        </header>
-
-        <div className="pd-hero">
-          <div className="pd-hero-top">
-            <div className="pd-hero-meta">
-              <span className="pd-kicker">Detalle de operación</span>
-              <h2 id="pd-titulo" className="pd-op-num">
-                N° {nroOp}
-              </h2>
-            </div>
-            <span className={`pd-empresa-badge empresa-badge ${empresaClass(row.empresa)}`}>
+    <SubseccionInlinePanel
+      onVolver={onVolver}
+      volverLabel={volverLabel}
+      title="Detalle de operación"
+      description={`Operación del ${fmtDate(row.fecha)}${
+        row.nro_factura?.trim() ? ` · Factura ${row.nro_factura.trim()}` : ""
+      }`}
+      cardClassName="subseccion-inline-card presupuesto-detalle-page"
+      footer={
+        <button type="button" className="btn btn-ghost" onClick={onVolver}>
+          Volver
+        </button>
+      }
+    >
+      <div className="presupuesto-detalle-hero">
+        <div className="presupuesto-detalle-hero-top">
+          <div className="presupuesto-detalle-hero-badges">
+            <span className="presupuesto-detalle-op num">N° {nroOp}</span>
+            <span
+              className={`presupuesto-detalle-empresa empresa-badge ${empresaClass(row.empresa)}`}
+            >
               {row.empresa}
             </span>
           </div>
+          <div className="presupuesto-detalle-chips">
+            <span className="presupuesto-detalle-chip presupuesto-detalle-chip--rubro">
+              {row.rubro}
+            </span>
+            {row.sub_rubro?.trim() ? (
+              <>
+                <span className="presupuesto-detalle-chip-sep" aria-hidden>
+                  ›
+                </span>
+                <span className="presupuesto-detalle-chip presupuesto-detalle-chip--sub">
+                  {row.sub_rubro}
+                </span>
+              </>
+            ) : null}
+          </div>
+        </div>
+        <p className="presupuesto-detalle-concepto">{row.concepto}</p>
+      </div>
 
-          <div className="pd-concepto-card">
-            <span className="pd-concepto-label">Concepto</span>
-            <p className="pd-concepto-texto">{row.concepto}</p>
-            <div className="pd-chips">
-              <span className="pd-chip pd-chip--rubro">{row.rubro}</span>
-              {row.sub_rubro?.trim() ? (
-                <>
-                  <span className="pd-chip-sep" aria-hidden>
-                    ›
-                  </span>
-                  <span className="pd-chip pd-chip--sub">{row.sub_rubro}</span>
-                </>
+      <section className="presupuesto-detalle-finanzas" aria-label="Importes y cotizaciones">
+        <div className="presupuesto-detalle-montos">
+          {montos.map((m) => (
+            <div
+              key={m.id}
+              className={`presupuesto-detalle-monto${
+                m.activo ? " presupuesto-detalle-monto--activo" : ""
+              }`}
+            >
+              <span className="presupuesto-detalle-monto-k">{m.label}</span>
+              <span className="presupuesto-detalle-monto-v num">{m.fmt(m.valor)}</span>
+              {m.activo ? (
+                <span className="presupuesto-detalle-monto-tag">Moneda ingresada</span>
               ) : null}
             </div>
+          ))}
+          <div className="presupuesto-detalle-monto presupuesto-detalle-monto--total">
+            <span className="presupuesto-detalle-monto-k">Total equivalente</span>
+            <span className="presupuesto-detalle-monto-v presupuesto-detalle-monto-v--total num">
+              {fmtNum(row.saldo_usd)} USD
+            </span>
           </div>
         </div>
-
-        <div className="pd-body">
-          <section className="pd-finanzas" aria-label="Importes y cotizaciones">
-            <div className="pd-finanzas-montos">
-              {montos.map((m) => (
-                <div
-                  key={m.id}
-                  className={`pd-monto-card${m.activo ? " pd-monto-card--activo" : ""}`}
-                >
-                  <span className="pd-monto-label">{m.label}</span>
-                  <span className="pd-monto-valor">
-                    {m.id === "UYU"
-                      ? `$ ${fmtNum(m.valor)}`
-                      : m.id === "USD"
-                        ? `${fmtNum(m.valor)} USD`
-                        : `${fmtNum(m.valor)} R$`}
-                  </span>
-                  {m.activo ? <span className="pd-monto-tag">Moneda ingresada</span> : null}
-                </div>
-              ))}
-              <div className="pd-monto-card pd-monto-card--total">
-                <span className="pd-monto-label">Total equivalente</span>
-                <span className="pd-monto-valor pd-monto-valor--total">
-                  {fmtNum(row.saldo_usd)} USD
-                </span>
-              </div>
-            </div>
-            <div className="pd-finanzas-tc">
-              <span>
-                TC USD → $U: <strong>{fmtNum(row.tc_usd, 4)}</strong>
-              </span>
-              <span className="pd-finanzas-tc-sep" aria-hidden />
-              <span>
-                TC R$ → USD: <strong>{fmtNum(row.tc_reales, 4)}</strong>
-              </span>
-            </div>
-          </section>
-
-          <div className="pd-grid-2">
-            <Seccion titulo="Datos generales" icono={<IconDoc />}>
-              <Campo label="Fecha operación" value={fmtDate(row.fecha)} />
-              <Campo label="N° de factura" value={row.nro_factura} mono />
-              <Campo label="N° de registro" value={nroOp} mono />
-              <Campo label="Alta en sistema" value={fmtDateTime(row.creado_en)} />
-              {ingresado ? <Campo label="Ingresado por" value={ingresado} /> : null}
-            </Seccion>
-
-            <Seccion titulo="Proveedor" icono={<IconBuilding />}>
-              <Campo label="Código" value={row.codigo_proveedor} mono />
-              <Campo
-                label="Razón social"
-                value={row.razon_social_proveedor}
-                destacado
-                ancho="full"
-              />
-            </Seccion>
-          </div>
-
-          <div className="pd-grid-2 pd-grid-2--bottom">
-            <Seccion titulo="Clasificación y presupuesto" icono={<IconTag />} grid="tres">
-              <Campo label="Rubro" value={row.rubro} />
-              <Campo label="Sub-rubro" value={row.sub_rubro} />
-              <Campo label="Presupuesto asignado" value={row.responsable_gasto} />
-              {cedula ? <Campo label="Cédula funcionario" value={cedula} mono /> : null}
-            </Seccion>
-
-            <Seccion titulo="Observaciones" icono={<IconNote />} grid="uno" clase="pd-seccion--obs">
-              <p className={`pd-obs${obs ? "" : " pd-obs--vacio"}`} title={obs || undefined}>
-                {obs || "Sin observaciones registradas."}
-              </p>
-            </Seccion>
-          </div>
+        <div className="presupuesto-detalle-tc">
+          <span>
+            TC USD → $U: <strong className="num">{fmtNum(row.tc_usd, 4)}</strong>
+          </span>
+          <span className="presupuesto-detalle-tc-sep" aria-hidden />
+          <span>
+            TC R$ → USD: <strong className="num">{fmtNum(row.tc_reales, 4)}</strong>
+          </span>
         </div>
+      </section>
 
-        <footer className="pd-footer">
-          <p className="pd-footer-hint">Presioná Esc para cerrar</p>
-          <button type="button" className="btn btn-secondary pd-btn-cerrar" onClick={onClose}>
-            Cerrar
-          </button>
-        </footer>
+      <div className="presupuesto-detalle-body">
+        <div className="presupuesto-detalle-grid">
+          <Bloque titulo="Datos generales" icono={<IconDoc />}>
+            <Campo label="Fecha operación" value={fmtDate(row.fecha)} />
+            <Campo label="N° de factura" value={row.nro_factura} mono />
+            <Campo label="N° de registro" value={nroOp} mono />
+            <Campo label="Alta en sistema" value={fmtDateTime(row.creado_en)} />
+            {ingresado ? <Campo label="Ingresado por" value={ingresado} full /> : null}
+          </Bloque>
+
+          <Bloque titulo="Proveedor" icono={<IconBuilding />}>
+            <Campo label="Código" value={row.codigo_proveedor} mono />
+            <Campo label="Razón social" value={row.razon_social_proveedor} full />
+          </Bloque>
+
+          <Bloque titulo="Clasificación y presupuesto" icono={<IconTag />} cols={3}>
+            <Campo label="Rubro" value={row.rubro} />
+            <Campo label="Sub-rubro" value={row.sub_rubro} />
+            <Campo label="Presupuesto asignado" value={row.responsable_gasto} />
+            {cedula ? <Campo label="Cédula funcionario" value={cedula} mono /> : null}
+          </Bloque>
+
+          <Bloque titulo="Observaciones" icono={<IconNote />} cols={1}>
+            <p
+              className={`presupuesto-detalle-obs${obs ? "" : " presupuesto-detalle-obs--vacio"}`}
+              title={obs || undefined}
+            >
+              {obs || "Sin observaciones registradas."}
+            </p>
+          </Bloque>
+        </div>
       </div>
-    </div>
+    </SubseccionInlinePanel>
   );
 }
+
+/** @deprecated Usar PresupuestoDetallePanel */
+export { PresupuestoDetallePanel as PresupuestoDetalleModal };

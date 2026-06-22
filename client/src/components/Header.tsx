@@ -5,6 +5,7 @@ export type TabId =
   | "configuracion"
   | "divisas"
   | "precios_ganado"
+  | "simulador_venta_ganado"
   | "recursos_humanos"
   | "ingresos_ventas"
   | "stock_ganadero"

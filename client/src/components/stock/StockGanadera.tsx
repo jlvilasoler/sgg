@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   fetchStockGanaderaDispositivos,
+  fetchStockGanaderaSalidas,
+  fetchStockGanaderaVentasDispositivos,
 } from "../../api";
 import { useHeaderBackStep } from "../../header-back";
 import type { DispositivoEstado, StockGanaderaDispositivo } from "../../types";
@@ -11,10 +13,12 @@ import TablePagination, {
 } from "../TablePagination";
 import BadgeEstadoDispositivo from "./BadgeEstadoDispositivo";
 import IconoDispositivoWifi from "./IconoDispositivoWifi";
-import StockGanaderaBulkModal from "./StockGanaderaBulkPanel";
+import StockGanaderaDashKpi from "./StockGanaderaDashKpi";
+import StockGanaderaBulkPanel from "./StockGanaderaBulkPanel";
 import StockGanaderaDetalle from "./StockGanaderaDetalle";
 import StockGanaderaEdadMiniTimeline from "./StockGanaderaEdadMiniTimeline";
-import StockGanaderaEditarModal from "./StockGanaderaEditarModal";
+import StockGanaderaEditarPanel from "./StockGanaderaEditarModal";
+import StockGanaderaHistorialCambiosPanel from "./StockGanaderaHistorialCambiosPanel";
 import StockGanaderaFiltrosSidebar from "./StockGanaderaFiltrosSidebar";
 import type { CategoriaFiltroKey, EdadFiltroKey } from "./stock-ganadera-utils";
 import {
@@ -26,6 +30,11 @@ import {
   coincideCategoriaFiltro,
   coincideSinFechaNacFiltro,
   dispositivoSinFechaNacimiento,
+  dispositivoActivoEnStock,
+  esDispositivoFueraDeStock,
+  calcularResumenStockGanaderaKpis,
+  fmtSalidasSistemaHint,
+  contarSexoDispositivos,
   edadFiltroKey,
   fmtEstadoDispositivo,
   fmtGrupo,
@@ -36,6 +45,16 @@ import {
   labelGrupoLibreFiltro,
   SIN_FECHA_NAC_FILTRO_KEY,
 } from "./stock-ganadera-utils";
+import {
+  filtrosCacheKey,
+  readStockGanaderaPageCache,
+  rowsDesdeCache,
+  ventasClavesDesdeCache,
+  writeStockGanaderaPageCache,
+} from "./stock-ganadera-page-cache";
+
+const cacheInicial = readStockGanaderaPageCache();
+const filtrosInicialesKey = filtrosCacheKey({});
 
 function toggleSet<T>(prev: Set<T>, value: T): Set<T> {
   const next = new Set(prev);
@@ -103,16 +122,25 @@ export default function StockGanadera({
   onVolver,
   refreshKey = 0,
 }: Props) {
-  const [rows, setRows] = useState<StockGanaderaDispositivo[]>([]);
+  const [rows, setRows] = useState<StockGanaderaDispositivo[]>(() =>
+    rowsDesdeCache(cacheInicial, filtrosInicialesKey)
+  );
   const [busqueda, setBusqueda] = useState("");
   const [fechaDesde, setFechaDesde] = useState("");
   const [fechaHasta, setFechaHasta] = useState("");
   const [editarDispositivo, setEditarDispositivo] =
     useState<StockGanaderaDispositivo | null>(null);
   const [detalleClave, setDetalleClave] = useState<string | null>(null);
+  const [historialCambios, setHistorialCambios] = useState<{
+    clave: string;
+    vid: string;
+    eid: string;
+  } | null>(null);
   const volverDetalle = useCallback(() => setDetalleClave(null), []);
-  useHeaderBackStep(!!detalleClave, volverDetalle, "Stock Ganadero");
-  const [loading, setLoading] = useState(true);
+  const volverEditar = useCallback(() => setEditarDispositivo(null), []);
+  const volverBulk = useCallback(() => setBulkOpen(false), []);
+  const volverHistorial = useCallback(() => setHistorialCambios(null), []);
+  const [loading, setLoading] = useState(() => !cacheInicial);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<PageSize>(30);
   const [seleccion, setSeleccion] = useState<Set<string>>(() => new Set());
@@ -133,6 +161,19 @@ export default function StockGanadera({
   );
   const [bulkOpen, setBulkOpen] = useState(false);
   const [filtrosMobileOpen, setFiltrosMobileOpen] = useState(false);
+  const [ventasClaves, setVentasClaves] = useState<Set<string>>(() =>
+    ventasClavesDesdeCache(cacheInicial)
+  );
+  const [statsRows, setStatsRows] = useState<StockGanaderaDispositivo[]>(
+    () => cacheInicial?.statsRows ?? []
+  );
+  const [filtroVentasCerradas, setFiltroVentasCerradas] = useState(false);
+  const [filtroSalidasSistema, setFiltroSalidasSistema] = useState(false);
+
+  useHeaderBackStep(!!editarDispositivo, volverEditar, "Stock Ganadero");
+  useHeaderBackStep(!!bulkOpen, volverBulk, "Stock Ganadero");
+  useHeaderBackStep(!!historialCambios, volverHistorial, "Stock Ganadero");
+  useHeaderBackStep(!!detalleClave, volverDetalle, "Stock Ganadero");
 
   const filtros = useMemo(
     () => ({
@@ -145,20 +186,44 @@ export default function StockGanadera({
 
   const load = useCallback(async () => {
     if (!apiOnline) {
-      setRows([]);
+      if (!readStockGanaderaPageCache()) {
+        setRows([]);
+        setStatsRows([]);
+        setVentasClaves(new Set());
+      }
       setLoading(false);
       return;
     }
     setLoading(true);
+    const filtrosKey = filtrosCacheKey(filtros);
     try {
-      setRows(await fetchStockGanaderaDispositivos(filtros));
+      const salidasRes = await fetchStockGanaderaSalidas();
+      const [dispositivos, todos, ventas] = await Promise.all([
+        fetchStockGanaderaDispositivos(filtros),
+        fetchStockGanaderaDispositivos({}),
+        fetchStockGanaderaVentasDispositivos(),
+      ]);
+      const ventasSet = new Set(ventas.claves);
+      setRows(dispositivos);
+      setStatsRows(todos);
+      setVentasClaves(ventasSet);
+      writeStockGanaderaPageCache({
+        rows: dispositivos,
+        statsRows: todos,
+        ventasClaves: ventas.claves,
+        filtrosKey,
+      });
+      if (salidasRes.bajasReparadas > 0) {
+        onSuccess?.(
+          `Se sincronizaron ${salidasRes.bajasReparadas} baja(s) pendiente(s) desde ventas cerradas.`
+        );
+      }
     } catch (e) {
       onError(e instanceof Error ? e.message : "Error al cargar");
-      setRows([]);
     } finally {
       setLoading(false);
     }
-  }, [apiOnline, filtros, onError]);
+  }, [apiOnline, filtros, onError, onSuccess]);
 
   useEffect(() => {
     load();
@@ -167,22 +232,93 @@ export default function StockGanadera({
   useEffect(() => {
     setPage(1);
     setSeleccion(new Set());
-  }, [busqueda, fechaDesde, fechaHasta, pageSize, filtroSexo, filtroEmpresa, filtroEstado, filtroEdad, filtroGrupoLibre, filtroCategoria, filtroSinFechaNac]);
+  }, [busqueda, fechaDesde, fechaHasta, pageSize, filtroSexo, filtroEmpresa, filtroEstado, filtroEdad, filtroGrupoLibre, filtroCategoria, filtroSinFechaNac, filtroVentasCerradas, filtroSalidasSistema]);
 
-  const filteredRows = useMemo(
-    () =>
-      aplicaFacetas(
-        rows,
-        filtroSexo,
-        filtroEmpresa,
-        filtroEstado,
-        filtroEdad,
-        filtroGrupoLibre,
-        filtroCategoria,
-        filtroSinFechaNac
-      ),
-    [rows, filtroSexo, filtroEmpresa, filtroEstado, filtroEdad, filtroGrupoLibre, filtroCategoria, filtroSinFechaNac]
+  const resumenKpis = useMemo(
+    () => calcularResumenStockGanaderaKpis(statsRows, ventasClaves),
+    [statsRows, ventasClaves]
   );
+
+  const usaStatsComoBase =
+    filtroVentasCerradas || filtroSalidasSistema || filtroEstado.size > 0;
+
+  const rowsBase = useMemo(() => {
+    const base = usaStatsComoBase ? statsRows : rows;
+    if (filtroSalidasSistema) {
+      return base.filter((d) => esDispositivoFueraDeStock(d, ventasClaves));
+    }
+    if (filtroVentasCerradas) {
+      return base.filter((d) => ventasClaves.has(d.clave));
+    }
+    if (filtroEstado.size > 0) {
+      return base;
+    }
+    return usaStatsComoBase
+      ? statsRows.filter((d) => dispositivoActivoEnStock(d, ventasClaves))
+      : rows.filter((d) => dispositivoActivoEnStock(d, ventasClaves));
+  }, [
+    rows,
+    statsRows,
+    usaStatsComoBase,
+    filtroSalidasSistema,
+    filtroVentasCerradas,
+    filtroEstado.size,
+    ventasClaves,
+  ]);
+
+  const filteredRows = useMemo(() => {
+    let result = aplicaFacetas(
+      rowsBase,
+      filtroSexo,
+      filtroEmpresa,
+      filtroEstado,
+      filtroEdad,
+      filtroGrupoLibre,
+      filtroCategoria,
+      filtroSinFechaNac
+    );
+    if (filtroVentasCerradas) {
+      result = result.filter((d) => ventasClaves.has(d.clave));
+    }
+    if (filtroSalidasSistema) {
+      result = result.filter((d) => esDispositivoFueraDeStock(d, ventasClaves));
+    }
+    return result;
+  }, [rowsBase, filtroSexo, filtroEmpresa, filtroEstado, filtroEdad, filtroGrupoLibre, filtroCategoria, filtroSinFechaNac, filtroVentasCerradas, filtroSalidasSistema, ventasClaves]);
+
+  const sinDatosPrevios = statsRows.length === 0 && rows.length === 0;
+  const mostrarCargaVacia = loading && sinDatosPrevios;
+
+  const activosCount = resumenKpis.activos.length;
+  const salidasCount = resumenKpis.salidas.length;
+  const totalDispositivosCount = statsRows.length;
+  const ventasCount = resumenKpis.ventasSimulador.length;
+  const muertesCount = resumenKpis.muertos.length;
+  const extraviadosCount = resumenKpis.perdidos.length;
+
+  const sexoTotal = useMemo(() => contarSexoDispositivos(statsRows), [statsRows]);
+  const sexoSalidas = useMemo(
+    () => contarSexoDispositivos(resumenKpis.salidas),
+    [resumenKpis.salidas]
+  );
+  const sexoActivos = useMemo(
+    () => contarSexoDispositivos(resumenKpis.activos),
+    [resumenKpis.activos]
+  );
+  const sexoVentas = useMemo(
+    () => contarSexoDispositivos(resumenKpis.ventasSimulador),
+    [resumenKpis.ventasSimulador]
+  );
+  const sexoMuertes = useMemo(
+    () => contarSexoDispositivos(resumenKpis.muertos),
+    [resumenKpis.muertos]
+  );
+  const sexoExtraviados = useMemo(
+    () => contarSexoDispositivos(resumenKpis.perdidos),
+    [resumenKpis.perdidos]
+  );
+
+  const salidasHint = useMemo(() => fmtSalidasSistemaHint(resumenKpis), [resumenKpis]);
 
   const facetCounts = useMemo(() => {
     const sexo: Record<string, number> = { MACHO: 0, HEMBRA: 0, "": 0 };
@@ -235,7 +371,9 @@ export default function StockGanadera({
     filtroEdad.size > 0 ||
     filtroGrupoLibre.size > 0 ||
     filtroCategoria.size > 0 ||
-    filtroSinFechaNac.size > 0;
+    filtroSinFechaNac.size > 0 ||
+    filtroVentasCerradas ||
+    filtroSalidasSistema;
 
   const limpiarFacetas = () => {
     setFiltroSexo(new Set());
@@ -245,6 +383,8 @@ export default function StockGanadera({
     setFiltroGrupoLibre(new Set());
     setFiltroCategoria(new Set());
     setFiltroSinFechaNac(new Set());
+    setFiltroVentasCerradas(false);
+    setFiltroSalidasSistema(false);
   };
 
   const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
@@ -296,23 +436,79 @@ export default function StockGanadera({
 
   const limpiarSeleccion = () => setSeleccion(new Set());
 
-  const sexoStats = useMemo(() => {
-    let machos = 0;
-    let hembras = 0;
-    let sinDefinir = 0;
-    for (const d of filteredRows) {
-      if (d.sexo === "MACHO") machos += 1;
-      else if (d.sexo === "HEMBRA") hembras += 1;
-      else sinDefinir += 1;
-    }
-    return { machos, hembras, sinDefinir };
-  }, [filteredRows]);
-
   const actualizarFila = (actualizado: StockGanaderaDispositivo) => {
-    setRows((prev) =>
-      prev.map((r) => (r.clave === actualizado.clave ? actualizado : r))
-    );
+    setRows((prev) => {
+      const next = prev.map((r) => (r.clave === actualizado.clave ? actualizado : r));
+      return next;
+    });
+    setStatsRows((prev) => {
+      const next = prev.map((r) => (r.clave === actualizado.clave ? actualizado : r));
+      const cached = readStockGanaderaPageCache();
+      if (cached) {
+        writeStockGanaderaPageCache({
+          ...cached,
+          rows: cached.filtrosKey === filtrosCacheKey(filtros)
+            ? cached.rows.map((r) => (r.clave === actualizado.clave ? actualizado : r))
+            : cached.rows,
+          statsRows: next,
+        });
+      }
+      return next;
+    });
   };
+
+  if (editarDispositivo) {
+    return (
+      <StockGanaderaEditarPanel
+        dispositivo={editarDispositivo}
+        apiOnline={apiOnline}
+        onVolver={() => setEditarDispositivo(null)}
+        onSaved={(actualizado) => {
+          actualizarFila(actualizado);
+          setEditarDispositivo(null);
+        }}
+        onVerHistorial={() => {
+          setDetalleClave(editarDispositivo.clave);
+          setEditarDispositivo(null);
+        }}
+        onError={onError}
+      />
+    );
+  }
+
+  if (bulkOpen) {
+    return (
+      <StockGanaderaBulkPanel
+        onVolver={() => setBulkOpen(false)}
+        seleccionados={seleccionados}
+        totalFiltrados={filteredRows.length}
+        apiOnline={apiOnline}
+        onSeleccionarTodosFiltrados={seleccionarTodosFiltrados}
+        onLimpiar={limpiarSeleccion}
+        onAplicado={() => {
+          limpiarSeleccion();
+          setBulkOpen(false);
+          void load();
+        }}
+        onError={onError}
+        onSuccess={(msg) => onSuccess?.(msg)}
+      />
+    );
+  }
+
+  if (historialCambios) {
+    return (
+      <StockGanaderaHistorialCambiosPanel
+        clave={historialCambios.clave}
+        vid={historialCambios.vid}
+        eid={historialCambios.eid}
+        apiOnline={apiOnline}
+        onVolver={() => setHistorialCambios(null)}
+        volverLabel="Volver a Stock Ganadero"
+        onError={onError}
+      />
+    );
+  }
 
   if (detalleClave) {
     return (
@@ -335,51 +531,111 @@ export default function StockGanadera({
         <div className="form-header">
           <h2>Stock Ganadero</h2>
           <p className="muted">
-            {loading
+            {mostrarCargaVacia
               ? "Cargando…"
-              : filteredRows.length === 0
-                ? rows.length === 0
-                  ? "No hay dispositivos (EID) registrados. Importá lecturas para armar el stock."
-                  : "Ningún dispositivo coincide con los filtros."
-                : `${filteredRows.length} dispositivo(s) según los filtros aplicados`}
+              : loading
+                ? `${filteredRows.length} dispositivo(s) según los filtros aplicados · actualizando…`
+                : filteredRows.length === 0
+                  ? rows.length === 0
+                    ? "No hay dispositivos (EID) registrados. Importá lecturas para armar el stock."
+                    : "Ningún dispositivo coincide con los filtros."
+                  : `${filteredRows.length} dispositivo(s) según los filtros aplicados`}
           </p>
         </div>
 
         {apiOnline && (
-          <section className="stock-dash" aria-label="Resumen de dispositivos">
-            <div className="stock-dash-head">
-              <h3 className="stock-dash-title">Resumen</h3>
-              <p className="stock-dash-sub">Caravanas electrónicas únicas en la base</p>
+          <section className="stock-dash stock-dash--pro" aria-label="Resumen de dispositivos">
+            <div className="stock-dash-head sg-kpi-board-head">
+              <div>
+                <h3 className="stock-dash-title sg-kpi-board-title">Resumen</h3>
+                <p className="stock-dash-sub sg-kpi-board-desc">
+                  Caravanas electrónicas únicas en la base
+                </p>
+              </div>
             </div>
-            <div className="stock-dash-grid stock-dash-grid--sexo">
-              <div className="stock-dash-card stock-dash-card--total">
-                <span className="stock-dash-label">Dispositivos</span>
-                <span className="stock-dash-valor">
-                  {loading ? "—" : filteredRows.length}
-                </span>
-                <span className="stock-dash-hint">Caravanas en el filtro</span>
-              </div>
-              <div className="stock-dash-card stock-dash-card--macho">
-                <span className="stock-dash-label">Total machos</span>
-                <span className="stock-dash-valor stock-dash-valor--macho">
-                  {loading ? "—" : sexoStats.machos}
-                </span>
-                <span className="stock-dash-hint">Sexo MACHO</span>
-              </div>
-              <div className="stock-dash-card stock-dash-card--hembra">
-                <span className="stock-dash-label">Total hembras</span>
-                <span className="stock-dash-valor stock-dash-valor--hembra">
-                  {loading ? "—" : sexoStats.hembras}
-                </span>
-                <span className="stock-dash-hint">Sexo HEMBRA</span>
-              </div>
-              <div className="stock-dash-card stock-dash-card--sin-sexo">
-                <span className="stock-dash-label">Sin definir</span>
-                <span className="stock-dash-valor stock-dash-valor--sin-sexo">
-                  {loading ? "—" : sexoStats.sinDefinir}
-                </span>
-                <span className="stock-dash-hint">Sin sexo asignado</span>
-              </div>
+            <div className="sg-kpi-grid">
+              <StockGanaderaDashKpi
+                label="Total dispositivos"
+                value={totalDispositivosCount}
+                hint={`${activosCount} activos · ${salidasCount} salidas del sistema`}
+                variant="total"
+                sexoStats={sexoTotal}
+                loading={mostrarCargaVacia}
+              />
+              <StockGanaderaDashKpi
+                label="Dispositivos activos"
+                value={activosCount}
+                hint="En stock hoy (sin bajas)"
+                variant="activos"
+                sexoStats={sexoActivos}
+                loading={mostrarCargaVacia}
+              />
+              <StockGanaderaDashKpi
+                label="Salidas del sistema"
+                value={salidasCount}
+                hint={salidasHint}
+                variant="salida"
+                sexoStats={sexoSalidas}
+                loading={mostrarCargaVacia}
+                active={filtroSalidasSistema}
+                disabled={salidasCount === 0}
+                onClick={() => {
+                  setFiltroVentasCerradas(false);
+                  setFiltroEstado(new Set());
+                  setFiltroSalidasSistema((v) => !v);
+                }}
+              />
+              <StockGanaderaDashKpi
+                label="Ventas"
+                value={ventasCount}
+                hint="Vinculados al simulador de ventas"
+                variant="vendido"
+                sexoStats={sexoVentas}
+                loading={mostrarCargaVacia}
+                active={filtroVentasCerradas}
+                disabled={ventasCount === 0}
+                onClick={() => {
+                  setFiltroSalidasSistema(false);
+                  setFiltroEstado(new Set());
+                  setFiltroVentasCerradas((v) => !v);
+                }}
+              />
+              <StockGanaderaDashKpi
+                label="Muertes"
+                value={muertesCount}
+                hint="Registradas en salidas del sistema"
+                variant="muerto"
+                sexoStats={sexoMuertes}
+                loading={mostrarCargaVacia}
+                active={filtroEstado.size === 1 && filtroEstado.has("MUERTO")}
+                disabled={muertesCount === 0}
+                onClick={() => {
+                  setFiltroVentasCerradas(false);
+                  setFiltroSalidasSistema(false);
+                  setFiltroEstado((prev) => {
+                    const soloMuerto = prev.size === 1 && prev.has("MUERTO");
+                    return soloMuerto ? new Set() : new Set<DispositivoEstado>(["MUERTO"]);
+                  });
+                }}
+              />
+              <StockGanaderaDashKpi
+                label="Extraviados"
+                value={extraviadosCount}
+                hint="Registrados como extraviados en salidas"
+                variant="extraviado"
+                sexoStats={sexoExtraviados}
+                loading={mostrarCargaVacia}
+                active={filtroEstado.size === 1 && filtroEstado.has("PERDIDO")}
+                disabled={extraviadosCount === 0}
+                onClick={() => {
+                  setFiltroVentasCerradas(false);
+                  setFiltroSalidasSistema(false);
+                  setFiltroEstado((prev) => {
+                    const soloPerdido = prev.size === 1 && prev.has("PERDIDO");
+                    return soloPerdido ? new Set() : new Set<DispositivoEstado>(["PERDIDO"]);
+                  });
+                }}
+              />
             </div>
           </section>
         )}
@@ -639,7 +895,7 @@ export default function StockGanadera({
                       if (el) el.indeterminate = paginaParcial;
                     }}
                     onChange={togglePagina}
-                    disabled={loading || rowsPagina.length === 0}
+                    disabled={mostrarCargaVacia || rowsPagina.length === 0}
                     title="Seleccionar página"
                   />
                 </th>
@@ -657,7 +913,7 @@ export default function StockGanadera({
               </tr>
             </thead>
             <tbody>
-              {loading ? (
+              {mostrarCargaVacia ? (
                 <tr>
                   <td colSpan={12} className="empty">
                     Cargando…
@@ -748,7 +1004,7 @@ export default function StockGanadera({
           </table>
             </div>
 
-            {!loading && apiOnline && filteredRows.length > 0 && (
+            {(!mostrarCargaVacia) && apiOnline && filteredRows.length > 0 && (
               <TablePagination
                 total={filteredRows.length}
                 page={pageSafe}
@@ -762,38 +1018,7 @@ export default function StockGanadera({
             )}
           </div>
         </div>
-
-        <StockGanaderaBulkModal
-          open={bulkOpen}
-          onClose={() => setBulkOpen(false)}
-          seleccionados={seleccionados}
-          totalFiltrados={filteredRows.length}
-          apiOnline={apiOnline}
-          onSeleccionarTodosFiltrados={seleccionarTodosFiltrados}
-          onLimpiar={limpiarSeleccion}
-          onAplicado={() => {
-            limpiarSeleccion();
-            setBulkOpen(false);
-            void load();
-          }}
-          onError={onError}
-          onSuccess={(msg) => onSuccess?.(msg)}
-        />
       </div>
-
-      {editarDispositivo && (
-        <StockGanaderaEditarModal
-          dispositivo={editarDispositivo}
-          apiOnline={apiOnline}
-          onClose={() => setEditarDispositivo(null)}
-          onSaved={actualizarFila}
-          onVerHistorial={() => {
-            setDetalleClave(editarDispositivo.clave);
-            setEditarDispositivo(null);
-          }}
-          onError={onError}
-        />
-      )}
     </div>
   );
 }

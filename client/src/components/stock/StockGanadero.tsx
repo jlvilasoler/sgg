@@ -193,7 +193,7 @@ export default function StockGanadero({
             {apiOnline && resumen.registros > 0 && (
               <>
                 {" "}
-                Actualmente: <strong>{resumen.dispositivos}</strong> dispositivo(s),{" "}
+                Actualmente: <strong>{resumen.dispositivos}</strong> dispositivo(s) activo(s),{" "}
                 <strong>{resumen.registros}</strong> lectura(s) en{" "}
                 <strong>{resumen.lotes}</strong> importación(es).
               </>

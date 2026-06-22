@@ -315,7 +315,7 @@ export const ESTADOS_DISPOSITIVO: ReadonlyArray<{
   { value: "MUERTO", label: "Muerto" },
   { value: "VENDIDO", label: "Vendido" },
   { value: "FRIGORIFICO", label: "Frigorífico" },
-  { value: "PERDIDO", label: "Perdido" },
+  { value: "PERDIDO", label: "Extraviado" },
 ];
 
 export const TIPOS_BAJA: ReadonlyArray<{
@@ -325,7 +325,7 @@ export const TIPOS_BAJA: ReadonlyArray<{
   { value: "VENTA_FRIGORIFICO", label: "Venta Frigorífico" },
   { value: "VENTA_PRODUCTOR", label: "Venta productor" },
   { value: "MUERTE", label: "Muerte" },
-  { value: "PERDIDO", label: "Perdido" },
+  { value: "PERDIDO", label: "Extraviado" },
 ];
 
 export function fmtTipoBaja(tipo: TipoBaja | "" | undefined | null): string {
@@ -392,6 +392,149 @@ export function normalizarEstadoDispositivo(
   return "VIVO";
 }
 
+/** Dispositivo presente en stock activo (no baja ni vinculado a venta cerrada). */
+export function dispositivoActivoEnStock(
+  d: { estado: DispositivoEstado; clave: string },
+  clavesVentasCerradas?: ReadonlySet<string>
+): boolean {
+  if (d.estado !== "VIVO") return false;
+  if (clavesVentasCerradas?.has(d.clave)) return false;
+  return true;
+}
+
+/** Estados que aparecen en Salidas del sistema (fuera del stock activo). */
+export const ESTADOS_SALIDA_SISTEMA: ReadonlySet<DispositivoEstado> = new Set([
+  "MUERTO",
+  "VENDIDO",
+  "FRIGORIFICO",
+  "PERDIDO",
+]);
+
+export function esDispositivoSalidaSistema(estado: DispositivoEstado): boolean {
+  return ESTADOS_SALIDA_SISTEMA.has(estado);
+}
+
+export interface SexoDispositivoCounts {
+  machos: number;
+  hembras: number;
+  sinDefinir: number;
+}
+
+export function contarSexoDispositivos(
+  dispositivos: ReadonlyArray<{ sexo?: string | null }>
+): SexoDispositivoCounts {
+  let machos = 0;
+  let hembras = 0;
+  let sinDefinir = 0;
+  for (const d of dispositivos) {
+    if (d.sexo === "MACHO") machos += 1;
+    else if (d.sexo === "HEMBRA") hembras += 1;
+    else sinDefinir += 1;
+  }
+  return { machos, hembras, sinDefinir };
+}
+
+/** Fuera del stock activo: baja registrada o vinculado a venta cerrada del simulador. */
+export function esDispositivoFueraDeStock(
+  d: { estado: DispositivoEstado; clave: string },
+  clavesVentasCerradas?: ReadonlySet<string>
+): boolean {
+  return !dispositivoActivoEnStock(d, clavesVentasCerradas);
+}
+
+type DispositivoResumenRow = {
+  estado: DispositivoEstado;
+  clave: string;
+  sexo?: string | null;
+};
+
+export interface StockGanaderaResumenKpis<T extends DispositivoResumenRow> {
+  activos: T[];
+  salidas: T[];
+  ventasSimulador: T[];
+  muertos: T[];
+  vendidos: T[];
+  frigorifico: T[];
+  perdidos: T[];
+  vivoEnVenta: T[];
+}
+
+export function calcularResumenStockGanaderaKpis<T extends DispositivoResumenRow>(
+  dispositivos: ReadonlyArray<T>,
+  ventasClaves: ReadonlySet<string>
+): StockGanaderaResumenKpis<T> {
+  const activos: T[] = [];
+  const salidas: T[] = [];
+  const ventasSimulador: T[] = [];
+  const muertos: T[] = [];
+  const vendidos: T[] = [];
+  const frigorifico: T[] = [];
+  const perdidos: T[] = [];
+  const vivoEnVenta: T[] = [];
+
+  for (const d of dispositivos) {
+    if (ventasClaves.has(d.clave)) ventasSimulador.push(d);
+    if (dispositivoActivoEnStock(d, ventasClaves)) {
+      activos.push(d);
+      continue;
+    }
+    salidas.push(d);
+    if (d.estado === "MUERTO") muertos.push(d);
+    else if (d.estado === "VENDIDO") vendidos.push(d);
+    else if (d.estado === "FRIGORIFICO") frigorifico.push(d);
+    else if (d.estado === "PERDIDO") perdidos.push(d);
+    else if (d.estado === "VIVO") vivoEnVenta.push(d);
+  }
+
+  return {
+    activos,
+    salidas,
+    ventasSimulador,
+    muertos,
+    vendidos,
+    frigorifico,
+    perdidos,
+    vivoEnVenta,
+  };
+}
+
+export function fmtSalidasSistemaHint(
+  kpis: Pick<
+    StockGanaderaResumenKpis<DispositivoResumenRow>,
+    "muertos" | "vendidos" | "frigorifico" | "perdidos" | "vivoEnVenta"
+  >
+): string {
+  const parts: string[] = [];
+  if (kpis.muertos.length > 0) {
+    parts.push(
+      `${kpis.muertos.length} muerte${kpis.muertos.length === 1 ? "" : "s"}`
+    );
+  }
+  if (kpis.vendidos.length > 0) {
+    parts.push(
+      `${kpis.vendidos.length} vendido${kpis.vendidos.length === 1 ? "" : "s"}`
+    );
+  }
+  if (kpis.frigorifico.length > 0) {
+    parts.push(
+      `${kpis.frigorifico.length} frigorífico${kpis.frigorifico.length === 1 ? "" : ""}`
+    );
+  }
+  if (kpis.perdidos.length > 0) {
+    parts.push(
+      `${kpis.perdidos.length} extraviado${kpis.perdidos.length === 1 ? "" : "s"}`
+    );
+  }
+  if (kpis.vivoEnVenta.length > 0) {
+    parts.push(
+      `${kpis.vivoEnVenta.length} en venta sin baja aplicada`
+    );
+  }
+  return parts.length > 0
+    ? parts.join(" · ")
+    : "Muertes, ventas, frigorífico y extraviados";
+}
+
 export function requiereFechaBaja(estado: DispositivoEstado): boolean {
   return (
     estado === "MUERTO" ||
@@ -405,7 +548,7 @@ export function etiquetaFechaBaja(estado: DispositivoEstado): string {
   if (estado === "MUERTO") return "Muerte";
   if (estado === "VENDIDO") return "Venta";
   if (estado === "FRIGORIFICO") return "Frigorífico";
-  if (estado === "PERDIDO") return "Perdido";
+  if (estado === "PERDIDO") return "Extraviado";
   return "";
 }
 

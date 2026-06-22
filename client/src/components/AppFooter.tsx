@@ -3,20 +3,19 @@ import { fetchChatUnread } from "../api";
 import { canAccessChat } from "../utils/auth-permissions";
 import { playChatNotificationSound } from "../utils/chat-notification-sound";
 import type { AuthUser } from "../types";
-import ChatPanel from "./ChatPanel";
 
 interface Props {
   user: AuthUser | null;
+  chatOpen?: boolean;
+  onOpenChat?: () => void;
 }
 
-export default function AppFooter({ user }: Props) {
+export default function AppFooter({ user, chatOpen = false, onOpenChat }: Props) {
   const year = new Date().getFullYear();
-  const [chatOpen, setChatOpen] = useState(false);
   const [chatUnread, setChatUnread] = useState(0);
   const prevUnreadRef = useRef(0);
   const unreadInitializedRef = useRef(false);
-  const chatOpenRef = useRef(chatOpen);
-  chatOpenRef.current = chatOpen;
+  const chatActive = chatOpen;
 
   const showChat = user != null && canAccessChat(user);
 
@@ -24,7 +23,7 @@ export default function AppFooter({ user }: Props) {
     if (!showChat) return;
     try {
       const data = await fetchChatUnread();
-      if (unreadInitializedRef.current && !chatOpenRef.current && data.total > prevUnreadRef.current) {
+      if (unreadInitializedRef.current && !chatActive && data.total > prevUnreadRef.current) {
         playChatNotificationSound();
       }
       unreadInitializedRef.current = true;
@@ -37,14 +36,13 @@ export default function AppFooter({ user }: Props) {
 
   useEffect(() => {
     if (!showChat) {
-      setChatOpen(false);
       setChatUnread(0);
       return;
     }
     void refreshUnread();
     const id = window.setInterval(() => void refreshUnread(), 20000);
     return () => window.clearInterval(id);
-  }, [refreshUnread, showChat]);
+  }, [refreshUnread, showChat, chatActive]);
 
   return (
     <>
@@ -55,11 +53,11 @@ export default function AppFooter({ user }: Props) {
           {showChat && (
             <button
               type="button"
-              className={`app-footer-chat-btn${chatOpen ? " app-footer-chat-btn--active" : ""}`}
-              onClick={() => setChatOpen((v) => !v)}
+              className={`app-footer-chat-btn${chatActive ? " app-footer-chat-btn--active" : ""}`}
+              onClick={() => onOpenChat?.()}
               title="Chat interno"
               aria-label={`Chat interno${chatUnread > 0 ? `, ${chatUnread} sin leer` : ""}`}
-              aria-expanded={chatOpen}
+              aria-current={chatActive ? "page" : undefined}
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
                 <path
@@ -85,15 +83,6 @@ export default function AppFooter({ user }: Props) {
           )}
         </div>
       </footer>
-
-      {showChat && user && (
-        <ChatPanel
-          user={user}
-          open={chatOpen}
-          onClose={() => setChatOpen(false)}
-          onUnreadChange={setChatUnread}
-        />
-      )}
     </>
   );
 }

@@ -1,6 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import LogoSgg from "./LogoSgg";
-import MiCuentaModal from "./MiCuentaModal";
 import UserAvatar from "./UserAvatar";
 import { APP_FULL_NAME, APP_NAME } from "../brand";
 import type { AuthUser } from "../types";
@@ -12,6 +11,7 @@ interface Props {
   onBack?: () => void;
   backTitle?: string;
   onLogout: () => void;
+  onOpenCuenta: () => void;
   onUserUpdated?: (user: AuthUser) => void;
   onPasswordChanged?: (message: string) => void;
   onError?: (message: string) => void;
@@ -24,11 +24,8 @@ export default function MainHeader({
   onBack,
   backTitle,
   onLogout,
-  onUserUpdated,
-  onPasswordChanged,
-  onError,
+  onOpenCuenta,
 }: Props) {
-  const [cuentaModalOpen, setCuentaModalOpen] = useState(false);
   const headerRef = useRef<HTMLElement>(null);
 
   const syncToastOffset = useCallback(() => {
@@ -51,11 +48,6 @@ export default function MainHeader({
       document.documentElement.style.setProperty("--toast-top-offset", "1rem");
     };
   }, [syncToastOffset]);
-
-  const handlePasswordSuccess = (message: string) => {
-    setCuentaModalOpen(false);
-    onPasswordChanged?.(message);
-  };
 
   const avatar = user.avatar ?? { tipo: "iniciales" as const, url: null };
 
@@ -106,7 +98,7 @@ export default function MainHeader({
               <button
                 type="button"
                 className="main-header-user-trigger"
-                onClick={() => setCuentaModalOpen(true)}
+                onClick={onOpenCuenta}
                 title={`${user.rol_label} · ${user.email}`}
                 aria-label={`${user.nombre}: mi cuenta y foto de perfil`}
               >
@@ -152,15 +144,6 @@ export default function MainHeader({
           </div>
         </div>
       </header>
-
-      <MiCuentaModal
-        user={user}
-        open={cuentaModalOpen}
-        onClose={() => setCuentaModalOpen(false)}
-        onUserUpdated={(u) => onUserUpdated?.(u)}
-        onPasswordChanged={handlePasswordSuccess}
-        onError={(msg) => onError?.(msg)}
-      />
     </>
   );
 }

@@ -1,7 +1,7 @@
 import type { Request } from "express";
 import type { UserPublic } from "./auth-db.js";
 import * as db from "./database.js";
-import type { BajaDispositivoSnapshot } from "./stock-ganadero-db.js";
+import type { BajaDispositivoSnapshot, HistorialAutor } from "./stock-ganadero-db.js";
 import type { StockMovimientoTipo } from "./stock-auditoria-db.js";
 
 export function clientIp(req: Request): string {
@@ -64,4 +64,17 @@ export async function auditBajasDispositivos(
       detalle: { dispositivo: d },
     });
   }
+}
+
+export function historialAutorFromRequest(
+  req: Request,
+  origen: HistorialAutor["origen"] = "FICHA"
+): HistorialAutor {
+  const user = req.user;
+  return {
+    user_id: user?.id ?? null,
+    user_email: user?.email ?? "",
+    user_nombre: user?.nombre ?? "",
+    origen: origen ?? "FICHA",
+  };
 }

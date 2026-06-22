@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { saveStockGanaderaDispositivo } from "../../api";
+import { useHeaderBackStep } from "../../header-back";
 import type {
   DispositivoEmpresa,
   DispositivoEstado,
@@ -7,13 +8,14 @@ import type {
   StockGanaderaDispositivo,
 } from "../../types";
 import { fmtDate } from "../../utils";
+import SubseccionInlinePanel from "../SubseccionInlinePanel";
 import IconoDispositivoWifi from "./IconoDispositivoWifi";
 import SelectEmpresaDispositivo from "./SelectEmpresaDispositivo";
 import SelectEstadoDispositivo from "./SelectEstadoDispositivo";
 import SelectGrupoDispositivo from "./SelectGrupoDispositivo";
 import SelectSexoDispositivo from "./SelectSexoDispositivo";
 import StockGanaderaEvolucionTimeline from "./StockGanaderaEvolucionTimeline";
-import StockGanaderaHistorialCambiosModal from "./StockGanaderaHistorialCambiosModal";
+import StockGanaderaHistorialCambiosPanel from "./StockGanaderaHistorialCambiosPanel";
 import {
   buildGrupo,
   calcularEdadMeses,
@@ -28,16 +30,18 @@ import {
 interface Props {
   dispositivo: StockGanaderaDispositivo;
   apiOnline: boolean;
-  onClose: () => void;
+  onVolver: () => void;
+  volverLabel?: string;
   onSaved: (actualizado: StockGanaderaDispositivo) => void;
   onVerHistorial: () => void;
   onError: (msg: string) => void;
 }
 
-export default function StockGanaderaEditarModal({
+export default function StockGanaderaEditarPanel({
   dispositivo,
   apiOnline,
-  onClose,
+  onVolver,
+  volverLabel = "Volver a Stock Ganadero",
   onSaved,
   onVerHistorial,
   onError,
@@ -62,6 +66,10 @@ export default function StockGanaderaEditarModal({
   const [guardando, setGuardando] = useState(false);
   const [verHistorialCambios, setVerHistorialCambios] = useState(false);
 
+  const backDestination =
+    volverLabel.replace(/^Volver a /i, "").trim() || "Stock Ganadero";
+  useHeaderBackStep(!verHistorialCambios, onVolver, backDestination);
+
   const aniosNacimiento = useMemo(() => listAniosNacimiento(), []);
   const edadMeses = useMemo(
     () => calcularEdadMeses(nacimientoMes, nacimientoAnio),
@@ -80,27 +88,6 @@ export default function StockGanaderaEditarModal({
     if (mes !== bajaMes) setBajaMes(mes);
     if (anio !== bajaAnio) setBajaAnio(anio);
   }, [estado, dispositivo.clave]);
-
-  useEffect(() => {
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, []);
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Escape" || guardando) return;
-      if (verHistorialCambios) {
-        setVerHistorialCambios(false);
-        return;
-      }
-      onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose, guardando, verHistorialCambios]);
 
   const grupoActual = useMemo(
     () => buildGrupo(nacimientoAnio),
@@ -122,7 +109,7 @@ export default function StockGanaderaEditarModal({
   const guardar = async () => {
     if (!apiOnline || guardando) return;
     if (!hayCambios) {
-      onClose();
+      onVolver();
       return;
     }
 
@@ -146,7 +133,7 @@ export default function StockGanaderaEditarModal({
       );
 
       onSaved({ ...dispositivo, ...guardado });
-      onClose();
+      onVolver();
     } catch (e) {
       onError(e instanceof Error ? e.message : "Error al guardar");
     } finally {
@@ -154,73 +141,111 @@ export default function StockGanaderaEditarModal({
     }
   };
 
-  return (
-    <div
-      className="stock-edit-overlay"
-      role="presentation"
-      onClick={() => !guardando && onClose()}
-    >
-      <div
-        className="stock-ganadera-editar-modal"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="stock-ganadera-editar-titulo"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <header className="stock-ganadera-editar-head">
-          <div className="stock-ganadera-editar-head-main">
-            <div className="stock-ganadera-editar-icon-wrap">
-              <IconoDispositivoWifi className="stock-ganadera-editar-icon" />
-            </div>
-            <div className="stock-ganadera-editar-head-text">
-              <p className="stock-ganadera-editar-kicker">Caravana electrónica</p>
-              <h2 id="stock-ganadera-editar-titulo">Editar caravana</h2>
-              <div className="stock-ganadera-editar-ids">
-                <p className="stock-ganadera-editar-id-badge num">
-                  EID {dispositivo.eid || "—"}
-                </p>
-                <p className="stock-ganadera-editar-id-badge stock-ganadera-editar-id-badge--vid num">
-                  {dispositivo.vid || "—"}
-                </p>
-              </div>
-              <p className="stock-ganadera-editar-eid-sub">
-                <span className="stock-ganadera-editar-head-meta-item">
-                  Últ. lectura{" "}
-                  {fmtDate(dispositivo.ultima_fecha)}
-                  {dispositivo.ultima_hora
-                    ? ` ${dispositivo.ultima_hora}`
-                    : ""}
-                </span>
-                <span className="stock-ganadera-editar-head-sep" aria-hidden>
-                  ·
-                </span>
-                <span className="stock-ganadera-editar-head-meta-item">
-                  Lecturas {dispositivo.total_lecturas}
-                </span>
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            className="stock-ganadera-editar-close"
-            onClick={onClose}
-            disabled={guardando}
-            aria-label="Cerrar"
-          >
-            ×
-          </button>
-        </header>
+  if (verHistorialCambios) {
+    return (
+      <StockGanaderaHistorialCambiosPanel
+        clave={dispositivo.clave}
+        vid={dispositivo.vid}
+        eid={dispositivo.eid}
+        apiOnline={apiOnline}
+        onVolver={() => setVerHistorialCambios(false)}
+        volverLabel="Volver a editar caravana"
+        onError={onError}
+      />
+    );
+  }
 
-        <div className="stock-ganadera-editar-body">
-          <section className="stock-ganadera-editar-panel" aria-label="Datos editables">
+  return (
+    <SubseccionInlinePanel
+      onVolver={onVolver}
+      volverLabel={volverLabel}
+      title="Editar caravana"
+      description={
+        <>
+          EID <span className="num">{dispositivo.eid || "—"}</span>
+          {" · "}
+          VID <span className="num">{dispositivo.vid || "—"}</span>
+          {" · "}
+          Últ. lectura {fmtDate(dispositivo.ultima_fecha)}
+          {dispositivo.ultima_hora ? ` ${dispositivo.ultima_hora}` : ""}
+        </>
+      }
+      cardClassName="subseccion-inline-card stock-ganadera-editar-page"
+      footer={
+        <div className="stock-ganadera-editar-page-foot">
+          <div className="stock-ganadera-editar-footer-links">
+            <button
+              type="button"
+              className="stock-edit-link-btn"
+              onClick={onVerHistorial}
+              disabled={guardando}
+            >
+              Historial de lecturas →
+            </button>
+            <button
+              type="button"
+              className="stock-edit-link-btn stock-edit-link-btn--audit"
+              onClick={() => setVerHistorialCambios(true)}
+              disabled={guardando || !apiOnline}
+            >
+              Historial de cambios →
+            </button>
+          </div>
+          <div className="stock-ganadera-editar-footer-actions">
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={onVolver}
+              disabled={guardando}
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => void guardar()}
+              disabled={guardando || !apiOnline}
+            >
+              {guardando ? "Guardando…" : "Guardar cambios"}
+            </button>
+          </div>
+        </div>
+      }
+    >
+      <div className="stock-ganadera-editar-hero">
+        <div className="stock-ganadera-editar-hero-main">
+          <span className="stock-ganadera-editar-hero-icon" aria-hidden>
+            <IconoDispositivoWifi className="stock-ganadera-editar-icon" />
+          </span>
+          <div className="stock-ganadera-editar-hero-text">
+            <span className="stock-ganadera-editar-hero-kicker">Caravana electrónica</span>
+            <div className="stock-ganadera-editar-hero-ids">
+              <span className="stock-ganadera-editar-hero-badge num">
+                EID {dispositivo.eid || "—"}
+              </span>
+              <span className="stock-ganadera-editar-hero-badge stock-ganadera-editar-hero-badge--vid num">
+                {dispositivo.vid || "—"}
+              </span>
+            </div>
+            <p className="stock-ganadera-editar-hero-meta muted">
+              {dispositivo.total_lecturas} lectura
+              {dispositivo.total_lecturas === 1 ? "" : "s"} registrada
+              {dispositivo.total_lecturas === 1 ? "" : "s"}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="stock-ganadera-editar-page-body">
+        <section className="stock-ganadera-editar-panel" aria-label="Datos editables">
             <h3 className="stock-ganadera-editar-section-title">Ficha del animal</h3>
 
             <div className="stock-ganadera-editar-grid">
               <div className="stock-edit-row-4 stock-edit-field--full">
                 <div className="stock-edit-field stock-edit-field--empresa">
-                  <label htmlFor="modal-ganadera-empresa">Empresa</label>
+                  <label htmlFor="edit-ganadera-empresa">Empresa</label>
                   <SelectEmpresaDispositivo
-                    id="modal-ganadera-empresa"
+                    id="edit-ganadera-empresa"
                     value={empresa}
                     disabled={guardando || !apiOnline}
                     onChange={setEmpresa}
@@ -228,9 +253,9 @@ export default function StockGanaderaEditarModal({
                 </div>
 
                 <div className="stock-edit-field stock-edit-field--sexo">
-                  <label htmlFor="modal-ganadera-sexo">Sexo</label>
+                  <label htmlFor="edit-ganadera-sexo">Sexo</label>
                   <SelectSexoDispositivo
-                    id="modal-ganadera-sexo"
+                    id="edit-ganadera-sexo"
                     value={sexo}
                     disabled={guardando || !apiOnline}
                     onChange={setSexo}
@@ -238,12 +263,12 @@ export default function StockGanaderaEditarModal({
                 </div>
 
                 <div className="stock-edit-field stock-edit-field--nacimiento">
-                  <label htmlFor="modal-ganadera-nac-mes">
+                  <label htmlFor="edit-ganadera-nac-mes">
                     Fecha de nacimiento
                     <span className="stock-edit-label-hint">mes</span>
                   </label>
                   <select
-                    id="modal-ganadera-nac-mes"
+                    id="edit-ganadera-nac-mes"
                     className="stock-nacimiento-mes stock-edit-select"
                     value={nacimientoMes ?? ""}
                     disabled={guardando || !apiOnline}
@@ -263,9 +288,9 @@ export default function StockGanaderaEditarModal({
                 </div>
 
                 <div className="stock-edit-field stock-edit-field--nacimiento-anio">
-                  <label htmlFor="modal-ganadera-nac-anio">Año</label>
+                  <label htmlFor="edit-ganadera-nac-anio">Año</label>
                   <select
-                    id="modal-ganadera-nac-anio"
+                    id="edit-ganadera-nac-anio"
                     className="stock-nacimiento-anio stock-edit-select"
                     value={nacimientoAnio ?? ""}
                     disabled={guardando || !apiOnline}
@@ -287,9 +312,9 @@ export default function StockGanaderaEditarModal({
 
               <div className="stock-edit-row-3 stock-edit-field--full">
               <div className="stock-edit-field stock-edit-field--edad">
-                <label htmlFor="modal-ganadera-edad">Edad calculada</label>
+                <label htmlFor="edit-ganadera-edad">Edad calculada</label>
                 <div
-                  id="modal-ganadera-edad"
+                  id="edit-ganadera-edad"
                   className={`stock-edit-edad-card${
                     edadMeses === null ? " stock-edit-edad-card--empty" : ""
                   }`}
@@ -313,18 +338,18 @@ export default function StockGanaderaEditarModal({
               </div>
 
               <div className="stock-edit-field stock-edit-field--grupo">
-                <label htmlFor="modal-ganadera-grupo">Generación</label>
+                <label htmlFor="edit-ganadera-grupo">Generación</label>
                 <SelectGrupoDispositivo
-                  id="modal-ganadera-grupo"
+                  id="edit-ganadera-grupo"
                   anio={nacimientoAnio}
                   disabled={guardando || !apiOnline}
                 />
               </div>
 
               <div className="stock-edit-field">
-                <label htmlFor="modal-ganadera-grupo-libre">Grupo</label>
+                <label htmlFor="edit-ganadera-grupo-libre">Grupo</label>
                 <input
-                  id="modal-ganadera-grupo-libre"
+                  id="edit-ganadera-grupo-libre"
                   type="text"
                   className="stock-observaciones-input mayusculas-auto"
                   maxLength={48}
@@ -336,9 +361,9 @@ export default function StockGanaderaEditarModal({
               </div>
 
               <div className="stock-edit-field stock-edit-field--estado">
-                <label htmlFor="modal-ganadera-estado">Estado</label>
+                <label htmlFor="edit-ganadera-estado">Estado</label>
                 <SelectEstadoDispositivo
-                  id="modal-ganadera-estado"
+                  id="edit-ganadera-estado"
                   value={estado}
                   disabled={guardando || !apiOnline}
                   onChange={setEstado}
@@ -362,12 +387,12 @@ export default function StockGanaderaEditarModal({
             />
 
             <div className="stock-edit-field stock-edit-field--observaciones">
-              <label htmlFor="modal-ganadera-obs">
+              <label htmlFor="edit-ganadera-obs">
                 Observaciones
                 <span className="stock-edit-label-hint">opcional</span>
               </label>
               <input
-                id="modal-ganadera-obs"
+                id="edit-ganadera-obs"
                 type="text"
                 className="stock-observaciones-input"
                 maxLength={2000}
@@ -378,58 +403,10 @@ export default function StockGanaderaEditarModal({
               />
             </div>
           </section>
-        </div>
-
-        <footer className="stock-ganadera-editar-footer">
-          <div className="stock-ganadera-editar-footer-links">
-            <button
-              type="button"
-              className="stock-edit-link-btn"
-              onClick={onVerHistorial}
-              disabled={guardando}
-            >
-              Historial de lecturas →
-            </button>
-            <button
-              type="button"
-              className="stock-edit-link-btn stock-edit-link-btn--audit"
-              onClick={() => setVerHistorialCambios(true)}
-              disabled={guardando || !apiOnline}
-            >
-              Historial de cambios →
-            </button>
-          </div>
-          <div className="stock-ganadera-editar-footer-actions">
-            <button
-              type="button"
-              className="btn btn-ghost"
-              onClick={onClose}
-              disabled={guardando}
-            >
-              Cancelar
-            </button>
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={() => void guardar()}
-              disabled={guardando || !apiOnline}
-            >
-              {guardando ? "Guardando…" : "Guardar cambios"}
-            </button>
-          </div>
-        </footer>
       </div>
-
-      {verHistorialCambios && (
-        <StockGanaderaHistorialCambiosModal
-          clave={dispositivo.clave}
-          vid={dispositivo.vid}
-          eid={dispositivo.eid}
-          apiOnline={apiOnline}
-          onClose={() => setVerHistorialCambios(false)}
-          onError={onError}
-        />
-      )}
-    </div>
+    </SubseccionInlinePanel>
   );
 }
+
+/** @deprecated Usar StockGanaderaEditarPanel */
+export { StockGanaderaEditarPanel as StockGanaderaEditarModal };

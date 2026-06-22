@@ -12,7 +12,7 @@ import { normalizarTituloRubro } from "../../utils/formText";
 import { grupoClaveOrden, grupoTituloCanon } from "../../utils/grupoRubro";
 import { confirmAction } from "../../utils/confirm";
 import { captureScrollY, restoreScrollY, withScrollPreserve } from "../../utils/scrollPreserve";
-import GrupoIconoPickerModal from "./GrupoIconoPickerModal";
+import GrupoIconoPickerPanel from "./GrupoIconoPickerModal";
 import SubRubroItemsCell from "./SubRubroItemsCell";
 import SubRubroNombre from "./SubRubroNombre";
 import {
@@ -673,6 +673,21 @@ export default function SubRubroListado({
     inline.mode === "new" &&
     inline.anchorGrupo === grupo;
 
+  if (iconPickerGrupo) {
+    return (
+      <GrupoIconoPickerPanel
+        grupo={iconPickerGrupo}
+        apiOnline={apiOnline}
+        guardando={!!subiendoIconoGrupo}
+        iconoActual={iconoPickerActual}
+        onVolver={cerrarSelectorIcono}
+        onElegirEmoji={elegirIconoBanco}
+        onSubirPc={subirIconoDesdePc}
+        onRestaurar={restaurarIconoAutomatico}
+      />
+    );
+  }
+
   return (
     <div className="subseccion-panel">
       <button type="button" className="subseccion-back" onClick={onVolver}>
@@ -977,19 +992,6 @@ export default function SubRubroListado({
           </table>
         </div>
       </div>
-
-      {iconPickerGrupo && (
-        <GrupoIconoPickerModal
-          grupo={iconPickerGrupo}
-          apiOnline={apiOnline}
-          guardando={!!subiendoIconoGrupo}
-          iconoActual={iconoPickerActual}
-          onCerrar={cerrarSelectorIcono}
-          onElegirEmoji={elegirIconoBanco}
-          onSubirPc={subirIconoDesdePc}
-          onRestaurar={restaurarIconoAutomatico}
-        />
-      )}
     </div>
   );
 }

@@ -55,7 +55,15 @@ const PUBLIC_PATHS = new Set(["/api/health", "/api/auth/login"]);
 
 const WRITE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
+function canAccessModulo(user: UserPublic, modulo: Modulo): boolean {
+  if (authDb.MODULOS_TODOS_LOS_USUARIOS.includes(modulo)) return true;
+  return user.permisos.includes(modulo);
+}
+
 function canWriteInModulo(user: UserPublic, modulo: Modulo | null): boolean {
+  if (modulo && authDb.MODULOS_ESCRITURA_TODOS_LOS_USUARIOS.includes(modulo)) {
+    return true;
+  }
   if (!user.puede_escribir) return false;
   if (!modulo) return true;
   const soloLectura = authDb.ROLES_MODULO_SOLO_LECTURA[user.rol];
@@ -116,6 +124,7 @@ export function moduleFromApiPath(path: string): Modulo | null {
   }
   if (p.startsWith("/api/divisas")) return "divisas";
   if (p.startsWith("/api/precios-ganado")) return "precios_ganado";
+  if (p.startsWith("/api/simulador-venta-ganado")) return "simulador_venta_ganado";
   if (p.startsWith("/api/chat")) return "chat";
   if (p.startsWith("/api/funcionarios") || p.startsWith("/api/rrhh")) {
     return "rrhh";
@@ -172,7 +181,10 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
   attachApiActivityLogger(req, res);
 
   const modulo = moduleFromApiPath(path);
-  if (modulo && !user.permisos.includes(modulo)) {
+  const stockDispositivosLectura =
+    req.method === "GET" && path.startsWith("/api/stock-ganadero/dispositivos");
+
+  if (modulo && !canAccessModulo(user, modulo) && !stockDispositivosLectura) {
     res.status(403).json({ ok: false, error: "Sin permiso para este módulo" });
     return;
   }

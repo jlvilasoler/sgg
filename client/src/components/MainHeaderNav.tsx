@@ -12,6 +12,7 @@ interface Props {
   onHome: () => void;
   onGoBackScreen: () => void;
   onLogout: () => void;
+  onOpenCuenta: () => void;
   onUserUpdated: (user: AuthUser) => void;
   onPasswordChanged: (message: string) => void;
   onError: (message: string) => void;
@@ -24,6 +25,7 @@ export default function MainHeaderNav({
   onHome,
   onGoBackScreen,
   onLogout,
+  onOpenCuenta,
   onUserUpdated,
   onPasswordChanged,
   onError,
@@ -38,7 +40,7 @@ export default function MainHeaderNav({
       : getScreenTitle(previousScreen as TabId);
 
   const backTitle = headerBackStep?.destinationLabel ?? screenBackTitle;
-  const canGoBack = screen !== "home" && (!!headerBackStep || navHistory.length > 0);
+  const canGoBack = !!headerBackStep || (screen !== "home" && navHistory.length > 0);
 
   const goBack = () => {
     if (headerBackStep) {
@@ -56,6 +58,7 @@ export default function MainHeaderNav({
       onBack={goBack}
       backTitle={backTitle}
       onLogout={onLogout}
+      onOpenCuenta={onOpenCuenta}
       onUserUpdated={onUserUpdated}
       onPasswordChanged={onPasswordChanged}
       onError={onError}

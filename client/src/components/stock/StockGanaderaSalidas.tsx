@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { fetchStockGanaderaDispositivos } from "../../api";
+import { fetchStockGanaderaSalidas } from "../../api";
 import type { StockGanaderaDispositivo } from "../../types";
 import TablePagination, {
   paginateSlice,
@@ -8,7 +8,7 @@ import TablePagination, {
 import BadgeEstadoDispositivo from "./BadgeEstadoDispositivo";
 import IconoDispositivoWifi from "./IconoDispositivoWifi";
 import StockGanaderaEdadMiniTimeline from "./StockGanaderaEdadMiniTimeline";
-import StockGanaderaEditarModal from "./StockGanaderaEditarModal";
+import StockGanaderaEditarPanel from "./StockGanaderaEditarModal";
 import {
   calcularMesesEntreFechas,
   etiquetaFechaBaja,
@@ -19,7 +19,7 @@ import {
   MESES_NACIMIENTO,
 } from "./stock-ganadera-utils";
 
-type FiltroEstado = "" | "MUERTO" | "VENDIDO" | "FRIGORIFICO";
+type FiltroEstado = "" | "MUERTO" | "VENDIDO" | "FRIGORIFICO" | "PERDIDO";
 
 function fmtSexo(sexo: StockGanaderaDispositivo["sexo"]): string {
   return sexo || "—";
@@ -55,6 +55,7 @@ export default function StockGanaderaSalidas({
   const [bajaAnio, setBajaAnio] = useState<number | "">("");
   const [editarDispositivo, setEditarDispositivo] =
     useState<StockGanaderaDispositivo | null>(null);
+  const [bajasReparadas, setBajasReparadas] = useState(0);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<PageSize>(30);
@@ -69,11 +70,11 @@ export default function StockGanaderaSalidas({
     }
     setLoading(true);
     try {
-      const dispositivos = await fetchStockGanaderaDispositivos({
+      const { dispositivos, bajasReparadas: reparadas } = await fetchStockGanaderaSalidas({
         busqueda: busqueda.trim() || undefined,
-        solo_bajas: true,
       });
       setRows(dispositivos);
+      setBajasReparadas(reparadas);
     } catch (e) {
       onError(e instanceof Error ? e.message : "Error al cargar salidas");
       setRows([]);
@@ -103,18 +104,23 @@ export default function StockGanaderaSalidas({
     let muertos = 0;
     let vendidos = 0;
     let frigorifico = 0;
+    let perdidos = 0;
     for (const d of rows) {
       if (d.estado === "MUERTO") muertos += 1;
       else if (d.estado === "VENDIDO") vendidos += 1;
       else if (d.estado === "FRIGORIFICO") frigorifico += 1;
+      else if (d.estado === "PERDIDO") perdidos += 1;
     }
     return {
       total: rows.length,
       muertos,
       vendidos,
       frigorifico,
+      perdidos,
     };
   }, [rows]);
+
+  const mostrarCargaVacia = loading && rows.length === 0;
 
   const totalPages = Math.max(1, Math.ceil(rowsFiltradas.length / pageSize));
   const pageSafe = Math.min(page, totalPages);
@@ -136,6 +142,23 @@ export default function StockGanaderaSalidas({
     );
   };
 
+  if (editarDispositivo) {
+    return (
+      <StockGanaderaEditarPanel
+        dispositivo={editarDispositivo}
+        apiOnline={apiOnline}
+        onVolver={() => setEditarDispositivo(null)}
+        volverLabel="Volver a Salidas del sistema"
+        onSaved={(actualizado) => {
+          actualizarFila(actualizado);
+          setEditarDispositivo(null);
+        }}
+        onVerHistorial={() => setEditarDispositivo(null)}
+        onError={onError}
+      />
+    );
+  }
+
   return (
     <div className="subseccion-panel">
       <button type="button" className="subseccion-back" onClick={onVolver}>
@@ -146,12 +169,17 @@ export default function StockGanaderaSalidas({
         <div className="form-header">
           <h2>Salidas del sistema</h2>
           <p className="muted">
-            Dispositivos dados de baja: muertes, ventas y envíos a frigorífico.
-            {loading
+            Dispositivos dados de baja: muertes, ventas, frigorífico y extraviados.
+            {mostrarCargaVacia
               ? " Cargando…"
-              : rowsFiltradas.length === 0
-                ? " No hay salidas registradas."
-                : ` ${rowsFiltradas.length} salida(s) según los filtros.`}
+              : loading
+                ? ` ${rowsFiltradas.length} salida(s) según los filtros · actualizando…`
+                : rowsFiltradas.length === 0
+                  ? " No hay salidas registradas."
+                  : ` ${rowsFiltradas.length} salida(s) según los filtros.`}
+            {!mostrarCargaVacia && bajasReparadas > 0
+              ? ` Se sincronizaron ${bajasReparadas} baja(s) pendiente(s) desde ventas cerradas.`
+              : ""}
           </p>
         </div>
 
@@ -168,7 +196,7 @@ export default function StockGanaderaSalidas({
               <div className="stock-dash-card stock-dash-card--total">
                 <span className="stock-dash-label">Total salidas</span>
                 <span className="stock-dash-valor">
-                  {loading ? "—" : stats.total}
+                  {mostrarCargaVacia ? "—" : stats.total}
                 </span>
                 <span className="stock-dash-hint">Fuera del stock activo</span>
               </div>
@@ -180,11 +208,11 @@ export default function StockGanaderaSalidas({
                 onClick={() =>
                   setFiltroEstado((v) => (v === "MUERTO" ? "" : "MUERTO"))
                 }
-                disabled={loading || stats.muertos === 0}
+                disabled={mostrarCargaVacia || stats.muertos === 0}
               >
                 <span className="stock-dash-label">Muertes</span>
                 <span className="stock-dash-valor stock-dash-valor--muerto">
-                  {loading ? "—" : stats.muertos}
+                  {mostrarCargaVacia ? "—" : stats.muertos}
                 </span>
                 <span className="stock-dash-hint">Clic para filtrar</span>
               </button>
@@ -196,11 +224,11 @@ export default function StockGanaderaSalidas({
                 onClick={() =>
                   setFiltroEstado((v) => (v === "VENDIDO" ? "" : "VENDIDO"))
                 }
-                disabled={loading || stats.vendidos === 0}
+                disabled={mostrarCargaVacia || stats.vendidos === 0}
               >
                 <span className="stock-dash-label">Ventas</span>
                 <span className="stock-dash-valor stock-dash-valor--vendido">
-                  {loading ? "—" : stats.vendidos}
+                  {mostrarCargaVacia ? "—" : stats.vendidos}
                 </span>
                 <span className="stock-dash-hint">Clic para filtrar</span>
               </button>
@@ -214,11 +242,27 @@ export default function StockGanaderaSalidas({
                     v === "FRIGORIFICO" ? "" : "FRIGORIFICO"
                   )
                 }
-                disabled={loading || stats.frigorifico === 0}
+                disabled={mostrarCargaVacia || stats.frigorifico === 0}
               >
                 <span className="stock-dash-label">Frigorífico</span>
                 <span className="stock-dash-valor stock-dash-valor--frigorifico">
-                  {loading ? "—" : stats.frigorifico}
+                  {mostrarCargaVacia ? "—" : stats.frigorifico}
+                </span>
+                <span className="stock-dash-hint">Clic para filtrar</span>
+              </button>
+              <button
+                type="button"
+                className={`stock-dash-card stock-dash-card--perdido${
+                  filtroEstado === "PERDIDO" ? " is-active" : ""
+                }`}
+                onClick={() =>
+                  setFiltroEstado((v) => (v === "PERDIDO" ? "" : "PERDIDO"))
+                }
+                disabled={mostrarCargaVacia || stats.perdidos === 0}
+              >
+                <span className="stock-dash-label">Extraviados</span>
+                <span className="stock-dash-valor stock-dash-valor--perdido">
+                  {mostrarCargaVacia ? "—" : stats.perdidos}
                 </span>
                 <span className="stock-dash-hint">Clic para filtrar</span>
               </button>
@@ -240,6 +284,7 @@ export default function StockGanaderaSalidas({
               <option value="MUERTO">Muerte</option>
               <option value="VENDIDO">Venta</option>
               <option value="FRIGORIFICO">Frigorífico</option>
+              <option value="PERDIDO">Extraviado</option>
             </select>
           </div>
           <div className="field">
@@ -308,7 +353,7 @@ export default function StockGanaderaSalidas({
               </tr>
             </thead>
             <tbody>
-              {loading ? (
+              {mostrarCargaVacia ? (
                 <tr>
                   <td colSpan={9} className="empty">
                     Cargando…
@@ -405,7 +450,7 @@ export default function StockGanaderaSalidas({
           </table>
         </div>
 
-        {!loading && apiOnline && rowsFiltradas.length > 0 && (
+        {!mostrarCargaVacia && apiOnline && rowsFiltradas.length > 0 && (
           <TablePagination
             total={rowsFiltradas.length}
             page={pageSafe}
@@ -418,17 +463,6 @@ export default function StockGanaderaSalidas({
           />
         )}
       </div>
-
-      {editarDispositivo && (
-        <StockGanaderaEditarModal
-          dispositivo={editarDispositivo}
-          apiOnline={apiOnline}
-          onClose={() => setEditarDispositivo(null)}
-          onSaved={actualizarFila}
-          onVerHistorial={() => setEditarDispositivo(null)}
-          onError={onError}
-        />
-      )}
     </div>
   );
 }

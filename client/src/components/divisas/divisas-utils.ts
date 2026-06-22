@@ -7,8 +7,38 @@ export function fmtNum(n: number, decimals = 2): string {
 
 export function fmtDate(iso: string): string {
   if (!iso) return "";
-  const [y, m, d] = iso.split("-");
-  return `${d}/${m}/${y}`;
+  const head = iso.slice(0, 10);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(head)) {
+    const [y, m, d] = head.split("-");
+    return `${d}/${m}/${y}`;
+  }
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleDateString("es-UY", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+}
+
+export function fmtDateHora(iso: string): { fecha: string; hora: string } | null {
+  if (!iso) return null;
+  const normalized = iso.includes("T") ? iso : iso.replace(" ", "T");
+  const d = new Date(normalized);
+  if (Number.isNaN(d.getTime())) return null;
+  return {
+    fecha: d.toLocaleDateString("es-UY", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    }),
+    hora: d.toLocaleTimeString("es-UY", {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+    }),
+  };
 }
 
 const MESES_ES = [

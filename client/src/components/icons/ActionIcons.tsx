@@ -109,6 +109,22 @@ export function IconConfirmar({ size, className }: IconProps) {
   );
 }
 
+/** Círculo con check — cerrar venta */
+export function IconCerrarVenta({ size, className }: IconProps) {
+  return (
+    <IconBase size={size} className={className}>
+      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.75" />
+      <path
+        d="m8 12 3 3 5-6"
+        stroke="currentColor"
+        strokeWidth="1.85"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </IconBase>
+  );
+}
+
 /** Ojo / ver detalle */
 export function IconVer({ size, className }: IconProps) {
   return (
@@ -124,6 +140,20 @@ export function IconVer({ size, className }: IconProps) {
   );
 }
 
+/** Estrella / destacar */
+export function IconDestacar({ size, className }: IconProps) {
+  return (
+    <IconBase size={size} className={className}>
+      <path
+        d="M12 3.5 14.2 9l5.8.5-4.4 3.8 1.4 5.7L12 16.2 7 18.9l1.4-5.7L4 9.5l5.8-.5L12 3.5Z"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinejoin="round"
+      />
+    </IconBase>
+  );
+}
+
 /** Cruz / cancelar */
 export function IconCancelar({ size, className }: IconProps) {
   return (
@@ -133,6 +163,38 @@ export function IconCancelar({ size, className }: IconProps) {
         stroke="currentColor"
         strokeWidth="1.75"
         strokeLinecap="round"
+      />
+    </IconBase>
+  );
+}
+
+/** Círculo i / información */
+export function IconInfo({ size, className }: IconProps) {
+  return (
+    <IconBase size={size} className={className}>
+      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.75" />
+      <path
+        d="M12 11v5M12 8h.01"
+        stroke="currentColor"
+        strokeWidth="1.85"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </IconBase>
+  );
+}
+
+/** Reloj / historial */
+export function IconHistorial({ size, className }: IconProps) {
+  return (
+    <IconBase size={size} className={className}>
+      <circle cx="12" cy="12" r="8.25" stroke="currentColor" strokeWidth="1.75" />
+      <path
+        d="M12 8v4l2.5 1.5"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+        strokeLinejoin="round"
       />
     </IconBase>
   );
