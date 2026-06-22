@@ -21287,3 +21287,43 @@ button.sg-kpi-card:disabled {
 .ventas-ganado-table .ventas-ganado-destino-cell {
   text-transform: none;
 }
+
+.ventas-agricultura-card .ventas-agricultura-total {
+  font-weight: 700;
+  color: var(--primary);
+  text-transform: none;
+}
+
+.ventas-agricultura-card select option {
+  text-transform: none;
+}
+
+.ventas-agricultura-resumen {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+  padding: 1rem;
+  border-radius: 8px;
+  background: #f4f8f5;
+  border: 1px solid var(--border);
+}
+
+.ventas-agricultura-resumen-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.ventas-agricultura-resumen-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.ventas-agricultura-resumen-item--hero strong {
+  font-size: 1.15rem;
+  color: var(--primary);
+}

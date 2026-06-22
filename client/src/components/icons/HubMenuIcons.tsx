@@ -43,6 +43,8 @@ export type HubIconId =
   | "ventas_listado"
   | "ventas_rubros"
   | "ventas_ganado"
+  | "ventas_agricultura"
+  | "ventas_arrendamientos"
   | "divisas_usd"
   | "divisas_brl";
 
@@ -206,6 +208,28 @@ function IconReal({ className }: IconProps) {
   );
 }
 
+function IconWheat({ className }: IconProps) {
+  return (
+    <IconShell className={className}>
+      <path d="M12 20V7.5" {...stroke} />
+      <path d="M8.5 11.5C7 9 5 8.5 4 10s1 4 3.5 4.5M15.5 11.5c1.5-2.5 3.5-3 4.5-1.5s-1 4-3.5 4.5" {...stroke} />
+      <path d="M9 14.5c-1-2-2.5-2.5-4-1.5s0 3 2 3.5M15 14.5c1-2 2.5-2.5 4-1.5s0 3-2 3.5" {...stroke} />
+      <path d="M10 17.5c-.5-1.5-1.5-2-2.5-1.2s-.2 2 1.5 2.3M14 17.5c.5-1.5 1.5-2 2.5-1.2s.2 2-1.5 2.3" {...stroke} />
+    </IconShell>
+  );
+}
+
+function IconArrendamiento({ className }: IconProps) {
+  return (
+    <IconShell className={className}>
+      <path d="M4.5 20V11l7.5-5 7.5 5v9" {...stroke} />
+      <path d="M9.5 20v-5.5h5V20" {...stroke} />
+      <path d="M15.25 8.75 17.5 10l-2.25 1.25" {...stroke} strokeWidth="1.4" />
+      <circle cx="17.5" cy="10" r="1.35" {...stroke} strokeWidth="1.35" />
+    </IconShell>
+  );
+}
+
 const ICONS: Record<HubIconId, (props: IconProps) => ReactNode> = {
   config_responsables: IconUserBadge,
   config_proveedores: IconBuilding,
@@ -225,6 +249,8 @@ const ICONS: Record<HubIconId, (props: IconProps) => ReactNode> = {
   ventas_listado: IconClipboard,
   ventas_rubros: IconTag,
   ventas_ganado: IconCattle,
+  ventas_agricultura: IconWheat,
+  ventas_arrendamientos: IconArrendamiento,
   divisas_usd: IconDollar,
   divisas_brl: IconReal,
 };
@@ -330,6 +356,16 @@ export const HUB_ICON_THEMES: Record<HubIconId, MenuAppTheme> = {
     accent: "#92400e",
     accentSoft: "linear-gradient(145deg, #fffbeb 0%, #fde68a 40%, #fbbf24 100%)",
     accentGlow: "rgba(146, 64, 14, 0.26)",
+  },
+  ventas_agricultura: {
+    accent: "#16a34a",
+    accentSoft: "linear-gradient(145deg, #f0fdf4 0%, #dcfce7 52%, #bbf7d0 100%)",
+    accentGlow: "rgba(22, 163, 74, 0.28)",
+  },
+  ventas_arrendamientos: {
+    accent: "#7c3aed",
+    accentSoft: "linear-gradient(145deg, #f5f3ff 0%, #ede9fe 52%, #ddd6fe 100%)",
+    accentGlow: "rgba(124, 58, 237, 0.28)",
   },
   divisas_usd: {
     accent: "#0d9488",

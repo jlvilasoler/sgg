@@ -1,15 +1,19 @@
 import { useCallback, useEffect, useState } from "react";
-import type { IngresoVenta } from "../../types";
 import { HubMenuCard } from "../HubMenuCard";
 import { useHeaderBackContext } from "../../header-back";
 import type { HubIconId } from "../icons/HubMenuIcons";
 import { HUB_ICON_THEMES, HubMenuIcon } from "../icons/HubMenuIcons";
-import FormVenta from "./FormVenta";
-import VentaListado from "./VentaListado";
 import VentaRubros from "./VentaRubros";
 import VentasGanadoCerradas from "./VentasGanadoCerradas";
+import VentasAgricultura from "./VentasAgricultura";
+import VentasIngresosSeccion from "./VentasIngresosSeccion";
 
-type VistaVentas = "menu" | "ingresar" | "listado" | "rubros" | "ventas_ganado";
+type VistaVentas =
+  | "menu"
+  | "rubros"
+  | "ventas_ganado"
+  | "ventas_agricultura"
+  | "ventas_arrendamientos";
 
 interface Props {
   apiOnline: boolean;
@@ -19,28 +23,28 @@ interface Props {
 }
 
 const SUBMENU: {
-  id: "ingresar" | "listado" | "rubros" | "ventas_ganado";
+  id: Exclude<VistaVentas, "menu">;
   label: string;
   subtitle: string;
   icon: HubIconId;
 }[] = [
   {
-    id: "ingresar",
-    label: "Documentos a ingresar por ventas",
-    subtitle: "Registrar factura o ingreso por venta",
-    icon: "ventas_ingresar",
-  },
-  {
-    id: "listado",
-    label: "Listado de documentos",
-    subtitle: "Ver, editar y eliminar ingresos",
-    icon: "ventas_listado",
-  },
-  {
     id: "ventas_ganado",
     label: "Ventas de ganado cerradas",
     subtitle: "Ventas cerradas del simulador con totales",
     icon: "ventas_ganado",
+  },
+  {
+    id: "ventas_agricultura",
+    label: "Ventas Agricultura",
+    subtitle: "Ingresos por venta de cultivos y cosechas",
+    icon: "ventas_agricultura",
+  },
+  {
+    id: "ventas_arrendamientos",
+    label: "Ingresos por Arrendamientos",
+    subtitle: "Arrendamientos, medianería y uso de campos",
+    icon: "ventas_arrendamientos",
   },
   {
     id: "rubros",
@@ -57,12 +61,9 @@ export default function IngresosVentas({
   onVolver,
 }: Props) {
   const [vista, setVista] = useState<VistaVentas>("menu");
-  const [editRow, setEditRow] = useState<IngresoVenta | null>(null);
-  const [listRefresh, setListRefresh] = useState(0);
 
   const volverMenu = useCallback(() => {
     setVista("menu");
-    setEditRow(null);
   }, []);
 
   const headerBack = useHeaderBackContext();
@@ -72,66 +73,17 @@ export default function IngresosVentas({
       headerBack.setStep(null);
       return;
     }
-    if (vista === "ingresar" && editRow) {
-      headerBack.setStep({
-        onBack: () => {
-          setEditRow(null);
-          setVista("listado");
-        },
-        destinationLabel: "Listado de documentos",
-      });
-      return () => headerBack.setStep(null);
-    }
     headerBack.setStep({
       onBack: volverMenu,
       destinationLabel: "Ingresos por ventas",
     });
     return () => headerBack.setStep(null);
-  }, [vista, editRow, volverMenu, headerBack]);
-
-  if (vista === "ingresar") {
-    return (
-      <FormVenta
-        key={editRow?.id ?? "nuevo"}
-        editRow={editRow}
-        apiOnline={apiOnline}
-        onSaved={() => {
-          setListRefresh((k) => k + 1);
-          setEditRow(null);
-          setVista("listado");
-        }}
-        onCancelEdit={() => {
-          setEditRow(null);
-          if (editRow) setVista("listado");
-        }}
-        onError={onError}
-        onSuccess={onSuccess}
-        onVolver={volverMenu}
-      />
-    );
-  }
+  }, [vista, volverMenu, headerBack]);
 
   if (vista === "rubros") {
     return (
       <VentaRubros
         apiOnline={apiOnline}
-        onError={onError}
-        onSuccess={(m) => onSuccess(m)}
-        onVolver={volverMenu}
-      />
-    );
-  }
-
-  if (vista === "listado") {
-    return (
-      <VentaListado
-        key={listRefresh}
-        apiOnline={apiOnline}
-        refreshKey={listRefresh}
-        onEdit={(row) => {
-          setEditRow(row);
-          setVista("ingresar");
-        }}
         onError={onError}
         onSuccess={(m) => onSuccess(m)}
         onVolver={volverMenu}
@@ -150,6 +102,20 @@ export default function IngresosVentas({
     );
   }
 
+  if (vista === "ventas_agricultura") {
+    return <VentasAgricultura onVolver={volverMenu} />;
+  }
+
+  if (vista === "ventas_arrendamientos") {
+    return (
+      <VentasIngresosSeccion
+        titulo="Ingresos por arrendamientos y medianería"
+        descripcion="Registro de ingresos por arrendamiento de campos, medianería y acuerdos de uso."
+        onVolver={volverMenu}
+      />
+    );
+  }
+
   return (
     <div className="subseccion-panel configuracion-hub">
       <button type="button" className="subseccion-back" onClick={onVolver}>
@@ -159,7 +125,7 @@ export default function IngresosVentas({
         <div className="form-header">
           <h2>Ingresos por ventas</h2>
           <p className="muted">
-            Registro de documentos e ingresos por ventas de la operación ganadera.
+            Ganado, agricultura, arrendamientos y catálogo de rubros de ingresos.
           </p>
         </div>
         <nav className="app-grid" aria-label="Ingresos por ventas">
