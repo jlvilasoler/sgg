@@ -103,7 +103,14 @@ export default function IngresosVentas({
   }
 
   if (vista === "ventas_agricultura") {
-    return <VentasAgricultura onVolver={volverMenu} />;
+    return (
+      <VentasAgricultura
+        apiOnline={apiOnline}
+        onError={onError}
+        onSuccess={(m) => onSuccess(m)}
+        onVolver={volverMenu}
+      />
+    );
   }
 
   if (vista === "ventas_arrendamientos") {

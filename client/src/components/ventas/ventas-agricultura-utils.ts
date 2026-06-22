@@ -69,3 +69,19 @@ export function formatRendimientoAgricultura(value: number): string {
     : value.toLocaleString("en-US", { maximumFractionDigits: 2 });
   return `${text} ton/ha`;
 }
+
+export function labelEmpresaAgricultura(empresa: string): string {
+  return EMPRESAS_AGRICULTURA.find((e) => e.value === empresa)?.label ?? empresa;
+}
+
+export function labelCultivoAgricultura(cultivo: string): string {
+  return CULTIVOS_AGRICULTURA.find((c) => c.id === cultivo)?.label ?? cultivo;
+}
+
+export function labelMesAgricultura(mes: number): string {
+  return MESES_AGRICULTURA.find((m) => m.value === mes)?.label ?? String(mes);
+}
+
+export function formatPeriodoAgricultura(mes: number, anio: number): string {
+  return `${labelMesAgricultura(mes)} ${anio}`;
+}

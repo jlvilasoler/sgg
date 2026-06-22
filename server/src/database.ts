@@ -13,6 +13,7 @@ import * as gicon from "./grupo-iconos-db.js";
 import * as func from "./funcionarios-db.js";
 import * as rrhh from "./rrhh-pagos-db.js";
 import * as ventas from "./ventas-db.js";
+import * as ventasAgri from "./ventas-agricultura-db.js";
 import * as vsub from "./venta-sub-rubros-db.js";
 import * as vsubItems from "./venta-sub-rubro-items-db.js";
 import * as vgicon from "./venta-grupo-iconos-db.js";
@@ -148,6 +149,7 @@ export async function initDb(): Promise<void> {
     await simVenta.initSimuladorVentaGanadoTable(db);
     await simVentaAud.initSimuladorVentaAuditoriaTable(db);
     await simVentaDisp.initSimuladorVentaDispositivosTable(db);
+    await ventasAgri.initVentasAgriculturaTable(db);
     await migratePresupuestoIngresadoPor(db);
   } finally {
     if (locked) await releaseAdvisoryLock();
@@ -383,6 +385,15 @@ export const ingresosVentas = {
   delete: (id: number) => ventas.deleteIngresoVenta(db, id),
   peekNextNro: () => ventas.peekNextNroRegistroVenta(db),
   formatNumeroOperacion: (nro: number) => ventas.formatNumeroOperacionVenta(nro),
+};
+
+export const ventasAgricultura = {
+  list: (filters?: ventasAgri.VentaAgriculturaFilters) =>
+    ventasAgri.listVentasAgricultura(db, filters),
+  getById: (id: number) => ventasAgri.getVentaAgriculturaById(db, id),
+  insert: (data: ventasAgri.VentaAgriculturaInput) =>
+    ventasAgri.insertVentaAgricultura(db, data),
+  delete: (id: number) => ventasAgri.deleteVentaAgricultura(db, id),
 };
 
 export const proveedores = {

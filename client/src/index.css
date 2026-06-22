@@ -21327,3 +21327,12 @@ button.sg-kpi-card:disabled {
   font-size: 1.15rem;
   color: var(--primary);
 }
+
+.ventas-agricultura-listado {
+  margin-top: 1rem;
+}
+
+.ventas-agricultura-table td,
+.ventas-agricultura-table th {
+  text-transform: none;
+}

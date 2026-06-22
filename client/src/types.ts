@@ -44,6 +44,22 @@ export interface IngresoVenta {
 
 export type IngresoVentaForm = Omit<IngresoVenta, "id" | "nro_registro" | "creado_en" | "total_usd">;
 
+export type VentaAgriculturaCultivo = "TRIGO" | "SOJA" | "MAIZ" | "COLZA";
+
+export interface VentaAgriculturaRow {
+  id: number;
+  empresa: Empresa;
+  mes: number;
+  anio: number;
+  cultivo: VentaAgriculturaCultivo;
+  hectareas: number;
+  rendimiento_ton_ha: number;
+  precio_usd_ton: number;
+  total_ton: number;
+  importe_usd: number;
+  creado_en: string;
+}
+
 export interface StockGanaderoLote {
   id: number;
   nombre_archivo: string;

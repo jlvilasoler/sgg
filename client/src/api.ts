@@ -22,6 +22,7 @@ import type {
   ResumenRubro,
   TipoCambio,
   TipoCambioForm,
+  VentaAgriculturaRow,
   DivisaIndicadores,
   PrecioGanado,
   SemanaPreciosGanado,
@@ -246,6 +247,49 @@ export async function updateVentaGanadoCerradaDestino(
     }
   );
   return json.data;
+}
+
+export async function fetchVentasAgricultura(filters?: {
+  empresa?: string;
+  mes?: number;
+  anio?: number;
+  cultivo?: string;
+  busqueda?: string;
+}): Promise<VentaAgriculturaRow[]> {
+  const params = new URLSearchParams();
+  if (filters?.empresa) params.set("empresa", filters.empresa);
+  if (filters?.mes != null) params.set("mes", String(filters.mes));
+  if (filters?.anio != null) params.set("anio", String(filters.anio));
+  if (filters?.cultivo) params.set("cultivo", filters.cultivo);
+  if (filters?.busqueda?.trim()) params.set("busqueda", filters.busqueda.trim());
+  const q = params.toString() ? `?${params}` : "";
+  const json = await request<{ ok: boolean; data: VentaAgriculturaRow[] }>(
+    `/ingresos-ventas/ventas-agricultura${q}`
+  );
+  return json.data;
+}
+
+export async function createVentaAgricultura(data: {
+  empresa: string;
+  mes: number;
+  anio: number;
+  cultivo: string;
+  hectareas: number;
+  rendimiento_ton_ha: number;
+  precio_usd_ton: number;
+}): Promise<VentaAgriculturaRow> {
+  const json = await request<{ ok: boolean; data: VentaAgriculturaRow; message: string }>(
+    "/ingresos-ventas/ventas-agricultura",
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    }
+  );
+  return json.data;
+}
+
+export async function deleteVentaAgricultura(id: number): Promise<void> {
+  await request(`/ingresos-ventas/ventas-agricultura/${id}`, { method: "DELETE" });
 }
 
 export async function fetchIngresosVentas(filters: {

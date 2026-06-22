@@ -28,6 +28,7 @@ import { parseAcgGanadoReposicionHtml } from "./acg-ganado-reposicion.js";
 import { fetchAcgHomeHtml } from "./acg-page.js";
 import type { SegmentoPreciosGanado, PrecioGanadoInput } from "./precios-ganado-db.js";
 import * as simVenta from "./simulador-venta-ganado-db.js";
+import * as ventasAgri from "./ventas-agricultura-db.js";
 import {
   auditSimuladorActualizacion,
   auditSimuladorCreacion,
@@ -452,6 +453,26 @@ function parseIngresoVentaBody(req: Request) {
   };
 }
 
+function parseVentaAgriculturaBody(req: Request): ventasAgri.VentaAgriculturaInput {
+  const body = req.body as Record<string, unknown>;
+  const hectareas = Number(body.hectareas);
+  const rendimiento_ton_ha = Number(body.rendimiento_ton_ha);
+  const precio_usd_ton = Number(body.precio_usd_ton);
+  const total_ton = hectareas * rendimiento_ton_ha;
+  const importe_usd = (total_ton * precio_usd_ton) / 1000;
+  return {
+    empresa: String(body.empresa ?? "").trim() as ventasAgri.EmpresaAgricultura,
+    mes: Number(body.mes),
+    anio: Number(body.anio),
+    cultivo: String(body.cultivo ?? "").trim() as ventasAgri.CultivoAgricultura,
+    hectareas,
+    rendimiento_ton_ha,
+    precio_usd_ton,
+    total_ton,
+    importe_usd,
+  };
+}
+
 app.get("/api/ingresos-ventas", async (req, res) => {
   const data = await db.ingresosVentas.list({
     fecha_desde: req.query.fecha_desde as string | undefined,
@@ -470,6 +491,43 @@ app.get("/api/ingresos-ventas/siguiente-operacion", async (_req, res) => {
       numero_operacion: await db.ingresosVentas.formatNumeroOperacion(nro),
     },
   });
+});
+
+app.get("/api/ingresos-ventas/ventas-agricultura", async (req, res) => {
+  const mesRaw = Number(req.query.mes);
+  const anioRaw = Number(req.query.anio);
+  const data = await db.ventasAgricultura.list({
+    empresa: req.query.empresa as string | undefined,
+    mes: Number.isFinite(mesRaw) ? mesRaw : undefined,
+    anio: Number.isFinite(anioRaw) ? anioRaw : undefined,
+    cultivo: req.query.cultivo as string | undefined,
+    busqueda: req.query.busqueda as string | undefined,
+  });
+  res.json({ ok: true, data });
+});
+
+app.post("/api/ingresos-ventas/ventas-agricultura", async (req, res) => {
+  try {
+    const payload = parseVentaAgriculturaBody(req);
+    const newId = await db.ventasAgricultura.insert(payload);
+    const reg = await db.ventasAgricultura.getById(newId);
+    res.status(201).json({
+      ok: true,
+      data: reg,
+      message: "Venta de agricultura registrada",
+    });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: (e as Error).message });
+  }
+});
+
+app.delete("/api/ingresos-ventas/ventas-agricultura/:id", async (req, res) => {
+  const id = Number(req.params.id);
+  if (!await db.ventasAgricultura.delete(id)) {
+    res.status(404).json({ ok: false, error: "Registro no encontrado" });
+    return;
+  }
+  res.json({ ok: true, message: "Registro eliminado" });
 });
 
 app.get("/api/ingresos-ventas/ventas-ganado-cerradas", async (req, res) => {
