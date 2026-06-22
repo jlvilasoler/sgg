@@ -10,6 +10,7 @@ export const SIM_AUDIT_CAMPO_LABELS: Record<string, string> = {
   "simulacion.cantidad_animales": "Cabezas sim.",
   "simulacion.kg_promedio": "Kg prom. sim.",
   "simulacion.kg_total": "Kg total sim.",
+  "simulacion.rendimiento": "Rendimiento sim.",
   "simulacion.total_usd": "Total USD sim.",
   "simulacion.total_usd_por_cabeza": "USD/cab. sim.",
   "simulacion.notas": "Notas sim.",

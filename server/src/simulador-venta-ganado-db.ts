@@ -28,6 +28,7 @@ export interface SimuladorVentaGanadoRow {
   cantidad_animales: number | null;
   kg_promedio: number | null;
   kg_total: number;
+  rendimiento: number | null;
   total_usd: number;
   total_usd_por_cabeza: number | null;
   notas: string | null;
@@ -41,6 +42,7 @@ export interface SimuladorVentaGanadoRow {
   real_total_usd: number | null;
   real_total_usd_por_cabeza: number | null;
   real_notas: string | null;
+  destino: string | null;
   usuario_id: number | null;
   usuario_nombre: string | null;
   creado_en: string;
@@ -68,6 +70,7 @@ export interface SimuladorVentaGanadoInput {
   cantidad_animales?: number | null;
   kg_promedio?: number | null;
   kg_total: number;
+  rendimiento?: number | null;
   total_usd: number;
   total_usd_por_cabeza?: number | null;
   notas?: string | null;
@@ -250,6 +253,7 @@ export async function initSimuladorVentaGanadoTable(db: Db): Promise<void> {
       real_total_usd DOUBLE PRECISION,
       real_total_usd_por_cabeza DOUBLE PRECISION,
       real_notas TEXT,
+      destino TEXT,
       numero_operacion TEXT,
       usuario_id INTEGER,
       creado_en TIMESTAMPTZ DEFAULT NOW()
@@ -281,7 +285,9 @@ export async function initSimuladorVentaGanadoTable(db: Db): Promise<void> {
     "real_total_usd DOUBLE PRECISION",
     "real_total_usd_por_cabeza DOUBLE PRECISION",
     "real_notas TEXT",
+    "destino TEXT",
     "numero_operacion TEXT",
+    "rendimiento DOUBLE PRECISION",
   ] as const) {
     const name = col.split(" ")[0]!;
     try {
@@ -364,6 +370,7 @@ function mapRow(row: Record<string, unknown>): SimuladorVentaGanadoRow {
       row.cantidad_animales != null ? Number(row.cantidad_animales) : null,
     kg_promedio: row.kg_promedio != null ? Number(row.kg_promedio) : null,
     kg_total: Number(row.kg_total),
+    rendimiento: toNumOrNull(row.rendimiento),
     total_usd: Number(row.total_usd),
     total_usd_por_cabeza:
       row.total_usd_por_cabeza != null ? Number(row.total_usd_por_cabeza) : null,
@@ -379,6 +386,7 @@ function mapRow(row: Record<string, unknown>): SimuladorVentaGanadoRow {
     real_total_usd: toNumOrNull(row.real_total_usd),
     real_total_usd_por_cabeza: toNumOrNull(row.real_total_usd_por_cabeza),
     real_notas: row.real_notas != null ? String(row.real_notas) : null,
+    destino: row.destino != null ? String(row.destino).trim() || null : null,
     usuario_id: row.usuario_id != null ? Number(row.usuario_id) : null,
     usuario_nombre: row.usuario_nombre != null ? String(row.usuario_nombre) : null,
     creado_en: toIsoTimestamp(row.creado_en),
@@ -389,9 +397,18 @@ function mapRow(row: Record<string, unknown>): SimuladorVentaGanadoRow {
 const SIM_VENTA_SELECT = `SELECT s.*, u.nombre AS usuario_nombre,
   (SELECT COUNT(*) FROM SIMULADOR_VENTA_GANADO_DISPOSITIVO d WHERE d.simulacion_id = s.id) AS dispositivos_count`;
 
+export interface SimuladorVentaGanadoListFilters {
+  tipo?: SimuladorVentaTipo;
+  limit?: number;
+  cerradas?: boolean;
+  fecha_desde?: string;
+  fecha_hasta?: string;
+  busqueda?: string;
+}
+
 export async function listSimulacionesVentaGanado(
   db: Db,
-  filters: { tipo?: SimuladorVentaTipo; limit?: number } = {}
+  filters: SimuladorVentaGanadoListFilters = {}
 ): Promise<SimuladorVentaGanadoRow[]> {
   let query = `${SIM_VENTA_SELECT}
     FROM SIMULADOR_VENTA_GANADO s
@@ -404,8 +421,38 @@ export async function listSimulacionesVentaGanado(
     params.tipo = filters.tipo;
   }
 
-  query += " ORDER BY s.destacada DESC, s.venta_realizada ASC, s.creado_en DESC";
-  const limit = Math.min(Math.max(filters.limit ?? 100, 1), 500);
+  if (filters.cerradas) {
+    query += " AND s.real_total_usd IS NOT NULL";
+  }
+
+  if (filters.fecha_desde) {
+    query += " AND s.venta_realizada_en >= @fecha_desde";
+    params.fecha_desde = filters.fecha_desde;
+  }
+  if (filters.fecha_hasta) {
+    query += " AND s.venta_realizada_en < (@fecha_hasta::date + INTERVAL '1 day')";
+    params.fecha_hasta = filters.fecha_hasta;
+  }
+
+  if (filters.busqueda?.trim()) {
+    query += ` AND (
+      s.numero_operacion ILIKE @busqueda OR
+      s.categoria ILIKE @busqueda OR
+      COALESCE(u.nombre, '') ILIKE @busqueda OR
+      COALESCE(s.real_notas, '') ILIKE @busqueda OR
+      COALESCE(s.destino, '') ILIKE @busqueda
+    )`;
+    params.busqueda = `%${filters.busqueda.trim()}%`;
+  }
+
+  if (filters.cerradas) {
+    query += " ORDER BY s.venta_realizada_en DESC NULLS LAST, s.creado_en DESC";
+  } else {
+    query += " ORDER BY s.destacada DESC, s.venta_realizada ASC, s.creado_en DESC";
+  }
+
+  const defaultLimit = filters.cerradas ? 500 : 100;
+  const limit = Math.min(Math.max(filters.limit ?? defaultLimit, 1), 500);
   query += ` LIMIT ${limit}`;
 
   const rows = (await db.prepare(query).all(params)) as Record<string, unknown>[];
@@ -425,12 +472,12 @@ export async function insertSimulacionVentaGanado(
       `INSERT INTO SIMULADOR_VENTA_GANADO (
       tipo, segmento, categoria, modo_kg, precio_usd_kg,
       precio_ref_anio, precio_ref_semana, precio_ref_fecha_hasta,
-      cantidad_animales, kg_promedio, kg_total, total_usd, total_usd_por_cabeza,
+      cantidad_animales, kg_promedio, kg_total, rendimiento, total_usd, total_usd_por_cabeza,
       notas, usuario_id, numero_operacion
     ) VALUES (
       @tipo, @segmento, @categoria, @modo_kg, @precio_usd_kg,
       @precio_ref_anio, @precio_ref_semana, @precio_ref_fecha_hasta,
-      @cantidad_animales, @kg_promedio, @kg_total, @total_usd, @total_usd_por_cabeza,
+      @cantidad_animales, @kg_promedio, @kg_total, @rendimiento, @total_usd, @total_usd_por_cabeza,
       @notas, @usuario_id, @numero_operacion
     )`
     ).run({
@@ -445,6 +492,7 @@ export async function insertSimulacionVentaGanado(
       cantidad_animales: input.cantidad_animales ?? null,
       kg_promedio: input.kg_promedio ?? null,
       kg_total: input.kg_total,
+      rendimiento: input.rendimiento ?? null,
       total_usd: input.total_usd,
       total_usd_por_cabeza: input.total_usd_por_cabeza ?? null,
       notas: input.notas?.trim() || null,
@@ -503,7 +551,7 @@ export async function updateSimulacionVentaGanado(
       precio_usd_kg = @precio_usd_kg, precio_ref_anio = @precio_ref_anio,
       precio_ref_semana = @precio_ref_semana, precio_ref_fecha_hasta = @precio_ref_fecha_hasta,
       cantidad_animales = @cantidad_animales, kg_promedio = @kg_promedio,
-      kg_total = @kg_total, total_usd = @total_usd, total_usd_por_cabeza = @total_usd_por_cabeza,
+      kg_total = @kg_total, rendimiento = @rendimiento, total_usd = @total_usd, total_usd_por_cabeza = @total_usd_por_cabeza,
       notas = @notas
      WHERE id = @id`
   ).run({
@@ -519,6 +567,7 @@ export async function updateSimulacionVentaGanado(
     cantidad_animales: input.cantidad_animales ?? null,
     kg_promedio: input.kg_promedio ?? null,
     kg_total: input.kg_total,
+    rendimiento: input.rendimiento ?? null,
     total_usd: input.total_usd,
     total_usd_por_cabeza: input.total_usd_por_cabeza ?? null,
     notas: input.notas?.trim() || null,
@@ -617,5 +666,27 @@ export async function patchSimulacionVentaGanado(
 
   const row = await getSimulacionVentaGanadoById(db, id);
   if (!row) throw new Error("No se pudo recuperar la simulación");
+  return row;
+}
+
+export async function updateDestinoVentaGanado(
+  db: Db,
+  id: number,
+  destino: string | null
+): Promise<SimuladorVentaGanadoRow> {
+  const existing = await getSimulacionVentaGanadoById(db, id);
+  if (!existing) throw new Error("Venta no encontrada");
+  if (existing.real_total_usd == null) {
+    throw new Error("Solo se puede asignar destino a ventas cerradas");
+  }
+
+  const normalized = destino?.trim().slice(0, 200) || null;
+  await db.prepare(`UPDATE SIMULADOR_VENTA_GANADO SET destino = @destino WHERE id = @id`).run({
+    id,
+    destino: normalized,
+  });
+
+  const row = await getSimulacionVentaGanadoById(db, id);
+  if (!row) throw new Error("No se pudo recuperar la venta");
   return row;
 }

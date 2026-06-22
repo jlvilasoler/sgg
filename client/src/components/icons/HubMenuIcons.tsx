@@ -42,6 +42,7 @@ export type HubIconId =
   | "ventas_ingresar"
   | "ventas_listado"
   | "ventas_rubros"
+  | "ventas_ganado"
   | "divisas_usd"
   | "divisas_brl";
 
@@ -223,6 +224,7 @@ const ICONS: Record<HubIconId, (props: IconProps) => ReactNode> = {
   ventas_ingresar: IconInvoice,
   ventas_listado: IconClipboard,
   ventas_rubros: IconTag,
+  ventas_ganado: IconCattle,
   divisas_usd: IconDollar,
   divisas_brl: IconReal,
 };
@@ -323,6 +325,11 @@ export const HUB_ICON_THEMES: Record<HubIconId, MenuAppTheme> = {
     accent: "#d97706",
     accentSoft: "linear-gradient(145deg, #fffbeb 0%, #fef3c7 52%, #fde68a 100%)",
     accentGlow: "rgba(217, 119, 6, 0.28)",
+  },
+  ventas_ganado: {
+    accent: "#92400e",
+    accentSoft: "linear-gradient(145deg, #fffbeb 0%, #fde68a 40%, #fbbf24 100%)",
+    accentGlow: "rgba(146, 64, 14, 0.26)",
   },
   divisas_usd: {
     accent: "#0d9488",

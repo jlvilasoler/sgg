@@ -7,7 +7,9 @@ export function fmtNum(n: number, decimals = 2): string {
 
 export function fmtDate(iso: string): string {
   if (!iso) return "";
-  const [y, m, d] = iso.split("-");
+  const datePart = iso.slice(0, 10);
+  const [y, m, d] = datePart.split("-");
+  if (!y || !m || !d) return iso;
   return `${d}/${m}/${y}`;
 }
 

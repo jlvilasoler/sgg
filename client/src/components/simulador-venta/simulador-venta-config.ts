@@ -38,7 +38,8 @@ export const SIMULADOR_VENTA_TIPOS: SimuladorVentaTipoConfig[] = [
     id: "CUARTA_BALANZA",
     titulo: "Venta en cuarta balanza",
     subtitulo: "Novillo · Vaca · Vaquillona",
-    descripcion: "Simulá ingresos por kg en cuarta balanza con el último precio de gordo (ACG).",
+    descripcion:
+      "Simulá ingresos a frigorífico: precio gordo × kg × rendimiento estimado (ACG).",
     unidadLabel: PRECIO_GANADO_GORDO_UNIDAD_LABEL,
     categorias: ["NOVILLO", "VACA", "VAQUILLONA"],
     labels: CATEGORIA_GANADO_GORDO_LABELS,

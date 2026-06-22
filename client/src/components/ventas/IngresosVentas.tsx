@@ -7,8 +7,9 @@ import { HUB_ICON_THEMES, HubMenuIcon } from "../icons/HubMenuIcons";
 import FormVenta from "./FormVenta";
 import VentaListado from "./VentaListado";
 import VentaRubros from "./VentaRubros";
+import VentasGanadoCerradas from "./VentasGanadoCerradas";
 
-type VistaVentas = "menu" | "ingresar" | "listado" | "rubros";
+type VistaVentas = "menu" | "ingresar" | "listado" | "rubros" | "ventas_ganado";
 
 interface Props {
   apiOnline: boolean;
@@ -18,7 +19,7 @@ interface Props {
 }
 
 const SUBMENU: {
-  id: "ingresar" | "listado" | "rubros";
+  id: "ingresar" | "listado" | "rubros" | "ventas_ganado";
   label: string;
   subtitle: string;
   icon: HubIconId;
@@ -34,6 +35,12 @@ const SUBMENU: {
     label: "Listado de documentos",
     subtitle: "Ver, editar y eliminar ingresos",
     icon: "ventas_listado",
+  },
+  {
+    id: "ventas_ganado",
+    label: "Ventas de ganado cerradas",
+    subtitle: "Ventas cerradas del simulador con totales",
+    icon: "ventas_ganado",
   },
   {
     id: "rubros",
@@ -132,6 +139,17 @@ export default function IngresosVentas({
     );
   }
 
+  if (vista === "ventas_ganado") {
+    return (
+      <VentasGanadoCerradas
+        apiOnline={apiOnline}
+        onError={onError}
+        onSuccess={(m) => onSuccess(m)}
+        onVolver={volverMenu}
+      />
+    );
+  }
+
   return (
     <div className="subseccion-panel configuracion-hub">
       <button type="button" className="subseccion-back" onClick={onVolver}>
@@ -144,7 +162,7 @@ export default function IngresosVentas({
             Registro de documentos e ingresos por ventas de la operación ganadera.
           </p>
         </div>
-        <nav className="app-grid app-grid-3" aria-label="Ingresos por ventas">
+        <nav className="app-grid" aria-label="Ingresos por ventas">
           {SUBMENU.map((item) => (
             <HubMenuCard
               key={item.id}

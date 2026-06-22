@@ -472,6 +472,42 @@ app.get("/api/ingresos-ventas/siguiente-operacion", async (_req, res) => {
   });
 });
 
+app.get("/api/ingresos-ventas/ventas-ganado-cerradas", async (req, res) => {
+  const tipo = parseSimuladorVentaTipo(req.query.tipo) ?? undefined;
+  const data = await db.simuladorVentaGanado.list({
+    cerradas: true,
+    tipo,
+    fecha_desde: req.query.fecha_desde as string | undefined,
+    fecha_hasta: req.query.fecha_hasta as string | undefined,
+    busqueda: req.query.busqueda as string | undefined,
+    limit: 500,
+  });
+  res.json({ ok: true, data });
+});
+
+app.patch("/api/ingresos-ventas/ventas-ganado-cerradas/:id", async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isFinite(id) || id <= 0) {
+    res.status(400).json({ ok: false, error: "ID inválido" });
+    return;
+  }
+  const destinoRaw = req.body?.destino;
+  if (destinoRaw != null && typeof destinoRaw !== "string") {
+    res.status(400).json({ ok: false, error: "destino debe ser texto" });
+    return;
+  }
+  try {
+    const row = await db.simuladorVentaGanado.updateDestino(
+      id,
+      destinoRaw == null ? null : destinoRaw
+    );
+    res.json({ ok: true, data: row, message: "Destino actualizado" });
+  } catch (e) {
+    const msg = (e as Error).message;
+    res.status(msg.includes("no encontrada") ? 404 : 400).json({ ok: false, error: msg });
+  }
+});
+
 app.get("/api/ingresos-ventas/:id", async (req, res) => {
   const id = Number(req.params.id);
   const reg = await db.ingresosVentas.getById(id);
@@ -2614,6 +2650,20 @@ function parseSimuladorVentaGanadoBody(
     }
   }
 
+  let rendimiento: number | null = null;
+  if (tipo === "CUARTA_BALANZA") {
+    rendimiento =
+      b.rendimiento != null && b.rendimiento !== "" ? Number(b.rendimiento) : null;
+    if (
+      rendimiento == null ||
+      !Number.isFinite(rendimiento) ||
+      rendimiento <= 0 ||
+      rendimiento > 1
+    ) {
+      return { error: "Rendimiento inválido (decimal entre 0 y 1, ej. 0,50)" };
+    }
+  }
+
   return {
     input: {
       tipo,
@@ -2626,6 +2676,7 @@ function parseSimuladorVentaGanadoBody(
       cantidad_animales,
       kg_promedio,
       kg_total,
+      rendimiento,
       total_usd,
       total_usd_por_cabeza:
         b.total_usd_por_cabeza != null ? Number(b.total_usd_por_cabeza) : null,

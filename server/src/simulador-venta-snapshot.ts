@@ -15,6 +15,7 @@ export interface OperacionSnapshot {
     cantidad_animales: number | null;
     kg_promedio: number | null;
     kg_total: number;
+    rendimiento: number | null;
     total_usd: number;
     total_usd_por_cabeza: number | null;
     notas: string | null;
@@ -54,6 +55,7 @@ export function snapshotOperacion(row: SimuladorVentaGanadoRow): OperacionSnapsh
       cantidad_animales: row.cantidad_animales,
       kg_promedio: row.kg_promedio,
       kg_total: row.kg_total,
+      rendimiento: row.rendimiento,
       total_usd: row.total_usd,
       total_usd_por_cabeza: row.total_usd_por_cabeza,
       notas: row.notas,
@@ -99,6 +101,7 @@ const SIM_FIELDS: (keyof OperacionSnapshot["simulacion"])[] = [
   "cantidad_animales",
   "kg_promedio",
   "kg_total",
+  "rendimiento",
   "total_usd",
   "total_usd_por_cabeza",
   "notas",

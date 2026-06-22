@@ -29,6 +29,7 @@ export function normalizeSimuladorRow(row: SimuladorVentaGanadoRow): SimuladorVe
     cantidad_animales: toNumOrNull(row.cantidad_animales),
     kg_promedio: toNumOrNull(row.kg_promedio),
     kg_total: Number(row.kg_total),
+    rendimiento: toNumOrNull(row.rendimiento),
     total_usd: Number(row.total_usd),
     total_usd_por_cabeza: toNumOrNull(row.total_usd_por_cabeza),
     destacada: toBool(row.destacada),
@@ -41,6 +42,7 @@ export function normalizeSimuladorRow(row: SimuladorVentaGanadoRow): SimuladorVe
     real_total_usd: realTotalUsd,
     real_total_usd_por_cabeza: toNumOrNull(row.real_total_usd_por_cabeza),
     real_notas: row.real_notas,
+    destino: row.destino,
     usuario_id: row.usuario_id != null ? Number(row.usuario_id) : null,
     dispositivos_count: Number(row.dispositivos_count ?? 0),
   };
@@ -49,6 +51,12 @@ export function normalizeSimuladorRow(row: SimuladorVentaGanadoRow): SimuladorVe
 export function simuladorHasVentaReal(row: SimuladorVentaGanadoRow): boolean {
   const normalized = normalizeSimuladorRow(row);
   return normalized.venta_realizada && normalized.real_total_usd != null;
+}
+
+export function parseRendimiento(value: string): number | null {
+  const n = Number(value.replace(",", "."));
+  if (!Number.isFinite(n) || n <= 0 || n > 1) return null;
+  return n;
 }
 
 export function parsePositive(value: string): number | null {
@@ -81,10 +89,17 @@ export interface RealFormState {
   cantidadAnimales: string;
   kgPromedio: string;
   kgTotalDirecto: string;
+  rendimiento: string;
 }
 
 export function rowToRealForm(row: SimuladorVentaGanadoRow, useReal: boolean): RealFormState {
   const src = useReal && row.real_total_usd != null;
+  const defaultRend =
+    row.rendimiento != null
+      ? row.rendimiento
+      : row.tipo === "CUARTA_BALANZA"
+        ? 0.5
+        : 1;
   return {
     precioUsdKg: String(src ? row.real_precio_usd_kg : row.precio_usd_kg),
     cantidadAnimales:
@@ -105,6 +120,7 @@ export function rowToRealForm(row: SimuladorVentaGanadoRow, useReal: boolean): R
       row.modo_kg === "TOTAL"
         ? String(src ? (row.real_kg_total ?? row.kg_total) : row.kg_total)
         : "",
+    rendimiento: String(defaultRend),
   };
 }
 
@@ -117,10 +133,13 @@ export function computeRealTotals(
   totalUsd: number | null;
   totalPorCabeza: number | null;
   cabezasNum: number | null;
+  rendimientoNum: number | null;
 } {
+  const esCuarta = row.tipo === "CUARTA_BALANZA";
   const precioNum = parsePositive(form.precioUsdKg);
   const cabezasNum = parsePositive(form.cantidadAnimales);
   const kgProm = parsePositive(form.kgPromedio);
+  const rendimientoNum = esCuarta ? parseRendimiento(form.rendimiento) : 1;
 
   let kgTotal: number | null = null;
   if (row.modo_kg === "TOTAL") {
@@ -129,21 +148,26 @@ export function computeRealTotals(
     kgTotal = cabezasNum * kgProm;
   }
 
-  const totalUsd = precioNum != null && kgTotal != null ? precioNum * kgTotal : null;
+  const totalUsd =
+    precioNum != null && kgTotal != null && (!esCuarta || rendimientoNum != null)
+      ? precioNum * kgTotal * (rendimientoNum ?? 1)
+      : null;
   const totalPorCabeza =
     totalUsd != null && row.modo_kg === "CABEZAS" && cabezasNum != null
       ? totalUsd / cabezasNum
       : null;
 
-  return { kgTotal, precioNum, totalUsd, totalPorCabeza, cabezasNum };
+  return { kgTotal, precioNum, totalUsd, totalPorCabeza, cabezasNum, rendimientoNum };
 }
 
 export function buildRealPayload(
   row: SimuladorVentaGanadoRow,
   form: RealFormState
 ): SimuladorVentaRealInput | null {
-  const { kgTotal, precioNum, totalUsd, totalPorCabeza, cabezasNum } = computeRealTotals(row, form);
+  const { kgTotal, precioNum, totalUsd, totalPorCabeza, cabezasNum, rendimientoNum } =
+    computeRealTotals(row, form);
   if (precioNum == null || kgTotal == null || totalUsd == null) return null;
+  if (row.tipo === "CUARTA_BALANZA" && rendimientoNum == null) return null;
 
   return {
     precio_usd_kg: precioNum,

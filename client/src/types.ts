@@ -487,6 +487,7 @@ export interface SimuladorVentaGanadoRow {
   cantidad_animales: number | null;
   kg_promedio: number | null;
   kg_total: number;
+  rendimiento: number | null;
   total_usd: number;
   total_usd_por_cabeza: number | null;
   notas: string | null;
@@ -500,6 +501,7 @@ export interface SimuladorVentaGanadoRow {
   real_total_usd: number | null;
   real_total_usd_por_cabeza: number | null;
   real_notas: string | null;
+  destino: string | null;
   usuario_id: number | null;
   usuario_nombre: string | null;
   creado_en: string;
@@ -540,6 +542,7 @@ export interface SimuladorVentaOperacionSnapshot {
     cantidad_animales: number | null;
     kg_promedio: number | null;
     kg_total: number;
+    rendimiento: number | null;
     total_usd: number;
     total_usd_por_cabeza: number | null;
     notas: string | null;

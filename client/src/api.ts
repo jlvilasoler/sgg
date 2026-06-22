@@ -216,6 +216,38 @@ export async function deletePresupuesto(id: number): Promise<void> {
   await request(`/presupuesto/${id}`, { method: "DELETE" });
 }
 
+export async function fetchVentasGanadoCerradas(filters?: {
+  tipo?: SimuladorVentaTipo;
+  fecha_desde?: string;
+  fecha_hasta?: string;
+  busqueda?: string;
+}): Promise<SimuladorVentaGanadoRow[]> {
+  const params = new URLSearchParams();
+  if (filters?.tipo) params.set("tipo", filters.tipo);
+  if (filters?.fecha_desde) params.set("fecha_desde", filters.fecha_desde);
+  if (filters?.fecha_hasta) params.set("fecha_hasta", filters.fecha_hasta);
+  if (filters?.busqueda?.trim()) params.set("busqueda", filters.busqueda.trim());
+  const q = params.toString() ? `?${params}` : "";
+  const json = await request<{ ok: boolean; data: SimuladorVentaGanadoRow[] }>(
+    `/ingresos-ventas/ventas-ganado-cerradas${q}`
+  );
+  return json.data;
+}
+
+export async function updateVentaGanadoCerradaDestino(
+  id: number,
+  destino: string | null
+): Promise<SimuladorVentaGanadoRow> {
+  const json = await request<{ ok: boolean; data: SimuladorVentaGanadoRow; message: string }>(
+    `/ingresos-ventas/ventas-ganado-cerradas/${id}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ destino }),
+    }
+  );
+  return json.data;
+}
+
 export async function fetchIngresosVentas(filters: {
   fecha_desde?: string;
   fecha_hasta?: string;
@@ -1374,6 +1406,7 @@ export async function saveSimulacionVentaGanado(data: {
   cantidad_animales?: number | null;
   kg_promedio?: number | null;
   kg_total: number;
+  rendimiento?: number | null;
   total_usd: number;
   total_usd_por_cabeza?: number | null;
   notas?: string | null;
@@ -1401,6 +1434,7 @@ export async function updateSimulacionVentaGanado(
     cantidad_animales?: number | null;
     kg_promedio?: number | null;
     kg_total: number;
+    rendimiento?: number | null;
     total_usd: number;
     total_usd_por_cabeza?: number | null;
     notas?: string | null;

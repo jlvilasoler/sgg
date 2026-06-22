@@ -110,6 +110,7 @@ CREATE TABLE IF NOT EXISTS SIMULADOR_VENTA_GANADO (
   cantidad_animales DOUBLE PRECISION,
   kg_promedio DOUBLE PRECISION,
   kg_total DOUBLE PRECISION NOT NULL,
+  rendimiento DOUBLE PRECISION,
   total_usd DOUBLE PRECISION NOT NULL,
   total_usd_por_cabeza DOUBLE PRECISION,
   notas TEXT,
@@ -123,6 +124,7 @@ CREATE TABLE IF NOT EXISTS SIMULADOR_VENTA_GANADO (
   real_total_usd DOUBLE PRECISION,
   real_total_usd_por_cabeza DOUBLE PRECISION,
   real_notas TEXT,
+  destino TEXT,
   numero_operacion TEXT,
   usuario_id INTEGER,
   creado_en TIMESTAMPTZ DEFAULT NOW()

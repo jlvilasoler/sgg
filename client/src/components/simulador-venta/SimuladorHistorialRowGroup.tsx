@@ -69,6 +69,7 @@ export default function SimuladorHistorialRowGroup({
 }: Props) {
   const catColor = config.chartColors[row.categoria] ?? "#848e9c";
   const catLabel = config.labels[row.categoria] ?? row.categoria;
+  const esCuartaBalanza = config.id === "CUARTA_BALANZA";
   const hasReal = simuladorHasVentaReal(row);
   const showSimRow = !hasReal;
   const rowSpan = showSimRow ? 2 : 1;
@@ -82,7 +83,10 @@ export default function SimuladorHistorialRowGroup({
   }, [isEditingReal, row, hasReal]);
 
   const totals = useMemo(() => computeRealTotals(row, form), [row, form]);
-  const canSave = totals.totalUsd != null && !isSavingReal;
+  const canSave =
+    totals.totalUsd != null &&
+    (!esCuartaBalanza || totals.rendimientoNum != null) &&
+    !isSavingReal;
 
   const groupClass = [
     "sim-historial-op",
@@ -336,90 +340,110 @@ export default function SimuladorHistorialRowGroup({
     </td>
   );
 
-  const realEditPanel = (
-    <td colSpan={4} className="sim-historial-real-edit-panel">
-      <div className="sim-historial-real-edit-form">
-        <div className="sim-historial-real-edit-field">
-          <span className="sim-historial-real-edit-label">{isCabezas ? "Kg prom." : "Kg"}</span>
-          {row.modo_kg === "CABEZAS" ? (
-            <div className="sim-historial-real-edit-kg">
-              <input
-                type="number"
-                min="0"
-                step="0.1"
-                className="sim-historial-inline-input"
-                value={form.kgPromedio}
-                onChange={(e) => setForm((f) => ({ ...f, kgPromedio: e.target.value }))}
-                aria-label="Kg promedio real"
-              />
-              {totals.kgTotal != null && (
-                <span className="sim-historial-real-edit-eq">= {fmtNum(totals.kgTotal, 1)} kg</span>
-              )}
-            </div>
-          ) : (
+  const realEditKgCell = (
+    <td className="num sim-historial-metric sim-historial-inline-cell">
+      <div className="sim-historial-inline-field">
+        {row.modo_kg === "CABEZAS" ? (
+          <div className="sim-historial-real-edit-kg">
             <input
               type="number"
               min="0"
               step="0.1"
-              className="sim-historial-inline-input sim-historial-inline-input--wide"
-              value={form.kgTotalDirecto}
-              onChange={(e) => setForm((f) => ({ ...f, kgTotalDirecto: e.target.value }))}
-              aria-label="Kg total embarcados"
+              className="sim-historial-inline-input"
+              value={form.kgPromedio}
+              onChange={(e) => setForm((f) => ({ ...f, kgPromedio: e.target.value }))}
+              aria-label="Kg promedio real"
             />
-          )}
-        </div>
-
-        <div className="sim-historial-real-edit-field">
-          <span className="sim-historial-real-edit-label">USD/kg</span>
+            {totals.kgTotal != null && (
+              <span className="sim-historial-real-edit-eq">= {fmtNum(totals.kgTotal, 1)}</span>
+            )}
+          </div>
+        ) : (
           <input
             type="number"
             min="0"
-            step="0.01"
+            step="0.1"
             className="sim-historial-inline-input sim-historial-inline-input--wide"
-            value={form.precioUsdKg}
-            onChange={(e) => setForm((f) => ({ ...f, precioUsdKg: e.target.value }))}
-            aria-label="Precio USD/kg real"
+            value={form.kgTotalDirecto}
+            onChange={(e) => setForm((f) => ({ ...f, kgTotalDirecto: e.target.value }))}
+            aria-label="Kg total embarcados"
           />
-        </div>
-
-        <div className="sim-historial-real-edit-field sim-historial-real-edit-field--result">
-          <span className="sim-historial-real-edit-label">Total USD</span>
-          <span className="sim-historial-real-edit-result">
-            <strong className={totals.totalUsd == null ? "sim-historial-inline-idle" : ""}>
-              {totals.totalUsd != null ? fmtUsd(totals.totalUsd) : "—"}
-            </strong>
-            {totals.totalUsd != null && (
-              <span
-                className={`sim-historial-delta ${deltaClass(row.total_usd, totals.totalUsd)}`}
-              >
-                {fmtDeltaPct(row.total_usd, totals.totalUsd)}
-              </span>
-            )}
-          </span>
-        </div>
-
-        <div className="sim-historial-real-edit-field sim-historial-real-edit-field--result">
-          <span className="sim-historial-real-edit-label">USD/cab.</span>
-          <span className="sim-historial-real-edit-result">
-            {totals.totalPorCabeza != null ? fmtUsd(totals.totalPorCabeza) : "—"}
-          </span>
-        </div>
+        )}
       </div>
+    </td>
+  );
+
+  const realEditRendCell = esCuartaBalanza ? (
+    <td className="num sim-historial-metric sim-historial-inline-cell">
+      <div className="sim-historial-inline-field">
+        <input
+          type="number"
+          min="0.01"
+          max="1"
+          step="0.01"
+          className="sim-historial-inline-input sim-historial-inline-input--rend"
+          value={form.rendimiento}
+          onChange={(e) => setForm((f) => ({ ...f, rendimiento: e.target.value }))}
+          aria-label="Rendimiento frigorífico"
+          title="Factor frigorífico (0,50 = 50%)"
+        />
+      </div>
+    </td>
+  ) : null;
+
+  const realEditUsdKgCell = (
+    <td className="num sim-historial-metric sim-historial-inline-cell">
+      <div className="sim-historial-inline-field">
+        <input
+          type="number"
+          min="0"
+          step="0.01"
+          className="sim-historial-inline-input sim-historial-inline-input--wide"
+          value={form.precioUsdKg}
+          onChange={(e) => setForm((f) => ({ ...f, precioUsdKg: e.target.value }))}
+          aria-label="Precio USD/kg real"
+        />
+      </div>
+    </td>
+  );
+
+  const realEditTotalCell = (
+    <td className="num sim-historial-metric sim-historial-metric--real sim-historial-metric--hero sim-historial-inline-cell">
+      <span className="sim-historial-real-edit-result">
+        <strong className={totals.totalUsd == null ? "sim-historial-inline-idle" : ""}>
+          {totals.totalUsd != null ? fmtUsd(totals.totalUsd) : "—"}
+        </strong>
+        {totals.totalUsd != null && (
+          <span className={`sim-historial-delta ${deltaClass(row.total_usd, totals.totalUsd)}`}>
+            {fmtDeltaPct(row.total_usd, totals.totalUsd)}
+          </span>
+        )}
+      </span>
+    </td>
+  );
+
+  const realEditUsdCabCell = (
+    <td className="num sim-historial-metric sim-historial-inline-cell">
+      <span className="sim-historial-metric-val">
+        {totals.totalPorCabeza != null ? fmtUsd(totals.totalPorCabeza) : "—"}
+      </span>
     </td>
   );
 
   const realCabezasCell = isEditingReal ? (
     isCabezas ? (
-      <td className="num sim-historial-metric sim-historial-inline-cell">
-        <input
-          type="number"
-          min="1"
-          step="1"
-          className="sim-historial-inline-input sim-historial-inline-input--cab"
-          value={form.cantidadAnimales}
-          onChange={(e) => setForm((f) => ({ ...f, cantidadAnimales: e.target.value }))}
-          aria-label="Cabezas embarcadas"
-        />
+      <td className="num sim-historial-metric sim-historial-inline-cell sim-historial-inline-cell--cab">
+        <div className="sim-historial-inline-field">
+          <input
+            type="number"
+            min="1"
+            step="1"
+            className="sim-historial-inline-input sim-historial-inline-input--cab"
+            value={form.cantidadAnimales}
+            onChange={(e) => setForm((f) => ({ ...f, cantidadAnimales: e.target.value }))}
+            aria-label="Cabezas embarcadas"
+          />
+        </div>
       </td>
     ) : (
       idleCell()
@@ -430,15 +454,42 @@ export default function SimuladorHistorialRowGroup({
     idleCell()
   );
 
+  const rendMetricCell = (value: string, variant: "sim" | "real" | "idle" = "sim") => {
+    if (variant === "idle") return idleCell();
+    return (
+      <td className={`num sim-historial-metric sim-historial-metric--${variant}${isEditingReal && variant === "sim" ? " is-muted" : ""}`}>
+        <span className="sim-historial-metric-val">{value}</span>
+      </td>
+    );
+  };
+
+  const formatRendimiento = (value: number | null | undefined) =>
+    value != null ? fmtNum(value, 2) : "—";
+
+  const effectiveRealRendimiento =
+    hasReal &&
+    row.real_precio_usd_kg != null &&
+    row.real_kg_total != null &&
+    row.real_total_usd != null &&
+    row.real_precio_usd_kg * row.real_kg_total > 0
+      ? row.real_total_usd / (row.real_precio_usd_kg * row.real_kg_total)
+      : null;
+
   const realDataCells = isEditingReal ? (
     <>
       {realCabezasCell}
-      {realEditPanel}
+      {realEditKgCell}
+      {realEditRendCell}
+      {realEditUsdKgCell}
+      {realEditTotalCell}
+      {realEditUsdCabCell}
     </>
   ) : hasReal ? (
     <>
       {realCabezasCell}
       {realMetric(fmtNum(row.real_kg_total!, 1))}
+      {esCuartaBalanza &&
+        rendMetricCell(formatRendimiento(effectiveRealRendimiento), "real")}
       {realMetric(fmtNum(row.real_precio_usd_kg!, 2))}
       <td className="num sim-historial-metric sim-historial-metric--real sim-historial-metric--hero">
         <span className="sim-historial-metric-total">
@@ -456,6 +507,7 @@ export default function SimuladorHistorialRowGroup({
     <>
       {idleCell()}
       {idleCell()}
+      {esCuartaBalanza && idleCell()}
       {idleCell()}
       {idleCell("sim-historial-total-idle")}
       {idleCell()}
@@ -562,6 +614,7 @@ export default function SimuladorHistorialRowGroup({
           {catCellTd}
           {cabezasCell(simCabezas, "sim")}
           {simMetric(fmtNum(row.kg_total, 1))}
+          {esCuartaBalanza && simMetric(formatRendimiento(row.rendimiento))}
           {simMetric(fmtNum(row.precio_usd_kg, 2))}
           {simMetric(fmtUsd(row.total_usd), true)}
           {simMetric(row.total_usd_por_cabeza != null ? fmtUsd(row.total_usd_por_cabeza) : "—")}

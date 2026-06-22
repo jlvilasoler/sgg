@@ -237,6 +237,8 @@ export const simuladorVentaGanado = {
     simVenta.updateSimulacionVentaGanado(db, id, input),
   patch: (id: number, patch: Parameters<typeof simVenta.patchSimulacionVentaGanado>[2]) =>
     simVenta.patchSimulacionVentaGanado(db, id, patch),
+  updateDestino: (id: number, destino: string | null) =>
+    simVenta.updateDestinoVentaGanado(db, id, destino),
   delete: (id: number) => simVenta.deleteSimulacionVentaGanado(db, id),
   tipos: simVenta.SIMULADOR_VENTA_TIPOS,
   categoriasPorTipo: simVenta.categoriasPorTipo,

@@ -16992,9 +16992,43 @@ button.sg-kpi-card:disabled {
 }
 
 .sim-calc-notas {
-  grid-column: 1 / span 3;
   margin: 0;
   min-width: 0;
+}
+
+.sim-calc-footer-row {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: row;
+  align-items: flex-end;
+  gap: 0.85rem;
+  width: 100%;
+  min-width: 0;
+}
+
+.sim-calc-footer-row--sin-rendimiento .sim-calc-notas {
+  flex: 1 1 auto;
+}
+
+.sim-calc-footer-row .sim-calc-rendimiento {
+  flex: 0 0 7.25rem;
+  width: 7.25rem;
+  max-width: 7.25rem;
+}
+
+.sim-calc-footer-row .sim-calc-notas {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  grid-column: unset !important;
+}
+
+.sim-calc-footer-row .sim-calc-actions {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  margin: 0;
 }
 
 .sim-calc-actions {
@@ -17963,6 +17997,18 @@ button.sg-kpi-card:disabled {
   vertical-align: middle;
 }
 
+.sim-historial-inline-field {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+}
+
+.sim-historial-inline-cell--cab .sim-historial-inline-field {
+  justify-content: flex-end;
+}
+
 .sim-historial-inline-input {
   width: 4.5rem;
   max-width: 100%;
@@ -17982,6 +18028,10 @@ button.sg-kpi-card:disabled {
 
 .sim-historial-inline-input--cab {
   width: 4rem;
+}
+
+.sim-historial-inline-input--rend {
+  width: 4.25rem;
 }
 
 .sim-historial-inline-input:focus {
@@ -18761,8 +18811,27 @@ button.sg-kpi-card:disabled {
     grid-template-columns: 1fr 1fr;
   }
 
-  .sim-calc-notas {
-    grid-column: 1 / -1;
+  .sim-calc-footer-row {
+    flex-wrap: wrap;
+  }
+
+  .sim-calc-footer-row .sim-calc-rendimiento {
+    flex: 1 1 7.25rem;
+    max-width: none;
+    width: auto;
+  }
+
+  .sim-calc-footer-row .sim-calc-notas {
+    flex: 1 1 12rem;
+  }
+
+  .sim-calc-footer-row .sim-calc-actions {
+    flex: 1 1 100%;
+    justify-content: stretch;
+  }
+
+  .sim-calc-footer-row .sim-calc-actions .btn {
+    width: 100%;
   }
 
   .sim-calc-actions {
@@ -21163,4 +21232,58 @@ button.sg-kpi-card:disabled {
   .stock-ganadera-detalle-fields--3 {
     grid-template-columns: 1fr;
   }
+}
+
+.ventas-ganado-totales {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.25rem;
+  margin: 0 0 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  background: #f4f8f5;
+  border: 1px solid var(--border);
+  font-size: 0.92rem;
+}
+
+.ventas-ganado-totales-usd {
+  margin-left: auto;
+  color: var(--primary);
+}
+
+.data-table tfoot .data-table-totals td {
+  background: #f4f8f5;
+  border-top: 2px solid var(--border);
+  font-weight: 600;
+}
+
+.ventas-ganado-destino-cell {
+  min-width: 11rem;
+  max-width: 16rem;
+}
+
+.ventas-ganado-destino-input {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font: inherit;
+  background: #fff;
+}
+
+.ventas-ganado-destino-input:focus {
+  border-color: var(--primary);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(45, 90, 61, 0.12);
+}
+
+.ventas-ganado-destino-input:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.ventas-ganado-table .ventas-ganado-destino-cell {
+  text-transform: none;
 }

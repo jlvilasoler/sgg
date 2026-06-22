@@ -38,10 +38,12 @@ import SimuladorVentaCaravanasPanel from "./SimuladorVentaCaravanasModal";
 import SimuladorVentaDispositivosVerPanel from "./SimuladorVentaDispositivosVerModal";
 import { confirmAction } from "../../utils/confirm";
 import { canWriteSimuladorVentaGanado } from "../../utils/auth-permissions";
-import { normalizeSimuladorRow, simuladorHasVentaReal } from "./simulador-venta-real-utils";
+import { normalizeSimuladorRow, parseRendimiento, simuladorHasVentaReal } from "./simulador-venta-real-utils";
 
 import type { SimuladorVentaTipoConfig } from "./simulador-venta-config";
 import { operacionPrefixForTipo } from "./simulador-venta-config";
+
+const RENDIMIENTO_DEFAULT = "0.50";
 
 
 
@@ -177,6 +179,9 @@ export default function SimuladorVentaPanel({
   const [kgPromedio, setKgPromedio] = useState("");
 
   const [notas, setNotas] = useState("");
+  const [rendimiento, setRendimiento] = useState(RENDIMIENTO_DEFAULT);
+
+  const esCuartaBalanza = config.id === "CUARTA_BALANZA";
 
 
 
@@ -246,6 +251,8 @@ export default function SimuladorVentaPanel({
 
     setNotas("");
 
+    setRendimiento(RENDIMIENTO_DEFAULT);
+
     setEditingId(null);
 
     setEditingRealId(null);
@@ -292,13 +299,17 @@ export default function SimuladorVentaPanel({
 
   const precioNum = parsePositive(precioUsdKg);
 
+  const rendimientoNum = esCuartaBalanza ? parseRendimiento(rendimiento) : 1;
+
   const totalUsd = useMemo(() => {
 
     if (precioNum == null || kgTotal == null) return null;
 
-    return precioNum * kgTotal;
+    if (esCuartaBalanza && rendimientoNum == null) return null;
 
-  }, [precioNum, kgTotal]);
+    return precioNum * kgTotal * (rendimientoNum ?? 1);
+
+  }, [precioNum, kgTotal, esCuartaBalanza, rendimientoNum]);
 
 
 
@@ -347,6 +358,8 @@ export default function SimuladorVentaPanel({
 
     kg_total: kgTotal!,
 
+    rendimiento: esCuartaBalanza ? rendimientoNum : null,
+
     total_usd: totalUsd!,
 
     total_usd_por_cabeza: totalPorCabeza,
@@ -386,6 +399,14 @@ export default function SimuladorVentaPanel({
     if (kgTotal == null) {
 
       onError(modoKg === "TOTAL" ? "Ingresá kg total válidos" : "Completá cabezas y kg promedio");
+
+      return;
+
+    }
+
+    if (esCuartaBalanza && rendimientoNum == null) {
+
+      onError("Ingresá un rendimiento válido (decimal entre 0 y 1, ej. 0,50)");
 
       return;
 
@@ -482,6 +503,10 @@ export default function SimuladorVentaPanel({
 
     setNotas(row.notas ?? "");
 
+    setRendimiento(
+      row.rendimiento != null ? String(row.rendimiento) : "1"
+    );
+
     setEditingId(row.id);
 
     calcRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -501,6 +526,8 @@ export default function SimuladorVentaPanel({
     setCantidadAnimales("");
 
     setKgPromedio("");
+
+    setRendimiento(RENDIMIENTO_DEFAULT);
 
     setPrecioManual(false);
 
@@ -659,6 +686,8 @@ export default function SimuladorVentaPanel({
   };
 
 
+
+  const historialColSpan = config.id === "CUARTA_BALANZA" ? 10 : 9;
 
   if (auditRow) {
     return (
@@ -860,9 +889,13 @@ export default function SimuladorVentaPanel({
 
             <p className="simulador-venta-formula muted">
 
-              {precioNum != null && kgTotal != null
+              {precioNum != null && kgTotal != null && (!esCuartaBalanza || rendimientoNum != null)
 
-                ? `${fmtNum(precioNum, 2)} USD/kg × ${fmtNum(kgTotal, 1)} kg`
+                ? esCuartaBalanza
+
+                  ? `${fmtNum(precioNum, 2)} USD/kg × ${fmtNum(kgTotal, 1)} kg × ${fmtNum(rendimientoNum!, 2)} rend.`
+
+                  : `${fmtNum(precioNum, 2)} USD/kg × ${fmtNum(kgTotal, 1)} kg`
 
                 : "— USD/kg × — kg"}
 
@@ -1079,56 +1112,59 @@ export default function SimuladorVentaPanel({
 
 
 
-            <div className="field sim-calc-notas">
+            <div
+              className={`sim-calc-footer-row${esCuartaBalanza ? "" : " sim-calc-footer-row--sin-rendimiento"}`}
+            >
+              {esCuartaBalanza && (
+                <div className="field sim-calc-field-compact sim-calc-rendimiento">
+                  <label htmlFor="sim-rendimiento">Rendimiento</label>
+                  <input
+                    id="sim-rendimiento"
+                    type="number"
+                    min="0.01"
+                    max="1"
+                    step="0.01"
+                    inputMode="decimal"
+                    value={rendimiento}
+                    onChange={(e) => setRendimiento(e.target.value)}
+                    placeholder="0.50"
+                    title="Factor frigorífico estimado (0,50 = 50%)"
+                  />
+                </div>
+              )}
 
-              <label htmlFor="sim-notas">Notas</label>
+              <div className="field sim-calc-notas">
+                <label htmlFor="sim-notas">Notas</label>
+                <input
+                  id="sim-notas"
+                  type="text"
+                  maxLength={500}
+                  value={notas}
+                  onChange={(e) => setNotas(e.target.value)}
+                  placeholder="Lote, potrero, comprador..."
+                />
+              </div>
 
-              <input
-
-                id="sim-notas"
-
-                type="text"
-
-                maxLength={500}
-
-                value={notas}
-
-                onChange={(e) => setNotas(e.target.value)}
-
-                placeholder="Lote, potrero, comprador..."
-
-              />
-
-            </div>
-
-
-
-            <div className="sim-calc-actions">
-
-              <button
-
-                type="button"
-
-                className="btn btn-primary"
-
-                disabled={saving || loading || !apiOnline || totalUsd == null || !canWriteSimuladorVentaGanado(user)}
-
-                onClick={() => void handleGuardar()}
-
-              >
-
-                {saving
-
-                  ? "Guardando…"
-
-                  : editingId != null
-
-                    ? "Actualizar"
-
-                    : "Guardar simulación"}
-
-              </button>
-
+              <div className="sim-calc-actions">
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  disabled={
+                    saving ||
+                    loading ||
+                    !apiOnline ||
+                    totalUsd == null ||
+                    !canWriteSimuladorVentaGanado(user)
+                  }
+                  onClick={() => void handleGuardar()}
+                >
+                  {saving
+                    ? "Guardando…"
+                    : editingId != null
+                      ? "Actualizar"
+                      : "Guardar simulación"}
+                </button>
+              </div>
             </div>
 
           </div>
@@ -1177,6 +1213,8 @@ export default function SimuladorVentaPanel({
 
                   <th className="num">Kg</th>
 
+                  {config.id === "CUARTA_BALANZA" && <th className="num">Rend.</th>}
+
                   <th className="num">USD/kg</th>
 
                   <th className="num">Total USD</th>
@@ -1195,7 +1233,7 @@ export default function SimuladorVentaPanel({
 
                   <tr>
 
-                    <td colSpan={9} className="sim-historial-empty">
+                    <td colSpan={historialColSpan} className="sim-historial-empty">
 
                       Cargando…
 
@@ -1207,7 +1245,7 @@ export default function SimuladorVentaPanel({
 
                   <tr>
 
-                    <td colSpan={9} className="sim-historial-empty">
+                    <td colSpan={historialColSpan} className="sim-historial-empty">
 
                       API no conectada
 
@@ -1219,7 +1257,7 @@ export default function SimuladorVentaPanel({
 
                   <tr>
 
-                    <td colSpan={9} className="sim-historial-empty">
+                    <td colSpan={historialColSpan} className="sim-historial-empty">
 
                       Sin simulaciones guardadas. Calculá y usá «Guardar simulación».
 
