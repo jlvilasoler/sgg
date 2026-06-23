@@ -46,6 +46,7 @@ interface Props {
   volverLabel?: string;
   rubrosApi?: RubrosListadoApi;
   copy?: RubrosListadoCopy;
+  puedeEditar?: boolean;
 }
 
 export default function SubRubroListado({
@@ -57,6 +58,7 @@ export default function SubRubroListado({
   volverLabel = "al inicio",
   rubrosApi = GASTOS_RUBROS_API,
   copy = GASTOS_RUBROS_COPY,
+  puedeEditar = true,
 }: Props) {
   const [rows, setRows] = useState<SubRubro[]>([]);
   const [loading, setLoading] = useState(true);
@@ -694,6 +696,12 @@ export default function SubRubroListado({
         ‹ Volver {volverLabel}
       </button>
 
+      {!puedeEditar && (
+        <div className="sim-historial-editing-banner sim-calc-editing-banner" role="status">
+          <span>Tu rol solo permite consultar el catálogo</span>
+        </div>
+      )}
+
       <div className="card">
         <div className="form-header">
           <h2>{copy.title}</h2>
@@ -725,14 +733,16 @@ export default function SubRubroListado({
               </select>
             </div>
           </div>
-          <button
-            type="button"
-            className="btn btn-accent"
-            disabled={!apiOnline || !!inline}
-            onClick={startNewRubro}
-          >
-            + Nuevo rubro
-          </button>
+          {puedeEditar && (
+            <button
+              type="button"
+              className="btn btn-accent"
+              disabled={!apiOnline || !!inline}
+              onClick={startNewRubro}
+            >
+              + Nuevo rubro
+            </button>
+          )}
         </div>
 
         <input
@@ -753,25 +763,25 @@ export default function SubRubroListado({
                 <th className="col-subrubro">Sub-rubro</th>
                 <th className="col-items">Ítems</th>
                 <th className="col-estado">Estado</th>
-                <th className="col-acciones" />
+                {puedeEditar && <th className="col-acciones" />}
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={5} className="muted">
+                  <td colSpan={puedeEditar ? 5 : 4} className="muted">
                     Cargando...
                   </td>
                 </tr>
               ) : porGrupo.length === 0 && !inlineNuevoRubro ? (
                 <tr>
-                  <td colSpan={5} className="muted">
+                  <td colSpan={puedeEditar ? 5 : 4} className="muted">
                     No hay sub-rubros en este filtro.
                   </td>
                 </tr>
               ) : (
                 <>
-                  {inlineNuevoRubro && (
+                  {puedeEditar && inlineNuevoRubro && (
                     <Fragment key="nuevo-rubro-block">
                       <tr className="subrubro-grupo-row subrubro-grupo-row--nuevo">
                         <td colSpan={5} className="subrubro-grupo-head-cell">
@@ -790,7 +800,7 @@ export default function SubRubroListado({
                   {porGrupo.map(([grupo, items]) => (
                     <Fragment key={grupo}>
                       <tr className="subrubro-grupo-row">
-                        <td colSpan={5} className="subrubro-grupo-head-cell">
+                        <td colSpan={puedeEditar ? 5 : 4} className="subrubro-grupo-head-cell">
                           <div className="subrubro-grupo-head">
                             {renamingGrupo === grupo ? (
                               <div className="subrubro-grupo-rename">
@@ -837,17 +847,22 @@ export default function SubRubroListado({
                               </div>
                             ) : (
                               <span
-                                className="subrubro-grupo-title subrubro-grupo-title--picker"
-                                onClick={(e) => {
-                                  if ((e.target as HTMLElement).closest("button")) return;
-                                  abrirSelectorIcono(grupo);
-                                }}
+                                className={`subrubro-grupo-title${puedeEditar ? " subrubro-grupo-title--picker" : ""}`}
+                                onClick={
+                                  puedeEditar
+                                    ? (e) => {
+                                        if ((e.target as HTMLElement).closest("button")) return;
+                                        abrirSelectorIcono(grupo);
+                                      }
+                                    : undefined
+                                }
                               >
-                                <GrupoIcon grupo={grupo} clickable />
+                                <GrupoIcon grupo={grupo} clickable={puedeEditar} />
                                 <strong>{grupo}</strong>
                                 <span className="muted"> ({items.length})</span>
                               </span>
                             )}
+                            {puedeEditar && (
                             <div className="subrubro-grupo-btns">
                               {renamingGrupo !== grupo && (
                                 <button
@@ -882,6 +897,7 @@ export default function SubRubroListado({
                                 Eliminar rubro
                               </button>
                             </div>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -897,7 +913,7 @@ export default function SubRubroListado({
                               className="muted subrubro-grupo-cell subrubro-grupo-cell--icon-only"
                               title={grupo}
                             >
-                              <GrupoIcon grupo={grupo} size="sm" clickable />
+                              <GrupoIcon grupo={grupo} size="sm" clickable={puedeEditar} />
                               <span className="sr-only">{grupo}</span>
                             </td>
                             <td className="col-subrubro-name">
@@ -927,6 +943,7 @@ export default function SubRubroListado({
                                 subRubroId={r.id}
                                 items={itemsBySubRubro[r.id] ?? []}
                                 apiOnline={apiOnline}
+                                puedeEditar={puedeEditar}
                                 createItem={rubrosApi.createSubRubroItem}
                                 deleteItem={rubrosApi.deleteSubRubroItem}
                                 onError={onError}
@@ -952,6 +969,7 @@ export default function SubRubroListado({
                                 </span>
                               )}
                             </td>
+                            {puedeEditar && (
                             <td className="actions-cell">
                               {isEditing ? (
                                 renderEditActions()
@@ -980,10 +998,11 @@ export default function SubRubroListado({
                                 </div>
                               )}
                             </td>
+                            )}
                           </tr>
                         );
                       })}
-                      {inlineNuevoSubEnGrupo(grupo) && renderInlineRow(`new-${grupo}`)}
+                      {puedeEditar && inlineNuevoSubEnGrupo(grupo) && renderInlineRow(`new-${grupo}`)}
                     </Fragment>
                   ))}
                 </>

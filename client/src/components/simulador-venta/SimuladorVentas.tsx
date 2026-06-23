@@ -130,6 +130,7 @@ export default function SimuladorVentas({
     return (
       <VentasAgricultura
         modo="simulador"
+        user={user}
         apiOnline={apiOnline}
         onError={onError}
         onSuccess={onSuccess}
@@ -142,6 +143,7 @@ export default function SimuladorVentas({
     return (
       <VentasArrendamientos
         modo="simulador"
+        user={user}
         apiOnline={apiOnline}
         onError={onError}
         onSuccess={onSuccess}

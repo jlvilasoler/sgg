@@ -440,8 +440,8 @@ export const MODULOS_TODOS_LOS_USUARIOS: Modulo[] = [
   "simulador_venta_ganado",
 ];
 
-/** Escritura permitida aunque el rol sea solo lectura (p. ej. consulta). */
-export const MODULOS_ESCRITURA_TODOS_LOS_USUARIOS: Modulo[] = ["simulador_venta_ganado"];
+/** Sin bypass de escritura: consulta solo lee; admin, gestor N1 y N2 editan. */
+export const MODULOS_ESCRITURA_TODOS_LOS_USUARIOS: Modulo[] = [];
 
 async function migrateModulosPreciosGanadoYChat(db: Db): Promise<void> {
   const upsert = await db.prepare(

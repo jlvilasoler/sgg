@@ -409,8 +409,9 @@ export default function App() {
                 }}
               />
             )}
-            {screen === "ingresos_ventas" && (
+            {screen === "ingresos_ventas" && user && (
               <IngresosVentas
+                user={user}
                 apiOnline={apiOnline}
                 onError={(m) => notify(m, false)}
                 onSuccess={(m, t) => notify(m, true, t)}

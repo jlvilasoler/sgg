@@ -6,7 +6,7 @@ import {
   patchVentaAgricultura,
   updateVentaAgricultura,
 } from "../../api";
-import type { VentaAgriculturaRealInput, VentaAgriculturaRow } from "../../types";
+import type { AuthUser, VentaAgriculturaRealInput, VentaAgriculturaRow } from "../../types";
 import { confirmAction } from "../../utils/confirm";
 import { fmtNum } from "../../utils";
 import TablePagination, {
@@ -43,6 +43,7 @@ import {
   normalizeVentaAgriculturaRow,
   tonEfectivaAgricultura,
 } from "./ventas-agricultura-real-utils";
+import { canWriteSimuladorVentaGanado, canWriteIngresosVentas } from "../../utils/auth-permissions";
 
 interface Props {
   apiOnline: boolean;
@@ -50,6 +51,7 @@ interface Props {
   onSuccess?: (msg: string) => void;
   onVolver: () => void;
   modo?: VentasAgriculturaModo;
+  user?: AuthUser | null;
 }
 
 export default function VentasAgricultura({
@@ -58,8 +60,13 @@ export default function VentasAgricultura({
   onSuccess,
   onVolver,
   modo = "ingresos",
+  user = null,
 }: Props) {
   const copy = VENTAS_AGRICULTURA_COPY[modo];
+  const esSimulador = modo === "simulador";
+  const puedeEditar = esSimulador
+    ? canWriteSimuladorVentaGanado(user)
+    : canWriteIngresosVentas(user);
   const formRef = useRef<HTMLFormElement>(null);
   const [empresa, setEmpresa] = useState<EmpresaAgricultura>("");
   const [zafraInicio, setZafraInicio] = useState("");
@@ -280,7 +287,6 @@ export default function VentasAgricultura({
     }
   };
 
-  const esSimulador = modo === "simulador";
   const historialColSpan = 10;
 
   const rowsVisibles = useMemo(
@@ -320,7 +326,7 @@ export default function VentasAgricultura({
         ‹ {copy.volver}
       </button>
 
-      {esSimulador && (
+      {esSimulador && puedeEditar && (
       <form
         ref={formRef}
         className="card form-card ventas-agricultura-card"
@@ -513,6 +519,18 @@ export default function VentasAgricultura({
       </form>
       )}
 
+      {esSimulador && !puedeEditar && (
+        <div className="sim-historial-editing-banner sim-calc-editing-banner" role="status">
+          <span>Tu rol solo permite consultar simulaciones guardadas</span>
+        </div>
+      )}
+
+      {!esSimulador && !puedeEditar && (
+        <div className="sim-historial-editing-banner sim-calc-editing-banner" role="status">
+          <span>Tu rol solo permite consultar ingresos por ventas</span>
+        </div>
+      )}
+
       <div className={`card ventas-agricultura-listado${esSimulador ? " simulador-venta-historial" : ""}`}>
         {esSimulador ? (
           <header className="sim-historial-head">
@@ -698,6 +716,7 @@ export default function VentasAgricultura({
                   <VentasAgriculturaTablaFila
                     key={r.id}
                     row={r}
+                    puedeEditar={puedeEditar}
                     isPatching={patchingId === r.id}
                     isEditing={editingId === r.id}
                     isEditingReal={editingRealId === r.id}

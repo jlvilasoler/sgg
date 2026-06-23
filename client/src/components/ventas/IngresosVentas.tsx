@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
+import type { AuthUser } from "../../types";
+import { canWriteIngresosVentas } from "../../utils/auth-permissions";
 import { HubMenuCard } from "../HubMenuCard";
 import { useHeaderBackContext } from "../../header-back";
 import type { HubIconId } from "../icons/HubMenuIcons";
@@ -16,6 +18,7 @@ type VistaVentas =
   | "ventas_arrendamientos";
 
 interface Props {
+  user: AuthUser;
   apiOnline: boolean;
   onError: (msg: string) => void;
   onSuccess: (msg: string, title?: string) => void;
@@ -55,12 +58,14 @@ const SUBMENU: {
 ];
 
 export default function IngresosVentas({
+  user,
   apiOnline,
   onError,
   onSuccess,
   onVolver,
 }: Props) {
   const [vista, setVista] = useState<VistaVentas>("menu");
+  const puedeEditar = canWriteIngresosVentas(user);
 
   const volverMenu = useCallback(() => {
     setVista("menu");
@@ -83,6 +88,7 @@ export default function IngresosVentas({
   if (vista === "rubros") {
     return (
       <VentaRubros
+        puedeEditar={puedeEditar}
         apiOnline={apiOnline}
         onError={onError}
         onSuccess={(m) => onSuccess(m)}
@@ -94,6 +100,7 @@ export default function IngresosVentas({
   if (vista === "ventas_ganado") {
     return (
       <VentasGanadoCerradas
+        puedeEditar={puedeEditar}
         apiOnline={apiOnline}
         onError={onError}
         onSuccess={(m) => onSuccess(m)}
@@ -105,6 +112,7 @@ export default function IngresosVentas({
   if (vista === "ventas_agricultura") {
     return (
       <VentasAgricultura
+        user={user}
         apiOnline={apiOnline}
         onError={onError}
         onSuccess={(m) => onSuccess(m)}
@@ -117,6 +125,7 @@ export default function IngresosVentas({
     return (
       <VentasArrendamientos
         modo="ingresos"
+        user={user}
         apiOnline={apiOnline}
         onError={onError}
         onSuccess={(m) => onSuccess(m)}

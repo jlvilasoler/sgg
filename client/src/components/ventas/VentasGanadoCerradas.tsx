@@ -21,6 +21,7 @@ interface Props {
   onError: (msg: string) => void;
   onSuccess?: (msg: string) => void;
   onVolver: () => void;
+  puedeEditar?: boolean;
 }
 
 function categoriaLabel(row: SimuladorVentaGanadoRow): string {
@@ -42,6 +43,7 @@ export default function VentasGanadoCerradas({
   onError,
   onSuccess,
   onVolver,
+  puedeEditar = true,
 }: Props) {
   const [rows, setRows] = useState<SimuladorVentaGanadoRow[]>([]);
   const [fechaDesde, setFechaDesde] = useState("");
@@ -89,6 +91,7 @@ export default function VentasGanadoCerradas({
 
   const saveDestino = useCallback(
     async (row: SimuladorVentaGanadoRow, value: string) => {
+      if (!puedeEditar) return;
       const normalized = value.trim() || null;
       const current = row.destino?.trim() || null;
       if (normalized === current) return;
@@ -111,7 +114,7 @@ export default function VentasGanadoCerradas({
         setSavingDestinoId(null);
       }
     },
-    [onError, onSuccess]
+    [onError, onSuccess, puedeEditar]
   );
 
   const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
@@ -142,6 +145,12 @@ export default function VentasGanadoCerradas({
       <button type="button" className="subseccion-back" onClick={onVolver}>
         ‹ Volver a Ingresos por ventas
       </button>
+
+      {!puedeEditar && (
+        <div className="sim-historial-editing-banner sim-calc-editing-banner" role="status">
+          <span>Tu rol solo permite consultar ingresos por ventas</span>
+        </div>
+      )}
 
       <div className="card">
         <div className="form-header">
@@ -267,24 +276,28 @@ export default function VentasGanadoCerradas({
                     <td>{tipoLabel(r.tipo)}</td>
                     <td>{categoriaLabel(r)}</td>
                     <td className="ventas-ganado-destino-cell">
-                      <input
-                        type="text"
-                        className="ventas-ganado-destino-input"
-                        list="vg-destino-sugerencias"
-                        value={destinoDrafts[r.id] ?? r.destino ?? ""}
-                        placeholder="Frigorífico, productor, feria…"
-                        disabled={!apiOnline || savingDestinoId === r.id}
-                        onChange={(e) => {
-                          setDestinoDrafts((prev) => ({ ...prev, [r.id]: e.target.value }));
-                        }}
-                        onBlur={(e) => saveDestino(r, e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            e.currentTarget.blur();
-                          }
-                        }}
-                        aria-label={`Destino de ${r.numero_operacion || "operación"}`}
-                      />
+                      {puedeEditar ? (
+                        <input
+                          type="text"
+                          className="ventas-ganado-destino-input"
+                          list="vg-destino-sugerencias"
+                          value={destinoDrafts[r.id] ?? r.destino ?? ""}
+                          placeholder="Frigorífico, productor, feria…"
+                          disabled={!apiOnline || savingDestinoId === r.id}
+                          onChange={(e) => {
+                            setDestinoDrafts((prev) => ({ ...prev, [r.id]: e.target.value }));
+                          }}
+                          onBlur={(e) => saveDestino(r, e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.currentTarget.blur();
+                            }
+                          }}
+                          aria-label={`Destino de ${r.numero_operacion || "operación"}`}
+                        />
+                      ) : (
+                        <span>{r.destino?.trim() || "—"}</span>
+                      )}
                     </td>
                     <td className="num">{formatCabezas(r)}</td>
                     <td className="num">

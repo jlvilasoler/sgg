@@ -32,6 +32,7 @@ import {
 
 interface Props {
   row: VentaArrendamientoRow;
+  puedeEditar?: boolean;
   isPatching: boolean;
   isEditing: boolean;
   isEditingReal: boolean;
@@ -50,6 +51,7 @@ interface Props {
 
 export default function VentasArrendamientoTablaFila({
   row,
+  puedeEditar = true,
   isPatching,
   isEditing,
   isEditingReal,
@@ -151,7 +153,7 @@ export default function VentasArrendamientoTablaFila({
   const hasNota = notaText.length > 0;
   const creadoDt = fmtDateHora(row.creado_en);
 
-  const destacarBtn = !isEditingReal ? (
+  const destacarBtn = puedeEditar && !isEditingReal ? (
     <button
       type="button"
       className={`sim-historial-op-destacar${row.destacada ?? false ? " is-active" : ""}`}
@@ -228,81 +230,98 @@ export default function VentasArrendamientoTablaFila({
     </div>
   ) : (
     <div className="sim-historial-action-grid">
-      <button
-        type="button"
-        className={`sim-historial-action sim-historial-action--edit${isEditing ? " is-active sim-historial-action--cancel-edit" : ""}${hasReal ? " is-active sim-historial-action--edit-locked" : ""}`}
-        onClick={isEditing ? onCancelEdit : onEdit}
-        disabled={isEditingReal || isDeleting || hasReal}
-        title={
-          hasReal
-            ? "Simulación bloqueada — operación confirmada"
-            : isEditing
-              ? "Cancelar edición de simulación"
-              : "Editar simulación"
-        }
-        aria-pressed={isEditing}
-      >
-        <span className="sim-historial-action-icon" aria-hidden>
-          {isEditing ? <IconCancelar size={15} /> : <IconEditar size={15} />}
-        </span>
-        <span className="sim-historial-action-label">
-          {isEditing ? "Cancelar" : "Simulación"}
-        </span>
-      </button>
-      <button
-        type="button"
-        className={`sim-historial-action sim-historial-action--sold${hasReal ? " is-active" : " sim-historial-action--close-sale"}`}
-        onClick={onStartEditReal}
-        disabled={isPatching || isDeleting || hasReal}
-        title={hasReal ? "Operación confirmada" : "Confirmar operación"}
-        aria-pressed={hasReal}
-      >
-        <span className="sim-historial-action-icon sim-historial-action-icon--sold-check" aria-hidden>
-          <IconCerrarVenta size={16} />
-        </span>
-        <span className="sim-historial-action-label">
-          {hasReal ? "Confirmada" : "Confirmar"}
-        </span>
-      </button>
-      {hasReal ? (
-        <button
-          type="button"
-          className="sim-historial-action sim-historial-action--unmark"
-          onClick={onUnmarkReal}
-          disabled={isPatching || isDeleting}
-          title="Quitar confirmación"
-        >
-          <span className="sim-historial-action-icon sim-historial-action-icon--text" aria-hidden>
-            ×
-          </span>
-          <span className="sim-historial-action-label">Quitar</span>
-        </button>
+      {puedeEditar ? (
+        <>
+          <button
+            type="button"
+            className={`sim-historial-action sim-historial-action--edit${isEditing ? " is-active sim-historial-action--cancel-edit" : ""}${hasReal ? " is-active sim-historial-action--edit-locked" : ""}`}
+            onClick={isEditing ? onCancelEdit : onEdit}
+            disabled={isEditingReal || isDeleting || hasReal}
+            title={
+              hasReal
+                ? "Simulación bloqueada — operación confirmada"
+                : isEditing
+                  ? "Cancelar edición de simulación"
+                  : "Editar simulación"
+            }
+            aria-pressed={isEditing}
+          >
+            <span className="sim-historial-action-icon" aria-hidden>
+              {isEditing ? <IconCancelar size={15} /> : <IconEditar size={15} />}
+            </span>
+            <span className="sim-historial-action-label">
+              {isEditing ? "Cancelar" : "Simulación"}
+            </span>
+          </button>
+          <button
+            type="button"
+            className={`sim-historial-action sim-historial-action--sold${hasReal ? " is-active" : " sim-historial-action--close-sale"}`}
+            onClick={onStartEditReal}
+            disabled={isPatching || isDeleting || hasReal}
+            title={hasReal ? "Operación confirmada" : "Confirmar operación"}
+            aria-pressed={hasReal}
+          >
+            <span className="sim-historial-action-icon sim-historial-action-icon--sold-check" aria-hidden>
+              <IconCerrarVenta size={16} />
+            </span>
+            <span className="sim-historial-action-label">
+              {hasReal ? "Confirmada" : "Confirmar"}
+            </span>
+          </button>
+          {hasReal ? (
+            <button
+              type="button"
+              className="sim-historial-action sim-historial-action--unmark"
+              onClick={onUnmarkReal}
+              disabled={isPatching || isDeleting}
+              title="Quitar confirmación"
+            >
+              <span className="sim-historial-action-icon sim-historial-action-icon--text" aria-hidden>
+                ×
+              </span>
+              <span className="sim-historial-action-label">Quitar</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="sim-historial-action sim-historial-action--delete"
+              onClick={onDelete}
+              disabled={isPatching || isDeleting}
+              title="Eliminar simulación"
+            >
+              <span className="sim-historial-action-icon" aria-hidden>
+                <IconEliminar size={15} />
+              </span>
+              <span className="sim-historial-action-label">{isDeleting ? "…" : "Eliminar"}</span>
+            </button>
+          )}
+          <button
+            type="button"
+            className="sim-historial-action sim-historial-action--history"
+            onClick={onVerHistorial}
+            disabled={isDeleting || isEditingReal}
+            title="Ver historial de cambios"
+          >
+            <span className="sim-historial-action-icon" aria-hidden>
+              <IconHistorial size={15} />
+            </span>
+            <span className="sim-historial-action-label">Historial</span>
+          </button>
+        </>
       ) : (
         <button
           type="button"
-          className="sim-historial-action sim-historial-action--delete"
-          onClick={onDelete}
-          disabled={isPatching || isDeleting}
-          title="Eliminar simulación"
+          className="sim-historial-action sim-historial-action--history"
+          onClick={onVerHistorial}
+          disabled={isDeleting}
+          title="Ver historial de cambios"
         >
           <span className="sim-historial-action-icon" aria-hidden>
-            <IconEliminar size={15} />
+            <IconHistorial size={15} />
           </span>
-          <span className="sim-historial-action-label">{isDeleting ? "…" : "Eliminar"}</span>
+          <span className="sim-historial-action-label">Historial</span>
         </button>
       )}
-      <button
-        type="button"
-        className="sim-historial-action sim-historial-action--history"
-        onClick={onVerHistorial}
-        disabled={isDeleting || isEditingReal}
-        title="Ver historial de cambios"
-      >
-        <span className="sim-historial-action-icon" aria-hidden>
-          <IconHistorial size={15} />
-        </span>
-        <span className="sim-historial-action-label">Historial</span>
-      </button>
     </div>
   );
 
@@ -320,7 +339,7 @@ export default function VentasArrendamientoTablaFila({
           Confirmación {fmtDate(row.venta_realizada_en)}
         </span>
       )}
-      {!isEditingReal && !hasReal && (
+      {!isEditingReal && !hasReal && puedeEditar && (
         <button type="button" className="sim-historial-registrar-btn" onClick={onStartEditReal}>
           Cargar datos
         </button>

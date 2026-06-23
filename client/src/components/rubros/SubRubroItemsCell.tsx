@@ -13,6 +13,7 @@ interface Props {
   onSuccess: (msg: string) => void;
   onItemAdded: (item: SubRubroItem) => void;
   onItemRemoved: (itemId: number) => void;
+  puedeEditar?: boolean;
 }
 
 export default function SubRubroItemsCell({
@@ -25,6 +26,7 @@ export default function SubRubroItemsCell({
   onSuccess,
   onItemAdded,
   onItemRemoved,
+  puedeEditar = true,
 }: Props) {
   const [nuevoItem, setNuevoItem] = useState("");
   const [saving, setSaving] = useState(false);
@@ -74,23 +76,30 @@ export default function SubRubroItemsCell({
   return (
     <div className="subrubro-items-cell">
       <div className="subrubro-items-flow" role="list">
-        {activos.map((it) => (
-          <span key={it.id} className="subrubro-item-chip" role="listitem">
-            <span className="subrubro-item-chip-label" title={it.nombre}>
-              {it.nombre}
+        {activos.length === 0 && !puedeEditar ? (
+          <span className="muted">—</span>
+        ) : (
+          activos.map((it) => (
+            <span key={it.id} className="subrubro-item-chip" role="listitem">
+              <span className="subrubro-item-chip-label" title={it.nombre}>
+                {it.nombre}
+              </span>
+              {puedeEditar && (
+                <button
+                  type="button"
+                  className="subrubro-item-chip-remove"
+                  disabled={!apiOnline}
+                  onClick={() => borrar(it)}
+                  aria-label={`Quitar ${it.nombre}`}
+                  title="Quitar"
+                >
+                  ×
+                </button>
+              )}
             </span>
-            <button
-              type="button"
-              className="subrubro-item-chip-remove"
-              disabled={!apiOnline}
-              onClick={() => borrar(it)}
-              aria-label={`Quitar ${it.nombre}`}
-              title="Quitar"
-            >
-              ×
-            </button>
-          </span>
-        ))}
+          ))
+        )}
+        {puedeEditar && (
         <div className="subrubro-items-add-inline">
           <input
             type="text"
@@ -117,6 +126,7 @@ export default function SubRubroItemsCell({
             +
           </button>
         </div>
+        )}
       </div>
     </div>
   );

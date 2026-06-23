@@ -739,9 +739,17 @@ export default function SimuladorVentaPanel({
     );
   }
 
+  const soloLectura = !canWriteSimuladorVentaGanado(user);
+
   return (
 
     <div className="subseccion-panel simulador-venta-panel">
+
+      {soloLectura && (
+        <div className="sim-historial-editing-banner sim-calc-editing-banner" role="status">
+          <span>Tu rol solo permite consultar simulaciones guardadas</span>
+        </div>
+      )}
 
       <div className="simulador-venta-layout">
 

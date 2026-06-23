@@ -61,9 +61,14 @@ export function canAccessSimuladorVentaGanado(user: AuthUser | null): boolean {
   return Boolean(user);
 }
 
-/** Simulador venta: todos los usuarios autenticados pueden crear y editar. */
+/** Simulador venta: escritura según rol (consulta solo lectura). */
 export function canWriteSimuladorVentaGanado(user: AuthUser | null): boolean {
-  return Boolean(user);
+  return Boolean(user?.puede_escribir);
+}
+
+/** Ingresos por ventas: admin, gestor N1 y N2 editan; consulta solo lectura. */
+export function canWriteIngresosVentas(user: AuthUser | null): boolean {
+  return Boolean(user?.puede_escribir);
 }
 
 export function moduloForScreen(screen: TabId): Modulo {

@@ -70,6 +70,22 @@ function canWriteInModulo(user: UserPublic, modulo: Modulo | null): boolean {
   return !(soloLectura?.includes(modulo));
 }
 
+/** Agricultura/arrendamientos del simulador: gestor N2 usa módulo simulador si no tiene ventas. */
+function effectiveModuloForPath(user: UserPublic, path: string): Modulo | null {
+  const modulo = moduleFromApiPath(path);
+  if (!modulo) return null;
+  const p = path.toLowerCase();
+  if (
+    modulo === "ventas" &&
+    (p.startsWith("/api/ingresos-ventas/ventas-agricultura") ||
+      p.startsWith("/api/ingresos-ventas/ventas-arrendamientos")) &&
+    !user.permisos.includes("ventas")
+  ) {
+    return "simulador_venta_ganado";
+  }
+  return modulo;
+}
+
 declare global {
   namespace Express {
     interface Request {
@@ -180,7 +196,7 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
 
   attachApiActivityLogger(req, res);
 
-  const modulo = moduleFromApiPath(path);
+  const modulo = effectiveModuloForPath(user, path);
   const stockDispositivosLectura =
     req.method === "GET" && path.startsWith("/api/stock-ganadero/dispositivos");
 
