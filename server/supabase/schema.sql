@@ -536,6 +536,7 @@ CREATE TABLE IF NOT EXISTS ROLE_PERMISOS (
   rol TEXT NOT NULL CHECK (rol IN ('admin', 'editor', 'gestor_n2', 'consulta')),
   modulo TEXT NOT NULL,
   acceso INTEGER NOT NULL DEFAULT 0,
+  solo_lectura INTEGER NOT NULL DEFAULT 0,
   PRIMARY KEY (rol, modulo)
 );
 

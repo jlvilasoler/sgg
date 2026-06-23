@@ -57,6 +57,8 @@ const WRITE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
 function canAccessModulo(user: UserPublic, modulo: Modulo): boolean {
   if (authDb.MODULOS_TODOS_LOS_USUARIOS.includes(modulo)) return true;
+  if (modulo === "usuarios") return user.rol === "admin";
+  if (user.rol === "admin") return true;
   return user.permisos.includes(modulo);
 }
 
@@ -66,8 +68,7 @@ function canWriteInModulo(user: UserPublic, modulo: Modulo | null): boolean {
   }
   if (!user.puede_escribir) return false;
   if (!modulo) return true;
-  const soloLectura = authDb.ROLES_MODULO_SOLO_LECTURA[user.rol];
-  return !(soloLectura?.includes(modulo));
+  return !user.modulos_solo_lectura.includes(modulo);
 }
 
 /** Agricultura/arrendamientos del simulador: gestor N2 usa módulo simulador si no tiene ventas. */

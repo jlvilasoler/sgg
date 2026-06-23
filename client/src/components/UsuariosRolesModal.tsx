@@ -5,7 +5,8 @@ import {
 } from "../api";
 import { useHeaderBackStep } from "../header-back";
 import type { Modulo, Rol, RolPermisosConfig, RolPermisosInput } from "../types";
-import { ROL_LABELS_DETALLE } from "../utils/auth-permissions";
+import { ALL_ROLES } from "../types";
+import { MODULO_LABELS, ROL_LABELS_DETALLE } from "../utils/auth-permissions";
 import SubseccionInlinePanel from "./SubseccionInlinePanel";
 
 interface Props {
@@ -16,23 +17,59 @@ interface Props {
   onSaved?: () => void;
 }
 
-const ROLES_EDITABLES: Rol[] = ["editor", "consulta"];
+const ROLES_EDITABLES: Rol[] = ["editor", "gestor_n2", "consulta"];
 
-const MODULOS_SIEMPRE_ACTIVOS: Modulo[] = [
-  "chat",
+/** Secciones del menú principal que el administrador puede asignar por rol. */
+const MODULOS_CONFIGURABLES: Modulo[] = [
+  "presupuesto",
+  "configuracion",
+  "divisas",
   "precios_ganado",
   "simulador_venta_ganado",
+  "rrhh",
+  "ventas",
+  "stock",
 ];
+
+/** Siempre habilitado para todos los roles — no configurable. */
+const MODULO_TODOS: Modulo = "chat";
+
+/** Solo administrador — no configurable. */
+const MODULO_SOLO_ADMIN: Modulo = "usuarios";
+
+type ModoEdicion = "lectura" | "edicion";
 
 function toInput(config: RolPermisosConfig): RolPermisosInput {
   const modulos: Partial<Record<Modulo, boolean>> = {};
+  const modulos_solo_lectura: Partial<Record<Modulo, boolean>> = {};
   for (const m of config.modulos) {
-    if (m.modulo !== "usuarios") modulos[m.modulo] = m.acceso;
+    if (m.modulo === MODULO_SOLO_ADMIN || m.modulo === MODULO_TODOS) continue;
+    modulos[m.modulo] = m.acceso;
+    if (m.solo_lectura) modulos_solo_lectura[m.modulo] = true;
   }
   return {
     puede_escribir: config.puede_escribir,
     modulos,
+    modulos_solo_lectura,
   };
+}
+
+function isHabilitado(draft: RolPermisosInput, modulo: Modulo): boolean {
+  return Boolean(draft.modulos[modulo]);
+}
+
+function modoEdicion(
+  draft: RolPermisosInput,
+  activeRol: Rol,
+  modulo: Modulo
+): ModoEdicion {
+  if (activeRol === "consulta" || !draft.puede_escribir) return "lectura";
+  if (draft.modulos_solo_lectura?.[modulo]) return "lectura";
+  return "edicion";
+}
+
+function modoEdicionLabel(modo: ModoEdicion): string {
+  return modo === "edicion" ? "Ver y editar" : "Solo lectura";
 }
 
 export default function UsuariosRolesPanel({
@@ -51,6 +88,10 @@ export default function UsuariosRolesPanel({
   useHeaderBackStep(true, onVolver, "Usuarios");
 
   const activeConfig = roles.find((r) => r.rol === activeRol) ?? null;
+  const habilitadosCount =
+    draft?.modulos
+      ? MODULOS_CONFIGURABLES.filter((m) => isHabilitado(draft, m)).length
+      : 0;
 
   const load = useCallback(async () => {
     if (!apiOnline) return;
@@ -77,16 +118,72 @@ export default function UsuariosRolesPanel({
     if (cfg) setDraft(toInput(cfg));
   };
 
-  const toggleModulo = (modulo: Modulo, acceso: boolean) => {
-    if (!draft || modulo === "usuarios" || MODULOS_SIEMPRE_ACTIVOS.includes(modulo)) return;
+  const toggleModulo = (modulo: Modulo, activo: boolean) => {
+    if (!draft || modulo === MODULO_SOLO_ADMIN || modulo === MODULO_TODOS) return;
+    if (activo) {
+      const modo: ModoEdicion =
+        activeRol === "consulta" || !draft.puede_escribir ? "lectura" : "edicion";
+      setDraft((d) =>
+        d
+          ? {
+              ...d,
+              modulos: { ...d.modulos, [modulo]: true },
+              modulos_solo_lectura: {
+                ...d.modulos_solo_lectura,
+                [modulo]: modo === "lectura",
+              },
+            }
+          : d
+      );
+      return;
+    }
     setDraft((d) =>
       d
         ? {
             ...d,
-            modulos: { ...d.modulos, [modulo]: acceso },
+            modulos: { ...d.modulos, [modulo]: false },
           }
         : d
     );
+  };
+
+  const setModoEdicion = (modulo: Modulo, modo: ModoEdicion) => {
+    if (!draft) return;
+    setDraft((d) =>
+      d
+        ? {
+            ...d,
+            modulos_solo_lectura: {
+              ...d.modulos_solo_lectura,
+              [modulo]: modo === "lectura",
+            },
+          }
+        : d
+    );
+  };
+
+  const marcarTodas = () => {
+    if (!draft) return;
+    const modo: ModoEdicion =
+      activeRol === "consulta" || !draft.puede_escribir ? "lectura" : "edicion";
+    const modulos: Partial<Record<Modulo, boolean>> = { ...draft.modulos };
+    const modulos_solo_lectura: Partial<Record<Modulo, boolean>> = {
+      ...draft.modulos_solo_lectura,
+    };
+    for (const modulo of MODULOS_CONFIGURABLES) {
+      modulos[modulo] = true;
+      modulos_solo_lectura[modulo] = modo === "lectura";
+    }
+    setDraft({ ...draft, modulos, modulos_solo_lectura });
+  };
+
+  const desmarcarTodas = () => {
+    if (!draft) return;
+    const modulos: Partial<Record<Modulo, boolean>> = { ...draft.modulos };
+    for (const modulo of MODULOS_CONFIGURABLES) {
+      modulos[modulo] = false;
+    }
+    setDraft({ ...draft, modulos });
   };
 
   const save = async () => {
@@ -95,6 +192,7 @@ export default function UsuariosRolesPanel({
     try {
       const updated = await actualizarRolePermissions(activeRol, draft);
       setRoles((prev) => prev.map((r) => (r.rol === updated.rol ? updated : r)));
+      setDraft(toInput(updated));
       onSuccess(`Permisos de ${ROL_LABELS_DETALLE[activeRol]} actualizados`);
       onSaved?.();
     } catch (e) {
@@ -111,7 +209,7 @@ export default function UsuariosRolesPanel({
       onVolver={onVolver}
       volverLabel="Volver a Usuarios"
       title="Permisos por tipo de usuario"
-      description="Definí qué sectores puede ver y modificar cada rol del sistema."
+      description="Solo el administrador define qué secciones ve cada rol y si puede editar."
       cardClassName="usuarios-roles-inline"
       footer={
         <>
@@ -122,7 +220,7 @@ export default function UsuariosRolesPanel({
             <button
               type="button"
               className="btn btn-primary"
-              disabled={saving || !apiOnline}
+              disabled={saving || !apiOnline || habilitadosCount === 0}
               onClick={() => void save()}
             >
               {saving ? "Guardando…" : `Guardar ${ROL_LABELS_DETALLE[activeRol]}`}
@@ -136,7 +234,7 @@ export default function UsuariosRolesPanel({
       ) : (
         <>
           <div className="usuarios-roles-tabs">
-            {(["admin", "editor", "consulta"] as Rol[]).map((rol) => (
+            {ALL_ROLES.map((rol) => (
               <button
                 key={rol}
                 type="button"
@@ -154,8 +252,8 @@ export default function UsuariosRolesPanel({
             {activeRol === "admin" && adminConfig ? (
               <div className="usuarios-roles-admin-note">
                 <p>
-                  <strong>Administrador:</strong> acceso total a todos los sectores, incluida la
-                  gestión de usuarios. Este rol no se puede restringir.
+                  <strong>Administrador:</strong> acceso total a todos los sectores. Este rol no
+                  se puede restringir.
                 </p>
                 <ul className="usuarios-roles-admin-list">
                   {adminConfig.modulos.map((m) => (
@@ -167,9 +265,31 @@ export default function UsuariosRolesPanel({
               activeConfig &&
               draft && (
                 <>
-                  <p className="usuarios-roles-desc">{activeConfig.descripcion}</p>
+                  <div className="usuarios-roles-toolbar">
+                    <p className="usuarios-roles-desc usuarios-roles-desc--inline">
+                      Marcá las secciones que verá este rol en el inicio.{" "}
+                      <strong>{habilitadosCount}</strong> de{" "}
+                      {MODULOS_CONFIGURABLES.length} habilitadas.
+                    </p>
+                    <div className="usuarios-roles-toolbar-actions">
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm"
+                        onClick={marcarTodas}
+                      >
+                        Activar todas
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm"
+                        onClick={desmarcarTodas}
+                      >
+                        Quitar todas
+                      </button>
+                    </div>
+                  </div>
 
-                  {activeRol === "editor" && (
+                  {(activeRol === "editor" || activeRol === "gestor_n2") && (
                     <label className="usuarios-roles-write-toggle inline-check">
                       <input
                         type="checkbox"
@@ -180,50 +300,94 @@ export default function UsuariosRolesPanel({
                           )
                         }
                       />
-                      Permitir crear, editar y eliminar datos
+                      Permitir edición en los sectores marcados como &quot;Ver y editar&quot;
                     </label>
                   )}
 
                   {activeRol === "consulta" && (
                     <p className="usuarios-roles-readonly-note">
-                      El rol Consulta solo puede ver información; no puede modificar registros.
+                      Consulta solo puede ver; las secciones habilitadas quedan en solo lectura.
                     </p>
                   )}
 
-                  <div className="usuarios-roles-grid">
-                    {activeConfig.modulos
-                      .filter((m) => m.modulo !== "usuarios")
-                      .map((m) => {
-                        const siempreActivo = MODULOS_SIEMPRE_ACTIVOS.includes(m.modulo);
-                        const activo = siempreActivo || Boolean(draft.modulos[m.modulo]);
-                        return (
-                          <label
-                            key={m.modulo}
-                            className={`usuarios-roles-modulo${
-                              activo ? " usuarios-roles-modulo--on" : ""
-                            }${siempreActivo ? " usuarios-roles-modulo--locked" : ""}`}
-                          >
+                  {habilitadosCount === 0 && (
+                    <p className="usuarios-roles-empty usuarios-roles-empty--warn">
+                      Activá al menos una sección para este rol.
+                    </p>
+                  )}
+
+                  <div className="usuarios-roles-grid usuarios-roles-grid--simple">
+                    {MODULOS_CONFIGURABLES.map((modulo) => {
+                      const activo = isHabilitado(draft, modulo);
+                      const modo = modoEdicion(draft, activeRol, modulo);
+                      const edicionBloqueada =
+                        activeRol === "consulta" || !draft.puede_escribir;
+                      return (
+                        <label
+                          key={modulo}
+                          className={`usuarios-roles-modulo usuarios-roles-modulo--simple${
+                            activo ? " usuarios-roles-modulo--on" : ""
+                          }`}
+                        >
+                          <div className="usuarios-roles-modulo-top">
                             <input
                               type="checkbox"
                               checked={activo}
-                              disabled={siempreActivo}
-                              onChange={(e) => toggleModulo(m.modulo, e.target.checked)}
+                              onChange={(e) => toggleModulo(modulo, e.target.checked)}
                             />
-                            <span className="usuarios-roles-modulo-label">{m.label}</span>
-                            <span className="usuarios-roles-modulo-hint">
-                              {siempreActivo
-                                ? "Todos los usuarios"
-                                : activo
-                                  ? activeRol === "consulta"
-                                    ? "Solo lectura"
-                                    : draft.puede_escribir
-                                      ? "Ver y editar"
-                                      : "Solo lectura"
-                                  : "Sin acceso"}
+                            <span className="usuarios-roles-modulo-label">
+                              {MODULO_LABELS[modulo]}
                             </span>
-                          </label>
-                        );
-                      })}
+                          </div>
+                          {activo ? (
+                            <select
+                              className="usuarios-roles-modo-select usuarios-roles-modo-select--inline"
+                              value={modo}
+                              disabled={edicionBloqueada}
+                              aria-label={`Acceso para ${MODULO_LABELS[modulo]}`}
+                              onClick={(e) => e.stopPropagation()}
+                              onChange={(e) =>
+                                setModoEdicion(modulo, e.target.value as ModoEdicion)
+                              }
+                            >
+                              <option value="lectura">Solo lectura</option>
+                              <option value="edicion">Ver y editar</option>
+                            </select>
+                          ) : (
+                            <span className="usuarios-roles-modulo-hint">Sin acceso</span>
+                          )}
+                          {activo && (
+                            <span className="usuarios-roles-modulo-hint usuarios-roles-modulo-hint--active">
+                              {modoEdicionLabel(modo)}
+                            </span>
+                          )}
+                        </label>
+                      );
+                    })}
+                    <div
+                      className="usuarios-roles-modulo usuarios-roles-modulo--simple usuarios-roles-modulo--locked usuarios-roles-modulo--on"
+                      aria-label="Chat interno — todos los usuarios"
+                    >
+                      <div className="usuarios-roles-modulo-top">
+                        <input type="checkbox" checked disabled aria-hidden />
+                        <span className="usuarios-roles-modulo-label">
+                          {MODULO_LABELS[MODULO_TODOS]}
+                        </span>
+                      </div>
+                      <span className="usuarios-roles-modulo-hint">Todos los usuarios</span>
+                    </div>
+                    <div
+                      className="usuarios-roles-modulo usuarios-roles-modulo--simple usuarios-roles-modulo--locked"
+                      aria-label="Usuarios y permisos — solo administrador"
+                    >
+                      <div className="usuarios-roles-modulo-top">
+                        <input type="checkbox" checked disabled aria-hidden />
+                        <span className="usuarios-roles-modulo-label">
+                          {MODULO_LABELS[MODULO_SOLO_ADMIN]}
+                        </span>
+                      </div>
+                      <span className="usuarios-roles-modulo-hint">Solo administrador</span>
+                    </div>
                   </div>
                 </>
               )

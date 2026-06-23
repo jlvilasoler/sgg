@@ -65,21 +65,19 @@ export const MODULO_LABELS: Record<Modulo, string> = {
 
 export const ROL_DESCRIPCION: Record<Rol, string> = {
   admin: "Acceso total al sistema (no editable)",
-  editor: "Gestión operativa según sectores habilitados (sin usuarios ni ventas)",
-  gestor_n2:
-    "Gastos, configuración, stock, RRHH y resumen. Divisas solo lectura. Sin ventas ni usuarios.",
+  editor: "Gestión operativa según las secciones habilitadas.",
+  gestor_n2: "Acceso según las secciones que defina el administrador.",
   consulta: "Solo lectura en los sectores habilitados",
 };
 
-/** Módulos en los que el rol puede ver pero no crear/editar/borrar. */
-export const ROLES_MODULO_SOLO_LECTURA: Partial<Record<Rol, Modulo[]>> = {
-  gestor_n2: ["divisas"],
-};
+/** Módulos que solo el administrador puede usar (no configurables por rol). */
+export const MODULOS_SOLO_ADMIN: Modulo[] = ["usuarios"];
 
 export interface ModuloAccesoConfig {
   modulo: Modulo;
   label: string;
   acceso: boolean;
+  solo_lectura: boolean;
 }
 
 export interface RolPermisosConfig {
@@ -94,6 +92,7 @@ export interface RolPermisosConfig {
 export interface RolPermisosInput {
   puede_escribir: boolean;
   modulos: Partial<Record<Modulo, boolean>>;
+  modulos_solo_lectura?: Partial<Record<Modulo, boolean>>;
 }
 
 export interface UserRow {
@@ -121,6 +120,7 @@ export interface UserPublic {
   activo: boolean;
   permisos: Modulo[];
   puede_escribir: boolean;
+  modulos_solo_lectura: Modulo[];
   creado_en: string;
   ultimo_acceso: string | null;
   avatar: UserAvatarDto;
@@ -183,9 +183,9 @@ const DEFAULT_ROLE_ACCESS: Record<
 export async function roleCapabilities(
   db: Db,
   rol: Rol
-): Promise<{ permisos: Modulo[]; puede_escribir: boolean }> {
+): Promise<{ permisos: Modulo[]; puede_escribir: boolean; modulos_solo_lectura: Modulo[] }> {
   if (rol === "admin") {
-    return { permisos: [...MODULOS], puede_escribir: true };
+    return { permisos: [...MODULOS], puede_escribir: true, modulos_solo_lectura: [] };
   }
 
   const escRow = (await db
@@ -194,20 +194,32 @@ export async function roleCapabilities(
 
   const modRows = (await db
     .prepare(
-      "SELECT modulo FROM ROLE_PERMISOS WHERE rol = ? AND acceso = 1 ORDER BY modulo"
+      "SELECT modulo, solo_lectura FROM ROLE_PERMISOS WHERE rol = ? AND acceso = 1 ORDER BY modulo"
     )
-    .all(rol)) as { modulo: string }[];
+    .all(rol)) as { modulo: string; solo_lectura: number }[];
 
   const permisos = [
     ...new Set([
-      ...modRows.map((r) => r.modulo as Modulo).filter((m) => MODULOS.includes(m)),
+      ...modRows
+        .map((r) => r.modulo as Modulo)
+        .filter((m) => MODULOS.includes(m))
+        .filter((m) => m !== "usuarios"),
       ...MODULOS_TODOS_LOS_USUARIOS,
     ]),
   ].sort();
 
+  const puedeEscribir = pgNum(escRow?.puede_escribir) === 1;
+  const modulos_solo_lectura = puedeEscribir
+    ? modRows
+        .filter((r) => pgNum(r.solo_lectura) === 1)
+        .map((r) => r.modulo as Modulo)
+        .filter((m) => MODULOS.includes(m))
+    : [...permisos];
+
   return {
     permisos,
-    puede_escribir: pgNum(escRow?.puede_escribir) === 1,
+    puede_escribir: puedeEscribir,
+    modulos_solo_lectura,
   };
 }
 
@@ -232,6 +244,7 @@ export async function toUserPublic(row: UserRow, db: Db): Promise<UserPublic> {
     activo: pgNum(row.activo) === 1,
     permisos: caps.permisos,
     puede_escribir: caps.puede_escribir,
+    modulos_solo_lectura: caps.modulos_solo_lectura,
     creado_en: pgTimestampString(row.creado_en) ?? "",
     ultimo_acceso: pgTimestampString(row.ultimo_acceso),
     avatar: avatarDtoFromRow(row.id, row),
@@ -369,6 +382,7 @@ export async function listAuthAuditLog(
 export async function initAuthTables(db: Db): Promise<void> {
   await migrateUserAvatarColumns(db);
   await migrateGestorN2Role(db);
+  await migrateRolePermisosSoloLectura(db);
   await seedRolePermissionsIfEmpty(db);
   await ensureGestorN2RolePermissions(db);
   await migrateModulosPreciosGanadoYChat(db);
@@ -425,40 +439,67 @@ async function ensureGestorN2RolePermissions(db: Db): Promise<void> {
     .run(def.puede_escribir ? 1 : 0);
 
   const insMod = await db.prepare(
-    "INSERT INTO ROLE_PERMISOS (rol, modulo, acceso) VALUES ('gestor_n2', ?, ?)"
+    "INSERT INTO ROLE_PERMISOS (rol, modulo, acceso, solo_lectura) VALUES ('gestor_n2', ?, ?, ?)"
   );
   for (const modulo of MODULOS) {
-    await insMod.run(modulo, def.modulos.includes(modulo) ? 1 : 0);
+    const acceso = def.modulos.includes(modulo) ? 1 : 0;
+    const soloLectura = modulo === "divisas" ? 1 : 0;
+    await insMod.run(modulo, acceso, soloLectura);
   }
   console.info("[SGG Auth] Permisos por defecto creados para Gestor N2");
 }
 
-/** Acceso al módulo para todos los roles (política del sistema). */
-export const MODULOS_TODOS_LOS_USUARIOS: Modulo[] = [
-  "chat",
-  "precios_ganado",
-  "simulador_venta_ganado",
-];
+/** Módulos con acceso obligatorio para todos los roles (no deshabilitables). */
+export const MODULOS_TODOS_LOS_USUARIOS: Modulo[] = ["chat"];
 
-/** Sin bypass de escritura: consulta solo lee; admin, gestor N1 y N2 editan. */
-export const MODULOS_ESCRITURA_TODOS_LOS_USUARIOS: Modulo[] = [];
+/** Escritura sin restricción de rol global (p. ej. chat para consulta). */
+export const MODULOS_ESCRITURA_TODOS_LOS_USUARIOS: Modulo[] = ["chat"];
+
+async function migrateRolePermisosSoloLectura(db: Db): Promise<void> {
+  const col = await db
+    .prepare(
+      `SELECT 1 FROM information_schema.columns
+       WHERE table_schema = 'public' AND table_name = 'role_permisos' AND column_name = 'solo_lectura'`
+    )
+    .get();
+  if (!col) {
+    await db
+      .prepare(
+        "ALTER TABLE ROLE_PERMISOS ADD COLUMN solo_lectura INTEGER NOT NULL DEFAULT 0"
+      )
+      .run();
+    console.info("[SGG Auth] Migración: columna role_permisos.solo_lectura agregada");
+  }
+
+  await db
+    .prepare(
+      "UPDATE ROLE_PERMISOS SET solo_lectura = 1 WHERE rol = 'gestor_n2' AND modulo = 'divisas'"
+    )
+    .run();
+
+  await db
+    .prepare(
+      "UPDATE ROLE_PERMISOS SET acceso = 0, solo_lectura = 0 WHERE modulo = 'usuarios' AND rol != 'admin'"
+    )
+    .run();
+
+  await db
+    .prepare("UPDATE ROLE_PERMISOS SET acceso = 1, solo_lectura = 0 WHERE modulo = 'chat'")
+    .run();
+}
 
 async function migrateModulosPreciosGanadoYChat(db: Db): Promise<void> {
-  const upsert = await db.prepare(
-    `INSERT INTO ROLE_PERMISOS (rol, modulo, acceso)
-     VALUES (?, ?, 1)
-     ON CONFLICT (rol, modulo) DO UPDATE SET acceso = 1`
+  const ins = await db.prepare(
+    `INSERT INTO ROLE_PERMISOS (rol, modulo, acceso, solo_lectura)
+     VALUES (?, ?, 1, 0)
+     ON CONFLICT (rol, modulo) DO NOTHING`
   );
 
   for (const modulo of MODULOS_TODOS_LOS_USUARIOS) {
     for (const rol of ALL_ROLES) {
-      await upsert.run(rol, modulo);
+      await ins.run(rol, modulo);
     }
   }
-
-  console.info(
-    "[SGG Auth] Chat, Precios de Ganado y Simulador venta habilitados para todos los roles"
-  );
 }
 
 async function seedRolePermissionsIfEmpty(db: Db): Promise<void> {
@@ -471,14 +512,17 @@ async function seedRolePermissionsIfEmpty(db: Db): Promise<void> {
     "INSERT INTO ROLE_ESCRITURA (rol, puede_escribir) VALUES (?, ?)"
   );
   const insMod = await db.prepare(
-    "INSERT INTO ROLE_PERMISOS (rol, modulo, acceso) VALUES (?, ?, ?)"
+    "INSERT INTO ROLE_PERMISOS (rol, modulo, acceso, solo_lectura) VALUES (?, ?, ?, ?)"
   );
 
   for (const rol of ALL_ROLES) {
     const def = DEFAULT_ROLE_ACCESS[rol];
     await insEsc.run(rol, def.puede_escribir ? 1 : 0);
     for (const modulo of MODULOS) {
-      await insMod.run(rol, modulo, def.modulos.includes(modulo) ? 1 : 0);
+      const acceso = def.modulos.includes(modulo) ? 1 : 0;
+      const soloLectura =
+        !def.puede_escribir || (rol === "gestor_n2" && modulo === "divisas") ? 1 : 0;
+      await insMod.run(rol, modulo, acceso, soloLectura);
     }
   }
 }
@@ -490,10 +534,13 @@ export async function listRolePermissions(db: Db): Promise<RolPermisosConfig[]> 
   for (const rol of roles) {
     const caps = await roleCapabilities(db, rol);
     const modRows = (await db
-      .prepare("SELECT modulo, acceso FROM ROLE_PERMISOS WHERE rol = ?")
-      .all(rol)) as { modulo: string; acceso: number }[];
+      .prepare("SELECT modulo, acceso, solo_lectura FROM ROLE_PERMISOS WHERE rol = ?")
+      .all(rol)) as { modulo: string; acceso: number; solo_lectura: number }[];
     const accesoMap = new Map(
       modRows.map((r) => [r.modulo as Modulo, r.acceso === 1])
+    );
+    const soloLecturaMap = new Map(
+      modRows.map((r) => [r.modulo as Modulo, r.solo_lectura === 1])
     );
 
     result.push({
@@ -505,9 +552,17 @@ export async function listRolePermissions(db: Db): Promise<RolPermisosConfig[]> 
         modulo,
         label: MODULO_LABELS[modulo],
         acceso:
-          rol === "admin" || MODULOS_TODOS_LOS_USUARIOS.includes(modulo)
+          rol === "admin"
             ? true
-            : (accesoMap.get(modulo) ?? false),
+            : modulo === "usuarios"
+              ? false
+              : MODULOS_TODOS_LOS_USUARIOS.includes(modulo)
+                ? true
+                : (accesoMap.get(modulo) ?? false),
+        solo_lectura:
+          rol === "admin"
+            ? false
+            : (soloLecturaMap.get(modulo) ?? false) || !caps.puede_escribir,
       })),
       editable: rol !== "admin",
     });
@@ -526,34 +581,40 @@ export async function updateRolePermissions(
   }
 
   const modulosInput = input.modulos ?? {};
+  const soloInput = input.modulos_solo_lectura ?? {};
   let enabledCount = 0;
 
+  const puedeEscribir = rol === "consulta" ? false : Boolean(input.puede_escribir);
+
   const upsert = await db.prepare(
-    `INSERT INTO ROLE_PERMISOS (rol, modulo, acceso)
-     VALUES (?, ?, ?)
-     ON CONFLICT (rol, modulo) DO UPDATE SET acceso = excluded.acceso`
+    `INSERT INTO ROLE_PERMISOS (rol, modulo, acceso, solo_lectura)
+     VALUES (?, ?, ?, ?)
+     ON CONFLICT (rol, modulo) DO UPDATE SET
+       acceso = excluded.acceso,
+       solo_lectura = excluded.solo_lectura`
   );
 
   for (const modulo of MODULOS) {
-    if (modulo === "usuarios" || (rol === "gestor_n2" && modulo === "ventas")) {
-      await upsert.run(rol, modulo, 0);
+    if (modulo === "usuarios") {
+      await upsert.run(rol, modulo, 0, 0);
       continue;
     }
     if (MODULOS_TODOS_LOS_USUARIOS.includes(modulo)) {
-      await upsert.run(rol, modulo, 1);
+      await upsert.run(rol, modulo, 1, 0);
       enabledCount += 1;
       continue;
     }
     const acceso = Boolean(modulosInput[modulo]);
+    const soloLectura =
+      acceso && (!puedeEscribir || Boolean(soloInput[modulo]));
     if (acceso) enabledCount += 1;
-    await upsert.run(rol, modulo, acceso ? 1 : 0);
+    await upsert.run(rol, modulo, acceso ? 1 : 0, soloLectura ? 1 : 0);
   }
 
   if (enabledCount === 0) {
     throw new Error("Debe habilitarse al menos un sector para el rol");
   }
 
-  const puedeEscribir = rol === "consulta" ? false : Boolean(input.puede_escribir);
   await db
     .prepare(
       `INSERT INTO ROLE_ESCRITURA (rol, puede_escribir, actualizado_en)

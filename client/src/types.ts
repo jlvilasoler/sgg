@@ -752,6 +752,7 @@ export interface AuthUser {
   activo: boolean;
   permisos: Modulo[];
   puede_escribir: boolean;
+  modulos_solo_lectura: Modulo[];
   creado_en: string;
   ultimo_acceso: string | null;
   avatar: UserAvatar;
@@ -769,6 +770,7 @@ export interface ModuloAccesoConfig {
   modulo: Modulo;
   label: string;
   acceso: boolean;
+  solo_lectura: boolean;
 }
 
 export interface RolPermisosConfig {
@@ -783,6 +785,7 @@ export interface RolPermisosConfig {
 export interface RolPermisosInput {
   puede_escribir: boolean;
   modulos: Partial<Record<Modulo, boolean>>;
+  modulos_solo_lectura?: Partial<Record<Modulo, boolean>>;
 }
 
 export interface ChatChannel {

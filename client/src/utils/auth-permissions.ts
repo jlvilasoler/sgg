@@ -43,32 +43,34 @@ export function canAccessUsuarioActividad(user: AuthUser | null): boolean {
 }
 
 /** Módulos visibles para cualquier usuario autenticado. */
-const MODULOS_ACCESO_TODOS: Modulo[] = [
-  "chat",
-  "precios_ganado",
-  "simulador_venta_ganado",
-];
+const MODULOS_ACCESO_TODOS: Modulo[] = ["chat"];
+
+export function canWriteModulo(user: AuthUser | null, modulo: Modulo): boolean {
+  if (!user?.puede_escribir) return false;
+  if (user.modulos_solo_lectura?.includes(modulo)) return false;
+  return true;
+}
 
 export function canAccessChat(user: AuthUser | null): boolean {
   return Boolean(user);
 }
 
 export function canAccessPreciosGanado(user: AuthUser | null): boolean {
-  return Boolean(user);
+  return Boolean(user?.permisos.includes("precios_ganado"));
 }
 
 export function canAccessSimuladorVentaGanado(user: AuthUser | null): boolean {
-  return Boolean(user);
+  return Boolean(user?.permisos.includes("simulador_venta_ganado"));
 }
 
-/** Simulador venta: escritura según rol (consulta solo lectura). */
+/** Simulador venta: escritura según permisos del rol. */
 export function canWriteSimuladorVentaGanado(user: AuthUser | null): boolean {
-  return Boolean(user?.puede_escribir);
+  return canWriteModulo(user, "simulador_venta_ganado");
 }
 
-/** Ingresos por ventas: admin, gestor N1 y N2 editan; consulta solo lectura. */
+/** Ingresos por ventas: escritura según permisos del rol. */
 export function canWriteIngresosVentas(user: AuthUser | null): boolean {
-  return Boolean(user?.puede_escribir);
+  return canWriteModulo(user, "ventas");
 }
 
 export function moduloForScreen(screen: TabId): Modulo {
@@ -78,6 +80,7 @@ export function moduloForScreen(screen: TabId): Modulo {
 export function canAccessScreen(user: AuthUser | null, screen: TabId): boolean {
   if (!user) return false;
   const mod = moduloForScreen(screen);
+  if (mod === "usuarios") return user.rol === "admin";
   if (MODULOS_ACCESO_TODOS.includes(mod)) return true;
   return user.permisos.includes(mod);
 }
