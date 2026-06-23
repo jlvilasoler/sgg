@@ -88,6 +88,29 @@ export interface VentaAgriculturaRealInput {
   notas?: string | null;
 }
 
+export type VentaArrendamientoDepartamento = "RIVERA" | "RIO_NEGRO";
+
+export interface VentaArrendamientoRow {
+  id: number;
+  empresa: Empresa;
+  fecha_inicio: string;
+  fecha_fin: string;
+  departamento: VentaArrendamientoDepartamento;
+  padron: string;
+  hectareas: number;
+  precio_usd_ha: number;
+  total_usd: number;
+  notas: string | null;
+  pago_frecuencia: "MENSUAL" | "ANUAL";
+  pago_inicio: string;
+  pago_fin: string;
+  pago_inicio_monto: number;
+  pago_inicio_tipo: "VALOR" | "PORCENTAJE";
+  pago_fin_monto: number;
+  pago_fin_tipo: "VALOR" | "PORCENTAJE";
+  creado_en: string;
+}
+
 export interface StockGanaderoLote {
   id: number;
   nombre_archivo: string;

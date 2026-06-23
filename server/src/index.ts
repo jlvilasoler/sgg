@@ -29,6 +29,7 @@ import { fetchAcgHomeHtml } from "./acg-page.js";
 import type { SegmentoPreciosGanado, PrecioGanadoInput } from "./precios-ganado-db.js";
 import * as simVenta from "./simulador-venta-ganado-db.js";
 import * as ventasAgri from "./ventas-agricultura-db.js";
+import * as ventasArr from "./ventas-arrendamientos-db.js";
 import {
   auditSimuladorActualizacion,
   auditSimuladorCreacion,
@@ -475,6 +476,41 @@ function parseVentaAgriculturaBody(req: Request): ventasAgri.VentaAgriculturaInp
   };
 }
 
+function parseVentaArrendamientoBody(req: Request): ventasArr.VentaArrendamientoInput {
+  const body = req.body as Record<string, unknown>;
+  const hectareas = Number(body.hectareas);
+  const precio_usd_ha = Number(body.precio_usd_ha);
+  const fecha_inicio = String(body.fecha_inicio ?? "").trim();
+  const fecha_fin = String(body.fecha_fin ?? "").trim();
+  const total_usd = ventasArr.calcularTotalArrendamientoEsperado(
+    hectareas,
+    precio_usd_ha,
+    fecha_inicio,
+    fecha_fin
+  );
+  return {
+    empresa: String(body.empresa ?? "").trim() as ventasArr.EmpresaArrendamiento,
+    fecha_inicio,
+    fecha_fin,
+    departamento: String(body.departamento ?? "").trim() as ventasArr.DepartamentoArrendamiento,
+    padron: String(body.padron ?? "").trim(),
+    hectareas,
+    precio_usd_ha,
+    total_usd,
+    notas:
+      body.notas != null && String(body.notas).trim() !== ""
+        ? String(body.notas).trim()
+        : null,
+    pago_frecuencia: String(body.pago_frecuencia ?? "ANUAL").trim() as ventasArr.FrecuenciaPagoArrendamiento,
+    pago_inicio: String(body.pago_inicio ?? "").trim(),
+    pago_fin: String(body.pago_fin ?? "").trim(),
+    pago_inicio_monto: Number(body.pago_inicio_monto),
+    pago_inicio_tipo: String(body.pago_inicio_tipo ?? "VALOR").trim() as ventasArr.TipoMontoPagoArrendamiento,
+    pago_fin_monto: Number(body.pago_fin_monto),
+    pago_fin_tipo: String(body.pago_fin_tipo ?? "VALOR").trim() as ventasArr.TipoMontoPagoArrendamiento,
+  };
+}
+
 app.get("/api/ingresos-ventas", async (req, res) => {
   const data = await db.ingresosVentas.list({
     fecha_desde: req.query.fecha_desde as string | undefined,
@@ -597,6 +633,55 @@ app.patch("/api/ingresos-ventas/ventas-agricultura/:id", async (req, res) => {
 app.delete("/api/ingresos-ventas/ventas-agricultura/:id", async (req, res) => {
   const id = Number(req.params.id);
   if (!await db.ventasAgricultura.delete(id)) {
+    res.status(404).json({ ok: false, error: "Registro no encontrado" });
+    return;
+  }
+  res.json({ ok: true, message: "Registro eliminado" });
+});
+
+app.get("/api/ingresos-ventas/ventas-arrendamientos", async (req, res) => {
+  const data = await db.ventasArrendamientos.list({
+    empresa: req.query.empresa as string | undefined,
+    departamento: req.query.departamento as string | undefined,
+    busqueda: req.query.busqueda as string | undefined,
+  });
+  res.json({ ok: true, data });
+});
+
+app.post("/api/ingresos-ventas/ventas-arrendamientos", async (req, res) => {
+  try {
+    const payload = parseVentaArrendamientoBody(req);
+    const newId = await db.ventasArrendamientos.insert(payload);
+    const reg = await db.ventasArrendamientos.getById(newId);
+    res.status(201).json({
+      ok: true,
+      data: reg,
+      message: "Simulación de arrendamiento guardada",
+    });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: (e as Error).message });
+  }
+});
+
+app.put("/api/ingresos-ventas/ventas-arrendamientos/:id", async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isFinite(id) || id <= 0) {
+    res.status(400).json({ ok: false, error: "ID inválido" });
+    return;
+  }
+  try {
+    const payload = parseVentaArrendamientoBody(req);
+    const row = await db.ventasArrendamientos.update(id, payload);
+    res.json({ ok: true, data: row, message: "Simulación actualizada" });
+  } catch (e) {
+    const msg = (e as Error).message;
+    res.status(msg.includes("no encontrada") ? 404 : 400).json({ ok: false, error: msg });
+  }
+});
+
+app.delete("/api/ingresos-ventas/ventas-arrendamientos/:id", async (req, res) => {
+  const id = Number(req.params.id);
+  if (!await db.ventasArrendamientos.delete(id)) {
     res.status(404).json({ ok: false, error: "Registro no encontrado" });
     return;
   }

@@ -14,6 +14,7 @@ import * as func from "./funcionarios-db.js";
 import * as rrhh from "./rrhh-pagos-db.js";
 import * as ventas from "./ventas-db.js";
 import * as ventasAgri from "./ventas-agricultura-db.js";
+import * as ventasArr from "./ventas-arrendamientos-db.js";
 import * as vsub from "./venta-sub-rubros-db.js";
 import * as vsubItems from "./venta-sub-rubro-items-db.js";
 import * as vgicon from "./venta-grupo-iconos-db.js";
@@ -150,6 +151,7 @@ export async function initDb(): Promise<void> {
     await simVentaAud.initSimuladorVentaAuditoriaTable(db);
     await simVentaDisp.initSimuladorVentaDispositivosTable(db);
     await ventasAgri.initVentasAgriculturaTable(db);
+    await ventasArr.initVentasArrendamientosTable(db);
     await migratePresupuestoIngresadoPor(db);
   } finally {
     if (locked) await releaseAdvisoryLock();
@@ -398,6 +400,17 @@ export const ventasAgricultura = {
   patch: (id: number, patch: Parameters<typeof ventasAgri.patchVentaAgricultura>[2]) =>
     ventasAgri.patchVentaAgricultura(db, id, patch),
   delete: (id: number) => ventasAgri.deleteVentaAgricultura(db, id),
+};
+
+export const ventasArrendamientos = {
+  list: (filters?: ventasArr.VentaArrendamientoFilters) =>
+    ventasArr.listVentasArrendamientos(db, filters),
+  getById: (id: number) => ventasArr.getVentaArrendamientoById(db, id),
+  insert: (data: ventasArr.VentaArrendamientoInput) =>
+    ventasArr.insertVentaArrendamiento(db, data),
+  update: (id: number, data: ventasArr.VentaArrendamientoInput) =>
+    ventasArr.updateVentaArrendamiento(db, id, data),
+  delete: (id: number) => ventasArr.deleteVentaArrendamiento(db, id),
 };
 
 export const proveedores = {

@@ -24,6 +24,7 @@ import type {
   TipoCambioForm,
   VentaAgriculturaRow,
   VentaAgriculturaRealInput,
+  VentaArrendamientoRow,
   DivisaIndicadores,
   PrecioGanado,
   SemanaPreciosGanado,
@@ -336,6 +337,85 @@ export async function patchVentaAgricultura(
 
 export async function deleteVentaAgricultura(id: number): Promise<void> {
   await request(`/ingresos-ventas/ventas-agricultura/${id}`, { method: "DELETE" });
+}
+
+export async function fetchVentasArrendamientos(filters?: {
+  empresa?: string;
+  departamento?: string;
+  busqueda?: string;
+}): Promise<VentaArrendamientoRow[]> {
+  const params = new URLSearchParams();
+  if (filters?.empresa) params.set("empresa", filters.empresa);
+  if (filters?.departamento) params.set("departamento", filters.departamento);
+  if (filters?.busqueda?.trim()) params.set("busqueda", filters.busqueda.trim());
+  const q = params.toString() ? `?${params}` : "";
+  const json = await request<{ ok: boolean; data: VentaArrendamientoRow[] }>(
+    `/ingresos-ventas/ventas-arrendamientos${q}`
+  );
+  return json.data;
+}
+
+export async function createVentaArrendamiento(data: {
+  empresa: string;
+  fecha_inicio: string;
+  fecha_fin: string;
+  departamento: string;
+  padron: string;
+  hectareas: number;
+  precio_usd_ha: number;
+  total_usd: number;
+  notas?: string | null;
+  pago_frecuencia: "MENSUAL" | "ANUAL";
+  pago_inicio: string;
+  pago_fin: string;
+  pago_inicio_monto: number;
+  pago_inicio_tipo: "VALOR" | "PORCENTAJE";
+  pago_fin_monto: number;
+  pago_fin_tipo: "VALOR" | "PORCENTAJE";
+}): Promise<VentaArrendamientoRow> {
+  const json = await request<{ ok: boolean; data: VentaArrendamientoRow; message: string }>(
+    "/ingresos-ventas/ventas-arrendamientos",
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    }
+  );
+  return json.data;
+}
+
+export async function updateVentaArrendamiento(
+  id: number,
+  data: {
+    empresa: string;
+    fecha_inicio: string;
+    fecha_fin: string;
+    departamento: string;
+    padron: string;
+    hectareas: number;
+    precio_usd_ha: number;
+    total_usd: number;
+    notas?: string | null;
+    pago_frecuencia: "MENSUAL" | "ANUAL";
+    pago_inicio: string;
+    pago_fin: string;
+    pago_inicio_monto: number;
+    pago_inicio_tipo: "VALOR" | "PORCENTAJE";
+    pago_fin_monto: number;
+    pago_fin_tipo: "VALOR" | "PORCENTAJE";
+  }
+): Promise<VentaArrendamientoRow> {
+  const json = await request<{ ok: boolean; data: VentaArrendamientoRow; message: string }>(
+    `/ingresos-ventas/ventas-arrendamientos/${id}`,
+    {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }
+  );
+  return json.data;
+}
+
+export async function deleteVentaArrendamiento(id: number): Promise<void> {
+  await request(`/ingresos-ventas/ventas-arrendamientos/${id}`, { method: "DELETE" });
 }
 
 export async function fetchIngresosVentas(filters: {

@@ -298,6 +298,31 @@ CREATE INDEX IF NOT EXISTS idx_ventas_agri_periodo
 CREATE INDEX IF NOT EXISTS idx_ventas_agri_empresa
   ON VENTAS_AGRICULTURA(empresa, anio DESC, mes DESC);
 
+CREATE TABLE IF NOT EXISTS VENTAS_ARRENDAMIENTO (
+  id SERIAL PRIMARY KEY,
+  empresa TEXT NOT NULL CHECK (empresa IN ('GANADERA GUAVIYU', 'GANADERA CHIVILCOY')),
+  fecha_inicio DATE NOT NULL,
+  fecha_fin DATE NOT NULL,
+  departamento TEXT NOT NULL CHECK (departamento IN ('RIVERA', 'RIO_NEGRO')),
+  padron TEXT NOT NULL,
+  hectareas DOUBLE PRECISION NOT NULL,
+  precio_usd_ha DOUBLE PRECISION NOT NULL,
+  total_usd DOUBLE PRECISION NOT NULL,
+  notas TEXT,
+  pago_frecuencia TEXT NOT NULL DEFAULT 'ANUAL' CHECK (pago_frecuencia IN ('MENSUAL', 'ANUAL')),
+  pago_inicio DATE NOT NULL,
+  pago_fin DATE NOT NULL,
+  pago_inicio_monto DOUBLE PRECISION,
+  pago_inicio_tipo TEXT CHECK (pago_inicio_tipo IN ('VALOR', 'PORCENTAJE')),
+  pago_fin_monto DOUBLE PRECISION,
+  pago_fin_tipo TEXT CHECK (pago_fin_tipo IN ('VALOR', 'PORCENTAJE')),
+  creado_en TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_ventas_arr_periodo
+  ON VENTAS_ARRENDAMIENTO(fecha_inicio DESC, creado_en DESC);
+CREATE INDEX IF NOT EXISTS idx_ventas_arr_empresa
+  ON VENTAS_ARRENDAMIENTO(empresa, fecha_inicio DESC);
+
 CREATE TABLE IF NOT EXISTS VENTA_SUB_RUBROS (
   id SERIAL PRIMARY KEY,
   nombre TEXT NOT NULL,

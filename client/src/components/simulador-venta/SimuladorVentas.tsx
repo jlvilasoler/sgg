@@ -4,8 +4,8 @@ import { useHeaderBackContext } from "../../header-back";
 import { HUB_ICON_THEMES, HubMenuIcon } from "../icons/HubMenuIcons";
 import { MENU_APP_THEMES, MenuAppIcon } from "../icons/MenuAppIcons";
 import SimuladorVentaPanel from "./SimuladorVentaPanel";
-import SimuladorVentasSeccion from "./SimuladorVentasSeccion";
 import VentasAgricultura from "../ventas/VentasAgricultura";
+import VentasArrendamientos from "../ventas/VentasArrendamientos";
 import {
   SIMULADOR_VENTA_TIPOS,
   SIMULADOR_VENTA_TIPO_MAP,
@@ -140,9 +140,11 @@ export default function SimuladorVentas({
 
   if (vista === "ventas_arrendamientos") {
     return (
-      <SimuladorVentasSeccion
-        titulo="Ingresos por Arrendamientos"
-        descripcion="Simulador de ingresos por arrendamiento de campos, medianería y acuerdos de uso — en desarrollo."
+      <VentasArrendamientos
+        modo="simulador"
+        apiOnline={apiOnline}
+        onError={onError}
+        onSuccess={onSuccess}
         onVolver={() => setVista("menu")}
       />
     );
