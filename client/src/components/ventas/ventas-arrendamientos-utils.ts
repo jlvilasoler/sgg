@@ -46,23 +46,27 @@ export function labelDepartamentoArrendamiento(departamento: string): string {
   return DEPARTAMENTOS_ARRENDAMIENTO.find((d) => d.id === departamento)?.label ?? departamento;
 }
 
+export function normalizeIsoDateArrendamiento(value: string): string {
+  if (!value) return "";
+  const trimmed = value.trim();
+  const iso = /^(\d{4})-(\d{2})-(\d{2})/.exec(trimmed);
+  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+  const parsed = new Date(trimmed.includes("T") ? trimmed : `${trimmed}T12:00:00`);
+  if (Number.isNaN(parsed.getTime())) return "";
+  const y = parsed.getFullYear();
+  const m = String(parsed.getMonth() + 1).padStart(2, "0");
+  const d = String(parsed.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
 export function formatFechaArrendamiento(iso: string): string {
   if (!iso) return "—";
-  const trimmed = iso.trim();
-  const isoMatch = /^(\d{4})-(\d{2})-(\d{2})/.exec(trimmed);
-  if (isoMatch) {
-    const [, y, m, d] = isoMatch;
-    return `${d}/${m}/${y}`;
-  }
-  const parsed = new Date(trimmed.includes("T") ? trimmed : `${trimmed}T12:00:00`);
-  if (!Number.isNaN(parsed.getTime())) {
-    return parsed.toLocaleDateString("es-UY", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    });
-  }
-  return trimmed;
+  const normalized = normalizeIsoDateArrendamiento(iso);
+  if (!normalized) return "—";
+  const [, y, m, d] =
+    /^(\d{4})-(\d{2})-(\d{2})$/.exec(normalized) ?? [];
+  if (!y || !m || !d) return "—";
+  return `${d}/${m}/${y}`;
 }
 
 /** Fecha final sumando meses al inicio (mismo día cuando es posible). */
@@ -251,8 +255,8 @@ export function diasPeriodoArrendamiento(
   fechaInicio: string,
   fechaFin: string
 ): number | null {
-  const ini = fechaInicio.trim();
-  const fin = fechaFin.trim();
+  const ini = normalizeIsoDateArrendamiento(fechaInicio);
+  const fin = normalizeIsoDateArrendamiento(fechaFin);
   if (!ini || !fin || fin < ini) return null;
   const start = new Date(`${ini}T12:00:00`);
   const end = new Date(`${fin}T12:00:00`);
@@ -271,10 +275,13 @@ export function inferirModalidadArrendamiento(
   fechaInicio: string,
   fechaFin: string
 ): ModalidadArrendamiento {
-  const fin12 = fechaFinArrendamientoPorMeses(fechaInicio, 12);
-  if (fin12 && fechaFin === fin12) return "12_MESES";
-  const fin6 = fechaFinArrendamientoPorMeses(fechaInicio, 6);
-  if (fin6 && fechaFin === fin6) return "6_MESES";
+  const inicio = normalizeIsoDateArrendamiento(fechaInicio);
+  const fin = normalizeIsoDateArrendamiento(fechaFin);
+  if (!inicio || !fin) return "MANUAL";
+  const fin12 = fechaFinArrendamientoPorMeses(inicio, 12);
+  if (fin12 && fin === fin12) return "12_MESES";
+  const fin6 = fechaFinArrendamientoPorMeses(inicio, 6);
+  if (fin6 && fin === fin6) return "6_MESES";
   return "MANUAL";
 }
 
@@ -364,10 +371,18 @@ export function labelPeriodoSeleccionadoArrendamiento(
 }
 
 export function formatPeriodoArrendamiento(fechaInicio: string, fechaFin: string): string {
-  const ini = formatFechaArrendamiento(fechaInicio);
-  const fin = formatFechaArrendamiento(fechaFin);
-  if (fechaInicio === fechaFin) return ini;
-  return `${ini} – ${fin}`;
+  const inicio = normalizeIsoDateArrendamiento(fechaInicio);
+  const fin = normalizeIsoDateArrendamiento(fechaFin);
+  if (!inicio) return "—";
+  const ini = formatFechaArrendamiento(inicio);
+  if (!fin || inicio === fin) return ini;
+  const finLabel = formatFechaArrendamiento(fin);
+  const modalidad = inferirModalidadArrendamiento(inicio, fin);
+  const etiqueta = labelPeriodoSeleccionadoArrendamiento(modalidad, inicio, fin);
+  if (modalidad === "12_MESES" || modalidad === "6_MESES") {
+    return `${etiqueta} · ${ini} – ${finLabel}`;
+  }
+  return `${ini} – ${finLabel}`;
 }
 
 export function formatUsdArrendamiento(value: number): string {

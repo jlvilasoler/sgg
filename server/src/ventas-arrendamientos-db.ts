@@ -97,9 +97,10 @@ function parseIsoDate(value: string, label: string): string {
 function rowDateToIso(value: unknown): string {
   if (value == null || value === "") return "";
   if (value instanceof Date) {
-    const y = value.getFullYear();
-    const m = String(value.getMonth() + 1).padStart(2, "0");
-    const d = String(value.getDate()).padStart(2, "0");
+    if (Number.isNaN(value.getTime())) return "";
+    const y = value.getUTCFullYear();
+    const m = String(value.getUTCMonth() + 1).padStart(2, "0");
+    const d = String(value.getUTCDate()).padStart(2, "0");
     return `${y}-${m}-${d}`;
   }
   const s = String(value).trim();
@@ -107,9 +108,9 @@ function rowDateToIso(value: unknown): string {
   if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
   const parsed = new Date(s);
   if (!Number.isNaN(parsed.getTime())) {
-    const y = parsed.getFullYear();
-    const m = String(parsed.getMonth() + 1).padStart(2, "0");
-    const d = String(parsed.getDate()).padStart(2, "0");
+    const y = parsed.getUTCFullYear();
+    const m = String(parsed.getUTCMonth() + 1).padStart(2, "0");
+    const d = String(parsed.getUTCDate()).padStart(2, "0");
     return `${y}-${m}-${d}`;
   }
   return "";

@@ -21,7 +21,6 @@ import {
   DEPARTAMENTOS_ARRENDAMIENTO,
   EMPRESAS_ARRENDAMIENTO,
   fechaFinArrendamientoPorMeses,
-  formatFechaArrendamiento,
   formatOperacionArrendamiento,
   formatPeriodoArrendamiento,
   formatUsdArrendamiento,
@@ -1074,12 +1073,7 @@ export default function VentasArrendamientos({
                       </span>
                     </td>
                     <td>{labelEmpresaArrendamiento(row.empresa)}</td>
-                    <td>
-                      {formatFechaArrendamiento(row.fecha_inicio)}
-                      {row.fecha_fin !== row.fecha_inicio && (
-                        <> — {formatFechaArrendamiento(row.fecha_fin)}</>
-                      )}
-                    </td>
+                    <td>{formatPeriodoArrendamiento(row.fecha_inicio, row.fecha_fin)}</td>
                     <td>{labelDepartamentoArrendamiento(row.departamento)}</td>
                     <td>{row.padron}</td>
                     <td className="num">{fmtNum(row.hectareas, 2)}</td>
