@@ -6,7 +6,7 @@ import type { Modulo, UserPublic } from "./auth-db.js";
 import {
   avatarDtoFromRow,
   clearUserAvatar,
-  resolveUserAvatarFilePath,
+  loadUserAvatarImage,
   saveUserAvatarFoto,
 } from "./user-avatar-db.js";
 import { dbCapacityHint, isDbCapacityError } from "./db/pg-client.js";
@@ -359,16 +359,13 @@ export function registerAuthRoutes(app: Express): void {
       res.status(404).json({ ok: false, error: "Usuario no encontrado" });
       return;
     }
-    const filePath = await resolveUserAvatarFilePath(getDb(), userId);
-    if (!filePath) {
+    const image = await loadUserAvatarImage(getDb(), userId);
+    if (!image) {
       res.status(404).json({ ok: false, error: "Sin foto de perfil" });
       return;
     }
-    res.sendFile(filePath, { maxAge: 0 }, (err) => {
-      if (err && !res.headersSent) {
-        res.status(404).json({ ok: false, error: "Sin foto de perfil" });
-      }
-    });
+    res.setHeader("Cache-Control", "private, no-cache");
+    res.type(image.mime).send(image.buffer);
   });
 
   app.post(

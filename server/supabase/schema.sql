@@ -435,7 +435,9 @@ CREATE TABLE IF NOT EXISTS USERS (
   failed_login_attempts INTEGER NOT NULL DEFAULT 0,
   locked_until TIMESTAMPTZ,
   avatar_tipo TEXT NOT NULL DEFAULT 'iniciales',
-  avatar_archivo TEXT NOT NULL DEFAULT ''
+  avatar_archivo TEXT NOT NULL DEFAULT '',
+  avatar_datos BYTEA,
+  avatar_mime TEXT NOT NULL DEFAULT ''
 );
 CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON USERS (LOWER(email));
 
