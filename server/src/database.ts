@@ -393,6 +393,10 @@ export const ventasAgricultura = {
   getById: (id: number) => ventasAgri.getVentaAgriculturaById(db, id),
   insert: (data: ventasAgri.VentaAgriculturaInput) =>
     ventasAgri.insertVentaAgricultura(db, data),
+  update: (id: number, data: ventasAgri.VentaAgriculturaInput) =>
+    ventasAgri.updateVentaAgricultura(db, id, data),
+  patch: (id: number, patch: Parameters<typeof ventasAgri.patchVentaAgricultura>[2]) =>
+    ventasAgri.patchVentaAgricultura(db, id, patch),
   delete: (id: number) => ventasAgri.deleteVentaAgricultura(db, id),
 };
 

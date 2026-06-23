@@ -9,7 +9,7 @@ export const MODULO_LABELS: Record<Modulo, string> = {
   configuracion: "Configuración",
   divisas: "Divisas",
   precios_ganado: "Precios de Ganado",
-  simulador_venta_ganado: "Simulador venta ganado",
+  simulador_venta_ganado: "Simulador de Ventas",
   chat: "Chat interno",
   rrhh: "Recursos Humanos",
   ventas: "Ingresos por ventas",

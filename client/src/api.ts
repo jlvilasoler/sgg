@@ -23,6 +23,7 @@ import type {
   TipoCambio,
   TipoCambioForm,
   VentaAgriculturaRow,
+  VentaAgriculturaRealInput,
   DivisaIndicadores,
   PrecioGanado,
   SemanaPreciosGanado,
@@ -271,8 +272,10 @@ export async function fetchVentasAgricultura(filters?: {
 
 export async function createVentaAgricultura(data: {
   empresa: string;
-  mes: number;
-  anio: number;
+  mes_inicio: number;
+  mes_fin: number;
+  anio_inicio: number;
+  anio_fin: number;
   cultivo: string;
   hectareas: number;
   rendimiento_ton_ha: number;
@@ -286,6 +289,49 @@ export async function createVentaAgricultura(data: {
     }
   );
   return json.data;
+}
+
+export async function updateVentaAgricultura(
+  id: number,
+  data: {
+    empresa: string;
+    mes_inicio: number;
+    mes_fin: number;
+    anio_inicio: number;
+    anio_fin: number;
+    cultivo: string;
+    hectareas: number;
+    rendimiento_ton_ha: number;
+    precio_usd_ton: number;
+  }
+): Promise<VentaAgriculturaRow> {
+  const json = await request<{ ok: boolean; data: VentaAgriculturaRow; message: string }>(
+    `/ingresos-ventas/ventas-agricultura/${id}`,
+    {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }
+  );
+  return json.data;
+}
+
+export async function patchVentaAgricultura(
+  id: number,
+  patch: {
+    venta_realizada?: boolean;
+    valores_reales?: VentaAgriculturaRealInput;
+    destacada?: boolean;
+  }
+): Promise<{ data: VentaAgriculturaRow; message: string }> {
+  const json = await request<{
+    ok: boolean;
+    data: VentaAgriculturaRow;
+    message: string;
+  }>(`/ingresos-ventas/ventas-agricultura/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(patch),
+  });
+  return { data: json.data, message: json.message };
 }
 
 export async function deleteVentaAgricultura(id: number): Promise<void> {

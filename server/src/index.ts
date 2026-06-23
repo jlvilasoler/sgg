@@ -462,8 +462,10 @@ function parseVentaAgriculturaBody(req: Request): ventasAgri.VentaAgriculturaInp
   const importe_usd = (total_ton * precio_usd_ton) / 1000;
   return {
     empresa: String(body.empresa ?? "").trim() as ventasAgri.EmpresaAgricultura,
-    mes: Number(body.mes),
-    anio: Number(body.anio),
+    mes_inicio: Number(body.mes_inicio ?? body.mes),
+    mes_fin: Number(body.mes_fin ?? body.mes_inicio ?? body.mes),
+    anio_inicio: Number(body.anio_inicio ?? body.anio),
+    anio_fin: Number(body.anio_fin ?? body.anio_fin ?? body.anio_inicio ?? body.anio),
     cultivo: String(body.cultivo ?? "").trim() as ventasAgri.CultivoAgricultura,
     hectareas,
     rendimiento_ton_ha,
@@ -518,6 +520,77 @@ app.post("/api/ingresos-ventas/ventas-agricultura", async (req, res) => {
     });
   } catch (e) {
     res.status(400).json({ ok: false, error: (e as Error).message });
+  }
+});
+
+app.put("/api/ingresos-ventas/ventas-agricultura/:id", async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isFinite(id) || id <= 0) {
+    res.status(400).json({ ok: false, error: "ID inválido" });
+    return;
+  }
+  try {
+    const payload = parseVentaAgriculturaBody(req);
+    const row = await db.ventasAgricultura.update(id, payload);
+    res.json({ ok: true, data: row, message: "Simulación actualizada" });
+  } catch (e) {
+    const msg = (e as Error).message;
+    res.status(msg.includes("no encontrada") ? 404 : 400).json({ ok: false, error: msg });
+  }
+});
+
+app.patch("/api/ingresos-ventas/ventas-agricultura/:id", async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isFinite(id) || id <= 0) {
+    res.status(400).json({ ok: false, error: "ID inválido" });
+    return;
+  }
+  const body = (req.body ?? {}) as Record<string, unknown>;
+  const patch: Parameters<typeof db.ventasAgricultura.patch>[1] = {};
+
+  if (typeof body.venta_realizada === "boolean") {
+    patch.venta_realizada = body.venta_realizada;
+  }
+  if (typeof body.destacada === "boolean") {
+    patch.destacada = body.destacada;
+  }
+
+  if (body.valores_reales != null && typeof body.valores_reales === "object") {
+    const v = body.valores_reales as Record<string, unknown>;
+    patch.valores_reales = {
+      mes_inicio: Number(v.mes_inicio),
+      mes_fin: Number(v.mes_fin),
+      anio_inicio: Number(v.anio_inicio),
+      anio_fin: Number(v.anio_fin),
+      hectareas: Number(v.hectareas),
+      rendimiento_ton_ha: Number(v.rendimiento_ton_ha),
+      precio_usd_ton: Number(v.precio_usd_ton),
+      total_ton: Number(v.total_ton),
+      importe_usd: Number(v.importe_usd),
+      notas: v.notas != null ? String(v.notas) : null,
+    };
+  }
+
+  if (Object.keys(patch).length === 0) {
+    res.status(400).json({
+      ok: false,
+      error: "Indicá venta_realizada o valores_reales",
+    });
+    return;
+  }
+
+  try {
+    const row = await db.ventasAgricultura.patch(id, patch);
+    const message =
+      patch.venta_realizada === false
+        ? "Venta anulada — la simulación volvió a pendiente"
+        : patch.valores_reales
+          ? "Venta registrada con datos reales"
+          : "Simulación actualizada";
+    res.json({ ok: true, data: row, message });
+  } catch (e) {
+    const msg = (e as Error).message;
+    res.status(msg.includes("no encontrada") ? 404 : 400).json({ ok: false, error: msg });
   }
 });
 

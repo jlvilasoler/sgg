@@ -49,15 +49,43 @@ export type VentaAgriculturaCultivo = "TRIGO" | "SOJA" | "MAIZ" | "COLZA";
 export interface VentaAgriculturaRow {
   id: number;
   empresa: Empresa;
-  mes: number;
-  anio: number;
+  mes_inicio: number;
+  mes_fin: number;
+  anio_inicio: number;
+  anio_fin: number;
   cultivo: VentaAgriculturaCultivo;
   hectareas: number;
   rendimiento_ton_ha: number;
   precio_usd_ton: number;
   total_ton: number;
   importe_usd: number;
+  venta_realizada: boolean;
+  venta_realizada_en: string | null;
+  real_mes_inicio: number | null;
+  real_mes_fin: number | null;
+  real_anio_inicio: number | null;
+  real_anio_fin: number | null;
+  real_hectareas: number | null;
+  real_rendimiento_ton_ha: number | null;
+  real_precio_usd_ton: number | null;
+  real_total_ton: number | null;
+  real_importe_usd: number | null;
+  real_notas: string | null;
+  destacada: boolean;
   creado_en: string;
+}
+
+export interface VentaAgriculturaRealInput {
+  mes_inicio: number;
+  mes_fin: number;
+  anio_inicio: number;
+  anio_fin: number;
+  hectareas: number;
+  rendimiento_ton_ha: number;
+  precio_usd_ton: number;
+  total_ton: number;
+  importe_usd: number;
+  notas?: string | null;
 }
 
 export interface StockGanaderoLote {

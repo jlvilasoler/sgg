@@ -1,10 +1,11 @@
 import type { Empresa } from "../../types";
+import { fmtNum } from "../../utils";
 
 export const CULTIVOS_AGRICULTURA = [
-  { id: "TRIGO", label: "Trigo" },
-  { id: "SOJA", label: "Soja" },
-  { id: "MAIZ", label: "Maíz" },
-  { id: "COLZA", label: "Colza" },
+  { id: "TRIGO", label: "Trigo", color: "#d97706" },
+  { id: "SOJA", label: "Soja", color: "#65a30d" },
+  { id: "MAIZ", label: "Maíz", color: "#ca8a04" },
+  { id: "COLZA", label: "Colza", color: "#eab308" },
 ] as const;
 
 export type CultivoAgriculturaId = (typeof CULTIVOS_AGRICULTURA)[number]["id"];
@@ -41,6 +42,15 @@ export function parsePositiveDecimal(value: string): number | null {
   return n;
 }
 
+export function formatOperacionAgricultura(id: number): string {
+  return `VA${String(Math.max(1, Math.floor(id))).padStart(3, "0")}`;
+}
+
+export function calcUsdPorHa(importeUsd: number, hectareas: number): number | null {
+  if (!Number.isFinite(importeUsd) || !Number.isFinite(hectareas) || hectareas <= 0) return null;
+  return importeUsd / hectareas;
+}
+
 export function calcularTotalProduccionAgricultura(
   hectareas: number | null,
   rendimiento: number | null
@@ -57,21 +67,25 @@ export function calcularImporteAgricultura(
   return (totalProduccion * precio) / 1000;
 }
 
-/** Total producción: ej. 63,700 ton */
+/** Total producción en toneladas: ej. 20,0 ton (valor interno en kg). */
 export function formatTotalProduccionAgricultura(value: number): string {
-  const rounded = Math.round(value);
-  return `${rounded.toLocaleString("en-US")} ton`;
+  const tons = value / 1000;
+  return `${fmtNum(tons, 1)} ton`;
 }
 
 export function formatRendimientoAgricultura(value: number): string {
   const text = Number.isInteger(value)
     ? value.toLocaleString("en-US")
     : value.toLocaleString("en-US", { maximumFractionDigits: 2 });
-  return `${text} ton/ha`;
+  return `${text} kg/ha`;
 }
 
 export function labelEmpresaAgricultura(empresa: string): string {
   return EMPRESAS_AGRICULTURA.find((e) => e.value === empresa)?.label ?? empresa;
+}
+
+export function colorCultivoAgricultura(cultivo: string): string {
+  return CULTIVOS_AGRICULTURA.find((c) => c.id === cultivo)?.color ?? "#848e9c";
 }
 
 export function labelCultivoAgricultura(cultivo: string): string {
@@ -85,3 +99,108 @@ export function labelMesAgricultura(mes: number): string {
 export function formatPeriodoAgricultura(mes: number, anio: number): string {
   return `${labelMesAgricultura(mes)} ${anio}`;
 }
+
+export function encodeMesAnioAgricultura(anio: number, mes: number): string {
+  return `${anio}-${mes}`;
+}
+
+export function parseMesAnioAgricultura(
+  value: string
+): { mes: number; anio: number } | null {
+  const parts = value.trim().split("-");
+  if (parts.length !== 2) return null;
+  const anio = Number(parts[0]);
+  const mes = Number(parts[1]);
+  if (!Number.isFinite(anio) || !Number.isFinite(mes) || mes < 1 || mes > 12) return null;
+  return { mes, anio };
+}
+
+export const OPCIONES_MES_ANIO_AGRICULTURA = ANIOS_AGRICULTURA.flatMap((anio) =>
+  MESES_AGRICULTURA.map((m) => ({
+    value: encodeMesAnioAgricultura(anio, m.value),
+    label: formatPeriodoAgricultura(m.value, anio),
+    mes: m.value,
+    anio,
+  }))
+);
+
+export function formatZafraAgricultura(
+  mesInicio: number,
+  anioInicio: number,
+  mesFin: number,
+  anioFin: number
+): string {
+  const ini = formatPeriodoAgricultura(mesInicio, anioInicio);
+  const fin = formatPeriodoAgricultura(mesFin, anioFin);
+  if (mesInicio === mesFin && anioInicio === anioFin) return ini;
+  return `${ini} — ${fin}`;
+}
+
+/** Formato breve para celdas de tabla (ej. "Feb–Mar '26"). */
+export function formatPeriodoAgriculturaCorto(mes: number, anio: number): string {
+  const mesCorto = labelMesAgricultura(mes).slice(0, 3);
+  return `${mesCorto} '${String(anio).slice(-2)}`;
+}
+
+export function formatZafraAgriculturaCorto(
+  mesInicio: number,
+  anioInicio: number,
+  mesFin: number,
+  anioFin: number
+): string {
+  if (mesInicio === mesFin && anioInicio === anioFin) {
+    return formatPeriodoAgriculturaCorto(mesInicio, anioInicio);
+  }
+  if (anioInicio === anioFin) {
+    const ini = labelMesAgricultura(mesInicio).slice(0, 3);
+    const fin = labelMesAgricultura(mesFin).slice(0, 3);
+    return `${ini}–${fin} '${String(anioFin).slice(-2)}`;
+  }
+  return `${formatPeriodoAgriculturaCorto(mesInicio, anioInicio)} – ${formatPeriodoAgriculturaCorto(mesFin, anioFin)}`;
+}
+
+export type VentasAgriculturaModo = "ingresos" | "simulador";
+
+export const VENTAS_AGRICULTURA_COPY: Record<
+  VentasAgriculturaModo,
+  {
+    volver: string;
+    tituloForm: string;
+    tituloListado: string;
+    guardar: string;
+    guardando: string;
+    guardadoOk: string;
+    errorGuardar: string;
+    eliminarTitulo: string;
+    eliminadoOk: string;
+    sinFilas: string;
+    unidadConteo: string;
+  }
+> = {
+  ingresos: {
+    volver: "Volver a Ingresos por ventas",
+    tituloForm: "Ingresar Ventas Agricolas",
+    tituloListado: "Ventas Agricolas",
+    guardar: "Registrar",
+    guardando: "Guardando…",
+    guardadoOk: "Venta agricultura registrada",
+    errorGuardar: "Error al registrar venta agricultura",
+    eliminarTitulo: "Eliminar registro",
+    eliminadoOk: "Registro eliminado",
+    sinFilas: "Sin registros con esos filtros",
+    unidadConteo: "registro(s)",
+  },
+  simulador: {
+    volver: "Volver al simulador de ventas",
+    tituloForm: "Simulación de ventas agrícolas",
+    tituloListado: "Simulaciones guardadas",
+    guardar: "Guardar simulación",
+    guardando: "Guardando…",
+    guardadoOk: "Simulación guardada",
+    errorGuardar: "Error al guardar simulación",
+    eliminarTitulo: "Eliminar simulación",
+    eliminadoOk: "Simulación eliminada",
+    sinFilas: "Sin simulaciones con esos filtros",
+    unidadConteo: "simulación(es)",
+  },
+};

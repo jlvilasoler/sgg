@@ -49,8 +49,8 @@ export const MENU_APPS: MenuApp[] = [
   },
   {
     id: "simulador_venta_ganado",
-    label: "Simulador venta",
-    subtitle: "Calcular ingresos por venta de ganado",
+    label: "Simulador de Ventas",
+    subtitle: "Simular ingresos por ventas de ganado",
   },
   {
     id: "recursos_humanos",
@@ -96,7 +96,7 @@ const SCREEN_TITLES: Record<TabId, string> = {
   configuracion: "Configuración",
   divisas: "Divisas",
   precios_ganado: "Precios de Ganado",
-  simulador_venta_ganado: "Simulador venta ganado",
+  simulador_venta_ganado: "Simulador de Ventas",
   recursos_humanos: "Recursos Humanos",
   ingresos_ventas: "Ingresos por ventas",
   stock_ganadero: "Stock Ganadero",
