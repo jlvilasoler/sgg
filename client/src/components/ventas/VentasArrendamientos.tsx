@@ -34,7 +34,8 @@ import {
   mesesArrendamiento,
   MODALIDADES_ARRENDAMIENTO,
   pagosCoincidenConArrendamiento,
-  FRECUENCIAS_PAGO_ARRENDAMIENTO,
+  CANTIDADES_PAGO_ANUAL,
+  inferirCantidadPagosAnual,
   TIPOS_MONTO_PAGO_ARRENDAMIENTO,
   parseMontoPagoArrendamiento,
   parsePositiveDecimal,
@@ -44,6 +45,7 @@ import {
   type EmpresaArrendamiento,
   type ModalidadArrendamiento,
   type FrecuenciaPagoArrendamiento,
+  type CantidadPagosAnual,
   type TipoMontoPagoArrendamiento,
   type VentasArrendamientosModo,
 } from "./ventas-arrendamientos-utils";
@@ -82,6 +84,7 @@ export default function VentasArrendamientos({
   const [pagoInicioMonto, setPagoInicioMonto] = useState("");
   const [pagoFinMonto, setPagoFinMonto] = useState("");
   const [pagoMontoTipo, setPagoMontoTipo] = useState<TipoMontoPagoArrendamiento>("VALOR");
+  const [pagosAnualesCantidad, setPagosAnualesCantidad] = useState<CantidadPagosAnual>(2);
   const [saving, setSaving] = useState(false);
 
   const [rows, setRows] = useState<VentaArrendamientoRow[]>([]);
@@ -123,6 +126,7 @@ export default function VentasArrendamientos({
   );
 
   const esPagoAnual = pagoFrecuencia === "ANUAL";
+  const esPagoAnualDos = esPagoAnual && pagosAnualesCantidad === 2;
 
   const totalPagosUsd = useMemo(
     () =>
@@ -134,7 +138,8 @@ export default function VentasArrendamientos({
         pagoFrecuencia,
         modalidad,
         fechaInicio,
-        fechaFinEfectiva
+        fechaFinEfectiva,
+        pagosAnualesCantidad
       ),
     [
       pagoInicioMontoNum,
@@ -145,6 +150,7 @@ export default function VentasArrendamientos({
       modalidad,
       fechaInicio,
       fechaFinEfectiva,
+      pagosAnualesCantidad,
     ]
   );
 
@@ -180,7 +186,42 @@ export default function VentasArrendamientos({
     precioNum != null &&
     pagoInicioMontoNum != null &&
     (esPagoAnual ? pagoInicio !== "" : fechaInicio !== "") &&
-    (!esPagoAnual || (pagoFin !== "" && pagoFinMontoNum != null));
+    (!esPagoAnualDos || (pagoFin !== "" && pagoFinMontoNum != null));
+
+  const motivoNoGuardar = useMemo((): string | null => {
+    if (!apiOnline) return "Sin conexión con el servidor";
+    if (saving) return "Guardando…";
+    if (empresa === "") return "Seleccioná la empresa";
+    if (fechaInicio === "" || fechaFinEfectiva === "") {
+      return "Completá el período del arrendamiento";
+    }
+    if (departamento === "") return "Seleccioná el departamento";
+    if (padron.trim() === "") return "Ingresá el padrón";
+    if (hasNum == null || precioNum == null) {
+      return "Completá hectáreas y precio por hectárea";
+    }
+    if (pagoInicioMontoNum == null) return "Completá el monto del pago";
+    if (esPagoAnual && pagoInicio === "") return "Completá la fecha del pago";
+    if (esPagoAnualDos && pagoFin === "") return "Completá la fecha del pago final";
+    if (esPagoAnualDos && pagoFinMontoNum == null) return "Completá el monto del pago final";
+    return null;
+  }, [
+    apiOnline,
+    saving,
+    empresa,
+    fechaInicio,
+    fechaFinEfectiva,
+    departamento,
+    padron,
+    hasNum,
+    precioNum,
+    pagoInicioMontoNum,
+    esPagoAnual,
+    esPagoAnualDos,
+    pagoInicio,
+    pagoFin,
+    pagoFinMontoNum,
+  ]);
 
   const handlePagoFrecuenciaChange = (frecuencia: FrecuenciaPagoArrendamiento) => {
     setPagoFrecuencia(frecuencia);
@@ -189,6 +230,22 @@ export default function VentasArrendamientos({
       setPagoFin("");
       setPagoFinMonto("");
       setPagoMontoTipo("VALOR");
+    } else {
+      setPagosAnualesCantidad(2);
+      if (fechaInicio) setPagoInicio(fechaInicio);
+      if (fechaFinEfectiva) setPagoFin(fechaFinEfectiva);
+    }
+  };
+
+  const handleCantidadPagosAnualChange = (cantidad: CantidadPagosAnual) => {
+    setPagosAnualesCantidad(cantidad);
+    if (cantidad === 1) {
+      setPagoFin("");
+      setPagoFinMonto("");
+      if (fechaInicio) setPagoInicio(fechaInicio);
+    } else {
+      if (fechaInicio) setPagoInicio(fechaInicio);
+      if (fechaFinEfectiva) setPagoFin(fechaFinEfectiva);
     }
   };
 
@@ -196,7 +253,7 @@ export default function VentasArrendamientos({
   const pagoFinEfectivo = esPagoAnual ? pagoFin : fechaFinEfectiva;
 
   useEffect(() => {
-    if (!esPagoAnual) return;
+    if (!esPagoAnualDos) return;
     if (pagoInicioMontoNum == null) {
       setPagoFinMonto("");
       return;
@@ -207,7 +264,7 @@ export default function VentasArrendamientos({
       totalUsd
     );
     setPagoFinMonto(finMonto != null ? formatMontoPagoInput(finMonto) : "");
-  }, [esPagoAnual, pagoInicioMontoNum, pagoMontoTipo, totalUsd]);
+  }, [esPagoAnualDos, pagoInicioMontoNum, pagoMontoTipo, totalUsd]);
 
   useEffect(() => {
     if (esPagoAnual) return;
@@ -219,6 +276,12 @@ export default function VentasArrendamientos({
     );
     setPagoInicioMonto(cuota != null ? formatMontoPagoInput(cuota) : "");
   }, [esPagoAnual, totalUsd, modalidad, fechaInicio, fechaFinEfectiva]);
+
+  useEffect(() => {
+    if (!esPagoAnual) return;
+    if (fechaInicio) setPagoInicio(fechaInicio);
+    if (esPagoAnualDos && fechaFinEfectiva) setPagoFin(fechaFinEfectiva);
+  }, [esPagoAnual, esPagoAnualDos, fechaInicio, fechaFinEfectiva]);
 
   const aplicarFechaFinPorModalidad = (inicio: string, mod: ModalidadArrendamiento) => {
     if (!inicio || mod === "MANUAL") return;
@@ -256,6 +319,7 @@ export default function VentasArrendamientos({
     setPagoInicioMonto("");
     setPagoFinMonto("");
     setPagoMontoTipo("VALOR");
+    setPagosAnualesCantidad(2);
     setEditingId(null);
   };
 
@@ -277,9 +341,21 @@ export default function VentasArrendamientos({
       setPagoFin("");
       setPagoFinMonto("");
     } else {
+      const cantidad = inferirCantidadPagosAnual(
+        row.pago_inicio,
+        row.pago_fin,
+        row.pago_inicio_monto,
+        row.pago_fin_monto
+      );
+      setPagosAnualesCantidad(cantidad);
       setPagoInicio(row.pago_inicio);
-      setPagoFin(row.pago_fin);
-      setPagoFinMonto(String(row.pago_fin_monto));
+      if (cantidad === 2) {
+        setPagoFin(row.pago_fin);
+        setPagoFinMonto(String(row.pago_fin_monto));
+      } else {
+        setPagoFin("");
+        setPagoFinMonto("");
+      }
     }
     setEditingId(row.id);
     formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -317,7 +393,10 @@ export default function VentasArrendamientos({
   }, [filtroEmpresa, filtroDepartamento, busqueda, pageSize]);
 
   const guardar = async () => {
-    if (!puedeGuardar || totalUsd == null) return;
+    if (!puedeGuardar || totalUsd == null) {
+      if (motivoNoGuardar) onError(motivoNoGuardar);
+      return;
+    }
     const fin = fechaFinEfectiva;
     if (!fin) {
       onError("Completá las fechas del arrendamiento");
@@ -327,7 +406,7 @@ export default function VentasArrendamientos({
       onError("La fecha final debe ser posterior o igual a la fecha de inicio");
       return;
     }
-    if (esPagoAnual && pagoFin < pagoInicio) {
+    if (esPagoAnualDos && pagoFin < pagoInicio) {
       onError("El pago final debe ser posterior o igual al pago inicio");
       return;
     }
@@ -345,10 +424,18 @@ export default function VentasArrendamientos({
         notas: notas.trim() || null,
         pago_frecuencia: pagoFrecuencia,
         pago_inicio: pagoInicioEfectivo,
-        pago_fin: esPagoAnual ? pagoFin : pagoFinEfectivo,
+        pago_fin: esPagoAnual
+          ? pagosAnualesCantidad === 1
+            ? pagoInicio
+            : pagoFin
+          : pagoFinEfectivo,
         pago_inicio_monto: pagoInicioMontoNum!,
         pago_inicio_tipo: pagoMontoTipo,
-        pago_fin_monto: esPagoAnual ? pagoFinMontoNum! : pagoInicioMontoNum!,
+        pago_fin_monto: esPagoAnual
+          ? pagosAnualesCantidad === 1
+            ? pagoInicioMontoNum!
+            : pagoFinMontoNum!
+          : pagoInicioMontoNum!,
         pago_fin_tipo: pagoMontoTipo,
       };
       if (editingId != null) {
@@ -359,7 +446,15 @@ export default function VentasArrendamientos({
         onSuccess?.(copy.guardadoOk);
       }
       limpiar();
-      await load();
+      setFiltroEmpresa("");
+      setFiltroDepartamento("");
+      setBusqueda("");
+      setPage(1);
+      try {
+        setRows(await fetchVentasArrendamientos());
+      } catch (e) {
+        onError(e instanceof Error ? e.message : "Error al recargar el historial");
+      }
     } catch (e) {
       onError(e instanceof Error ? e.message : copy.errorGuardar);
     } finally {
@@ -558,29 +653,58 @@ export default function VentasArrendamientos({
               <div className="ventas-arrendamiento-pagos-body">
                 <h3 className="ventas-arrendamiento-pagos-title">Pagos</h3>
                 <div
-                  className="ventas-arrendamiento-modalidad"
+                  className="ventas-arrendamiento-modalidad ventas-arrendamiento-pagos-toolbar"
                   role="group"
-                  aria-label="Frecuencia de pago"
+                  aria-label="Frecuencia y cantidad de pagos"
                 >
-                  {FRECUENCIAS_PAGO_ARRENDAMIENTO.map((item) => (
+                  <div
+                    className="ventas-arrendamiento-pagos-toolbar-frecuencia"
+                    role="group"
+                    aria-label="Frecuencia de pago"
+                  >
                     <button
-                      key={item.id}
                       type="button"
                       className={`btn btn-secondary btn-sm ventas-arrendamiento-modalidad-btn${
-                        pagoFrecuencia === item.id ? " is-active" : ""
+                        pagoFrecuencia === "MENSUAL" ? " is-active" : ""
                       }`}
-                      aria-pressed={pagoFrecuencia === item.id}
-                      onClick={() => handlePagoFrecuenciaChange(item.id)}
+                      aria-pressed={pagoFrecuencia === "MENSUAL"}
+                      onClick={() => handlePagoFrecuenciaChange("MENSUAL")}
                     >
-                      {item.label.toUpperCase()}
+                      MENSUAL
                     </button>
-                  ))}
+                    <button
+                      type="button"
+                      className={`btn btn-secondary btn-sm ventas-arrendamiento-modalidad-btn${
+                        pagoFrecuencia === "ANUAL" ? " is-active" : ""
+                      }`}
+                      aria-pressed={pagoFrecuencia === "ANUAL"}
+                      onClick={() => handlePagoFrecuenciaChange("ANUAL")}
+                    >
+                      ANUAL
+                    </button>
+                  </div>
+                  {CANTIDADES_PAGO_ANUAL.map((item) => (
+                      <button
+                        key={item.id}
+                        type="button"
+                        className={`btn btn-secondary btn-sm ventas-arrendamiento-modalidad-btn${
+                          pagosAnualesCantidad === item.id ? " is-active" : ""
+                        }${!esPagoAnual ? " ventas-arrendamiento-pago-campo--oculto" : ""}`}
+                        aria-pressed={pagosAnualesCantidad === item.id}
+                        aria-hidden={!esPagoAnual}
+                        disabled={!esPagoAnual}
+                        tabIndex={!esPagoAnual ? -1 : undefined}
+                        onClick={() => handleCantidadPagosAnualChange(item.id)}
+                      >
+                        {item.label.toUpperCase()}
+                      </button>
+                    ))}
                 </div>
                 <div className="ventas-arrendamiento-pagos-grid">
                 <div className="field">
                   <label htmlFor={esPagoAnual ? "var-pago-inicio" : "var-pago-mensual"}>
                     <span className="ventas-arrendamiento-pago-label">
-                      {esPagoAnual ? "Pago inicio" : "Pago"}
+                      {esPagoAnual ? (pagosAnualesCantidad === 1 ? "Pago" : "Pago inicio") : "Pago"}
                     </span>
                   </label>
                   {esPagoAnual ? (
@@ -625,16 +749,17 @@ export default function VentasArrendamientos({
                       aria-readonly={!esPagoAnual}
                     />
                     <div className="ventas-arrendamiento-pago-tipo" role="group" aria-label="Tipo de monto pago inicio">
-                      {TIPOS_MONTO_PAGO_ARRENDAMIENTO.filter(
-                        (item) => esPagoAnual || item.id === "VALOR"
-                      ).map((item) => (
+                      {TIPOS_MONTO_PAGO_ARRENDAMIENTO.map((item) => (
                         <button
                           key={item.id}
                           type="button"
                           className={`btn btn-secondary btn-sm ventas-arrendamiento-modalidad-btn ventas-arrendamiento-pago-tipo-btn${
                             pagoMontoTipo === item.id ? " is-active" : ""
-                          }`}
+                          }${!esPagoAnual && item.id !== "VALOR" ? " ventas-arrendamiento-pago-campo--oculto" : ""}`}
                           aria-pressed={pagoMontoTipo === item.id}
+                          aria-hidden={!esPagoAnual && item.id !== "VALOR"}
+                          disabled={!esPagoAnual && item.id !== "VALOR"}
+                          tabIndex={!esPagoAnual && item.id !== "VALOR" ? -1 : undefined}
                           onClick={() => setPagoMontoTipo(item.id)}
                         >
                           {item.label}
@@ -645,8 +770,8 @@ export default function VentasArrendamientos({
                 </div>
 
                 <div
-                  className={`field${esPagoAnual ? "" : " ventas-arrendamiento-pago-campo--oculto"}`}
-                  aria-hidden={!esPagoAnual}
+                  className={`field${esPagoAnualDos ? "" : " ventas-arrendamiento-pago-campo--oculto"}`}
+                  aria-hidden={!esPagoAnualDos}
                 >
                   <label htmlFor="var-pago-fin">
                     <span className="ventas-arrendamiento-pago-label">Pago final</span>
@@ -656,17 +781,17 @@ export default function VentasArrendamientos({
                     type="date"
                     value={pagoFin}
                     min={pagoInicio || undefined}
-                    disabled={!esPagoAnual}
-                    tabIndex={esPagoAnual ? undefined : -1}
+                    disabled={!esPagoAnualDos}
+                    tabIndex={esPagoAnualDos ? undefined : -1}
                     onChange={(e) => setPagoFin(e.target.value)}
                   />
                 </div>
 
                 <div
                   className={`field ventas-arrendamiento-pago-monto${
-                    esPagoAnual ? "" : " ventas-arrendamiento-pago-campo--oculto"
+                    esPagoAnualDos ? "" : " ventas-arrendamiento-pago-campo--oculto"
                   }`}
-                  aria-hidden={!esPagoAnual}
+                  aria-hidden={!esPagoAnualDos}
                 >
                   <label htmlFor="var-pago-fin-monto">
                     <span className="ventas-arrendamiento-pago-label">Monto</span>
@@ -680,23 +805,22 @@ export default function VentasArrendamientos({
                       max={pagoMontoTipo === "PORCENTAJE" ? 100 : undefined}
                       placeholder={pagoMontoTipo === "PORCENTAJE" ? "Ej: 50" : "Ej: 5000"}
                       value={pagoFinMonto}
-                      disabled={!esPagoAnual}
-                      tabIndex={esPagoAnual ? undefined : -1}
+                      disabled={!esPagoAnualDos}
+                      tabIndex={esPagoAnualDos ? undefined : -1}
                       onChange={(e) => setPagoFinMonto(e.target.value)}
                     />
                     <div className="ventas-arrendamiento-pago-tipo" role="group" aria-label="Tipo de monto pago final">
-                      {TIPOS_MONTO_PAGO_ARRENDAMIENTO.filter(
-                        (item) => esPagoAnual || item.id === "VALOR"
-                      ).map((item) => (
+                      {TIPOS_MONTO_PAGO_ARRENDAMIENTO.map((item) => (
                         <button
                           key={item.id}
                           type="button"
                           className={`btn btn-secondary btn-sm ventas-arrendamiento-modalidad-btn ventas-arrendamiento-pago-tipo-btn${
                             pagoMontoTipo === item.id ? " is-active" : ""
-                          }`}
+                          }${!esPagoAnualDos ? " ventas-arrendamiento-pago-campo--oculto" : ""}`}
                           aria-pressed={pagoMontoTipo === item.id}
-                          disabled={!esPagoAnual}
-                          tabIndex={esPagoAnual ? undefined : -1}
+                          aria-hidden={!esPagoAnualDos}
+                          disabled={!esPagoAnualDos}
+                          tabIndex={!esPagoAnualDos ? -1 : undefined}
                           onClick={() => setPagoMontoTipo(item.id)}
                         >
                           {item.label}
@@ -815,7 +939,12 @@ export default function VentasArrendamientos({
             <button type="button" className="btn btn-secondary" onClick={limpiar} disabled={saving}>
               Limpiar
             </button>
-            <button type="submit" className="btn btn-primary" disabled={!puedeGuardar}>
+            <button
+              type="submit"
+              className="btn btn-primary"
+              disabled={!puedeGuardar}
+              title={motivoNoGuardar ?? undefined}
+            >
               {saving
                 ? copy.guardando
                 : editingId != null

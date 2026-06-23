@@ -99,6 +99,23 @@ export const FRECUENCIAS_PAGO_ARRENDAMIENTO = [
   { id: "ANUAL" as const, label: "Anual" },
 ];
 
+export type CantidadPagosAnual = 1 | 2;
+
+export const CANTIDADES_PAGO_ANUAL = [
+  { id: 1 as const, label: "1 pago" },
+  { id: 2 as const, label: "2 pagos" },
+] as const;
+
+export function inferirCantidadPagosAnual(
+  pagoInicio: string,
+  pagoFin: string,
+  montoInicio: number,
+  montoFin: number
+): CantidadPagosAnual {
+  if (pagoInicio === pagoFin && montoInicio === montoFin) return 1;
+  return 2;
+}
+
 export function labelFrecuenciaPagoArrendamiento(frecuencia: FrecuenciaPagoArrendamiento): string {
   return FRECUENCIAS_PAGO_ARRENDAMIENTO.find((f) => f.id === frecuencia)?.label ?? frecuencia;
 }
@@ -128,7 +145,8 @@ export function calcularTotalPagosArrendamiento(
   frecuencia: FrecuenciaPagoArrendamiento = "ANUAL",
   modalidad: ModalidadArrendamiento = "12_MESES",
   fechaInicio: string = "",
-  fechaFin: string = ""
+  fechaFin: string = "",
+  cantidadPagosAnual: CantidadPagosAnual = 2
 ): number | null {
   if (inicioMonto == null) return null;
   if (frecuencia === "MENSUAL") {
@@ -142,6 +160,11 @@ export function calcularTotalPagosArrendamiento(
           : null;
     if (cuotaMensualUsd == null) return null;
     return Math.round(cuotaMensualUsd * meses * 100) / 100;
+  }
+  if (cantidadPagosAnual === 1) {
+    if (tipo === "VALOR") return inicioMonto;
+    if (totalArrendamiento == null) return null;
+    return (totalArrendamiento * inicioMonto) / 100;
   }
   if (finMonto == null) return null;
   if (tipo === "VALOR") return inicioMonto + finMonto;

@@ -21567,11 +21567,27 @@ button.sg-kpi-card:disabled {
   margin-bottom: 0.85rem;
 }
 
+.ventas-arrendamiento-pagos-toolbar {
+  align-items: center;
+}
+
+.ventas-arrendamiento-pagos-toolbar-frecuencia {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
 .ventas-arrendamiento-pagos-grid {
   display: grid;
   grid-template-columns: minmax(150px, 1fr) minmax(200px, 1.15fr) minmax(150px, 1fr) minmax(200px, 1.15fr);
   gap: 0.85rem 1rem;
   align-items: start;
+}
+
+.ventas-arrendamiento-pagos-grid .field > input[type="date"] {
+  width: 100%;
+  min-height: var(--form-control-h, 2.35rem);
+  box-sizing: border-box;
 }
 
 .ventas-arrendamiento-pagos-grid .field > label {
@@ -21606,6 +21622,7 @@ button.sg-kpi-card:disabled {
   display: flex;
   align-items: stretch;
   gap: 0.4rem;
+  min-width: 0;
 }
 
 .ventas-arrendamiento-pago-monto-group > input {
@@ -21617,6 +21634,7 @@ button.sg-kpi-card:disabled {
   display: flex;
   flex-shrink: 0;
   gap: 0.25rem;
+  min-width: 5.5rem;
 }
 
 .ventas-arrendamiento-pago-tipo-btn {
@@ -21638,6 +21656,7 @@ button.sg-kpi-card:disabled {
   background: #f4f6f5;
   border: 1px solid #d8dce2;
   text-align: center;
+  box-sizing: border-box;
 }
 
 .ventas-arrendamiento-pagos-display-label {
@@ -21694,6 +21713,11 @@ button.sg-kpi-card:disabled {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .ventas-arrendamiento-pagos-grid .ventas-arrendamiento-pago-campo--oculto,
+  .ventas-arrendamiento-pagos-toolbar .ventas-arrendamiento-pago-campo--oculto {
+    display: none;
+  }
+
   .ventas-arrendamiento-pagos {
     flex-direction: column;
   }
@@ -21701,6 +21725,7 @@ button.sg-kpi-card:disabled {
   .ventas-arrendamiento-pagos-display {
     flex: none;
     width: 100%;
+    min-height: auto;
     flex-direction: row;
     justify-content: space-between;
     align-items: center;
