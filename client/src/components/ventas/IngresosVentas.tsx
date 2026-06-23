@@ -37,7 +37,7 @@ const SUBMENU: {
   {
     id: "ventas_agricultura",
     label: "Ventas Agricultura",
-    subtitle: "Ingresos por venta de cultivos y cosechas",
+    subtitle: "Ventas cerradas desde el simulador agrícola",
     icon: "ventas_agricultura",
   },
   {

@@ -20,10 +20,12 @@ import {
   MESES_AGRICULTURA,
   calcularImporteAgricultura,
   calcularTotalProduccionAgricultura,
+  calcUsdPorHa,
   OPCIONES_MES_ANIO_AGRICULTURA,
   parseMesAnioAgricultura,
   encodeMesAnioAgricultura,
   formatZafraAgricultura,
+  formatOperacionAgricultura,
   formatRendimientoAgricultura,
   formatTotalProduccionAgricultura,
   labelCultivoAgricultura,
@@ -278,29 +280,39 @@ export default function VentasAgricultura({
     }
   };
 
-  const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
+  const esSimulador = modo === "simulador";
+  const historialColSpan = 10;
+
+  const rowsVisibles = useMemo(
+    () =>
+      esSimulador
+        ? rows
+        : rows.filter((r) => normalizeVentaAgriculturaRow(r).venta_realizada),
+    [rows, esSimulador]
+  );
+
+  const totalPages = Math.max(1, Math.ceil(rowsVisibles.length / pageSize));
   const pageSafe = Math.min(page, totalPages);
 
   const rowsPagina = useMemo(
-    () => paginateSlice(rows, pageSafe, pageSize),
-    [rows, pageSafe, pageSize]
+    () => paginateSlice(rowsVisibles, pageSafe, pageSize),
+    [rowsVisibles, pageSafe, pageSize]
   );
 
-  const totales = useMemo(
-    () =>
-      rows.reduce(
-        (acc, r) => ({
-          has: acc.has + (r.real_hectareas ?? r.hectareas),
-          ton: acc.ton + tonEfectivaAgricultura(r),
-          usd: acc.usd + importeEfectivoAgricultura(r),
-        }),
-        { has: 0, ton: 0, usd: 0 }
-      ),
-    [rows]
-  );
-
-  const esSimulador = modo === "simulador";
-  const historialColSpan = 10;
+  const totales = useMemo(() => {
+    const base = rowsVisibles.reduce(
+      (acc, r) => ({
+        has: acc.has + (r.real_hectareas ?? r.hectareas),
+        ton: acc.ton + tonEfectivaAgricultura(r),
+        usd: acc.usd + importeEfectivoAgricultura(r),
+      }),
+      { has: 0, ton: 0, usd: 0 }
+    );
+    return {
+      ...base,
+      usdHa: calcUsdPorHa(base.usd, base.has),
+    };
+  }, [rowsVisibles]);
 
   return (
     <div className="subseccion-panel">
@@ -308,6 +320,7 @@ export default function VentasAgricultura({
         ‹ {copy.volver}
       </button>
 
+      {esSimulador && (
       <form
         ref={formRef}
         className="card form-card ventas-agricultura-card"
@@ -498,6 +511,7 @@ export default function VentasAgricultura({
           </button>
         </div>
       </form>
+      )}
 
       <div className={`card ventas-agricultura-listado${esSimulador ? " simulador-venta-historial" : ""}`}>
         {esSimulador ? (
@@ -516,9 +530,12 @@ export default function VentasAgricultura({
           <div className="form-header">
             <h2>{copy.tituloListado}</h2>
             <p className="muted">
+              Ingresos registrados al cerrar ventas en el simulador de ventas agrícolas.
+            </p>
+            <p className="muted">
               {loading
                 ? "Cargando..."
-                : `${rows.length} ${copy.unidadConteo} — Total USD: ${fmtNum(totales.usd, 2)}`}
+                : `${rowsVisibles.length} ${copy.unidadConteo} — Total USD: ${fmtNum(totales.usd, 2)}`}
             </p>
           </div>
         )}
@@ -670,7 +687,7 @@ export default function VentasAgricultura({
                     API no conectada
                   </td>
                 </tr>
-              ) : rows.length === 0 ? (
+              ) : rowsVisibles.length === 0 ? (
                 <tr>
                   <td colSpan={esSimulador ? historialColSpan : 9} className={esSimulador ? "sim-historial-empty" : "empty"}>
                     {copy.sinFilas}
@@ -703,44 +720,44 @@ export default function VentasAgricultura({
                   />
                 ))
               ) : (
-                rowsPagina.map((r) => (
+                rowsPagina.map((r) => {
+                  const hasReal = normalizeVentaAgriculturaRow(r).venta_realizada;
+                  const mesIni = hasReal && r.real_mes_inicio != null ? r.real_mes_inicio : r.mes_inicio;
+                  const anioIni = hasReal && r.real_anio_inicio != null ? r.real_anio_inicio : r.anio_inicio;
+                  const mesFin = hasReal && r.real_mes_fin != null ? r.real_mes_fin : r.mes_fin;
+                  const anioFin = hasReal && r.real_anio_fin != null ? r.real_anio_fin : r.anio_fin;
+                  const has = r.real_hectareas ?? r.hectareas;
+                  const rend = r.real_rendimiento_ton_ha ?? r.rendimiento_ton_ha;
+                  const precio = r.real_precio_usd_ton ?? r.precio_usd_ton;
+                  const usdHa = calcUsdPorHa(importeEfectivoAgricultura(r), has);
+                  return (
                   <tr key={r.id}>
-                    <td>{labelEmpresaAgricultura(r.empresa)}</td>
                     <td>
-                      {formatZafraAgricultura(
-                        r.mes_inicio,
-                        r.anio_inicio,
-                        r.mes_fin,
-                        r.anio_fin
-                      )}
+                      <strong>{formatOperacionAgricultura(r.id)}</strong>
+                      <span className="sim-historial-op-empresa">{labelEmpresaAgricultura(r.empresa)}</span>
+                    </td>
+                    <td>
+                      {formatZafraAgricultura(mesIni, anioIni, mesFin, anioFin)}
                     </td>
                     <td>{labelCultivoAgricultura(r.cultivo)}</td>
-                    <td className="num">{fmtNum(r.hectareas, 2)}</td>
-                    <td className="num">{formatRendimientoAgricultura(r.rendimiento_ton_ha)}</td>
-                    <td className="num">{fmtNum(r.precio_usd_ton, 2)}</td>
-                    <td className="num">{formatTotalProduccionAgricultura(r.total_ton)}</td>
+                    <td className="num">{fmtNum(has, 2)}</td>
+                    <td className="num">{formatRendimientoAgricultura(rend)}</td>
+                    <td className="num">{fmtNum(precio, 2)}</td>
+                    <td className="num">{formatTotalProduccionAgricultura(tonEfectivaAgricultura(r))}</td>
                     <td className="num">
-                      <strong>USD {fmtNum(r.importe_usd, 2)}</strong>
+                      <strong>USD {fmtNum(importeEfectivoAgricultura(r), 2)}</strong>
                     </td>
-                    <td className="actions-col">
-                      <button
-                        type="button"
-                        className="btn btn-sm btn-delete"
-                        onClick={() => void borrar(r)}
-                        disabled={!apiOnline}
-                      >
-                        Borrar
-                      </button>
-                    </td>
+                    <td className="num">{usdHa != null ? `USD ${fmtNum(usdHa, 2)}` : "—"}</td>
                   </tr>
-                ))
+                  );
+                })
               )}
             </tbody>
-            {!loading && apiOnline && rows.length > 0 && (
+            {!loading && apiOnline && rowsVisibles.length > 0 && (
               <tfoot>
                 <tr className="data-table-totals">
                   <td colSpan={esSimulador ? 3 : 3}>
-                    <strong>Totales ({rows.length})</strong>
+                    <strong>Totales ({rowsVisibles.length})</strong>
                   </td>
                   <td className="num">
                     <strong>{fmtNum(totales.has, 2)}</strong>
@@ -752,7 +769,9 @@ export default function VentasAgricultura({
                   <td className="num">
                     <strong>USD {fmtNum(totales.usd, 2)}</strong>
                   </td>
-                  <td />
+                  <td className="num">
+                    <strong>{totales.usdHa != null ? `USD ${fmtNum(totales.usdHa, 2)}` : "—"}</strong>
+                  </td>
                   <td />
                 </tr>
               </tfoot>
@@ -760,9 +779,9 @@ export default function VentasAgricultura({
           </table>
         </div>
 
-        {!loading && apiOnline && rows.length > 0 && (
+        {!loading && apiOnline && rowsVisibles.length > 0 && (
           <TablePagination
-            total={rows.length}
+            total={rowsVisibles.length}
             page={pageSafe}
             pageSize={pageSize}
             onPageChange={setPage}

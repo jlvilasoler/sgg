@@ -180,15 +180,15 @@ export const VENTAS_AGRICULTURA_COPY: Record<
   ingresos: {
     volver: "Volver a Ingresos por ventas",
     tituloForm: "Ingresar Ventas Agricolas",
-    tituloListado: "Ventas Agricolas",
+    tituloListado: "Ventas agrícolas cerradas",
     guardar: "Registrar",
     guardando: "Guardando…",
     guardadoOk: "Venta agricultura registrada",
     errorGuardar: "Error al registrar venta agricultura",
     eliminarTitulo: "Eliminar registro",
     eliminadoOk: "Registro eliminado",
-    sinFilas: "Sin registros con esos filtros",
-    unidadConteo: "registro(s)",
+    sinFilas: "Sin ventas cerradas desde el simulador con esos filtros",
+    unidadConteo: "venta(s)",
   },
   simulador: {
     volver: "Volver al simulador de ventas",
