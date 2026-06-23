@@ -94,6 +94,27 @@ function parseIsoDate(value: string, label: string): string {
   return trimmed;
 }
 
+function rowDateToIso(value: unknown): string {
+  if (value == null || value === "") return "";
+  if (value instanceof Date) {
+    const y = value.getFullYear();
+    const m = String(value.getMonth() + 1).padStart(2, "0");
+    const d = String(value.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }
+  const s = String(value).trim();
+  const iso = /^(\d{4})-(\d{2})-(\d{2})/.exec(s);
+  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+  const parsed = new Date(s);
+  if (!Number.isNaN(parsed.getTime())) {
+    const y = parsed.getFullYear();
+    const m = String(parsed.getMonth() + 1).padStart(2, "0");
+    const d = String(parsed.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }
+  return "";
+}
+
 export async function initVentasArrendamientosTable(db: Db): Promise<void> {
   await db.prepare(
     `CREATE TABLE IF NOT EXISTS VENTAS_ARRENDAMIENTO (
@@ -161,8 +182,8 @@ export async function initVentasArrendamientosTable(db: Db): Promise<void> {
 }
 
 function mapRow(row: Record<string, unknown>): VentaArrendamientoRow {
-  const fechaInicio = row.fecha_inicio != null ? String(row.fecha_inicio).slice(0, 10) : "";
-  const fechaFin = row.fecha_fin != null ? String(row.fecha_fin).slice(0, 10) : "";
+  const fechaInicio = rowDateToIso(row.fecha_inicio);
+  const fechaFin = rowDateToIso(row.fecha_fin);
   return {
     id: Number(row.id),
     empresa: String(row.empresa) as EmpresaArrendamiento,
@@ -175,8 +196,8 @@ function mapRow(row: Record<string, unknown>): VentaArrendamientoRow {
     total_usd: Number(row.total_usd),
     notas: row.notas != null ? String(row.notas) : null,
     pago_frecuencia: String(row.pago_frecuencia ?? "ANUAL") as FrecuenciaPagoArrendamiento,
-    pago_inicio: row.pago_inicio != null ? String(row.pago_inicio).slice(0, 10) : "",
-    pago_fin: row.pago_fin != null ? String(row.pago_fin).slice(0, 10) : "",
+    pago_inicio: rowDateToIso(row.pago_inicio),
+    pago_fin: rowDateToIso(row.pago_fin),
     pago_inicio_monto: Number(row.pago_inicio_monto ?? 0),
     pago_inicio_tipo: String(row.pago_inicio_tipo ?? "VALOR") as TipoMontoPagoArrendamiento,
     pago_fin_monto: Number(row.pago_fin_monto ?? 0),

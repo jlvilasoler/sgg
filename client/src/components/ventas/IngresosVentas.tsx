@@ -6,7 +6,7 @@ import { HUB_ICON_THEMES, HubMenuIcon } from "../icons/HubMenuIcons";
 import VentaRubros from "./VentaRubros";
 import VentasGanadoCerradas from "./VentasGanadoCerradas";
 import VentasAgricultura from "./VentasAgricultura";
-import VentasIngresosSeccion from "./VentasIngresosSeccion";
+import VentasArrendamientos from "./VentasArrendamientos";
 
 type VistaVentas =
   | "menu"
@@ -115,9 +115,11 @@ export default function IngresosVentas({
 
   if (vista === "ventas_arrendamientos") {
     return (
-      <VentasIngresosSeccion
-        titulo="Ingresos por arrendamientos y medianería"
-        descripcion="Registro de ingresos por arrendamiento de campos, medianería y acuerdos de uso."
+      <VentasArrendamientos
+        modo="ingresos"
+        apiOnline={apiOnline}
+        onError={onError}
+        onSuccess={(m) => onSuccess(m)}
         onVolver={volverMenu}
       />
     );

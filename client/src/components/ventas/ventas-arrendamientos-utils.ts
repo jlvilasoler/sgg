@@ -48,9 +48,21 @@ export function labelDepartamentoArrendamiento(departamento: string): string {
 
 export function formatFechaArrendamiento(iso: string): string {
   if (!iso) return "—";
-  const [y, m, d] = iso.slice(0, 10).split("-");
-  if (!y || !m || !d) return iso;
-  return `${d}/${m}/${y}`;
+  const trimmed = iso.trim();
+  const isoMatch = /^(\d{4})-(\d{2})-(\d{2})/.exec(trimmed);
+  if (isoMatch) {
+    const [, y, m, d] = isoMatch;
+    return `${d}/${m}/${y}`;
+  }
+  const parsed = new Date(trimmed.includes("T") ? trimmed : `${trimmed}T12:00:00`);
+  if (!Number.isNaN(parsed.getTime())) {
+    return parsed.toLocaleDateString("es-UY", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
+  }
+  return trimmed;
 }
 
 /** Fecha final sumando meses al inicio (mismo día cuando es posible). */
@@ -355,7 +367,7 @@ export function formatPeriodoArrendamiento(fechaInicio: string, fechaFin: string
   const ini = formatFechaArrendamiento(fechaInicio);
   const fin = formatFechaArrendamiento(fechaFin);
   if (fechaInicio === fechaFin) return ini;
-  return `${ini} — ${fin}`;
+  return `${ini} – ${fin}`;
 }
 
 export function formatUsdArrendamiento(value: number): string {
@@ -373,6 +385,9 @@ export const VENTAS_ARRENDAMIENTOS_COPY: Record<
   {
     volver: string;
     tituloForm: string;
+    tituloPagina: string;
+    descripcionPagina: string;
+    subtituloListado: string;
     tituloListado: string;
     guardar: string;
     guardando: string;
@@ -387,6 +402,10 @@ export const VENTAS_ARRENDAMIENTOS_COPY: Record<
   ingresos: {
     volver: "Volver a Ingresos por ventas",
     tituloForm: "Ingresar arrendamiento",
+    tituloPagina: "Ingresos por arrendamientos y medianería",
+    descripcionPagina:
+      "Registro de ingresos por arrendamiento de campos, medianería y acuerdos de uso.",
+    subtituloListado: "Totales de simulaciones guardadas en el simulador de arrendamiento.",
     tituloListado: "Arrendamientos registrados",
     guardar: "Registrar",
     guardando: "Guardando…",
@@ -394,12 +413,16 @@ export const VENTAS_ARRENDAMIENTOS_COPY: Record<
     errorGuardar: "Error al registrar arrendamiento",
     eliminarTitulo: "Eliminar registro",
     eliminadoOk: "Registro eliminado",
-    sinFilas: "Sin arrendamientos con esos filtros",
+    sinFilas: "Sin arrendamientos guardados en el simulador con esos filtros",
     unidadConteo: "registro(s)",
   },
   simulador: {
     volver: "Volver al simulador de ventas",
     tituloForm: "Simulación de arrendamiento",
+    tituloPagina: "Simulación de arrendamiento",
+    descripcionPagina:
+      "Simulá el ingreso por arrendamiento. El precio por hectárea es anual; el total se prorratea según el período.",
+    subtituloListado: "Historial de simulaciones de arrendamiento guardadas",
     tituloListado: "Simulaciones guardadas",
     guardar: "Guardar simulación",
     guardando: "Guardando…",

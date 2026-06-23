@@ -495,6 +495,11 @@ export default function VentasArrendamientos({
     [rows]
   );
 
+  const totalHasListado = useMemo(
+    () => rows.reduce((acc, r) => acc + r.hectareas, 0),
+    [rows]
+  );
+
   const periodoSeleccionado = useMemo(
     () => labelPeriodoSeleccionadoArrendamiento(modalidad, fechaInicio, fechaFinEfectiva),
     [modalidad, fechaInicio, fechaFinEfectiva]
@@ -526,11 +531,7 @@ export default function VentasArrendamientos({
 
           <div className="form-header">
             <h2>{copy.tituloForm}</h2>
-            <p className="muted">
-              Simulá el ingreso por arrendamiento. El precio por hectárea es anual; el total se
-              prorratea según la modalidad elegida:{" "}
-              <strong>Has × Precio/ha × período</strong>.
-            </p>
+            <p className="muted">{copy.descripcionPagina}</p>
           </div>
 
           <div className="form-grid">
@@ -960,7 +961,7 @@ export default function VentasArrendamientos({
           <header className="sim-historial-head">
             <div>
               <h2>{copy.tituloListado}</h2>
-              <p className="muted">Historial de simulaciones de arrendamiento guardadas</p>
+              <p className="muted">{copy.subtituloListado}</p>
             </div>
             {!loading && rows.length > 0 && (
               <span className="sim-historial-count">
@@ -970,7 +971,9 @@ export default function VentasArrendamientos({
           </header>
         ) : (
           <div className="form-header">
-            <h2>{copy.tituloListado}</h2>
+            <h2>{copy.tituloPagina}</h2>
+            <p className="muted">{copy.descripcionPagina}</p>
+            <p className="muted">{copy.subtituloListado}</p>
             <p className="muted">
               {loading
                 ? "Cargando..."
@@ -1106,6 +1109,22 @@ export default function VentasArrendamientos({
                 ))
               )}
             </tbody>
+            {!esSimulador && !loading && apiOnline && rows.length > 0 && (
+              <tfoot>
+                <tr className="data-table-totals">
+                  <td colSpan={5}>
+                    <strong>Totales ({rows.length})</strong>
+                  </td>
+                  <td className="num">
+                    <strong>{fmtNum(totalHasListado, 2)}</strong>
+                  </td>
+                  <td />
+                  <td className="num">
+                    <strong>{formatUsdArrendamiento(totalUsdListado)}</strong>
+                  </td>
+                </tr>
+              </tfoot>
+            )}
           </table>
         </div>
 

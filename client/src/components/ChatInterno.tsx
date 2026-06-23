@@ -6,6 +6,7 @@ import {
   enviarChatMensaje,
   enviarPresencia,
   fetchChatBootstrap,
+  fetchChatChannels,
   fetchChatContacts,
   fetchChatMessages,
   fetchChatPresence,
@@ -105,8 +106,10 @@ export default function ChatInterno({
   onClose,
   onUnreadChange,
 }: Props) {
+  const isPanel = variant === "panel";
   const [peerId, setPeerId] = useState(CHAT_GENERAL_PEER_ID);
-  const [openTabs, setOpenTabs] = useState<number[]>([CHAT_GENERAL_PEER_ID]);
+  const [openTabs, setOpenTabs] = useState<number[]>(isPanel ? [] : [CHAT_GENERAL_PEER_ID]);
+  const [panelPickedChat, setPanelPickedChat] = useState(!isPanel);
   const [channels, setChannels] = useState<ChatChannel[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [contacts, setContacts] = useState<ChatContact[]>([]);
@@ -115,7 +118,7 @@ export default function ChatInterno({
   const [sending, setSending] = useState(false);
   const [draft, setDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(variant === "page");
+  const [sidebarOpen, setSidebarOpen] = useState(variant === "page" || isPanel);
   const [emojiOpen, setEmojiOpen] = useState(false);
   const [hasMoreOlder, setHasMoreOlder] = useState(false);
   const [loadingOlder, setLoadingOlder] = useState(false);
@@ -353,21 +356,40 @@ export default function ChatInterno({
       setLoading(true);
       setError(null);
       try {
-        const data = await fetchChatBootstrap(peerId, MESSAGES_PAGE);
-        if (cancelled) return;
-        bootstrappedRef.current = true;
-        setChannels(data.channels);
-        setContacts(data.contacts);
-        setOnlineCount(data.online_count);
-        setWallpaperByPeer(data.wallpapers.by_peer);
-        setMessages(data.messages);
-        lastIdRef.current = data.messages[data.messages.length - 1]?.id ?? 0;
-        setHasMoreOlder(data.messages.length >= MESSAGES_PAGE);
-        contactsInitializedRef.current = true;
-        prevTotalUnreadRef.current = data.total_unread;
-        onUnreadChange?.(data.total_unread);
-        if (data.messages.length > 0) void markRead(peerId, data.messages);
-        requestAnimationFrame(() => scrollToBottom(false));
+        if (isPanel) {
+          const [channelsData, contactsData] = await Promise.all([
+            fetchChatChannels(),
+            fetchChatContacts(),
+          ]);
+          if (cancelled) return;
+          bootstrappedRef.current = true;
+          setChannels(channelsData);
+          setContacts(contactsData.contacts);
+          setOnlineCount(contactsData.online_count);
+          setWallpaperByPeer({});
+          setMessages([]);
+          lastIdRef.current = 0;
+          setHasMoreOlder(false);
+          contactsInitializedRef.current = true;
+          prevTotalUnreadRef.current = contactsData.total_unread;
+          onUnreadChange?.(contactsData.total_unread);
+        } else {
+          const data = await fetchChatBootstrap(peerId, MESSAGES_PAGE);
+          if (cancelled) return;
+          bootstrappedRef.current = true;
+          setChannels(data.channels);
+          setContacts(data.contacts);
+          setOnlineCount(data.online_count);
+          setWallpaperByPeer(data.wallpapers.by_peer);
+          setMessages(data.messages);
+          lastIdRef.current = data.messages[data.messages.length - 1]?.id ?? 0;
+          setHasMoreOlder(data.messages.length >= MESSAGES_PAGE);
+          contactsInitializedRef.current = true;
+          prevTotalUnreadRef.current = data.total_unread;
+          onUnreadChange?.(data.total_unread);
+          if (data.messages.length > 0) void markRead(peerId, data.messages);
+          requestAnimationFrame(() => scrollToBottom(false));
+        }
       } catch (e) {
         if (!cancelled) {
           setError(e instanceof Error ? e.message : "Error al iniciar chat");
@@ -407,6 +429,7 @@ export default function ChatInterno({
   useEffect(() => {
     if (!bootstrappedRef.current) return;
     if (skipPeerLoadRef.current) return;
+    if (isPanel && !panelPickedChat) return;
     void loadMessages(peerId, { initial: true });
     setHighlightId(null);
     setHighlightTerm("");
@@ -415,8 +438,8 @@ export default function ChatInterno({
     setIncomingAlert(false);
     setIncomingSender(null);
     clearPendingFile();
-    if (variant === "panel") setSidebarOpen(false);
-  }, [peerId, loadMessages, variant, clearPendingFile]);
+    if (isPanel && panelPickedChat) setSidebarOpen(false);
+  }, [peerId, panelPickedChat, loadMessages, isPanel, clearPendingFile]);
 
   useEffect(() => {
     if (!incomingAlert) return;
@@ -516,7 +539,10 @@ export default function ChatInterno({
     setOpenTabs((prev) => (prev.includes(id) ? prev : [...prev, id]));
     setPeerId(id);
     setDraft(draftByPeerRef.current[id] ?? "");
-    if (variant === "panel") setSidebarOpen(false);
+    if (isPanel) {
+      setPanelPickedChat(true);
+      setSidebarOpen(false);
+    }
   };
 
   const closeTab = (id: number) => {
@@ -678,15 +704,27 @@ export default function ChatInterno({
       >
         <div className="chat-interno-sidebar-head">
           <h2>{variant === "panel" ? "Chats" : "Mensajes"}</h2>
-          {variant === "panel" && (
-            <button
-              type="button"
-              className="chat-interno-close"
-              onClick={() => setSidebarOpen(false)}
-              aria-label="Volver al chat"
-            >
-              ‹
-            </button>
+          {isPanel && (
+            panelPickedChat ? (
+              <button
+                type="button"
+                className="chat-interno-close"
+                onClick={() => setSidebarOpen(false)}
+                aria-label="Volver al chat"
+              >
+                ‹
+              </button>
+            ) : onClose ? (
+              <button
+                type="button"
+                className="chat-interno-panel-close"
+                onClick={onClose}
+                aria-label="Cerrar chat"
+                title="Cerrar chat (Esc)"
+              >
+                ✕
+              </button>
+            ) : null
           )}
         </div>
 
@@ -819,6 +857,7 @@ export default function ChatInterno({
         </div>
       </aside>
 
+      {(variant !== "panel" || panelPickedChat) && (
       <section className="chat-interno-main">
         <header className="chat-interno-main-head">
           <button
@@ -1263,6 +1302,7 @@ export default function ChatInterno({
           Enter para enviar · Shift+Enter para nueva línea · Máx. 12 MB por archivo
         </p>
       </section>
+      )}
 
       {imagePreviewUrl && (
         <button
@@ -1275,7 +1315,7 @@ export default function ChatInterno({
         </button>
       )}
 
-      {sidebarOpen && variant === "panel" && (
+      {sidebarOpen && isPanel && panelPickedChat && (
         <button
           type="button"
           className="chat-interno-backdrop"
