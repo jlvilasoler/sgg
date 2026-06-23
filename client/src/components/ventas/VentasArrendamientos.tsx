@@ -3,9 +3,10 @@ import {
   createVentaArrendamiento,
   deleteVentaArrendamiento,
   fetchVentasArrendamientos,
+  patchVentaArrendamiento,
   updateVentaArrendamiento,
 } from "../../api";
-import type { VentaArrendamientoRow } from "../../types";
+import type { VentaArrendamientoRealInput, VentaArrendamientoRow } from "../../types";
 import { confirmAction } from "../../utils/confirm";
 import { fmtNum } from "../../utils";
 import TablePagination, {
@@ -48,6 +49,14 @@ import {
   type TipoMontoPagoArrendamiento,
   type VentasArrendamientosModo,
 } from "./ventas-arrendamientos-utils";
+import VentasArrendamientoTablaFila from "./VentasArrendamientoTablaFila";
+import {
+  arrendamientoHasVentaReal,
+  hectareasEfectivasArrendamiento,
+  normalizeVentaArrendamientoRow,
+  sortHistorialArrendamiento,
+  totalUsdEfectivoArrendamiento,
+} from "./ventas-arrendamientos-real-utils";
 
 interface Props {
   apiOnline: boolean;
@@ -94,6 +103,9 @@ export default function VentasArrendamientos({
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<PageSize>(30);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingRealId, setEditingRealId] = useState<number | null>(null);
+  const [savingRealId, setSavingRealId] = useState<number | null>(null);
+  const [patchingId, setPatchingId] = useState<number | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
 
   const hasNum = useMemo(() => parsePositiveDecimal(hectareas), [hectareas]);
@@ -323,6 +335,11 @@ export default function VentasArrendamientos({
   };
 
   const loadFormFromRow = (row: VentaArrendamientoRow) => {
+    if (normalizeVentaArrendamientoRow(row).venta_realizada) {
+      onError("No se puede editar una simulación con operación confirmada");
+      return;
+    }
+    setEditingRealId(null);
     setEmpresa(row.empresa);
     setModalidad(inferirModalidadArrendamiento(row.fecha_inicio, row.fecha_fin));
     setFechaInicio(row.fecha_inicio);
@@ -369,11 +386,13 @@ export default function VentasArrendamientos({
     setLoading(true);
     try {
       setRows(
-        await fetchVentasArrendamientos({
-          empresa: filtroEmpresa || undefined,
-          departamento: filtroDepartamento || undefined,
-          busqueda: busqueda.trim() || undefined,
-        })
+        sortHistorialArrendamiento(
+          (await fetchVentasArrendamientos({
+            empresa: filtroEmpresa || undefined,
+            departamento: filtroDepartamento || undefined,
+            busqueda: busqueda.trim() || undefined,
+          })).map(normalizeVentaArrendamientoRow)
+        )
       );
     } catch (e) {
       onError(e instanceof Error ? e.message : "Error al cargar arrendamientos");
@@ -473,6 +492,7 @@ export default function VentasArrendamientos({
     try {
       await deleteVentaArrendamiento(row.id);
       if (editingId === row.id) setEditingId(null);
+      if (editingRealId === row.id) setEditingRealId(null);
       onSuccess?.(copy.eliminadoOk);
       await load();
     } catch (e) {
@@ -482,21 +502,78 @@ export default function VentasArrendamientos({
     }
   };
 
-  const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
+  const guardarReal = async (row: VentaArrendamientoRow, payload: VentaArrendamientoRealInput) => {
+    setSavingRealId(row.id);
+    try {
+      const res = await patchVentaArrendamiento(row.id, { valores_reales: payload });
+      setEditingRealId(null);
+      onSuccess?.(res.message);
+      await load();
+    } catch (e) {
+      onError(e instanceof Error ? e.message : "Error al confirmar operación");
+    } finally {
+      setSavingRealId(null);
+    }
+  };
+
+  const handleDestacar = async (row: VentaArrendamientoRow) => {
+    setPatchingId(row.id);
+    try {
+      await patchVentaArrendamiento(row.id, { destacada: !(row.destacada ?? false) });
+      await load();
+    } catch (e) {
+      onError(e instanceof Error ? e.message : "Error al destacar");
+    } finally {
+      setPatchingId(null);
+    }
+  };
+
+  const quitarReal = async (row: VentaArrendamientoRow) => {
+    const ok = await confirmAction({
+      title: "Quitar confirmación",
+      message: `¿Volver a pendiente la simulación ${formatOperacionArrendamiento(row.id)}? Se borrarán los datos reales.`,
+      confirmText: "Quitar confirmación",
+      variant: "danger",
+    });
+    if (!ok) return;
+    setPatchingId(row.id);
+    try {
+      const res = await patchVentaArrendamiento(row.id, { venta_realizada: false });
+      if (editingRealId === row.id) setEditingRealId(null);
+      onSuccess?.(res.message);
+      await load();
+    } catch (e) {
+      onError(e instanceof Error ? e.message : "Error al quitar confirmación");
+    } finally {
+      setPatchingId(null);
+    }
+  };
+
+  const historialColSpan = 9;
+
+  const rowsVisibles = useMemo(
+    () =>
+      esSimulador
+        ? rows
+        : rows.filter((r) => normalizeVentaArrendamientoRow(r).venta_realizada),
+    [rows, esSimulador]
+  );
+
+  const totalPages = Math.max(1, Math.ceil(rowsVisibles.length / pageSize));
   const pageSafe = Math.min(page, totalPages);
   const rowsPagina = useMemo(
-    () => paginateSlice(rows, pageSafe, pageSize),
-    [rows, pageSafe, pageSize]
+    () => paginateSlice(rowsVisibles, pageSafe, pageSize),
+    [rowsVisibles, pageSafe, pageSize]
   );
 
   const totalUsdListado = useMemo(
-    () => rows.reduce((acc, r) => acc + r.total_usd, 0),
-    [rows]
+    () => rowsVisibles.reduce((acc, r) => acc + totalUsdEfectivoArrendamiento(r), 0),
+    [rowsVisibles]
   );
 
   const totalHasListado = useMemo(
-    () => rows.reduce((acc, r) => acc + r.hectareas, 0),
-    [rows]
+    () => rowsVisibles.reduce((acc, r) => acc + hectareasEfectivasArrendamiento(r), 0),
+    [rowsVisibles]
   );
 
   const periodoSeleccionado = useMemo(
@@ -962,9 +1039,9 @@ export default function VentasArrendamientos({
               <h2>{copy.tituloListado}</h2>
               <p className="muted">{copy.subtituloListado}</p>
             </div>
-            {!loading && rows.length > 0 && (
+            {!loading && rowsVisibles.length > 0 && (
               <span className="sim-historial-count">
-                {rows.length} {copy.unidadConteo} — USD {fmtNum(totalUsdListado, 2)}
+                {rowsVisibles.length} {copy.unidadConteo} — USD {fmtNum(totalUsdListado, 2)}
               </span>
             )}
           </header>
@@ -976,7 +1053,7 @@ export default function VentasArrendamientos({
             <p className="muted">
               {loading
                 ? "Cargando..."
-                : `${rows.length} ${copy.unidadConteo} — Total USD: ${fmtNum(totalUsdListado, 2)}`}
+                : `${rowsVisibles.length} ${copy.unidadConteo} — Total USD: ${fmtNum(totalUsdListado, 2)}`}
             </p>
           </div>
         )}
@@ -1030,6 +1107,12 @@ export default function VentasArrendamientos({
           </button>
         </div>
 
+        {esSimulador && editingRealId != null && editingId == null && (
+          <div className="sim-historial-editing-banner sim-calc-editing-banner" role="status">
+            <span>Confirmando operación — completá los datos en la tabla</span>
+          </div>
+        )}
+
         <div className={esSimulador ? "sim-historial-table-wrap" : "table-wrap"}>
           <table
             className={
@@ -1038,76 +1121,111 @@ export default function VentasArrendamientos({
                 : "data-table ventas-agricultura-table"
             }
           >
+            {esSimulador && (
+              <colgroup>
+                <col style={{ width: "13%" }} />
+                <col style={{ width: "8%" }} />
+                <col style={{ width: "15%" }} />
+                <col style={{ width: "8%" }} />
+                <col style={{ width: "7%" }} />
+                <col style={{ width: "8%" }} />
+                <col style={{ width: "9%" }} />
+                <col style={{ width: "11%" }} />
+                <col style={{ width: "13%" }} />
+              </colgroup>
+            )}
             <thead>
               <tr>
-                <th>Operación</th>
-                <th>Empresa</th>
+                <th className={esSimulador ? "sim-historial-op-meta" : undefined}>Operación</th>
+                {esSimulador && <th className="sim-historial-tipo-cell">Tipo</th>}
+                {!esSimulador && <th>Empresa</th>}
                 <th>Período</th>
                 <th>Depto.</th>
                 <th>Padrón</th>
                 <th className="num">Has</th>
                 <th className="num">USD/ha</th>
                 <th className="num">Total USD</th>
-                {esSimulador && <th>Acciones</th>}
+                <th className={esSimulador ? "sim-historial-col-actions" : undefined}>
+                  {esSimulador ? "Acciones" : ""}
+                </th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={esSimulador ? 9 : 8} className="empty-cell">
+                  <td colSpan={esSimulador ? historialColSpan : 8} className={esSimulador ? "sim-historial-empty" : "empty-cell"}>
                     Cargando…
                   </td>
                 </tr>
-              ) : rowsPagina.length === 0 ? (
+              ) : !apiOnline ? (
                 <tr>
-                  <td colSpan={esSimulador ? 9 : 8} className="empty-cell">
+                  <td colSpan={esSimulador ? historialColSpan : 8} className={esSimulador ? "sim-historial-empty" : "empty-cell"}>
+                    API no conectada
+                  </td>
+                </tr>
+              ) : rowsVisibles.length === 0 ? (
+                <tr>
+                  <td colSpan={esSimulador ? historialColSpan : 8} className={esSimulador ? "sim-historial-empty" : "empty-cell"}>
                     {copy.sinFilas}
                   </td>
                 </tr>
-              ) : (
-                rowsPagina.map((row) => (
-                  <tr key={row.id}>
-                    <td className="sim-historial-op">
-                      <span className="sim-historial-op-code">
-                        {formatOperacionArrendamiento(row.id)}
-                      </span>
-                    </td>
-                    <td>{labelEmpresaArrendamiento(row.empresa)}</td>
-                    <td>{formatPeriodoArrendamiento(row.fecha_inicio, row.fecha_fin)}</td>
-                    <td>{labelDepartamentoArrendamiento(row.departamento)}</td>
-                    <td>{row.padron}</td>
-                    <td className="num">{fmtNum(row.hectareas, 2)}</td>
-                    <td className="num">{formatUsdPorHaArrendamiento(row.precio_usd_ha)}</td>
-                    <td className="num">{formatUsdArrendamiento(row.total_usd)}</td>
-                    {esSimulador && (
-                      <td className="sim-historial-actions">
-                        <button
-                          type="button"
-                          className="btn btn-ghost btn-sm"
-                          onClick={() => loadFormFromRow(row)}
-                          disabled={deletingId === row.id}
-                        >
-                          Editar
-                        </button>
-                        <button
-                          type="button"
-                          className="btn btn-ghost btn-sm btn-danger-text"
-                          onClick={() => void borrar(row)}
-                          disabled={deletingId === row.id}
-                        >
-                          {deletingId === row.id ? "…" : "Borrar"}
-                        </button>
-                      </td>
-                    )}
-                  </tr>
+              ) : esSimulador ? (
+                rowsPagina.map((r) => (
+                  <VentasArrendamientoTablaFila
+                    key={r.id}
+                    row={r}
+                    isPatching={patchingId === r.id}
+                    isEditing={editingId === r.id}
+                    isEditingReal={editingRealId === r.id}
+                    isSavingReal={savingRealId === r.id}
+                    isDeleting={deletingId === r.id}
+                    onEdit={() => loadFormFromRow(r)}
+                    onCancelEdit={() => {
+                      if (editingId === r.id) limpiar();
+                    }}
+                    onStartEditReal={() => setEditingRealId(r.id)}
+                    onCancelEditReal={() => setEditingRealId(null)}
+                    onSaveReal={(payload) => void guardarReal(r, payload)}
+                    onUnmarkReal={() => void quitarReal(r)}
+                    onDelete={() => void borrar(r)}
+                    onDestacar={() => void handleDestacar(r)}
+                    onVerHistorial={() =>
+                      onError("Historial de auditoría disponible próximamente para arrendamientos")
+                    }
+                  />
                 ))
+              ) : (
+                rowsPagina.map((row) => {
+                  const hasReal = arrendamientoHasVentaReal(row);
+                  const fechaIni = hasReal && row.real_fecha_inicio ? row.real_fecha_inicio : row.fecha_inicio;
+                  const fechaFin = hasReal && row.real_fecha_fin ? row.real_fecha_fin : row.fecha_fin;
+                  const has = hectareasEfectivasArrendamiento(row);
+                  const precio = hasReal && row.real_precio_usd_ha != null ? row.real_precio_usd_ha : row.precio_usd_ha;
+                  const total = totalUsdEfectivoArrendamiento(row);
+                  return (
+                    <tr key={row.id}>
+                      <td className="sim-historial-op">
+                        <span className="sim-historial-op-code">
+                          {formatOperacionArrendamiento(row.id)}
+                        </span>
+                      </td>
+                      <td>{labelEmpresaArrendamiento(row.empresa)}</td>
+                      <td>{formatPeriodoArrendamiento(fechaIni, fechaFin)}</td>
+                      <td>{labelDepartamentoArrendamiento(row.departamento)}</td>
+                      <td>{row.padron}</td>
+                      <td className="num">{fmtNum(has, 2)}</td>
+                      <td className="num">{formatUsdPorHaArrendamiento(precio)}</td>
+                      <td className="num">{formatUsdArrendamiento(total)}</td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
-            {!esSimulador && !loading && apiOnline && rows.length > 0 && (
+            {!esSimulador && !loading && apiOnline && rowsVisibles.length > 0 && (
               <tfoot>
                 <tr className="data-table-totals">
                   <td colSpan={5}>
-                    <strong>Totales ({rows.length})</strong>
+                    <strong>Totales ({rowsVisibles.length})</strong>
                   </td>
                   <td className="num">
                     <strong>{fmtNum(totalHasListado, 2)}</strong>
@@ -1122,9 +1240,9 @@ export default function VentasArrendamientos({
           </table>
         </div>
 
-        {!loading && rows.length > 0 && (
+        {!loading && rowsVisibles.length > 0 && (
           <TablePagination
-            total={rows.length}
+            total={rowsVisibles.length}
             page={pageSafe}
             pageSize={pageSize}
             onPageChange={setPage}

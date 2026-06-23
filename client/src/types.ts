@@ -108,7 +108,39 @@ export interface VentaArrendamientoRow {
   pago_inicio_tipo: "VALOR" | "PORCENTAJE";
   pago_fin_monto: number;
   pago_fin_tipo: "VALOR" | "PORCENTAJE";
+  venta_realizada: boolean;
+  venta_realizada_en: string | null;
+  real_fecha_inicio: string | null;
+  real_fecha_fin: string | null;
+  real_hectareas: number | null;
+  real_precio_usd_ha: number | null;
+  real_total_usd: number | null;
+  real_notas: string | null;
+  real_pago_frecuencia: "MENSUAL" | "ANUAL" | null;
+  real_pago_inicio: string | null;
+  real_pago_fin: string | null;
+  real_pago_inicio_monto: number | null;
+  real_pago_inicio_tipo: "VALOR" | "PORCENTAJE" | null;
+  real_pago_fin_monto: number | null;
+  real_pago_fin_tipo: "VALOR" | "PORCENTAJE" | null;
+  destacada: boolean;
   creado_en: string;
+}
+
+export interface VentaArrendamientoRealInput {
+  fecha_inicio: string;
+  fecha_fin: string;
+  hectareas: number;
+  precio_usd_ha: number;
+  total_usd: number;
+  notas?: string | null;
+  pago_frecuencia: "MENSUAL" | "ANUAL";
+  pago_inicio: string;
+  pago_fin: string;
+  pago_inicio_monto: number;
+  pago_inicio_tipo: "VALOR" | "PORCENTAJE";
+  pago_fin_monto: number;
+  pago_fin_tipo: "VALOR" | "PORCENTAJE";
 }
 
 export interface StockGanaderoLote {

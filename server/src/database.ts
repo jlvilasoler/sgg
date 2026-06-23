@@ -410,6 +410,8 @@ export const ventasArrendamientos = {
     ventasArr.insertVentaArrendamiento(db, data),
   update: (id: number, data: ventasArr.VentaArrendamientoInput) =>
     ventasArr.updateVentaArrendamiento(db, id, data),
+  patch: (id: number, patch: Parameters<typeof ventasArr.patchVentaArrendamiento>[2]) =>
+    ventasArr.patchVentaArrendamiento(db, id, patch),
   delete: (id: number) => ventasArr.deleteVentaArrendamiento(db, id),
 };
 

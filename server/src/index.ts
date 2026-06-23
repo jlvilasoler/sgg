@@ -688,6 +688,64 @@ app.delete("/api/ingresos-ventas/ventas-arrendamientos/:id", async (req, res) =>
   res.json({ ok: true, message: "Registro eliminado" });
 });
 
+app.patch("/api/ingresos-ventas/ventas-arrendamientos/:id", async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isFinite(id) || id <= 0) {
+    res.status(400).json({ ok: false, error: "ID inválido" });
+    return;
+  }
+  const body = (req.body ?? {}) as Record<string, unknown>;
+  const patch: Parameters<typeof db.ventasArrendamientos.patch>[1] = {};
+
+  if (typeof body.venta_realizada === "boolean") {
+    patch.venta_realizada = body.venta_realizada;
+  }
+  if (typeof body.destacada === "boolean") {
+    patch.destacada = body.destacada;
+  }
+
+  if (body.valores_reales != null && typeof body.valores_reales === "object") {
+    const v = body.valores_reales as Record<string, unknown>;
+    patch.valores_reales = {
+      fecha_inicio: String(v.fecha_inicio),
+      fecha_fin: String(v.fecha_fin),
+      hectareas: Number(v.hectareas),
+      precio_usd_ha: Number(v.precio_usd_ha),
+      total_usd: Number(v.total_usd),
+      notas: v.notas != null ? String(v.notas) : null,
+      pago_frecuencia: String(v.pago_frecuencia) as "MENSUAL" | "ANUAL",
+      pago_inicio: String(v.pago_inicio),
+      pago_fin: String(v.pago_fin),
+      pago_inicio_monto: Number(v.pago_inicio_monto),
+      pago_inicio_tipo: String(v.pago_inicio_tipo) as "VALOR" | "PORCENTAJE",
+      pago_fin_monto: Number(v.pago_fin_monto),
+      pago_fin_tipo: String(v.pago_fin_tipo) as "VALOR" | "PORCENTAJE",
+    };
+  }
+
+  if (Object.keys(patch).length === 0) {
+    res.status(400).json({
+      ok: false,
+      error: "Indicá venta_realizada, valores_reales o destacada",
+    });
+    return;
+  }
+
+  try {
+    const row = await db.ventasArrendamientos.patch(id, patch);
+    const message =
+      patch.venta_realizada === false
+        ? "Confirmación anulada — la simulación volvió a pendiente"
+        : patch.valores_reales
+          ? "Operación confirmada con datos reales"
+          : "Simulación actualizada";
+    res.json({ ok: true, data: row, message });
+  } catch (e) {
+    const msg = (e as Error).message;
+    res.status(msg.includes("no encontrada") ? 404 : 400).json({ ok: false, error: msg });
+  }
+});
+
 app.get("/api/ingresos-ventas/ventas-ganado-cerradas", async (req, res) => {
   const tipo = parseSimuladorVentaTipo(req.query.tipo) ?? undefined;
   const data = await db.simuladorVentaGanado.list({

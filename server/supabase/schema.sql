@@ -316,6 +316,22 @@ CREATE TABLE IF NOT EXISTS VENTAS_ARRENDAMIENTO (
   pago_inicio_tipo TEXT CHECK (pago_inicio_tipo IN ('VALOR', 'PORCENTAJE')),
   pago_fin_monto DOUBLE PRECISION,
   pago_fin_tipo TEXT CHECK (pago_fin_tipo IN ('VALOR', 'PORCENTAJE')),
+  venta_realizada INTEGER NOT NULL DEFAULT 0,
+  venta_realizada_en TIMESTAMPTZ,
+  destacada INTEGER NOT NULL DEFAULT 0,
+  real_fecha_inicio DATE,
+  real_fecha_fin DATE,
+  real_hectareas DOUBLE PRECISION,
+  real_precio_usd_ha DOUBLE PRECISION,
+  real_total_usd DOUBLE PRECISION,
+  real_notas TEXT,
+  real_pago_frecuencia TEXT CHECK (real_pago_frecuencia IN ('MENSUAL', 'ANUAL')),
+  real_pago_inicio DATE,
+  real_pago_fin DATE,
+  real_pago_inicio_monto DOUBLE PRECISION,
+  real_pago_inicio_tipo TEXT CHECK (real_pago_inicio_tipo IN ('VALOR', 'PORCENTAJE')),
+  real_pago_fin_monto DOUBLE PRECISION,
+  real_pago_fin_tipo TEXT CHECK (real_pago_fin_tipo IN ('VALOR', 'PORCENTAJE')),
   creado_en TIMESTAMPTZ DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_ventas_arr_periodo

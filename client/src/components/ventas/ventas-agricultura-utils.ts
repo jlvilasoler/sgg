@@ -12,7 +12,7 @@ export type CultivoAgriculturaId = (typeof CULTIVOS_AGRICULTURA)[number]["id"];
 
 export const EMPRESAS_AGRICULTURA: { value: Empresa; label: string }[] = [
   { value: "GANADERA GUAVIYU", label: "Ganadera Guaviyú" },
-  { value: "GANADERA CHIVILCOY", label: "Ganadera Chivicoy" },
+  { value: "GANADERA CHIVILCOY", label: "Ganadera Chivilcoy" },
 ];
 
 export type EmpresaAgricultura = Empresa | "";

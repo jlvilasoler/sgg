@@ -11,7 +11,7 @@ export type DepartamentoArrendamiento = DepartamentoArrendamientoId | "";
 
 export const EMPRESAS_ARRENDAMIENTO: { value: Empresa; label: string }[] = [
   { value: "GANADERA GUAVIYU", label: "Ganadera Guaviyú" },
-  { value: "GANADERA CHIVILCOY", label: "Ganadera Chivicoy" },
+  { value: "GANADERA CHIVILCOY", label: "Ganadera Chivilcoy" },
 ];
 
 export type EmpresaArrendamiento = Empresa | "";

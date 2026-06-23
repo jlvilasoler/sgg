@@ -30,7 +30,39 @@ export interface VentaArrendamientoRow {
   pago_inicio_tipo: TipoMontoPagoArrendamiento;
   pago_fin_monto: number;
   pago_fin_tipo: TipoMontoPagoArrendamiento;
+  venta_realizada: boolean;
+  venta_realizada_en: string | null;
+  real_fecha_inicio: string | null;
+  real_fecha_fin: string | null;
+  real_hectareas: number | null;
+  real_precio_usd_ha: number | null;
+  real_total_usd: number | null;
+  real_notas: string | null;
+  real_pago_frecuencia: FrecuenciaPagoArrendamiento | null;
+  real_pago_inicio: string | null;
+  real_pago_fin: string | null;
+  real_pago_inicio_monto: number | null;
+  real_pago_inicio_tipo: TipoMontoPagoArrendamiento | null;
+  real_pago_fin_monto: number | null;
+  real_pago_fin_tipo: TipoMontoPagoArrendamiento | null;
+  destacada: boolean;
   creado_en: string;
+}
+
+export interface VentaArrendamientoRealInput {
+  fecha_inicio: string;
+  fecha_fin: string;
+  hectareas: number;
+  precio_usd_ha: number;
+  total_usd: number;
+  notas?: string | null;
+  pago_frecuencia: FrecuenciaPagoArrendamiento;
+  pago_inicio: string;
+  pago_fin: string;
+  pago_inicio_monto: number;
+  pago_inicio_tipo: TipoMontoPagoArrendamiento;
+  pago_fin_monto: number;
+  pago_fin_tipo: TipoMontoPagoArrendamiento;
 }
 
 export interface VentaArrendamientoInput {
@@ -155,6 +187,22 @@ export async function initVentasArrendamientosTable(db: Db): Promise<void> {
     ["pago_inicio_tipo", "TEXT"],
     ["pago_fin_monto", "DOUBLE PRECISION"],
     ["pago_fin_tipo", "TEXT"],
+    ["venta_realizada", "INTEGER NOT NULL DEFAULT 0"],
+    ["venta_realizada_en", "TIMESTAMPTZ"],
+    ["destacada", "INTEGER NOT NULL DEFAULT 0"],
+    ["real_fecha_inicio", "DATE"],
+    ["real_fecha_fin", "DATE"],
+    ["real_hectareas", "DOUBLE PRECISION"],
+    ["real_precio_usd_ha", "DOUBLE PRECISION"],
+    ["real_total_usd", "DOUBLE PRECISION"],
+    ["real_notas", "TEXT"],
+    ["real_pago_frecuencia", "TEXT"],
+    ["real_pago_inicio", "DATE"],
+    ["real_pago_fin", "DATE"],
+    ["real_pago_inicio_monto", "DOUBLE PRECISION"],
+    ["real_pago_inicio_tipo", "TEXT"],
+    ["real_pago_fin_monto", "DOUBLE PRECISION"],
+    ["real_pago_fin_tipo", "TEXT"],
   ] as const) {
     try {
       await db.prepare(`ALTER TABLE VENTAS_ARRENDAMIENTO ADD COLUMN ${col} ${ddl}`).run();
@@ -203,6 +251,32 @@ function mapRow(row: Record<string, unknown>): VentaArrendamientoRow {
     pago_inicio_tipo: String(row.pago_inicio_tipo ?? "VALOR") as TipoMontoPagoArrendamiento,
     pago_fin_monto: Number(row.pago_fin_monto ?? 0),
     pago_fin_tipo: String(row.pago_fin_tipo ?? "VALOR") as TipoMontoPagoArrendamiento,
+    venta_realizada: Number(row.venta_realizada ?? 0) === 1,
+    venta_realizada_en: row.venta_realizada_en != null ? String(row.venta_realizada_en) : null,
+    real_fecha_inicio: row.real_fecha_inicio != null ? rowDateToIso(row.real_fecha_inicio) : null,
+    real_fecha_fin: row.real_fecha_fin != null ? rowDateToIso(row.real_fecha_fin) : null,
+    real_hectareas: row.real_hectareas != null ? Number(row.real_hectareas) : null,
+    real_precio_usd_ha: row.real_precio_usd_ha != null ? Number(row.real_precio_usd_ha) : null,
+    real_total_usd: row.real_total_usd != null ? Number(row.real_total_usd) : null,
+    real_notas: row.real_notas != null ? String(row.real_notas) : null,
+    real_pago_frecuencia:
+      row.real_pago_frecuencia != null
+        ? (String(row.real_pago_frecuencia) as FrecuenciaPagoArrendamiento)
+        : null,
+    real_pago_inicio: row.real_pago_inicio != null ? rowDateToIso(row.real_pago_inicio) : null,
+    real_pago_fin: row.real_pago_fin != null ? rowDateToIso(row.real_pago_fin) : null,
+    real_pago_inicio_monto:
+      row.real_pago_inicio_monto != null ? Number(row.real_pago_inicio_monto) : null,
+    real_pago_inicio_tipo:
+      row.real_pago_inicio_tipo != null
+        ? (String(row.real_pago_inicio_tipo) as TipoMontoPagoArrendamiento)
+        : null,
+    real_pago_fin_monto: row.real_pago_fin_monto != null ? Number(row.real_pago_fin_monto) : null,
+    real_pago_fin_tipo:
+      row.real_pago_fin_tipo != null
+        ? (String(row.real_pago_fin_tipo) as TipoMontoPagoArrendamiento)
+        : null,
+    destacada: Number(row.destacada ?? 0) === 1,
     creado_en: row.creado_en != null ? String(row.creado_en) : "",
   };
 }
@@ -376,6 +450,9 @@ export async function updateVentaArrendamiento(
 ): Promise<VentaArrendamientoRow> {
   const existing = await getVentaArrendamientoById(db, id);
   if (!existing) throw new Error("Simulación no encontrada");
+  if (existing.venta_realizada) {
+    throw new Error("No se puede editar una simulación con operación confirmada");
+  }
 
   const row = normalizeInput(data);
   const result = await db.prepare(
@@ -407,4 +484,201 @@ export async function updateVentaArrendamiento(
 
 export async function deleteVentaArrendamiento(db: Db, id: number): Promise<boolean> {
   return (await db.prepare("DELETE FROM VENTAS_ARRENDAMIENTO WHERE id = ?").run(id)).changes > 0;
+}
+
+function normalizeRealInput(data: VentaArrendamientoRealInput): VentaArrendamientoRealInput {
+  const fecha_inicio = parseIsoDate(data.fecha_inicio, "Fecha de inicio real");
+  const fecha_fin = parseIsoDate(data.fecha_fin, "Fecha final real");
+  if (fecha_fin < fecha_inicio) {
+    throw new Error("La fecha final real debe ser posterior o igual a la fecha de inicio");
+  }
+
+  const hectareas = Number(data.hectareas);
+  const precio_usd_ha = Number(data.precio_usd_ha);
+  const total_usd = Number(data.total_usd);
+
+  if (!Number.isFinite(hectareas) || hectareas <= 0) {
+    throw new Error("Las hectáreas reales deben ser mayores a cero");
+  }
+  if (!Number.isFinite(precio_usd_ha) || precio_usd_ha <= 0) {
+    throw new Error("El precio real por hectárea debe ser mayor a cero");
+  }
+  if (!Number.isFinite(total_usd) || total_usd <= 0) {
+    throw new Error("El total real de arrendamiento es inválido");
+  }
+
+  const expected = calcularTotalArrendamientoEsperado(
+    hectareas,
+    precio_usd_ha,
+    fecha_inicio,
+    fecha_fin
+  );
+  if (Math.abs(expected - total_usd) > 0.02) {
+    throw new Error("El total real no coincide con hectáreas × precio × período");
+  }
+
+  const notasRaw = data.notas != null ? String(data.notas).trim() : "";
+  const notas = notasRaw || null;
+  if (notas && notas.length > 500) {
+    throw new Error("Las notas reales no pueden superar 500 caracteres");
+  }
+
+  if (!FRECUENCIAS_PAGO_ARRENDAMIENTO.includes(data.pago_frecuencia)) {
+    throw new Error("Frecuencia de pago real inválida");
+  }
+  const pago_inicio = parseIsoDate(data.pago_inicio, "Pago inicio real");
+  const pago_fin = parseIsoDate(data.pago_fin, "Pago final real");
+  if (pago_fin < pago_inicio) {
+    throw new Error("El pago final real debe ser posterior o igual al pago inicio");
+  }
+
+  const pago_inicio_monto = Number(data.pago_inicio_monto);
+  const pago_fin_monto = Number(data.pago_fin_monto);
+  if (!TIPOS_MONTO_PAGO_ARRENDAMIENTO.includes(data.pago_inicio_tipo)) {
+    throw new Error("Tipo de monto de pago inicio real inválido");
+  }
+  if (!TIPOS_MONTO_PAGO_ARRENDAMIENTO.includes(data.pago_fin_tipo)) {
+    throw new Error("Tipo de monto de pago final real inválido");
+  }
+  if (!Number.isFinite(pago_inicio_monto) || pago_inicio_monto <= 0) {
+    throw new Error("El monto real de pago inicio debe ser mayor a cero");
+  }
+  if (!Number.isFinite(pago_fin_monto) || pago_fin_monto <= 0) {
+    throw new Error("El monto real de pago final debe ser mayor a cero");
+  }
+
+  return {
+    fecha_inicio,
+    fecha_fin,
+    hectareas,
+    precio_usd_ha,
+    total_usd,
+    notas,
+    pago_frecuencia: data.pago_frecuencia,
+    pago_inicio,
+    pago_fin,
+    pago_inicio_monto,
+    pago_inicio_tipo: data.pago_inicio_tipo,
+    pago_fin_monto,
+    pago_fin_tipo: data.pago_fin_tipo,
+  };
+}
+
+export async function patchVentaArrendamiento(
+  db: Db,
+  id: number,
+  patch: {
+    venta_realizada?: boolean;
+    valores_reales?: VentaArrendamientoRealInput | null;
+    destacada?: boolean;
+  }
+): Promise<VentaArrendamientoRow> {
+  const existing = await getVentaArrendamientoById(db, id);
+  if (!existing) throw new Error("Simulación no encontrada");
+
+  let venta_realizada = patch.venta_realizada ?? existing.venta_realizada;
+  let venta_realizada_en = existing.venta_realizada_en;
+  let destacada = patch.destacada ?? existing.destacada;
+
+  if (patch.venta_realizada === true && !existing.venta_realizada) {
+    venta_realizada_en = new Date().toISOString();
+  } else if (patch.venta_realizada === false) {
+    venta_realizada_en = null;
+  }
+
+  let real_fecha_inicio = existing.real_fecha_inicio;
+  let real_fecha_fin = existing.real_fecha_fin;
+  let real_hectareas = existing.real_hectareas;
+  let real_precio_usd_ha = existing.real_precio_usd_ha;
+  let real_total_usd = existing.real_total_usd;
+  let real_notas = existing.real_notas;
+  let real_pago_frecuencia = existing.real_pago_frecuencia;
+  let real_pago_inicio = existing.real_pago_inicio;
+  let real_pago_fin = existing.real_pago_fin;
+  let real_pago_inicio_monto = existing.real_pago_inicio_monto;
+  let real_pago_inicio_tipo = existing.real_pago_inicio_tipo;
+  let real_pago_fin_monto = existing.real_pago_fin_monto;
+  let real_pago_fin_tipo = existing.real_pago_fin_tipo;
+
+  if (patch.venta_realizada === false) {
+    venta_realizada = false;
+    venta_realizada_en = null;
+    real_fecha_inicio = null;
+    real_fecha_fin = null;
+    real_hectareas = null;
+    real_precio_usd_ha = null;
+    real_total_usd = null;
+    real_notas = null;
+    real_pago_frecuencia = null;
+    real_pago_inicio = null;
+    real_pago_fin = null;
+    real_pago_inicio_monto = null;
+    real_pago_inicio_tipo = null;
+    real_pago_fin_monto = null;
+    real_pago_fin_tipo = null;
+  } else if (patch.valores_reales) {
+    const v = normalizeRealInput(patch.valores_reales);
+    real_fecha_inicio = v.fecha_inicio;
+    real_fecha_fin = v.fecha_fin;
+    real_hectareas = v.hectareas;
+    real_precio_usd_ha = v.precio_usd_ha;
+    real_total_usd = v.total_usd;
+    real_notas = v.notas ?? null;
+    real_pago_frecuencia = v.pago_frecuencia;
+    real_pago_inicio = v.pago_inicio;
+    real_pago_fin = v.pago_fin;
+    real_pago_inicio_monto = v.pago_inicio_monto;
+    real_pago_inicio_tipo = v.pago_inicio_tipo;
+    real_pago_fin_monto = v.pago_fin_monto;
+    real_pago_fin_tipo = v.pago_fin_tipo;
+    venta_realizada = true;
+    if (!venta_realizada_en) venta_realizada_en = new Date().toISOString();
+  }
+
+  if (patch.venta_realizada === true && !patch.valores_reales && existing.real_total_usd == null) {
+    throw new Error("Completá los valores reales de la operación");
+  }
+
+  await db.prepare(
+    `UPDATE VENTAS_ARRENDAMIENTO SET
+      venta_realizada = @venta_realizada,
+      venta_realizada_en = @venta_realizada_en,
+      destacada = @destacada,
+      real_fecha_inicio = @real_fecha_inicio,
+      real_fecha_fin = @real_fecha_fin,
+      real_hectareas = @real_hectareas,
+      real_precio_usd_ha = @real_precio_usd_ha,
+      real_total_usd = @real_total_usd,
+      real_notas = @real_notas,
+      real_pago_frecuencia = @real_pago_frecuencia,
+      real_pago_inicio = @real_pago_inicio,
+      real_pago_fin = @real_pago_fin,
+      real_pago_inicio_monto = @real_pago_inicio_monto,
+      real_pago_inicio_tipo = @real_pago_inicio_tipo,
+      real_pago_fin_monto = @real_pago_fin_monto,
+      real_pago_fin_tipo = @real_pago_fin_tipo
+     WHERE id = @id`
+  ).run({
+    id,
+    venta_realizada: venta_realizada ? 1 : 0,
+    venta_realizada_en,
+    destacada: destacada ? 1 : 0,
+    real_fecha_inicio,
+    real_fecha_fin,
+    real_hectareas,
+    real_precio_usd_ha,
+    real_total_usd,
+    real_notas,
+    real_pago_frecuencia,
+    real_pago_inicio,
+    real_pago_fin,
+    real_pago_inicio_monto,
+    real_pago_inicio_tipo,
+    real_pago_fin_monto,
+    real_pago_fin_tipo,
+  });
+
+  const updated = await getVentaArrendamientoById(db, id);
+  if (!updated) throw new Error("No se pudo actualizar el registro");
+  return updated;
 }

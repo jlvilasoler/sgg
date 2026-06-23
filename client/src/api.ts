@@ -25,6 +25,7 @@ import type {
   VentaAgriculturaRow,
   VentaAgriculturaRealInput,
   VentaArrendamientoRow,
+  VentaArrendamientoRealInput,
   DivisaIndicadores,
   PrecioGanado,
   SemanaPreciosGanado,
@@ -416,6 +417,25 @@ export async function updateVentaArrendamiento(
 
 export async function deleteVentaArrendamiento(id: number): Promise<void> {
   await request(`/ingresos-ventas/ventas-arrendamientos/${id}`, { method: "DELETE" });
+}
+
+export async function patchVentaArrendamiento(
+  id: number,
+  patch: {
+    venta_realizada?: boolean;
+    valores_reales?: VentaArrendamientoRealInput;
+    destacada?: boolean;
+  }
+): Promise<{ data: VentaArrendamientoRow; message: string }> {
+  const json = await request<{
+    ok: boolean;
+    data: VentaArrendamientoRow;
+    message: string;
+  }>(`/ingresos-ventas/ventas-arrendamientos/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(patch),
+  });
+  return { data: json.data, message: json.message };
 }
 
 export async function fetchIngresosVentas(filters: {
