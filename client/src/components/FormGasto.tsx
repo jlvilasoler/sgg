@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   createPresupuesto,
   createSubRubroByRubro,
@@ -7,8 +7,11 @@ import {
   fetchSiguienteNumeroOperacion,
   fetchSubRubroItemsByNombre,
   fetchSubRubros,
+  fetchTiposDocumentoGasto,
   updatePresupuesto,
+  uploadPresupuestoDocumento,
 } from "../api";
+import { normalizeComisionConfig, normalizeGastoMapeo, type ComisionDocumentoConfig, type GastoDestinoId, type GastoMapeoCampos } from "../utils/gasto-campos";
 import type { SubRubroItem } from "../types";
 import type {
   AuthUser,
@@ -26,6 +29,10 @@ import { IconCancelar, IconConfirmar } from "./icons/ActionIcons";
 import ImporteMoneda from "./ImporteMoneda";
 import SelectorProveedor from "./SelectorProveedor";
 import GastoHistorialTabla from "./GastoHistorialTabla";
+import BrouImportador from "./documentos-digitales/BrouImportador";
+import ComisionBrouPreviewForm from "./documentos-digitales/ComisionBrouPreviewForm";
+import type { BrouTransferenciaParsed } from "../types";
+import { applyBrouParsedToForm, buildComisionPayloadForGasto, tieneImporteComision } from "../utils/brou-gasto";
 
 /** Valores internos del select de concepto (no se guardan en PRESUPUESTO). */
 const CONCEPTO_OTRO = "__otro__";
@@ -79,6 +86,7 @@ const initial = (): FormState => ({
   responsable_gasto: "",
   funcionario_cedula: "",
   nro_factura: "",
+  nro_operacion_origen: "",
   pesos: 0,
   dolares_usd: 0,
   reales: 0,
@@ -118,6 +126,81 @@ export default function FormGasto({
     sub_rubros_por_rubro: {},
   });
   const [historialKey, setHistorialKey] = useState(0);
+  const [brouImportado, setBrouImportado] = useState<BrouTransferenciaParsed | null>(null);
+  const [documentoArchivo, setDocumentoArchivo] = useState<File | null>(null);
+  const [registrarComisionBrou, setRegistrarComisionBrou] = useState(false);
+  const [importeSyncKey, setImporteSyncKey] = useState(0);
+  const [comisionManualSyncKey, setComisionManualSyncKey] = useState(0);
+  const [comisionManualMoney, setComisionManualMoney] = useState({
+    pesos: 0,
+    dolares_usd: 0,
+    reales: 0,
+    tc_usd: 0,
+    tc_reales: 0,
+    saldo_usd: 0,
+  });
+  const [brouMapeo, setBrouMapeo] = useState<GastoMapeoCampos | undefined>(undefined);
+  const [brouComisionConfig, setBrouComisionConfig] = useState<ComisionDocumentoConfig | undefined>(
+    undefined
+  );
+  const [comisionConcepto, setComisionConcepto] = useState("");
+  const comisionConceptoEditadoRef = useRef(false);
+
+  const comisionDesdePdf = Boolean(brouImportado?.comision && brouImportado.comision.valor > 0);
+  const comisionEsManual = registrarComisionBrou && !comisionDesdePdf;
+
+  const onComisionToggle = useCallback(
+    (checked: boolean) => {
+      setRegistrarComisionBrou(checked);
+      if (checked && !comisionDesdePdf) {
+        setComisionManualMoney({
+          pesos: 0,
+          dolares_usd: 0,
+          reales: 0,
+          tc_usd: form.tc_usd,
+          tc_reales: 0,
+          saldo_usd: 0,
+        });
+        setComisionManualSyncKey((k) => k + 1);
+      }
+    },
+    [comisionDesdePdf, form.tc_usd]
+  );
+
+  const resetComisionState = useCallback(() => {
+    setRegistrarComisionBrou(false);
+    setComisionManualMoney({
+      pesos: 0,
+      dolares_usd: 0,
+      reales: 0,
+      tc_usd: 0,
+      tc_reales: 0,
+      saldo_usd: 0,
+    });
+    setComisionConcepto("");
+    comisionConceptoEditadoRef.current = false;
+  }, []);
+
+  const numeroOperacionVisible =
+    form.nro_operacion_origen.trim() ||
+    (editRow?.nro_operacion_origen?.trim() ?? "") ||
+    numeroOperacion;
+
+  const onBrouAplicado = useCallback(
+    (data: BrouTransferenciaParsed) => {
+      setBrouImportado(data);
+      const comCfg = normalizeComisionConfig(brouComisionConfig);
+      const hayComision = Boolean(data.comision && data.comision.valor > 0);
+      setRegistrarComisionBrou(hayComision && comCfg.activa);
+      setForm((f) =>
+      applyBrouParsedToForm(data, f, brouMapeo, data.valores_mapeo as Partial<
+        Record<GastoDestinoId, string>
+      >)
+    );
+      setImporteSyncKey((k) => k + 1);
+    },
+    [brouMapeo, brouComisionConfig]
+  );
 
   const loadRubrosCatalogo = useCallback(async () => {
     if (!apiOnline) return;
@@ -132,6 +215,24 @@ export default function FormGasto({
   useEffect(() => {
     void loadRubrosCatalogo();
   }, [loadRubrosCatalogo]);
+
+  useEffect(() => {
+    if (!apiOnline) return;
+    fetchTiposDocumentoGasto({ soloActivos: true })
+      .then((tipos) => {
+        const brou = tipos.find((t) => {
+          const o = t.origen.trim().toUpperCase();
+          const n = t.nombre.trim().toUpperCase();
+          return o === "BROU" || n.includes("BROU");
+        });
+        setBrouMapeo(brou ? normalizeGastoMapeo(brou.mapeo_campos) : undefined);
+        setBrouComisionConfig(brou ? normalizeComisionConfig(brou.comision_config) : undefined);
+      })
+      .catch(() => {
+        setBrouMapeo(undefined);
+        setBrouComisionConfig(undefined);
+      });
+  }, [apiOnline]);
 
   const catalogoRubros = useMemo(() => {
     if (rubrosCatalogo.rubros.length > 0) return rubrosCatalogo;
@@ -279,10 +380,16 @@ export default function FormGasto({
   useEffect(() => {
     if (editRow) {
       setForm(rowToForm(editRow));
-      setNumeroOperacion(formatNumeroOperacion(editRow.nro_registro));
+      setNumeroOperacion(
+        editRow.nro_operacion_origen?.trim() ||
+          formatNumeroOperacion(editRow.nro_registro)
+      );
       return;
     }
     setForm(initial());
+    setBrouImportado(null);
+    setDocumentoArchivo(null);
+    resetComisionState();
     if (!apiOnline) {
       setNumeroOperacion("");
       return;
@@ -290,7 +397,7 @@ export default function FormGasto({
     fetchSiguienteNumeroOperacion()
       .then((d) => setNumeroOperacion(d.numero_operacion))
       .catch(() => setNumeroOperacion(""));
-  }, [editRow, apiOnline]);
+  }, [editRow, apiOnline, resetComisionState]);
 
   useEffect(() => {
     if (!gastoAsignadoEsEmpleados || !form.funcionario_cedula) return;
@@ -542,33 +649,117 @@ export default function FormGasto({
     });
   };
 
+  const validarCamposGasto = (): string | null => {
+    if (!form.empresa) return "Seleccioná la empresa";
+    if (!form.fecha) return "Ingresá la fecha";
+    if (!form.rubro) return "Seleccioná el rubro";
+    return null;
+  };
+
+  const comisionPreview = useMemo(() => {
+    if (editRow || !registrarComisionBrou) return null;
+    const mainPayload: PresupuestoForm = {
+      ...form,
+      empresa: form.empresa as Empresa,
+      nro_operacion_origen: form.nro_operacion_origen.trim(),
+    };
+    return buildComisionPayloadForGasto(
+      mainPayload,
+      brouComisionConfig,
+      brouImportado,
+      comisionEsManual ? comisionManualMoney : undefined
+    );
+  }, [
+    form,
+    editRow,
+    registrarComisionBrou,
+    brouImportado,
+    brouComisionConfig,
+    comisionEsManual,
+    comisionManualMoney,
+  ]);
+
+  useEffect(() => {
+    setComisionConcepto("");
+    comisionConceptoEditadoRef.current = false;
+  }, [brouImportado?.numero_operacion]);
+
+  useEffect(() => {
+    if (!comisionPreview || comisionConceptoEditadoRef.current) return;
+    setComisionConcepto(comisionPreview.concepto);
+  }, [comisionPreview]);
+
+  const onComisionConceptoChange = useCallback((value: string) => {
+    comisionConceptoEditadoRef.current = true;
+    setComisionConcepto(aMayusculas(value));
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!apiOnline) {
       onError("Iniciá la API con npm run dev en la carpeta del proyecto");
       return;
     }
-    if (!form.empresa) {
-      onError("Seleccioná la empresa");
+    const err = validarCamposGasto();
+    if (err) {
+      onError(err);
       return;
     }
-    if (!form.concepto.trim()) {
-      onError("Ingresá o seleccioná un concepto");
+    if (registrarComisionBrou && comisionEsManual && !tieneImporteComision(comisionManualMoney)) {
+      onError("Ingresá el importe de la comisión bancaria");
       return;
     }
     try {
-      const payload = { ...form, empresa: form.empresa as Empresa };
+      const payload = {
+        ...form,
+        empresa: form.empresa as Empresa,
+        nro_operacion_origen: form.nro_operacion_origen.trim(),
+      };
       if (editRow) {
         await updatePresupuesto(editRow.id, payload);
         onSuccess("Los cambios se guardaron en PRESUPUESTO.", "Operación actualizada");
       } else {
         const reg = await createPresupuesto(payload);
-        onSuccess(
-          `Nro. de operación: ${formatNumeroOperacion(reg.nro_registro)}`,
-          "Operación ingresada con éxito"
-        );
+        let msg = `Nro. de operación: ${formatNumeroOperacion(reg.nro_registro)}`;
+        if (form.nro_operacion_origen.trim()) {
+          msg += ` — ref. BROU ${form.nro_operacion_origen.trim()}`;
+        }
+
+        if (documentoArchivo) {
+          try {
+            await uploadPresupuestoDocumento(reg.id, documentoArchivo);
+            msg += ". Comprobante adjunto guardado.";
+          } catch (docErr) {
+            msg += `. Advertencia: el comprobante no se guardó (${
+              docErr instanceof Error ? docErr.message : "error desconocido"
+            }).`;
+          }
+        }
+
+        const comision =
+          registrarComisionBrou &&
+          (comisionDesdePdf || tieneImporteComision(comisionManualMoney));
+
+        if (comision) {
+          const comPayload = buildComisionPayloadForGasto(
+            payload,
+            brouComisionConfig,
+            brouImportado,
+            comisionEsManual ? comisionManualMoney : undefined
+          );
+          if (comisionConcepto.trim()) {
+            comPayload.concepto = comisionConcepto.trim();
+          }
+          const regCom = await createPresupuesto(comPayload);
+          msg += `. Comisión registrada (N° ${formatNumeroOperacion(regCom.nro_registro)}).`;
+        }
+
+        onSuccess(msg, "Operación ingresada con éxito");
       }
       setForm(initial());
+      setBrouImportado(null);
+      setDocumentoArchivo(null);
+      resetComisionState();
       if (apiOnline) {
         fetchSiguienteNumeroOperacion()
           .then((d) => setNumeroOperacion(d.numero_operacion))
@@ -585,15 +776,38 @@ export default function FormGasto({
 
   return (
     <div className="form-gasto-layout">
-    <form className="card form-card" onSubmit={handleSubmit}>
+    <form className={`card form-card${!editRow ? " gasto-factura-card" : ""}`} onSubmit={handleSubmit}>
       <div className="form-header">
+        {!editRow ? (
+          <span className="gasto-factura-badge">Factura</span>
+        ) : null}
         <h2>
           {editRow
             ? `Editar gasto — Operación N° ${formatNumeroOperacion(editRow.nro_registro)}`
-            : "Nuevo gasto de funcionamiento"}
+            : "Ingresar nuevo gasto"}
         </h2>
-        <p className="muted">Tabla PRESUPUESTO — Ganadera Guaviyú / Ganadera Chivilcoy</p>
+        <p className="muted">
+          {brouImportado
+            ? "Comprobante detectado — transferencia a otros bancos"
+            : "Tabla PRESUPUESTO — Ganadera Guaviyú / Ganadera Chivilcoy"}
+        </p>
       </div>
+
+      {!editRow && (
+        <BrouImportador
+          apiOnline={apiOnline}
+          mapeo={brouMapeo}
+          mapeoComision={
+            brouComisionConfig
+              ? normalizeGastoMapeo(normalizeComisionConfig(brouComisionConfig).mapeo_campos)
+              : undefined
+          }
+          onError={onError}
+          onApplied={onBrouAplicado}
+          onArchivo={setDocumentoArchivo}
+          archivoAdjunto={documentoArchivo}
+        />
+      )}
 
       <div className="form-grid">
         <div className="field">
@@ -614,16 +828,24 @@ export default function FormGasto({
         </div>
 
         <div className="field">
-          <label htmlFor="nro-operacion">Número de operación</label>
+          <label htmlFor="nro-operacion">
+            {form.nro_operacion_origen.trim()
+              ? "N° operación (documento BROU)"
+              : "Número de operación"}
+          </label>
           <input
             id="nro-operacion"
             type="text"
             readOnly
             className="input-readonly"
-            value={numeroOperacion}
+            value={numeroOperacionVisible}
             placeholder={apiOnline ? "Asignando…" : "Sin conexión"}
             aria-readonly="true"
-            title="Número único asignado por el sistema al guardar"
+            title={
+              form.nro_operacion_origen.trim()
+                ? "Número del comprobante BROU"
+                : "Número único asignado por el sistema al guardar"
+            }
           />
         </div>
 
@@ -839,7 +1061,7 @@ export default function FormGasto({
                       : "concepto"
               }
             >
-              Concepto *
+              Concepto
             </label>
             <div className="field-concepto-inputs">
               {conceptoUsaLista ? (
@@ -895,7 +1117,6 @@ export default function FormGasto({
                       id="concepto"
                       className="concepto-unificado"
                       type="text"
-                      required
                       placeholder="Detalle del concepto (ej. arreglo alambrado potrero 3)…"
                       value={form.concepto}
                       onChange={(e) => set("concepto", e.target.value)}
@@ -917,7 +1138,6 @@ export default function FormGasto({
                   <select
                     id="concepto-select"
                     className="concepto-select"
-                    required={!conceptoItemSeleccionado}
                     value={conceptoSelectValue}
                     onChange={(e) => handleConceptoSelect(e.target.value)}
                   >
@@ -936,7 +1156,6 @@ export default function FormGasto({
                   id="concepto"
                   className="concepto-unificado"
                   type="text"
-                  required
                   placeholder="Ej: Sueldos marzo, IVA, compra balanceado…"
                   value={form.concepto}
                   onChange={(e) => set("concepto", e.target.value)}
@@ -956,7 +1175,7 @@ export default function FormGasto({
           tc_usd={form.tc_usd}
           tc_reales={form.tc_reales}
           saldo_usd={form.saldo_usd}
-          syncKey={editRow?.id ?? 0}
+          syncKey={(editRow?.id ?? 0) + importeSyncKey * 100_000}
           onMoneyChange={(patch) => setForm((f) => ({ ...f, ...patch }))}
         />
 
@@ -972,6 +1191,34 @@ export default function FormGasto({
         </div>
       </div>
 
+      {comisionDesdePdf && !editRow ? (
+        <label className="brou-comision-toggle inline-check">
+          <input
+            type="checkbox"
+            checked={registrarComisionBrou}
+            onChange={(e) => onComisionToggle(e.target.checked)}
+          />
+          Registrar la comisión bancaria como gasto independiente
+        </label>
+      ) : null}
+
+      {comisionPreview ? (
+        <ComisionBrouPreviewForm
+          payload={comisionPreview}
+          comision={brouImportado?.comision}
+          concepto={comisionConcepto}
+          onConceptoChange={onComisionConceptoChange}
+          manual={comisionEsManual}
+          apiOnline={apiOnline}
+          fecha={form.fecha}
+          manualMoney={comisionManualMoney}
+          onManualMoneyChange={(patch) =>
+            setComisionManualMoney((prev) => ({ ...prev, ...patch }))
+          }
+          manualSyncKey={comisionManualSyncKey}
+        />
+      ) : null}
+
       <div className="form-actions">
         <button type="submit" className="btn btn-primary">
           {editRow ? "Actualizar registro" : "Guardar"}
@@ -986,6 +1233,9 @@ export default function FormGasto({
           className="btn btn-ghost"
           onClick={() => {
             setForm(initial());
+            setBrouImportado(null);
+            setDocumentoArchivo(null);
+            resetComisionState();
             onCancelEdit();
           }}
         >

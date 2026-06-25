@@ -208,6 +208,26 @@ function IconChat({ className }: IconProps) {
   );
 }
 
+function IconDocumentosDigitales({ className }: IconProps) {
+  return (
+    <IconShell className={className}>
+      <path
+        d="M6 5.5h7l3 3V18.5a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V6.5a1 1 0 0 1 1-1Z"
+        {...stroke}
+      />
+      <path d="M13 5.5V8.5h3" {...stroke} />
+      <path d="M8 11.5h8M8 14.5h6M8 17.5h4" {...stroke} strokeWidth="1.4" />
+      <path
+        d="M16.5 14.5h3.5l-1.2 1.2.45 1.55-1.35-.8-1.35.8.45-1.55-1.2-1.2Z"
+        fill="currentColor"
+        fillOpacity="0.2"
+        stroke="currentColor"
+        strokeWidth="1.2"
+      />
+    </IconShell>
+  );
+}
+
 const ICONS: Record<TabId, (props: IconProps) => ReactNode> = {
   registro: IconRegistro,
   listado: IconListado,
@@ -223,6 +243,7 @@ const ICONS: Record<TabId, (props: IconProps) => ReactNode> = {
   registro_actividad: IconRegistroActividad,
   usuarios: IconUsuarios,
   chat: IconChat,
+  documentos_digitales: IconDocumentosDigitales,
 };
 
 export function MenuAppIcon({ id, className }: { id: TabId; className?: string }) {
@@ -306,5 +327,10 @@ export const MENU_APP_THEMES: Record<TabId, MenuAppTheme> = {
     accent: "#0d9488",
     accentSoft: "linear-gradient(145deg, #f0fdfa 0%, #ccfbf1 52%, #99f6e4 100%)",
     accentGlow: "rgba(13, 148, 136, 0.28)",
+  },
+  documentos_digitales: {
+    accent: "#0369a1",
+    accentSoft: "linear-gradient(145deg, #f0f9ff 0%, #e0f2fe 52%, #bae6fd 100%)",
+    accentGlow: "rgba(3, 105, 161, 0.28)",
   },
 };

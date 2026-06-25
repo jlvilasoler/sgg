@@ -12,4 +12,5 @@ export type TabId =
   | "stock_movimientos"
   | "registro_actividad"
   | "usuarios"
-  | "chat";
+  | "chat"
+  | "documentos_digitales";

@@ -57,7 +57,7 @@ const WRITE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
 function canAccessModulo(user: UserPublic, modulo: Modulo): boolean {
   if (authDb.MODULOS_TODOS_LOS_USUARIOS.includes(modulo)) return true;
-  if (modulo === "usuarios") return user.rol === "admin";
+  if (authDb.MODULOS_SOLO_ADMIN.includes(modulo)) return user.rol === "admin";
   if (user.rol === "admin") return true;
   return user.permisos.includes(modulo);
 }
@@ -73,9 +73,12 @@ function canWriteInModulo(user: UserPublic, modulo: Modulo | null): boolean {
 
 /** Agricultura/arrendamientos del simulador: gestor N2 usa módulo simulador si no tiene ventas. */
 function effectiveModuloForPath(user: UserPublic, path: string): Modulo | null {
+  const p = path.toLowerCase();
+  if (p === "/api/documentos-digitales/parse-brou-transferencia") {
+    return "presupuesto";
+  }
   const modulo = moduleFromApiPath(path);
   if (!modulo) return null;
-  const p = path.toLowerCase();
   if (
     modulo === "ventas" &&
     (p.startsWith("/api/ingresos-ventas/ventas-agricultura") ||
@@ -155,6 +158,7 @@ export function moduleFromApiPath(path: string): Modulo | null {
     return "ventas";
   }
   if (p.startsWith("/api/stock-ganadero")) return "stock";
+  if (p.startsWith("/api/documentos-digitales")) return "documentos_digitales";
   if (p.startsWith("/api/catalogos")) return "presupuesto";
   return null;
 }
@@ -200,8 +204,15 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
   const modulo = effectiveModuloForPath(user, path);
   const stockDispositivosLectura =
     req.method === "GET" && path.startsWith("/api/stock-ganadero/dispositivos");
+  const tiposGastoLectura =
+    req.method === "GET" && path.startsWith("/api/documentos-digitales/tipos-gasto");
 
-  if (modulo && !canAccessModulo(user, modulo) && !stockDispositivosLectura) {
+  if (
+    modulo &&
+    !canAccessModulo(user, modulo) &&
+    !stockDispositivosLectura &&
+    !(tiposGastoLectura && canAccessModulo(user, "presupuesto"))
+  ) {
     res.status(403).json({ ok: false, error: "Sin permiso para este módulo" });
     return;
   }

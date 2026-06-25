@@ -6,7 +6,7 @@ import {
 import { useHeaderBackStep } from "../header-back";
 import type { Modulo, Rol, RolPermisosConfig, RolPermisosInput } from "../types";
 import { ALL_ROLES } from "../types";
-import { MODULO_LABELS, ROL_LABELS_DETALLE } from "../utils/auth-permissions";
+import { MODULO_LABELS, MODULOS_SOLO_ADMIN, ROL_LABELS_DETALLE } from "../utils/auth-permissions";
 import SubseccionInlinePanel from "./SubseccionInlinePanel";
 
 interface Props {
@@ -35,16 +35,17 @@ const MODULOS_CONFIGURABLES: Modulo[] = [
 /** Siempre habilitado para todos los roles — no configurable. */
 const MODULO_TODOS: Modulo = "chat";
 
-/** Solo administrador — no configurable. */
-const MODULO_SOLO_ADMIN: Modulo = "usuarios";
-
 type ModoEdicion = "lectura" | "edicion";
+
+function isModuloSoloAdmin(modulo: Modulo): boolean {
+  return MODULOS_SOLO_ADMIN.includes(modulo);
+}
 
 function toInput(config: RolPermisosConfig): RolPermisosInput {
   const modulos: Partial<Record<Modulo, boolean>> = {};
   const modulos_solo_lectura: Partial<Record<Modulo, boolean>> = {};
   for (const m of config.modulos) {
-    if (m.modulo === MODULO_SOLO_ADMIN || m.modulo === MODULO_TODOS) continue;
+    if (isModuloSoloAdmin(m.modulo) || m.modulo === MODULO_TODOS) continue;
     modulos[m.modulo] = m.acceso;
     if (m.solo_lectura) modulos_solo_lectura[m.modulo] = true;
   }
@@ -121,7 +122,7 @@ export default function UsuariosRolesPanel({
   };
 
   const toggleModulo = (modulo: Modulo, activo: boolean) => {
-    if (!draft || modulo === MODULO_SOLO_ADMIN || modulo === MODULO_TODOS) return;
+    if (!draft || isModuloSoloAdmin(modulo) || modulo === MODULO_TODOS) return;
     if (activo) {
       const modo: ModoEdicion =
         activeRol === "consulta" || !draft.puede_escribir ? "lectura" : "edicion";
@@ -378,18 +379,21 @@ export default function UsuariosRolesPanel({
                       </div>
                       <span className="usuarios-roles-modulo-hint">Todos los usuarios</span>
                     </div>
-                    <div
-                      className="usuarios-roles-modulo usuarios-roles-modulo--simple usuarios-roles-modulo--locked"
-                      aria-label="Administración de Usuarios — solo administrador"
-                    >
-                      <div className="usuarios-roles-modulo-top">
-                        <input type="checkbox" checked disabled aria-hidden />
-                        <span className="usuarios-roles-modulo-label">
-                          {MODULO_LABELS[MODULO_SOLO_ADMIN]}
-                        </span>
+                    {MODULOS_SOLO_ADMIN.map((modulo) => (
+                      <div
+                        key={modulo}
+                        className="usuarios-roles-modulo usuarios-roles-modulo--simple usuarios-roles-modulo--locked"
+                        aria-label={`${MODULO_LABELS[modulo]} — solo administrador`}
+                      >
+                        <div className="usuarios-roles-modulo-top">
+                          <input type="checkbox" checked disabled aria-hidden />
+                          <span className="usuarios-roles-modulo-label">
+                            {MODULO_LABELS[modulo]}
+                          </span>
+                        </div>
+                        <span className="usuarios-roles-modulo-hint">Solo administrador</span>
                       </div>
-                      <span className="usuarios-roles-modulo-hint">Solo administrador</span>
-                    </div>
+                    ))}
                   </div>
                 </>
               )

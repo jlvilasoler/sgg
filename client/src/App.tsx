@@ -28,6 +28,7 @@ import SimuladorVentas from "./components/simulador-venta/SimuladorVentas";
 import RecursosHumanos from "./components/RecursosHumanos";
 import IngresosVentas from "./components/ventas/IngresosVentas";
 import StockGanadero from "./components/stock/StockGanadero";
+import DocumentosDigitales from "./components/DocumentosDigitales";
 import ChatPanel from "./components/ChatPanel";
 import ChatInterno from "./components/ChatInterno";
 import MiCuentaPanel from "./components/MiCuentaModal";
@@ -439,6 +440,14 @@ export default function App() {
                 onError={(m) => notify(m, false)}
                 onSuccess={(m) => notify(m, true)}
                 onPermissionsChanged={() => void refreshUser()}
+              />
+            )}
+            {screen === "documentos_digitales" && user?.rol === "admin" && (
+              <DocumentosDigitales
+                apiOnline={apiOnline}
+                onVolver={goHome}
+                onError={(m) => notify(m, false)}
+                onSuccess={(m) => notify(m, true)}
               />
             )}
             {screen === "chat" && user && (

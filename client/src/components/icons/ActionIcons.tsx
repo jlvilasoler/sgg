@@ -154,6 +154,26 @@ export function IconDestacar({ size, className }: IconProps) {
   );
 }
 
+/** Documento / archivo adjunto */
+export function IconDocumento({ size, className }: IconProps) {
+  return (
+    <IconBase size={size} className={className}>
+      <path
+        d="M14 3H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7l-4-4Z"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M14 3v4H8M10 13h4M10 17h4"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+      />
+    </IconBase>
+  );
+}
+
 /** Cruz / cancelar */
 export function IconCancelar({ size, className }: IconProps) {
   return (

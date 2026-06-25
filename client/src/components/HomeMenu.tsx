@@ -71,6 +71,11 @@ export const MENU_APPS: MenuApp[] = [
     subtitle: "Administración del sistema",
   },
   {
+    id: "documentos_digitales",
+    label: "Documentos Digitales",
+    subtitle: "Archivo y gestión documental",
+  },
+  {
     id: "chat",
     label: "Chat",
     subtitle: "Mensajes con el equipo y mensajes directos",
@@ -92,6 +97,7 @@ const SCREEN_TITLES: Record<TabId, string> = {
   registro_actividad: "Registro de actividad",
   usuarios: "Usuarios",
   chat: "Chat",
+  documentos_digitales: "Documentos Digitales",
 };
 
 export function getScreenTitle(id: TabId): string {

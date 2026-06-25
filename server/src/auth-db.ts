@@ -28,7 +28,8 @@ export type Modulo =
   | "rrhh"
   | "ventas"
   | "stock"
-  | "usuarios";
+  | "usuarios"
+  | "documentos_digitales";
 
 export const MODULOS: Modulo[] = [
   "presupuesto",
@@ -41,6 +42,7 @@ export const MODULOS: Modulo[] = [
   "ventas",
   "stock",
   "usuarios",
+  "documentos_digitales",
 ];
 
 export const ROL_LABELS: Record<Rol, string> = {
@@ -61,6 +63,7 @@ export const MODULO_LABELS: Record<Modulo, string> = {
   ventas: "Ingresos por ventas",
   stock: "Stock ganadero",
   usuarios: "Administración de Usuarios",
+  documentos_digitales: "Documentos Digitales",
 };
 
 export const ROL_DESCRIPCION: Record<Rol, string> = {
@@ -71,7 +74,7 @@ export const ROL_DESCRIPCION: Record<Rol, string> = {
 };
 
 /** Módulos que solo el administrador puede usar (no configurables por rol). */
-export const MODULOS_SOLO_ADMIN: Modulo[] = ["usuarios"];
+export const MODULOS_SOLO_ADMIN: Modulo[] = ["usuarios", "documentos_digitales"];
 
 export interface ModuloAccesoConfig {
   modulo: Modulo;
@@ -168,7 +171,7 @@ const DEFAULT_ROLE_ACCESS: Record<
   admin: { puede_escribir: true, modulos: [...MODULOS] },
   editor: {
     puede_escribir: true,
-    modulos: MODULOS.filter((m) => m !== "usuarios"),
+    modulos: MODULOS.filter((m) => !MODULOS_SOLO_ADMIN.includes(m)),
   },
   gestor_n2: {
     puede_escribir: true,
@@ -176,7 +179,7 @@ const DEFAULT_ROLE_ACCESS: Record<
   },
   consulta: {
     puede_escribir: false,
-    modulos: MODULOS.filter((m) => m !== "usuarios"),
+    modulos: MODULOS.filter((m) => !MODULOS_SOLO_ADMIN.includes(m)),
   },
 };
 
@@ -203,7 +206,7 @@ export async function roleCapabilities(
       ...modRows
         .map((r) => r.modulo as Modulo)
         .filter((m) => MODULOS.includes(m))
-        .filter((m) => m !== "usuarios"),
+        .filter((m) => !MODULOS_SOLO_ADMIN.includes(m)),
       ...MODULOS_TODOS_LOS_USUARIOS,
     ]),
   ].sort();
@@ -386,6 +389,7 @@ export async function initAuthTables(db: Db): Promise<void> {
   await seedRolePermissionsIfEmpty(db);
   await ensureGestorN2RolePermissions(db);
   await migrateModulosPreciosGanadoYChat(db);
+  await migrateModuloDocumentosDigitales(db);
   await purgeExpiredSessions(db);
   await seedAdminIfEmpty(db);
   await migrateLegacyAdmin(db);
@@ -477,11 +481,13 @@ async function migrateRolePermisosSoloLectura(db: Db): Promise<void> {
     )
     .run();
 
-  await db
-    .prepare(
-      "UPDATE ROLE_PERMISOS SET acceso = 0, solo_lectura = 0 WHERE modulo = 'usuarios' AND rol != 'admin'"
-    )
-    .run();
+  for (const modulo of MODULOS_SOLO_ADMIN) {
+    await db
+      .prepare(
+        "UPDATE ROLE_PERMISOS SET acceso = 0, solo_lectura = 0 WHERE modulo = ? AND rol != 'admin'"
+      )
+      .run(modulo);
+  }
 
   await db
     .prepare("UPDATE ROLE_PERMISOS SET acceso = 1, solo_lectura = 0 WHERE modulo = 'chat'")
@@ -499,6 +505,19 @@ async function migrateModulosPreciosGanadoYChat(db: Db): Promise<void> {
     for (const rol of ALL_ROLES) {
       await ins.run(rol, modulo);
     }
+  }
+}
+
+async function migrateModuloDocumentosDigitales(db: Db): Promise<void> {
+  const ins = await db.prepare(
+    `INSERT INTO ROLE_PERMISOS (rol, modulo, acceso, solo_lectura)
+     VALUES (?, 'documentos_digitales', ?, 0)
+     ON CONFLICT (rol, modulo) DO NOTHING`
+  );
+
+  for (const rol of ALL_ROLES) {
+    const acceso = rol === "admin" ? 1 : 0;
+    await ins.run(rol, acceso);
   }
 }
 
@@ -554,7 +573,7 @@ export async function listRolePermissions(db: Db): Promise<RolPermisosConfig[]> 
         acceso:
           rol === "admin"
             ? true
-            : modulo === "usuarios"
+            : MODULOS_SOLO_ADMIN.includes(modulo)
               ? false
               : MODULOS_TODOS_LOS_USUARIOS.includes(modulo)
                 ? true
@@ -595,7 +614,7 @@ export async function updateRolePermissions(
   );
 
   for (const modulo of MODULOS) {
-    if (modulo === "usuarios") {
+    if (MODULOS_SOLO_ADMIN.includes(modulo)) {
       await upsert.run(rol, modulo, 0, 0);
       continue;
     }

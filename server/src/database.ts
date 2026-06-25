@@ -22,6 +22,8 @@ import * as stock from "./stock-ganadero-db.js";
 import * as stockSalidas from "./stock-ganadera-salidas.js";
 import * as stockAud from "./stock-auditoria-db.js";
 import * as auth from "./auth-db.js";
+import * as docDig from "./documentos-digitales-db.js";
+import * as presDoc from "./presupuesto-documentos-db.js";
 import * as chat from "./chat-db.js";
 import * as simVenta from "./simulador-venta-ganado-db.js";
 import * as simVentaAud from "./simulador-venta-auditoria-db.js";
@@ -99,6 +101,10 @@ async function migratePresupuestoIngresadoPor(db: PgDb): Promise<void> {
       name: "ingresado_por_nombre",
       ddl: `ALTER TABLE presupuesto ADD COLUMN ingresado_por_nombre TEXT NOT NULL DEFAULT ''`,
     },
+    {
+      name: "nro_operacion_origen",
+      ddl: `ALTER TABLE presupuesto ADD COLUMN nro_operacion_origen TEXT NOT NULL DEFAULT ''`,
+    },
   ];
   for (const col of cols) {
     if (await presupuestoColumnExists(col.name)) continue;
@@ -143,6 +149,7 @@ export async function initDb(): Promise<void> {
       console.warn("[SGG] Init en curso en otra instancia; omitiendo seeds pesados");
     }
     await auth.initAuthTables(db);
+    await docDig.initDocumentosDigitalesTables(db);
     await chat.initChatTables(db);
     await stock.initStockGanaderoTables(db);
     await stockAud.initStockAuditoriaTable(db);
@@ -153,6 +160,7 @@ export async function initDb(): Promise<void> {
     await ventasAgri.initVentasAgriculturaTable(db);
     await ventasArr.initVentasArrendamientosTable(db);
     await migratePresupuestoIngresadoPor(db);
+    await presDoc.initPresupuestoDocumentosTable(db);
   } finally {
     if (locked) await releaseAdvisoryLock();
   }
@@ -434,11 +442,13 @@ export async function insertPresupuesto(
     INSERT INTO PRESUPUESTO (
       nro_registro, empresa, fecha, codigo_proveedor, razon_social_proveedor,
       concepto, observaciones, rubro, sub_rubro, responsable_gasto, funcionario_cedula, nro_factura,
+      nro_operacion_origen,
       pesos, dolares_usd, reales, tc_usd, tc_reales, saldo_usd,
       ingresado_por_email, ingresado_por_nombre
     ) VALUES (
       @nro_registro, @empresa, @fecha, @codigo_proveedor, @razon_social_proveedor,
       @concepto, @observaciones, @rubro, @sub_rubro, @responsable_gasto, @funcionario_cedula, @nro_factura,
+      @nro_operacion_origen,
       @pesos, @dolares_usd, @reales, @tc_usd, @tc_reales, @saldo_usd,
       @ingresado_por_email, @ingresado_por_nombre
     )
@@ -459,7 +469,7 @@ export async function updatePresupuesto(id: number, data: PresupuestoInput): Pro
       razon_social_proveedor = @razon_social_proveedor,
       concepto = @concepto, observaciones = @observaciones, rubro = @rubro, sub_rubro = @sub_rubro,
       responsable_gasto = @responsable_gasto, funcionario_cedula = @funcionario_cedula,
-      nro_factura = @nro_factura,
+      nro_factura = @nro_factura, nro_operacion_origen = @nro_operacion_origen,
       pesos = @pesos, dolares_usd = @dolares_usd, reales = @reales,
       tc_usd = @tc_usd, tc_reales = @tc_reales, saldo_usd = @saldo_usd
     WHERE id = @id
@@ -468,14 +478,49 @@ export async function updatePresupuesto(id: number, data: PresupuestoInput): Pro
 }
 
 export async function deletePresupuesto(id: number): Promise<boolean> {
+  await presDoc.deletePresupuestoDocumento(db, id);
   const result = await db.prepare("DELETE FROM PRESUPUESTO WHERE id = ?").run(id);
   return result.changes > 0;
 }
 
+const PRESUPUESTO_SELECT = `
+  SELECT p.*,
+    pd.presupuesto_id AS doc_id,
+    pd.nombre AS doc_nombre,
+    pd.mime AS doc_mime,
+    pd.tamano AS doc_tamano
+  FROM PRESUPUESTO p
+  LEFT JOIN PRESUPUESTO_DOCUMENTOS pd ON pd.presupuesto_id = p.id
+`;
+
+type PresupuestoDbRow = Presupuesto & {
+  doc_id?: number | null;
+  doc_nombre?: string | null;
+  doc_mime?: string | null;
+  doc_tamano?: number | null;
+};
+
+function mapPresupuestoRow(row: PresupuestoDbRow): Presupuesto {
+  const { doc_id, doc_nombre, doc_mime, doc_tamano, ...base } = row;
+  const tieneDoc = doc_id != null && Number(doc_id) > 0;
+  const meta = presDoc.documentoMetaFromJoin({ doc_nombre, doc_mime, doc_tamano });
+  return {
+    ...base,
+    documento_adjunto: tieneDoc
+      ? meta ?? {
+          nombre: String(doc_nombre ?? "comprobante.pdf").trim() || "comprobante.pdf",
+          mime: String(doc_mime ?? "application/pdf"),
+          tamano: Number(doc_tamano ?? 0),
+        }
+      : null,
+  };
+}
+
 export async function getPresupuesto(id: number): Promise<Presupuesto | undefined> {
-  return (await db.prepare("SELECT * FROM PRESUPUESTO WHERE id = ?").get(id)) as
-    | Presupuesto
-    | undefined;
+  const row = (await db
+    .prepare(`${PRESUPUESTO_SELECT} WHERE p.id = ?`)
+    .get(id)) as PresupuestoDbRow | undefined;
+  return row ? mapPresupuestoRow(row) : undefined;
 }
 
 export interface ListFilters {
@@ -489,7 +534,7 @@ export interface ListFilters {
 }
 
 export async function listPresupuesto(filters: ListFilters = {}): Promise<Presupuesto[]> {
-  let query = "SELECT * FROM PRESUPUESTO WHERE 1=1";
+  let query = `${PRESUPUESTO_SELECT} WHERE 1=1`;
   const params: Record<string, string> = {};
 
   if (filters.ingresado_por_email) {
@@ -527,8 +572,9 @@ export async function listPresupuesto(filters: ListFilters = {}): Promise<Presup
     params.busqueda = `%${filters.busqueda}%`;
   }
 
-  query += " ORDER BY fecha DESC, id DESC";
-  return (await db.prepare(query).all(params)) as Presupuesto[];
+  query += " ORDER BY p.fecha DESC, p.id DESC";
+  const rows = (await db.prepare(query).all(params)) as PresupuestoDbRow[];
+  return rows.map(mapPresupuestoRow);
 }
 
 export async function resumenPorEmpresa(
@@ -670,6 +716,17 @@ export const rubroVinculos = {
     vinc.syncVinculoSubRubroPorGrupo(db, subRubroId, grupo),
   resolveGrupoParaRubro: (rubroNombre: string) =>
     vinc.resolveGrupoParaRubroContable(db, rubroNombre),
+};
+
+export const documentosDigitales = {
+  listTiposGasto: (opts?: { soloActivos?: boolean }) =>
+    docDig.listTiposDocumentoGasto(db, opts),
+  getTipoGastoById: (id: number) => docDig.getTipoDocumentoGastoById(db, id),
+  insertTipoGasto: (input: docDig.TipoDocumentoGastoInput) =>
+    docDig.insertTipoDocumentoGasto(db, input),
+  updateTipoGasto: (id: number, input: docDig.TipoDocumentoGastoInput) =>
+    docDig.updateTipoDocumentoGasto(db, id, input),
+  deleteTipoGasto: (id: number) => docDig.deleteTipoDocumentoGasto(db, id),
 };
 
 export async function getCatalogos(): Promise<{

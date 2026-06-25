@@ -43,10 +43,21 @@ import { parseTipoBaja, tipoBajaDesdeEstadoImport, type TipoBaja } from "./stock
 import { auditBajasDispositivos, auditStockMovimiento, historialAutorFromRequest } from "./stock-audit.js";
 import { EMPRESAS, type Empresa, type Presupuesto, type PresupuestoInput } from "./types.js";
 import type { UserPublic } from "./auth-db.js";
+import { normalizeComisionConfig, normalizeGastoCampoList, normalizeGastoMapeo } from "./gasto-campos.js";
+import { extractTextFromBrouDocument } from "./extract-brou-document-text.js";
+import { detectarCamposDocumento } from "./detect-document-fields.js";
+import { extractValoresPorMapeo } from "./extract-valores-etiquetas.js";
+import { parseBrouTransferenciaText } from "./parse-brou-transferencia.js";
+import * as presDoc from "./presupuesto-documentos-db.js";
 
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 8 * 1024 * 1024 },
+});
+
+const presupuestoDocUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: presDoc.PRESUPUESTO_DOC_MAX_BYTES },
 });
 
 const iconUpload = multer({
@@ -203,7 +214,6 @@ async function parseBody(req: Request): Promise<PresupuestoInput> {
   const sub_rubro = String(body.sub_rubro ?? "").trim();
   const responsable_gasto = String(body.responsable_gasto ?? "").trim();
   let funcionario_cedula = String(body.funcionario_cedula ?? "").trim();
-  if (!concepto) throw new Error("El concepto es obligatorio.");
   if (!rubro) throw new Error("El rubro es obligatorio.");
   if (!await db.rubros.gastoValido(rubro)) {
     throw new Error(
@@ -279,6 +289,7 @@ async function parseBody(req: Request): Promise<PresupuestoInput> {
     responsable_gasto,
     funcionario_cedula,
     nro_factura: String(body.nro_factura ?? "").trim(),
+    nro_operacion_origen: String(body.nro_operacion_origen ?? "").trim(),
     pesos: parseNum(body.pesos),
     dolares_usd: parseNum(body.dolares_usd),
     reales: parseNum(body.reales),
@@ -430,6 +441,70 @@ app.delete("/api/presupuesto/:id", async (req, res) => {
     return;
   }
   res.json({ ok: true, message: "Registro eliminado" });
+});
+
+app.post(
+  "/api/presupuesto/:id/documento",
+  presupuestoDocUpload.single("file"),
+  async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const reg = await db.getPresupuesto(id);
+      if (!reg) {
+        res.status(404).json({ ok: false, error: "Registro no encontrado" });
+        return;
+      }
+      if (!puedeAccederPresupuesto(reg, req.user!)) {
+        res.status(403).json({ ok: false, error: "No tenés permiso para modificar este registro" });
+        return;
+      }
+
+      const file = req.file;
+      if (!file?.buffer?.length) {
+        res.status(400).json({ ok: false, error: "Subí un PDF o imagen del comprobante" });
+        return;
+      }
+
+      const meta = await presDoc.savePresupuestoDocumento(
+        db.getDb(),
+        id,
+        file.buffer,
+        file.mimetype,
+        file.originalname
+      );
+      res.status(201).json({ ok: true, data: meta });
+    } catch (e) {
+      res.status(400).json({ ok: false, error: (e as Error).message });
+    }
+  }
+);
+
+app.get("/api/presupuesto/:id/documento", async (req, res) => {
+  const id = Number(req.params.id);
+  const reg = await db.getPresupuesto(id);
+  if (!reg) {
+    res.status(404).json({ ok: false, error: "Registro no encontrado" });
+    return;
+  }
+  if (!puedeAccederPresupuesto(reg, req.user!)) {
+    res.status(403).json({ ok: false, error: "No tenés permiso para ver este documento" });
+    return;
+  }
+
+  const file = await presDoc.readPresupuestoDocumento(db.getDb(), id);
+  if (!file) {
+    res.status(404).json({ ok: false, error: "Este registro no tiene documento adjunto" });
+    return;
+  }
+
+  const download = queryFlag(req.query.download);
+  res.setHeader("Content-Type", file.mime || "application/octet-stream");
+  res.setHeader(
+    "Content-Disposition",
+    `${download ? "attachment" : "inline"}; filename="${encodeURIComponent(file.nombre)}"`
+  );
+  res.setHeader("Content-Length", String(file.buffer.length));
+  res.end(file.buffer);
 });
 
 function parseIngresoVentaBody(req: Request) {
@@ -1871,6 +1946,199 @@ app.delete("/api/proveedores/id/:id", async (req, res) => {
   }
   res.json({ ok: true, message: "Proveedor eliminado" });
 });
+
+function parseTipoDocumentoGastoBody(req: Request) {
+  const body = req.body as Record<string, unknown>;
+  const nombre = String(body.nombre ?? "").trim();
+  const descripcion = String(body.descripcion ?? "").trim();
+  const origen = String(body.origen ?? "").trim();
+  const activo = body.activo !== false && body.activo !== 0 && body.activo !== "0";
+  const campos_habilitados = normalizeGastoCampoList(body.campos_habilitados);
+  const campos_requeridos = normalizeGastoCampoList(body.campos_requeridos);
+  const valores_defecto =
+    body.valores_defecto && typeof body.valores_defecto === "object" && !Array.isArray(body.valores_defecto)
+      ? (body.valores_defecto as Record<string, string>)
+      : {};
+  const mapeo_campos = normalizeGastoMapeo(body.mapeo_campos);
+  const comision_config = normalizeComisionConfig(body.comision_config);
+  return {
+    nombre,
+    descripcion,
+    origen,
+    activo,
+    campos_habilitados,
+    campos_requeridos,
+    valores_defecto,
+    mapeo_campos,
+    comision_config,
+  };
+}
+
+app.get("/api/documentos-digitales/tipos-gasto", async (req, res) => {
+  const soloActivos = req.query.solo_activos === "1" || req.query.solo_activos === "true";
+  res.json({
+    ok: true,
+    data: await db.documentosDigitales.listTiposGasto({ soloActivos }),
+  });
+});
+
+app.get("/api/documentos-digitales/tipos-gasto/:id", async (req, res) => {
+  const id = Number(req.params.id);
+  const row = await db.documentosDigitales.getTipoGastoById(id);
+  if (!row) {
+    res.status(404).json({ ok: false, error: "Tipo de documento no encontrado" });
+    return;
+  }
+  res.json({ ok: true, data: row });
+});
+
+app.post("/api/documentos-digitales/tipos-gasto", async (req, res) => {
+  try {
+    const payload = parseTipoDocumentoGastoBody(req);
+    const id = await db.documentosDigitales.insertTipoGasto(payload);
+    res.status(201).json({
+      ok: true,
+      data: await db.documentosDigitales.getTipoGastoById(id),
+      message: "Tipo de documento creado",
+    });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: (e as Error).message });
+  }
+});
+
+app.put("/api/documentos-digitales/tipos-gasto/:id", async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const payload = parseTipoDocumentoGastoBody(req);
+    if (!(await db.documentosDigitales.updateTipoGasto(id, payload))) {
+      res.status(404).json({ ok: false, error: "Tipo de documento no encontrado" });
+      return;
+    }
+    res.json({
+      ok: true,
+      data: await db.documentosDigitales.getTipoGastoById(id),
+      message: "Tipo de documento actualizado",
+    });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: (e as Error).message });
+  }
+});
+
+app.delete("/api/documentos-digitales/tipos-gasto/:id", async (req, res) => {
+  const id = Number(req.params.id);
+  if (!(await db.documentosDigitales.deleteTipoGasto(id))) {
+    res.status(404).json({ ok: false, error: "Tipo de documento no encontrado" });
+    return;
+  }
+  res.json({ ok: true, message: "Tipo de documento eliminado" });
+});
+
+app.post(
+  "/api/documentos-digitales/parse-brou-transferencia",
+  upload.single("file"),
+  async (req, res) => {
+    try {
+      const file = req.file;
+      if (!file?.buffer?.length) {
+        res.status(400).json({ ok: false, error: "Subí un PDF o imagen del comprobante BROU" });
+        return;
+      }
+      const text = await extractTextFromBrouDocument(
+        file.buffer,
+        file.mimetype,
+        file.originalname
+      );
+      const data = parseBrouTransferenciaText(text);
+
+      let valores_mapeo: Record<string, string> | undefined;
+      let valores_mapeo_comision: Record<string, string> | undefined;
+      const mapeoRaw = req.body?.mapeo;
+      if (mapeoRaw) {
+        try {
+          const mapeo = normalizeGastoMapeo(
+            typeof mapeoRaw === "string" ? JSON.parse(mapeoRaw) : mapeoRaw
+          );
+          if (Object.keys(mapeo).length > 0) {
+            valores_mapeo = extractValoresPorMapeo(text, mapeo) as Record<string, string>;
+          }
+        } catch {
+          /* mapeo inválido: se omite */
+        }
+      }
+      const mapeoComisionRaw = req.body?.mapeo_comision;
+      if (mapeoComisionRaw) {
+        try {
+          const mapeoCom = normalizeGastoMapeo(
+            typeof mapeoComisionRaw === "string" ? JSON.parse(mapeoComisionRaw) : mapeoComisionRaw
+          );
+          if (Object.keys(mapeoCom).length > 0) {
+            valores_mapeo_comision = extractValoresPorMapeo(text, mapeoCom) as Record<
+              string,
+              string
+            >;
+          }
+        } catch {
+          /* mapeo comisión inválido */
+        }
+      }
+
+      let proveedor_cod: number | null = null;
+      let proveedor_razon = "";
+      const nombreProveedor =
+        valores_mapeo?.proveedor?.trim() || data.beneficiario_nombre.trim();
+      if (nombreProveedor) {
+        const lista = await db.proveedores.list(nombreProveedor);
+        const nombre = nombreProveedor.toLowerCase();
+        const hit =
+          lista.find((p) => p.razon_social.trim().toLowerCase() === nombre) ??
+          lista.find((p) => p.razon_social.trim().toLowerCase().includes(nombre)) ??
+          lista[0];
+        if (hit) {
+          proveedor_cod = hit.cod;
+          proveedor_razon = hit.razon_social;
+        }
+      }
+      res.json({
+        ok: true,
+        data: {
+          ...data,
+          proveedor_cod,
+          proveedor_razon,
+          valores_mapeo,
+          valores_mapeo_comision,
+        },
+      });
+    } catch (e) {
+      res.status(400).json({ ok: false, error: (e as Error).message });
+    }
+  }
+);
+
+app.post(
+  "/api/documentos-digitales/detectar-campos",
+  upload.single("file"),
+  async (req, res) => {
+    try {
+      const file = req.file;
+      if (!file?.buffer?.length) {
+        res.status(400).json({ ok: false, error: "Subí un PDF o imagen del comprobante" });
+        return;
+      }
+      const text = await extractTextFromBrouDocument(
+        file.buffer,
+        file.mimetype,
+        file.originalname
+      );
+      const campos = detectarCamposDocumento(text).map(({ etiqueta, valor_muestra }) => ({
+        etiqueta,
+        valor_muestra,
+      }));
+      res.json({ ok: true, data: { campos } });
+    } catch (e) {
+      res.status(400).json({ ok: false, error: (e as Error).message });
+    }
+  }
+);
 
 function parseRubroBody(req: Request) {
   const body = req.body as Record<string, unknown>;

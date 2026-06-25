@@ -3,14 +3,15 @@ import { deletePresupuesto, fetchPresupuesto } from "../api";
 import type { AuthUser, Presupuesto } from "../types";
 import { confirmAction } from "../utils/confirm";
 import { empresaClass, empresaCorta, fmtDate, fmtNum } from "../utils";
-import { IconEditar, IconEliminar, IconVer } from "./icons/ActionIcons";
+import { IconDocumento, IconEditar, IconEliminar, IconVer } from "./icons/ActionIcons";
 import PresupuestoDetallePanel from "./PresupuestoDetalleModal";
+import PresupuestoDocumentoModal from "./PresupuestoDocumentoModal";
 import TablePagination, {
   paginateSlice,
   type PageSize,
 } from "./TablePagination";
 
-const COLS_BASE = 12;
+const COLS_BASE = 13;
 
 interface Props {
   apiOnline: boolean;
@@ -19,6 +20,15 @@ interface Props {
   onError: (msg: string) => void;
   onDeleted?: () => void;
   refreshKey?: number;
+}
+
+/** Total en USD del registro: dólares directos + pesos/TC + reales/TC. */
+function totalUsdDe(r: Presupuesto): number {
+  const desdePesos = r.pesos > 0 && r.tc_usd > 0 ? r.pesos / r.tc_usd : 0;
+  const desdeReales = r.reales > 0 && r.tc_reales > 0 ? r.reales / r.tc_reales : 0;
+  const directo = r.dolares_usd > 0 ? r.dolares_usd : 0;
+  const total = directo + desdePesos + desdeReales;
+  return total > 0 ? total : r.saldo_usd;
 }
 
 function CeldaTexto({
@@ -52,6 +62,7 @@ export default function GastoHistorialTabla({
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<PageSize>(20);
   const [detalleRow, setDetalleRow] = useState<Presupuesto | null>(null);
+  const [documentoRow, setDocumentoRow] = useState<Presupuesto | null>(null);
 
   const load = useCallback(async () => {
     if (!apiOnline) {
@@ -112,6 +123,16 @@ export default function GastoHistorialTabla({
     onEdit(row);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
+
+  if (documentoRow?.documento_adjunto) {
+    return (
+      <PresupuestoDocumentoModal
+        row={documentoRow}
+        documento={documentoRow.documento_adjunto}
+        onClose={() => setDocumentoRow(null)}
+      />
+    );
+  }
 
   if (detalleRow) {
     return (
@@ -177,6 +198,7 @@ export default function GastoHistorialTabla({
               <col className="col-usd" />
               <col className="col-reales" />
               <col className="col-saldo" />
+              <col className="col-documento" />
               <col className="col-acciones" />
             </colgroup>
             <thead>
@@ -214,6 +236,13 @@ export default function GastoHistorialTabla({
                 </th>
                 <th className="num" title="Total en USD" data-col="saldo">
                   TOTAL USD
+                </th>
+                <th
+                  className="col-documento-h"
+                  title="Comprobante digital adjunto"
+                  data-col="documento"
+                >
+                  Doc.
                 </th>
                 <th className="col-acciones-h" aria-label="Acciones" data-col="acciones" />
               </tr>
@@ -284,7 +313,24 @@ export default function GastoHistorialTabla({
                       {fmtNum(r.reales)}
                     </td>
                     <td className="num listado-pro-num listado-pro-num--total" data-col="saldo">
-                      {fmtNum(r.saldo_usd)}
+                      {fmtNum(totalUsdDe(r))}
+                    </td>
+                    <td className="td-documento" data-col="documento">
+                      {r.documento_adjunto ? (
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-icon-only btn-documento"
+                          onClick={() => setDocumentoRow(r)}
+                          title={`Ver comprobante: ${r.documento_adjunto.nombre}`}
+                          aria-label={`Ver comprobante ${r.documento_adjunto.nombre}`}
+                        >
+                          <IconDocumento size={16} />
+                        </button>
+                      ) : (
+                        <span className="td-documento-vacio" aria-hidden>
+                          —
+                        </span>
+                      )}
                     </td>
                     <td className="actions-cell actions-cell--icons" data-col="acciones">
                       <div className="actions-cell-inner">

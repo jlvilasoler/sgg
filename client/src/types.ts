@@ -14,6 +14,7 @@ export interface Presupuesto {
   responsable_gasto: string;
   funcionario_cedula: string;
   nro_factura: string;
+  nro_operacion_origen: string;
   pesos: number;
   dolares_usd: number;
   reales: number;
@@ -23,9 +24,82 @@ export interface Presupuesto {
   creado_en?: string;
   ingresado_por_email?: string;
   ingresado_por_nombre?: string;
+  documento_adjunto?: PresupuestoDocumentoAdjunto | null;
+}
+
+export interface PresupuestoDocumentoAdjunto {
+  nombre: string;
+  mime: string;
+  tamano: number;
 }
 
 export type PresupuestoForm = Omit<Presupuesto, "id" | "nro_registro" | "creado_en">;
+
+/** Configuración del registro de comisión bancaria separado (transferencias BROU). */
+export interface ComisionDocumentoConfig {
+  activa: boolean;
+  heredar: string[];
+  campos_incluidos: string[];
+  mapeo_campos: Record<string, string>;
+  valores_fijos: Record<string, string>;
+}
+
+export interface TipoDocumentoGasto {
+  id: number;
+  nombre: string;
+  descripcion: string;
+  origen: string;
+  activo: boolean;
+  campos_habilitados: string[];
+  campos_requeridos: string[];
+  valores_defecto: Record<string, string>;
+  /** Conexiones campo del documento → campo del formulario de gasto. */
+  mapeo_campos: Record<string, string>;
+  /** Configuración del registro de comisión bancaria (BROU). */
+  comision_config: ComisionDocumentoConfig;
+  creado_en?: string;
+  actualizado_en?: string;
+}
+
+export type TipoDocumentoGastoForm = Omit<
+  TipoDocumentoGasto,
+  "id" | "creado_en" | "actualizado_en"
+>;
+
+export type BrouMoneda = "UYU" | "USD";
+
+export interface BrouImporte {
+  moneda: BrouMoneda;
+  valor: number;
+}
+
+export interface BrouTransferenciaParsed {
+  numero_operacion: string;
+  numero_transferencia: string;
+  fecha: string;
+  importe_acreditar: BrouImporte;
+  comision: BrouImporte | null;
+  beneficiario_nombre: string;
+  beneficiario_direccion: string;
+  beneficiario_observaciones: string;
+  banco_destino: string;
+  cuenta_destino: string;
+  concepto_brou: string;
+  cuenta_origen: string;
+  proveedor_cod: number | null;
+  proveedor_razon: string;
+  valores_mapeo?: Partial<Record<string, string>>;
+  valores_mapeo_comision?: Partial<Record<string, string>>;
+}
+
+export interface CampoDocumentoDetectado {
+  etiqueta: string;
+  valor_muestra: string;
+}
+
+export interface DetectarCamposDocumentoResult {
+  campos: CampoDocumentoDetectado[];
+}
 
 export interface IngresoVenta {
   id: number;
@@ -737,7 +811,8 @@ export type Modulo =
   | "rrhh"
   | "ventas"
   | "stock"
-  | "usuarios";
+  | "usuarios"
+  | "documentos_digitales";
 
 export type AvatarTipo = "iniciales" | "foto";
 

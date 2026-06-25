@@ -15,7 +15,11 @@ export const MODULO_LABELS: Record<Modulo, string> = {
   ventas: "Ingresos por ventas",
   stock: "Stock ganadero",
   usuarios: "Administración de Usuarios",
+  documentos_digitales: "Documentos Digitales",
 };
+
+/** Módulos reservados al administrador (no configurables por rol). */
+export const MODULOS_SOLO_ADMIN: Modulo[] = ["usuarios", "documentos_digitales"];
 
 const SCREEN_MODULO: Record<TabId, Modulo> = {
   registro: "presupuesto",
@@ -32,6 +36,7 @@ const SCREEN_MODULO: Record<TabId, Modulo> = {
   registro_actividad: "usuarios",
   usuarios: "usuarios",
   chat: "chat",
+  documentos_digitales: "documentos_digitales",
 };
 
 export function canAccessStockMovimientos(user: AuthUser | null): boolean {
@@ -80,7 +85,7 @@ export function moduloForScreen(screen: TabId): Modulo {
 export function canAccessScreen(user: AuthUser | null, screen: TabId): boolean {
   if (!user) return false;
   const mod = moduloForScreen(screen);
-  if (mod === "usuarios") return user.rol === "admin";
+  if (MODULOS_SOLO_ADMIN.includes(mod)) return user.rol === "admin";
   if (MODULOS_ACCESO_TODOS.includes(mod)) return true;
   return user.permisos.includes(mod);
 }

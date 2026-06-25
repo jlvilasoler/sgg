@@ -39,6 +39,8 @@ export interface PresupuestoInput {
   /** Cédula del funcionario (RRHH), para vincular con Sueldos y Jornales. */
   funcionario_cedula: string;
   nro_factura: string;
+  /** Número de operación del documento origen (ej. comprobante BROU). */
+  nro_operacion_origen: string;
   pesos: number;
   dolares_usd: number;
   reales: number;
@@ -53,6 +55,13 @@ export interface Presupuesto extends PresupuestoInput {
   ingresado_por_email?: string;
   ingresado_por_nombre?: string;
   creado_en?: string;
+  documento_adjunto?: PresupuestoDocumentoMeta | null;
+}
+
+export interface PresupuestoDocumentoMeta {
+  nombre: string;
+  mime: string;
+  tamano: number;
 }
 
 export interface ResumenEmpresa {

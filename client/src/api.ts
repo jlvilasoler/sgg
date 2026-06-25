@@ -4,6 +4,7 @@ import type {
   IngresoVentaForm,
   ParDivisa,
   Presupuesto,
+  PresupuestoDocumentoAdjunto,
   PresupuestoForm,
   Proveedor,
   ProveedorForm,
@@ -64,7 +65,12 @@ import type {
   ChatUserPresence,
   ChatSearchHit,
   ChatChannel,
+  TipoDocumentoGasto,
+  TipoDocumentoGastoForm,
+  BrouTransferenciaParsed,
+  DetectarCamposDocumentoResult,
 } from "./types";
+import type { GastoMapeoCampos } from "./utils/gasto-campos";
 import { apiConnectionError } from "./utils/api-messages";
 
 const API = "/api";
@@ -218,6 +224,48 @@ export async function updatePresupuesto(
 
 export async function deletePresupuesto(id: number): Promise<void> {
   await request(`/presupuesto/${id}`, { method: "DELETE" });
+}
+
+export function presupuestoDocumentoUrl(id: number, download = false): string {
+  const q = download ? "?download=1" : "";
+  return `${API}/presupuesto/${id}/documento${q}`;
+}
+
+export async function uploadPresupuestoDocumento(
+  id: number,
+  file: File
+): Promise<PresupuestoDocumentoAdjunto> {
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch(`${API}/presupuesto/${id}/documento`, {
+    method: "POST",
+    credentials: "include",
+    body: form,
+  });
+  const json = (await res.json()) as {
+    ok: boolean;
+    data?: PresupuestoDocumentoAdjunto;
+    error?: string;
+  };
+  if (!res.ok || !json.ok || !json.data) {
+    throw new Error(json.error || "No se pudo guardar el documento");
+  }
+  return json.data;
+}
+
+export async function fetchPresupuestoDocumentoBlob(id: number): Promise<Blob> {
+  const res = await fetch(presupuestoDocumentoUrl(id), { credentials: "include" });
+  if (!res.ok) {
+    let msg = "No se pudo cargar el documento";
+    try {
+      const json = (await res.json()) as { error?: string };
+      if (json.error) msg = json.error;
+    } catch {
+      /* respuesta no JSON */
+    }
+    throw new Error(msg);
+  }
+  return res.blob();
 }
 
 export async function fetchVentasGanadoCerradas(filters?: {
@@ -2260,5 +2308,92 @@ export async function actualizarRolePermissions(
       body: JSON.stringify(data),
     }
   );
+  return json.data;
+}
+
+export async function fetchTiposDocumentoGasto(opts?: {
+  soloActivos?: boolean;
+}): Promise<TipoDocumentoGasto[]> {
+  const params = new URLSearchParams();
+  if (opts?.soloActivos) params.set("solo_activos", "1");
+  const q = params.toString() ? `?${params}` : "";
+  const json = await request<{ data: TipoDocumentoGasto[] }>(
+    `/documentos-digitales/tipos-gasto${q}`
+  );
+  return json.data;
+}
+
+export async function createTipoDocumentoGasto(
+  data: TipoDocumentoGastoForm
+): Promise<TipoDocumentoGasto> {
+  const json = await request<{ data: TipoDocumentoGasto; message: string }>(
+    "/documentos-digitales/tipos-gasto",
+    { method: "POST", body: JSON.stringify(data) }
+  );
+  return json.data;
+}
+
+export async function updateTipoDocumentoGasto(
+  id: number,
+  data: TipoDocumentoGastoForm
+): Promise<TipoDocumentoGasto> {
+  const json = await request<{ data: TipoDocumentoGasto; message: string }>(
+    `/documentos-digitales/tipos-gasto/${id}`,
+    { method: "PUT", body: JSON.stringify(data) }
+  );
+  return json.data;
+}
+
+export async function deleteTipoDocumentoGasto(id: number): Promise<void> {
+  await request(`/documentos-digitales/tipos-gasto/${id}`, { method: "DELETE" });
+}
+
+export async function detectarCamposDocumento(
+  file: File
+): Promise<DetectarCamposDocumentoResult> {
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch(`${API}/documentos-digitales/detectar-campos`, {
+    method: "POST",
+    credentials: "include",
+    body: form,
+  });
+  const json = (await res.json()) as {
+    ok: boolean;
+    data?: DetectarCamposDocumentoResult;
+    error?: string;
+  };
+  if (!res.ok || !json.ok || !json.data) {
+    throw new Error(json.error || "No se pudieron detectar los campos del documento");
+  }
+  return json.data;
+}
+
+export async function parseBrouTransferenciaDocument(
+  file: File,
+  mapeo?: GastoMapeoCampos,
+  mapeoComision?: GastoMapeoCampos
+): Promise<BrouTransferenciaParsed> {
+  const form = new FormData();
+  form.append("file", file);
+  if (mapeo && Object.keys(mapeo).length > 0) {
+    form.append("mapeo", JSON.stringify(mapeo));
+  }
+  if (mapeoComision && Object.keys(mapeoComision).length > 0) {
+    form.append("mapeo_comision", JSON.stringify(mapeoComision));
+  }
+  const res = await fetch(`${API}/documentos-digitales/parse-brou-transferencia`, {
+    method: "POST",
+    credentials: "include",
+    body: form,
+  });
+  const json = (await res.json()) as {
+    ok: boolean;
+    data?: BrouTransferenciaParsed;
+    error?: string;
+  };
+  if (!res.ok || !json.ok || !json.data) {
+    throw new Error(json.error || "No se pudo leer el comprobante BROU");
+  }
   return json.data;
 }
