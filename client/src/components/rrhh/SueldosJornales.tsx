@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { fetchFuncionarios, fetchPagosPorCedula } from "../../api";
 import { EMPRESAS } from "../../constants";
+import { formatCuentaOtrosBancos, isBancoSantander } from "../../constants/bancosUruguay";
+import BancoLogo from "./BancoLogo";
 import type { Funcionario, ResumenPagosFuncionario, VinculoPago } from "../../types";
 import { fmtDate, fmtNum } from "../../utils";
 
@@ -170,74 +172,197 @@ export default function SueldosJornales({
       {resumen && (
         <>
           <div className="card rrhh-funcionario-card">
-            <div className="rrhh-funcionario-head">
-              <div>
+            <div className="rrhh-func-head">
+              <div
+                className="rrhh-func-avatar"
+                aria-hidden
+                data-inactivo={f && f.activo === 0 ? "true" : undefined}
+              >
+                {f
+                  ? `${(f.nombre[0] ?? "").toUpperCase()}${(f.apellido[0] ?? "").toUpperCase()}`
+                  : "?"}
+              </div>
+              <div className="rrhh-func-head-text">
                 <h3>
                   {f ? `${f.apellido}, ${f.nombre}` : "Sin ficha en Funcionarios"}
                 </h3>
-                <p className="muted">
-                  CI: <strong>{resumen.cedula_display}</strong>
-                  {!f && " — registrá la ficha en Funcionarios para datos bancarios."}
-                </p>
+                <div className="rrhh-func-head-meta">
+                  <span className="rrhh-func-chip">CI {resumen.cedula_display}</span>
+                  {f && (
+                    <span
+                      className={`rrhh-func-chip rrhh-func-chip--estado${
+                        f.activo === 0 ? " rrhh-func-chip--inactivo" : ""
+                      }`}
+                    >
+                      {f.activo === 0 ? "Inactivo" : "Activo"}
+                    </span>
+                  )}
+                </div>
+                {!f && (
+                  <p className="muted rrhh-func-head-hint">
+                    Registrá la ficha en Funcionarios para ver los datos bancarios.
+                  </p>
+                )}
               </div>
             </div>
             {f && (
-              <div className="rrhh-datos-grid">
-                <div>
-                  <span className="rrhh-dato-label">Domicilio</span>
-                  <span>
-                    {f.domicilio || "—"}
-                    {f.ciudad ? `, ${f.ciudad}` : ""}
-                    {f.departamento ? ` (${f.departamento})` : ""}
-                  </span>
-                </div>
-                <div>
-                  <span className="rrhh-dato-label">Celular</span>
-                  <span>{f.celular || "—"}</span>
-                </div>
-                <div>
-                  <span className="rrhh-dato-label">Email</span>
-                  <span>{f.email || "—"}</span>
-                </div>
-                <div>
-                  <span className="rrhh-dato-label">Banco</span>
-                  <span>{f.banco || "—"}</span>
-                </div>
-                <div>
-                  <span className="rrhh-dato-label">Cuenta</span>
-                  <span>
-                    {f.cuenta || "—"}
-                    {f.tipo_cuenta ? ` (${f.tipo_cuenta})` : ""}
-                  </span>
-                </div>
-                <div>
-                  <span className="rrhh-dato-label">Titular</span>
-                  <span>{f.titular_cuenta || `${f.nombre} ${f.apellido}`}</span>
-                </div>
+              <div className="rrhh-func-body">
+                <section className="rrhh-func-section">
+                  <h4 className="rrhh-func-section-title">Contacto</h4>
+                  <ul className="rrhh-contacto-list">
+                    <li className="rrhh-contacto-item">
+                      <span className="rrhh-contacto-icon" aria-hidden>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                          <path
+                            d="M12 21s-7-5.5-7-11a7 7 0 0 1 14 0c0 5.5-7 11-7 11z"
+                            stroke="currentColor"
+                            strokeWidth="1.8"
+                            strokeLinejoin="round"
+                          />
+                          <circle cx="12" cy="10" r="2.4" stroke="currentColor" strokeWidth="1.8" />
+                        </svg>
+                      </span>
+                      <span className="rrhh-contacto-text">
+                        <span className="rrhh-dato-label">Domicilio</span>
+                        <span className="rrhh-dato-valor">{f.domicilio || "—"}</span>
+                        {(f.ciudad || f.departamento) && (
+                          <span className="rrhh-dato-subvalor">
+                            {[f.ciudad, f.departamento].filter(Boolean).join(", ")}
+                          </span>
+                        )}
+                      </span>
+                    </li>
+                    <li className="rrhh-contacto-item">
+                      <span className="rrhh-contacto-icon" aria-hidden>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                          <path
+                            d="M6.5 3h3l1.5 4-2 1.5a12 12 0 0 0 5 5l1.5-2 4 1.5v3a2 2 0 0 1-2.2 2A16.5 16.5 0 0 1 4.5 5.2 2 2 0 0 1 6.5 3z"
+                            stroke="currentColor"
+                            strokeWidth="1.8"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                      </span>
+                      <span className="rrhh-contacto-text">
+                        <span className="rrhh-dato-label">Celular</span>
+                        {f.celular ? (
+                          <a className="rrhh-dato-valor rrhh-dato-link" href={`tel:${f.celular}`}>
+                            {f.celular}
+                          </a>
+                        ) : (
+                          <span className="rrhh-dato-valor">—</span>
+                        )}
+                      </span>
+                    </li>
+                    <li className="rrhh-contacto-item">
+                      <span className="rrhh-contacto-icon" aria-hidden>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                          <rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" strokeWidth="1.8" />
+                          <path d="M4 7l8 6 8-6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </span>
+                      <span className="rrhh-contacto-text">
+                        <span className="rrhh-dato-label">Email</span>
+                        {f.email ? (
+                          <a className="rrhh-dato-valor rrhh-dato-link rrhh-email-cell" href={`mailto:${f.email}`}>
+                            {f.email}
+                          </a>
+                        ) : (
+                          <span className="rrhh-dato-valor">—</span>
+                        )}
+                      </span>
+                    </li>
+                  </ul>
+                </section>
+
+                <section className="rrhh-func-section rrhh-func-section--banco">
+                  <h4 className="rrhh-func-section-title">
+                    <BancoLogo nombre={f.banco} size="sm" className="rrhh-func-banco-logo" />
+                    Datos bancarios
+                  </h4>
+                  <div className="rrhh-datos-grid">
+                    <div className="rrhh-dato">
+                      <span className="rrhh-dato-label">Banco</span>
+                      <span className="rrhh-dato-valor">{f.banco || "—"}</span>
+                    </div>
+                    <div className="rrhh-dato">
+                      <span className="rrhh-dato-label">Sucursal</span>
+                      <span className="rrhh-dato-valor">{f.sucursal || "—"}</span>
+                    </div>
+                    <div className="rrhh-dato">
+                      <span className="rrhh-dato-label">Cuenta</span>
+                      <span className="rrhh-dato-valor">{f.cuenta || "—"}</span>
+                      {f.tipo_cuenta && (
+                        <span className="rrhh-dato-subvalor">{f.tipo_cuenta}</span>
+                      )}
+                    </div>
+                    {isBancoSantander(f.banco) && (
+                      <div className="rrhh-dato rrhh-dato--destacado">
+                        <span className="rrhh-dato-label">Cuenta desde otros bancos</span>
+                        <span className="rrhh-dato-valor rrhh-dato-valor--mono">
+                          {f.cuenta_otros_bancos ||
+                            formatCuentaOtrosBancos(f.sucursal, f.cuenta) ||
+                            "—"}
+                        </span>
+                      </div>
+                    )}
+                    <div className="rrhh-dato">
+                      <span className="rrhh-dato-label">Titular</span>
+                      <span className="rrhh-dato-valor">
+                        {f.titular_cuenta || `${f.nombre} ${f.apellido}`}
+                      </span>
+                    </div>
+                  </div>
+                </section>
               </div>
             )}
           </div>
 
           <div className="rrhh-stats-grid">
-            <div className="rrhh-stat-card">
-              <span className="rrhh-stat-label">Pagos encontrados</span>
-              <span className="rrhh-stat-value">{resumen.total_registros}</span>
+            <div className="rrhh-stat-card rrhh-stat-card--count">
+              <span className="rrhh-stat-icon" aria-hidden>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                  <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+                  <rect x="9" y="3" width="6" height="4" rx="1" stroke="currentColor" strokeWidth="1.8" />
+                  <path d="M9 12h6M9 16h4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                </svg>
+              </span>
+              <div className="rrhh-stat-body">
+                <span className="rrhh-stat-label">Pagos encontrados</span>
+                <span className="rrhh-stat-value">{resumen.total_registros}</span>
+              </div>
             </div>
-            <div className="rrhh-stat-card">
-              <span className="rrhh-stat-label">Total $</span>
-              <span className="rrhh-stat-value">{fmtNum(resumen.total_pesos)}</span>
+            <div className="rrhh-stat-card rrhh-stat-card--uyu">
+              <span className="rrhh-stat-icon" aria-hidden>$</span>
+              <div className="rrhh-stat-body">
+                <span className="rrhh-stat-label">Total $</span>
+                <span className="rrhh-stat-value">{fmtNum(resumen.total_pesos)}</span>
+              </div>
             </div>
-            <div className="rrhh-stat-card">
-              <span className="rrhh-stat-label">Total USD</span>
-              <span className="rrhh-stat-value">{fmtNum(resumen.total_usd)}</span>
+            <div className="rrhh-stat-card rrhh-stat-card--usd">
+              <span className="rrhh-stat-icon" aria-hidden>US$</span>
+              <div className="rrhh-stat-body">
+                <span className="rrhh-stat-label">Total USD</span>
+                <span className="rrhh-stat-value">{fmtNum(resumen.total_usd)}</span>
+              </div>
             </div>
-            <div className="rrhh-stat-card">
-              <span className="rrhh-stat-label">Total R$</span>
-              <span className="rrhh-stat-value">{fmtNum(resumen.total_reales)}</span>
+            <div className="rrhh-stat-card rrhh-stat-card--brl">
+              <span className="rrhh-stat-icon" aria-hidden>R$</span>
+              <div className="rrhh-stat-body">
+                <span className="rrhh-stat-label">Total R$</span>
+                <span className="rrhh-stat-value">{fmtNum(resumen.total_reales)}</span>
+              </div>
             </div>
             <div className="rrhh-stat-card rrhh-stat-card--saldo">
-              <span className="rrhh-stat-label">Total gastos (TOTAL USD)</span>
-              <span className="rrhh-stat-value">{fmtNum(resumen.total_saldo_usd ?? 0)}</span>
+              <span className="rrhh-stat-icon" aria-hidden>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </span>
+              <div className="rrhh-stat-body">
+                <span className="rrhh-stat-label">Total gastos (TOTAL USD)</span>
+                <span className="rrhh-stat-value">{fmtNum(resumen.total_saldo_usd ?? 0)}</span>
+              </div>
             </div>
           </div>
 
@@ -309,13 +434,35 @@ export default function SueldosJornales({
             </div>
           )}
 
-          <div className="card">
-            <h3 className="rrhh-section-title">Detalle de pagos (gastos)</h3>
+          <div className="card rrhh-pagos-card">
+            <div className="rrhh-pagos-head">
+              <h3 className="rrhh-section-title">Detalle de pagos (gastos)</h3>
+              <span className="rrhh-pagos-badge">
+                {resumen.pagos.length}{" "}
+                {resumen.pagos.length === 1 ? "registro" : "registros"}
+              </span>
+            </div>
             {resumen.pagos.length === 0 ? (
-              <p className="muted">
-                No hay gastos vinculados a esta cédula con los filtros actuales. Al registrar
-                un gasto de sueldos, seleccioná el funcionario por cédula en Registrar gasto.
-              </p>
+              <div className="rrhh-empty-state">
+                <div className="rrhh-empty-icon" aria-hidden>
+                  <svg width="40" height="40" viewBox="0 0 24 24" fill="none">
+                    <path
+                      d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinejoin="round"
+                    />
+                    <rect x="9" y="3" width="6" height="4" rx="1" stroke="currentColor" strokeWidth="1.5" />
+                    <path d="M9 12h6M9 16h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                  </svg>
+                </div>
+                <p className="rrhh-empty-title">Sin pagos vinculados</p>
+                <p className="muted rrhh-empty-hint">
+                  No hay gastos vinculados a esta cédula con los filtros actuales. Al registrar
+                  un gasto de sueldos, seleccioná el funcionario por cédula en{" "}
+                  <strong>Registrar gasto</strong>.
+                </p>
+              </div>
             ) : (
               <div className="table-wrap table-wrap-scroll">
                 <table className="data-table rrhh-informe-table rrhh-detalle-pagos">

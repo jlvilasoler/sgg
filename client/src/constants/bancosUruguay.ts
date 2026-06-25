@@ -155,3 +155,11 @@ export function isBancoSantander(nombre: string): boolean {
   if (info?.domain === "santander.com.uy") return true;
   return nombre.trim().toLocaleUpperCase("es-UY").includes("SANTANDER");
 }
+
+/** Formato transferencia interbancaria Santander: 00 + sucursal + 00 + nº de cuenta */
+export function formatCuentaOtrosBancos(sucursal: string, cuenta: string): string {
+  const cuentaNum = cuenta.replace(/\D/g, "");
+  if (!cuentaNum) return "";
+  const sucursalNum = sucursal.replace(/\D/g, "");
+  return `00${sucursalNum}00${cuentaNum}`;
+}

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { createFuncionario, updateFuncionario } from "../../api";
 import type { Funcionario, FuncionarioForm as FuncionarioFormData } from "../../types";
-import { getBancoInfo, isBancoSantander } from "../../constants/bancosUruguay";
+import { formatCuentaOtrosBancos, getBancoInfo, isBancoSantander } from "../../constants/bancosUruguay";
 import { aMayusculas } from "../../utils/formText";
 import SelectorBanco from "./SelectorBanco";
 
@@ -12,14 +12,6 @@ const TIPOS_CUENTA = [
   "Dólares Caja de Ahorro",
   "Dólares C. Corriente",
 ] as const;
-
-/** Formato transferencia interbancaria: 00 + sucursal + 00 + nº de cuenta */
-function formatCuentaOtrosBancos(sucursal: string, cuenta: string): string {
-  const cuentaNum = cuenta.replace(/\D/g, "");
-  if (!cuentaNum) return "";
-  const sucursalNum = sucursal.replace(/\D/g, "");
-  return `00${sucursalNum}00${cuentaNum}`;
-}
 
 interface Props {
   apiOnline: boolean;

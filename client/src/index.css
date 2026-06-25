@@ -5117,19 +5117,284 @@ select optgroup {
   margin-bottom: 0.15rem;
 }
 
+/* ===== Ficha de funcionario modernizada ===== */
+.rrhh-func-head {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.rrhh-func-avatar {
+  flex-shrink: 0;
+  width: 3.25rem;
+  height: 3.25rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #fff;
+  background: linear-gradient(135deg, #2d6a4f 0%, #1e3d2a 100%);
+  box-shadow: 0 4px 12px rgba(30, 61, 42, 0.28);
+}
+
+.rrhh-func-avatar[data-inactivo="true"] {
+  background: linear-gradient(135deg, #9aa6a0 0%, #6b7770 100%);
+  box-shadow: 0 4px 12px rgba(107, 119, 112, 0.25);
+}
+
+.rrhh-func-head-text {
+  min-width: 0;
+}
+
+.rrhh-func-head-text h3 {
+  margin: 0 0 0.35rem;
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.rrhh-func-head-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.rrhh-func-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.18rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.74rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: #1e3d2a;
+  background: rgba(45, 106, 79, 0.1);
+  border: 1px solid rgba(45, 106, 79, 0.2);
+}
+
+.rrhh-func-chip--estado {
+  color: #14532d;
+  background: rgba(34, 197, 94, 0.14);
+  border-color: rgba(34, 197, 94, 0.32);
+}
+
+.rrhh-func-chip--inactivo {
+  color: #7a2230;
+  background: rgba(207, 48, 74, 0.12);
+  border-color: rgba(207, 48, 74, 0.3);
+}
+
+.rrhh-func-head-hint {
+  margin: 0.4rem 0 0;
+  font-size: 0.82rem;
+}
+
+.rrhh-func-body {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1rem;
+  margin-top: 1.1rem;
+}
+
+.rrhh-func-section {
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: linear-gradient(180deg, #ffffff 0%, #fafcfa 100%);
+}
+
+.rrhh-func-section--banco {
+  border-color: rgba(45, 106, 79, 0.22);
+  background: linear-gradient(180deg, #f6fbf8 0%, #eef6f1 100%);
+}
+
+.rrhh-func-section-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.85rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px dashed var(--border);
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--primary);
+}
+
+.rrhh-func-banco-logo {
+  flex-shrink: 0;
+  border-radius: 6px;
+}
+
+.rrhh-func-section .rrhh-datos-grid {
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 0.85rem 1.1rem;
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+
+.rrhh-dato-valor {
+  display: block;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.rrhh-dato-valor--mono {
+  font-family: "SFMono-Regular", ui-monospace, "Cascadia Code", Consolas, monospace;
+  letter-spacing: 0.02em;
+}
+
+.rrhh-dato-subvalor {
+  display: block;
+  margin-top: 0.1rem;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--muted);
+  line-height: 1.3;
+}
+
+.rrhh-dato-link {
+  color: var(--primary);
+  text-decoration: none;
+}
+
+.rrhh-dato-link:hover {
+  text-decoration: underline;
+}
+
+.rrhh-contacto-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.rrhh-contacto-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+}
+
+.rrhh-contacto-icon {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 9px;
+  color: var(--primary);
+  background: rgba(45, 106, 79, 0.1);
+  border: 1px solid rgba(45, 106, 79, 0.16);
+}
+
+.rrhh-contacto-text {
+  min-width: 0;
+  flex: 1;
+}
+
+.rrhh-dato--destacado {
+  grid-column: 1 / -1;
+  padding: 0.5rem 0.7rem;
+  border-radius: 10px;
+  background: rgba(45, 106, 79, 0.08);
+  border: 1px solid rgba(45, 106, 79, 0.2);
+}
+
 .rrhh-stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 0.75rem;
-  margin-bottom: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(195px, 1fr));
+  gap: 0.85rem;
+  margin-bottom: 1.1rem;
 }
 
 .rrhh-stat-card {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 1rem 1.1rem;
-  box-shadow: var(--shadow);
+  border-radius: 14px;
+  padding: 0.95rem 1rem;
+  box-shadow: 0 1px 3px rgba(15, 28, 20, 0.06);
+  transition: transform 0.14s ease, box-shadow 0.14s ease;
+}
+
+.rrhh-stat-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(15, 28, 20, 0.1);
+}
+
+.rrhh-stat-icon {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.35rem;
+  height: 2.35rem;
+  border-radius: 10px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #5a6b60;
+  background: rgba(90, 107, 96, 0.1);
+  border: 1px solid rgba(90, 107, 96, 0.14);
+}
+
+.rrhh-stat-body {
+  min-width: 0;
+  flex: 1;
+}
+
+.rrhh-stat-card--count .rrhh-stat-icon {
+  color: #475569;
+  background: rgba(71, 85, 105, 0.1);
+  border-color: rgba(71, 85, 105, 0.16);
+}
+
+.rrhh-stat-card--uyu .rrhh-stat-icon {
+  color: #1d4ed8;
+  background: rgba(29, 78, 216, 0.1);
+  border-color: rgba(29, 78, 216, 0.2);
+}
+
+.rrhh-stat-card--usd .rrhh-stat-icon {
+  color: #15803d;
+  background: rgba(21, 128, 61, 0.1);
+  border-color: rgba(21, 128, 61, 0.2);
+}
+
+.rrhh-stat-card--brl .rrhh-stat-icon {
+  color: #b45309;
+  background: rgba(180, 83, 9, 0.1);
+  border-color: rgba(180, 83, 9, 0.2);
+}
+
+.rrhh-stat-card--saldo {
+  border-color: rgba(45, 106, 79, 0.35);
+  background: linear-gradient(145deg, #f4faf6 0%, #e8f3ec 100%);
+  box-shadow: 0 2px 8px rgba(45, 106, 79, 0.12);
+}
+
+.rrhh-stat-card--saldo .rrhh-stat-icon {
+  color: #1e3d2a;
+  background: rgba(45, 106, 79, 0.14);
+  border-color: rgba(45, 106, 79, 0.28);
+}
+
+.rrhh-stat-card--saldo .rrhh-stat-value {
+  color: var(--primary);
+  font-size: 1.45rem;
 }
 
 .rrhh-stat-card--primary {
@@ -5137,31 +5402,99 @@ select optgroup {
   background: linear-gradient(145deg, #f4faf6, #eef6ef);
 }
 
-.rrhh-stat-card--saldo {
-  border-color: color-mix(in srgb, var(--primary) 40%, var(--border));
-  background: linear-gradient(145deg, #f4faf6, #eef6ef);
-}
-
-.rrhh-stat-card--saldo .rrhh-stat-value {
-  color: var(--primary);
-}
-
 .rrhh-stat-label {
   display: block;
-  font-size: 0.8rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
   color: var(--muted);
-  margin-bottom: 0.35rem;
+  margin-bottom: 0.2rem;
+  line-height: 1.25;
 }
 
 .rrhh-stat-value {
-  font-size: 1.35rem;
+  display: block;
+  font-size: 1.28rem;
   font-weight: 700;
   color: var(--text);
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.rrhh-pagos-card {
+  overflow: hidden;
+}
+
+.rrhh-pagos-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.85rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.rrhh-pagos-head .rrhh-section-title {
+  margin: 0;
+}
+
+.rrhh-pagos-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.22rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: #1e3d2a;
+  background: rgba(45, 106, 79, 0.1);
+  border: 1px solid rgba(45, 106, 79, 0.2);
+}
+
+.rrhh-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 2.5rem 1.5rem;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #fafcfa 0%, #f3f6f4 100%);
+  border: 1px dashed rgba(45, 106, 79, 0.22);
+}
+
+.rrhh-empty-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 4rem;
+  height: 4rem;
+  margin-bottom: 1rem;
+  border-radius: 50%;
+  color: #5a6b60;
+  background: rgba(45, 106, 79, 0.08);
+  border: 1px solid rgba(45, 106, 79, 0.14);
+}
+
+.rrhh-empty-title {
+  margin: 0 0 0.45rem;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.rrhh-empty-hint {
+  margin: 0;
+  max-width: 36rem;
+  font-size: 0.88rem;
+  line-height: 1.5;
 }
 
 .rrhh-section-title {
   margin: 0 0 0.75rem;
   font-size: 1rem;
+  font-weight: 700;
 }
 
 .data-table-compact td,
@@ -12737,40 +13070,20 @@ button.sg-kpi-card:disabled {
 }
 
 .bn-ui .rrhh-stats-grid {
-  gap: 0.65rem;
+  gap: 0.85rem;
 }
 
 .bn-ui .rrhh-stat-card {
-  padding: 0.85rem 1rem;
   background: var(--bn-surface);
-  border: 1px solid var(--bn-border);
-  border-radius: 8px;
-  box-shadow: none;
 }
 
-.bn-ui .rrhh-stat-card--primary,
 .bn-ui .rrhh-stat-card--saldo {
-  border-color: var(--bn-border);
-  background: var(--bn-surface);
+  border-color: rgba(45, 106, 79, 0.35);
+  background: linear-gradient(145deg, #f4faf6 0%, #e8f3ec 100%);
 }
 
 .bn-ui .rrhh-stat-card--saldo .rrhh-stat-value {
-  color: var(--bn-text);
-}
-
-.bn-ui .rrhh-stat-label {
-  font-size: 0.72rem;
-  font-weight: 500;
-  color: var(--bn-muted);
-  text-transform: none;
-  letter-spacing: 0.02em;
-}
-
-.bn-ui .rrhh-stat-value {
-  font-size: 1.2rem;
-  font-weight: 600;
-  color: var(--bn-text);
-  letter-spacing: -0.02em;
+  color: var(--primary);
 }
 
 .bn-ui .card > p.muted {
@@ -17500,6 +17813,13 @@ button.sg-kpi-card:disabled {
 /* Funcionarios — listado RRHH */
 .rrhh-func-listado {
   padding: 0;
+}
+
+.listado-pro-shell--refreshing .rrhh-func-table-wrap,
+.listado-pro-shell--refreshing .rrhh-func-kpis {
+  opacity: 0.62;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
 }
 
 .rrhh-func-head {

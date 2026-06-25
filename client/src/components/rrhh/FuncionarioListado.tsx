@@ -23,23 +23,25 @@ export default function FuncionarioListado({
   onVolver,
 }: Props) {
   const [rows, setRows] = useState<Funcionario[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(true);
   const [busqueda, setBusqueda] = useState("");
   const [soloActivos, setSoloActivos] = useState(false);
+  const hasData = rows.length > 0;
+  const initialLoading = refreshing && !hasData;
 
   const load = useCallback(async () => {
     if (!apiOnline) {
       setRows([]);
-      setLoading(false);
+      setRefreshing(false);
       return;
     }
-    setLoading(true);
+    setRefreshing(true);
     try {
       setRows(await fetchFuncionarios({ busqueda, soloActivos }));
     } catch (e) {
       onError(e instanceof Error ? e.message : "Error al cargar");
     } finally {
-      setLoading(false);
+      setRefreshing(false);
     }
   }, [apiOnline, busqueda, soloActivos, onError]);
 
@@ -75,13 +77,15 @@ export default function FuncionarioListado({
     }
   };
 
-  const subtitulo = loading
-    ? "Actualizando…"
-    : !apiOnline
-      ? "Sin conexión con la API"
-      : soloActivos
-        ? `${stats.total} funcionario${stats.total === 1 ? "" : "s"} que trabajan hoy`
-        : `${stats.total} funcionario${stats.total === 1 ? "" : "s"} en el listado`;
+  const subtitulo = initialLoading
+    ? "Cargando…"
+    : refreshing
+      ? "Actualizando…"
+      : !apiOnline
+        ? "Sin conexión con la API"
+        : soloActivos
+          ? `${stats.total} funcionario${stats.total === 1 ? "" : "s"} que trabajan hoy`
+          : `${stats.total} funcionario${stats.total === 1 ? "" : "s"} en el listado`;
 
   const emptyMsg = soloActivos
     ? "No hay funcionarios que trabajen hoy. Desmarcá el filtro o registrá uno nuevo."
@@ -96,13 +100,13 @@ export default function FuncionarioListado({
       </button>
 
       <div className="listado-pro rrhh-func-listado">
-        <div className="listado-pro-shell">
+        <div className={`listado-pro-shell${refreshing && hasData ? " listado-pro-shell--refreshing" : ""}`}>
           <header className="rrhh-func-head">
             <div className="rrhh-func-head-main">
               <h2 className="listado-pro-head-title">Funcionarios</h2>
               <p className="listado-pro-head-sub">
                 {subtitulo}
-                {!loading && apiOnline ? (
+                {!initialLoading && apiOnline ? (
                   <span className="rrhh-func-head-hint">
                     {" "}
                     · Solo quienes trabajan hoy aparecen al cargar sueldos.
@@ -128,7 +132,7 @@ export default function FuncionarioListado({
               <input
                 id="busq-func"
                 value={busqueda}
-                disabled={!apiOnline || loading}
+                disabled={!apiOnline || initialLoading}
                 onChange={(e) => setBusqueda(e.target.value)}
                 placeholder="Cédula, nombre, celular, email…"
               />
@@ -137,7 +141,7 @@ export default function FuncionarioListado({
               <input
                 type="checkbox"
                 checked={soloActivos}
-                disabled={!apiOnline || loading}
+                disabled={!apiOnline || initialLoading}
                 onChange={(e) => setSoloActivos(e.target.checked)}
               />
               Solo quienes trabajan hoy
@@ -145,7 +149,7 @@ export default function FuncionarioListado({
             <button
               type="button"
               className="btn listado-pro-reset-btn"
-              disabled={!apiOnline || loading || (!busqueda && !soloActivos)}
+              disabled={!apiOnline || initialLoading || (!busqueda && !soloActivos)}
               onClick={resetFiltros}
             >
               Limpiar
@@ -153,10 +157,10 @@ export default function FuncionarioListado({
             <button
               type="button"
               className="btn btn-primary listado-pro-search-btn"
-              disabled={!apiOnline || loading}
+              disabled={!apiOnline || initialLoading}
               onClick={() => void load()}
             >
-              Actualizar
+              {refreshing && hasData ? "Actualizando…" : "Actualizar"}
             </button>
           </div>
 
@@ -168,19 +172,19 @@ export default function FuncionarioListado({
               <div className="rrhh-func-kpi">
                 <span className="rrhh-func-kpi-label">Total listado</span>
                 <span className="rrhh-func-kpi-valor">
-                  {loading || !apiOnline ? "—" : stats.total}
+                  {!apiOnline ? "—" : stats.total}
                 </span>
               </div>
               <div className="rrhh-func-kpi rrhh-func-kpi--activo">
                 <span className="rrhh-func-kpi-label">Trabajan hoy</span>
                 <span className="rrhh-func-kpi-valor">
-                  {loading || !apiOnline ? "—" : stats.activos}
+                  {!apiOnline ? "—" : stats.activos}
                 </span>
               </div>
               <div className="rrhh-func-kpi rrhh-func-kpi--inactivo">
                 <span className="rrhh-func-kpi-label">No activos</span>
                 <span className="rrhh-func-kpi-valor">
-                  {loading || !apiOnline ? "—" : stats.inactivos}
+                  {!apiOnline ? "—" : stats.inactivos}
                 </span>
               </div>
             </div>
@@ -200,7 +204,7 @@ export default function FuncionarioListado({
                 </tr>
               </thead>
               <tbody>
-                {loading ? (
+                {initialLoading ? (
                   <tr>
                     <td colSpan={7} className="rrhh-func-empty-cell">
                       <div className="rrhh-func-empty-msg">Cargando funcionarios…</div>
