@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { createFuncionario, updateFuncionario } from "../../api";
 import type { Funcionario, FuncionarioForm as FuncionarioFormData } from "../../types";
-import { getBancoInfo } from "../../constants/bancosUruguay";
+import { getBancoInfo, isBancoSantander } from "../../constants/bancosUruguay";
 import { aMayusculas } from "../../utils/formText";
 import SelectorBanco from "./SelectorBanco";
 
@@ -85,9 +85,10 @@ export default function FuncionarioForm({
       cuenta: aMayusculas(editFuncionario.cuenta),
       tipo_cuenta: editFuncionario.tipo_cuenta,
       titular_cuenta: aMayusculas(editFuncionario.titular_cuenta),
-      cuenta_otros_bancos:
-        formatCuentaOtrosBancos(editFuncionario.sucursal, editFuncionario.cuenta) ||
-        aMayusculas(editFuncionario.cuenta_otros_bancos ?? ""),
+      cuenta_otros_bancos: isBancoSantander(editFuncionario.banco)
+        ? formatCuentaOtrosBancos(editFuncionario.sucursal, editFuncionario.cuenta) ||
+          aMayusculas(editFuncionario.cuenta_otros_bancos ?? "")
+        : "",
       activo: editFuncionario.activo !== 0,
     });
   }, [editFuncionario]);
@@ -100,7 +101,13 @@ export default function FuncionarioForm({
     }
     setForm((f) => {
       const next = { ...f, [k]: val };
-      if (k === "sucursal" || k === "cuenta") {
+      const banco = k === "banco" ? String(val) : f.banco;
+
+      if (k === "banco") {
+        next.cuenta_otros_bancos = isBancoSantander(banco)
+          ? formatCuentaOtrosBancos(f.sucursal, f.cuenta)
+          : "";
+      } else if ((k === "sucursal" || k === "cuenta") && isBancoSantander(banco)) {
         const sucursal = k === "sucursal" ? String(val) : f.sucursal;
         const cuenta = k === "cuenta" ? String(val) : f.cuenta;
         next.cuenta_otros_bancos = formatCuentaOtrosBancos(sucursal, cuenta);
@@ -116,11 +123,15 @@ export default function FuncionarioForm({
       return;
     }
     try {
+      const payload: FuncionarioFormData = {
+        ...form,
+        cuenta_otros_bancos: isBancoSantander(form.banco) ? form.cuenta_otros_bancos : "",
+      };
       if (editId) {
-        await updateFuncionario(editId, form);
+        await updateFuncionario(editId, payload);
         onSuccess("Funcionario actualizado");
       } else {
-        await createFuncionario(form);
+        await createFuncionario(payload);
         onSuccess("Funcionario registrado");
       }
       onSaved();
@@ -253,15 +264,17 @@ export default function FuncionarioForm({
                 onChange={(e) => set("cuenta", e.target.value)}
               />
             </div>
-            <div className="field">
-              <label htmlFor="f-cuenta-otros">Nº de cuenta desde otros bancos</label>
-              <input
-                id="f-cuenta-otros"
-                value={form.cuenta_otros_bancos}
-                onChange={(e) => set("cuenta_otros_bancos", e.target.value)}
-                placeholder=""
-              />
-            </div>
+            {isBancoSantander(form.banco) && (
+              <div className="field">
+                <label htmlFor="f-cuenta-otros">Nº de cuenta desde otros bancos</label>
+                <input
+                  id="f-cuenta-otros"
+                  value={form.cuenta_otros_bancos}
+                  onChange={(e) => set("cuenta_otros_bancos", e.target.value)}
+                  placeholder="00 + sucursal + 00 + cuenta"
+                />
+              </div>
+            )}
             <div className="field">
               <label htmlFor="f-tipo">Tipo de cuenta</label>
               <select

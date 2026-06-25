@@ -149,3 +149,9 @@ export function esBancoOtro(valor: string): boolean {
     v.toLocaleUpperCase("es-UY") === "OTRO (ESPECIFICAR)"
   );
 }
+
+export function isBancoSantander(nombre: string): boolean {
+  const info = getBancoInfo(nombre);
+  if (info?.domain === "santander.com.uy") return true;
+  return nombre.trim().toLocaleUpperCase("es-UY").includes("SANTANDER");
+}
