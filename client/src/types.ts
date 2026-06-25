@@ -333,6 +333,8 @@ export interface Funcionario {
   cuenta: string;
   tipo_cuenta: string;
   titular_cuenta: string;
+  cuenta_otros_bancos: string;
+  moneda_otros_bancos: string;
   celular: string;
   email: string;
   activo: number;
@@ -354,6 +356,7 @@ export type FuncionarioForm = {
   cuenta: string;
   tipo_cuenta: string;
   titular_cuenta: string;
+  cuenta_otros_bancos: string;
   activo: boolean;
 };
 

@@ -13,6 +13,14 @@ const TIPOS_CUENTA = [
   "Dólares C. Corriente",
 ] as const;
 
+/** Formato transferencia interbancaria: 00 + sucursal + 00 + nº de cuenta */
+function formatCuentaOtrosBancos(sucursal: string, cuenta: string): string {
+  const cuentaNum = cuenta.replace(/\D/g, "");
+  if (!cuentaNum) return "";
+  const sucursalNum = sucursal.replace(/\D/g, "");
+  return `00${sucursalNum}00${cuentaNum}`;
+}
+
 interface Props {
   apiOnline: boolean;
   editFuncionario: Funcionario | null;
@@ -37,6 +45,7 @@ const empty = (): FuncionarioFormData => ({
   cuenta: "",
   tipo_cuenta: "",
   titular_cuenta: "",
+  cuenta_otros_bancos: "",
   activo: true,
 });
 
@@ -76,6 +85,9 @@ export default function FuncionarioForm({
       cuenta: aMayusculas(editFuncionario.cuenta),
       tipo_cuenta: editFuncionario.tipo_cuenta,
       titular_cuenta: aMayusculas(editFuncionario.titular_cuenta),
+      cuenta_otros_bancos:
+        formatCuentaOtrosBancos(editFuncionario.sucursal, editFuncionario.cuenta) ||
+        aMayusculas(editFuncionario.cuenta_otros_bancos ?? ""),
       activo: editFuncionario.activo !== 0,
     });
   }, [editFuncionario]);
@@ -86,7 +98,15 @@ export default function FuncionarioForm({
       if (k === "email") val = v.trim().toLowerCase() as FuncionarioFormData[K];
       else if (k !== "tipo_cuenta") val = aMayusculas(v) as FuncionarioFormData[K];
     }
-    setForm((f) => ({ ...f, [k]: val }));
+    setForm((f) => {
+      const next = { ...f, [k]: val };
+      if (k === "sucursal" || k === "cuenta") {
+        const sucursal = k === "sucursal" ? String(val) : f.sucursal;
+        const cuenta = k === "cuenta" ? String(val) : f.cuenta;
+        next.cuenta_otros_bancos = formatCuentaOtrosBancos(sucursal, cuenta);
+      }
+      return next;
+    });
   };
 
   const guardar = async (e: React.FormEvent) => {
@@ -231,6 +251,15 @@ export default function FuncionarioForm({
                 id="f-cuenta"
                 value={form.cuenta}
                 onChange={(e) => set("cuenta", e.target.value)}
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="f-cuenta-otros">Nº de cuenta desde otros bancos</label>
+              <input
+                id="f-cuenta-otros"
+                value={form.cuenta_otros_bancos}
+                onChange={(e) => set("cuenta_otros_bancos", e.target.value)}
+                placeholder=""
               />
             </div>
             <div className="field">

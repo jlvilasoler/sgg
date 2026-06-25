@@ -3295,6 +3295,8 @@ function parseFuncionarioBody(req: Request) {
     cuenta: String(body.cuenta ?? "").trim(),
     tipo_cuenta: String(body.tipo_cuenta ?? "").trim(),
     titular_cuenta: String(body.titular_cuenta ?? "").trim(),
+    cuenta_otros_bancos: String(body.cuenta_otros_bancos ?? "").trim(),
+    moneda_otros_bancos: String(body.moneda_otros_bancos ?? "").trim(),
     celular: String(body.celular ?? "").trim(),
     email: String(body.email ?? "").trim(),
     activo: body.activo !== false && body.activo !== 0 && body.activo !== "0",

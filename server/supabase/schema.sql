@@ -229,6 +229,8 @@ CREATE TABLE IF NOT EXISTS FUNCIONARIOS (
   cuenta TEXT NOT NULL DEFAULT '',
   tipo_cuenta TEXT NOT NULL DEFAULT '',
   titular_cuenta TEXT NOT NULL DEFAULT '',
+  cuenta_otros_bancos TEXT NOT NULL DEFAULT '',
+  moneda_otros_bancos TEXT NOT NULL DEFAULT '',
   celular TEXT NOT NULL DEFAULT '',
   email TEXT NOT NULL DEFAULT '',
   activo INTEGER NOT NULL DEFAULT 1,

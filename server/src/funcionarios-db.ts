@@ -13,6 +13,8 @@ export interface Funcionario {
   cuenta: string;
   tipo_cuenta: string;
   titular_cuenta: string;
+  cuenta_otros_bancos: string;
+  moneda_otros_bancos: string;
   celular: string;
   email: string;
   activo: number;
@@ -32,6 +34,8 @@ export interface FuncionarioInput {
   cuenta?: string;
   tipo_cuenta?: string;
   titular_cuenta?: string;
+  cuenta_otros_bancos?: string;
+  moneda_otros_bancos?: string;
   celular?: string;
   email?: string;
   activo?: boolean;
@@ -56,7 +60,19 @@ function validateCedula(cedula: string): string {
   return n;
 }
 
-export async function initFuncionariosTable(_db: Db): Promise<void> {}
+export async function initFuncionariosTable(db: Db): Promise<void> {
+  for (const col of [
+    "cuenta_otros_bancos TEXT NOT NULL DEFAULT ''",
+    "moneda_otros_bancos TEXT NOT NULL DEFAULT ''",
+  ]) {
+    try {
+      await db.prepare(`ALTER TABLE FUNCIONARIOS ADD COLUMN ${col}`).run();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (!/already exists|duplicate column/i.test(msg)) throw err;
+    }
+  }
+}
 
 function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
@@ -118,10 +134,12 @@ export async function insertFuncionario(db: Db, data: FuncionarioInput): Promise
     .prepare(
       `INSERT INTO FUNCIONARIOS (
         cedula, nombre, apellido, domicilio, ciudad, departamento,
-        banco, sucursal, cuenta, tipo_cuenta, titular_cuenta, celular, email, activo
+        banco, sucursal, cuenta, tipo_cuenta, titular_cuenta,
+        cuenta_otros_bancos, moneda_otros_bancos, celular, email, activo
       ) VALUES (
         @cedula, @nombre, @apellido, @domicilio, @ciudad, @departamento,
-        @banco, @sucursal, @cuenta, @tipo_cuenta, @titular_cuenta, @celular, @email, @activo
+        @banco, @sucursal, @cuenta, @tipo_cuenta, @titular_cuenta,
+        @cuenta_otros_bancos, @moneda_otros_bancos, @celular, @email, @activo
       )`
     )
     .run({
@@ -136,6 +154,8 @@ export async function insertFuncionario(db: Db, data: FuncionarioInput): Promise
       cuenta: (data.cuenta ?? "").trim(),
       tipo_cuenta: (data.tipo_cuenta ?? "").trim(),
       titular_cuenta: (data.titular_cuenta ?? "").trim() || `${nombre} ${apellido}`,
+      cuenta_otros_bancos: (data.cuenta_otros_bancos ?? "").trim(),
+      moneda_otros_bancos: (data.moneda_otros_bancos ?? "").trim(),
       celular: (data.celular ?? "").trim(),
       email: normalizeEmail(data.email ?? ""),
       activo: data.activo === false ? 0 : 1,
@@ -170,6 +190,7 @@ export async function updateFuncionario(
           domicilio = @domicilio, ciudad = @ciudad, departamento = @departamento,
           banco = @banco, sucursal = @sucursal, cuenta = @cuenta,
           tipo_cuenta = @tipo_cuenta, titular_cuenta = @titular_cuenta,
+          cuenta_otros_bancos = @cuenta_otros_bancos, moneda_otros_bancos = @moneda_otros_bancos,
           celular = @celular, email = @email,
           activo = @activo,
           actualizado_en = NOW()
@@ -188,6 +209,8 @@ export async function updateFuncionario(
         cuenta: (data.cuenta ?? "").trim(),
         tipo_cuenta: (data.tipo_cuenta ?? "").trim(),
         titular_cuenta: (data.titular_cuenta ?? "").trim() || `${nombre} ${apellido}`,
+        cuenta_otros_bancos: (data.cuenta_otros_bancos ?? "").trim(),
+        moneda_otros_bancos: (data.moneda_otros_bancos ?? "").trim(),
         celular: (data.celular ?? "").trim(),
         email: normalizeEmail(data.email ?? ""),
         activo: data.activo === false ? 0 : 1,
