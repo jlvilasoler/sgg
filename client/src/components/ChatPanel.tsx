@@ -6,10 +6,17 @@ interface Props {
   user: AuthUser;
   open: boolean;
   onClose: () => void;
+  onOpenFullscreen?: () => void;
   onUnreadChange?: (total: number) => void;
 }
 
-export default function ChatPanel({ user, open, onClose, onUnreadChange }: Props) {
+export default function ChatPanel({
+  user,
+  open,
+  onClose,
+  onOpenFullscreen,
+  onUnreadChange,
+}: Props) {
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -23,16 +30,12 @@ export default function ChatPanel({ user, open, onClose, onUnreadChange }: Props
 
   return (
     <div className="chat-panel-overlay" role="presentation">
-      <div
-        className="chat-panel-drawer"
-        role="dialog"
-        aria-modal="false"
-        aria-label="Chat interno"
-      >
+      <div className="chat-panel-drawer" role="dialog" aria-modal="false" aria-label="Chat">
         <ChatInterno
           user={user}
           variant="panel"
           onClose={onClose}
+          onOpenFullscreen={onOpenFullscreen}
           onUnreadChange={onUnreadChange}
         />
       </div>

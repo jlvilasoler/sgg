@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   actualizarUsuario,
   crearUsuario,
@@ -11,16 +11,15 @@ import {
   validatePasswordStrength,
 } from "../utils/password-policy";
 
-import UsuariosRolesPanel from "./UsuariosRolesModal";
 import UserAvatar from "./UserAvatar";
 
 interface Props {
   apiOnline: boolean;
   currentUser: AuthUser;
   onVolver: () => void;
+  volverLabel?: string;
   onError: (msg: string) => void;
   onSuccess: (msg: string) => void;
-  onPermissionsChanged?: () => void;
 }
 
 const ROLES: Rol[] = ALL_ROLES;
@@ -46,6 +45,19 @@ function IconoOjo({ visible }: { visible: boolean }) {
   );
 }
 
+function fmtUltimoAcceso(iso: string | null): { fecha: string; hora: string } {
+  if (!iso) return { fecha: "—", hora: "" };
+  try {
+    const d = new Date(iso.replace(" ", "T"));
+    return {
+      fecha: d.toLocaleDateString("es-UY", { dateStyle: "short" }),
+      hora: d.toLocaleTimeString("es-UY", { timeStyle: "short" }),
+    };
+  } catch {
+    return { fecha: iso, hora: "" };
+  }
+}
+
 const emptyForm = (): UserForm => ({
   email: "",
   nombre: "",
@@ -58,9 +70,9 @@ export default function Usuarios({
   apiOnline,
   currentUser,
   onVolver,
+  volverLabel = "Volver al menú",
   onError,
   onSuccess,
-  onPermissionsChanged,
 }: Props) {
   const [rows, setRows] = useState<AuthUser[]>([]);
   const [loading, setLoading] = useState(true);
@@ -68,8 +80,10 @@ export default function Usuarios({
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState<UserForm>(emptyForm);
   const [saving, setSaving] = useState(false);
-  const [rolesModalOpen, setRolesModalOpen] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [filtroTexto, setFiltroTexto] = useState("");
+  const [filtroRol, setFiltroRol] = useState<"" | Rol>("");
+  const [filtroEstado, setFiltroEstado] = useState<"" | "activo" | "inactivo">("");
 
   const load = useCallback(async () => {
     if (!apiOnline) {
@@ -90,6 +104,47 @@ export default function Usuarios({
   useEffect(() => {
     void load();
   }, [load]);
+
+  const stats = useMemo(() => {
+    const porRol = Object.fromEntries(ROLES.map((r) => [r, 0])) as Record<Rol, number>;
+    let activos = 0;
+    let recientes = 0;
+    const hace7d = Date.now() - 7 * 24 * 60 * 60 * 1000;
+
+    for (const u of rows) {
+      porRol[u.rol] += 1;
+      if (u.activo) activos += 1;
+      if (u.ultimo_acceso) {
+        const t = new Date(u.ultimo_acceso.replace(" ", "T")).getTime();
+        if (!Number.isNaN(t) && t >= hace7d) recientes += 1;
+      }
+    }
+
+    return {
+      total: rows.length,
+      activos,
+      inactivos: rows.length - activos,
+      recientes,
+      porRol,
+    };
+  }, [rows]);
+
+  const filteredRows = useMemo(() => {
+    const q = filtroTexto.trim().toLowerCase();
+    return rows.filter((u) => {
+      if (filtroRol && u.rol !== filtroRol) return false;
+      if (filtroEstado === "activo" && !u.activo) return false;
+      if (filtroEstado === "inactivo" && u.activo) return false;
+      if (!q) return true;
+      return (
+        u.nombre.toLowerCase().includes(q) ||
+        u.email.toLowerCase().includes(q) ||
+        u.rol_label.toLowerCase().includes(q)
+      );
+    });
+  }, [rows, filtroTexto, filtroRol, filtroEstado]);
+
+  const hayFiltros = Boolean(filtroTexto.trim() || filtroRol || filtroEstado);
 
   const openCreate = () => {
     setEditing(null);
@@ -175,45 +230,35 @@ export default function Usuarios({
     }
   };
 
+  const limpiarFiltros = () => {
+    setFiltroTexto("");
+    setFiltroRol("");
+    setFiltroEstado("");
+  };
+
   const showForm = creating || editing !== null;
 
-  if (rolesModalOpen) {
-    return (
-      <UsuariosRolesPanel
-        apiOnline={apiOnline}
-        onVolver={() => setRolesModalOpen(false)}
-        onError={onError}
-        onSuccess={onSuccess}
-        onSaved={onPermissionsChanged}
-      />
-    );
-  }
+  const subtitulo = loading
+    ? "Actualizando listado…"
+    : !apiOnline
+      ? "Sin conexión con la API"
+      : hayFiltros
+        ? `${filteredRows.length} de ${rows.length} usuario(s) en pantalla`
+        : `${rows.length} usuario(s) registrado${rows.length === 1 ? "" : "s"}`;
 
   return (
-    <div className="subseccion-panel">
+    <div className="subseccion-panel usuarios-admin">
       <button type="button" className="subseccion-back" onClick={onVolver}>
-        ‹ Volver al menú
+        ‹ {volverLabel}
       </button>
 
-      <div className="card usuarios-panel">
-        <header className="usuarios-head">
-          <div>
-            <h2 className="usuarios-head-title">Usuarios y permisos</h2>
-            <p className="usuarios-head-sub">
-              {loading
-                ? "Cargando…"
-                : `${rows.length} usuario(s) · Solo administradores gestionan accesos`}
-            </p>
+      <div className="card usuarios-panel listado-pro-shell">
+        <header className="listado-pro-head usuarios-admin-head">
+          <div className="listado-pro-head-main">
+            <h2 className="listado-pro-head-title">Administración de Usuarios</h2>
+            <p className="listado-pro-head-sub">{subtitulo}</p>
           </div>
           <div className="usuarios-head-actions">
-            <button
-              type="button"
-              className="btn btn-ghost"
-              disabled={!apiOnline || showForm}
-              onClick={() => setRolesModalOpen(true)}
-            >
-              Permisos por rol
-            </button>
             <button
               type="button"
               className="btn btn-primary"
@@ -224,6 +269,68 @@ export default function Usuarios({
             </button>
           </div>
         </header>
+
+        <section className="usuarios-admin-dashboard" aria-label="Resumen de usuarios">
+          <div className="usuarios-admin-kpi-grid">
+            <article className="usuarios-admin-kpi usuarios-admin-kpi--hero">
+              <span className="usuarios-admin-kpi-label">Total registrados</span>
+              <span className="usuarios-admin-kpi-valor">
+                {loading || !apiOnline ? "—" : stats.total}
+              </span>
+              <span className="usuarios-admin-kpi-hint">Cuentas en el sistema</span>
+            </article>
+            <article className="usuarios-admin-kpi usuarios-admin-kpi--activos">
+              <span className="usuarios-admin-kpi-label">Activos</span>
+              <span className="usuarios-admin-kpi-valor">
+                {loading || !apiOnline ? "—" : stats.activos}
+              </span>
+              <span className="usuarios-admin-kpi-hint">Pueden iniciar sesión</span>
+            </article>
+            <article className="usuarios-admin-kpi usuarios-admin-kpi--inactivos">
+              <span className="usuarios-admin-kpi-label">Inactivos</span>
+              <span className="usuarios-admin-kpi-valor">
+                {loading || !apiOnline ? "—" : stats.inactivos}
+              </span>
+              <span className="usuarios-admin-kpi-hint">Cuentas deshabilitadas</span>
+            </article>
+            <article className="usuarios-admin-kpi usuarios-admin-kpi--recientes">
+              <span className="usuarios-admin-kpi-label">Activos 7 días</span>
+              <span className="usuarios-admin-kpi-valor">
+                {loading || !apiOnline ? "—" : stats.recientes}
+              </span>
+              <span className="usuarios-admin-kpi-hint">Con ingreso reciente</span>
+            </article>
+          </div>
+
+          <div className="usuarios-admin-roles" aria-label="Distribución por rol">
+            <p className="usuarios-admin-roles-title">Por tipo de usuario</p>
+            <div className="usuarios-admin-roles-grid">
+              {ROLES.map((rol) => {
+                const count = stats.porRol[rol];
+                const pct = stats.total > 0 ? Math.round((count / stats.total) * 100) : 0;
+                return (
+                  <div key={rol} className={`usuarios-admin-rol-card usuarios-admin-rol-card--${rol}`}>
+                    <div className="usuarios-admin-rol-top">
+                      <span className={`usuarios-rol-badge usuarios-rol-badge--${rol}`}>
+                        {ROL_LABELS_DETALLE[rol]}
+                      </span>
+                      <strong className="usuarios-admin-rol-count">
+                        {loading || !apiOnline ? "—" : count}
+                      </strong>
+                    </div>
+                    <div className="usuarios-admin-rol-bar" aria-hidden>
+                      <span
+                        className="usuarios-admin-rol-bar-fill"
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                    <span className="usuarios-admin-rol-pct muted">{pct}%</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </section>
 
         {showForm && (
           <section className="usuarios-form-card">
@@ -319,8 +426,61 @@ export default function Usuarios({
           </section>
         )}
 
-        <div className="table-wrap">
-          <table className="data-table usuarios-table">
+        <div className="filters listado-pro-filters usuarios-admin-filters">
+          <div className="field usuarios-admin-search">
+            <label htmlFor="usr-filtro-texto">Buscar</label>
+            <input
+              id="usr-filtro-texto"
+              type="search"
+              placeholder="Nombre o email…"
+              value={filtroTexto}
+              disabled={loading || !apiOnline}
+              onChange={(e) => setFiltroTexto(e.target.value)}
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="usr-filtro-rol">Rol</label>
+            <select
+              id="usr-filtro-rol"
+              value={filtroRol}
+              disabled={loading || !apiOnline}
+              onChange={(e) => setFiltroRol(e.target.value as "" | Rol)}
+            >
+              <option value="">Todos</option>
+              {ROLES.map((r) => (
+                <option key={r} value={r}>
+                  {ROL_LABELS_DETALLE[r]}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="field">
+            <label htmlFor="usr-filtro-estado">Estado</label>
+            <select
+              id="usr-filtro-estado"
+              value={filtroEstado}
+              disabled={loading || !apiOnline}
+              onChange={(e) =>
+                setFiltroEstado(e.target.value as "" | "activo" | "inactivo")
+              }
+            >
+              <option value="">Todos</option>
+              <option value="activo">Activos</option>
+              <option value="inactivo">Inactivos</option>
+            </select>
+          </div>
+          <button
+            type="button"
+            className="btn listado-pro-reset-btn"
+            disabled={!hayFiltros || loading}
+            onClick={limpiarFiltros}
+          >
+            Limpiar
+          </button>
+        </div>
+
+        <div className="table-wrap listado-pro-table-wrap usuarios-admin-table-wrap">
+          <table className="data-table listado-pro-table usuarios-admin-table">
             <thead>
               <tr>
                 <th>Usuario</th>
@@ -334,65 +494,86 @@ export default function Usuarios({
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="empty">
-                    Cargando usuarios…
+                  <td colSpan={6} className="usuarios-admin-empty-cell">
+                    <div className="usuarios-admin-empty">Cargando usuarios…</div>
                   </td>
                 </tr>
-              ) : rows.length === 0 ? (
+              ) : filteredRows.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="empty">
-                    Sin usuarios
+                  <td colSpan={6} className="usuarios-admin-empty-cell">
+                    <div className="usuarios-admin-empty" role="status">
+                      {hayFiltros
+                        ? "No hay usuarios que coincidan con los filtros"
+                        : "Sin usuarios registrados"}
+                    </div>
                   </td>
                 </tr>
               ) : (
-                rows.map((u) => (
-                  <tr key={u.id} className={!u.activo ? "usuarios-row--inactivo" : ""}>
-                    <td>
-                      <div className="usuarios-table-user">
-                        <UserAvatar nombre={u.nombre} avatar={u.avatar} variant="list" />
-                        <strong>{u.nombre}</strong>
-                        {u.id === currentUser.id && (
-                          <span className="usuarios-badge-you">Tú</span>
-                        )}
-                      </div>
-                    </td>
-                    <td>{u.email}</td>
-                    <td>
-                      <span className={`usuarios-rol-badge usuarios-rol-badge--${u.rol}`}>
-                        {u.rol_label}
-                      </span>
-                    </td>
-                    <td>
-                      <span
-                        className={`usuarios-estado ${u.activo ? "usuarios-estado--activo" : "usuarios-estado--inactivo"}`}
-                      >
-                        {u.activo ? "Activo" : "Inactivo"}
-                      </span>
-                    </td>
-                    <td className="muted small-cell">
-                      {u.ultimo_acceso
-                        ? new Date(u.ultimo_acceso.replace(" ", "T")).toLocaleString("es-UY")
-                        : "—"}
-                    </td>
-                    <td className="actions-cell">
-                      <button
-                        type="button"
-                        className="btn btn-ghost btn-xs"
-                        onClick={() => openEdit(u)}
-                      >
-                        Editar
-                      </button>
-                      <button
-                        type="button"
-                        className="btn btn-ghost btn-xs"
-                        disabled={u.id === currentUser.id && u.activo}
-                        onClick={() => toggleActivo(u)}
-                      >
-                        {u.activo ? "Desactivar" : "Activar"}
-                      </button>
-                    </td>
-                  </tr>
-                ))
+                filteredRows.map((u) => {
+                  const acceso = fmtUltimoAcceso(u.ultimo_acceso);
+                  return (
+                    <tr
+                      key={u.id}
+                      className={`listado-pro-row usuarios-admin-row${
+                        !u.activo ? " usuarios-row--inactivo" : ""
+                      }${u.id === currentUser.id ? " usuarios-admin-row--self" : ""}`}
+                    >
+                      <td>
+                        <div className="usuarios-table-user">
+                          <UserAvatar nombre={u.nombre} avatar={u.avatar} variant="list" />
+                          <div className="usuarios-table-user-text">
+                            <strong>{u.nombre}</strong>
+                            {u.id === currentUser.id && (
+                              <span className="usuarios-badge-you">Tu cuenta</span>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="usuarios-admin-email">{u.email}</td>
+                      <td>
+                        <span className={`usuarios-rol-badge usuarios-rol-badge--${u.rol}`}>
+                          {u.rol_label}
+                        </span>
+                      </td>
+                      <td>
+                        <span
+                          className={`usuarios-estado-pill ${
+                            u.activo
+                              ? "usuarios-estado-pill--activo"
+                              : "usuarios-estado-pill--inactivo"
+                          }`}
+                        >
+                          {u.activo ? "Activo" : "Inactivo"}
+                        </span>
+                      </td>
+                      <td className="usuarios-admin-fecha">
+                        <span className="usuarios-admin-fecha-dia">{acceso.fecha}</span>
+                        {acceso.hora ? (
+                          <span className="usuarios-admin-fecha-hora muted">{acceso.hora}</span>
+                        ) : null}
+                      </td>
+                      <td className="actions-cell usuarios-admin-actions">
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-xs"
+                          onClick={() => openEdit(u)}
+                        >
+                          Editar
+                        </button>
+                        <button
+                          type="button"
+                          className={`btn btn-xs ${
+                            u.activo ? "btn-ghost" : "btn-primary"
+                          }`}
+                          disabled={u.id === currentUser.id && u.activo}
+                          onClick={() => void toggleActivo(u)}
+                        >
+                          {u.activo ? "Desactivar" : "Activar"}
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>

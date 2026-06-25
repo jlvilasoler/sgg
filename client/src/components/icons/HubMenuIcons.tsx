@@ -46,7 +46,8 @@ export type HubIconId =
   | "ventas_agricultura"
   | "ventas_arrendamientos"
   | "divisas_usd"
-  | "divisas_brl";
+  | "divisas_brl"
+  | "usuarios_permisos_rol";
 
 function IconUserBadge({ className }: IconProps) {
   return (
@@ -230,6 +231,18 @@ function IconArrendamiento({ className }: IconProps) {
   );
 }
 
+function IconPermisosRol({ className }: IconProps) {
+  return (
+    <IconShell className={className}>
+      <path
+        d="M12 3.5 5.5 6.25V11c0 3.65 2.75 7.05 6.5 8 3.75-.95 6.5-4.35 6.5-8V6.25L12 3.5Z"
+        {...stroke}
+      />
+      <path d="M9.25 11.75 11 13.5l3.75-3.75" {...stroke} strokeWidth="1.75" />
+    </IconShell>
+  );
+}
+
 const ICONS: Record<HubIconId, (props: IconProps) => ReactNode> = {
   config_responsables: IconUserBadge,
   config_proveedores: IconBuilding,
@@ -253,6 +266,7 @@ const ICONS: Record<HubIconId, (props: IconProps) => ReactNode> = {
   ventas_arrendamientos: IconArrendamiento,
   divisas_usd: IconDollar,
   divisas_brl: IconReal,
+  usuarios_permisos_rol: IconPermisosRol,
 };
 
 export function HubMenuIcon({
@@ -376,5 +390,10 @@ export const HUB_ICON_THEMES: Record<HubIconId, MenuAppTheme> = {
     accent: "#16a34a",
     accentSoft: "linear-gradient(145deg, #f0fdf4 0%, #dcfce7 52%, #bbf7d0 100%)",
     accentGlow: "rgba(22, 163, 74, 0.28)",
+  },
+  usuarios_permisos_rol: {
+    accent: "#b45309",
+    accentSoft: "linear-gradient(145deg, #fffbeb 0%, #fef3c7 52%, #fde68a 100%)",
+    accentGlow: "rgba(180, 83, 9, 0.28)",
   },
 };

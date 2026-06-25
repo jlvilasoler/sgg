@@ -17,6 +17,7 @@ interface Props {
   apiOnline: boolean;
   onError: (msg: string) => void;
   onVolver: () => void;
+  volverLabel?: string;
 }
 
 function fmtFecha(iso: string): { fecha: string; hora: string } {
@@ -147,7 +148,8 @@ function DetalleMovimiento({ row }: { row: StockMovimientoAuditoria }) {
 export default function StockMovimientosAuditoria({
   apiOnline,
   onError,
-  onVolver: _onVolver,
+  onVolver,
+  volverLabel = "Volver al menú",
 }: Props) {
   const [usuarios, setUsuarios] = useState<AuthUser[]>([]);
   const [rows, setRows] = useState<StockMovimientoAuditoria[]>([]);
@@ -220,7 +222,11 @@ export default function StockMovimientosAuditoria({
         : `${stats.total} movimiento${stats.total === 1 ? "" : "s"} en el listado filtrado (últimos 100)`;
 
   return (
-    <div className="listado-pro stock-mov-auditoria">
+    <div className="subseccion-panel stock-mov-auditoria-panel">
+      <button type="button" className="subseccion-back" onClick={onVolver}>
+        ‹ {volverLabel}
+      </button>
+      <div className="listado-pro stock-mov-auditoria">
       <div className="listado-pro-shell">
         <header className="listado-pro-head">
           <div className="listado-pro-head-main">
@@ -376,6 +382,7 @@ export default function StockMovimientosAuditoria({
           </table>
         </div>
       </div>
+    </div>
     </div>
   );
 }

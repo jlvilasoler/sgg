@@ -14,7 +14,7 @@ export const MODULO_LABELS: Record<Modulo, string> = {
   rrhh: "Recursos Humanos",
   ventas: "Ingresos por ventas",
   stock: "Stock ganadero",
-  usuarios: "Usuarios y permisos",
+  usuarios: "Administración de Usuarios",
 };
 
 const SCREEN_MODULO: Record<TabId, Modulo> = {

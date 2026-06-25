@@ -2,8 +2,6 @@ import type { TabId } from "./Header";
 import type { AuthUser } from "../types";
 import {
   canAccessScreen,
-  canAccessStockMovimientos,
-  canAccessUsuarioActividad,
 } from "../utils/auth-permissions";
 import { HubMenuCard } from "./HubMenuCard";
 import { MENU_APP_THEMES, MenuAppIcon } from "./icons/MenuAppIcons";
@@ -68,23 +66,13 @@ export const MENU_APPS: MenuApp[] = [
     subtitle: "Importar lecturas EID desde archivo o carga manual",
   },
   {
-    id: "stock_movimientos",
-    label: "Movimientos de Dispositivos",
-    subtitle: "Registro de altas, bajas y modificaciones",
-  },
-  {
-    id: "registro_actividad",
-    label: "Registro de actividad",
-    subtitle: "Logins, navegación y usuarios en línea",
-  },
-  {
     id: "usuarios",
     label: "Usuarios",
-    subtitle: "Cuentas, roles y permisos del sistema",
+    subtitle: "Administración del sistema",
   },
   {
     id: "chat",
-    label: "Chat interno",
+    label: "Chat",
     subtitle: "Mensajes con el equipo y mensajes directos",
   },
 ];
@@ -102,8 +90,8 @@ const SCREEN_TITLES: Record<TabId, string> = {
   stock_ganadero: "Stock Ganadero",
   stock_movimientos: "Movimientos de Dispositivos",
   registro_actividad: "Registro de actividad",
-  usuarios: "Usuarios y permisos",
-  chat: "Chat interno",
+  usuarios: "Usuarios",
+  chat: "Chat",
 };
 
 export function getScreenTitle(id: TabId): string {
@@ -116,11 +104,7 @@ interface Props {
 }
 
 export default function HomeMenu({ user, onOpen }: Props) {
-  const apps = MENU_APPS.filter((app) => {
-    if (app.id === "stock_movimientos") return canAccessStockMovimientos(user);
-    if (app.id === "registro_actividad") return canAccessUsuarioActividad(user);
-    return canAccessScreen(user, app.id);
-  });
+  const apps = MENU_APPS.filter((app) => canAccessScreen(user, app.id));
 
   return (
     <div className="layout-frame home-menu-inner">

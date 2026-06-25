@@ -148,6 +148,6 @@ export const PANTALLA_LABELS: Record<string, string> = {
   stock_ganadero: "Stock Ganadero",
   stock_movimientos: "Movimientos de dispositivos",
   registro_actividad: "Registro de actividad",
-  usuarios: "Usuarios y permisos",
+  usuarios: "Administración de Usuarios",
   chat: "Chat interno",
 };

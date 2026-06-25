@@ -12,6 +12,7 @@ import SubseccionInlinePanel from "./SubseccionInlinePanel";
 interface Props {
   apiOnline: boolean;
   onVolver: () => void;
+  volverLabel?: string;
   onError: (msg: string) => void;
   onSuccess: (msg: string) => void;
   onSaved?: () => void;
@@ -75,6 +76,7 @@ function modoEdicionLabel(modo: ModoEdicion): string {
 export default function UsuariosRolesPanel({
   apiOnline,
   onVolver,
+  volverLabel = "Volver a Usuarios",
   onError,
   onSuccess,
   onSaved,
@@ -207,7 +209,7 @@ export default function UsuariosRolesPanel({
   return (
     <SubseccionInlinePanel
       onVolver={onVolver}
-      volverLabel="Volver a Usuarios"
+      volverLabel={volverLabel}
       title="Permisos por tipo de usuario"
       description="Solo el administrador define qué secciones ve cada rol y si puede editar."
       cardClassName="usuarios-roles-inline"
@@ -378,7 +380,7 @@ export default function UsuariosRolesPanel({
                     </div>
                     <div
                       className="usuarios-roles-modulo usuarios-roles-modulo--simple usuarios-roles-modulo--locked"
-                      aria-label="Usuarios y permisos — solo administrador"
+                      aria-label="Administración de Usuarios — solo administrador"
                     >
                       <div className="usuarios-roles-modulo-top">
                         <input type="checkbox" checked disabled aria-hidden />

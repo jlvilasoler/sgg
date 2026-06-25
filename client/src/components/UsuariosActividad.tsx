@@ -34,6 +34,7 @@ interface Props {
   apiOnline: boolean;
   onError: (msg: string) => void;
   onVolver: () => void;
+  volverLabel?: string;
 }
 
 function fmtFecha(iso: string): { fecha: string; hora: string } {
@@ -69,7 +70,12 @@ function fmtHaceSegundos(seg: number): string {
   return `hace ${min} min`;
 }
 
-export default function UsuariosActividad({ apiOnline, onError, onVolver }: Props) {
+export default function UsuariosActividad({
+  apiOnline,
+  onError,
+  onVolver,
+  volverLabel = "Volver al menú",
+}: Props) {
   const [rows, setRows] = useState<AuthActividadLog[]>([]);
   const [total, setTotal] = useState(0);
   const [resumen, setResumen] = useState({
@@ -176,7 +182,7 @@ export default function UsuariosActividad({ apiOnline, onError, onVolver }: Prop
   return (
     <div className="subseccion-panel usuarios-actividad">
       <button type="button" className="subseccion-back" onClick={onVolver}>
-        ‹ Volver al menú
+        ‹ {volverLabel}
       </button>
 
       <div className="card usuarios-panel listado-pro-shell">

@@ -17,8 +17,7 @@ import HomeMarketTicker from "./components/HomeMarketTicker";
 import MainHeaderNav from "./components/MainHeaderNav";
 import AppFooter from "./components/AppFooter";
 import LoginScreen from "./components/LoginScreen";
-import Usuarios from "./components/Usuarios";
-import UsuariosActividad from "./components/UsuariosActividad";
+import UsuariosHub from "./components/UsuariosHub";
 import FormGasto from "./components/FormGasto";
 import Listado from "./components/Listado";
 import Resumen from "./components/Resumen";
@@ -29,16 +28,14 @@ import SimuladorVentas from "./components/simulador-venta/SimuladorVentas";
 import RecursosHumanos from "./components/RecursosHumanos";
 import IngresosVentas from "./components/ventas/IngresosVentas";
 import StockGanadero from "./components/stock/StockGanadero";
-import StockMovimientosAuditoria from "./components/stock/StockMovimientosAuditoria";
 import ChatPanel from "./components/ChatPanel";
+import ChatInterno from "./components/ChatInterno";
 import MiCuentaPanel from "./components/MiCuentaModal";
 import ConfirmDialogHost from "./components/ConfirmDialogHost";
 import { HeaderBackProvider } from "./header-back";
 import {
   canAccessChat,
   canAccessScreen,
-  canAccessStockMovimientos,
-  canAccessUsuarioActividad,
 } from "./utils/auth-permissions";
 import { showToast } from "./utils/toast";
 
@@ -143,6 +140,7 @@ export default function App() {
     setNavHistory([]);
     setScreen("home");
     setEditRow(null);
+    setChatOpen(false);
     registrarPantallaActividad("home");
   };
 
@@ -164,28 +162,35 @@ export default function App() {
     setNavHistory(next);
   };
 
+  const openChatPage = () => {
+    setCuentaOpen(false);
+    setChatOpen(false);
+    if (screenRef.current === "chat") {
+      volverDesdeChat();
+      return;
+    }
+    pushNavHistory();
+    setScreen("chat");
+    setEditRow(null);
+    registrarPantallaActividad("chat");
+  };
+
+  const volverDesdeChat = () => {
+    if (navHistoryRef.current.length > 0) goBackScreen();
+    else goHome();
+  };
+
   const navigate = (id: TabId) => {
     if (!user) {
       notify("No tenés permiso para acceder a ese módulo", false);
       return;
     }
-    if (id === "stock_movimientos") {
-      if (!canAccessStockMovimientos(user)) {
-        notify("Solo administradores pueden ver el registro de movimientos", false);
-        return;
-      }
-    } else if (id === "registro_actividad") {
-      if (!canAccessUsuarioActividad(user)) {
-        notify("Solo administradores pueden ver el registro de actividad", false);
-        return;
-      }
-    } else if (!canAccessScreen(user, id)) {
-      notify("No tenés permiso para acceder a ese módulo", false);
+    if (id === "chat") {
+      openChatPage();
       return;
     }
-    if (id === "chat") {
-      setCuentaOpen(false);
-      setChatOpen(true);
+    if (!canAccessScreen(user, id)) {
+      notify("No tenés permiso para acceder a ese módulo", false);
       return;
     }
     if (screenRef.current !== id) pushNavHistory();
@@ -426,43 +431,42 @@ export default function App() {
                 onVolver={goHome}
               />
             )}
-            {screen === "stock_movimientos" && (
-              <StockMovimientosAuditoria
+            {screen === "usuarios" && user && (
+              <UsuariosHub
+                user={user}
                 apiOnline={apiOnline}
-                onError={(m) => notify(m, false)}
-                onVolver={goHome}
-              />
-            )}
-            {screen === "registro_actividad" && (
-              <UsuariosActividad
-                apiOnline={apiOnline}
-                onError={(m) => notify(m, false)}
-                onVolver={goHome}
-              />
-            )}
-            {screen === "usuarios" && (
-              <Usuarios
-                apiOnline={apiOnline}
-                currentUser={user}
                 onVolver={goHome}
                 onError={(m) => notify(m, false)}
                 onSuccess={(m) => notify(m, true)}
                 onPermissionsChanged={() => void refreshUser()}
               />
             )}
+            {screen === "chat" && user && (
+              <ChatInterno user={user} variant="page" onClose={volverDesdeChat} />
+            )}
           </main>
         )}
       </div>
 
       {user && canAccessChat(user) && (
-        <ChatPanel user={user} open={chatOpen} onClose={() => setChatOpen(false)} />
+        <ChatPanel
+          user={user}
+          open={chatOpen}
+          onClose={() => setChatOpen(false)}
+          onOpenFullscreen={openChatPage}
+        />
       )}
 
       <AppFooter
         user={user}
         chatOpen={chatOpen}
+        chatPageOpen={screen === "chat"}
         onOpenChat={() => {
           setCuentaOpen(false);
+          if (screen === "chat") {
+            volverDesdeChat();
+            return;
+          }
           setChatOpen((open) => !open);
         }}
       />
