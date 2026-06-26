@@ -8,7 +8,7 @@
   ],
   "functions": {
     "api/index.ts": {
-      "includeFiles": "{server/dist/**}",
+      "includeFiles": "{server/dist/**,server/node_modules/pdfjs-dist/legacy/build/**}",
       "maxDuration": 60,
       "memory": 1024
     }
