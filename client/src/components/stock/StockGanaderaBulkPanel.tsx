@@ -8,7 +8,9 @@ import type {
   StockGanaderaDispositivo,
 } from "../../types";
 import SubseccionInlinePanel from "../SubseccionInlinePanel";
-import SelectEmpresaDispositivo from "./SelectEmpresaDispositivo";
+import SelectEmpresaDispositivo, {
+  EMPRESA_PENDIENTE,
+} from "./SelectEmpresaDispositivo";
 import SelectEstadoDispositivo from "./SelectEstadoDispositivo";
 import SelectSexoDispositivo from "./SelectSexoDispositivo";
 import {
@@ -171,7 +173,9 @@ export default function StockGanaderaBulkPanel({
           </span>
           <SelectEmpresaDispositivo
             value={empresa}
-            onChange={setEmpresa}
+            onChange={(e) =>
+              setEmpresa(e === EMPRESA_PENDIENTE ? "" : (e as DispositivoEmpresa))
+            }
             disabled={!aplicarEmpresa || camposDeshabilitados}
           />
         </label>

@@ -10,7 +10,9 @@ import type {
 import { fmtDate } from "../../utils";
 import SubseccionInlinePanel from "../SubseccionInlinePanel";
 import IconoDispositivoWifi from "./IconoDispositivoWifi";
-import SelectEmpresaDispositivo from "./SelectEmpresaDispositivo";
+import SelectEmpresaDispositivo, {
+  EMPRESA_PENDIENTE,
+} from "./SelectEmpresaDispositivo";
 import SelectEstadoDispositivo from "./SelectEstadoDispositivo";
 import SelectGrupoDispositivo from "./SelectGrupoDispositivo";
 import SelectSexoDispositivo from "./SelectSexoDispositivo";
@@ -248,7 +250,9 @@ export default function StockGanaderaEditarPanel({
                     id="edit-ganadera-empresa"
                     value={empresa}
                     disabled={guardando || !apiOnline}
-                    onChange={setEmpresa}
+                    onChange={(e) =>
+                      setEmpresa(e === EMPRESA_PENDIENTE ? "" : (e as DispositivoEmpresa))
+                    }
                   />
                 </div>
 
