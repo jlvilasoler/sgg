@@ -2359,6 +2359,7 @@ app.post(
           valores_mapeo,
           valores_mapeo_comision,
           es_brou: esBrou,
+          es_santander_pais: esSantanderPais,
           tipo_detectado: tipo
             ? {
                 id: tipo.id,

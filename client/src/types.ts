@@ -105,6 +105,8 @@ export interface TipoDocumentoDetectado {
 export interface ComprobanteLeido extends BrouTransferenciaParsed {
   /** true si el comprobante es una transferencia BROU (parser específico aplicado). */
   es_brou?: boolean;
+  /** true si es un comprobante Santander «Transferencias en el país». */
+  es_santander_pais?: boolean;
   /** Tipo de documento configurado que coincidió con el texto (banco detectado). */
   tipo_detectado?: TipoDocumentoDetectado | null;
 }

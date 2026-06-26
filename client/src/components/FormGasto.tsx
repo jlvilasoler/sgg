@@ -256,7 +256,12 @@ export default function FormGasto({
       );
       const hayComisionPdf = Boolean(data.comision && data.comision.valor > 0);
       const hayComisionFija = Boolean(comCfg.valores_fijos?.importes?.trim());
-      setRegistrarComisionBrou(comCfg.activa && (hayComisionPdf || hayComisionFija));
+      // Santander «en el país» no trae la comisión en el PDF: igual abrimos el
+      // form de comisión bancaria (pago) para registrarla manualmente o con el
+      // importe fijo configurado en el tipo de documento.
+      setRegistrarComisionBrou(
+        comCfg.activa && (hayComisionPdf || hayComisionFija || Boolean(data.es_santander_pais))
+      );
       setForm((f) =>
       applyBrouParsedToForm(data, f, brouMapeo, data.valores_mapeo as Partial<
         Record<GastoDestinoId, string>
@@ -1290,7 +1295,7 @@ export default function FormGasto({
         </div>
       </div>
 
-      {comisionDesdePdf && !editRow ? (
+      {(comisionDesdePdf || brouImportado?.es_santander_pais) && !editRow ? (
         <label className="brou-comision-toggle inline-check">
           <input
             type="checkbox"
