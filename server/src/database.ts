@@ -377,6 +377,7 @@ export const stockGanadero = {
   ) => stock.bulkPatchStockGanaderaDispositivos(db, claves, patch, eids, autor),
   deleteDispositivos: (claves: string[]) =>
     stock.deleteStockGanaderaDispositivos(db, claves),
+  vaciarCompleto: () => stock.vaciarStockGanaderaCompleto(db),
   listHistorialCambios: (clave: string) =>
     stock.listStockGanaderaDispositivoHistorial(db, clave),
 };

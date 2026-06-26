@@ -824,6 +824,24 @@ export async function deleteStockGanaderaDispositivos(claves: string[]): Promise
   return json.data;
 }
 
+export async function vaciarStockGanaderaCompleto(): Promise<{
+  dispositivos_eliminados: number;
+  lecturas_eliminadas: number;
+  vinculos_sim_venta: number;
+}> {
+  const json = await request<{
+    data: {
+      dispositivos_eliminados: number;
+      lecturas_eliminadas: number;
+      vinculos_sim_venta: number;
+    };
+  }>("/stock-ganadero/dispositivos/wipe-all", {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+  return json.data;
+}
+
 export async function importStockGanaderoFile(
   file: File
 ): Promise<{ message: string; lote_id: number; insertados: number }> {

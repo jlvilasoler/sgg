@@ -50,6 +50,15 @@ export function writeStockGanaderaPageCache(cache: StockGanaderaPageCache): void
   }
 }
 
+export function clearStockGanaderaPageCache(): void {
+  memCache = null;
+  try {
+    sessionStorage.removeItem(STORAGE_KEY);
+  } catch {
+    /* modo privado */
+  }
+}
+
 export function rowsDesdeCache(
   cache: StockGanaderaPageCache | null,
   filtrosKey: string

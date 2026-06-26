@@ -953,6 +953,46 @@ export async function deleteStockGanaderaDispositivos(
   return { eliminados, lecturas_eliminadas, no_encontrados };
 }
 
+export interface VaciarStockGanaderaResult {
+  dispositivos_eliminados: number;
+  lecturas_eliminadas: number;
+  vinculos_sim_venta: number;
+}
+
+/** Elimina todo el stock ganadero (lecturas, metadatos, historial y vínculos con ventas). */
+export async function vaciarStockGanaderaCompleto(db: Db): Promise<VaciarStockGanaderaResult> {
+  return db.transaction(async (tx) => {
+    const lecturasRow = (await tx
+      .prepare(`SELECT COUNT(*) AS n FROM STOCK_GANADERO_REGISTRO`)
+      .get()) as { n: number };
+    const dispositivosRow = (await tx
+      .prepare(
+        `SELECT COUNT(*) AS n FROM STOCK_GANADERO_DISPOSITIVO WHERE clave <> '__meta__'`
+      )
+      .get()) as { n: number };
+    const simRow = (await tx
+      .prepare(`SELECT COUNT(*) AS n FROM SIMULADOR_VENTA_GANADO_DISPOSITIVO`)
+      .get()) as { n: number };
+
+    await tx.prepare(`DELETE FROM SIMULADOR_VENTA_GANADO_DISPOSITIVO`).run();
+    await tx.prepare(`DELETE FROM STOCK_GANADERO_REGISTRO`).run();
+    await tx
+      .prepare(
+        `DELETE FROM STOCK_GANADERO_DISPOSITIVO_HISTORIAL WHERE clave <> '__meta__'`
+      )
+      .run();
+    await tx
+      .prepare(`DELETE FROM STOCK_GANADERO_DISPOSITIVO WHERE clave <> '__meta__'`)
+      .run();
+
+    return {
+      dispositivos_eliminados: dispositivosRow.n,
+      lecturas_eliminadas: lecturasRow.n,
+      vinculos_sim_venta: simRow.n,
+    };
+  });
+}
+
 function fechaIsoAMesAnio(fecha: string): { mes: number; anio: number } | null {
   const m = fecha.trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (!m) return null;

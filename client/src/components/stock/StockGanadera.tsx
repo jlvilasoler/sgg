@@ -4,6 +4,7 @@ import {
   fetchStockGanaderaDispositivos,
   fetchStockGanaderaSalidas,
   fetchStockGanaderaVentasDispositivos,
+  vaciarStockGanaderaCompleto,
 } from "../../api";
 import { useHeaderBackStep } from "../../header-back";
 import type { AuthUser, DispositivoEstado, StockGanaderaDispositivo } from "../../types";
@@ -52,6 +53,7 @@ import {
   readStockGanaderaPageCache,
   rowsDesdeCache,
   ventasClavesDesdeCache,
+  clearStockGanaderaPageCache,
   writeStockGanaderaPageCache,
 } from "./stock-ganadera-page-cache";
 
@@ -441,6 +443,14 @@ export default function StockGanadera({
 
   const limpiarSeleccion = () => setSeleccion(new Set());
 
+  const resetearStockEnCliente = useCallback(() => {
+    clearStockGanaderaPageCache();
+    setRows([]);
+    setStatsRows([]);
+    setVentasClaves(new Set());
+    limpiarSeleccion();
+  }, []);
+
   const eliminarSeleccionados = async () => {
     if (!esAdmin || seleccionados.length === 0) return;
     const muestra = seleccionados
@@ -460,8 +470,24 @@ export default function StockGanadera({
       const result = await deleteStockGanaderaDispositivos(
         seleccionados.map((d) => d.clave)
       );
-      limpiarSeleccion();
-      void load();
+      const quedan = statsRows.filter(
+        (d) => !seleccionados.some((s) => s.clave === d.clave)
+      );
+      if (quedan.length === 0) {
+        resetearStockEnCliente();
+      } else {
+        limpiarSeleccion();
+        setStatsRows(quedan);
+        setRows((prev) =>
+          prev.filter((d) => !seleccionados.some((s) => s.clave === d.clave))
+        );
+        setVentasClaves((prev) => {
+          const next = new Set(prev);
+          for (const d of seleccionados) next.delete(d.clave);
+          return next;
+        });
+      }
+      await load();
       const omitidos =
         result.no_encontrados.length > 0
           ? ` (${result.no_encontrados.length} no encontrado(s))`
@@ -471,6 +497,27 @@ export default function StockGanadera({
       );
     } catch (e) {
       onError(e instanceof Error ? e.message : "Error al eliminar dispositivos");
+    }
+  };
+
+  const vaciarTodoElStock = async () => {
+    if (!esAdmin || statsRows.length === 0) return;
+    const ok = await confirmAction({
+      title: "Vaciar todo el stock",
+      message: `¿Eliminar TODOS los ${statsRows.length} dispositivo(s) del sistema (incluidas salidas: ventas, muertes y extraviados) junto con sus lecturas e historial? También se desvincularán de las ventas del simulador. Esta acción no se puede deshacer.`,
+      confirmText: "Eliminar todo",
+      variant: "danger",
+    });
+    if (!ok) return;
+    try {
+      const result = await vaciarStockGanaderaCompleto();
+      resetearStockEnCliente();
+      await load();
+      onSuccess?.(
+        `Stock vaciado: ${result.dispositivos_eliminados} dispositivo(s) y ${result.lecturas_eliminadas} lectura(s) eliminados`
+      );
+    } catch (e) {
+      onError(e instanceof Error ? e.message : "Error al vaciar el stock");
     }
   };
 
@@ -746,6 +793,16 @@ export default function StockGanadera({
               <button type="button" className="btn btn-primary" onClick={load}>
                 Buscar
               </button>
+              {esAdmin && statsRows.length > 0 && (
+                <button
+                  type="button"
+                  className="btn btn-danger"
+                  onClick={() => void vaciarTodoElStock()}
+                  title="Eliminar todos los dispositivos del sistema, incluidas las salidas"
+                >
+                  Vaciar todo el stock
+                </button>
+              )}
             </div>
 
             {(hayFacetasActivas || busqueda.trim() || fechaDesde || fechaHasta) && (

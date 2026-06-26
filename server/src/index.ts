@@ -1418,6 +1418,26 @@ app.post("/api/stock-ganadero/dispositivos/bulk-delete", async (req, res) => {
   }
 });
 
+app.post("/api/stock-ganadero/dispositivos/wipe-all", async (req, res) => {
+  if (!req.user || req.user.rol !== "admin") {
+    res.status(403).json({ ok: false, error: "Solo administradores" });
+    return;
+  }
+  try {
+    const result = await db.stockGanadero.vaciarCompleto();
+    await auditStockMovimiento(req, "MODIFICACION", {
+      resumen: "Vació todo el stock ganadero",
+      detalle: { ...result },
+    });
+    res.json({ ok: true, data: result });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al vaciar el stock",
+    });
+  }
+});
+
 app.patch("/api/stock-ganadero/dispositivos/:clave/sexo", async (req, res) => {
   try {
     const sexo = String(req.body?.sexo ?? "").toUpperCase() as
