@@ -299,7 +299,9 @@ export default function StockGanadera({
   const activosCount = resumenKpis.activos.length;
   const salidasCount = resumenKpis.salidas.length;
   const totalDispositivosCount = statsRows.length;
-  const ventasCount = resumenKpis.ventasSimulador.length;
+  // "Ventas" cuenta todos los animales con estado VENDIDO (marcados a mano o desde el simulador).
+  const ventasCount = resumenKpis.vendidos.length;
+  const ventasSimuladorCount = resumenKpis.ventasSimulador.length;
   const muertesCount = resumenKpis.muertos.length;
   const extraviadosCount = resumenKpis.perdidos.length;
 
@@ -313,8 +315,8 @@ export default function StockGanadera({
     [resumenKpis.activos]
   );
   const sexoVentas = useMemo(
-    () => contarSexoDispositivos(resumenKpis.ventasSimulador),
-    [resumenKpis.ventasSimulador]
+    () => contarSexoDispositivos(resumenKpis.vendidos),
+    [resumenKpis.vendidos]
   );
   const sexoMuertes = useMemo(
     () => contarSexoDispositivos(resumenKpis.muertos),
@@ -673,16 +675,25 @@ export default function StockGanadera({
               <StockGanaderaDashKpi
                 label="Ventas"
                 value={ventasCount}
-                hint="Vinculados al simulador de ventas"
+                hint={
+                  ventasSimuladorCount > 0
+                    ? `${ventasSimuladorCount} desde el simulador de ventas`
+                    : "Animales registrados como vendidos"
+                }
                 variant="vendido"
                 sexoStats={sexoVentas}
                 loading={mostrarCargaVacia}
-                active={filtroVentasCerradas}
+                active={filtroEstado.size === 1 && filtroEstado.has("VENDIDO")}
                 disabled={ventasCount === 0}
                 onClick={() => {
                   setFiltroSalidasSistema(false);
-                  setFiltroEstado(new Set());
-                  setFiltroVentasCerradas((v) => !v);
+                  setFiltroVentasCerradas(false);
+                  setFiltroEstado((prev) => {
+                    const soloVendido = prev.size === 1 && prev.has("VENDIDO");
+                    return soloVendido
+                      ? new Set()
+                      : new Set<DispositivoEstado>(["VENDIDO"]);
+                  });
                 }}
               />
               <StockGanaderaDashKpi
