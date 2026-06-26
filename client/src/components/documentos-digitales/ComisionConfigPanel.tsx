@@ -4,8 +4,9 @@ import type { Proveedor } from "../../types";
 import {
   BROU_CAMPO_LABELS,
   COMISION_HEREDAR_IDS,
-  COMISION_IMPORTE_SANTANDER_LABEL,
-  COMISION_IMPORTE_SANTANDER_VALOR,
+  COMISION_IMPORTE_FIJOS,
+  COMISION_IMPORTE_MANUAL_MAPEO,
+  COMISION_IMPORTE_MANUAL_OPCION,
   COMISION_MAPEO_DEFAULT,
   COMISION_PROVEEDOR_HEREDAR_VALOR,
   GASTO_CAMPO_LABELS,
@@ -15,11 +16,15 @@ import {
   type GastoCampoId,
   type GastoDestinoId,
   decodeProveedorComision,
-  esImporteComisionSantander,
+  esImporteComisionFijoConfigurado,
+  esImporteComisionManual,
   esProveedorComisionHeredar,
   esProveedorComisionSantander,
+  importeComisionFijoLabelDesdeConfig,
+  importeUsdFijoADisplay,
   normalizeComisionConfig,
   normalizeGastoMapeo,
+  parseImporteUsdManualInput,
 } from "../../utils/gasto-campos";
 import ComisionProveedorPicker from "./ComisionProveedorPicker";
 
@@ -50,6 +55,7 @@ export default function ComisionConfigPanel({
     );
   }, [titulosDisponibles, cfg.mapeo_campos]);
   const [proveedores, setProveedores] = useState<Proveedor[]>([]);
+  const [importeManualTexto, setImporteManualTexto] = useState<string | null>(null);
 
   const cargarProveedores = useCallback(async () => {
     if (!apiOnline) {
@@ -90,18 +96,32 @@ export default function ComisionConfigPanel({
     const valores_fijos = { ...cfg.valores_fijos };
     const trimmed = etiqueta.trim();
 
-    if (destino === "importes" && trimmed === COMISION_IMPORTE_SANTANDER_LABEL) {
-      mapeo.importes = COMISION_IMPORTE_SANTANDER_LABEL;
-      valores_fijos.importes = COMISION_IMPORTE_SANTANDER_VALOR;
-      patch({
-        mapeo_campos: mapeo,
-        valores_fijos,
-        campos_incluidos: incluirDestino(cfg.campos_incluidos, destino, true),
-      });
-      return;
-    }
-
     if (destino === "importes") {
+      const fijo = COMISION_IMPORTE_FIJOS.find((o) => o.label === trimmed);
+      if (fijo) {
+        mapeo.importes = fijo.label;
+        valores_fijos.importes = fijo.valor;
+        patch({
+          mapeo_campos: mapeo,
+          valores_fijos,
+          campos_incluidos: incluirDestino(cfg.campos_incluidos, destino, true),
+        });
+        return;
+      }
+      if (trimmed === COMISION_IMPORTE_MANUAL_OPCION || trimmed === COMISION_IMPORTE_MANUAL_MAPEO) {
+        mapeo.importes = COMISION_IMPORTE_MANUAL_MAPEO;
+        setImporteManualTexto(importeUsdFijoADisplay(valores_fijos.importes) || "");
+        patch({
+          mapeo_campos: mapeo,
+          valores_fijos,
+          campos_incluidos: incluirDestino(
+            cfg.campos_incluidos,
+            destino,
+            Boolean(valores_fijos.importes?.trim())
+          ),
+        });
+        return;
+      }
       delete valores_fijos.importes;
     }
 
@@ -115,6 +135,42 @@ export default function ComisionConfigPanel({
       mapeo_campos: mapeo,
       valores_fijos,
       campos_incluidos: incluirDestino(cfg.campos_incluidos, destino, tieneValor),
+    });
+  };
+
+  const setImporteManualUsd = (texto: string) => {
+    setImporteManualTexto(texto);
+    const mapeo = normalizeGastoMapeo(cfg.mapeo_campos);
+    const valores_fijos = { ...cfg.valores_fijos };
+    mapeo.importes = COMISION_IMPORTE_MANUAL_MAPEO;
+    const parsed = parseImporteUsdManualInput(texto);
+    if (parsed) {
+      valores_fijos.importes = parsed;
+    } else {
+      delete valores_fijos.importes;
+    }
+    patch({
+      mapeo_campos: mapeo,
+      valores_fijos,
+      campos_incluidos: incluirDestino(cfg.campos_incluidos, "importes", Boolean(parsed)),
+    });
+  };
+
+  const blurImporteManual = () => {
+    const display = importeUsdFijoADisplay(cfg.valores_fijos.importes);
+    setImporteManualTexto(display || null);
+  };
+
+  const salirImporteManual = () => {
+    setImporteManualTexto(null);
+    const mapeo = normalizeGastoMapeo(cfg.mapeo_campos);
+    const valores_fijos = { ...cfg.valores_fijos };
+    delete mapeo.importes;
+    delete valores_fijos.importes;
+    patch({
+      mapeo_campos: mapeo,
+      valores_fijos,
+      campos_incluidos: incluirDestino(cfg.campos_incluidos, "importes", false),
     });
   };
 
@@ -139,7 +195,8 @@ export default function ComisionConfigPanel({
 
     if (
       !esProveedorComisionSantander(value) &&
-      esImporteComisionSantander(mapeo.importes, valores_fijos.importes)
+      (esImporteComisionFijoConfigurado(mapeo.importes, valores_fijos.importes) ||
+        esImporteComisionManual(mapeo.importes, valores_fijos.importes))
     ) {
       delete valores_fijos.importes;
       mapeo.importes = COMISION_MAPEO_DEFAULT.importes;
@@ -157,6 +214,16 @@ export default function ComisionConfigPanel({
   };
 
   const proveedorEsSantander = esProveedorComisionSantander(cfg.valores_fijos.proveedor);
+
+  const etiquetasImporteReservadas = useMemo(
+    () =>
+      new Set([
+        ...COMISION_IMPORTE_FIJOS.map((o) => o.label),
+        COMISION_IMPORTE_MANUAL_OPCION,
+        "x,xx usd",
+      ]),
+    []
+  );
 
   return (
     <div className="doc-comision-config">
@@ -220,9 +287,11 @@ export default function ComisionConfigPanel({
 
           const valorFijo = cfg.valores_fijos[destino] ?? "";
           const mapeoVal = cfg.mapeo_campos[destino] ?? "";
-          const importeSantander =
-            destino === "importes" && esImporteComisionSantander(mapeoVal, valorFijo);
-          const selectValue = importeSantander ? COMISION_IMPORTE_SANTANDER_LABEL : mapeoVal;
+          const importeFijoLabel = importeComisionFijoLabelDesdeConfig(mapeoVal, valorFijo);
+          const importeManual = esImporteComisionManual(mapeoVal, valorFijo);
+          const selectValue = importeFijoLabel ?? (importeManual ? "" : mapeoVal);
+          const mostrarImporteEditable =
+            destino === "importes" && proveedorEsSantander && importeManual;
           return (
             <div key={destino} className="doc-tipo-mapeo-row">
               <label className="doc-tipo-mapeo-destino" htmlFor={`com-mapeo-${destino}`}>
@@ -235,29 +304,63 @@ export default function ComisionConfigPanel({
                 ←
               </span>
               <div className="doc-comision-control">
-                <select
-                  id={`com-mapeo-${destino}`}
-                  className="doc-tipo-mapeo-select"
-                  value={selectValue}
-                  onChange={(e) => setMapeo(destino, e.target.value)}
-                >
-                  <option value="">No completar</option>
-                  {destino === "importes" && proveedorEsSantander ? (
-                    <option value={COMISION_IMPORTE_SANTANDER_LABEL}>
-                      {COMISION_IMPORTE_SANTANDER_LABEL}
-                    </option>
-                  ) : null}
-                  {titulos
-                    .filter(
-                      (etiqueta) =>
-                        destino !== "importes" || etiqueta !== COMISION_IMPORTE_SANTANDER_LABEL
-                    )
-                    .map((etiqueta) => (
-                    <option key={etiqueta} value={etiqueta}>
-                      {etiqueta}
-                    </option>
-                  ))}
-                </select>
+                {mostrarImporteEditable ? (
+                  <div className="doc-comision-importe-editable">
+                    <input
+                      id={`com-mapeo-${destino}`}
+                      type="text"
+                      className="doc-tipo-mapeo-select doc-comision-importe-monto"
+                      inputMode="decimal"
+                      placeholder="0,00"
+                      autoFocus
+                      aria-label="Monto en USD"
+                      value={importeManualTexto ?? importeUsdFijoADisplay(valorFijo)}
+                      onChange={(e) => setImporteManualUsd(e.target.value)}
+                      onBlur={blurImporteManual}
+                    />
+                    <span className="doc-comision-importe-acciones">
+                      <span className="doc-comision-importe-sufijo">usd</span>
+                      <button
+                        type="button"
+                        className="doc-comision-importe-volver"
+                        onClick={salirImporteManual}
+                      >
+                        Cambiar
+                      </button>
+                    </span>
+                  </div>
+                ) : (
+                  <select
+                    id={`com-mapeo-${destino}`}
+                    className="doc-tipo-mapeo-select"
+                    value={selectValue}
+                    onChange={(e) => setMapeo(destino, e.target.value)}
+                  >
+                    <option value="">No completar</option>
+                    {destino === "importes" && proveedorEsSantander ? (
+                      <>
+                        {COMISION_IMPORTE_FIJOS.map((opcion) => (
+                          <option key={opcion.label} value={opcion.label}>
+                            {opcion.label}
+                          </option>
+                        ))}
+                        <option value={COMISION_IMPORTE_MANUAL_OPCION}>
+                          {COMISION_IMPORTE_MANUAL_OPCION}
+                        </option>
+                      </>
+                    ) : null}
+                    {titulos
+                      .filter(
+                        (etiqueta) =>
+                          destino !== "importes" || !etiquetasImporteReservadas.has(etiqueta)
+                      )
+                      .map((etiqueta) => (
+                        <option key={etiqueta} value={etiqueta}>
+                          {etiqueta}
+                        </option>
+                      ))}
+                  </select>
+                )}
               </div>
             </div>
           );

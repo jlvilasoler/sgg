@@ -181,8 +181,34 @@ export function esProveedorComisionHeredar(raw: string | undefined): boolean {
 }
 
 /** Importe fijo de comisión Santander (1001) cuando no se lee del PDF BROU. */
-export const COMISION_IMPORTE_SANTANDER_LABEL = "1,60 usd";
-export const COMISION_IMPORTE_SANTANDER_VALOR = "USD:1.6";
+export const COMISION_IMPORTE_FIJOS = [
+  { label: "1,60 usd", valor: "USD:1.6" },
+  { label: "1,90 usd", valor: "USD:1.9" },
+] as const;
+
+/** Marcador interno en mapeo_campos.importes para monto manual en USD. */
+export const COMISION_IMPORTE_MANUAL_MAPEO = "__importe_manual_usd__";
+/** Texto en el desplegable para activar el monto editable. */
+export const COMISION_IMPORTE_MANUAL_OPCION = "Otro monto…";
+/** @deprecated Usar COMISION_IMPORTE_MANUAL_MAPEO */
+export const COMISION_IMPORTE_MANUAL_LABEL = COMISION_IMPORTE_MANUAL_MAPEO;
+
+const COMISION_IMPORTE_MANUAL_MAPEOS = new Set([
+  COMISION_IMPORTE_MANUAL_MAPEO,
+  "x,xx usd",
+]);
+
+/** @deprecated Usar COMISION_IMPORTE_FIJOS[0] */
+export const COMISION_IMPORTE_SANTANDER_LABEL = COMISION_IMPORTE_FIJOS[0].label;
+/** @deprecated Usar COMISION_IMPORTE_FIJOS[0] */
+export const COMISION_IMPORTE_SANTANDER_VALOR = COMISION_IMPORTE_FIJOS[0].valor;
+
+const COMISION_IMPORTE_FIJOS_POR_LABEL = new Map<string, string>(
+  COMISION_IMPORTE_FIJOS.map((o) => [o.label, o.valor])
+);
+const COMISION_IMPORTE_FIJOS_POR_VALOR = new Map<string, string>(
+  COMISION_IMPORTE_FIJOS.map((o) => [o.valor, o.label])
+);
 
 export function esProveedorComisionSantander(raw: string | undefined): boolean {
   const decoded = decodeProveedorComision(raw?.trim() ?? "");
@@ -191,14 +217,57 @@ export function esProveedorComisionSantander(raw: string | undefined): boolean {
   return decoded.razon.toUpperCase().includes("SANTANDER");
 }
 
+export function esImporteComisionFijoConfigurado(
+  mapeo: string | undefined,
+  valorFijo: string | undefined
+): boolean {
+  const m = mapeo?.trim() ?? "";
+  const v = valorFijo?.trim() ?? "";
+  return COMISION_IMPORTE_FIJOS_POR_LABEL.has(m) || COMISION_IMPORTE_FIJOS_POR_VALOR.has(v);
+}
+
+/** @deprecated Usar esImporteComisionFijoConfigurado */
 export function esImporteComisionSantander(
   mapeo: string | undefined,
   valorFijo: string | undefined
 ): boolean {
-  return (
-    mapeo?.trim() === COMISION_IMPORTE_SANTANDER_LABEL ||
-    valorFijo?.trim() === COMISION_IMPORTE_SANTANDER_VALOR
-  );
+  return esImporteComisionFijoConfigurado(mapeo, valorFijo);
+}
+
+export function esImporteComisionManual(
+  mapeo: string | undefined,
+  valorFijo: string | undefined
+): boolean {
+  const m = mapeo?.trim() ?? "";
+  if (COMISION_IMPORTE_MANUAL_MAPEOS.has(m)) return true;
+  const v = valorFijo?.trim() ?? "";
+  return Boolean(v && /^USD:[\d.]+$/.test(v) && !COMISION_IMPORTE_FIJOS_POR_VALOR.has(v));
+}
+
+export function importeComisionFijoLabelDesdeConfig(
+  mapeo: string | undefined,
+  valorFijo: string | undefined
+): string | null {
+  const m = mapeo?.trim() ?? "";
+  if (COMISION_IMPORTE_FIJOS_POR_LABEL.has(m)) return m;
+  const v = valorFijo?.trim() ?? "";
+  return COMISION_IMPORTE_FIJOS_POR_VALOR.get(v) ?? null;
+}
+
+export function importeUsdFijoADisplay(valor: string | undefined): string {
+  const m = valor?.trim().match(/^USD:([\d.]+)$/);
+  if (!m) return "";
+  const n = Number(m[1]);
+  if (!Number.isFinite(n) || n <= 0) return "";
+  return n.toFixed(2).replace(".", ",");
+}
+
+export function parseImporteUsdManualInput(texto: string): string | null {
+  const t = texto.trim().replace(/\s/g, "");
+  if (!t) return null;
+  const n = Number(t.replace(",", "."));
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return `USD:${n}`;
 }
 
 export interface ComisionDocumentoConfig {

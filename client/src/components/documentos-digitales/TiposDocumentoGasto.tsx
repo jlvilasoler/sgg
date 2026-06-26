@@ -262,7 +262,7 @@ export default function TiposDocumentoGasto({
             <div className="doc-tipo-mapeo-block doc-tipo-comision-block">
               <h3>Comisión bancaria (registro aparte)</h3>
               <p className="muted doc-tipo-comision-intro">
-                Cuando el comprobante BROU incluye comisión, el sistema puede crear un segundo
+                Cuando el comprobante Bancario incluye comisión, el sistema puede crear un segundo
                 registro en la tabla de documentos ingresados. Configurá qué campos lleva ese
                 registro.
               </p>
