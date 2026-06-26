@@ -8,11 +8,13 @@ type Pending = {
 
 export default function ConfirmDialogHost() {
   const [pending, setPending] = useState<Pending | null>(null);
+  const [texto, setTexto] = useState("");
 
   useEffect(() => {
     setConfirmHandler(
       (opts) =>
         new Promise<boolean>((resolve) => {
+          setTexto("");
           setPending({ opts, resolve });
         })
     );
@@ -32,6 +34,7 @@ export default function ConfirmDialogHost() {
     if (!pending) return;
     pending.resolve(value);
     setPending(null);
+    setTexto("");
   };
 
   if (!pending) return null;
@@ -39,6 +42,10 @@ export default function ConfirmDialogHost() {
   const { opts } = pending;
   const isDanger = opts.variant !== "default";
   const title = opts.title ?? (isDanger ? "Confirmar" : "Confirmación");
+  const requiereTexto = !!opts.requireText;
+  const textoCoincide =
+    !requiereTexto ||
+    texto.trim().toUpperCase() === opts.requireText!.trim().toUpperCase();
 
   return (
     <div
@@ -63,6 +70,27 @@ export default function ConfirmDialogHost() {
         <p id="confirm-dialog-message" className="confirm-dialog-message">
           {opts.message}
         </p>
+        {requiereTexto && (
+          <label className="confirm-dialog-require">
+            <span className="confirm-dialog-require-label">
+              {opts.requireTextLabel ??
+                `Escribí ${opts.requireText} para confirmar`}
+            </span>
+            <input
+              type="text"
+              className="confirm-dialog-require-input"
+              value={texto}
+              autoFocus
+              autoComplete="off"
+              spellCheck={false}
+              placeholder={opts.requireText}
+              onChange={(e) => setTexto(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && textoCoincide) close(true);
+              }}
+            />
+          </label>
+        )}
         <div className="confirm-dialog-actions">
           <button
             type="button"
@@ -76,7 +104,8 @@ export default function ConfirmDialogHost() {
             className={`btn confirm-dialog-confirm${
               isDanger ? " btn-delete" : " btn-primary"
             }`}
-            autoFocus
+            autoFocus={!requiereTexto}
+            disabled={!textoCoincide}
             onClick={() => close(true)}
           >
             {opts.confirmText ?? "Aceptar"}

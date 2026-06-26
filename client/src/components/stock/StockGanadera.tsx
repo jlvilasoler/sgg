@@ -4,7 +4,6 @@ import {
   fetchStockGanaderaDispositivos,
   fetchStockGanaderaSalidas,
   fetchStockGanaderaVentasDispositivos,
-  vaciarStockGanaderaCompleto,
 } from "../../api";
 import { useHeaderBackStep } from "../../header-back";
 import type { AuthUser, DispositivoEstado, StockGanaderaDispositivo } from "../../types";
@@ -502,27 +501,6 @@ export default function StockGanadera({
     }
   };
 
-  const vaciarTodoElStock = async () => {
-    if (!esAdmin || statsRows.length === 0) return;
-    const ok = await confirmAction({
-      title: "Vaciar todo el stock",
-      message: `¿Eliminar TODOS los ${statsRows.length} dispositivo(s) del sistema (incluidas salidas: ventas, muertes y extraviados) junto con sus lecturas e historial? También se desvincularán de las ventas del simulador. Esta acción no se puede deshacer.`,
-      confirmText: "Eliminar todo",
-      variant: "danger",
-    });
-    if (!ok) return;
-    try {
-      const result = await vaciarStockGanaderaCompleto();
-      resetearStockEnCliente();
-      await load();
-      onSuccess?.(
-        `Stock vaciado: ${result.dispositivos_eliminados} dispositivo(s) y ${result.lecturas_eliminadas} lectura(s) eliminados`
-      );
-    } catch (e) {
-      onError(e instanceof Error ? e.message : "Error al vaciar el stock");
-    }
-  };
-
   const actualizarFila = (actualizado: StockGanaderaDispositivo) => {
     setRows((prev) => {
       const next = prev.map((r) => (r.clave === actualizado.clave ? actualizado : r));
@@ -804,16 +782,6 @@ export default function StockGanadera({
               <button type="button" className="btn btn-primary" onClick={load}>
                 Buscar
               </button>
-              {esAdmin && statsRows.length > 0 && (
-                <button
-                  type="button"
-                  className="btn btn-danger"
-                  onClick={() => void vaciarTodoElStock()}
-                  title="Eliminar todos los dispositivos del sistema, incluidas las salidas"
-                >
-                  Vaciar todo el stock
-                </button>
-              )}
             </div>
 
             {(hayFacetasActivas || busqueda.trim() || fechaDesde || fechaHasta) && (

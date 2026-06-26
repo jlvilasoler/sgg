@@ -1,24 +1,32 @@
 import { useState } from "react";
 import { HubMenuCard } from "./HubMenuCard";
 import { useHeaderBackStep } from "../header-back";
+import type { AuthUser } from "../types";
 import Proveedores from "./Proveedores";
 import Responsables from "./Responsables";
 import Rubros from "./Rubros";
+import StockGanaderoAdmin from "./stock/StockGanaderoAdmin";
 import type { HubIconId } from "./icons/HubMenuIcons";
 import { HUB_ICON_THEMES, HubMenuIcon } from "./icons/HubMenuIcons";
 
-type ModuloConfig = "menu" | "responsables" | "proveedores" | "rubros";
+type ModuloConfig =
+  | "menu"
+  | "responsables"
+  | "proveedores"
+  | "rubros"
+  | "stock_ganadero";
 
 interface Props {
   apiOnline: boolean;
+  currentUser?: AuthUser | null;
   onError: (msg: string) => void;
-  onSuccess: (msg: string) => void;
+  onSuccess: (msg: string, title?: string) => void;
   onCatalogosChanged: () => void;
   onVolver: () => void;
 }
 
 const MODULOS: {
-  id: "responsables" | "proveedores" | "rubros";
+  id: "responsables" | "proveedores" | "rubros" | "stock_ganadero";
   label: string;
   subtitle: string;
   icon: HubIconId;
@@ -41,10 +49,17 @@ const MODULOS: {
     subtitle: "Rubros y sub-rubros del catálogo",
     icon: "config_rubros",
   },
+  {
+    id: "stock_ganadero",
+    label: "Administración de Stock Ganadero",
+    subtitle: "Vaciar y administrar la base de dispositivos",
+    icon: "stock_dispositivos",
+  },
 ];
 
 export default function Configuracion({
   apiOnline,
+  currentUser,
   onError,
   onSuccess,
   onCatalogosChanged,
@@ -85,6 +100,18 @@ export default function Configuracion({
         onCatalogosChanged={onCatalogosChanged}
         onVolver={() => setModulo("menu")}
         volverLabel="a Configuración"
+      />
+    );
+  }
+
+  if (modulo === "stock_ganadero") {
+    return (
+      <StockGanaderoAdmin
+        apiOnline={apiOnline}
+        currentUser={currentUser}
+        onError={onError}
+        onSuccess={onSuccess}
+        onVolver={() => setModulo("menu")}
       />
     );
   }

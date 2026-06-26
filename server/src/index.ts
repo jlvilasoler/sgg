@@ -1438,6 +1438,41 @@ app.post("/api/stock-ganadero/dispositivos/wipe-all", async (req, res) => {
   }
 });
 
+app.get("/api/stock-ganadero/backup", async (req, res) => {
+  if (!req.user || req.user.rol !== "admin") {
+    res.status(403).json({ ok: false, error: "Solo administradores" });
+    return;
+  }
+  try {
+    res.json({ ok: true, data: await db.stockGanadero.backupInfo() });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al leer respaldo",
+    });
+  }
+});
+
+app.post("/api/stock-ganadero/backup/restore", async (req, res) => {
+  if (!req.user || req.user.rol !== "admin") {
+    res.status(403).json({ ok: false, error: "Solo administradores" });
+    return;
+  }
+  try {
+    const result = await db.stockGanadero.restaurarDesdeBackup();
+    await auditStockMovimiento(req, "MODIFICACION", {
+      resumen: `Restauró stock ganadero desde respaldo (${result.dispositivos_restaurados} dispositivo(s))`,
+      detalle: { ...result },
+    });
+    res.json({ ok: true, data: result });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al restaurar respaldo",
+    });
+  }
+});
+
 app.patch("/api/stock-ganadero/dispositivos/:clave/sexo", async (req, res) => {
   try {
     const sexo = String(req.body?.sexo ?? "").toUpperCase() as
@@ -1581,6 +1616,7 @@ app.get("/api/stock-ganadero/resumen", async (_req, res) => {
       lotes: lotes.length,
       registros: await db.stockGanadero.countRegistros(),
       dispositivos: await db.stockGanadero.countDispositivos(),
+      dispositivos_total: await db.stockGanadero.countDispositivosTotal(),
       ventas_dispositivos: await db.simuladorVentaDispositivos.countEnVentasCerradas(),
     },
   });

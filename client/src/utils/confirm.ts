@@ -4,6 +4,10 @@ export type ConfirmOptions = {
   confirmText?: string;
   cancelText?: string;
   variant?: "danger" | "default";
+  /** Si se define, el usuario debe escribir exactamente este texto (sin distinguir mayúsculas) para habilitar el botón de confirmar. */
+  requireText?: string;
+  /** Texto de ayuda mostrado sobre el campo de confirmación. */
+  requireTextLabel?: string;
 };
 
 type ConfirmHandler = (options: ConfirmOptions) => Promise<boolean>;

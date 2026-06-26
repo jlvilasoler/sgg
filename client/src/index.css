@@ -3803,6 +3803,77 @@ textarea:focus {
   border-color: #b91c1c;
 }
 
+.stock-admin-revert {
+  margin-top: 0.5rem;
+  margin-bottom: 1.25rem;
+  padding: 1.25rem;
+  border: 1px solid #bbf7d0;
+  border-radius: 12px;
+  background: #f3fdf6;
+}
+
+.stock-admin-revert-title {
+  margin: 0 0 0.35rem;
+  font-size: 1.05rem;
+  color: #166534;
+}
+
+.stock-admin-wipe {
+  margin-top: 0.5rem;
+  padding: 1.25rem;
+  border: 1px solid #fecaca;
+  border-radius: 12px;
+  background: #fff7f7;
+}
+
+.stock-admin-wipe-title {
+  margin: 0 0 0.35rem;
+  font-size: 1.05rem;
+  color: #991b1b;
+}
+
+.stock-admin-wipe-desc {
+  margin: 0 0 1rem;
+}
+
+.stock-admin-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.75rem 1rem;
+  margin: 0 0 1.25rem;
+}
+
+.stock-admin-stats div {
+  padding: 0.75rem 0.9rem;
+  border-radius: 10px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+}
+
+.stock-admin-stats dt {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+.stock-admin-stats dd {
+  margin: 0.2rem 0 0;
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.stock-admin-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1rem;
+}
+
+.stock-admin-empty {
+  margin: 0;
+}
+
 .filters {
   display: flex;
   flex-wrap: wrap;
@@ -5092,6 +5163,41 @@ a.gasto-acciones-item {
   line-height: 1.45;
   color: var(--muted);
   white-space: pre-wrap;
+}
+
+.confirm-dialog-require {
+  display: block;
+  text-align: left;
+  margin: 0 0 1.15rem;
+}
+
+.confirm-dialog-require-label {
+  display: block;
+  margin-bottom: 0.4rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.confirm-dialog-require-input {
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 0.95rem;
+  letter-spacing: 0.05em;
+  box-sizing: border-box;
+}
+
+.confirm-dialog-require-input:focus {
+  outline: none;
+  border-color: #dc2626;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15);
+}
+
+.confirm-dialog-confirm:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .confirm-dialog-actions {

@@ -959,36 +959,404 @@ export interface VaciarStockGanaderaResult {
   vinculos_sim_venta: number;
 }
 
+export interface StockGanaderaBackupInfo {
+  disponible: boolean;
+  creado_en: string | null;
+  dispositivos: number;
+  lecturas: number;
+  historial: number;
+  vinculos_sim: number;
+}
+
+export interface RestaurarStockGanaderaResult {
+  dispositivos_restaurados: number;
+  lecturas_restauradas: number;
+  historial_restaurado: number;
+  vinculos_sim_restaurados: number;
+}
+
+interface StockGanaderaBackupPayload {
+  v: 1;
+  registros: {
+    lote_id: number;
+    eid: string;
+    vid: string;
+    fecha: string;
+    hora: string;
+    condicion: string;
+  }[];
+  dispositivos: {
+    clave: string;
+    eid: string;
+    sexo: string;
+    empresa: string;
+    grupo: string;
+    grupo_libre: string;
+    edad: number | null;
+    nacimiento_mes: number | null;
+    nacimiento_anio: number | null;
+    observaciones: string;
+    estado: string;
+    baja_mes: number | null;
+    baja_anio: number | null;
+    tipo_baja: string;
+    numero_guia: string;
+  }[];
+  historial: {
+    clave: string;
+    campo: string;
+    etiqueta: string;
+    valor_anterior: string;
+    valor_nuevo: string;
+    creado_en: string;
+    user_id: number | null;
+    user_email: string;
+    user_nombre: string;
+    origen: string;
+  }[];
+  sim_dispositivos: {
+    simulacion_id: number;
+    clave: string;
+    eid: string;
+    vid: string;
+  }[];
+}
+
+async function ensureStockGanaderaBackupTable(db: Db): Promise<void> {
+  await db
+    .prepare(
+      `CREATE TABLE IF NOT EXISTS STOCK_GANADERO_BACKUP (
+         id INTEGER PRIMARY KEY CHECK (id = 1),
+         payload TEXT NOT NULL,
+         creado_en TIMESTAMPTZ NOT NULL DEFAULT NOW()
+       )`
+    )
+    .run();
+}
+
+async function crearBackupStockGanadera(tx: Db): Promise<void> {
+  await ensureStockGanaderaBackupTable(tx);
+
+  const tieneLecturas = (await tx
+    .prepare(`SELECT COUNT(*) AS n FROM STOCK_GANADERO_REGISTRO`)
+    .get()) as { n: number };
+  if (tieneLecturas.n === 0) return;
+
+  await tx.prepare(
+    `INSERT INTO STOCK_GANADERO_BACKUP (id, payload, creado_en)
+     VALUES (
+       1,
+       (
+         SELECT json_build_object(
+           'v', 1,
+           'registros', COALESCE((
+             SELECT json_agg(json_build_object(
+               'lote_id', r.lote_id,
+               'eid', r.eid,
+               'vid', r.vid,
+               'fecha', r.fecha,
+               'hora', r.hora,
+               'condicion', r.condicion
+             ) ORDER BY r.id)
+             FROM STOCK_GANADERO_REGISTRO r
+           ), '[]'::json),
+           'dispositivos', COALESCE((
+             SELECT json_agg(json_build_object(
+               'clave', d.clave,
+               'eid', d.eid,
+               'sexo', d.sexo,
+               'empresa', d.empresa,
+               'grupo', d.grupo,
+               'grupo_libre', d.grupo_libre,
+               'edad', d.edad,
+               'nacimiento_mes', d.nacimiento_mes,
+               'nacimiento_anio', d.nacimiento_anio,
+               'observaciones', d.observaciones,
+               'estado', d.estado,
+               'baja_mes', d.baja_mes,
+               'baja_anio', d.baja_anio,
+               'tipo_baja', d.tipo_baja,
+               'numero_guia', d.numero_guia
+             ) ORDER BY d.clave)
+             FROM STOCK_GANADERO_DISPOSITIVO d
+             WHERE d.clave <> '__meta__'
+           ), '[]'::json),
+           'historial', COALESCE((
+             SELECT json_agg(json_build_object(
+               'clave', h.clave,
+               'campo', h.campo,
+               'etiqueta', h.etiqueta,
+               'valor_anterior', h.valor_anterior,
+               'valor_nuevo', h.valor_nuevo,
+               'creado_en', h.creado_en,
+               'user_id', h.user_id,
+               'user_email', h.user_email,
+               'user_nombre', h.user_nombre,
+               'origen', h.origen
+             ) ORDER BY h.id)
+             FROM STOCK_GANADERO_DISPOSITIVO_HISTORIAL h
+             WHERE h.clave <> '__meta__'
+           ), '[]'::json),
+           'sim_dispositivos', COALESCE((
+             SELECT json_agg(json_build_object(
+               'simulacion_id', s.simulacion_id,
+               'clave', s.clave,
+               'eid', s.eid,
+               'vid', s.vid
+             ) ORDER BY s.id)
+             FROM SIMULADOR_VENTA_GANADO_DISPOSITIVO s
+           ), '[]'::json)
+         )::text
+       ),
+       NOW()
+     )
+     ON CONFLICT (id) DO UPDATE SET
+       payload = excluded.payload,
+       creado_en = NOW()`
+  ).run();
+}
+
+function infoDesdePayload(
+  payload: StockGanaderaBackupPayload | null,
+  creado_en: string | null
+): StockGanaderaBackupInfo {
+  if (!payload || !payload.registros.length) {
+    return {
+      disponible: false,
+      creado_en: null,
+      dispositivos: 0,
+      lecturas: 0,
+      historial: 0,
+      vinculos_sim: 0,
+    };
+  }
+  const claves = new Set<string>();
+  for (const r of payload.registros) {
+    const k = dispositivoClave(r.eid, r.vid);
+    if (k) claves.add(k);
+  }
+  return {
+    disponible: true,
+    creado_en,
+    dispositivos: payload.dispositivos.length || claves.size,
+    lecturas: payload.registros.length,
+    historial: payload.historial.length,
+    vinculos_sim: payload.sim_dispositivos.length,
+  };
+}
+
+export async function infoStockGanaderaBackup(db: Db): Promise<StockGanaderaBackupInfo> {
+  await ensureStockGanaderaBackupTable(db);
+  const row = (await db
+    .prepare(`SELECT payload, creado_en FROM STOCK_GANADERO_BACKUP WHERE id = 1`)
+    .get()) as { payload: string; creado_en: string } | undefined;
+  if (!row?.payload) {
+    return infoDesdePayload(null, null);
+  }
+  try {
+    const payload = JSON.parse(row.payload) as StockGanaderaBackupPayload;
+    return infoDesdePayload(payload, row.creado_en ?? null);
+  } catch {
+    return infoDesdePayload(null, null);
+  }
+}
+
+export async function restaurarStockGanaderaDesdeBackup(
+  db: Db
+): Promise<RestaurarStockGanaderaResult> {
+  return db.transaction(async (tx) => {
+    await ensureStockGanaderaBackupTable(tx);
+    const row = (await tx
+      .prepare(`SELECT payload FROM STOCK_GANADERO_BACKUP WHERE id = 1`)
+      .get()) as { payload: string } | undefined;
+    if (!row?.payload) {
+      throw new Error("No hay respaldo disponible para restaurar.");
+    }
+
+    const payload = JSON.parse(row.payload) as StockGanaderaBackupPayload;
+    if (!payload.registros?.length) {
+      throw new Error("El respaldo está vacío.");
+    }
+
+    const existentes = (await tx
+      .prepare(`SELECT COUNT(*) AS n FROM STOCK_GANADERO_REGISTRO`)
+      .get()) as { n: number };
+    if (existentes.n > 0) {
+      throw new Error(
+        "La base ya tiene dispositivos. Solo se puede restaurar cuando está vacía."
+      );
+    }
+
+    const lotesValidos = new Set(
+      (
+        (await tx.prepare(`SELECT id FROM STOCK_GANADERO_LOTE`).all()) as { id: number }[]
+      ).map((l) => l.id)
+    );
+
+    const CHUNK = 200;
+    const enBloques = <T,>(arr: T[]): T[][] => {
+      const out: T[][] = [];
+      for (let i = 0; i < arr.length; i += CHUNK) out.push(arr.slice(i, i + CHUNK));
+      return out;
+    };
+
+    const registrosValidos = payload.registros.filter((r) =>
+      lotesValidos.has(r.lote_id)
+    );
+    let lecturas_restauradas = 0;
+    for (const grupo of enBloques(registrosValidos)) {
+      const valores: unknown[] = [];
+      const filas = grupo.map((r) => {
+        valores.push(r.lote_id, r.eid, r.vid, r.fecha, r.hora, r.condicion);
+        return "(?, ?, ?, ?, ?, ?)";
+      });
+      await tx
+        .prepare(
+          `INSERT INTO STOCK_GANADERO_REGISTRO (lote_id, eid, vid, fecha, hora, condicion)
+           VALUES ${filas.join(", ")}`
+        )
+        .run(valores);
+      lecturas_restauradas += grupo.length;
+    }
+    if (lecturas_restauradas === 0) {
+      throw new Error(
+        "No se pudo restaurar: los lotes de importación del respaldo ya no existen."
+      );
+    }
+
+    const dispositivosValidos = payload.dispositivos.filter(
+      (d) => d.clave && d.clave !== "__meta__"
+    );
+    let dispositivos_restaurados = 0;
+    for (const grupo of enBloques(dispositivosValidos)) {
+      const valores: unknown[] = [];
+      const filas = grupo.map((d) => {
+        valores.push(
+          d.clave,
+          d.eid,
+          d.sexo,
+          d.empresa,
+          d.grupo,
+          d.grupo_libre,
+          d.edad,
+          d.nacimiento_mes,
+          d.nacimiento_anio,
+          d.observaciones,
+          d.estado,
+          d.baja_mes,
+          d.baja_anio,
+          d.tipo_baja,
+          d.numero_guia
+        );
+        return "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
+      });
+      await tx
+        .prepare(
+          `INSERT INTO STOCK_GANADERO_DISPOSITIVO (
+             clave, eid, sexo, empresa, grupo, grupo_libre, edad, nacimiento_mes, nacimiento_anio,
+             observaciones, estado, baja_mes, baja_anio, tipo_baja, numero_guia, actualizado_en
+           ) VALUES ${filas.join(", ")}
+           ON CONFLICT (clave) DO UPDATE SET
+             eid = excluded.eid,
+             sexo = excluded.sexo,
+             empresa = excluded.empresa,
+             grupo = excluded.grupo,
+             grupo_libre = excluded.grupo_libre,
+             edad = excluded.edad,
+             nacimiento_mes = excluded.nacimiento_mes,
+             nacimiento_anio = excluded.nacimiento_anio,
+             observaciones = excluded.observaciones,
+             estado = excluded.estado,
+             baja_mes = excluded.baja_mes,
+             baja_anio = excluded.baja_anio,
+             tipo_baja = excluded.tipo_baja,
+             numero_guia = excluded.numero_guia,
+             actualizado_en = NOW()`
+        )
+        .run(valores);
+      dispositivos_restaurados += grupo.length;
+    }
+
+    const historialValido = payload.historial.filter(
+      (h) => h.clave && h.clave !== "__meta__"
+    );
+    let historial_restaurado = 0;
+    for (const grupo of enBloques(historialValido)) {
+      const valores: unknown[] = [];
+      const filas = grupo.map((h) => {
+        valores.push(
+          h.clave,
+          h.campo,
+          h.etiqueta,
+          h.valor_anterior,
+          h.valor_nuevo,
+          h.creado_en,
+          h.user_id,
+          h.user_email,
+          h.user_nombre,
+          h.origen
+        );
+        return "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+      });
+      await tx
+        .prepare(
+          `INSERT INTO STOCK_GANADERO_DISPOSITIVO_HISTORIAL
+             (clave, campo, etiqueta, valor_anterior, valor_nuevo, creado_en, user_id, user_email, user_nombre, origen)
+           VALUES ${filas.join(", ")}`
+        )
+        .run(valores);
+      historial_restaurado += grupo.length;
+    }
+
+    let vinculos_sim_restaurados = 0;
+    for (const grupo of enBloques(payload.sim_dispositivos)) {
+      const valores: unknown[] = [];
+      const filas = grupo.map((s) => {
+        valores.push(s.simulacion_id, s.clave, s.eid, s.vid);
+        return "(?, ?, ?, ?)";
+      });
+      const res = await tx
+        .prepare(
+          `INSERT INTO SIMULADOR_VENTA_GANADO_DISPOSITIVO (simulacion_id, clave, eid, vid)
+           VALUES ${filas.join(", ")}
+           ON CONFLICT (simulacion_id, clave) DO NOTHING`
+        )
+        .run(valores);
+      vinculos_sim_restaurados += res.changes;
+    }
+
+    return {
+      dispositivos_restaurados,
+      lecturas_restauradas,
+      historial_restaurado,
+      vinculos_sim_restaurados,
+    };
+  });
+}
+
 /** Elimina todo el stock ganadero (lecturas, metadatos, historial y vínculos con ventas). */
 export async function vaciarStockGanaderaCompleto(db: Db): Promise<VaciarStockGanaderaResult> {
   return db.transaction(async (tx) => {
-    const lecturasRow = (await tx
-      .prepare(`SELECT COUNT(*) AS n FROM STOCK_GANADERO_REGISTRO`)
-      .get()) as { n: number };
-    const dispositivosRow = (await tx
-      .prepare(
-        `SELECT COUNT(*) AS n FROM STOCK_GANADERO_DISPOSITIVO WHERE clave <> '__meta__'`
-      )
-      .get()) as { n: number };
-    const simRow = (await tx
-      .prepare(`SELECT COUNT(*) AS n FROM SIMULADOR_VENTA_GANADO_DISPOSITIVO`)
-      .get()) as { n: number };
+    const counts = (await tx.prepare(
+      `SELECT
+         (SELECT COUNT(*)::int FROM STOCK_GANADERO_REGISTRO) AS lecturas,
+         (SELECT COUNT(*)::int FROM STOCK_GANADERO_DISPOSITIVO WHERE clave <> '__meta__') AS dispositivos,
+         (SELECT COUNT(*)::int FROM SIMULADOR_VENTA_GANADO_DISPOSITIVO) AS sim`
+    ).get()) as { lecturas: number; dispositivos: number; sim: number };
 
-    await tx.prepare(`DELETE FROM SIMULADOR_VENTA_GANADO_DISPOSITIVO`).run();
-    await tx.prepare(`DELETE FROM STOCK_GANADERO_REGISTRO`).run();
-    await tx
-      .prepare(
-        `DELETE FROM STOCK_GANADERO_DISPOSITIVO_HISTORIAL WHERE clave <> '__meta__'`
-      )
-      .run();
-    await tx
-      .prepare(`DELETE FROM STOCK_GANADERO_DISPOSITIVO WHERE clave <> '__meta__'`)
-      .run();
+    if (counts.lecturas > 0) {
+      await crearBackupStockGanadera(tx);
+    }
+
+    await tx.prepare(`TRUNCATE TABLE SIMULADOR_VENTA_GANADO_DISPOSITIVO`).run();
+    await tx.prepare(`TRUNCATE TABLE STOCK_GANADERO_REGISTRO`).run();
+    await tx.prepare(`TRUNCATE TABLE STOCK_GANADERO_DISPOSITIVO_HISTORIAL`).run();
+    await tx.prepare(`TRUNCATE TABLE STOCK_GANADERO_DISPOSITIVO`).run();
 
     return {
-      dispositivos_eliminados: dispositivosRow.n,
-      lecturas_eliminadas: lecturasRow.n,
-      vinculos_sim_venta: simRow.n,
+      dispositivos_eliminados: counts.dispositivos,
+      lecturas_eliminadas: counts.lecturas,
+      vinculos_sim_venta: counts.sim,
     };
   });
 }

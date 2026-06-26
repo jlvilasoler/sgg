@@ -411,8 +411,9 @@ export default function App() {
             {screen === "configuracion" && (
               <Configuracion
                 apiOnline={apiOnline}
+                currentUser={user}
                 onError={(m) => notify(m, false)}
-                onSuccess={(m) => notify(m, true)}
+                onSuccess={(m, t) => notify(m, true, t)}
                 onCatalogosChanged={refreshCatalogos}
                 onVolver={goHome}
               />

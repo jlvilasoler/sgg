@@ -378,6 +378,8 @@ export const stockGanadero = {
   deleteDispositivos: (claves: string[]) =>
     stock.deleteStockGanaderaDispositivos(db, claves),
   vaciarCompleto: () => stock.vaciarStockGanaderaCompleto(db),
+  backupInfo: () => stock.infoStockGanaderaBackup(db),
+  restaurarDesdeBackup: () => stock.restaurarStockGanaderaDesdeBackup(db),
   listHistorialCambios: (clave: string) =>
     stock.listStockGanaderaDispositivoHistorial(db, clave),
 };

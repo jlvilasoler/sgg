@@ -599,6 +599,7 @@ export async function fetchStockGanaderoResumen(): Promise<{
   lotes: number;
   registros: number;
   dispositivos: number;
+  dispositivos_total: number;
   ventas_dispositivos: number;
 }> {
   const json = await request<{
@@ -606,10 +607,17 @@ export async function fetchStockGanaderoResumen(): Promise<{
       lotes: number;
       registros: number;
       dispositivos: number;
+      dispositivos_total?: number;
       ventas_dispositivos: number;
     };
   }>("/stock-ganadero/resumen");
-  return json.data;
+  return {
+    lotes: json.data.lotes,
+    registros: json.data.registros,
+    dispositivos: json.data.dispositivos,
+    dispositivos_total: json.data.dispositivos_total ?? json.data.dispositivos,
+    ventas_dispositivos: json.data.ventas_dispositivos,
+  };
 }
 
 export async function fetchStockGanaderaVentasDispositivos(): Promise<{
@@ -836,6 +844,47 @@ export async function vaciarStockGanaderaCompleto(): Promise<{
       vinculos_sim_venta: number;
     };
   }>("/stock-ganadero/dispositivos/wipe-all", {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+  return json.data;
+}
+
+export async function fetchStockGanaderaBackupInfo(): Promise<{
+  disponible: boolean;
+  creado_en: string | null;
+  dispositivos: number;
+  lecturas: number;
+  historial: number;
+  vinculos_sim: number;
+}> {
+  const json = await request<{
+    data: {
+      disponible: boolean;
+      creado_en: string | null;
+      dispositivos: number;
+      lecturas: number;
+      historial: number;
+      vinculos_sim: number;
+    };
+  }>("/stock-ganadero/backup");
+  return json.data;
+}
+
+export async function restaurarStockGanaderaDesdeBackup(): Promise<{
+  dispositivos_restaurados: number;
+  lecturas_restauradas: number;
+  historial_restaurado: number;
+  vinculos_sim_restaurados: number;
+}> {
+  const json = await request<{
+    data: {
+      dispositivos_restaurados: number;
+      lecturas_restauradas: number;
+      historial_restaurado: number;
+      vinculos_sim_restaurados: number;
+    };
+  }>("/stock-ganadero/backup/restore", {
     method: "POST",
     body: JSON.stringify({}),
   });
