@@ -1,4 +1,5 @@
 import "./load-env.js";
+import "./pdf-node-polyfills.js";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import "express-async-errors";

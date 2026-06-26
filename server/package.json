@@ -8,6 +8,7 @@
     "start": "node dist/index.js"
   },
   "dependencies": {
+    "@thednp/dommatrix": "^3.0.4",
     "@types/pg": "^8.20.0",
     "bcryptjs": "^3.0.3",
     "cookie-parser": "^1.4.7",

@@ -1,3 +1,4 @@
+import "./pdf-node-polyfills.js";
 import { createWorker } from "tesseract.js";
 
 async function ocrImageBuffer(buffer: Buffer): Promise<string> {

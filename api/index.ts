@@ -1,4 +1,5 @@
 import type { IncomingMessage, ServerResponse } from "http";
+import "../server/dist/pdf-node-polyfills.js";
 import app from "../server/dist/index.js";
 
 export const config = {
