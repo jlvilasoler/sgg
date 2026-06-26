@@ -119,6 +119,8 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 export interface ApiHealthStatus {
   online: boolean;
   ready: boolean;
+  error?: string;
+  detail?: string;
 }
 
 export async function checkApiHealth(): Promise<ApiHealthStatus> {
@@ -128,15 +130,24 @@ export async function checkApiHealth(): Promise<ApiHealthStatus> {
       cache: "no-store",
       signal: AbortSignal.timeout(5000),
     });
-    let json: { ok?: boolean; ready?: boolean };
+    let json: { ok?: boolean; ready?: boolean; error?: string; detail?: string };
     try {
-      json = (await res.json()) as { ok?: boolean; ready?: boolean };
+      json = (await res.json()) as {
+        ok?: boolean;
+        ready?: boolean;
+        error?: string;
+        detail?: string;
+      };
     } catch {
       return { online: false, ready: false };
     }
-    if (json.ok !== true) return { online: false, ready: false };
+    if (json.ok !== true) {
+      return { online: false, ready: false, error: json.error, detail: json.detail };
+    }
     const ready = json.ready === true;
-    if (!ready) return { online: true, ready: false };
+    if (!ready) {
+      return { online: true, ready: false, error: json.error, detail: json.detail };
+    }
     return { online: true, ready: true };
   } catch {
     return { online: false, ready: false };

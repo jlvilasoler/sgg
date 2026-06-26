@@ -40,6 +40,8 @@ import {
 } from "./utils/auth-permissions";
 import { showToast } from "./utils/toast";
 
+const DB_BOOT_TIMEOUT_MS = 25_000;
+
 export default function App() {
   useFormularioMayusculas();
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -50,11 +52,14 @@ export default function App() {
   const [apiOnline, setApiOnline] = useState(false);
   const [booting, setBooting] = useState(true);
   const [bootPhase, setBootPhase] = useState<"api" | "db">("api");
+  const [bootBlocked, setBootBlocked] = useState(false);
+  const [bootError, setBootError] = useState("");
   const [editRow, setEditRow] = useState<Presupuesto | null>(null);
   const [listKey, setListKey] = useState(0);
   const [cuentaOpen, setCuentaOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const hadUserRef = useRef(false);
+  const dbBootStartedRef = useRef<number | null>(null);
   const screenRef = useRef<ScreenId>("home");
   const navHistoryRef = useRef<ScreenId[]>([]);
   screenRef.current = screen;
@@ -80,6 +85,9 @@ export default function App() {
     setApiOnline(ok);
     setBootPhase(health.online && !health.ready ? "db" : "api");
     if (ok) {
+      dbBootStartedRef.current = null;
+      setBootBlocked(false);
+      setBootError("");
       const me = await fetchCurrentUser();
       setUser(me);
       setAuthChecked(true);
@@ -89,13 +97,33 @@ export default function App() {
           .then((c) => setCatalogos(c))
           .catch(() => setCatalogos(DEFAULT_CATALOGOS));
       }
+    } else if (health.online && !health.ready) {
+      const startedAt = dbBootStartedRef.current ?? Date.now();
+      dbBootStartedRef.current = startedAt;
+      const detail = health.detail || health.error || "";
+      setBootError(detail);
+      if (Date.now() - startedAt >= DB_BOOT_TIMEOUT_MS) {
+        setBootBlocked(true);
+      }
     } else if (!health.online) {
+      dbBootStartedRef.current = null;
+      setBootBlocked(false);
+      setBootError("");
       setUser(null);
       setAuthChecked(true);
       setBooting(false);
     }
     return ok;
   }, []);
+
+  const retryBoot = useCallback(() => {
+    dbBootStartedRef.current = null;
+    setBootBlocked(false);
+    setBootError("");
+    setBooting(true);
+    setAuthChecked(false);
+    void connectApi();
+  }, [connectApi]);
 
   useEffect(() => {
     void connectApi();
@@ -248,6 +276,22 @@ export default function App() {
     setScreen("registro");
     registrarPantallaActividad("registro");
   };
+
+  if (bootBlocked) {
+    return (
+      <div className="loading-screen loading-screen--blocked">
+        <p>No se pudo iniciar la base de datos</p>
+        <p className="muted">
+          El servidor respondió, pero la base todavía no quedó lista. Puede ser un arranque en frío de
+          Supabase o un problema con la conexión.
+        </p>
+        {bootError ? <code>{bootError}</code> : null}
+        <button type="button" className="btn btn-primary" onClick={retryBoot}>
+          Reintentar
+        </button>
+      </div>
+    );
+  }
 
   if (booting || !authChecked) {
     return (

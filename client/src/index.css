@@ -739,6 +739,12 @@ body {
   padding: 0.15rem 0.4rem;
   border-radius: 4px;
   font-size: 0.9rem;
+  max-width: min(720px, 100%);
+  overflow-wrap: anywhere;
+}
+
+.loading-screen--blocked .btn {
+  margin-top: 0.5rem;
 }
 
 .api-banner {
