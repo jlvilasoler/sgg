@@ -1,14 +1,17 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { deletePresupuesto, fetchPresupuesto } from "../api";
+import { deletePresupuesto, fetchPresupuesto, presupuestoDocumentoUrl } from "../api";
 import { FILTRO_SIN_RESPONSABLE } from "../constants";
 import type { Catalogos, Presupuesto } from "../types";
 import { confirmAction } from "../utils/confirm";
 import { empresaClass, empresaCorta, fmtDate, fmtNum } from "../utils";
 import {
+  exportPresupuestoListadoCsv,
   exportPresupuestoListadoExcel,
   exportPresupuestoListadoPdf,
 } from "../utils/export-presupuesto-listado";
-import { IconEditar, IconEliminar, IconVer } from "./icons/ActionIcons";
+import { IconCsv, IconExcel, IconPdf } from "./icons/ActionIcons";
+import GastoAccionesMenu from "./GastoAccionesMenu";
+import PresupuestoDocumentoModal from "./PresupuestoDocumentoModal";
 import PresupuestoDetallePanel from "./PresupuestoDetalleModal";
 
 interface Props {
@@ -46,8 +49,9 @@ export default function Listado({ catalogos, apiOnline, onEdit, onDeleted, onErr
   const [busqueda, setBusqueda] = useState("");
   const [rows, setRows] = useState<Presupuesto[] | null>(null);
   const [loading, setLoading] = useState(true);
-  const [exportando, setExportando] = useState<"excel" | "pdf" | null>(null);
+  const [exportando, setExportando] = useState<"excel" | "pdf" | "csv" | null>(null);
   const [detalleRow, setDetalleRow] = useState<Presupuesto | null>(null);
+  const [documentoRow, setDocumentoRow] = useState<Presupuesto | null>(null);
 
   const load = useCallback(async () => {
     if (!apiOnline) {
@@ -124,7 +128,7 @@ export default function Listado({ catalogos, apiOnline, onEdit, onDeleted, onErr
     return partes.length ? partes.join(" · ") : "Todos los filtros";
   }, [empresa, rubro, responsable, fechaDesde, fechaHasta, busqueda]);
 
-  const exportar = async (formato: "excel" | "pdf") => {
+  const exportar = async (formato: "excel" | "pdf" | "csv") => {
     if (!apiOnline) {
       onError("Conectá la API para exportar");
       return;
@@ -139,6 +143,9 @@ export default function Listado({ catalogos, apiOnline, onEdit, onDeleted, onErr
       if (formato === "excel") {
         await exportPresupuestoListadoExcel(rows);
         onSuccess?.("Excel descargado.");
+      } else if (formato === "csv") {
+        await exportPresupuestoListadoCsv(rows);
+        onSuccess?.("CSV descargado.");
       } else {
         await exportPresupuestoListadoPdf(rows, subtituloExport);
         onSuccess?.("PDF descargado.");
@@ -327,12 +334,24 @@ export default function Listado({ catalogos, apiOnline, onEdit, onDeleted, onErr
         <span className="listado-pro-export-label">Descargar</span>
         <button
           type="button"
+          className="btn btn-sm listado-pro-export-btn listado-pro-export-btn--csv"
+          disabled={!puedeExportar || exportando !== null}
+          onClick={() => void exportar("csv")}
+          title="Descargar tabla en CSV"
+          aria-label="Descargar tabla en CSV"
+        >
+          <IconCsv size={16} className="btn-action-icon" />
+          {exportando === "csv" ? "Exportando…" : "CSV"}
+        </button>
+        <button
+          type="button"
           className="btn btn-sm listado-pro-export-btn listado-pro-export-btn--excel"
           disabled={!puedeExportar || exportando !== null}
           onClick={() => void exportar("excel")}
           title="Descargar tabla en Excel"
           aria-label="Descargar tabla en Excel"
         >
+          <IconExcel size={16} className="btn-action-icon" />
           {exportando === "excel" ? "Exportando…" : "Excel"}
         </button>
         <button
@@ -341,7 +360,9 @@ export default function Listado({ catalogos, apiOnline, onEdit, onDeleted, onErr
           disabled={!puedeExportar || exportando !== null}
           onClick={() => void exportar("pdf")}
           title="Descargar tabla en PDF"
+          aria-label="Descargar tabla en PDF"
         >
+          <IconPdf size={16} className="btn-action-icon" />
           {exportando === "pdf" ? "Exportando…" : "PDF"}
         </button>
       </div>
@@ -458,33 +479,19 @@ export default function Listado({ catalogos, apiOnline, onEdit, onDeleted, onErr
                   </td>
                   <td className="actions-cell actions-cell--icons" data-col="acciones">
                     <div className="actions-cell-inner">
-                      <button
-                        type="button"
-                        className="btn btn-sm btn-icon-only btn-ver-detalle"
-                        onClick={() => setDetalleRow(r)}
-                        title="Ver detalle: rubro, TC, observaciones…"
-                        aria-label="Ver detalle de la operación"
-                      >
-                        <IconVer size={15} />
-                      </button>
-                      <button
-                        type="button"
-                        className="btn btn-sm btn-icon-only btn-edit"
-                        onClick={() => onEdit(r)}
-                        title="Editar"
-                        aria-label="Editar"
-                      >
-                        <IconEditar size={15} />
-                      </button>
-                      <button
-                        type="button"
-                        className="btn btn-sm btn-icon-only btn-delete"
-                        onClick={() => handleDelete(r.id)}
-                        title="Borrar"
-                        aria-label="Borrar"
-                      >
-                        <IconEliminar size={15} />
-                      </button>
+                      <GastoAccionesMenu
+                        tieneDocumento={Boolean(r.documento_adjunto)}
+                        descargarUrl={
+                          r.documento_adjunto
+                            ? presupuestoDocumentoUrl(r.id, true)
+                            : undefined
+                        }
+                        descargarNombre={r.documento_adjunto?.nombre}
+                        onVerDocumento={() => setDocumentoRow(r)}
+                        onVerDetalle={() => setDetalleRow(r)}
+                        onEditar={() => onEdit(r)}
+                        onBorrar={() => void handleDelete(r.id)}
+                      />
                     </div>
                   </td>
                 </tr>
@@ -494,6 +501,14 @@ export default function Listado({ catalogos, apiOnline, onEdit, onDeleted, onErr
         </table>
       </div>
       </div>
+
+      {documentoRow?.documento_adjunto ? (
+        <PresupuestoDocumentoModal
+          row={documentoRow}
+          documento={documentoRow.documento_adjunto}
+          onClose={() => setDocumentoRow(null)}
+        />
+      ) : null}
     </div>
   );
 }

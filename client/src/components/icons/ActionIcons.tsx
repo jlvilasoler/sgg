@@ -196,6 +196,71 @@ export function IconDescargar({ size, className }: IconProps) {
   );
 }
 
+/** Planilla / CSV */
+export function IconCsv({ size, className }: IconProps) {
+  return (
+    <IconBase size={size} className={className}>
+      <path
+        d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9l-6-6Z"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinejoin="round"
+      />
+      <path d="M14 3v6h6" stroke="currentColor" strokeWidth="1.75" strokeLinejoin="round" />
+      <path
+        d="M8 12.5h8M8 15h8M8 17.5h5"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+      />
+    </IconBase>
+  );
+}
+
+/** Planilla / Excel */
+export function IconExcel({ size, className }: IconProps) {
+  return (
+    <IconBase size={size} className={className}>
+      <path
+        d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9l-6-6Z"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinejoin="round"
+      />
+      <path d="M14 3v6h6" stroke="currentColor" strokeWidth="1.75" strokeLinejoin="round" />
+      <path
+        d="m9 13 4 5M13 13l-4 5"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </IconBase>
+  );
+}
+
+/** Documento / PDF */
+export function IconPdf({ size, className }: IconProps) {
+  return (
+    <IconBase size={size} className={className}>
+      <path
+        d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9l-6-6Z"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinejoin="round"
+      />
+      <path d="M14 3v6h6" stroke="currentColor" strokeWidth="1.75" strokeLinejoin="round" />
+      <path
+        d="M8 13.5h1.4a1.1 1.1 0 0 1 0 2.2H8v-2.2Zm0 2.2V18M13 13.5v4.5m0-4.5h1.6m-1.6 2.2h1.3M17.4 13.5v4.5"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </IconBase>
+  );
+}
+
 /** Cruz / cancelar */
 export function IconCancelar({ size, className }: IconProps) {
   return (

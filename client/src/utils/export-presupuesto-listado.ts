@@ -32,7 +32,7 @@ function filaExport(r: Presupuesto): Record<(typeof EXPORT_HEADERS)[number], str
   };
 }
 
-function nombreArchivo(extension: "xlsx" | "pdf"): string {
+function nombreArchivo(extension: "xlsx" | "pdf" | "csv"): string {
   const hoy = new Date().toISOString().slice(0, 10);
   return `historial-operaciones-${hoy}.${extension}`;
 }
@@ -72,6 +72,14 @@ export async function exportPresupuestoListadoExcel(rows: Presupuesto[]): Promis
     type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   });
   descargarBlob(blob, nombreArchivo("xlsx"));
+}
+
+export async function exportPresupuestoListadoCsv(rows: Presupuesto[]): Promise<void> {
+  const data = rows.map(filaExport);
+  const ws = XLSX.utils.json_to_sheet(data, { header: [...EXPORT_HEADERS] });
+  const csv = `\uFEFF${XLSX.utils.sheet_to_csv(ws)}`;
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  descargarBlob(blob, nombreArchivo("csv"));
 }
 
 export async function exportPresupuestoListadoPdf(

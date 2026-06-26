@@ -124,16 +124,6 @@ export default function GastoHistorialTabla({
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  if (documentoRow?.documento_adjunto) {
-    return (
-      <PresupuestoDocumentoModal
-        row={documentoRow}
-        documento={documentoRow.documento_adjunto}
-        onClose={() => setDocumentoRow(null)}
-      />
-    );
-  }
-
   return (
     <section className="listado-pro form-gasto-historial" aria-label="Documentos ingresados">
       <div className="listado-pro-shell">
@@ -315,6 +305,14 @@ export default function GastoHistorialTabla({
         <PresupuestoDetalleModalView
           row={detalleRow}
           onClose={() => setDetalleRow(null)}
+        />
+      ) : null}
+
+      {documentoRow?.documento_adjunto ? (
+        <PresupuestoDocumentoModal
+          row={documentoRow}
+          documento={documentoRow.documento_adjunto}
+          onClose={() => setDocumentoRow(null)}
         />
       ) : null}
     </section>

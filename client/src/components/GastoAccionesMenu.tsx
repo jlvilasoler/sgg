@@ -114,29 +114,27 @@ export default function GastoAccionesMenu({
               style={{ top: pos.top, left: pos.left, width: MENU_ANCHO }}
             >
               {tieneDocumento ? (
-                <>
-                  <button
-                    type="button"
-                    role="menuitem"
-                    className="gasto-acciones-item gasto-acciones-item--doc"
-                    onClick={() => ejecutar(onVerDocumento)}
-                  >
-                    <IconDocumento size={16} />
-                    <span>Ver comprobante</span>
-                  </button>
-                  {descargarUrl ? (
-                    <a
-                      role="menuitem"
-                      className="gasto-acciones-item gasto-acciones-item--download"
-                      href={descargarUrl}
-                      download={descargarNombre || true}
-                      onClick={() => setAbierto(false)}
-                    >
-                      <IconDescargar size={16} />
-                      <span>Descargar</span>
-                    </a>
-                  ) : null}
-                </>
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="gasto-acciones-item gasto-acciones-item--doc"
+                  onClick={() => ejecutar(onVerDocumento)}
+                >
+                  <IconDocumento size={16} />
+                  <span>Ver comprobante</span>
+                </button>
+              ) : null}
+              {descargarUrl ? (
+                <a
+                  role="menuitem"
+                  className="gasto-acciones-item gasto-acciones-item--download"
+                  href={descargarUrl}
+                  download={descargarNombre || true}
+                  onClick={() => setAbierto(false)}
+                >
+                  <IconDescargar size={16} />
+                  <span>Descargar</span>
+                </a>
               ) : null}
               <button
                 type="button"

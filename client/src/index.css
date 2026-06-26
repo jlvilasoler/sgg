@@ -3284,6 +3284,9 @@ body {
 }
 
 .listado-pro-export-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
   min-height: 2rem;
   padding: 0.38rem 0.85rem !important;
   border: 1px solid var(--bn-border) !important;
@@ -3293,6 +3296,17 @@ body {
   font-size: 0.8rem !important;
   font-weight: 600 !important;
   box-shadow: none !important;
+}
+
+.listado-pro-export-btn--csv:not(:disabled) {
+  border-color: #2563eb !important;
+  color: #2563eb !important;
+}
+
+.listado-pro-export-btn--csv:hover:not(:disabled) {
+  border-color: #2563eb !important;
+  color: #fff !important;
+  background: #2563eb !important;
 }
 
 .listado-pro-export-btn--excel:not(:disabled) {
@@ -3477,6 +3491,25 @@ body {
   opacity: 1;
   background: var(--bn-surface);
   color: var(--bn-text);
+}
+
+.listado-pro-table .btn-ver-documento {
+  color: #2d5a3d;
+}
+
+.listado-pro-table .btn-ver-documento:hover:not(:disabled) {
+  color: #1e4330;
+  background: #e8f3ec;
+}
+
+.listado-pro-table .btn-descargar-documento {
+  color: #3d5a80;
+  text-decoration: none;
+}
+
+.listado-pro-table .btn-descargar-documento:hover {
+  color: #2a4365;
+  background: #eef3f8;
 }
 
 .listado-pro-table .btn-delete:hover:not(:disabled) {
@@ -14270,6 +14303,222 @@ button.sg-kpi-card:disabled {
   font-size: 0.84rem;
   color: var(--bn-muted);
   font-weight: 400;
+}
+
+/* ===================================================================
+   Historial de operaciones — modernización estilo Binance (claro)
+   =================================================================== */
+
+.listado-pro-shell {
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(24, 26, 32, 0.06), 0 8px 24px -16px rgba(24, 26, 32, 0.12);
+}
+
+.listado-pro-head {
+  padding: 1.25rem 1.5rem 1rem;
+}
+
+.listado-pro-head-title {
+  font-size: 1.4rem;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  border-bottom-width: 3px;
+}
+
+.listado-pro-filters {
+  padding: 1.1rem 1.5rem 0.95rem;
+  align-items: end;
+}
+
+.listado-pro-filters .field label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--bn-muted-light);
+}
+
+.listado-pro-filters .field select,
+.listado-pro-filters .field input {
+  border-radius: 8px;
+  min-height: 2.35rem;
+  background: #fff;
+}
+
+.listado-pro-filters .field select:hover,
+.listado-pro-filters .field input:hover {
+  border-color: var(--bn-muted-light);
+}
+
+.listado-pro-filters .field select:focus,
+.listado-pro-filters .field input:focus {
+  border-color: var(--bn-gold);
+  box-shadow: 0 0 0 3px rgba(240, 185, 11, 0.16);
+}
+
+.listado-pro-reset-btn {
+  border-radius: 8px !important;
+}
+
+.listado-pro-search-btn {
+  border-radius: 8px !important;
+  min-height: 2.35rem;
+  font-weight: 700 !important;
+}
+
+/* —— KPIs —— */
+.listado-pro-indicadores {
+  padding: 1.1rem 1.5rem 1.2rem;
+}
+
+.listado-pro-kpi-grid {
+  gap: 0.85rem;
+}
+
+.listado-pro-kpi {
+  position: relative;
+  padding: 0.95rem 1.05rem 1rem;
+  border-radius: 10px;
+  background: #fff;
+  border: 1px solid var(--bn-border);
+  overflow: hidden;
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+}
+
+.listado-pro-kpi:hover {
+  border-color: var(--bn-muted-light);
+  box-shadow: 0 6px 18px -12px rgba(24, 26, 32, 0.25);
+  transform: translateY(-1px);
+}
+
+/* Acento lateral por moneda */
+.listado-pro-kpi::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--bn-muted-light);
+  border-radius: 3px 0 0 3px;
+}
+
+.listado-indicador--pesos.listado-pro-kpi::after {
+  background: #3b82f6;
+}
+
+.listado-indicador--usd.listado-pro-kpi::after {
+  background: var(--bn-up);
+}
+
+.listado-indicador--reales.listado-pro-kpi::after {
+  background: #16a34a;
+}
+
+.listado-pro-kpi .listado-indicador-label {
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--bn-muted);
+  text-transform: none;
+}
+
+.listado-pro-kpi-currency {
+  margin-left: 0.4rem;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: var(--bn-muted-light);
+}
+
+.listado-pro-kpi-valor {
+  margin-top: 0.45rem;
+  font-size: 1.35rem !important;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Tarjeta hero: Total gastos */
+.listado-pro-kpi--hero {
+  background: linear-gradient(135deg, #fff9e6 0%, #fffdf5 100%);
+  border-color: #f5d97a;
+}
+
+.listado-pro-kpi--hero::after {
+  background: var(--bn-gold);
+  width: 4px;
+}
+
+.listado-pro-kpi--hero:hover {
+  border-color: var(--bn-gold);
+  box-shadow: 0 8px 20px -12px rgba(240, 185, 11, 0.5);
+}
+
+.listado-indicador--saldo-total.listado-pro-kpi .listado-indicador-label {
+  font-weight: 700;
+  color: var(--bn-text);
+}
+
+.listado-pro-kpi-valor--hero {
+  font-size: 1.55rem !important;
+  font-weight: 800;
+}
+
+.listado-pro-kpi--hero .listado-indicador-hint {
+  color: #a8842a;
+}
+
+/* —— Barra de exportación —— */
+.listado-pro-export-bar {
+  padding: 0.7rem 1.5rem;
+  gap: 0.5rem;
+}
+
+.listado-pro-export-btn {
+  border-radius: 8px !important;
+  transition: background 0.15s, color 0.15s, border-color 0.15s, transform 0.1s;
+}
+
+.listado-pro-export-btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+/* —— Tabla —— */
+.listado-pro-table thead th {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--bn-muted-light);
+  padding: 0.85rem 0.6rem;
+}
+
+.listado-pro-table tbody td {
+  padding: 0.9rem 0.6rem;
+  font-size: 0.85rem;
+}
+
+.listado-pro-table tbody tr.listado-pro-row:hover td {
+  background: #fffdf3;
+}
+
+.listado-pro-table tbody tr.listado-pro-row td:first-child {
+  border-left: 2px solid transparent;
+}
+
+.listado-pro-table tbody tr.listado-pro-row:hover td:first-child {
+  border-left-color: var(--bn-gold);
+}
+
+.listado-pro-num--total {
+  font-weight: 700;
+  color: var(--bn-text);
+}
+
+.listado-pro-table .empresa-badge--compact {
+  border-radius: 5px;
+  padding: 0.18rem 0.5rem;
+  letter-spacing: 0.02em;
 }
 
 /* —— BN: paneles auxiliares, formularios y excepciones —— */
