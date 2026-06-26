@@ -1884,11 +1884,14 @@ export async function importStockGanaderoRows(
        VALUES (@lote_id, @eid, @vid, @fecha, @hora, @condicion)`
     );
     const upsertEmpresaDispositivo = await tx.prepare(
-      `INSERT INTO STOCK_GANADERO_DISPOSITIVO (clave, eid, empresa, estado)
-       VALUES (@clave, @eid, @empresa, 'VIVO')
+      `INSERT INTO STOCK_GANADERO_DISPOSITIVO (clave, eid, empresa, sexo, estado)
+       VALUES (@clave, @eid, @empresa, @sexo, 'VIVO')
        ON CONFLICT (clave) DO UPDATE SET
          eid = excluded.eid,
-         empresa = excluded.empresa,
+         empresa = CASE WHEN excluded.empresa <> '' THEN excluded.empresa
+                        ELSE STOCK_GANADERO_DISPOSITIVO.empresa END,
+         sexo = CASE WHEN excluded.sexo <> '' THEN excluded.sexo
+                     ELSE STOCK_GANADERO_DISPOSITIVO.sexo END,
          actualizado_en = NOW()`
     );
     for (const r of rows) {
@@ -1904,11 +1907,17 @@ export async function importStockGanaderoRows(
         condicion: r.condicion,
       });
 
-      if (clave && EMPRESAS_VALIDAS.has(r.empresa as DispositivoEmpresa) && r.empresa) {
+      const empresaImport =
+        EMPRESAS_VALIDAS.has(r.empresa as DispositivoEmpresa) && r.empresa
+          ? r.empresa
+          : "";
+      const sexoImport = r.sexo === "MACHO" || r.sexo === "HEMBRA" ? r.sexo : "";
+      if (clave && (empresaImport || sexoImport)) {
         await upsertEmpresaDispositivo.run({
           clave,
           eid: r.eid,
-          empresa: r.empresa,
+          empresa: empresaImport,
+          sexo: sexoImport,
         });
       }
 

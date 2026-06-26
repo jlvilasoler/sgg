@@ -37,7 +37,7 @@ import {
   auditSimuladorPatch,
 } from "./simulador-venta-audit.js";
 import { normalizarTituloRubro } from "./text-normalize.js";
-import { parseStockGanaderoBuffer, parseStockGanaderoText, normalizeStockGanaderoRows } from "./parse-stock-ganadero-txt.js";
+import { parseStockGanaderoBuffer, parseStockGanaderoFile, parseStockGanaderoText, normalizeStockGanaderoRows } from "./parse-stock-ganadero-txt.js";
 import type { DispositivoMetaPatch } from "./stock-ganadero-db.js";
 import { parseTipoBaja, tipoBajaDesdeEstadoImport, type TipoBaja } from "./stock-ganadero-db.js";
 import { auditBajasDispositivos, auditStockMovimiento, historialAutorFromRequest } from "./stock-audit.js";
@@ -1598,10 +1598,10 @@ app.post("/api/stock-ganadero/import/file", upload.single("file"), async (req, r
   try {
     const file = req.file;
     if (!file?.buffer?.length) {
-      res.status(400).json({ ok: false, error: "Seleccioná un archivo .txt o .csv" });
+      res.status(400).json({ ok: false, error: "Seleccioná un archivo .txt, .csv o .xlsx" });
       return;
     }
-    const rows = parseStockGanaderoBuffer(file.buffer);
+    const rows = await parseStockGanaderoFile(file.buffer, file.originalname || "import.txt");
     const result = await db.stockGanadero.importRows(file.originalname || "import.txt", rows);
     const lote = await db.stockGanadero.getLote(result.lote_id);
     if (result.insertados > 0) {

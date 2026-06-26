@@ -42,7 +42,7 @@ interface FormLectura {
 }
 
 const COLUMNAS = ["EID", "VID", "Date", "Time", "Condición"] as const;
-const EXTENSIONES_ACEPTADAS = [".txt", ".csv"] as const;
+const EXTENSIONES_ACEPTADAS = [".txt", ".csv", ".xlsx", ".xls"] as const;
 const CARGA_MANUAL_LOTE = "carga-manual";
 const EID_PREFIJO = "858";
 
@@ -113,7 +113,9 @@ function esArchivoStockValido(f: File): boolean {
     mime === "text/plain" ||
     mime === "text/csv" ||
     mime === "application/csv" ||
-    mime === "application/vnd.ms-excel"
+    mime === "application/vnd.ms-excel" ||
+    mime ===
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
   );
 }
 
@@ -186,7 +188,7 @@ export default function StockGanaderoImportar({
         return;
       }
       if (!esArchivoStockValido(f)) {
-        onError("Solo archivos .txt o .csv (export Tru-Test)");
+        onError("Solo archivos .txt, .csv o .xlsx (export Tru-Test o SNIG)");
         return;
       }
       setFile(f);
@@ -228,7 +230,7 @@ export default function StockGanaderoImportar({
 
   const importarArchivo = async () => {
     if (!file) {
-      onError("Seleccioná un archivo .txt o .csv");
+      onError("Seleccioná un archivo .txt, .csv o .xlsx");
       return;
     }
     setImporting(true);
@@ -381,8 +383,8 @@ export default function StockGanaderoImportar({
                 <h4 className="stock-facet-group-title">Archivo</h4>
               </div>
               <p className="stock-import-sidebar-note">
-                <strong>.txt</strong> o <strong>.csv</strong> (Tru-Test) · Separador tab o{" "}
-                <code>;</code>
+                <strong>.txt</strong>, <strong>.csv</strong> (Tru-Test) o{" "}
+                <strong>.xlsx</strong> (SNIG) · Separador tab o <code>;</code>
               </p>
               <p className="stock-import-sidebar-note">
                 Fecha <code>AAAA-MM-DD</code> o <code>D/M/AAAA</code> · Hora{" "}
@@ -410,7 +412,7 @@ export default function StockGanaderoImportar({
                 className={`stock-import-tab${modo === "archivo" ? " is-active" : ""}`}
                 onClick={() => setModo("archivo")}
               >
-                Archivo .txt / .csv
+                Archivo .txt / .csv / .xlsx
               </button>
               <button
                 type="button"
@@ -453,7 +455,7 @@ export default function StockGanaderoImportar({
                     ref={inputRef}
                     type="file"
                     className="stock-dropzone-input"
-                    accept=".txt,.csv,text/plain,text/csv"
+                    accept=".txt,.csv,.xlsx,.xls,text/plain,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                     disabled={!apiOnline || importing}
                     onChange={(e) => pickFile(e.target.files?.[0] ?? null)}
                   />
