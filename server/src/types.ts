@@ -78,4 +78,52 @@ export interface ResumenRubro {
   cantidad: number;
   total_pesos: number;
   total_usd: number;
+  total_reales: number;
+  total_saldo_usd: number;
+}
+
+export interface ResumenTotales {
+  cantidad: number;
+  total_pesos: number;
+  total_usd: number;
+  total_reales: number;
+  total_saldo_usd: number;
+}
+
+/** Importes en USD por mes (clave YYYY-MM) para el estado financiero. */
+export interface EstadoFinancieroUsd {
+  total_saldo_usd: number;
+  por_mes: Record<string, number>;
+}
+
+export interface EstadoFinancieroMes {
+  clave: string;
+  label: string;
+}
+
+export interface EstadoFinancieroLinea extends EstadoFinancieroUsd {
+  sub_rubro: string;
+}
+
+export interface EstadoFinancieroRubro {
+  rubro: string;
+  sub_rubros: EstadoFinancieroLinea[];
+  totales: EstadoFinancieroUsd;
+}
+
+export interface EstadoFinancieroPayload {
+  meses: EstadoFinancieroMes[];
+  rubros: EstadoFinancieroRubro[];
+}
+
+export interface ResumenSubRubro extends ResumenTotales {
+  rubro: string;
+  sub_rubro: string;
+}
+
+export interface ResumenSubRubroMes {
+  rubro: string;
+  sub_rubro: string;
+  mes: string;
+  total_saldo_usd: number;
 }

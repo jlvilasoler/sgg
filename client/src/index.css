@@ -15014,6 +15014,398 @@ button.sg-kpi-card:disabled {
   text-align: center;
 }
 
+/* ===================================================================
+   Balance / Estado contable de gastos
+   =================================================================== */
+
+.bn-ui .balance-contable {
+  padding: 0;
+  overflow: hidden;
+}
+
+.balance-doc-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem 1.5rem;
+  padding: 1.4rem 1.5rem 1.25rem;
+  background: linear-gradient(180deg, #fcfcfd 0%, #ffffff 100%);
+  border-bottom: 2px solid var(--bn-text);
+}
+
+.balance-doc-kicker {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--bn-gold);
+}
+
+.balance-doc-title {
+  margin: 0.3rem 0 0;
+  font-size: 1.5rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--bn-text);
+}
+
+.balance-doc-entity {
+  margin: 0.25rem 0 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--bn-muted);
+}
+
+.balance-doc-meta {
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: 0.35rem 1.5rem;
+  margin: 0;
+  text-align: right;
+}
+
+.balance-doc-meta-item {
+  display: contents;
+}
+
+.balance-doc-meta-item dt {
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--bn-muted-light);
+  text-align: left;
+}
+
+.balance-doc-meta-item dd {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--bn-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.balance-doc-empty {
+  padding: 3rem 1.5rem;
+  text-align: center;
+  color: var(--bn-muted);
+  font-size: 0.9rem;
+}
+
+.balance-doc-section {
+  padding: 1.25rem 1.5rem 0.5rem;
+}
+
+.balance-doc-section + .balance-doc-section {
+  border-top: 1px solid var(--bn-border-soft);
+}
+
+.balance-doc-section-title {
+  margin: 0 0 0.85rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--bn-text);
+}
+
+.balance-doc-section-desc {
+  margin: -0.45rem 0 0.85rem;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--bn-muted);
+}
+
+.balance-doc-section-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.65rem 1rem;
+  margin-bottom: 0.85rem;
+}
+
+.balance-doc-section-toolbar .balance-doc-section-desc {
+  margin: 0;
+  flex: 1 1 16rem;
+}
+
+.balance-doc-section-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.balance-doc-toolbar-btn {
+  min-height: 1.85rem;
+  padding: 0.32rem 0.7rem !important;
+  border: 1px solid var(--bn-border) !important;
+  border-radius: 6px !important;
+  background: #fff !important;
+  color: var(--bn-muted) !important;
+  font-size: 0.76rem !important;
+  font-weight: 600 !important;
+  box-shadow: none !important;
+}
+
+.balance-doc-toolbar-btn:hover:not(:disabled) {
+  border-color: var(--bn-gold) !important;
+  color: var(--bn-text) !important;
+  background: #fffdf3 !important;
+}
+
+.balance-doc-section-note {
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  color: var(--bn-muted);
+}
+
+.balance-doc-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.balance-doc-table thead th {
+  padding: 0.5rem 0.65rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--bn-muted-light);
+  border-bottom: 1.5px solid var(--bn-border);
+  white-space: nowrap;
+}
+
+.balance-doc-table th.num,
+.balance-doc-table td.num {
+  text-align: right;
+}
+
+.balance-doc-table .balance-col-cuenta {
+  text-align: left;
+  font-weight: 600;
+  color: var(--bn-text);
+}
+
+.balance-doc-table tbody td {
+  padding: 0.58rem 0.65rem;
+  font-size: 0.84rem;
+  color: var(--bn-text);
+  border-bottom: 1px solid var(--bn-border-soft);
+}
+
+.balance-doc-table tbody tr:hover td {
+  background: #fafbfc;
+}
+
+.balance-doc-table--jerarquia .balance-rubro-row td {
+  background: #f4f6f8;
+  border-top: 1px solid var(--bn-border);
+  font-weight: 700;
+}
+
+.balance-doc-table--jerarquia .balance-rubro-row--toggle:hover td {
+  background: #eef1f5;
+}
+
+.balance-doc-table--jerarquia .balance-rubro-row.is-open td {
+  background: #eef1f5;
+  border-bottom-color: transparent;
+}
+
+.balance-rubro-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 0.78rem;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  text-align: left;
+}
+
+.balance-rubro-toggle:hover {
+  color: var(--bn-text);
+}
+
+.balance-rubro-chevron {
+  display: inline-block;
+  width: 0.45rem;
+  height: 0.45rem;
+  border-right: 2px solid var(--bn-muted);
+  border-bottom: 2px solid var(--bn-muted);
+  transform: rotate(-45deg);
+  transition: transform 0.15s ease;
+  flex-shrink: 0;
+}
+
+.balance-rubro-chevron.is-open {
+  transform: rotate(45deg);
+}
+
+.balance-doc-table--jerarquia .balance-col-rubro {
+  text-transform: uppercase;
+  font-size: 0.78rem;
+  letter-spacing: 0.03em;
+}
+
+.balance-doc-table--jerarquia .balance-col-sub {
+  padding-left: 1.75rem;
+  font-weight: 500;
+  color: var(--bn-muted);
+  position: relative;
+}
+
+.balance-doc-table--jerarquia .balance-col-sub::before {
+  content: "└";
+  position: absolute;
+  left: 0.65rem;
+  color: var(--bn-muted-light);
+  font-weight: 400;
+}
+
+.balance-doc-table--jerarquia .balance-sub-row--vacio td {
+  color: var(--bn-muted-light);
+}
+
+.balance-doc-table--jerarquia .balance-sub-row--vacio .balance-col-sub {
+  color: var(--bn-muted-light);
+}
+
+.balance-doc-table .balance-num-total {
+  font-weight: 700;
+}
+
+.balance-doc-table .balance-col-pct {
+  color: var(--bn-muted);
+  width: 4.5rem;
+}
+
+.balance-doc-table tfoot .balance-doc-total td {
+  padding: 0.7rem 0.65rem;
+  font-size: 0.86rem;
+  font-weight: 800;
+  color: var(--bn-text);
+  border-top: 2px solid var(--bn-text);
+  border-bottom: 3px double var(--bn-text);
+  background: #fcfcfd;
+}
+
+.balance-doc-table tfoot .balance-doc-total .balance-col-cuenta {
+  letter-spacing: 0.04em;
+}
+
+.balance-doc-table tfoot .balance-num-grand {
+  color: #181a20;
+}
+
+.balance-doc-table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.balance-doc-table--mensual {
+  min-width: max(100%, 32rem);
+}
+
+.balance-doc-table--mensual .balance-col-mes {
+  min-width: 4.5rem;
+}
+
+.balance-doc-table--mensual .balance-col-total {
+  min-width: 5.5rem;
+  border-left: 1px solid var(--bn-border-soft);
+}
+
+.balance-doc-table--mensual .balance-col-sticky {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: inherit;
+  min-width: 11rem;
+  max-width: 16rem;
+  box-shadow: 4px 0 8px -4px rgba(24, 26, 32, 0.08);
+}
+
+.balance-doc-table--mensual thead .balance-col-sticky {
+  z-index: 2;
+  background: #fff;
+}
+
+.balance-doc-table--mensual .balance-rubro-row .balance-col-sticky {
+  background: #f4f6f8;
+}
+
+.balance-doc-table--mensual .balance-rubro-row.is-open .balance-col-sticky {
+  background: #eef1f5;
+}
+
+.balance-doc-table--mensual tfoot .balance-col-sticky {
+  background: #fcfcfd;
+}
+
+.balance-doc-foot {
+  margin-top: 0.5rem;
+  padding: 1.1rem 1.5rem 1.4rem;
+  border-top: 1px solid var(--bn-border-soft);
+}
+
+.balance-doc-foot-grand {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 1.1rem;
+  background: linear-gradient(135deg, #fff9e6 0%, #fffdf5 100%);
+  border: 1px solid #f5d97a;
+  border-radius: 10px;
+}
+
+.balance-doc-foot-label {
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #8a6d1f;
+}
+
+.balance-doc-foot-value {
+  font-size: 1.5rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--bn-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.balance-doc-foot-note {
+  margin: 0.85rem 0 0;
+  font-size: 0.72rem;
+  line-height: 1.5;
+  color: var(--bn-muted-light);
+}
+
+@media (max-width: 720px) {
+  .balance-doc-meta {
+    text-align: left;
+  }
+
+  .balance-doc-foot-grand {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.35rem;
+  }
+}
+
 .bn-ui .empresa-badge--resumen {
   display: inline-flex;
   align-items: center;

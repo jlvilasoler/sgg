@@ -21,6 +21,8 @@ import type {
   ResponsableForm,
   ResumenEmpresa,
   ResumenRubro,
+  EstadoFinancieroRubro,
+  EstadoFinancieroMes,
   TipoCambio,
   TipoCambioForm,
   VentaAgriculturaRow,
@@ -1949,7 +1951,12 @@ export async function fetchResumen(filters: {
   fecha_desde?: string;
   fecha_hasta?: string;
   empresa?: string;
-}): Promise<{ por_empresa: ResumenEmpresa[]; por_rubro: ResumenRubro[] }> {
+}): Promise<{
+  por_empresa: ResumenEmpresa[];
+  por_rubro: ResumenRubro[];
+  estado_financiero: EstadoFinancieroRubro[];
+  estado_financiero_meses: EstadoFinancieroMes[];
+}> {
   const params = new URLSearchParams();
   Object.entries(filters).forEach(([k, v]) => {
     if (v) params.set(k, v);

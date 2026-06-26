@@ -1,5 +1,18 @@
 import { PgDb, getPool } from "./db/pg-client.js";
-import type { Presupuesto, PresupuestoInput, ResumenEmpresa, ResumenRubro } from "./types.js";
+import type {
+  Presupuesto,
+  PresupuestoInput,
+  ResumenEmpresa,
+  ResumenRubro,
+  ResumenSubRubro,
+  ResumenSubRubroMes,
+  ResumenTotales,
+  EstadoFinancieroRubro,
+  EstadoFinancieroLinea,
+  EstadoFinancieroUsd,
+  EstadoFinancieroMes,
+  EstadoFinancieroPayload,
+} from "./types.js";
 import { EMPRESAS } from "./types.js";
 import * as prov from "./proveedores-db.js";
 import * as div from "./divisas-db.js";
@@ -608,11 +621,17 @@ export async function resumenPorEmpresa(
   return (await db.prepare(query).all(params)) as ResumenEmpresa[];
 }
 
-export async function resumenPorRubro(empresa?: string): Promise<ResumenRubro[]> {
+export async function resumenPorRubro(
+  empresa?: string,
+  fecha_desde?: string,
+  fecha_hasta?: string
+): Promise<ResumenRubro[]> {
   let query = `
     SELECT rubro, COUNT(*) AS cantidad,
       COALESCE(SUM(pesos), 0) AS total_pesos,
-      COALESCE(SUM(dolares_usd), 0) AS total_usd
+      COALESCE(SUM(dolares_usd), 0) AS total_usd,
+      COALESCE(SUM(reales), 0) AS total_reales,
+      COALESCE(SUM(saldo_usd), 0) AS total_saldo_usd
     FROM PRESUPUESTO WHERE 1=1
   `;
   const params: Record<string, string> = {};
@@ -620,8 +639,252 @@ export async function resumenPorRubro(empresa?: string): Promise<ResumenRubro[]>
     query += " AND empresa = @empresa";
     params.empresa = empresa;
   }
-  query += " GROUP BY rubro ORDER BY total_pesos DESC";
+  if (fecha_desde) {
+    query += " AND fecha >= @fecha_desde";
+    params.fecha_desde = fecha_desde;
+  }
+  if (fecha_hasta) {
+    query += " AND fecha <= @fecha_hasta";
+    params.fecha_hasta = fecha_hasta;
+  }
+  query += " GROUP BY rubro ORDER BY total_saldo_usd DESC";
   return (await db.prepare(query).all(params)) as ResumenRubro[];
+}
+
+const ESTADO_FINANCIERO_DESDE = "2026-07-01";
+
+const MESES_CORTOS = [
+  "ene",
+  "feb",
+  "mar",
+  "abr",
+  "may",
+  "jun",
+  "jul",
+  "ago",
+  "set",
+  "oct",
+  "nov",
+  "dic",
+] as const;
+
+function labelMesEstado(clave: string): string {
+  const [y, m] = clave.split("-");
+  const idx = Number(m) - 1;
+  if (!y || idx < 0 || idx > 11) return clave;
+  return `${MESES_CORTOS[idx]} ${y}`;
+}
+
+function claveMesDesdeFecha(iso: string): string {
+  return iso.slice(0, 7);
+}
+
+export function listarMesesEstadoFinanciero(fecha_hasta?: string): EstadoFinancieroMes[] {
+  const inicio = new Date(2026, 6, 1);
+  let fin = new Date();
+  if (fecha_hasta) {
+    const h = new Date(`${fecha_hasta}T12:00:00`);
+    if (!Number.isNaN(h.getTime()) && h < fin) fin = h;
+  }
+  const cursor = new Date(inicio.getFullYear(), inicio.getMonth(), 1);
+  const finMes = new Date(fin.getFullYear(), fin.getMonth(), 1);
+  const hastaMes = finMes < cursor ? cursor : finMes;
+  const meses: EstadoFinancieroMes[] = [];
+  while (cursor <= hastaMes) {
+    const clave = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}`;
+    meses.push({ clave, label: labelMesEstado(clave) });
+    cursor.setMonth(cursor.getMonth() + 1);
+  }
+  return meses;
+}
+
+function usdVacio(): EstadoFinancieroUsd {
+  return { total_saldo_usd: 0, por_mes: {} };
+}
+
+function sumarUsd(acc: EstadoFinancieroUsd, row: EstadoFinancieroUsd): EstadoFinancieroUsd {
+  const por_mes = { ...acc.por_mes };
+  for (const [mes, valor] of Object.entries(row.por_mes)) {
+    por_mes[mes] = (por_mes[mes] ?? 0) + valor;
+  }
+  return {
+    total_saldo_usd: acc.total_saldo_usd + row.total_saldo_usd,
+    por_mes,
+  };
+}
+
+function usdDesdePorMes(por_mes: Record<string, number>): EstadoFinancieroUsd {
+  const total_saldo_usd = Object.values(por_mes).reduce((a, b) => a + b, 0);
+  return { total_saldo_usd, por_mes };
+}
+
+function normClave(s: string): string {
+  return s.trim().toLowerCase();
+}
+
+function claveRubroSub(rubro: string, subRubro: string): string {
+  return `${normClave(rubro)}|${normClave(subRubro)}`;
+}
+
+function mismoNombre(a: string, b: string): boolean {
+  return a.localeCompare(b, "es", { sensitivity: "accent" }) === 0;
+}
+
+function sumarTotales(acc: ResumenTotales, row: ResumenTotales): ResumenTotales {
+  return {
+    cantidad: acc.cantidad + row.cantidad,
+    total_pesos: acc.total_pesos + row.total_pesos,
+    total_usd: acc.total_usd + row.total_usd,
+    total_reales: acc.total_reales + row.total_reales,
+    total_saldo_usd: acc.total_saldo_usd + row.total_saldo_usd,
+  };
+}
+
+export async function resumenPorSubRubro(
+  empresa?: string,
+  fecha_desde?: string,
+  fecha_hasta?: string
+): Promise<ResumenSubRubro[]> {
+  let query = `
+    SELECT rubro,
+      COALESCE(NULLIF(trim(sub_rubro), ''), '') AS sub_rubro,
+      COUNT(*) AS cantidad,
+      COALESCE(SUM(pesos), 0) AS total_pesos,
+      COALESCE(SUM(dolares_usd), 0) AS total_usd,
+      COALESCE(SUM(reales), 0) AS total_reales,
+      COALESCE(SUM(saldo_usd), 0) AS total_saldo_usd
+    FROM PRESUPUESTO WHERE 1=1
+  `;
+  const params: Record<string, string> = {};
+  if (empresa) {
+    query += " AND empresa = @empresa";
+    params.empresa = empresa;
+  }
+  if (fecha_desde) {
+    query += " AND fecha >= @fecha_desde";
+    params.fecha_desde = fecha_desde;
+  }
+  if (fecha_hasta) {
+    query += " AND fecha <= @fecha_hasta";
+    params.fecha_hasta = fecha_hasta;
+  }
+  query += " GROUP BY rubro, COALESCE(NULLIF(trim(sub_rubro), ''), '')";
+  query += " ORDER BY rubro ASC, sub_rubro ASC";
+  return (await db.prepare(query).all(params)) as ResumenSubRubro[];
+}
+
+export async function resumenPorSubRubroMensual(
+  empresa?: string,
+  fecha_hasta?: string
+): Promise<ResumenSubRubroMes[]> {
+  let query = `
+    SELECT rubro,
+      COALESCE(NULLIF(trim(sub_rubro), ''), '') AS sub_rubro,
+      SUBSTRING(fecha FROM 1 FOR 7) AS mes,
+      COALESCE(SUM(saldo_usd), 0) AS total_saldo_usd
+    FROM PRESUPUESTO
+    WHERE fecha >= @fecha_inicio
+  `;
+  const params: Record<string, string> = { fecha_inicio: ESTADO_FINANCIERO_DESDE };
+  if (empresa) {
+    query += " AND empresa = @empresa";
+    params.empresa = empresa;
+  }
+  if (fecha_hasta) {
+    query += " AND fecha <= @fecha_hasta";
+    params.fecha_hasta = fecha_hasta;
+  }
+  query +=
+    " GROUP BY rubro, COALESCE(NULLIF(trim(sub_rubro), ''), ''), SUBSTRING(fecha FROM 1 FOR 7)";
+  query += " ORDER BY mes ASC, rubro ASC, sub_rubro ASC";
+  return (await db.prepare(query).all(params)) as ResumenSubRubroMes[];
+}
+
+function porMesDesdeMovimientos(
+  meses: EstadoFinancieroMes[],
+  rubro: string,
+  subRubro: string,
+  movMes: Map<string, number>
+): Record<string, number> {
+  const base = claveRubroSub(rubro, subRubro);
+  const por_mes: Record<string, number> = {};
+  for (const mes of meses) {
+    por_mes[mes.clave] = movMes.get(`${base}|${mes.clave}`) ?? 0;
+  }
+  return por_mes;
+}
+
+/** Estado financiero: catálogo Configuración → Rubros, USD por mes desde 01/07/2026. */
+export async function buildEstadoFinanciero(
+  empresa?: string,
+  fecha_hasta?: string
+): Promise<EstadoFinancieroPayload> {
+  const catalogo = await sub.getCatalogoGruposParaGastos(db);
+  const meses = listarMesesEstadoFinanciero(fecha_hasta);
+  const movMensual = await resumenPorSubRubroMensual(empresa, fecha_hasta);
+
+  const movMes = new Map<string, number>();
+  for (const m of movMensual) {
+    if (!m.mes || m.mes < claveMesDesdeFecha(ESTADO_FINANCIERO_DESDE)) continue;
+    const clave = `${claveRubroSub(m.rubro, m.sub_rubro)}|${m.mes}`;
+    movMes.set(clave, (movMes.get(clave) ?? 0) + m.total_saldo_usd);
+  }
+
+  const rubrosCatalogo = [...catalogo.rubros].sort((a, b) =>
+    a.localeCompare(b, "es", { sensitivity: "accent" })
+  );
+
+  const rubrosEnMovimientos = new Set<string>();
+  for (const m of movMensual) {
+    if (m.rubro?.trim()) rubrosEnMovimientos.add(m.rubro.trim());
+  }
+
+  const rubrosOrdenados: string[] = [...rubrosCatalogo];
+  for (const r of rubrosEnMovimientos) {
+    if (!rubrosOrdenados.some((x) => mismoNombre(x, r))) {
+      rubrosOrdenados.push(r);
+    }
+  }
+  rubrosOrdenados.sort((a, b) => a.localeCompare(b, "es", { sensitivity: "accent" }));
+
+  const rubros: EstadoFinancieroRubro[] = [];
+
+  for (const rubro of rubrosOrdenados) {
+    const subsCatalogo = catalogo.sub_rubros_por_rubro[rubro] ?? [];
+    const subsMovimiento = movMensual
+      .filter((m) => mismoNombre(m.rubro, rubro) && m.sub_rubro.trim())
+      .map((m) => m.sub_rubro.trim());
+
+    const subsUnicos: string[] = [...subsCatalogo];
+    for (const s of subsMovimiento) {
+      if (!subsUnicos.some((x) => mismoNombre(x, s))) subsUnicos.push(s);
+    }
+    subsUnicos.sort((a, b) => a.localeCompare(b, "es", { sensitivity: "accent" }));
+
+    const sub_rubros: EstadoFinancieroLinea[] = subsUnicos.map((sub_rubro) => {
+      const por_mes = porMesDesdeMovimientos(meses, rubro, sub_rubro, movMes);
+      return { sub_rubro, ...usdDesdePorMes(por_mes) };
+    });
+
+    const sinSubPorMes = porMesDesdeMovimientos(meses, rubro, "", movMes);
+    const sinSubTotal = Object.values(sinSubPorMes).reduce((a, b) => a + b, 0);
+    if (sinSubTotal > 0) {
+      sub_rubros.push({
+        sub_rubro: "(Sin sub-rubro)",
+        ...usdDesdePorMes(sinSubPorMes),
+      });
+    }
+
+    const totales = sub_rubros.reduce((acc, linea) => sumarUsd(acc, linea), usdVacio());
+
+    const enCatalogo = rubrosCatalogo.some((r) => mismoNombre(r, rubro));
+    const tieneMovimiento = totales.total_saldo_usd > 0;
+    if (enCatalogo || tieneMovimiento || subsCatalogo.length > 0) {
+      rubros.push({ rubro, sub_rubros, totales });
+    }
+  }
+
+  return { meses, rubros };
 }
 
 export const rubros = {

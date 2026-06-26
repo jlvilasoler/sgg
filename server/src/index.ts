@@ -3804,10 +3804,13 @@ app.get("/api/resumen", async (req, res) => {
   const fecha_desde = req.query.fecha_desde as string | undefined;
   const fecha_hasta = req.query.fecha_hasta as string | undefined;
   const empresa = req.query.empresa as string | undefined;
+  const estado = await db.buildEstadoFinanciero(empresa, fecha_hasta);
   res.json({
     ok: true,
     por_empresa: await db.resumenPorEmpresa(fecha_desde, fecha_hasta),
-    por_rubro: await db.resumenPorRubro(empresa),
+    por_rubro: await db.resumenPorRubro(empresa, fecha_desde, fecha_hasta),
+    estado_financiero: estado.rubros,
+    estado_financiero_meses: estado.meses,
     rubros: await db.rubros.listNombres(),
   });
 });
