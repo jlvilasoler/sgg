@@ -58,6 +58,10 @@ import {
   type BrouTransferenciaParsed,
   parseBrouTransferenciaText,
 } from "./parse-brou-transferencia.js";
+import {
+  looksLikeSantanderEnElPais,
+  parseSantanderEnElPais,
+} from "./parse-santander-comprobante.js";
 import * as presDoc from "./presupuesto-documentos-db.js";
 
 const upload = multer({
@@ -2277,10 +2281,24 @@ app.post(
       );
 
       const tipos = await db.documentosDigitales.listTiposGasto({ soloActivos: true });
-      const tipo = detectarTipoDocumentoPorTexto(text, tipos);
+      const tipoPorTexto = detectarTipoDocumentoPorTexto(text, tipos);
 
       const esBrou =
-        tipo?.origen?.toUpperCase() === "BROU" || looksLikeBrouTransferenciaComprobante(text);
+        tipoPorTexto?.origen?.toUpperCase() === "BROU" ||
+        looksLikeBrouTransferenciaComprobante(text);
+
+      // Comprobante Santander «Transferencias en el país»: no trae la palabra
+      // «Santander» ni las etiquetas del formato «a Otros Bancos», por eso se
+      // detecta aparte y se lo asocia al tipo Santander configurado.
+      const esSantanderPais = !esBrou && looksLikeSantanderEnElPais(text);
+      const tipoSantander = esSantanderPais
+        ? tipos.find(
+            (t) =>
+              t.origen?.toUpperCase() === "SANTANDER" ||
+              t.nombre?.toUpperCase().includes("SANTANDER")
+          ) ?? null
+        : null;
+      const tipo = tipoPorTexto ?? tipoSantander;
 
       let parsed: typeof EMPTY_BROU_PARSED = EMPTY_BROU_PARSED;
       if (esBrou) {
@@ -2291,13 +2309,15 @@ app.post(
         }
       }
 
-      const mapeo = tipo
-        ? normalizeGastoMapeo(tipo.mapeo_campos)
+      const mapeo = tipoPorTexto
+        ? normalizeGastoMapeo(tipoPorTexto.mapeo_campos)
         : esBrou
           ? BROU_MAPEO_DEFAULT
           : {};
       let valores_mapeo: Record<string, string> | undefined;
-      if (Object.keys(mapeo).length > 0) {
+      if (esSantanderPais) {
+        valores_mapeo = parseSantanderEnElPais(text) as Record<string, string>;
+      } else if (Object.keys(mapeo).length > 0) {
         valores_mapeo = extractValoresPorMapeo(text, mapeo) as Record<string, string>;
       }
 
