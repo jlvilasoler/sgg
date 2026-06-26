@@ -806,6 +806,24 @@ export async function bulkPatchStockGanaderaDispositivos(
   return json.data;
 }
 
+export async function deleteStockGanaderaDispositivos(claves: string[]): Promise<{
+  eliminados: number;
+  lecturas_eliminadas: number;
+  no_encontrados: string[];
+}> {
+  const json = await request<{
+    data: {
+      eliminados: number;
+      lecturas_eliminadas: number;
+      no_encontrados: string[];
+    };
+  }>("/stock-ganadero/dispositivos/bulk-delete", {
+    method: "POST",
+    body: JSON.stringify({ claves }),
+  });
+  return json.data;
+}
+
 export async function importStockGanaderoFile(
   file: File
 ): Promise<{ message: string; lote_id: number; insertados: number }> {
@@ -862,6 +880,7 @@ export async function importStockGanaderoRows(
     fecha: string;
     hora?: string;
     condicion?: string;
+    empresa?: string;
   }>,
   nombreArchivo = "carga-manual"
 ): Promise<{ message: string; lote_id: number; insertados: number }> {

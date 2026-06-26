@@ -1389,6 +1389,35 @@ app.patch("/api/stock-ganadero/dispositivos/bulk", async (req, res) => {
   }
 });
 
+app.post("/api/stock-ganadero/dispositivos/bulk-delete", async (req, res) => {
+  if (!req.user || req.user.rol !== "admin") {
+    res.status(403).json({ ok: false, error: "Solo administradores" });
+    return;
+  }
+  try {
+    const body = req.body ?? {};
+    const claves = Array.isArray(body.claves)
+      ? body.claves.map((c: unknown) => String(c).trim()).filter(Boolean)
+      : [];
+    const result = await db.stockGanadero.deleteDispositivos(claves);
+    await auditStockMovimiento(req, "MODIFICACION", {
+      cantidad: result.eliminados,
+      resumen: `Eliminó ${result.eliminados} dispositivo(s) del sistema`,
+      detalle: {
+        claves: claves.slice(0, 25),
+        lecturas_eliminadas: result.lecturas_eliminadas,
+        no_encontrados: result.no_encontrados,
+      },
+    });
+    res.json({ ok: true, data: result });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al eliminar dispositivos",
+    });
+  }
+});
+
 app.patch("/api/stock-ganadero/dispositivos/:clave/sexo", async (req, res) => {
   try {
     const sexo = String(req.body?.sexo ?? "").toUpperCase() as
@@ -1608,6 +1637,7 @@ app.post("/api/stock-ganadero/import/rows", async (req, res) => {
         fecha?: string;
         hora?: string;
         condicion?: string;
+        empresa?: string;
       }>;
       nombre_archivo?: string;
     };

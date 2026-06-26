@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  deleteStockGanaderaDispositivos,
   fetchStockGanaderaDispositivos,
   fetchStockGanaderaSalidas,
   fetchStockGanaderaVentasDispositivos,
 } from "../../api";
 import { useHeaderBackStep } from "../../header-back";
-import type { DispositivoEstado, StockGanaderaDispositivo } from "../../types";
+import type { AuthUser, DispositivoEstado, StockGanaderaDispositivo } from "../../types";
 import { fmtDate } from "../../utils";
+import { confirmAction } from "../../utils/confirm";
 import TablePagination, {
   paginateSlice,
   type PageSize,
@@ -109,6 +111,7 @@ function claseCeldaSexo(sexo: StockGanaderaDispositivo["sexo"]): string {
 
 interface Props {
   apiOnline: boolean;
+  currentUser?: AuthUser | null;
   onError: (msg: string) => void;
   onSuccess?: (msg: string) => void;
   onVolver: () => void;
@@ -117,11 +120,13 @@ interface Props {
 
 export default function StockGanadera({
   apiOnline,
+  currentUser,
   onError,
   onSuccess,
   onVolver,
   refreshKey = 0,
 }: Props) {
+  const esAdmin = currentUser?.rol === "admin";
   const [rows, setRows] = useState<StockGanaderaDispositivo[]>(() =>
     rowsDesdeCache(cacheInicial, filtrosInicialesKey)
   );
@@ -435,6 +440,39 @@ export default function StockGanadera({
   };
 
   const limpiarSeleccion = () => setSeleccion(new Set());
+
+  const eliminarSeleccionados = async () => {
+    if (!esAdmin || seleccionados.length === 0) return;
+    const muestra = seleccionados
+      .slice(0, 6)
+      .map((d) => `${d.eid} / ${d.vid}`)
+      .join(", ");
+    const extra =
+      seleccionados.length > 6 ? ` y ${seleccionados.length - 6} más` : "";
+    const ok = await confirmAction({
+      title: "Eliminar dispositivos del sistema",
+      message: `¿Eliminar ${seleccionados.length} dispositivo(s) y todas sus lecturas? Esta acción no se puede deshacer.${muestra ? `\n\n${muestra}${extra}` : ""}`,
+      confirmText: "Eliminar",
+      variant: "danger",
+    });
+    if (!ok) return;
+    try {
+      const result = await deleteStockGanaderaDispositivos(
+        seleccionados.map((d) => d.clave)
+      );
+      limpiarSeleccion();
+      void load();
+      const omitidos =
+        result.no_encontrados.length > 0
+          ? ` (${result.no_encontrados.length} no encontrado(s))`
+          : "";
+      onSuccess?.(
+        `Se eliminaron ${result.eliminados} dispositivo(s) del sistema${omitidos}`
+      );
+    } catch (e) {
+      onError(e instanceof Error ? e.message : "Error al eliminar dispositivos");
+    }
+  };
 
   const actualizarFila = (actualizado: StockGanaderaDispositivo) => {
     setRows((prev) => {
@@ -871,6 +909,15 @@ export default function StockGanadera({
                   >
                     Editar seleccionados
                   </button>
+                  {esAdmin && (
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-danger"
+                      onClick={() => void eliminarSeleccionados()}
+                    >
+                      Eliminar del sistema
+                    </button>
+                  )}
                   <button
                     type="button"
                     className="stock-bulk-link"

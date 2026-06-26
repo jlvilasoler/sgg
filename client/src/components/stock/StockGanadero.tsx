@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { fetchStockGanaderoResumen } from "../../api";
 import { useHeaderBackStep } from "../../header-back";
+import type { AuthUser } from "../../types";
 import { HubMenuCard } from "../HubMenuCard";
 import type { HubIconId } from "../icons/HubMenuIcons";
 import { HUB_ICON_THEMES, HubMenuIcon } from "../icons/HubMenuIcons";
@@ -22,6 +23,7 @@ type VistaStock =
 
 interface Props {
   apiOnline: boolean;
+  currentUser?: AuthUser | null;
   onError: (msg: string) => void;
   onSuccess: (msg: string, title?: string) => void;
   onVolver: () => void;
@@ -67,6 +69,7 @@ const SUBMENU: {
 
 export default function StockGanadero({
   apiOnline,
+  currentUser,
   onError,
   onSuccess,
   onVolver,
@@ -146,6 +149,7 @@ export default function StockGanadero({
     return (
       <StockGanadera
         apiOnline={apiOnline}
+        currentUser={currentUser}
         refreshKey={listRefresh}
         onError={onError}
         onSuccess={onSuccess}

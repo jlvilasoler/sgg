@@ -5,8 +5,13 @@ import {
   importStockGanaderoFile,
   importStockGanaderoRows,
 } from "../../api";
-import type { StockGanaderoLote } from "../../types";
+import type { DispositivoEmpresa, StockGanaderoLote } from "../../types";
 import { confirmAction } from "../../utils/confirm";
+import SelectEmpresaDispositivo, {
+  EMPRESA_PENDIENTE,
+  type EmpresaSelectValue,
+} from "./SelectEmpresaDispositivo";
+import { EID_PREFIX_LEN, splitEidVid } from "./stock-ganadera-utils";
 
 interface Props {
   apiOnline: boolean;
@@ -20,6 +25,7 @@ type ModoImport = "archivo" | "manual";
 
 interface LecturaManual {
   id: string;
+  empresa: DispositivoEmpresa;
   eid: string;
   vid: string;
   fecha: string;
@@ -28,8 +34,8 @@ interface LecturaManual {
 }
 
 interface FormLectura {
-  eid: string;
-  vid: string;
+  empresa: EmpresaSelectValue;
+  numero: string;
   fecha: string;
   hora: string;
   condicion: string;
@@ -38,6 +44,7 @@ interface FormLectura {
 const COLUMNAS = ["EID", "VID", "Date", "Time", "Condición"] as const;
 const EXTENSIONES_ACEPTADAS = [".txt", ".csv"] as const;
 const CARGA_MANUAL_LOTE = "carga-manual";
+const EID_PREFIJO = "858";
 
 interface UltimaImportacionArchivo {
   id: number;
@@ -66,12 +73,36 @@ function horaAhora(): string {
 
 function formVacio(): FormLectura {
   return {
-    eid: "",
-    vid: "",
+    empresa: EMPRESA_PENDIENTE,
+    numero: `${EID_PREFIJO} `,
     fecha: fechaHoy(),
     hora: horaAhora(),
     condicion: "",
   };
+}
+
+function formatNumeroDispositivo(eid: string, vid: string): string {
+  const { eid: e, vid: v } = splitEidVid(eid, vid);
+  if (!e && !v) return `${EID_PREFIJO} `;
+  if (!v) return `${e} `;
+  return `${e} ${v}`;
+}
+
+/** Normaliza entrada: el prefijo 858 se agrega solo si falta. */
+function normalizeNumeroInput(value: string): string {
+  const digits = value.replace(/\D/g, "");
+  if (!digits) return "";
+
+  if (digits.startsWith(EID_PREFIJO) && digits.length > EID_PREFIX_LEN) {
+    const { eid, vid } = splitEidVid(digits, "");
+    return vid ? `${eid} ${vid}` : `${eid} `;
+  }
+
+  if (!digits.startsWith(EID_PREFIJO)) {
+    return `${EID_PREFIJO} ${digits}`;
+  }
+
+  return `${EID_PREFIJO} `;
 }
 
 function esArchivoStockValido(f: File): boolean {
@@ -92,12 +123,14 @@ function formatBytes(bytes: number): string {
 }
 
 function lecturaDesdeForm(form: FormLectura): Omit<LecturaManual, "id"> | null {
-  const eid = form.eid.trim();
-  if (!eid) return null;
+  if (form.empresa === EMPRESA_PENDIENTE) return null;
+  const { eid, vid } = splitEidVid(form.numero, "");
+  if (!eid.trim() || !vid.trim()) return null;
   if (!form.fecha.trim()) return null;
   return {
+    empresa: form.empresa,
     eid,
-    vid: form.vid.trim(),
+    vid,
     fecha: form.fecha,
     hora: form.hora.trim(),
     condicion: form.condicion.trim(),
@@ -161,6 +194,27 @@ export default function StockGanaderoImportar({
     [onError]
   );
 
+  const onNumeroChange = useCallback((value: string) => {
+    setForm((prev) => ({ ...prev, numero: normalizeNumeroInput(value) }));
+  }, []);
+
+  const onNumeroFocus = useCallback(() => {
+    setForm((prev) => {
+      if (!prev.numero.trim()) return { ...prev, numero: `${EID_PREFIJO} ` };
+      return prev;
+    });
+  }, []);
+
+  const normalizarNumeroForm = useCallback(() => {
+    setForm((prev) => {
+      if (!prev.numero.trim()) return { ...prev, numero: `${EID_PREFIJO} ` };
+      const { eid, vid } = splitEidVid(prev.numero, "");
+      const numero = formatNumeroDispositivo(eid, vid);
+      if (numero === prev.numero) return prev;
+      return { ...prev, numero };
+    });
+  }, []);
+
   const onDrop = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault();
@@ -219,7 +273,7 @@ export default function StockGanaderoImportar({
     e?.preventDefault();
     const row = lecturaDesdeForm(form);
     if (!row) {
-      onError("Completá al menos EID y fecha");
+      onError("Completá empresa, número de dispositivo y fecha");
       return;
     }
     setPendientes((prev) => [...prev, { ...row, id: nextLecturaId() }]);
@@ -227,6 +281,7 @@ export default function StockGanaderoImportar({
       ...formVacio(),
       fecha: prev.fecha,
       hora: prev.hora,
+      empresa: prev.empresa,
     }));
   };
 
@@ -237,7 +292,7 @@ export default function StockGanaderoImportar({
   const importarFormulario = () => {
     const row = lecturaDesdeForm(form);
     if (!row) {
-      onError("Completá al menos EID y fecha");
+      onError("Completá empresa, número de dispositivo y fecha");
       return;
     }
     void importarLecturas([row]);
@@ -245,7 +300,8 @@ export default function StockGanaderoImportar({
 
   const importarPendientes = () => {
     void importarLecturas(
-      pendientes.map(({ eid, vid, fecha, hora, condicion }) => ({
+      pendientes.map(({ empresa, eid, vid, fecha, hora, condicion }) => ({
+        empresa,
         eid,
         vid,
         fecha,
@@ -484,31 +540,29 @@ export default function StockGanaderoImportar({
                   onSubmit={agregarPendiente}
                 >
                   <div className="stock-import-form-grid">
-                    <div className="field stock-import-field stock-import-field--eid">
-                      <label htmlFor={`${formId}-eid`}>EID</label>
-                      <input
-                        id={`${formId}-eid`}
-                        type="text"
-                        className="mayusculas-auto"
-                        inputMode="numeric"
-                        autoComplete="off"
-                        placeholder="858 000041989349"
-                        value={form.eid}
-                        onChange={(e) => setForm((p) => ({ ...p, eid: e.target.value }))}
+                    <div className="field stock-import-field">
+                      <label htmlFor={`${formId}-empresa`}>Empresa</label>
+                      <SelectEmpresaDispositivo
+                        id={`${formId}-empresa`}
+                        value={form.empresa}
+                        requiereSeleccion
+                        onChange={(empresa) => setForm((p) => ({ ...p, empresa }))}
                         disabled={!apiOnline || importing}
                       />
                     </div>
-                    <div className="field stock-import-field">
-                      <label htmlFor={`${formId}-vid`}>VID</label>
+                    <div className="field stock-import-field stock-import-field--eid">
+                      <label htmlFor={`${formId}-numero`}>Número de dispositivo</label>
                       <input
-                        id={`${formId}-vid`}
+                        id={`${formId}-numero`}
                         type="text"
                         className="mayusculas-auto"
                         inputMode="numeric"
                         autoComplete="off"
-                        placeholder="Opcional"
-                        value={form.vid}
-                        onChange={(e) => setForm((p) => ({ ...p, vid: e.target.value }))}
+                        placeholder="000041989349"
+                        value={form.numero}
+                        onChange={(e) => onNumeroChange(e.target.value)}
+                        onFocus={onNumeroFocus}
+                        onBlur={normalizarNumeroForm}
                         disabled={!apiOnline || importing}
                       />
                     </div>
@@ -588,6 +642,7 @@ export default function StockGanaderoImportar({
                       <table className="stock-table-pro stock-import-queue-table">
                         <thead>
                           <tr>
+                            <th>Empresa</th>
                             <th>EID</th>
                             <th>VID</th>
                             <th>Fecha</th>
@@ -599,6 +654,7 @@ export default function StockGanaderoImportar({
                         <tbody>
                           {pendientes.map((row) => (
                             <tr key={row.id}>
+                              <td>{row.empresa || "SIN EMPRESA"}</td>
                               <td className="stock-td-eid">{row.eid}</td>
                               <td>{row.vid || "—"}</td>
                               <td>{row.fecha}</td>

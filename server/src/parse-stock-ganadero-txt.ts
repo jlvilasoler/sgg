@@ -7,6 +7,7 @@ export interface StockGanaderoRowInput {
   fecha: string;
   hora: string;
   condicion: string;
+  empresa?: "GUAVIYU" | "CHIVILCOY" | "";
 }
 
 function normalizeHeader(cell: string): string {
@@ -162,6 +163,7 @@ export function normalizeStockGanaderoRows(
     fecha?: string;
     hora?: string;
     condicion?: string;
+    empresa?: string;
   }>
 ): StockGanaderoRowInput[] {
   if (!Array.isArray(raw) || !raw.length) {
@@ -183,6 +185,9 @@ export function normalizeStockGanaderoRows(
       return;
     }
     const horaRaw = String(row.hora ?? "").trim();
+    const empresaRaw = String(row.empresa ?? "").trim().toUpperCase();
+    const empresa =
+      empresaRaw === "GUAVIYU" || empresaRaw === "CHIVILCOY" ? empresaRaw : "";
     const { eid, vid } = splitEidVid(eidRaw, String(row.vid ?? "").trim());
     out.push({
       eid,
@@ -190,6 +195,7 @@ export function normalizeStockGanaderoRows(
       fecha,
       hora: horaRaw ? parseTime(horaRaw) : "",
       condicion: String(row.condicion ?? "").trim(),
+      empresa,
     });
   });
 

@@ -471,6 +471,7 @@ export default function App() {
             {screen === "stock_ganadero" && (
               <StockGanadero
                 apiOnline={apiOnline}
+                currentUser={user}
                 onError={(m) => notify(m, false)}
                 onSuccess={(m, t) => notify(m, true, t)}
                 onVolver={goHome}

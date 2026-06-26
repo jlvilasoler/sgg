@@ -887,6 +887,72 @@ export async function bulkPatchStockGanaderaDispositivos(
   return { actualizados, errores };
 }
 
+export interface DeleteDispositivosResult {
+  eliminados: number;
+  lecturas_eliminadas: number;
+  no_encontrados: string[];
+}
+
+/** Elimina dispositivos del sistema (lecturas, metadatos e historial). Solo uso administrativo. */
+export async function deleteStockGanaderaDispositivos(
+  db: Db,
+  claves: string[]
+): Promise<DeleteDispositivosResult> {
+  const keys = [...new Set(claves.map((c) => c.trim()).filter(Boolean))];
+  if (!keys.length) throw new Error("Seleccioná al menos un dispositivo.");
+
+  const registradas = await clavesRegistradasSet(db);
+  const clavesNorm = keys.map((c) => normalizarClaveDispositivo(c));
+
+  let eliminados = 0;
+  let lecturas_eliminadas = 0;
+  const no_encontrados: string[] = [];
+
+  await db.transaction(async (tx) => {
+    const regRows = (await tx
+      .prepare(`SELECT id, eid, vid FROM STOCK_GANADERO_REGISTRO`)
+      .all()) as { id: number; eid: string; vid: string }[];
+
+    const delRegistro = tx.prepare(`DELETE FROM STOCK_GANADERO_REGISTRO WHERE id = ?`);
+    const delHistorial = tx.prepare(
+      `DELETE FROM STOCK_GANADERO_DISPOSITIVO_HISTORIAL WHERE clave = ?`
+    );
+    const delDispositivo = tx.prepare(`DELETE FROM STOCK_GANADERO_DISPOSITIVO WHERE clave = ?`);
+    const delSimVenta = tx.prepare(
+      `DELETE FROM SIMULADOR_VENTA_GANADO_DISPOSITIVO WHERE clave = ?`
+    );
+
+    for (const clave of clavesNorm) {
+      if (!registradas.has(clave)) {
+        no_encontrados.push(clave);
+        continue;
+      }
+
+      for (const r of regRows) {
+        if (dispositivoClave(r.eid, r.vid) !== clave) continue;
+        await delRegistro.run(r.id);
+        lecturas_eliminadas += 1;
+      }
+
+      await delHistorial.run(clave);
+      await delDispositivo.run(clave);
+      await delSimVenta.run(clave);
+      eliminados += 1;
+      registradas.delete(clave);
+    }
+  });
+
+  if (eliminados === 0) {
+    throw new Error(
+      no_encontrados.length
+        ? "Ningún dispositivo seleccionado existe en el sistema."
+        : "No se eliminó ningún dispositivo."
+    );
+  }
+
+  return { eliminados, lecturas_eliminadas, no_encontrados };
+}
+
 function fechaIsoAMesAnio(fecha: string): { mes: number; anio: number } | null {
   const m = fecha.trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (!m) return null;
@@ -1777,6 +1843,14 @@ export async function importStockGanaderoRows(
       `INSERT INTO STOCK_GANADERO_REGISTRO (lote_id, eid, vid, fecha, hora, condicion)
        VALUES (@lote_id, @eid, @vid, @fecha, @hora, @condicion)`
     );
+    const upsertEmpresaDispositivo = await tx.prepare(
+      `INSERT INTO STOCK_GANADERO_DISPOSITIVO (clave, eid, empresa, estado)
+       VALUES (@clave, @eid, @empresa, 'VIVO')
+       ON CONFLICT (clave) DO UPDATE SET
+         eid = excluded.eid,
+         empresa = excluded.empresa,
+         actualizado_en = NOW()`
+    );
     for (const r of rows) {
       const clave = dispositivoClave(r.eid, r.vid);
       const prev = clave ? ultimaLecturaPorClave.get(clave) : undefined;
@@ -1789,6 +1863,14 @@ export async function importStockGanaderoRows(
         hora: r.hora,
         condicion: r.condicion,
       });
+
+      if (clave && EMPRESAS_VALIDAS.has(r.empresa as DispositivoEmpresa) && r.empresa) {
+        await upsertEmpresaDispositivo.run({
+          clave,
+          eid: r.eid,
+          empresa: r.empresa,
+        });
+      }
 
       if (clave && prev) {
         const prevCondicion = prev.condicion ?? "";
