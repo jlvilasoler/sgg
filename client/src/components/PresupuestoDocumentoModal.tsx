@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { fetchPresupuestoDocumentoBlob, presupuestoDocumentoUrl } from "../api";
 import type { Presupuesto, PresupuestoDocumentoAdjunto } from "../types";
-import { IconCancelar } from "./icons/ActionIcons";
+import { IconCancelar, IconDescargar, IconDocumento } from "./icons/ActionIcons";
 
 interface Props {
   row: Presupuesto;
@@ -53,22 +53,31 @@ export default function PresupuestoDocumentoModal({ row, documento, onClose }: P
     >
       <div className="pd-dialog presupuesto-doc-modal" onClick={(e) => e.stopPropagation()}>
         <header className="presupuesto-doc-modal-head">
-          <div>
-            <p className="presupuesto-doc-modal-kicker">Comprobante adjunto</p>
-            <h2 id="presupuesto-doc-modal-title" className="presupuesto-doc-modal-title">
-              Operación N° {row.nro_registro}
-            </h2>
-            <p className="muted presupuesto-doc-modal-sub">{documento.nombre}</p>
+          <div className="presupuesto-doc-modal-head-main">
+            <span className="presupuesto-doc-modal-icon" aria-hidden>
+              <IconDocumento size={20} />
+            </span>
+            <div className="presupuesto-doc-modal-titles">
+              <p className="presupuesto-doc-modal-kicker">Comprobante adjunto</p>
+              <h2 id="presupuesto-doc-modal-title" className="presupuesto-doc-modal-title">
+                Operación N° {row.nro_registro}
+              </h2>
+              <p className="presupuesto-doc-modal-sub" title={documento.nombre}>
+                {documento.nombre}
+              </p>
+            </div>
           </div>
           <div className="presupuesto-doc-modal-actions">
             <a
-              className="btn btn-secondary"
+              className="btn btn-icon-only presupuesto-doc-modal-download"
               href={presupuestoDocumentoUrl(row.id, true)}
               download={documento.nombre}
               target="_blank"
               rel="noopener noreferrer"
+              title="Descargar comprobante"
+              aria-label="Descargar comprobante"
             >
-              Descargar
+              <IconDescargar size={18} />
             </a>
             <button
               type="button"

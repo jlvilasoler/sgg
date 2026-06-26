@@ -4,6 +4,9 @@ import type { Proveedor } from "../../types";
 import {
   BROU_CAMPO_LABELS,
   COMISION_HEREDAR_IDS,
+  COMISION_IMPORTE_SANTANDER_LABEL,
+  COMISION_IMPORTE_SANTANDER_VALOR,
+  COMISION_MAPEO_DEFAULT,
   COMISION_PROVEEDOR_HEREDAR_VALOR,
   GASTO_CAMPO_LABELS,
   GASTO_DESTINO_IDS,
@@ -12,14 +15,13 @@ import {
   type GastoCampoId,
   type GastoDestinoId,
   decodeProveedorComision,
+  esImporteComisionSantander,
   esProveedorComisionHeredar,
+  esProveedorComisionSantander,
   normalizeComisionConfig,
   normalizeGastoMapeo,
 } from "../../utils/gasto-campos";
 import ComisionProveedorPicker from "./ComisionProveedorPicker";
-
-const CAMPOS_VALOR_FIJO: GastoDestinoId[] = ["concepto", "observaciones"];
-const VALOR_FIJO_PREFIJO = "fijo:";
 
 interface Props {
   apiOnline: boolean;
@@ -85,36 +87,34 @@ export default function ComisionConfigPanel({
 
   const setMapeo = (destino: GastoDestinoId, etiqueta: string) => {
     const mapeo = normalizeGastoMapeo(cfg.mapeo_campos);
-    if (etiqueta.trim()) {
-      mapeo[destino] = etiqueta.trim();
+    const valores_fijos = { ...cfg.valores_fijos };
+    const trimmed = etiqueta.trim();
+
+    if (destino === "importes" && trimmed === COMISION_IMPORTE_SANTANDER_LABEL) {
+      mapeo.importes = COMISION_IMPORTE_SANTANDER_LABEL;
+      valores_fijos.importes = COMISION_IMPORTE_SANTANDER_VALOR;
+      patch({
+        mapeo_campos: mapeo,
+        valores_fijos,
+        campos_incluidos: incluirDestino(cfg.campos_incluidos, destino, true),
+      });
+      return;
+    }
+
+    if (destino === "importes") {
+      delete valores_fijos.importes;
+    }
+
+    if (trimmed) {
+      mapeo[destino] = trimmed;
     } else {
       delete mapeo[destino];
     }
-    const valores_fijos = { ...cfg.valores_fijos };
-    if (CAMPOS_VALOR_FIJO.includes(destino)) {
-      delete valores_fijos[destino];
-    }
-    const tieneValor = Boolean(etiqueta.trim());
+    const tieneValor = Boolean(trimmed);
     patch({
       mapeo_campos: mapeo,
       valores_fijos,
       campos_incluidos: incluirDestino(cfg.campos_incluidos, destino, tieneValor),
-    });
-  };
-
-  const setValorFijo = (destino: GastoDestinoId, valor: string) => {
-    const valores_fijos = { ...cfg.valores_fijos };
-    const mapeo = normalizeGastoMapeo(cfg.mapeo_campos);
-    if (valor.trim()) {
-      valores_fijos[destino] = valor.trim();
-      delete mapeo[destino];
-    } else {
-      delete valores_fijos[destino];
-    }
-    patch({
-      valores_fijos,
-      mapeo_campos: mapeo,
-      campos_incluidos: incluirDestino(cfg.campos_incluidos, destino, Boolean(valor.trim())),
     });
   };
 
@@ -137,6 +137,14 @@ export default function ComisionConfigPanel({
       campos_incluidos = [...campos_incluidos, "proveedor"];
     }
 
+    if (
+      !esProveedorComisionSantander(value) &&
+      esImporteComisionSantander(mapeo.importes, valores_fijos.importes)
+    ) {
+      delete valores_fijos.importes;
+      mapeo.importes = COMISION_MAPEO_DEFAULT.importes;
+    }
+
     patch({ valores_fijos, mapeo_campos: mapeo, heredar, campos_incluidos });
   };
 
@@ -147,6 +155,8 @@ export default function ComisionConfigPanel({
     if (cfg.heredar.includes("proveedor")) return COMISION_PROVEEDOR_HEREDAR_VALOR;
     return "";
   };
+
+  const proveedorEsSantander = esProveedorComisionSantander(cfg.valores_fijos.proveedor);
 
   return (
     <div className="doc-comision-config">
@@ -178,12 +188,14 @@ export default function ComisionConfigPanel({
 
       <h4>Campos del registro de comisión</h4>
       <p className="muted doc-tipo-campos-hint">
-        Para cada campo, elegí qué título del documento lo completa (o «Valor fijo» para escribirlo).
+        Para cada campo, elegí qué título del documento lo completa.
         El proveedor se elige del listado de la aplicación.
       </p>
 
       <div className="doc-tipo-mapeo-grid">
         {GASTO_DESTINO_IDS.map((destino) => {
+          if (destino === "concepto") return null;
+
           if (destino === "proveedor") {
             return (
               <div key={destino} className="doc-tipo-mapeo-row">
@@ -208,16 +220,9 @@ export default function ComisionConfigPanel({
 
           const valorFijo = cfg.valores_fijos[destino] ?? "";
           const mapeoVal = cfg.mapeo_campos[destino] ?? "";
-          const permiteFijo = CAMPOS_VALOR_FIJO.includes(destino);
-          const usaFijo = permiteFijo && Boolean(valorFijo);
-          const selectValue = usaFijo ? VALOR_FIJO_PREFIJO : mapeoVal;
-          const onSelectChange = (value: string) => {
-            if (value === VALOR_FIJO_PREFIJO) {
-              setValorFijo(destino, valorFijo || " ");
-            } else {
-              setMapeo(destino, value);
-            }
-          };
+          const importeSantander =
+            destino === "importes" && esImporteComisionSantander(mapeoVal, valorFijo);
+          const selectValue = importeSantander ? COMISION_IMPORTE_SANTANDER_LABEL : mapeoVal;
           return (
             <div key={destino} className="doc-tipo-mapeo-row">
               <label className="doc-tipo-mapeo-destino" htmlFor={`com-mapeo-${destino}`}>
@@ -234,25 +239,25 @@ export default function ComisionConfigPanel({
                   id={`com-mapeo-${destino}`}
                   className="doc-tipo-mapeo-select"
                   value={selectValue}
-                  onChange={(e) => onSelectChange(e.target.value)}
+                  onChange={(e) => setMapeo(destino, e.target.value)}
                 >
                   <option value="">No completar</option>
-                  {permiteFijo ? <option value={VALOR_FIJO_PREFIJO}>Valor fijo…</option> : null}
-                  {titulos.map((etiqueta) => (
+                  {destino === "importes" && proveedorEsSantander ? (
+                    <option value={COMISION_IMPORTE_SANTANDER_LABEL}>
+                      {COMISION_IMPORTE_SANTANDER_LABEL}
+                    </option>
+                  ) : null}
+                  {titulos
+                    .filter(
+                      (etiqueta) =>
+                        destino !== "importes" || etiqueta !== COMISION_IMPORTE_SANTANDER_LABEL
+                    )
+                    .map((etiqueta) => (
                     <option key={etiqueta} value={etiqueta}>
                       {etiqueta}
                     </option>
                   ))}
                 </select>
-                {usaFijo ? (
-                  <input
-                    type="text"
-                    className="doc-comision-fijo-input"
-                    placeholder="Texto fijo"
-                    value={valorFijo.trim()}
-                    onChange={(e) => setValorFijo(destino, e.target.value)}
-                  />
-                ) : null}
               </div>
             </div>
           );

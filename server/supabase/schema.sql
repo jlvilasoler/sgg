@@ -558,6 +558,7 @@ CREATE TABLE IF NOT EXISTS DOC_DIGITAL_TIPOS_GASTO (
   nombre TEXT NOT NULL,
   descripcion TEXT NOT NULL DEFAULT '',
   origen TEXT NOT NULL DEFAULT '',
+  destino TEXT NOT NULL DEFAULT '',
   activo INTEGER NOT NULL DEFAULT 1,
   campos_habilitados TEXT NOT NULL DEFAULT '[]',
   campos_requeridos TEXT NOT NULL DEFAULT '[]',

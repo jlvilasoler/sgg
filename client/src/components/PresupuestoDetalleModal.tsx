@@ -2,12 +2,18 @@ import { type ReactNode } from "react";
 import { useHeaderBackStep } from "../header-back";
 import type { Presupuesto } from "../types";
 import { empresaClass, fmtDate, fmtNum, formatNumeroOperacion } from "../utils";
+import { IconCancelar } from "./icons/ActionIcons";
 import SubseccionInlinePanel from "./SubseccionInlinePanel";
 
 interface Props {
   row: Presupuesto;
   onVolver: () => void;
   volverLabel?: string;
+}
+
+interface ModalProps {
+  row: Presupuesto;
+  onClose: () => void;
 }
 
 type MonedaPrincipal = "UYU" | "USD" | "BRL";
@@ -158,15 +164,7 @@ function IconNote() {
   );
 }
 
-export default function PresupuestoDetallePanel({
-  row,
-  onVolver,
-  volverLabel = "Volver al listado",
-}: Props) {
-  const backDestination =
-    volverLabel.replace(/^Volver al?\s+/i, "").trim() || "Listado";
-  useHeaderBackStep(true, onVolver, backDestination);
-
+function DetalleContenido({ row }: { row: Presupuesto }) {
   const cedula = (row.funcionario_cedula ?? "").trim();
   const obs = (row.observaciones ?? "").trim();
   const ingresado =
@@ -199,20 +197,7 @@ export default function PresupuestoDetallePanel({
   ] as const;
 
   return (
-    <SubseccionInlinePanel
-      onVolver={onVolver}
-      volverLabel={volverLabel}
-      title="Detalle de operación"
-      description={`Operación del ${fmtDate(row.fecha)}${
-        row.nro_factura?.trim() ? ` · Factura ${row.nro_factura.trim()}` : ""
-      }`}
-      cardClassName="subseccion-inline-card presupuesto-detalle-page"
-      footer={
-        <button type="button" className="btn btn-ghost" onClick={onVolver}>
-          Volver
-        </button>
-      }
-    >
+    <>
       <div className="presupuesto-detalle-hero">
         <div className="presupuesto-detalle-hero-top">
           <div className="presupuesto-detalle-hero-badges">
@@ -308,7 +293,75 @@ export default function PresupuestoDetallePanel({
           </Bloque>
         </div>
       </div>
+    </>
+  );
+}
+
+export default function PresupuestoDetallePanel({
+  row,
+  onVolver,
+  volverLabel = "Volver al listado",
+}: Props) {
+  const backDestination =
+    volverLabel.replace(/^Volver al?\s+/i, "").trim() || "Listado";
+  useHeaderBackStep(true, onVolver, backDestination);
+
+  return (
+    <SubseccionInlinePanel
+      onVolver={onVolver}
+      volverLabel={volverLabel}
+      title="Detalle de operación"
+      description={`Operación del ${fmtDate(row.fecha)}${
+        row.nro_factura?.trim() ? ` · Factura ${row.nro_factura.trim()}` : ""
+      }`}
+      cardClassName="subseccion-inline-card presupuesto-detalle-page"
+      footer={
+        <button type="button" className="btn btn-ghost" onClick={onVolver}>
+          Volver
+        </button>
+      }
+    >
+      <DetalleContenido row={row} />
     </SubseccionInlinePanel>
+  );
+}
+
+/** Detalle de operación dentro de un modal sobre la tabla. */
+export function PresupuestoDetalleModalView({ row, onClose }: ModalProps) {
+  return (
+    <div
+      className="pd-overlay presupuesto-detalle-modal-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="presupuesto-detalle-modal-title"
+      onClick={onClose}
+    >
+      <div
+        className="pd-dialog presupuesto-detalle-modal"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <header className="presupuesto-detalle-modal-head">
+          <div>
+            <p className="presupuesto-detalle-modal-kicker">Detalle de operación</p>
+            <h2 id="presupuesto-detalle-modal-title" className="presupuesto-detalle-modal-title">
+              Operación del {fmtDate(row.fecha)}
+              {row.nro_factura?.trim() ? ` · Factura ${row.nro_factura.trim()}` : ""}
+            </h2>
+          </div>
+          <button
+            type="button"
+            className="btn btn-icon-only presupuesto-detalle-modal-close"
+            onClick={onClose}
+            aria-label="Cerrar"
+          >
+            <IconCancelar size={18} />
+          </button>
+        </header>
+        <div className="presupuesto-detalle-modal-body">
+          <DetalleContenido row={row} />
+        </div>
+      </div>
+    </div>
   );
 }
 

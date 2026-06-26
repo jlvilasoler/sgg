@@ -445,9 +445,9 @@ export async function getChatUnreadSummary(
          AND (m.sender_id = ? OR m.recipient_id = ?)
          AND m.id > COALESCE(rs.last_read_message_id, 0)
          AND m.sender_id != ?
-       GROUP BY CASE WHEN m.sender_id = ? THEN m.recipient_id ELSE m.sender_id END`
+       GROUP BY 1`
     )
-    .all(userId, userId, userId, userId, userId, userId, userId)) as Array<{
+    .all(userId, userId, userId, userId, userId, userId)) as Array<{
     peer_id: number;
     n: number | string;
   }>;

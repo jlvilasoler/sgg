@@ -16,6 +16,7 @@ export interface TipoDocumentoGastoRow {
   nombre: string;
   descripcion: string;
   origen: string;
+  destino: string;
   activo: number;
   campos_habilitados: string;
   campos_requeridos: string;
@@ -31,6 +32,7 @@ export interface TipoDocumentoGasto {
   nombre: string;
   descripcion: string;
   origen: string;
+  destino: string;
   activo: boolean;
   campos_habilitados: GastoCampoId[];
   campos_requeridos: GastoCampoId[];
@@ -45,6 +47,7 @@ export interface TipoDocumentoGastoInput {
   nombre: string;
   descripcion?: string;
   origen?: string;
+  destino?: string;
   activo?: boolean;
   campos_habilitados: GastoCampoId[];
   campos_requeridos?: GastoCampoId[];
@@ -94,6 +97,7 @@ function rowToDto(row: TipoDocumentoGastoRow): TipoDocumentoGasto {
     nombre: row.nombre,
     descripcion: row.descripcion ?? "",
     origen: row.origen ?? "",
+    destino: row.destino ?? "",
     activo: row.activo === 1,
     campos_habilitados: habilitados,
     campos_requeridos: requeridos,
@@ -128,6 +132,7 @@ export async function initDocumentosDigitalesTables(db: Db): Promise<void> {
         nombre TEXT NOT NULL,
         descripcion TEXT NOT NULL DEFAULT '',
         origen TEXT NOT NULL DEFAULT '',
+        destino TEXT NOT NULL DEFAULT '',
         activo INTEGER NOT NULL DEFAULT 1,
         campos_habilitados TEXT NOT NULL DEFAULT '[]',
         campos_requeridos TEXT NOT NULL DEFAULT '[]',
@@ -154,7 +159,15 @@ export async function initDocumentosDigitalesTables(db: Db): Promise<void> {
     )
     .run();
 
+  await db
+    .prepare(
+      `ALTER TABLE DOC_DIGITAL_TIPOS_GASTO
+       ADD COLUMN IF NOT EXISTS destino TEXT NOT NULL DEFAULT ''`
+    )
+    .run();
+
   await seedTipoDocumentoGastoBrouIfEmpty(db);
+  await seedTipoDocumentoGastoSantanderIfMissing(db);
 }
 
 async function seedTipoDocumentoGastoBrouIfEmpty(db: Db): Promise<void> {
@@ -200,6 +213,128 @@ async function seedTipoDocumentoGastoBrouIfEmpty(db: Db): Promise<void> {
   console.info("[SGG] Tipo de documento BROU — Transferencias creado por defecto");
 }
 
+async function seedTipoDocumentoGastoSantanderIfMissing(db: Db): Promise<void> {
+  const habilitados: GastoCampoId[] = [
+    "empresa",
+    "fecha",
+    "proveedor",
+    "concepto",
+    "importes",
+    "observaciones",
+    "rubro",
+    "sub_rubro",
+  ];
+  const requeridos: GastoCampoId[] = [
+    "empresa",
+    "fecha",
+    "proveedor",
+    "concepto",
+    "importes",
+    "rubro",
+  ];
+  const mapeo: GastoMapeoCampos = {
+    nro_operacion_origen: "Nro. de Referencia",
+    fecha: "Fecha de finalización",
+    proveedor: "Cuenta Destino",
+    concepto: "Tipo de operación",
+    observaciones: "Usuario Originador",
+    importes: "Monto acreditado",
+  };
+  const comisionMapeo: GastoMapeoCampos = {
+    nro_operacion_origen: "Nro. de Referencia",
+    fecha: "Fecha de finalización",
+    observaciones: "Usuario Originador",
+  };
+  const comision: ComisionDocumentoConfig = normalizeComisionConfig({
+    activa: true,
+    heredar: ["empresa", "rubro", "sub_rubro", "responsable_gasto"],
+    campos_incluidos: [
+      "nro_operacion_origen",
+      "fecha",
+      "concepto",
+      "observaciones",
+      "nro_factura",
+      "importes",
+      "proveedor",
+    ],
+    mapeo_campos: comisionMapeo,
+    valores_fijos: {
+      concepto: "COMISIONES BANCARIAS",
+      proveedor: "app:1001:SANTANDER",
+      importes: "USD:1.6",
+    },
+  });
+
+  const existing = (await db
+    .prepare(
+      `SELECT *
+       FROM DOC_DIGITAL_TIPOS_GASTO
+       WHERE UPPER(origen) = 'SANTANDER'
+          OR UPPER(nombre) LIKE '%SANTANDER%'
+       ORDER BY id ASC
+       LIMIT 1`
+    )
+    .get()) as TipoDocumentoGastoRow | undefined;
+
+  if (existing) {
+    const current = rowToDto(existing);
+    const currentComision = normalizeComisionConfig(current.comision_config);
+    const camposIncluidos = Array.from(
+      new Set([...currentComision.campos_incluidos, ...comision.campos_incluidos])
+    );
+    const mergedComision: ComisionDocumentoConfig = normalizeComisionConfig({
+      ...currentComision,
+      activa: true,
+      campos_incluidos: camposIncluidos,
+      mapeo_campos: {
+        ...comisionMapeo,
+        ...currentComision.mapeo_campos,
+      },
+      valores_fijos: {
+        ...currentComision.valores_fijos,
+        concepto: "COMISIONES BANCARIAS",
+        proveedor: "app:1001:SANTANDER",
+        importes: "USD:1.6",
+      },
+    });
+    const mergedMapeo = normalizeGastoMapeo({
+      ...mapeo,
+      ...current.mapeo_campos,
+    });
+
+    await db
+      .prepare(
+        `UPDATE DOC_DIGITAL_TIPOS_GASTO SET
+          activo = 1,
+          mapeo_campos = ?,
+          comision_config = ?,
+          actualizado_en = NOW()
+         WHERE id = ?`
+      )
+      .run(JSON.stringify(mergedMapeo), JSON.stringify(mergedComision), existing.id);
+    console.info("[SGG] Tipo de documento SANTANDER — Transferencias actualizado por defecto");
+    return;
+  }
+
+  await db
+    .prepare(
+      `INSERT INTO DOC_DIGITAL_TIPOS_GASTO
+       (nombre, descripcion, origen, destino, activo, campos_habilitados, campos_requeridos, valores_defecto, mapeo_campos, comision_config)
+       VALUES (?, ?, ?, ?, 1, ?, ?, '{}', ?, ?)`
+    )
+    .run(
+      "SANTANDER — Transferencias",
+      "Comprobante Santander de transferencia a terceros en el banco",
+      "SANTANDER",
+      "SANTANDER",
+      JSON.stringify(habilitados),
+      JSON.stringify(requeridos),
+      JSON.stringify(mapeo),
+      JSON.stringify(comision)
+    );
+  console.info("[SGG] Tipo de documento SANTANDER — Transferencias creado por defecto");
+}
+
 export async function listTiposDocumentoGasto(
   db: Db,
   opts?: { soloActivos?: boolean }
@@ -241,13 +376,14 @@ export async function insertTipoDocumentoGasto(
   const result = await db
     .prepare(
       `INSERT INTO DOC_DIGITAL_TIPOS_GASTO
-       (nombre, descripcion, origen, activo, campos_habilitados, campos_requeridos, valores_defecto, mapeo_campos, comision_config)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+       (nombre, descripcion, origen, destino, activo, campos_habilitados, campos_requeridos, valores_defecto, mapeo_campos, comision_config)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .run(
       input.nombre.trim(),
       (input.descripcion ?? "").trim(),
       (input.origen ?? "").trim().toUpperCase(),
+      (input.destino ?? "").trim().toUpperCase(),
       input.activo === false ? 0 : 1,
       JSON.stringify(habilitados),
       JSON.stringify(requeridos),
@@ -278,6 +414,7 @@ export async function updateTipoDocumentoGasto(
         nombre = ?,
         descripcion = ?,
         origen = ?,
+        destino = ?,
         activo = ?,
         campos_habilitados = ?,
         campos_requeridos = ?,
@@ -291,6 +428,7 @@ export async function updateTipoDocumentoGasto(
       input.nombre.trim(),
       (input.descripcion ?? "").trim(),
       (input.origen ?? "").trim().toUpperCase(),
+      (input.destino ?? "").trim().toUpperCase(),
       input.activo === false ? 0 : 1,
       JSON.stringify(habilitados),
       JSON.stringify(requeridos),

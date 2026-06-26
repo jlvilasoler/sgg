@@ -174,6 +174,28 @@ export function IconDocumento({ size, className }: IconProps) {
   );
 }
 
+/** Flecha hacia abajo a bandeja / descargar */
+export function IconDescargar({ size, className }: IconProps) {
+  return (
+    <IconBase size={size} className={className}>
+      <path
+        d="M12 3v12m0 0 4-4m-4 4-4-4"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </IconBase>
+  );
+}
+
 /** Cruz / cancelar */
 export function IconCancelar({ size, className }: IconProps) {
   return (

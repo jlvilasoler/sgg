@@ -180,6 +180,27 @@ export function esProveedorComisionHeredar(raw: string | undefined): boolean {
   return raw?.trim() === COMISION_PROVEEDOR_HEREDAR_VALOR;
 }
 
+/** Importe fijo de comisión Santander (1001) cuando no se lee del PDF BROU. */
+export const COMISION_IMPORTE_SANTANDER_LABEL = "1,60 usd";
+export const COMISION_IMPORTE_SANTANDER_VALOR = "USD:1.6";
+
+export function esProveedorComisionSantander(raw: string | undefined): boolean {
+  const decoded = decodeProveedorComision(raw?.trim() ?? "");
+  if (!decoded) return false;
+  if (decoded.cod === "1001") return true;
+  return decoded.razon.toUpperCase().includes("SANTANDER");
+}
+
+export function esImporteComisionSantander(
+  mapeo: string | undefined,
+  valorFijo: string | undefined
+): boolean {
+  return (
+    mapeo?.trim() === COMISION_IMPORTE_SANTANDER_LABEL ||
+    valorFijo?.trim() === COMISION_IMPORTE_SANTANDER_VALOR
+  );
+}
+
 export interface ComisionDocumentoConfig {
   /** Registrar comisión como operación separada al guardar (por defecto). */
   activa: boolean;
@@ -210,7 +231,7 @@ export const COMISION_CONFIG_DEFAULT: ComisionDocumentoConfig = {
     "importes",
   ],
   mapeo_campos: { ...COMISION_MAPEO_DEFAULT },
-  valores_fijos: { concepto: "COMISION TRANSFERENCIA BROU" },
+  valores_fijos: { concepto: "COMISIONES BANCARIAS" },
 };
 
 export function normalizeComisionConfig(raw: unknown): ComisionDocumentoConfig {

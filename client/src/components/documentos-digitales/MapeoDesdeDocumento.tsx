@@ -29,15 +29,21 @@ export default function MapeoDesdeDocumento({
   const [archivo, setArchivo] = useState("");
   const [campos, setCampos] = useState<CampoDocumentoDetectado[]>([]);
 
+  const mapeoTitulos = Object.values(mapeo).filter(Boolean).join("|");
   const titulosDisponibles = useMemo(() => {
     const fromPdf = campos.map((c) => c.etiqueta);
     const fromMapeo = Object.values(mapeo).filter(Boolean);
     return [...new Set([...fromPdf, ...fromMapeo])].sort((a, b) =>
       a.localeCompare(b, "es", { sensitivity: "accent" })
     );
-  }, [campos, mapeo]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [campos, mapeoTitulos]);
 
+  const titulosEmitidosRef = useRef("");
   useEffect(() => {
+    const firma = titulosDisponibles.join("|");
+    if (firma === titulosEmitidosRef.current) return;
+    titulosEmitidosRef.current = firma;
     onTitulosDetectados?.(titulosDisponibles);
   }, [titulosDisponibles, onTitulosDetectados]);
 

@@ -69,15 +69,27 @@ function labeledValue(text: string, label: RegExp, valueRe: RegExp): string {
     if (!lm) continue;
     const labelIdx = lm.index ?? 0;
     const before = line.slice(0, labelIdx);
-    const after = line.slice(labelIdx + lm[0].length).replace(/^\s*:?\s*/, "");
+    const rest = line.slice(labelIdx + lm[0].length);
+    // «Rótulo: valor» (con dos puntos) → el valor está en la misma línea.
+    // «Rótulo» sin dos puntos (encabezado de columna) → el valor suele estar
+    // en la línea de abajo; el texto de la misma línea puede ser otra columna.
+    const hasColon = /^\s*:/.test(rest);
+    const after = rest.replace(/^\s*:?\s*/, "");
 
     const mb = before.match(value);
     if (mb?.[1]?.trim()) return mb[1].trim();
-    const ma = after.match(value);
-    if (ma?.[1]?.trim()) return ma[1].trim();
+
+    if (hasColon) {
+      const ma = after.match(value);
+      if (ma?.[1]?.trim()) return ma[1].trim();
+    }
     if (i + 1 < lines.length) {
       const mn = lines[i + 1].match(value);
       if (mn?.[1]?.trim()) return mn[1].trim();
+    }
+    if (!hasColon) {
+      const ma = after.match(value);
+      if (ma?.[1]?.trim()) return ma[1].trim();
     }
     if (i - 1 >= 0) {
       const mp = lines[i - 1].match(value);
@@ -87,7 +99,8 @@ function labeledValue(text: string, label: RegExp, valueRe: RegExp): string {
   return "";
 }
 
-const IMPORTE_RE = /((?:U\s*\$?\s*S|U\$S|US\$|USS|USD|\$)\s*[\d.,]+)/i;
+const IMPORTE_RE =
+  /((?:UYU|USD|U\$S|US\$|USS|U\s*\$?\s*S|\$U|\$)\s*[\d.,]+)/i;
 
 function labeledImporte(text: string, label: RegExp): BrouImporte | null {
   const lines = text.split("\n");

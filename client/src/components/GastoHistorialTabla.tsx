@@ -1,17 +1,17 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { deletePresupuesto, fetchPresupuesto } from "../api";
+import { deletePresupuesto, fetchPresupuesto, presupuestoDocumentoUrl } from "../api";
 import type { AuthUser, Presupuesto } from "../types";
 import { confirmAction } from "../utils/confirm";
 import { empresaClass, empresaCorta, fmtDate, fmtNum } from "../utils";
-import { IconDocumento, IconEditar, IconEliminar, IconVer } from "./icons/ActionIcons";
-import PresupuestoDetallePanel from "./PresupuestoDetalleModal";
+import GastoAccionesMenu from "./GastoAccionesMenu";
+import { PresupuestoDetalleModalView } from "./PresupuestoDetalleModal";
 import PresupuestoDocumentoModal from "./PresupuestoDocumentoModal";
 import TablePagination, {
   paginateSlice,
   type PageSize,
 } from "./TablePagination";
 
-const COLS_BASE = 13;
+const COLS_BASE = 11;
 
 interface Props {
   apiOnline: boolean;
@@ -55,7 +55,7 @@ export default function GastoHistorialTabla({
   refreshKey = 0,
 }: Props) {
   const esAdmin = currentUser.rol === "admin";
-  const colsTabla = esAdmin ? COLS_BASE + 1 : COLS_BASE;
+  const colsTabla = COLS_BASE;
   const [rows, setRows] = useState<Presupuesto[]>([]);
   const [busqueda, setBusqueda] = useState("");
   const [loading, setLoading] = useState(true);
@@ -134,16 +134,6 @@ export default function GastoHistorialTabla({
     );
   }
 
-  if (detalleRow) {
-    return (
-      <PresupuestoDetallePanel
-        row={detalleRow}
-        onVolver={() => setDetalleRow(null)}
-        volverLabel="Volver a documentos ingresados"
-      />
-    );
-  }
-
   return (
     <section className="listado-pro form-gasto-historial" aria-label="Documentos ingresados">
       <div className="listado-pro-shell">
@@ -186,26 +176,20 @@ export default function GastoHistorialTabla({
         <div className="table-wrap table-wrap-presupuesto listado-pro-table-wrap">
           <table className="data-table data-table-presupuesto listado-pro-table">
             <colgroup>
-              <col className="col-nro" />
               <col className="col-empresa" />
               <col className="col-fecha" />
               <col className="col-cod" />
               <col className="col-razon" />
               <col className="col-concepto" />
               <col className="col-fact" />
-              {esAdmin ? <col className="col-usuario" /> : null}
               <col className="col-pesos" />
               <col className="col-usd" />
               <col className="col-reales" />
               <col className="col-saldo" />
-              <col className="col-documento" />
               <col className="col-acciones" />
             </colgroup>
             <thead>
               <tr>
-                <th className="num" title="Número de registro" data-col="nro">
-                  N°
-                </th>
                 <th title="Empresa" data-col="empresa">
                   Emp.
                 </th>
@@ -220,11 +204,6 @@ export default function GastoHistorialTabla({
                 <th title="Número de factura" data-col="fact">
                   Fact.
                 </th>
-                {esAdmin ? (
-                  <th title="Usuario que ingresó el documento" data-col="usuario">
-                    Ingresó
-                  </th>
-                ) : null}
                 <th className="num" data-col="pesos">
                   $
                 </th>
@@ -236,13 +215,6 @@ export default function GastoHistorialTabla({
                 </th>
                 <th className="num" title="Total en USD" data-col="saldo">
                   TOTAL USD
-                </th>
-                <th
-                  className="col-documento-h"
-                  title="Comprobante digital adjunto"
-                  data-col="documento"
-                >
-                  Doc.
                 </th>
                 <th className="col-acciones-h" aria-label="Acciones" data-col="acciones" />
               </tr>
@@ -269,9 +241,6 @@ export default function GastoHistorialTabla({
               ) : (
                 rowsPagina.map((r) => (
                   <tr key={r.id} className="listado-pro-row">
-                    <td className="num listado-pro-num" data-col="nro">
-                      {r.nro_registro}
-                    </td>
                     <td className="td-empresa" data-col="empresa">
                       <span
                         className={`empresa-badge empresa-badge--compact ${empresaClass(r.empresa)}`}
@@ -295,14 +264,6 @@ export default function GastoHistorialTabla({
                     <td data-col="fact">
                       <CeldaTexto value={r.nro_factura} vacio="" />
                     </td>
-                    {esAdmin ? (
-                      <td title={r.ingresado_por_email || undefined} data-col="usuario">
-                        <CeldaTexto
-                          value={r.ingresado_por_nombre || r.ingresado_por_email}
-                          vacio="—"
-                        />
-                      </td>
-                    ) : null}
                     <td className="num listado-pro-num" data-col="pesos">
                       {fmtNum(r.pesos)}
                     </td>
@@ -315,52 +276,21 @@ export default function GastoHistorialTabla({
                     <td className="num listado-pro-num listado-pro-num--total" data-col="saldo">
                       {fmtNum(totalUsdDe(r))}
                     </td>
-                    <td className="td-documento" data-col="documento">
-                      {r.documento_adjunto ? (
-                        <button
-                          type="button"
-                          className="btn btn-sm btn-icon-only btn-documento"
-                          onClick={() => setDocumentoRow(r)}
-                          title={`Ver comprobante: ${r.documento_adjunto.nombre}`}
-                          aria-label={`Ver comprobante ${r.documento_adjunto.nombre}`}
-                        >
-                          <IconDocumento size={16} />
-                        </button>
-                      ) : (
-                        <span className="td-documento-vacio" aria-hidden>
-                          —
-                        </span>
-                      )}
-                    </td>
                     <td className="actions-cell actions-cell--icons" data-col="acciones">
                       <div className="actions-cell-inner">
-                        <button
-                          type="button"
-                          className="btn btn-sm btn-icon-only btn-ver-detalle"
-                          onClick={() => setDetalleRow(r)}
-                          title="Ver detalle"
-                          aria-label="Ver detalle"
-                        >
-                          <IconVer size={15} />
-                        </button>
-                        <button
-                          type="button"
-                          className="btn btn-sm btn-icon-only btn-edit"
-                          onClick={() => handleEdit(r)}
-                          title="Editar"
-                          aria-label="Editar"
-                        >
-                          <IconEditar size={15} />
-                        </button>
-                        <button
-                          type="button"
-                          className="btn btn-sm btn-icon-only btn-delete"
-                          onClick={() => void handleDelete(r.id)}
-                          title="Borrar"
-                          aria-label="Borrar"
-                        >
-                          <IconEliminar size={15} />
-                        </button>
+                        <GastoAccionesMenu
+                          tieneDocumento={Boolean(r.documento_adjunto)}
+                          descargarUrl={
+                            r.documento_adjunto
+                              ? presupuestoDocumentoUrl(r.id, true)
+                              : undefined
+                          }
+                          descargarNombre={r.documento_adjunto?.nombre}
+                          onVerDocumento={() => setDocumentoRow(r)}
+                          onVerDetalle={() => setDetalleRow(r)}
+                          onEditar={() => handleEdit(r)}
+                          onBorrar={() => void handleDelete(r.id)}
+                        />
                       </div>
                     </td>
                   </tr>
@@ -380,6 +310,13 @@ export default function GastoHistorialTabla({
           />
         ) : null}
       </div>
+
+      {detalleRow ? (
+        <PresupuestoDetalleModalView
+          row={detalleRow}
+          onClose={() => setDetalleRow(null)}
+        />
+      ) : null}
     </section>
   );
 }

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { fetchTipoCambioParaFecha } from "../api";
 import {
   MONEDAS_GASTO,
@@ -46,6 +46,8 @@ export default function ImporteMoneda({
   const [tc, setTc] = useState(0);
   const [tcAuto, setTcAuto] = useState(false);
   const [tcFecha, setTcFecha] = useState("");
+  const importeRef = useRef(importe);
+  importeRef.current = importe;
 
   useEffect(() => {
     const row = { pesos, dolares_usd, reales, tc_usd, tc_reales };
@@ -75,10 +77,7 @@ export default function ImporteMoneda({
         setTc(row.valor);
         setTcAuto(true);
         setTcFecha(row.fecha_tc);
-        setImporte((imp) => {
-          onMoneyChange(aplicarImporteMoneda(moneda, imp, row.valor));
-          return imp;
-        });
+        onMoneyChange(aplicarImporteMoneda(moneda, importeRef.current, row.valor));
       })
       .catch(() => {
         if (!cancelled) setTcAuto(false);

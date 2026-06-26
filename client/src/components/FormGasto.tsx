@@ -20,6 +20,7 @@ import type {
   FuncionarioSelectorItem,
   Presupuesto,
   PresupuestoForm,
+  TipoDocumentoGasto,
 } from "../types";
 import { formatNumeroOperacion, todayIso } from "../utils";
 import { aMayusculas } from "../utils/formText";
@@ -31,13 +32,30 @@ import SelectorProveedor from "./SelectorProveedor";
 import GastoHistorialTabla from "./GastoHistorialTabla";
 import BrouImportador from "./documentos-digitales/BrouImportador";
 import ComisionBrouPreviewForm from "./documentos-digitales/ComisionBrouPreviewForm";
-import type { BrouTransferenciaParsed } from "../types";
+import type { ComprobanteLeido } from "../types";
 import { applyBrouParsedToForm, buildComisionPayloadForGasto, tieneImporteComision } from "../utils/brou-gasto";
 
 /** Valores internos del select de concepto (no se guardan en PRESUPUESTO). */
 const CONCEPTO_OTRO = "__otro__";
 const CONCEPTO_AGREGAR = "__agregar_item__";
 const SUB_RUBRO_AGREGAR = "__agregar_sub_rubro__";
+
+/**
+ * Devuelve la config de comisión del tipo de documento detectado en el comprobante.
+ * Si no hay tipo detectado (o no está en la lista), usa la config BROU por defecto.
+ */
+function resolveComisionConfig(
+  data: ComprobanteLeido | null | undefined,
+  tipos: TipoDocumentoGasto[],
+  fallback: ComisionDocumentoConfig | undefined
+): ComisionDocumentoConfig | undefined {
+  const detectedId = data?.tipo_detectado?.id;
+  if (detectedId != null) {
+    const tipo = tipos.find((t) => t.id === detectedId);
+    if (tipo) return normalizeComisionConfig(tipo.comision_config);
+  }
+  return fallback;
+}
 
 interface Props {
   catalogos: Catalogos;
@@ -95,6 +113,28 @@ const initial = (): FormState => ({
   saldo_usd: 0,
 });
 
+async function uploadPresupuestoDocumentoConReintento(
+  id: number,
+  file: File,
+  intentos = 3
+): Promise<void> {
+  let ultimoError: unknown;
+  for (let i = 0; i < intentos; i++) {
+    try {
+      await uploadPresupuestoDocumento(id, file);
+      return;
+    } catch (err) {
+      ultimoError = err;
+      if (i < intentos - 1) {
+        await new Promise((r) => setTimeout(r, 600 * (i + 1)));
+      }
+    }
+  }
+  throw ultimoError instanceof Error
+    ? ultimoError
+    : new Error("No se pudo subir el comprobante");
+}
+
 export default function FormGasto({
   catalogos,
   currentUser,
@@ -108,6 +148,10 @@ export default function FormGasto({
   onSuccess,
 }: Props) {
   const [form, setForm] = useState<FormState>(initial);
+  const handleMoneyChange = useCallback(
+    (patch: Partial<FormState>) => setForm((f) => ({ ...f, ...patch })),
+    []
+  );
   const [numeroOperacion, setNumeroOperacion] = useState("");
   const [conceptoItems, setConceptoItems] = useState<SubRubroItem[]>([]);
   /** true = escribir concepto a mano en el mismo lugar del menú (opción «Otro concepto»). */
@@ -126,7 +170,7 @@ export default function FormGasto({
     sub_rubros_por_rubro: {},
   });
   const [historialKey, setHistorialKey] = useState(0);
-  const [brouImportado, setBrouImportado] = useState<BrouTransferenciaParsed | null>(null);
+  const [brouImportado, setBrouImportado] = useState<ComprobanteLeido | null>(null);
   const [documentoArchivo, setDocumentoArchivo] = useState<File | null>(null);
   const [registrarComisionBrou, setRegistrarComisionBrou] = useState(false);
   const [importeSyncKey, setImporteSyncKey] = useState(0);
@@ -139,15 +183,33 @@ export default function FormGasto({
     tc_reales: 0,
     saldo_usd: 0,
   });
+  const handleComisionMoneyChange = useCallback(
+    (patch: Partial<typeof comisionManualMoney>) =>
+      setComisionManualMoney((prev) => ({ ...prev, ...patch })),
+    []
+  );
   const [brouMapeo, setBrouMapeo] = useState<GastoMapeoCampos | undefined>(undefined);
   const [brouComisionConfig, setBrouComisionConfig] = useState<ComisionDocumentoConfig | undefined>(
     undefined
   );
+  const [tiposDocLista, setTiposDocLista] = useState<TipoDocumentoGasto[]>([]);
   const [comisionConcepto, setComisionConcepto] = useState("");
   const comisionConceptoEditadoRef = useRef(false);
 
+  // Config de comisión del tipo de comprobante detectado (Santander, BROU, etc.).
+  const comisionConfigActiva = useMemo(
+    () => resolveComisionConfig(brouImportado, tiposDocLista, brouComisionConfig),
+    [brouImportado, tiposDocLista, brouComisionConfig]
+  );
+  // Comisión con importe fijo definido en la config (p.ej. Santander 1,60 USD).
+  const comisionTieneImporteFijo = useMemo(
+    () => Boolean(normalizeComisionConfig(comisionConfigActiva).valores_fijos?.importes?.trim()),
+    [comisionConfigActiva]
+  );
+
   const comisionDesdePdf = Boolean(brouImportado?.comision && brouImportado.comision.valor > 0);
-  const comisionEsManual = registrarComisionBrou && !comisionDesdePdf;
+  const comisionEsManual =
+    registrarComisionBrou && !comisionDesdePdf && !comisionTieneImporteFijo;
 
   const onComisionToggle = useCallback(
     (checked: boolean) => {
@@ -187,11 +249,14 @@ export default function FormGasto({
     numeroOperacion;
 
   const onBrouAplicado = useCallback(
-    (data: BrouTransferenciaParsed) => {
+    (data: ComprobanteLeido) => {
       setBrouImportado(data);
-      const comCfg = normalizeComisionConfig(brouComisionConfig);
-      const hayComision = Boolean(data.comision && data.comision.valor > 0);
-      setRegistrarComisionBrou(hayComision && comCfg.activa);
+      const comCfg = normalizeComisionConfig(
+        resolveComisionConfig(data, tiposDocLista, brouComisionConfig)
+      );
+      const hayComisionPdf = Boolean(data.comision && data.comision.valor > 0);
+      const hayComisionFija = Boolean(comCfg.valores_fijos?.importes?.trim());
+      setRegistrarComisionBrou(comCfg.activa && (hayComisionPdf || hayComisionFija));
       setForm((f) =>
       applyBrouParsedToForm(data, f, brouMapeo, data.valores_mapeo as Partial<
         Record<GastoDestinoId, string>
@@ -199,7 +264,7 @@ export default function FormGasto({
     );
       setImporteSyncKey((k) => k + 1);
     },
-    [brouMapeo, brouComisionConfig]
+    [brouMapeo, brouComisionConfig, tiposDocLista]
   );
 
   const loadRubrosCatalogo = useCallback(async () => {
@@ -220,6 +285,7 @@ export default function FormGasto({
     if (!apiOnline) return;
     fetchTiposDocumentoGasto({ soloActivos: true })
       .then((tipos) => {
+        setTiposDocLista(tipos);
         const brou = tipos.find((t) => {
           const o = t.origen.trim().toUpperCase();
           const n = t.nombre.trim().toUpperCase();
@@ -229,6 +295,7 @@ export default function FormGasto({
         setBrouComisionConfig(brou ? normalizeComisionConfig(brou.comision_config) : undefined);
       })
       .catch(() => {
+        setTiposDocLista([]);
         setBrouMapeo(undefined);
         setBrouComisionConfig(undefined);
       });
@@ -665,7 +732,7 @@ export default function FormGasto({
     };
     return buildComisionPayloadForGasto(
       mainPayload,
-      brouComisionConfig,
+      comisionConfigActiva,
       brouImportado,
       comisionEsManual ? comisionManualMoney : undefined
     );
@@ -674,7 +741,7 @@ export default function FormGasto({
     editRow,
     registrarComisionBrou,
     brouImportado,
-    brouComisionConfig,
+    comisionConfigActiva,
     comisionEsManual,
     comisionManualMoney,
   ]);
@@ -725,33 +792,71 @@ export default function FormGasto({
           msg += ` — ref. BROU ${form.nro_operacion_origen.trim()}`;
         }
 
-        if (documentoArchivo) {
-          try {
-            await uploadPresupuestoDocumento(reg.id, documentoArchivo);
-            msg += ". Comprobante adjunto guardado.";
-          } catch (docErr) {
-            msg += `. Advertencia: el comprobante no se guardó (${
-              docErr instanceof Error ? docErr.message : "error desconocido"
-            }).`;
-          }
-        }
-
         const comision =
           registrarComisionBrou &&
-          (comisionDesdePdf || tieneImporteComision(comisionManualMoney));
+          (comisionDesdePdf ||
+            comisionTieneImporteFijo ||
+            tieneImporteComision(comisionManualMoney));
 
+        let comPayload: ReturnType<typeof buildComisionPayloadForGasto> | null = null;
         if (comision) {
-          const comPayload = buildComisionPayloadForGasto(
+          comPayload = buildComisionPayloadForGasto(
             payload,
-            brouComisionConfig,
+            comisionConfigActiva,
             brouImportado,
             comisionEsManual ? comisionManualMoney : undefined
           );
           if (comisionConcepto.trim()) {
             comPayload.concepto = comisionConcepto.trim();
           }
-          const regCom = await createPresupuesto(comPayload);
-          msg += `. Comisión registrada (N° ${formatNumeroOperacion(regCom.nro_registro)}).`;
+        }
+
+        const tareas: Promise<void>[] = [];
+        let documentoError: string | null = null;
+
+        if (documentoArchivo) {
+          tareas.push(
+            uploadPresupuestoDocumentoConReintento(reg.id, documentoArchivo)
+              .then(() => {
+                msg += ". Comprobante adjunto guardado.";
+              })
+              .catch((docErr) => {
+                documentoError =
+                  docErr instanceof Error ? docErr.message : "error desconocido";
+              })
+          );
+        }
+
+        if (comPayload) {
+          tareas.push(
+            createPresupuesto(comPayload).then((regCom) => {
+              msg += `. Comisión registrada (N° ${formatNumeroOperacion(regCom.nro_registro)}).`;
+            })
+          );
+        }
+
+        if (tareas.length > 0) {
+          await Promise.all(tareas);
+        }
+
+        if (documentoError) {
+          onError(
+            `El gasto se guardó, pero el comprobante NO se adjuntó: ${documentoError}. ` +
+              "El archivo quedó cargado: revisá que la API esté activa y volvé a guardar para reintentar."
+          );
+          setForm(initial());
+          setBrouImportado(null);
+          resetComisionState();
+          if (apiOnline) {
+            fetchSiguienteNumeroOperacion()
+              .then((d) => setNumeroOperacion(d.numero_operacion))
+              .catch(() => setNumeroOperacion(""));
+          } else {
+            setNumeroOperacion("");
+          }
+          onSaved();
+          setHistorialKey((k) => k + 1);
+          return;
         }
 
         onSuccess(msg, "Operación ingresada con éxito");
@@ -796,12 +901,6 @@ export default function FormGasto({
       {!editRow && (
         <BrouImportador
           apiOnline={apiOnline}
-          mapeo={brouMapeo}
-          mapeoComision={
-            brouComisionConfig
-              ? normalizeGastoMapeo(normalizeComisionConfig(brouComisionConfig).mapeo_campos)
-              : undefined
-          }
           onError={onError}
           onApplied={onBrouAplicado}
           onArchivo={setDocumentoArchivo}
@@ -1176,7 +1275,7 @@ export default function FormGasto({
           tc_reales={form.tc_reales}
           saldo_usd={form.saldo_usd}
           syncKey={(editRow?.id ?? 0) + importeSyncKey * 100_000}
-          onMoneyChange={(patch) => setForm((f) => ({ ...f, ...patch }))}
+          onMoneyChange={handleMoneyChange}
         />
 
         <div className="field span-2">
@@ -1212,9 +1311,7 @@ export default function FormGasto({
           apiOnline={apiOnline}
           fecha={form.fecha}
           manualMoney={comisionManualMoney}
-          onManualMoneyChange={(patch) =>
-            setComisionManualMoney((prev) => ({ ...prev, ...patch }))
-          }
+          onManualMoneyChange={handleComisionMoneyChange}
           manualSyncKey={comisionManualSyncKey}
         />
       ) : null}

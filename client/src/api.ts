@@ -68,6 +68,7 @@ import type {
   TipoDocumentoGasto,
   TipoDocumentoGastoForm,
   BrouTransferenciaParsed,
+  ComprobanteLeido,
   DetectarCamposDocumentoResult,
 } from "./types";
 import type { GastoMapeoCampos } from "./utils/gasto-campos";
@@ -2394,6 +2395,29 @@ export async function parseBrouTransferenciaDocument(
   };
   if (!res.ok || !json.ok || !json.data) {
     throw new Error(json.error || "No se pudo leer el comprobante BROU");
+  }
+  return json.data;
+}
+
+/**
+ * Lee un comprobante de cualquier banco: autodetecta el tipo de documento
+ * configurado por el texto y aplica su mapeo de campos.
+ */
+export async function leerComprobante(file: File): Promise<ComprobanteLeido> {
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch(`${API}/documentos-digitales/leer-comprobante`, {
+    method: "POST",
+    credentials: "include",
+    body: form,
+  });
+  const json = (await res.json()) as {
+    ok: boolean;
+    data?: ComprobanteLeido;
+    error?: string;
+  };
+  if (!res.ok || !json.ok || !json.data) {
+    throw new Error(json.error || "No se pudo leer el comprobante");
   }
   return json.data;
 }

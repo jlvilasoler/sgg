@@ -284,6 +284,7 @@ export function registerChatRoutes(app: Express): void {
       const unread = await getChatUnreadSummary(getDb(), userId);
       res.json({ ok: true, data: unread });
     } catch (e) {
+      console.error("[chat/unread] error:", e);
       res.status(500).json({
         ok: false,
         error: e instanceof Error ? e.message : "Error al consultar no leídos",

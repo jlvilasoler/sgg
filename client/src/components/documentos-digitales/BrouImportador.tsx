@@ -1,24 +1,18 @@
 import { useRef, useState } from "react";
-import { parseBrouTransferenciaDocument } from "../../api";
-import type { BrouTransferenciaParsed } from "../../types";
+import { leerComprobante } from "../../api";
+import type { ComprobanteLeido } from "../../types";
 import { formatBrouImporte } from "../../utils/brou-gasto";
-
-import type { GastoMapeoCampos } from "../../utils/gasto-campos";
 
 interface Props {
   apiOnline: boolean;
-  mapeo?: GastoMapeoCampos;
-  mapeoComision?: GastoMapeoCampos;
   onError: (msg: string) => void;
-  onApplied: (data: BrouTransferenciaParsed) => void;
+  onApplied: (data: ComprobanteLeido) => void;
   onArchivo?: (archivo: File | null) => void;
   archivoAdjunto?: File | null;
 }
 
 export default function BrouImportador({
   apiOnline,
-  mapeo,
-  mapeoComision,
   onError,
   onApplied,
   onArchivo,
@@ -26,7 +20,7 @@ export default function BrouImportador({
 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(false);
-  const [preview, setPreview] = useState<BrouTransferenciaParsed | null>(null);
+  const [preview, setPreview] = useState<ComprobanteLeido | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
 
   const procesarArchivo = async (file: File) => {
@@ -39,17 +33,20 @@ export default function BrouImportador({
     setAviso(null);
     onArchivo?.(file);
     try {
-      const data = await parseBrouTransferenciaDocument(file, mapeo, mapeoComision);
+      const data = await leerComprobante(file);
+      const huboDatos =
+        Boolean(data.tipo_detectado) ||
+        data.es_brou ||
+        Boolean(data.valores_mapeo && Object.keys(data.valores_mapeo).length > 0);
+      if (!huboDatos) {
+        setAviso(
+          "No se reconoció el banco del comprobante. Completá el gasto manualmente; el archivo se guardará igual al confirmar."
+        );
+      }
       setPreview(data);
       onApplied(data);
     } catch (e) {
       const msg = e instanceof Error ? e.message : "No se pudo leer el comprobante";
-      if (/no parece un comprobante brou/i.test(msg)) {
-        setAviso(
-          "No se detectó transferencia BROU. Podés completar el gasto manualmente; el comprobante se guardará al confirmar."
-        );
-        return;
-      }
       setAviso(
         "No se pudieron leer los datos del comprobante. El archivo se guardará igual al confirmar el gasto."
       );
@@ -70,6 +67,10 @@ export default function BrouImportador({
     const file = e.dataTransfer.files?.[0];
     if (file) void procesarArchivo(file);
   };
+
+  const tipo = preview?.tipo_detectado ?? null;
+  const valoresMapeo = preview?.valores_mapeo ?? {};
+  const camposDetectados = Object.entries(valoresMapeo).filter(([, v]) => Boolean(v?.trim?.()));
 
   return (
     <div className="brou-import-block">
@@ -104,11 +105,12 @@ export default function BrouImportador({
           </svg>
         </div>
         <p className="brou-import-drop-title">
-          {loading ? "Detectando comprobante BROU…" : "Subir comprobante (opcional)"}
+          {loading ? "Leyendo comprobante…" : "Subir comprobante (opcional)"}
         </p>
         <p className="muted brou-import-drop-hint">
-          PDF o imagen del comprobante. Si es BROU, el sistema completa los datos automáticamente.
-          El archivo queda adjunto a la operación y podés verlo desde la tabla de gastos.
+          PDF o imagen del comprobante. El sistema reconoce el banco y completa los datos
+          automáticamente. El archivo queda adjunto a la operación y podés verlo desde la tabla de
+          gastos.
         </p>
       </div>
 
@@ -127,45 +129,76 @@ export default function BrouImportador({
         </p>
       )}
 
-      {preview && !loading && (
+      {preview && !loading && (tipo || preview.es_brou) && (
         <div className="brou-import-preview" aria-live="polite">
-          <p className="brou-import-preview-ok">Datos detectados y aplicados al formulario</p>
+          <p className="brou-import-preview-ok">
+            {tipo ? (
+              <>
+                Detectado: <strong>{tipo.nombre}</strong>
+                {tipo.origen ? (
+                  <span className="brou-import-preview-ruta">
+                    {" "}
+                    ({tipo.origen}
+                    {tipo.destino ? ` → ${tipo.destino}` : ""})
+                  </span>
+                ) : null}
+              </>
+            ) : (
+              "Transferencia BROU detectada"
+            )}
+          </p>
           <dl className="brou-import-preview-grid">
-            <div>
-              <dt>N° operación</dt>
-              <dd>{preview.numero_operacion}</dd>
-            </div>
-            <div>
-              <dt>N° transferencia</dt>
-              <dd>{preview.numero_transferencia || "—"}</dd>
-            </div>
-            <div>
-              <dt>Fecha</dt>
-              <dd>{preview.fecha}</dd>
-            </div>
-            <div>
-              <dt>Importe acreditado</dt>
-              <dd>
-                {formatBrouImporte(
-                  preview.importe_acreditar.moneda,
-                  preview.importe_acreditar.valor
-                )}
-              </dd>
-            </div>
-            {preview.comision ? (
-              <div>
-                <dt>Comisión (operación aparte)</dt>
-                <dd>
-                  {formatBrouImporte(preview.comision.moneda, preview.comision.valor)}
+            {preview.es_brou ? (
+              <>
+                <div>
+                  <dt>N° operación</dt>
+                  <dd>{preview.numero_operacion || "—"}</dd>
+                </div>
+                <div>
+                  <dt>N° transferencia</dt>
+                  <dd>{preview.numero_transferencia || "—"}</dd>
+                </div>
+                <div>
+                  <dt>Fecha</dt>
+                  <dd>{preview.fecha || "—"}</dd>
+                </div>
+                <div>
+                  <dt>Importe acreditado</dt>
+                  <dd>
+                    {formatBrouImporte(
+                      preview.importe_acreditar.moneda,
+                      preview.importe_acreditar.valor
+                    )}
+                  </dd>
+                </div>
+                {preview.comision ? (
+                  <div>
+                    <dt>Comisión (operación aparte)</dt>
+                    <dd>{formatBrouImporte(preview.comision.moneda, preview.comision.valor)}</dd>
+                  </div>
+                ) : null}
+                {preview.beneficiario_nombre ? (
+                  <div className="span-2">
+                    <dt>Beneficiario</dt>
+                    <dd>{preview.beneficiario_nombre}</dd>
+                  </div>
+                ) : null}
+              </>
+            ) : camposDetectados.length > 0 ? (
+              camposDetectados.map(([campo, valor]) => (
+                <div key={campo}>
+                  <dt>{campo}</dt>
+                  <dd>{valor}</dd>
+                </div>
+              ))
+            ) : (
+              <div className="span-2">
+                <dd className="muted">
+                  Banco reconocido, pero no se encontraron campos para completar. Revisá el mapeo del
+                  tipo de documento.
                 </dd>
               </div>
-            ) : null}
-            {preview.beneficiario_nombre ? (
-              <div className="span-2">
-                <dt>Beneficiario</dt>
-                <dd>{preview.beneficiario_nombre}</dd>
-              </div>
-            ) : null}
+            )}
           </dl>
         </div>
       )}

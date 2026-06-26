@@ -221,19 +221,15 @@ export async function getSubRubroNombresForRubro(
   const grupos = await gruposAsociadosAlRubro(db, r);
   const rubroRow = await rub.getRubroByNombre(db, r);
 
-  const rows = (await db
-    .prepare(
-      soloActivos
-        ? "SELECT nombre, grupo FROM SUB_RUBROS WHERE activo = 1"
-        : "SELECT nombre, grupo FROM SUB_RUBROS"
-    )
-    .all()) as { nombre: string; grupo: string }[];
-
   const names = new Set<string>();
-  for (const row of rows) {
-    if (grupos.some((g) => sameNombre(g, row.grupo))) {
-      names.add(row.nombre);
-    }
+
+  if (grupos.length > 0) {
+    const cond = grupos.map(() => "LOWER(TRIM(grupo)) = LOWER(?)").join(" OR ");
+    const activoClause = soloActivos ? " AND activo = 1" : "";
+    const rows = (await db
+      .prepare(`SELECT nombre FROM SUB_RUBROS WHERE (${cond})${activoClause}`)
+      .all(...grupos)) as { nombre: string }[];
+    for (const row of rows) names.add(row.nombre);
   }
 
   if (rubroRow) {
@@ -252,6 +248,21 @@ export async function getSubRubroNombresForRubro(
 
 export async function rubroHasVinculos(db: Db, rubroNombre: string): Promise<boolean> {
   return (await getSubRubroNombresForRubro(db, rubroNombre, true)).length > 0;
+}
+
+/** Rubro válido al cargar gasto (sin cargar todo el catálogo de sub-rubros). */
+export async function rubroGastoValido(db: Db, nombre: string): Promise<boolean> {
+  const n = nombre.trim();
+  if (!n) return false;
+  const grupos = await gruposAsociadosAlRubro(db, n);
+  if (grupos.length > 0) {
+    const cond = grupos.map(() => "LOWER(TRIM(grupo)) = LOWER(?)").join(" OR ");
+    const row = await db
+      .prepare(`SELECT 1 FROM SUB_RUBROS WHERE activo = 1 AND (${cond}) LIMIT 1`)
+      .get(...grupos);
+    if (row) return true;
+  }
+  return rub.rubroExistsActivo(db, n);
 }
 
 export async function isSubRubroValidForRubro(

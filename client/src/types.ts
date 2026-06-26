@@ -49,6 +49,8 @@ export interface TipoDocumentoGasto {
   nombre: string;
   descripcion: string;
   origen: string;
+  /** Banco/cuenta de destino del movimiento (ej. SANTANDER). */
+  destino: string;
   activo: boolean;
   campos_habilitados: string[];
   campos_requeridos: string[];
@@ -90,6 +92,21 @@ export interface BrouTransferenciaParsed {
   proveedor_razon: string;
   valores_mapeo?: Partial<Record<string, string>>;
   valores_mapeo_comision?: Partial<Record<string, string>>;
+}
+
+export interface TipoDocumentoDetectado {
+  id: number;
+  nombre: string;
+  origen: string;
+  destino: string;
+  comision_activa: boolean;
+}
+
+export interface ComprobanteLeido extends BrouTransferenciaParsed {
+  /** true si el comprobante es una transferencia BROU (parser específico aplicado). */
+  es_brou?: boolean;
+  /** Tipo de documento configurado que coincidió con el texto (banco detectado). */
+  tipo_detectado?: TipoDocumentoDetectado | null;
 }
 
 export interface CampoDocumentoDetectado {

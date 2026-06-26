@@ -436,9 +436,9 @@ export const proveedores = {
 export async function insertPresupuesto(
   data: PresupuestoInput,
   ingresadoPor?: { email: string; nombre: string }
-): Promise<number> {
+): Promise<Presupuesto> {
   const nro_registro = await allocNroRegistro();
-  const result = await db.prepare(`
+  const row = (await db.prepare(`
     INSERT INTO PRESUPUESTO (
       nro_registro, empresa, fecha, codigo_proveedor, razon_social_proveedor,
       concepto, observaciones, rubro, sub_rubro, responsable_gasto, funcionario_cedula, nro_factura,
@@ -452,13 +452,14 @@ export async function insertPresupuesto(
       @pesos, @dolares_usd, @reales, @tc_usd, @tc_reales, @saldo_usd,
       @ingresado_por_email, @ingresado_por_nombre
     )
-  `).run({
+    RETURNING *
+  `).get({
     ...data,
     nro_registro,
     ingresado_por_email: ingresadoPor?.email?.trim() ?? "",
     ingresado_por_nombre: ingresadoPor?.nombre?.trim() ?? "",
-  });
-  return Number(result.lastInsertRowid);
+  })) as Presupuesto;
+  return { ...row, documento_adjunto: null };
 }
 
 export async function updatePresupuesto(id: number, data: PresupuestoInput): Promise<boolean> {
@@ -626,7 +627,7 @@ export const rubros = {
   update: (id: number, data: rub.RubroInput) => rub.updateRubro(db, id, data),
   delete: (id: number) => rub.deleteRubro(db, id),
   existsActivo: (nombre: string) => rub.rubroExistsActivo(db, nombre),
-  gastoValido: (nombre: string) => sub.rubroGastoValido(db, nombre),
+  gastoValido: (nombre: string) => vinc.rubroGastoValido(db, nombre),
 };
 
 export const responsables = {

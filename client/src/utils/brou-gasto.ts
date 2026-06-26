@@ -126,6 +126,20 @@ export function formatBrouImporte(moneda: "UYU" | "USD", valor: number): string 
   return `${sym} ${valor.toLocaleString("es-UY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
+const PREFIJO_SUB_RUBRO_COMISION = "Comisiones Bancarias";
+const CONCEPTO_COMISION_BANCARIA = "COMISIONES BANCARIAS";
+
+function subRubroComisionBancaria(subRubroPrincipal: string): string {
+  const base = subRubroPrincipal.trim();
+  if (!base) return PREFIJO_SUB_RUBRO_COMISION;
+  if (base.toLowerCase().startsWith(PREFIJO_SUB_RUBRO_COMISION.toLowerCase())) return base;
+  return `${PREFIJO_SUB_RUBRO_COMISION} - ${base}`;
+}
+
+function esSubRubroComisionBancaria(subRubro: string): boolean {
+  return subRubro.trim().toLowerCase().startsWith(PREFIJO_SUB_RUBRO_COMISION.toLowerCase());
+}
+
 function aplicarHeredarCampo(
   out: PresupuestoForm,
   main: PresupuestoForm,
@@ -139,7 +153,7 @@ function aplicarHeredarCampo(
       out.rubro = main.rubro;
       break;
     case "sub_rubro":
-      out.sub_rubro = main.sub_rubro;
+      out.sub_rubro = subRubroComisionBancaria(main.sub_rubro);
       break;
     case "responsable_gasto":
       out.responsable_gasto = main.responsable_gasto;
@@ -272,6 +286,15 @@ export function buildComisionPayload(
     if (!base.endsWith("-COM")) {
       out.nro_operacion_origen = `${base}-COM`;
     }
+  }
+
+  // La fecha es obligatoria en el servidor: si no se obtuvo del documento, heredá la del gasto.
+  if (!out.fecha.trim()) out.fecha = mainPayload.fecha;
+  if (!out.empresa) out.empresa = mainPayload.empresa;
+  if (!out.rubro.trim()) out.rubro = mainPayload.rubro;
+  out.sub_rubro = subRubroComisionBancaria(mainPayload.sub_rubro);
+  if (esSubRubroComisionBancaria(out.sub_rubro)) {
+    out.concepto = CONCEPTO_COMISION_BANCARIA;
   }
 
   return out;

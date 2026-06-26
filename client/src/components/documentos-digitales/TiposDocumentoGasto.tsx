@@ -31,6 +31,25 @@ interface Props {
   onVolver: () => void;
 }
 
+function IconTransferencia({ size = 24 }: { size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M3 8h15M15 5l3 3-3 3" />
+      <path d="M21 16H6m3 3-3-3 3-3" />
+    </svg>
+  );
+}
+
 type Vista = "listado" | "editor";
 
 function emptyForm(): TipoDocumentoGastoForm {
@@ -38,6 +57,7 @@ function emptyForm(): TipoDocumentoGastoForm {
     nombre: "",
     descripcion: "",
     origen: "",
+    destino: "",
     activo: true,
     campos_habilitados: ["empresa", "fecha", "proveedor", "concepto", "importes", "rubro"],
     campos_requeridos: ["empresa", "fecha", "proveedor", "concepto", "importes", "rubro"],
@@ -52,6 +72,7 @@ function rowToForm(row: TipoDocumentoGasto): TipoDocumentoGastoForm {
     nombre: row.nombre,
     descripcion: row.descripcion,
     origen: row.origen,
+    destino: row.destino,
     activo: row.activo,
     campos_habilitados: row.campos_habilitados.filter(isGastoCampoId),
     campos_requeridos: row.campos_requeridos.filter(isGastoCampoId),
@@ -186,12 +207,21 @@ export default function TiposDocumentoGasto({
               />
             </div>
             <div className="field">
-              <label htmlFor="doc-tipo-origen">Origen / banco</label>
+              <label htmlFor="doc-tipo-origen">Banco origen</label>
               <input
                 id="doc-tipo-origen"
                 value={form.origen}
                 onChange={(e) => setForm((f) => ({ ...f, origen: e.target.value }))}
                 placeholder="Ej. BROU"
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="doc-tipo-destino">Banco destino</label>
+              <input
+                id="doc-tipo-destino"
+                value={form.destino}
+                onChange={(e) => setForm((f) => ({ ...f, destino: e.target.value }))}
+                placeholder="Ej. SANTANDER"
               />
             </div>
             <div className="field inline-check span-2">
@@ -264,8 +294,8 @@ export default function TiposDocumentoGasto({
     <SubseccionInlinePanel
       onVolver={onVolver}
       volverLabel="Volver a Documentos Digitales"
-      title="Tipos de documento para gastos"
-      description="Cada tipo define de qué dato del comprobante se completa cada campo del gasto (ej. transferencias BROU a proveedores)."
+      title="Tipos de documentos digitales"
+      description="Operaciones que define pago automatico (ej. transferencias de Banco a proveedores)."
     >
       <div className="doc-tipo-toolbar">
         <button type="button" className="btn btn-primary" onClick={abrirNuevo} disabled={!apiOnline}>
@@ -285,12 +315,28 @@ export default function TiposDocumentoGasto({
       ) : (
         <div className="doc-tipo-list">
           {rows.map((row) => (
-            <article key={row.id} className="doc-tipo-card">
+            <article key={row.id} className="doc-tipo-card doc-tipo-card--con-icono">
+              <span className="doc-tipo-card-icono" aria-hidden>
+                <IconTransferencia size={26} />
+              </span>
+              <div className="doc-tipo-card-body">
               <div className="doc-tipo-card-head">
                 <div>
                   <h3>{row.nombre}</h3>
                   {row.origen ? (
-                    <span className="doc-tipo-origen-badge">{row.origen}</span>
+                    <span className="doc-tipo-ruta">
+                      <span className="doc-tipo-origen-badge">{row.origen}</span>
+                      {row.destino ? (
+                        <>
+                          <span className="doc-tipo-ruta-flecha" aria-hidden>
+                            →
+                          </span>
+                          <span className="doc-tipo-origen-badge doc-tipo-destino-badge">
+                            {row.destino}
+                          </span>
+                        </>
+                      ) : null}
+                    </span>
                   ) : null}
                   {!row.activo ? (
                     <span className="doc-tipo-inactivo-badge">Inactivo</span>
@@ -319,6 +365,7 @@ export default function TiposDocumentoGasto({
                     {GASTO_DESTINO_LABELS[destino]} ← {etiqueta}
                   </span>
                 ))}
+              </div>
               </div>
             </article>
           ))}

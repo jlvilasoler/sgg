@@ -157,21 +157,19 @@ export async function savePresupuestoDocumento(
   originalName: string
 ): Promise<PresupuestoDocumentoMeta> {
   const { nombre } = validatePresupuestoDocumentoFile(mime, buffer.length, originalName);
-  await deletePresupuestoDocumento(db, presupuestoId);
-
-  // Intentar también guardar copia en disco (best-effort; puede no persistir en serverless).
   const ext = extFromMime(mime, nombre);
   const archivo = `${presupuestoId}.${ext}`;
-  try {
-    fs.writeFileSync(path.join(PRESUPUESTO_DOCS_DIR, archivo), buffer);
-  } catch {
-    /* en entornos sin disco persistente se ignora */
-  }
 
   await db
     .prepare(
       `INSERT INTO PRESUPUESTO_DOCUMENTOS (presupuesto_id, nombre, mime, tamano, archivo, datos)
-       VALUES (?, ?, ?, ?, ?, ?)`
+       VALUES (?, ?, ?, ?, ?, ?)
+       ON CONFLICT (presupuesto_id) DO UPDATE SET
+         nombre = EXCLUDED.nombre,
+         mime = EXCLUDED.mime,
+         tamano = EXCLUDED.tamano,
+         archivo = EXCLUDED.archivo,
+         datos = EXCLUDED.datos`
     )
     .run(presupuestoId, nombre, mime, buffer.length, archivo, buffer);
 

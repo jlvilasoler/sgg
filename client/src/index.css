@@ -4090,27 +4090,27 @@ textarea:focus {
 }
 
 .data-table-presupuesto .col-empresa {
-  width: 6.5%;
+  width: 10%;
 }
 
 .data-table-presupuesto .col-fecha {
-  width: 7%;
+  width: 8%;
 }
 
 .data-table-presupuesto .col-cod {
-  width: 3.5%;
+  width: 4%;
 }
 
 .data-table-presupuesto .col-razon {
-  width: 15%;
+  width: 21%;
 }
 
 .data-table-presupuesto .col-concepto {
-  width: 19%;
+  width: 22%;
 }
 
 .data-table-presupuesto .col-fact {
-  width: 11%;
+  width: 10%;
 }
 
 .data-table-presupuesto td[data-col="fact"] {
@@ -4122,16 +4122,115 @@ textarea:focus {
 .data-table-presupuesto .col-pesos,
 .data-table-presupuesto .col-usd,
 .data-table-presupuesto .col-reales {
-  width: 5.5%;
+  width: 6%;
 }
 
 .data-table-presupuesto .col-saldo {
-  width: 6.5%;
+  width: 7%;
 }
 
 .data-table-presupuesto .col-acciones,
 .data-table-presupuesto .col-acciones-h {
-  width: 11%;
+  width: 6%;
+}
+
+.gasto-acciones-trigger {
+  color: #475569;
+  background: #f1f5f9;
+  border: 1px solid #d3dce6;
+  border-radius: 8px;
+}
+
+.gasto-acciones-trigger:hover,
+.gasto-acciones-trigger.is-open {
+  color: #1e293b;
+  background: #e2e8f0;
+  border-color: #b3c0cf;
+}
+
+.gasto-acciones-menu {
+  position: fixed;
+  z-index: 11000;
+  display: flex;
+  flex-direction: column;
+  padding: 0.35rem;
+  gap: 0.1rem;
+  background: #fff;
+  border: 1px solid var(--bn-border, #d8e0d9);
+  border-radius: 12px;
+  box-shadow: 0 14px 38px -12px rgba(15, 28, 20, 0.32);
+  animation: gasto-acciones-pop 0.14s ease-out;
+}
+
+@keyframes gasto-acciones-pop {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.gasto-acciones-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.5rem 0.7rem;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #334155;
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.gasto-acciones-item:hover {
+  background: #eef3f8;
+  color: #1e293b;
+}
+
+.gasto-acciones-item svg {
+  flex-shrink: 0;
+  color: #64748b;
+}
+
+.gasto-acciones-item--doc:hover {
+  background: #e7f3ec;
+}
+
+.gasto-acciones-item--doc svg {
+  color: #2d6a4f;
+}
+
+a.gasto-acciones-item {
+  text-decoration: none;
+}
+
+.gasto-acciones-item--download:hover {
+  background: #eef1f0;
+}
+
+.gasto-acciones-item--download svg {
+  color: #64748b;
+}
+
+.gasto-acciones-item--danger {
+  color: #b4232a;
+}
+
+.gasto-acciones-item--danger svg {
+  color: #c0413f;
+}
+
+.gasto-acciones-item--danger:hover {
+  background: #fdecec;
+  color: #911b21;
 }
 
 .data-table-presupuesto .col-acciones-h {
@@ -5525,6 +5624,30 @@ select optgroup {
   background: #fff;
 }
 
+.doc-tipo-card--con-icono {
+  display: flex;
+  align-items: stretch;
+  gap: 0.9rem;
+}
+
+.doc-tipo-card-icono {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  flex-shrink: 0;
+  align-self: stretch;
+  border-radius: 10px;
+  color: #0369a1;
+  background: linear-gradient(160deg, rgba(3, 105, 161, 0.1) 0%, rgba(3, 105, 161, 0.04) 100%);
+  border: 1px solid rgba(3, 105, 161, 0.16);
+}
+
+.doc-tipo-card-body {
+  flex: 1;
+  min-width: 0;
+}
+
 .doc-tipo-card-head {
   display: flex;
   align-items: flex-start;
@@ -5551,6 +5674,30 @@ select optgroup {
 .doc-tipo-origen-badge {
   color: #0369a1;
   background: rgba(3, 105, 161, 0.1);
+}
+
+.doc-tipo-ruta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-right: 0.35rem;
+  vertical-align: middle;
+}
+
+.doc-tipo-ruta .doc-tipo-origen-badge {
+  margin-right: 0;
+}
+
+.doc-tipo-ruta-flecha {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #94a3b8;
+  line-height: 1;
+}
+
+.doc-tipo-destino-badge {
+  color: #b45309;
+  background: rgba(180, 83, 9, 0.12);
 }
 
 .doc-tipo-inactivo-badge {
@@ -13565,49 +13712,216 @@ button.sg-kpi-card:disabled {
   box-shadow: 0 6px 18px -10px rgba(45, 106, 79, 0.5);
 }
 
-.presupuesto-doc-modal {
-  width: min(980px, 96vw);
-  max-height: min(92vh, 900px);
+/* ===== Detalle de operación — modal claro/pro ===== */
+.presupuesto-detalle-modal-overlay {
+  align-items: flex-start;
+  background: rgba(15, 28, 20, 0.45);
 }
 
-.presupuesto-doc-modal-head {
+.presupuesto-detalle-modal {
+  --pz-bg: #ffffff;
+  --pz-panel: #f8faf9;
+  --pz-border: #e3e9e4;
+  --pz-text: #1f2a24;
+  --pz-muted: #6b7a70;
+  --pz-gold: #c79100;
+  --pz-up: #1f9d63;
+  width: min(1060px, 96vw);
+  max-height: 92vh;
+  margin-top: 2.5rem;
+  background: var(--pz-bg);
+  border: 1px solid var(--pz-border);
+  border-radius: 16px;
+  box-shadow:
+    0 0 0 1px rgba(45, 90, 61, 0.05),
+    0 26px 70px rgba(15, 28, 20, 0.28);
+  overflow: hidden;
+}
+
+.presupuesto-detalle-modal-head {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
-  padding: 1rem 1.2rem;
-  border-bottom: 1px solid var(--bn-border);
-  background: linear-gradient(180deg, #f8faf9 0%, #fff 100%);
+  padding: 1rem 1.4rem;
+  border-bottom: 1px solid var(--pz-border);
+  background: linear-gradient(180deg, #f6faf7 0%, #ffffff 100%);
+}
+
+.presupuesto-detalle-modal-kicker {
+  margin: 0 0 0.25rem;
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--pz-gold);
+}
+
+.presupuesto-detalle-modal-title {
+  margin: 0;
+  font-size: 1.08rem;
+  font-weight: 700;
+  color: var(--pz-text);
+}
+
+.presupuesto-detalle-modal-close {
+  color: var(--pz-muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  flex-shrink: 0;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.presupuesto-detalle-modal-close:hover {
+  color: var(--pz-text);
+  background: #eef3ef;
+  border-color: var(--pz-border);
+}
+
+.presupuesto-detalle-modal-body {
+  padding: 0;
+  overflow: auto;
+  background: var(--pz-bg);
+}
+
+.presupuesto-detalle-modal .presupuesto-detalle-op {
+  font-variant-numeric: tabular-nums;
+}
+
+.presupuesto-detalle-modal .presupuesto-detalle-monto-v,
+.presupuesto-detalle-modal .presupuesto-detalle-valor.num,
+.presupuesto-detalle-modal .presupuesto-detalle-tc {
+  font-variant-numeric: tabular-nums;
+}
+
+.presupuesto-detalle-modal .presupuesto-detalle-block {
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.presupuesto-detalle-modal .presupuesto-detalle-block:hover {
+  border-color: #cfe0d5;
+  box-shadow: 0 2px 10px -6px rgba(45, 90, 61, 0.25);
+}
+
+.presupuesto-doc-modal-overlay {
+  align-items: flex-start;
+  padding: 0;
+}
+
+.presupuesto-doc-modal {
+  width: min(980px, 96vw);
+  height: calc(100vh - 0.3rem);
+  max-height: calc(100vh - 0.3rem);
+  margin-top: 0.15rem;
+  border-radius: 12px;
+}
+
+.presupuesto-doc-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.7rem 1rem 0.7rem 1.1rem;
+  border-bottom: 1px solid #e3e9e4;
+  background: linear-gradient(180deg, #f6faf7 0%, #ffffff 100%);
+}
+
+.presupuesto-doc-modal-head-main {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.presupuesto-doc-modal-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.4rem;
+  height: 2.4rem;
+  flex-shrink: 0;
+  border-radius: 10px;
+  background: #e7f1ea;
+  color: #2d6a4f;
+  border: 1px solid #cfe2d6;
+}
+
+.presupuesto-doc-modal-titles {
+  min-width: 0;
 }
 
 .presupuesto-doc-modal-kicker {
-  margin: 0 0 0.2rem;
-  font-size: 0.72rem;
-  font-weight: 700;
+  margin: 0 0 0.1rem;
+  font-size: 0.66rem;
+  font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.1em;
   color: #2d6a4f;
 }
 
 .presupuesto-doc-modal-title {
   margin: 0;
-  font-size: 1.15rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: #1f2a24;
 }
 
 .presupuesto-doc-modal-sub {
-  margin: 0.25rem 0 0;
-  font-size: 0.86rem;
+  margin: 0.12rem 0 0;
+  font-size: 0.78rem;
+  color: #6b7a70;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 36ch;
 }
 
 .presupuesto-doc-modal-actions {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.4rem;
   flex-shrink: 0;
 }
 
+.presupuesto-doc-modal-download {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.2rem;
+  height: 2.2rem;
+  color: #475569;
+  background: #f1f5f4;
+  border: 1px solid #d3dcd6;
+  border-radius: 9px;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+}
+
+.presupuesto-doc-modal-download:hover {
+  background: #e5ebe7;
+  color: #1f2a24;
+  border-color: #c2cdc6;
+}
+
+.presupuesto-doc-modal-download:active {
+  transform: scale(0.94);
+}
+
 .presupuesto-doc-modal-close {
+  width: 2.2rem;
+  height: 2.2rem;
   color: #64748b;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.presupuesto-doc-modal-close:hover {
+  color: #1f2a24;
+  background: #eef3ef;
+  border-color: #e3e9e4;
 }
 
 .presupuesto-doc-modal-body {
@@ -13616,12 +13930,15 @@ button.sg-kpi-card:disabled {
   padding: 0.85rem;
   background: #f1f5f3;
   overflow: auto;
+  display: flex;
+  flex-direction: column;
 }
 
 .presupuesto-doc-modal-frame,
 .presupuesto-doc-modal-image {
   display: block;
   width: 100%;
+  flex: 1;
   min-height: 420px;
   border: 0;
   border-radius: 8px;

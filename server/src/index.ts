@@ -43,11 +43,20 @@ import { parseTipoBaja, tipoBajaDesdeEstadoImport, type TipoBaja } from "./stock
 import { auditBajasDispositivos, auditStockMovimiento, historialAutorFromRequest } from "./stock-audit.js";
 import { EMPRESAS, type Empresa, type Presupuesto, type PresupuestoInput } from "./types.js";
 import type { UserPublic } from "./auth-db.js";
-import { normalizeComisionConfig, normalizeGastoCampoList, normalizeGastoMapeo } from "./gasto-campos.js";
+import {
+  BROU_MAPEO_DEFAULT,
+  normalizeComisionConfig,
+  normalizeGastoCampoList,
+  normalizeGastoMapeo,
+} from "./gasto-campos.js";
 import { extractTextFromBrouDocument } from "./extract-brou-document-text.js";
 import { detectarCamposDocumento } from "./detect-document-fields.js";
 import { extractValoresPorMapeo } from "./extract-valores-etiquetas.js";
-import { parseBrouTransferenciaText } from "./parse-brou-transferencia.js";
+import {
+  looksLikeBrouTransferenciaComprobante,
+  type BrouTransferenciaParsed,
+  parseBrouTransferenciaText,
+} from "./parse-brou-transferencia.js";
 import * as presDoc from "./presupuesto-documentos-db.js";
 
 const upload = multer({
@@ -220,7 +229,13 @@ async function parseBody(req: Request): Promise<PresupuestoInput> {
       "El rubro debe existir en Configuración → Rubros (grupo con sub-rubros activos)."
     );
   }
-  if (sub_rubro) {
+  const esComisionBancaria =
+    String(body.nro_operacion_origen ?? "")
+      .trim()
+      .toUpperCase()
+      .endsWith("-COM") ||
+    sub_rubro.toLowerCase().startsWith("comisiones bancarias");
+  if (sub_rubro && !esComisionBancaria) {
     if (!await db.subRubros.existsActivo(sub_rubro)) {
       throw new Error(
         "El sub-rubro debe existir en el catálogo SUB_RUBROS y estar activo."
@@ -382,11 +397,10 @@ app.post("/api/presupuesto", async (req, res) => {
   try {
     const payload = await parseBody(req);
     const user = req.user!;
-    const newId = await db.insertPresupuesto(payload, {
+    const reg = await db.insertPresupuesto(payload, {
       email: user.email,
       nombre: user.nombre,
     });
-    const reg = await db.getPresupuesto(newId);
     res.status(201).json({
       ok: true,
       data: reg,
@@ -1952,6 +1966,7 @@ function parseTipoDocumentoGastoBody(req: Request) {
   const nombre = String(body.nombre ?? "").trim();
   const descripcion = String(body.descripcion ?? "").trim();
   const origen = String(body.origen ?? "").trim();
+  const destino = String(body.destino ?? "").trim();
   const activo = body.activo !== false && body.activo !== 0 && body.activo !== "0";
   const campos_habilitados = normalizeGastoCampoList(body.campos_habilitados);
   const campos_requeridos = normalizeGastoCampoList(body.campos_requeridos);
@@ -1965,6 +1980,7 @@ function parseTipoDocumentoGastoBody(req: Request) {
     nombre,
     descripcion,
     origen,
+    destino,
     activo,
     campos_habilitados,
     campos_requeridos,
@@ -2106,6 +2122,145 @@ app.post(
           proveedor_razon,
           valores_mapeo,
           valores_mapeo_comision,
+        },
+      });
+    } catch (e) {
+      res.status(400).json({ ok: false, error: (e as Error).message });
+    }
+  }
+);
+
+/**
+ * Detecta a qué tipo de documento configurado corresponde el texto del comprobante.
+ * Puntúa por el banco de origen/destino y por cuántos títulos del mapeo aparecen.
+ */
+function detectarTipoDocumentoPorTexto<
+  T extends { origen: string; destino: string; mapeo_campos: Record<string, string> }
+>(text: string, tipos: T[]): T | null {
+  const lower = text.toLowerCase();
+  let best: T | null = null;
+  let bestScore = 0;
+  for (const tipo of tipos) {
+    let score = 0;
+    const origen = (tipo.origen || "").toLowerCase().trim();
+    if (origen && lower.includes(origen)) score += 3;
+    const destino = (tipo.destino || "").toLowerCase().trim();
+    if (destino && lower.includes(destino)) score += 1;
+    for (const titulo of Object.values(tipo.mapeo_campos)) {
+      const t = String(titulo || "").toLowerCase().trim();
+      if (t.length >= 4 && lower.includes(t)) score += 1;
+    }
+    if (score > bestScore) {
+      bestScore = score;
+      best = tipo;
+    }
+  }
+  return bestScore >= 2 ? best : null;
+}
+
+const EMPTY_BROU_PARSED: BrouTransferenciaParsed = {
+  numero_operacion: "",
+  numero_transferencia: "",
+  fecha: "",
+  importe_acreditar: { moneda: "USD" as const, valor: 0 },
+  comision: null as { moneda: "UYU" | "USD"; valor: number } | null,
+  beneficiario_nombre: "",
+  beneficiario_direccion: "",
+  beneficiario_observaciones: "",
+  banco_destino: "",
+  cuenta_destino: "",
+  concepto_brou: "",
+  cuenta_origen: "",
+};
+
+app.post(
+  "/api/documentos-digitales/leer-comprobante",
+  upload.single("file"),
+  async (req, res) => {
+    try {
+      const file = req.file;
+      if (!file?.buffer?.length) {
+        res.status(400).json({ ok: false, error: "Subí un PDF o imagen del comprobante" });
+        return;
+      }
+      const text = await extractTextFromBrouDocument(
+        file.buffer,
+        file.mimetype,
+        file.originalname
+      );
+
+      const tipos = await db.documentosDigitales.listTiposGasto({ soloActivos: true });
+      const tipo = detectarTipoDocumentoPorTexto(text, tipos);
+
+      const esBrou =
+        tipo?.origen?.toUpperCase() === "BROU" || looksLikeBrouTransferenciaComprobante(text);
+
+      let parsed: typeof EMPTY_BROU_PARSED = EMPTY_BROU_PARSED;
+      if (esBrou) {
+        try {
+          parsed = parseBrouTransferenciaText(text);
+        } catch {
+          parsed = EMPTY_BROU_PARSED;
+        }
+      }
+
+      const mapeo = tipo
+        ? normalizeGastoMapeo(tipo.mapeo_campos)
+        : esBrou
+          ? BROU_MAPEO_DEFAULT
+          : {};
+      let valores_mapeo: Record<string, string> | undefined;
+      if (Object.keys(mapeo).length > 0) {
+        valores_mapeo = extractValoresPorMapeo(text, mapeo) as Record<string, string>;
+      }
+
+      let valores_mapeo_comision: Record<string, string> | undefined;
+      const comCfg = tipo?.comision_config;
+      if (comCfg?.activa) {
+        const mapeoCom = normalizeGastoMapeo(comCfg.mapeo_campos);
+        if (Object.keys(mapeoCom).length > 0) {
+          valores_mapeo_comision = extractValoresPorMapeo(text, mapeoCom) as Record<
+            string,
+            string
+          >;
+        }
+      }
+
+      let proveedor_cod: number | null = null;
+      let proveedor_razon = "";
+      const nombreProveedor =
+        valores_mapeo?.proveedor?.trim() || parsed.beneficiario_nombre.trim();
+      if (nombreProveedor) {
+        const lista = await db.proveedores.list(nombreProveedor);
+        const nombre = nombreProveedor.toLowerCase();
+        const hit =
+          lista.find((p) => p.razon_social.trim().toLowerCase() === nombre) ??
+          lista.find((p) => p.razon_social.trim().toLowerCase().includes(nombre)) ??
+          lista[0];
+        if (hit) {
+          proveedor_cod = hit.cod;
+          proveedor_razon = hit.razon_social;
+        }
+      }
+
+      res.json({
+        ok: true,
+        data: {
+          ...parsed,
+          proveedor_cod,
+          proveedor_razon,
+          valores_mapeo,
+          valores_mapeo_comision,
+          es_brou: esBrou,
+          tipo_detectado: tipo
+            ? {
+                id: tipo.id,
+                nombre: tipo.nombre,
+                origen: tipo.origen,
+                destino: tipo.destino,
+                comision_activa: Boolean(comCfg?.activa),
+              }
+            : null,
         },
       });
     } catch (e) {
