@@ -11,7 +11,13 @@ import TablePagination, {
 import type { DivisaIndicadores, TipoCambio } from "../../types";
 import { PAR_DIVISA_LABELS, PAR_DIVISA_TC_LABEL } from "../../types";
 import type { DivisasMonedaConfig } from "./divisas-config";
-import { buildTcTendenciaMap, fmtDate } from "./divisas-utils";
+import {
+  buildTcComparacionMaps,
+  fmtDate,
+  fmtDiaSemana,
+  fmtSemanaAnio,
+  fmtTcVariacionPct,
+} from "./divisas-utils";
 import TcValorConTendencia from "./TcValorConTendencia";
 import DivisasChart from "./DivisasChart";
 import DivisasKpiCards from "./DivisasKpiCards";
@@ -50,7 +56,10 @@ export default function DivisasHistorial({
     [rows, pageSafe, pageSize]
   );
 
-  const tendenciaPorId = useMemo(() => buildTcTendenciaMap(rows), [rows]);
+  const { tendencia: tendenciaPorId, variacionPct: variacionPorId } = useMemo(
+    () => buildTcComparacionMaps(rows),
+    [rows]
+  );
 
   useEffect(() => {
     setPage(1);
@@ -227,40 +236,73 @@ export default function DivisasHistorial({
             <thead>
               <tr>
                 <th>Fecha</th>
-                <th className="num">{PAR_DIVISA_TC_LABEL[par]}</th>
+                <th>Día</th>
+                <th>Semana</th>
+                <th className="num">
+                  <span className="data-table-th-stack">
+                    <span>Precio</span>
+                    {PAR_DIVISA_TC_LABEL[par] ? (
+                      <span className="data-table-th-stack-sub">{PAR_DIVISA_TC_LABEL[par]}</span>
+                    ) : null}
+                  </span>
+                </th>
+                <th className="num">% Var.</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={2} className="empty">
+                  <td colSpan={5} className="empty">
                     Cargando...
                   </td>
                 </tr>
               ) : !apiOnline ? (
                 <tr>
-                  <td colSpan={2} className="empty">
+                  <td colSpan={5} className="empty">
                     API no conectada
                   </td>
                 </tr>
               ) : rows.length === 0 ? (
                 <tr>
-                  <td colSpan={2} className="empty">
+                  <td colSpan={5} className="empty">
                     Sin registros. Importá un archivo o usá el botón de importación.
                   </td>
                 </tr>
               ) : (
-                rowsPagina.map((r) => (
+                rowsPagina.map((r) => {
+                  const tendencia = tendenciaPorId.get(r.id) ?? "none";
+                  const variacion = variacionPorId.get(r.id);
+                  const variacionClass =
+                    tendencia === "up"
+                      ? "tc-trend-up"
+                      : tendencia === "down"
+                        ? "tc-trend-down"
+                        : tendencia === "equal"
+                          ? "tc-trend-equal"
+                          : "muted";
+
+                  return (
                   <tr key={r.id}>
                     <td>{fmtDate(r.fecha)}</td>
+                    <td className="muted">{fmtDiaSemana(r.fecha)}</td>
+                    <td className="muted" title="Semana del año (ISO)">
+                      {fmtSemanaAnio(r.fecha)}
+                    </td>
                     <td className="num">
                       <TcValorConTendencia
                         valor={r.valor}
-                        tendencia={tendenciaPorId.get(r.id) ?? "none"}
+                        tendencia={tendencia}
                       />
                     </td>
+                    <td
+                      className={`num ${variacionClass}`}
+                      title="Variación vs. día anterior"
+                    >
+                      {variacion != null ? fmtTcVariacionPct(variacion) : "—"}
+                    </td>
                   </tr>
-                ))
+                  );
+                })
               )}
             </tbody>
           </table>
