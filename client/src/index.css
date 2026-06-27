@@ -3148,22 +3148,25 @@ body {
   gap: 1.35rem;
 }
 
-.form-gasto-historial .form-gasto-historial-filters {
+.listado-pro.listado-pro .form-gasto-historial-filters.listado-pro-filters {
   padding: 0.75rem 1.25rem 0;
   border-bottom: none;
+  display: flex;
   flex-direction: row;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: flex-end;
   gap: 0.75rem;
 }
 
-.form-gasto-historial .form-gasto-historial-filters .field.flex-grow {
-  flex: 1 1 16rem;
-  min-width: 12rem;
+.form-gasto-historial-filters.listado-pro-filters .field.flex-grow {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 720px;
 }
 
-.form-gasto-historial .form-gasto-historial-filters .listado-pro-search-btn {
+.form-gasto-historial-filters.listado-pro-filters .listado-pro-search-btn {
   flex: 0 0 auto;
+  align-self: flex-end;
 }
 
 .listado-pro {
