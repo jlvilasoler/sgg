@@ -115,6 +115,14 @@ async function pruneChannelMembersOutsideCuenta(
     .run({ channelId, cuentaId });
 }
 
+/** peer_id provisional único al crear canal (evita colisión con peer_id=0 del canal general). */
+async function nextTempPeerId(db: Db): Promise<number> {
+  const row = (await db
+    .prepare("SELECT COALESCE(MIN(peer_id), 0) - 1 AS p FROM CHAT_CHANNELS")
+    .get()) as { p: number };
+  return row.p;
+}
+
 async function ensureTeamChannelForCuenta(
   db: Db,
   cuentaId: number,
@@ -142,12 +150,13 @@ async function ensureTeamChannelForCuenta(
   }
 
   if (!channelId) {
+    const insertPeerId = usePeerZero ? 0 : await nextTempPeerId(db);
     const ins = await db
       .prepare(
         `INSERT INTO CHAT_CHANNELS (nombre, peer_id, es_sistema, creado_por, cuenta_id)
-         VALUES (@nombre, 0, 1, NULL, @cuentaId)`
+         VALUES (@nombre, @peerId, 1, NULL, @cuentaId)`
       )
-      .run({ nombre, cuentaId });
+      .run({ nombre, peerId: insertPeerId, cuentaId });
     channelId = Number(ins.lastInsertRowid);
     if (!usePeerZero) {
       await db
@@ -319,9 +328,9 @@ export async function createChatChannel(
   const ins = await db
     .prepare(
       `INSERT INTO CHAT_CHANNELS (nombre, peer_id, es_sistema, creado_por, cuenta_id)
-       VALUES (@nombre, 0, 0, @userId, @cuentaId)`
+       VALUES (@nombre, @peerId, 0, @userId, @cuentaId)`
     )
-    .run({ nombre: label, userId, cuentaId });
+    .run({ nombre: label, peerId: await nextTempPeerId(db), userId, cuentaId });
 
   const id = Number(ins.lastInsertRowid);
   const peerId = -id;
