@@ -10,6 +10,12 @@ import type {
   ResumenRubro,
 } from "../types";
 import { empresaClass, fmtNum } from "../utils";
+import {
+  ejercicioDesdeHasta,
+  ejercicioVigente,
+  esEjercicioVigente,
+  listarEjerciciosContables,
+} from "../utils/ejercicio-contable";
 
 interface Props {
   catalogos: Catalogos;
@@ -30,9 +36,25 @@ function lineaSinMovimiento(linea: EstadoFinancieroUsd): boolean {
   return linea.total_saldo_usd === 0;
 }
 
+type ModalidadFecha = "ejercicio" | "periodo";
+
+const EJERCICIOS_OPCIONES = listarEjerciciosContables();
+const EJERCICIO_VIGENTE = ejercicioVigente();
+
+function filtrosInicialesEjercicio() {
+  return {
+    ejercicio: String(EJERCICIO_VIGENTE.anioInicio),
+    fechaDesde: EJERCICIO_VIGENTE.desde,
+    fechaHasta: EJERCICIO_VIGENTE.hasta,
+  };
+}
+
 export default function Resumen({ catalogos, apiOnline, onError }: Props) {
-  const [fechaDesde, setFechaDesde] = useState("");
-  const [fechaHasta, setFechaHasta] = useState("");
+  const iniciales = filtrosInicialesEjercicio();
+  const [ejercicio, setEjercicio] = useState(iniciales.ejercicio);
+  const [fechaDesde, setFechaDesde] = useState(iniciales.fechaDesde);
+  const [fechaHasta, setFechaHasta] = useState(iniciales.fechaHasta);
+  const [modalidadFecha, setModalidadFecha] = useState<ModalidadFecha>("ejercicio");
   const [empresa, setEmpresa] = useState("");
   const [porEmpresa, setPorEmpresa] = useState<ResumenEmpresa[]>([]);
   const [porEmpresaRubro, setPorEmpresaRubro] = useState<ResumenEmpresaRubro[]>([]);
@@ -77,6 +99,40 @@ export default function Resumen({ catalogos, apiOnline, onError }: Props) {
     setRubrosAbiertos(new Set());
     setEmpresasAbiertas(new Set());
   }, [estadoFinanciero, fechaDesde, fechaHasta, empresa]);
+
+  const resetFiltros = () => {
+    const v = ejercicioVigente();
+    setModalidadFecha("ejercicio");
+    setEjercicio(String(v.anioInicio));
+    setFechaDesde(v.desde);
+    setFechaHasta(v.hasta);
+    setEmpresa("");
+  };
+
+  const onModalidadFechaChange = (modalidad: ModalidadFecha) => {
+    setModalidadFecha(modalidad);
+    if (modalidad === "ejercicio") {
+      const anio = ejercicio || String(ejercicioVigente().anioInicio);
+      setEjercicio(anio);
+      const { desde, hasta } = ejercicioDesdeHasta(Number(anio));
+      setFechaDesde(desde);
+      setFechaHasta(hasta);
+      return;
+    }
+    setEjercicio("");
+  };
+
+  const onEjercicioChange = (value: string) => {
+    setEjercicio(value);
+    if (!value) {
+      setFechaDesde("");
+      setFechaHasta("");
+      return;
+    }
+    const { desde, hasta } = ejercicioDesdeHasta(Number(value));
+    setFechaDesde(desde);
+    setFechaHasta(hasta);
+  };
 
   const toggleRubro = (nombre: string) => {
     setRubrosAbiertos((prev) => {
@@ -173,47 +229,109 @@ export default function Resumen({ catalogos, apiOnline, onError }: Props) {
             Totales acumulados por empresa y rubro según el período filtrado
           </p>
         </header>
-        <div className="resumen-filters filters filters-inline mayusculas-auto">
-          <div className="field">
-            <label htmlFor="resumen-desde">Desde</label>
-            <input
-              type="date"
-              id="resumen-desde"
-              value={fechaDesde}
-              onChange={(e) => setFechaDesde(e.target.value)}
-            />
+        <div className="filters filters-presupuesto listado-pro-filters mayusculas-auto">
+          <div className="listado-pro-filters-row listado-pro-filters-row--principal">
+            <div className="field">
+              <label htmlFor="resumen-empresa">Empresa</label>
+              <select
+                id="resumen-empresa"
+                value={empresa}
+                onChange={(e) => setEmpresa(e.target.value)}
+              >
+                <option value="">Todas</option>
+                {catalogos.empresas.map((e) => (
+                  <option key={e} value={e}>
+                    {e}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
-          <div className="field">
-            <label htmlFor="resumen-hasta">Hasta</label>
-            <input
-              type="date"
-              id="resumen-hasta"
-              value={fechaHasta}
-              onChange={(e) => setFechaHasta(e.target.value)}
-            />
-          </div>
-          <div className="field">
-            <label htmlFor="resumen-empresa">Empresa (rubros)</label>
-            <select
-              id="resumen-empresa"
-              value={empresa}
-              onChange={(e) => setEmpresa(e.target.value)}
-            >
-              <option value="">Todas</option>
-              {catalogos.empresas.map((e) => (
-                <option key={e} value={e}>
-                  {e}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="field field--action">
-            <span className="field-action-label" aria-hidden="true">
-              Actualizar
-            </span>
-            <button type="button" className="btn btn-primary" onClick={load}>
-              Actualizar
-            </button>
+
+          <div className="listado-pro-filters-row listado-pro-filters-row--fechas">
+            <div className="field field--modalidad-fecha">
+              <span className="field-action-label" id="resumen-modalidad-fecha-label">
+                Filtrar por
+              </span>
+              <div
+                className="listado-fecha-modalidad"
+                role="group"
+                aria-labelledby="resumen-modalidad-fecha-label"
+              >
+                <button
+                  type="button"
+                  className={`listado-fecha-modalidad-btn${
+                    modalidadFecha === "ejercicio" ? " is-active" : ""
+                  }`}
+                  onClick={() => onModalidadFechaChange("ejercicio")}
+                  aria-pressed={modalidadFecha === "ejercicio"}
+                >
+                  Ejercicio
+                </button>
+                <button
+                  type="button"
+                  className={`listado-fecha-modalidad-btn${
+                    modalidadFecha === "periodo" ? " is-active" : ""
+                  }`}
+                  onClick={() => onModalidadFechaChange("periodo")}
+                  aria-pressed={modalidadFecha === "periodo"}
+                >
+                  Período
+                </button>
+              </div>
+            </div>
+            {modalidadFecha === "ejercicio" ? (
+              <div className="field field--ejercicio">
+                <label htmlFor="resumen-ejercicio">Ejercicio</label>
+                <select
+                  id="resumen-ejercicio"
+                  value={ejercicio}
+                  onChange={(e) => onEjercicioChange(e.target.value)}
+                  title="Período del 1 de julio al 30 de junio"
+                >
+                  <option value="">Todos</option>
+                  {EJERCICIOS_OPCIONES.map((e) => (
+                    <option key={e.anioInicio} value={String(e.anioInicio)}>
+                      {e.label}
+                      {esEjercicioVigente(e.anioInicio) ? " (vigente)" : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <>
+                <div className="field field--fecha">
+                  <label htmlFor="resumen-desde">Desde</label>
+                  <input
+                    type="date"
+                    id="resumen-desde"
+                    value={fechaDesde}
+                    onChange={(e) => setFechaDesde(e.target.value)}
+                  />
+                </div>
+                <div className="field field--fecha">
+                  <label htmlFor="resumen-hasta">Hasta</label>
+                  <input
+                    type="date"
+                    id="resumen-hasta"
+                    value={fechaHasta}
+                    onChange={(e) => setFechaHasta(e.target.value)}
+                  />
+                </div>
+              </>
+            )}
+            <div className="listado-pro-filters-actions">
+              <button type="button" className="btn listado-pro-reset-btn" onClick={resetFiltros}>
+                Reset
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary listado-pro-search-btn"
+                onClick={load}
+              >
+                Actualizar
+              </button>
+            </div>
           </div>
         </div>
       </div>

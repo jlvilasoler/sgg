@@ -15049,8 +15049,13 @@ button.sg-kpi-card:disabled {
   font-weight: 400;
 }
 
-.bn-ui .resumen-filters-card .resumen-filters {
+.bn-ui .resumen-filters-card .resumen-filters,
+.bn-ui .resumen-filters-card .listado-pro-filters {
   margin-bottom: 0;
+}
+
+.bn-ui .resumen-filters-card .listado-pro-filters {
+  margin: 0 1.25rem 1.1rem;
 }
 
 .bn-ui .resumen-filters .field--action {
