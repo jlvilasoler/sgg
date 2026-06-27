@@ -3192,12 +3192,56 @@ body {
   font-weight: 400;
 }
 
+.listado-pro.listado-pro .listado-pro-filters {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
 .listado-pro-filters {
-  margin-bottom: 0;
-  padding: 1rem 1.25rem 0.85rem;
-  background: var(--bn-bg);
-  border-bottom: 1px solid var(--bn-border-soft);
+  margin: 1rem 1.25rem;
+  padding: 1.1rem 1.25rem 1rem;
+  background: linear-gradient(180deg, #fbfcfd 0%, #f4f6f9 100%);
+  border: 1px solid var(--bn-border);
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(24, 26, 32, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.85rem;
+  position: relative;
+}
+
+.listado-pro-filters::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  border-radius: 10px 0 0 10px;
+  background: var(--bn-gold);
+}
+
+.listado-pro-filters-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: flex-start;
+  width: 100%;
   gap: 0.65rem 0.75rem;
+}
+
+.listado-pro-filters-row--fechas {
+  padding-top: 0.85rem;
+  border-top: 1px dashed var(--bn-border);
+}
+
+.listado-pro-filters-actions {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.5rem;
+  margin-left: auto;
 }
 
 .listado-pro-filters .field label {
@@ -3232,6 +3276,74 @@ body {
   border-color: var(--bn-gold);
   background: #fff;
   box-shadow: none;
+}
+
+.listado-pro-filters .field--modalidad-fecha {
+  min-width: 10rem;
+}
+
+.listado-pro-filters .field--modalidad-fecha .field-action-label {
+  display: block;
+  margin-bottom: 0.28rem;
+  color: var(--bn-muted);
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+.listado-fecha-modalidad {
+  display: inline-flex;
+  width: 100%;
+  padding: 3px;
+  border: 1px solid var(--bn-border);
+  border-radius: 6px;
+  background: #f1f3f5;
+  gap: 3px;
+  min-height: 2.15rem;
+}
+
+.listado-fecha-modalidad-btn {
+  flex: 1 1 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.3rem 0.5rem;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--bn-muted);
+  font-size: 0.74rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.listado-fecha-modalidad-btn:hover:not(.is-active) {
+  color: var(--bn-text);
+}
+
+.listado-fecha-modalidad-btn.is-active {
+  background: #fff;
+  color: #181a20;
+  box-shadow: 0 1px 3px rgba(24, 26, 32, 0.12);
+}
+
+.listado-pro-filters .field--ejercicio,
+.listado-pro-filters .field--fecha {
+  animation: listado-filtro-fade 0.18s ease;
+}
+
+@keyframes listado-filtro-fade {
+  from {
+    opacity: 0;
+    transform: translateY(-2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .listado-pro-reset-btn {
@@ -3943,8 +4055,21 @@ textarea:focus {
   width: 100%;
 }
 
-.filters-presupuesto .field:nth-child(4),
-.filters-presupuesto .field:nth-child(5) {
+.filters-presupuesto .field--ejercicio {
+  max-width: 15.5rem;
+  min-width: 12rem;
+}
+
+.filters-presupuesto .field--modalidad-fecha {
+  max-width: 10.5rem;
+  min-width: 9rem;
+}
+
+.filters-presupuesto .field--ejercicio select {
+  width: 100%;
+}
+
+.filters-presupuesto .field--fecha {
   max-width: 8.5rem;
 }
 
@@ -13481,13 +13606,23 @@ button.sg-kpi-card:disabled {
 
 .bn-ui .filters,
 .bn-ui .filters-inline,
-.bn-ui .filters-presupuesto,
 .bn-ui .resumen-filters {
   gap: 0.65rem 0.75rem;
   margin-bottom: 0;
   padding: 1rem 1.25rem 0.85rem;
   background: var(--bn-bg);
   border-bottom: 1px solid var(--bn-border-soft);
+}
+
+.bn-ui .filters-presupuesto.listado-pro-filters {
+  gap: 0.85rem;
+  margin: 1rem 1.25rem;
+  padding: 1.1rem 1.25rem 1rem;
+  background: linear-gradient(180deg, #fbfcfd 0%, #f4f6f9 100%);
+  border: 1px solid var(--bn-border);
+  border-bottom: 1px solid var(--bn-border);
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(24, 26, 32, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.6);
 }
 
 .bn-ui .filters .field label,

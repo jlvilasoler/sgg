@@ -3,6 +3,13 @@ import { deletePresupuesto, fetchPresupuesto, presupuestoDocumentoUrl } from "..
 import { FILTRO_SIN_RESPONSABLE } from "../constants";
 import type { Catalogos, Presupuesto } from "../types";
 import { confirmAction } from "../utils/confirm";
+import {
+  ejercicioDesdeHasta,
+  ejercicioVigente,
+  esEjercicioVigente,
+  labelEjercicio,
+  listarEjerciciosContables,
+} from "../utils/ejercicio-contable";
 import { empresaClass, empresaCorta, fmtDate, fmtNum } from "../utils";
 import {
   exportPresupuestoListadoCsv,
@@ -23,7 +30,20 @@ interface Props {
   onSuccess?: (msg: string) => void;
 }
 
-const COLS_TABLA = 12;
+const COLS_TABLA = 11;
+
+type ModalidadFecha = "ejercicio" | "periodo";
+
+const EJERCICIOS_OPCIONES = listarEjerciciosContables();
+const EJERCICIO_VIGENTE = ejercicioVigente();
+
+function filtrosInicialesEjercicio() {
+  return {
+    ejercicio: String(EJERCICIO_VIGENTE.anioInicio),
+    fechaDesde: EJERCICIO_VIGENTE.desde,
+    fechaHasta: EJERCICIO_VIGENTE.hasta,
+  };
+}
 
 function CeldaTexto({
   value,
@@ -41,11 +61,14 @@ function CeldaTexto({
 }
 
 export default function Listado({ catalogos, apiOnline, onEdit, onDeleted, onError, onSuccess }: Props) {
+  const iniciales = filtrosInicialesEjercicio();
   const [empresa, setEmpresa] = useState("");
   const [rubro, setRubro] = useState("");
   const [responsable, setResponsable] = useState("");
-  const [fechaDesde, setFechaDesde] = useState("");
-  const [fechaHasta, setFechaHasta] = useState("");
+  const [ejercicio, setEjercicio] = useState(iniciales.ejercicio);
+  const [fechaDesde, setFechaDesde] = useState(iniciales.fechaDesde);
+  const [fechaHasta, setFechaHasta] = useState(iniciales.fechaHasta);
+  const [modalidadFecha, setModalidadFecha] = useState<ModalidadFecha>("ejercicio");
   const [busqueda, setBusqueda] = useState("");
   const [rows, setRows] = useState<Presupuesto[] | null>(null);
   const [loading, setLoading] = useState(true);
@@ -103,12 +126,48 @@ export default function Listado({ catalogos, apiOnline, onEdit, onDeleted, onErr
   }, [rows]);
 
   const resetFiltros = () => {
+    const v = ejercicioVigente();
     setEmpresa("");
     setRubro("");
     setResponsable("");
-    setFechaDesde("");
-    setFechaHasta("");
+    setModalidadFecha("ejercicio");
+    setEjercicio(String(v.anioInicio));
+    setFechaDesde(v.desde);
+    setFechaHasta(v.hasta);
     setBusqueda("");
+  };
+
+  const onModalidadFechaChange = (modalidad: ModalidadFecha) => {
+    setModalidadFecha(modalidad);
+    if (modalidad === "ejercicio") {
+      const anio = ejercicio || String(ejercicioVigente().anioInicio);
+      setEjercicio(anio);
+      const { desde, hasta } = ejercicioDesdeHasta(Number(anio));
+      setFechaDesde(desde);
+      setFechaHasta(hasta);
+      return;
+    }
+    setEjercicio("");
+  };
+
+  const onEjercicioChange = (value: string) => {
+    setEjercicio(value);
+    if (!value) {
+      setFechaDesde("");
+      setFechaHasta("");
+      return;
+    }
+    const { desde, hasta } = ejercicioDesdeHasta(Number(value));
+    setFechaDesde(desde);
+    setFechaHasta(hasta);
+  };
+
+  const onFechaDesdeChange = (value: string) => {
+    setFechaDesde(value);
+  };
+
+  const onFechaHastaChange = (value: string) => {
+    setFechaHasta(value);
   };
 
   const subtituloExport = useMemo(() => {
@@ -122,11 +181,16 @@ export default function Listado({ catalogos, apiOnline, onEdit, onDeleted, onErr
           : `Pto. asign.: ${responsable}`
       );
     }
-    if (fechaDesde) partes.push(`Desde: ${fmtDate(fechaDesde)}`);
-    if (fechaHasta) partes.push(`Hasta: ${fmtDate(fechaHasta)}`);
+    if (modalidadFecha === "ejercicio" && ejercicio) {
+      const anio = Number(ejercicio);
+      partes.push(`Ejercicio: ${labelEjercicio(anio)}`);
+    } else {
+      if (fechaDesde) partes.push(`Desde: ${fmtDate(fechaDesde)}`);
+      if (fechaHasta) partes.push(`Hasta: ${fmtDate(fechaHasta)}`);
+    }
     if (busqueda.trim()) partes.push(`Búsqueda: ${busqueda.trim()}`);
     return partes.length ? partes.join(" · ") : "Todos los filtros";
-  }, [empresa, rubro, responsable, fechaDesde, fechaHasta, busqueda]);
+  }, [empresa, rubro, responsable, modalidadFecha, ejercicio, fechaDesde, fechaHasta, busqueda]);
 
   const exportar = async (formato: "excel" | "pdf" | "csv") => {
     if (!apiOnline) {
@@ -209,86 +273,150 @@ export default function Listado({ catalogos, apiOnline, onEdit, onDeleted, onErr
         </header>
 
         <div className="filters filters-presupuesto listado-pro-filters mayusculas-auto">
-        <div className="field">
-          <label htmlFor="filtro-empresa">Empresa</label>
-          <select
-            id="filtro-empresa"
-            value={empresa}
-            onChange={(e) => setEmpresa(e.target.value)}
-          >
-            <option value="">Todas</option>
-            {catalogos.empresas.map((e) => (
-              <option key={e} value={e}>
-                {e}
-              </option>
-            ))}
-          </select>
+          <div className="listado-pro-filters-row listado-pro-filters-row--principal">
+            <div className="field">
+              <label htmlFor="filtro-empresa">Empresa</label>
+              <select
+                id="filtro-empresa"
+                value={empresa}
+                onChange={(e) => setEmpresa(e.target.value)}
+              >
+                <option value="">Todas</option>
+                {catalogos.empresas.map((e) => (
+                  <option key={e} value={e}>
+                    {e}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="field">
+              <label htmlFor="filtro-rubro">Rubro</label>
+              <select id="filtro-rubro" value={rubro} onChange={(e) => setRubro(e.target.value)}>
+                <option value="">Todos</option>
+                {catalogos.rubros.map((r) => (
+                  <option key={r} value={r}>
+                    {r}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="field field--pto-asig">
+              <label htmlFor="filtro-responsable" title="Presupuesto asignado">
+                Pto. asign.
+              </label>
+              <select
+                id="filtro-responsable"
+                value={responsable}
+                onChange={(e) => setResponsable(e.target.value)}
+              >
+                <option value="">Todos</option>
+                <option value={FILTRO_SIN_RESPONSABLE}>Sin asignar</option>
+                {catalogos.responsables.map((r) => (
+                  <option key={r} value={r}>
+                    {r}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="field flex-grow">
+              <label htmlFor="filtro-busqueda">Buscar</label>
+              <input
+                type="search"
+                id="filtro-busqueda"
+                placeholder="Proveedor, factura, concepto..."
+                value={busqueda}
+                onChange={(e) => setBusqueda(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && load()}
+              />
+            </div>
+          </div>
+
+          <div className="listado-pro-filters-row listado-pro-filters-row--fechas">
+            <div className="field field--modalidad-fecha">
+              <span className="field-action-label" id="filtro-modalidad-fecha-label">
+                Filtrar por
+              </span>
+              <div
+                className="listado-fecha-modalidad"
+                role="group"
+                aria-labelledby="filtro-modalidad-fecha-label"
+              >
+                <button
+                  type="button"
+                  className={`listado-fecha-modalidad-btn${
+                    modalidadFecha === "ejercicio" ? " is-active" : ""
+                  }`}
+                  onClick={() => onModalidadFechaChange("ejercicio")}
+                  aria-pressed={modalidadFecha === "ejercicio"}
+                >
+                  Ejercicio
+                </button>
+                <button
+                  type="button"
+                  className={`listado-fecha-modalidad-btn${
+                    modalidadFecha === "periodo" ? " is-active" : ""
+                  }`}
+                  onClick={() => onModalidadFechaChange("periodo")}
+                  aria-pressed={modalidadFecha === "periodo"}
+                >
+                  Período
+                </button>
+              </div>
+            </div>
+            {modalidadFecha === "ejercicio" ? (
+              <div className="field field--ejercicio">
+                <label htmlFor="filtro-ejercicio">Ejercicio</label>
+                <select
+                  id="filtro-ejercicio"
+                  value={ejercicio}
+                  onChange={(e) => onEjercicioChange(e.target.value)}
+                  title="Período del 1 de julio al 30 de junio"
+                >
+                  <option value="">Todos</option>
+                  {EJERCICIOS_OPCIONES.map((e) => (
+                    <option key={e.anioInicio} value={String(e.anioInicio)}>
+                      {e.label}
+                      {esEjercicioVigente(e.anioInicio) ? " (vigente)" : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <>
+                <div className="field field--fecha">
+                  <label htmlFor="filtro-desde">Desde</label>
+                  <input
+                    type="date"
+                    id="filtro-desde"
+                    value={fechaDesde}
+                    onChange={(e) => onFechaDesdeChange(e.target.value)}
+                  />
+                </div>
+                <div className="field field--fecha">
+                  <label htmlFor="filtro-hasta">Hasta</label>
+                  <input
+                    type="date"
+                    id="filtro-hasta"
+                    value={fechaHasta}
+                    onChange={(e) => onFechaHastaChange(e.target.value)}
+                  />
+                </div>
+              </>
+            )}
+            <div className="listado-pro-filters-actions">
+              <button type="button" className="btn listado-pro-reset-btn" onClick={resetFiltros}>
+                Reset
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary listado-pro-search-btn"
+                onClick={load}
+              >
+                Buscar
+              </button>
+            </div>
+          </div>
         </div>
-        <div className="field">
-          <label htmlFor="filtro-rubro">Rubro</label>
-          <select id="filtro-rubro" value={rubro} onChange={(e) => setRubro(e.target.value)}>
-            <option value="">Todos</option>
-            {catalogos.rubros.map((r) => (
-              <option key={r} value={r}>
-                {r}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="field field--pto-asig">
-          <label htmlFor="filtro-responsable" title="Presupuesto asignado">
-            Pto. asign.
-          </label>
-          <select
-            id="filtro-responsable"
-            value={responsable}
-            onChange={(e) => setResponsable(e.target.value)}
-          >
-            <option value="">Todos</option>
-            <option value={FILTRO_SIN_RESPONSABLE}>Sin asignar</option>
-            {catalogos.responsables.map((r) => (
-              <option key={r} value={r}>
-                {r}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="field">
-          <label htmlFor="filtro-desde">Desde</label>
-          <input
-            type="date"
-            id="filtro-desde"
-            value={fechaDesde}
-            onChange={(e) => setFechaDesde(e.target.value)}
-          />
-        </div>
-        <div className="field">
-          <label htmlFor="filtro-hasta">Hasta</label>
-          <input
-            type="date"
-            id="filtro-hasta"
-            value={fechaHasta}
-            onChange={(e) => setFechaHasta(e.target.value)}
-          />
-        </div>
-        <div className="field flex-grow">
-          <label htmlFor="filtro-busqueda">Buscar</label>
-          <input
-            type="search"
-            id="filtro-busqueda"
-            placeholder="Proveedor, factura, concepto..."
-            value={busqueda}
-            onChange={(e) => setBusqueda(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && load()}
-          />
-        </div>
-        <button type="button" className="btn listado-pro-reset-btn" onClick={resetFiltros}>
-          Reset
-        </button>
-        <button type="button" className="btn btn-primary listado-pro-search-btn" onClick={load}>
-          Buscar
-        </button>
-      </div>
 
       <section
         className="listado-indicadores listado-pro-indicadores"
@@ -297,7 +425,7 @@ export default function Listado({ catalogos, apiOnline, onEdit, onDeleted, onErr
         <div className="listado-indicadores-grid listado-pro-kpi-grid">
           <div className="listado-indicador listado-indicador--pesos listado-pro-kpi">
             <span className="listado-indicador-label">Pesos</span>
-            <span className="listado-pro-kpi-currency">ARS</span>
+            <span className="listado-pro-kpi-currency">UYU</span>
             <span className="listado-indicador-valor listado-pro-kpi-valor">
               {loading || !apiOnline ? "—" : fmtNum(indicadores.pesos)}
             </span>
@@ -370,7 +498,6 @@ export default function Listado({ catalogos, apiOnline, onEdit, onDeleted, onErr
       <div className="table-wrap table-wrap-presupuesto listado-pro-table-wrap">
         <table className="data-table data-table-presupuesto listado-pro-table">
           <colgroup>
-            <col className="col-nro" />
             <col className="col-empresa" />
             <col className="col-fecha" />
             <col className="col-cod" />
@@ -385,9 +512,6 @@ export default function Listado({ catalogos, apiOnline, onEdit, onDeleted, onErr
           </colgroup>
           <thead>
             <tr>
-              <th className="num" title="Número de registro" data-col="nro">
-                N°
-              </th>
               <th title="Empresa" data-col="empresa">
                 Emp.
               </th>
@@ -439,9 +563,6 @@ export default function Listado({ catalogos, apiOnline, onEdit, onDeleted, onErr
             ) : (
               rows.map((r) => (
                 <tr key={r.id} className="listado-pro-row">
-                  <td className="num listado-pro-num" data-col="nro">
-                    {r.nro_registro}
-                  </td>
                   <td className="td-empresa" data-col="empresa">
                     <span
                       className={`empresa-badge empresa-badge--compact ${empresaClass(r.empresa)}`}

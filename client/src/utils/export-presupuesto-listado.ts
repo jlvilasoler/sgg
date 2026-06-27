@@ -10,7 +10,7 @@ const EXPORT_HEADERS = [
   "Razón",
   "Concepto",
   "Fact.",
-  "$ ARS",
+  "$ UYU",
   "USD",
   "R$",
   "TOTAL USD",
@@ -25,7 +25,7 @@ function filaExport(r: Presupuesto): Record<(typeof EXPORT_HEADERS)[number], str
     Razón: r.razon_social_proveedor ?? "",
     Concepto: r.concepto ?? "",
     "Fact.": r.nro_factura ?? "",
-    "$ ARS": Number(r.pesos) || 0,
+    "$ UYU": Number(r.pesos) || 0,
     USD: Number(r.dolares_usd) || 0,
     "R$": Number(r.reales) || 0,
     "TOTAL USD": Number(r.saldo_usd) || 0,
@@ -103,7 +103,7 @@ export async function exportPresupuestoListadoPdf(
     const f = filaExport(r);
     return EXPORT_HEADERS.map((h) => {
       const v = f[h];
-      if (h === "$ ARS" || h === "USD" || h === "R$" || h === "TOTAL USD") {
+      if (h === "$ UYU" || h === "USD" || h === "R$" || h === "TOTAL USD") {
         return fmtNum(Number(v));
       }
       return String(v ?? "");

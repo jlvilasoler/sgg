@@ -471,7 +471,7 @@ export default function Resumen({ catalogos, apiOnline, onError }: Props) {
                       <tr>
                         <th className="balance-col-cuenta">Empresa / Rubro</th>
                         <th className="num">Comprob.</th>
-                        <th className="num">$ ARS</th>
+                        <th className="num">$ UYU</th>
                         <th className="num">USD</th>
                         <th className="num">R$</th>
                         <th className="num">Total USD</th>
