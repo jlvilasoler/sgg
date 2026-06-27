@@ -11,7 +11,7 @@ import {
 } from "./user-avatar-db.js";
 import { dbCapacityHint, isDbCapacityError } from "./db/pg-client.js";
 import type { StockMovimientoTipo } from "./stock-auditoria-db.js";
-import { getDb, stockAuditoria } from "./database.js";
+import { getDb, empresasCuenta, stockAuditoria } from "./database.js";
 import {
   attachApiActivityLogger,
   PANTALLA_LABELS,
@@ -124,7 +124,8 @@ export function moduleFromApiPath(path: string): Modulo | null {
     p.startsWith("/api/auth/users") ||
     p.startsWith("/api/auth/role-permissions") ||
     p.startsWith("/api/auth/stock-movimientos") ||
-    p.startsWith("/api/auth/actividad")
+    p.startsWith("/api/auth/actividad") ||
+    p.startsWith("/api/empresas-cuenta")
   ) {
     return "usuarios";
   }
@@ -238,6 +239,34 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
 function requireAdmin(req: Request, res: Response): boolean {
   if (!req.user || req.user.rol !== "admin") {
     res.status(403).json({ ok: false, error: "Solo administradores" });
+    return false;
+  }
+  return true;
+}
+
+function requireSuperAdmin(req: Request, res: Response): boolean {
+  if (!req.user?.es_super_admin) {
+    res.status(403).json({
+      ok: false,
+      error: "Solo el administrador del sistema puede realizar esta acción",
+    });
+    return false;
+  }
+  return true;
+}
+
+function assertUserInScope(
+  actor: UserPublic,
+  target: UserPublic,
+  res: Response
+): boolean {
+  if (actor.es_super_admin) return true;
+  if (!actor.empresa_id) {
+    res.status(403).json({ ok: false, error: "Sin permiso sobre este usuario" });
+    return false;
+  }
+  if (target.empresa_id !== actor.empresa_id) {
+    res.status(403).json({ ok: false, error: "Sin permiso sobre este usuario" });
     return false;
   }
   return true;
@@ -451,23 +480,99 @@ export function registerAuthRoutes(app: Express): void {
 
   app.get("/api/auth/users", async (req, res) => {
     if (!requireAdmin(req, res)) return;
+    const actor = req.user!;
+    const empresaQuery = req.query.empresa_id;
+    const ambitoPropio = String(req.query.ambito ?? "") === "propio";
+    if (actor.es_super_admin) {
+      if (empresaQuery != null && String(empresaQuery).trim() !== "") {
+        const empresaId = Number(empresaQuery);
+        if (!Number.isFinite(empresaId)) {
+          res.status(400).json({ ok: false, error: "empresa_id inválido" });
+          return;
+        }
+        const cuenta = await empresasCuenta.getEmpresaCuentaById(
+          getDb(),
+          empresaId
+        );
+        res.json({
+          ok: true,
+          data: await authDb.listUsers(getDb(), {
+            empresa_id: empresaId,
+            incluir_admin_id: cuenta?.admin_user_id ?? null,
+          }),
+        });
+        return;
+      }
+      if (ambitoPropio) {
+        const cuenta = await empresasCuenta.getEmpresaCuentaByAdminUserId(
+          getDb(),
+          actor.id
+        );
+        if (cuenta) {
+          res.json({
+            ok: true,
+            data: await authDb.listUsers(getDb(), {
+              empresa_id: cuenta.id,
+              incluir_admin_id: cuenta.admin_user_id,
+            }),
+          });
+          return;
+        }
+      }
+      res.json({ ok: true, data: await authDb.listUsers(getDb()) });
+      return;
+    }
+    if (actor.empresa_id) {
+      const cuenta = await empresasCuenta.getEmpresaCuentaById(
+        getDb(),
+        actor.empresa_id
+      );
+      res.json({
+        ok: true,
+        data: await authDb.listUsers(getDb(), {
+          empresa_id: actor.empresa_id,
+          incluir_admin_id: cuenta?.admin_user_id ?? null,
+        }),
+      });
+      return;
+    }
     res.json({ ok: true, data: await authDb.listUsers(getDb()) });
   });
 
   app.post("/api/auth/users", async (req, res) => {
     if (!requireAdmin(req, res)) return;
     try {
-      const data = {
-        email: String(req.body?.email ?? ""),
-        nombre: String(req.body?.nombre ?? ""),
-        rol: req.body?.rol as authDb.Rol,
-        password: String(req.body?.password ?? ""),
-        activo: req.body?.activo !== false,
+      const actor = req.user!;
+      const body = req.body ?? {};
+      const data: authDb.UserInput = {
+        email: String(body.email ?? ""),
+        nombre: String(body.nombre ?? ""),
+        rol: body.rol as authDb.Rol,
+        password: String(body.password ?? ""),
+        activo: body.activo !== false,
       };
       if (!authDb.isValidRol(data.rol)) {
         res.status(400).json({ ok: false, error: "Rol inválido" });
         return;
       }
+
+      if (actor.es_super_admin) {
+        if (body.empresa_id !== undefined && body.empresa_id !== null) {
+          data.empresa_id = Number(body.empresa_id);
+        } else {
+          const propia = await empresasCuenta.getEmpresaCuentaByAdminUserId(
+            getDb(),
+            actor.id
+          );
+          data.empresa_id = propia?.id ?? null;
+        }
+      } else if (actor.empresa_id) {
+        data.empresa_id = actor.empresa_id;
+      } else {
+        res.status(403).json({ ok: false, error: "Sin permiso para crear usuarios" });
+        return;
+      }
+
       const user = await authDb.insertUser(getDb(), data);
       await authDb.recordAuthEvent(getDb(), "user_created", {
         email: user.email,
@@ -509,6 +614,13 @@ export function registerAuthRoutes(app: Express): void {
       if (!current) {
         res.status(404).json({ ok: false, error: "Usuario no encontrado" });
         return;
+      }
+
+      if (!assertUserInScope(req.user!, current, res)) return;
+
+      if (body.empresa_id !== undefined && req.user!.es_super_admin) {
+        updateData.empresa_id =
+          body.empresa_id === null ? null : Number(body.empresa_id);
       }
 
       if (
@@ -696,6 +808,164 @@ export function registerAuthRoutes(app: Express): void {
       res.status(400).json({
         ok: false,
         error: e instanceof Error ? e.message : "Error al guardar permisos",
+      });
+    }
+  });
+
+  app.get("/api/empresas-cuenta", async (req, res) => {
+    if (!requireSuperAdmin(req, res)) return;
+    res.json({ ok: true, data: await empresasCuenta.listEmpresasCuenta(getDb()) });
+  });
+
+  app.post("/api/empresas-cuenta", async (req, res) => {
+    if (!requireSuperAdmin(req, res)) return;
+    try {
+      const body = req.body ?? {};
+      const empresa = await empresasCuenta.insertEmpresaCuenta(getDb(), {
+        nombre: String(body.nombre ?? ""),
+        codigo: String(body.codigo ?? ""),
+        activo: body.activo !== false,
+      });
+      await authDb.recordAuthEvent(getDb(), "empresa_cuenta_created", {
+        email: req.user!.email,
+        detalle: `empresa=${empresa.nombre}`,
+      });
+      res.status(201).json({ ok: true, data: empresa });
+    } catch (e) {
+      res.status(400).json({
+        ok: false,
+        error: e instanceof Error ? e.message : "Error al crear cuenta de empresa",
+      });
+    }
+  });
+
+  app.patch("/api/empresas-cuenta/:id", async (req, res) => {
+    if (!requireSuperAdmin(req, res)) return;
+    try {
+      const id = Number(req.params.id);
+      if (!Number.isFinite(id)) {
+        res.status(400).json({ ok: false, error: "ID inválido" });
+        return;
+      }
+      const body = req.body ?? {};
+      const patch: Partial<empresasCuenta.EmpresaCuentaInput> = {};
+      if (body.nombre !== undefined) patch.nombre = String(body.nombre);
+      if (body.codigo !== undefined) patch.codigo = String(body.codigo);
+      if (body.activo !== undefined) patch.activo = Boolean(body.activo);
+      const empresa = await empresasCuenta.updateEmpresaCuenta(getDb(), id, patch);
+      res.json({ ok: true, data: empresa });
+    } catch (e) {
+      res.status(400).json({
+        ok: false,
+        error: e instanceof Error ? e.message : "Error al actualizar cuenta de empresa",
+      });
+    }
+  });
+
+  app.patch("/api/empresas-cuenta/:id/admin", async (req, res) => {
+    if (!requireSuperAdmin(req, res)) return;
+    try {
+      const cuentaId = Number(req.params.id);
+      if (!Number.isFinite(cuentaId)) {
+        res.status(400).json({ ok: false, error: "ID inválido" });
+        return;
+      }
+      const body = req.body ?? {};
+      const userId =
+        body.user_id === null || body.user_id === undefined
+          ? null
+          : Number(body.user_id);
+      if (userId !== null && !Number.isFinite(userId)) {
+        res.status(400).json({ ok: false, error: "user_id inválido" });
+        return;
+      }
+      const empresa = await empresasCuenta.setEmpresaCuentaAdmin(
+        getDb(),
+        cuentaId,
+        userId
+      );
+      await authDb.recordAuthEvent(getDb(), "empresa_cuenta_admin_updated", {
+        email: req.user!.email,
+        detalle: `cuenta=${empresa.nombre};admin=${empresa.admin?.email ?? "—"}`,
+      });
+      res.json({ ok: true, data: empresa });
+    } catch (e) {
+      res.status(400).json({
+        ok: false,
+        error: e instanceof Error ? e.message : "Error al asignar administrador",
+      });
+    }
+  });
+
+  app.post("/api/empresas-cuenta/:id/empresas", async (req, res) => {
+    if (!requireSuperAdmin(req, res)) return;
+    try {
+      const cuentaId = Number(req.params.id);
+      if (!Number.isFinite(cuentaId)) {
+        res.status(400).json({ ok: false, error: "ID inválido" });
+        return;
+      }
+      const body = req.body ?? {};
+      const empresa = await empresasCuenta.insertEmpresaOperativa(getDb(), cuentaId, {
+        nombre: String(body.nombre ?? ""),
+        codigo: String(body.codigo ?? ""),
+        activo: body.activo !== false,
+      });
+      res.status(201).json({ ok: true, data: empresa });
+    } catch (e) {
+      res.status(400).json({
+        ok: false,
+        error: e instanceof Error ? e.message : "Error al crear empresa interna",
+      });
+    }
+  });
+
+  app.post("/api/empresas-cuenta/:id/usuarios", async (req, res) => {
+    if (!requireSuperAdmin(req, res)) return;
+    try {
+      const empresaId = Number(req.params.id);
+      if (!Number.isFinite(empresaId)) {
+        res.status(400).json({ ok: false, error: "ID inválido" });
+        return;
+      }
+      const empresa = await empresasCuenta.getEmpresaCuentaById(getDb(), empresaId);
+      if (!empresa) {
+        res.status(404).json({ ok: false, error: "Cuenta de empresa no encontrada" });
+        return;
+      }
+      const body = req.body ?? {};
+      const rol = body.rol as authDb.Rol;
+      if (!authDb.isValidRol(rol)) {
+        res.status(400).json({ ok: false, error: "Rol inválido" });
+        return;
+      }
+      const user = await authDb.insertUser(getDb(), {
+        email: String(body.email ?? ""),
+        nombre: String(body.nombre ?? ""),
+        rol,
+        password: String(body.password ?? ""),
+        activo: body.activo !== false,
+        empresa_id: empresaId,
+      });
+      await authDb.recordAuthEvent(getDb(), "user_created", {
+        email: user.email,
+        detalle: `rol=${user.rol};empresa=${empresa.nombre}`,
+      });
+
+      let cuentaActualizada = empresa;
+      if (user.rol === "admin" && empresa.admin_user_id == null) {
+        cuentaActualizada = await empresasCuenta.setEmpresaCuentaAdmin(
+          getDb(),
+          empresaId,
+          user.id
+        );
+      }
+
+      res.status(201).json({ ok: true, data: user, cuenta: cuentaActualizada });
+    } catch (e) {
+      res.status(400).json({
+        ok: false,
+        error: e instanceof Error ? e.message : "Error al crear usuario de empresa",
       });
     }
   });

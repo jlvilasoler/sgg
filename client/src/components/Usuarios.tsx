@@ -93,7 +93,7 @@ export default function Usuarios({
     }
     setLoading(true);
     try {
-      setRows(await fetchUsuarios());
+      setRows(await fetchUsuarios(undefined, { ambitoPropio: true }));
     } catch (e) {
       onError(e instanceof Error ? e.message : "Error al cargar usuarios");
     } finally {
@@ -139,6 +139,7 @@ export default function Usuarios({
       return (
         u.nombre.toLowerCase().includes(q) ||
         u.email.toLowerCase().includes(q) ||
+        u.usuario_numero.toLowerCase().includes(q) ||
         u.rol_label.toLowerCase().includes(q)
       );
     });
@@ -484,6 +485,7 @@ export default function Usuarios({
             <thead>
               <tr>
                 <th>Usuario</th>
+                <th>ID_USUARIO</th>
                 <th>Email</th>
                 <th>Rol</th>
                 <th>Estado</th>
@@ -494,13 +496,13 @@ export default function Usuarios({
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="usuarios-admin-empty-cell">
+                  <td colSpan={7} className="usuarios-admin-empty-cell">
                     <div className="usuarios-admin-empty">Cargando usuarios…</div>
                   </td>
                 </tr>
               ) : filteredRows.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="usuarios-admin-empty-cell">
+                  <td colSpan={7} className="usuarios-admin-empty-cell">
                     <div className="usuarios-admin-empty" role="status">
                       {hayFiltros
                         ? "No hay usuarios que coincidan con los filtros"
@@ -528,6 +530,11 @@ export default function Usuarios({
                             )}
                           </div>
                         </div>
+                      </td>
+                      <td>
+                        <span className="usuarios-id-badge">
+                          ID_USUARIO {u.usuario_numero}
+                        </span>
                       </td>
                       <td className="usuarios-admin-email">{u.email}</td>
                       <td>

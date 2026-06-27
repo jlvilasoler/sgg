@@ -100,11 +100,13 @@ export interface RolPermisosInput {
 
 export interface UserRow {
   id: number;
+  usuario_numero: string | null;
   email: string;
   password_hash: string;
   nombre: string;
   rol: Rol;
   activo: number;
+  empresa_id: number | null;
   creado_en: string;
   actualizado_en: string;
   ultimo_acceso: string | null;
@@ -116,11 +118,17 @@ export interface UserRow {
 
 export interface UserPublic {
   id: number;
+  usuario_numero: string;
   email: string;
   nombre: string;
   rol: Rol;
   rol_label: string;
   activo: boolean;
+  empresa_id: number | null;
+  empresa_nombre: string | null;
+  empresa_codigo: string | null;
+  empresa_cuenta_numero: string | null;
+  es_super_admin: boolean;
   permisos: Modulo[];
   puede_escribir: boolean;
   modulos_solo_lectura: Modulo[];
@@ -135,6 +143,7 @@ export interface UserInput {
   rol: Rol;
   activo?: boolean;
   password?: string;
+  empresa_id?: number | null;
 }
 
 const BCRYPT_ROUNDS = 12;
@@ -238,13 +247,40 @@ export function canWrite(rol: Rol): boolean {
 
 export async function toUserPublic(row: UserRow, db: Db): Promise<UserPublic> {
   const caps = await roleCapabilities(db, row.rol);
+  const empresaId =
+    row.empresa_id != null && Number.isFinite(Number(row.empresa_id))
+      ? Number(row.empresa_id)
+      : null;
+
+  let empresa_nombre: string | null = null;
+  let empresa_codigo: string | null = null;
+  let empresa_cuenta_numero: string | null = null;
+  if (empresaId) {
+    const empresaRow = (await db
+      .prepare("SELECT nombre, codigo, cuenta_numero FROM EMPRESAS_CUENTA WHERE id = ?")
+      .get(empresaId)) as
+      | { nombre: string; codigo: string; cuenta_numero: string | null }
+      | undefined;
+    if (empresaRow) {
+      empresa_nombre = empresaRow.nombre;
+      empresa_codigo = empresaRow.codigo;
+      empresa_cuenta_numero = empresaRow.cuenta_numero;
+    }
+  }
+
   return {
     id: row.id,
+    usuario_numero: formatUsuarioNumero(row.usuario_numero ?? row.id),
     email: row.email,
     nombre: row.nombre,
     rol: row.rol,
     rol_label: ROL_LABELS[row.rol],
     activo: pgNum(row.activo) === 1,
+    empresa_id: empresaId,
+    empresa_nombre,
+    empresa_codigo,
+    empresa_cuenta_numero,
+    es_super_admin: row.rol === "admin" && empresaId == null,
     permisos: caps.permisos,
     puede_escribir: caps.puede_escribir,
     modulos_solo_lectura: caps.modulos_solo_lectura,
@@ -252,6 +288,32 @@ export async function toUserPublic(row: UserRow, db: Db): Promise<UserPublic> {
     ultimo_acceso: pgTimestampString(row.ultimo_acceso),
     avatar: avatarDtoFromRow(row.id, row),
   };
+}
+
+function formatUsuarioNumero(value: unknown): string {
+  const n =
+    typeof value === "number"
+      ? value
+      : Number(String(value ?? "").replace(/\D/g, ""));
+  if (!Number.isFinite(n) || n <= 0 || n > 9999) {
+    throw new Error("No se pudo generar ID_USUARIO válido");
+  }
+  return String(Math.floor(n)).padStart(4, "0");
+}
+
+async function nextUsuarioNumero(db: Db): Promise<string> {
+  const rows = (await db
+    .prepare("SELECT usuario_numero FROM USERS WHERE usuario_numero IS NOT NULL")
+    .all()) as { usuario_numero: string | null }[];
+  const used = new Set<number>();
+  for (const row of rows) {
+    const n = Number(String(row.usuario_numero ?? "").replace(/\D/g, ""));
+    if (Number.isFinite(n) && n > 0) used.add(Math.floor(n));
+  }
+  for (let n = 1; n <= 9999; n += 1) {
+    if (!used.has(n)) return formatUsuarioNumero(n);
+  }
+  throw new Error("No hay ID_USUARIO disponibles");
 }
 
 function normalizeEmail(email: string): string {
@@ -382,6 +444,61 @@ export async function listAuthAuditLog(
   };
 }
 
+async function migrateUserEmpresaId(db: Db): Promise<void> {
+  const col = await db
+    .prepare(
+      `SELECT 1 FROM information_schema.columns
+       WHERE table_schema = 'public' AND table_name = 'users' AND column_name = 'empresa_id'`
+    )
+    .get();
+  if (!col) {
+    await db
+      .prepare("ALTER TABLE USERS ADD COLUMN empresa_id INTEGER REFERENCES EMPRESAS_CUENTA(id)")
+      .run();
+    console.info("[SGG Auth] Migración: columna users.empresa_id agregada");
+  }
+}
+
+async function migrateUserNumero(db: Db): Promise<void> {
+  const col = await db
+    .prepare(
+      `SELECT 1 FROM information_schema.columns
+       WHERE table_schema = 'public' AND table_name = 'users' AND column_name = 'usuario_numero'`
+    )
+    .get();
+  if (!col) {
+    await db.prepare("ALTER TABLE USERS ADD COLUMN usuario_numero TEXT").run();
+    console.info("[SGG Auth] Migración: columna users.usuario_numero agregada");
+  }
+
+  const rows = (await db
+    .prepare("SELECT id, usuario_numero FROM USERS ORDER BY id ASC")
+    .all()) as { id: number; usuario_numero: string | null }[];
+  const used = new Set<number>();
+  for (const row of rows) {
+    const n = Number(String(row.usuario_numero ?? "").replace(/\D/g, ""));
+    if (Number.isFinite(n) && n > 0 && n <= 9999) used.add(Math.floor(n));
+  }
+
+  let next = 1;
+  for (const row of rows) {
+    if (row.usuario_numero) continue;
+    while (used.has(next) && next <= 9999) next += 1;
+    if (next > 9999) throw new Error("No hay ID_USUARIO disponibles");
+    const numero = formatUsuarioNumero(next);
+    await db
+      .prepare("UPDATE USERS SET usuario_numero = ? WHERE id = ?")
+      .run(numero, row.id);
+    used.add(next);
+  }
+
+  await db
+    .prepare(
+      "CREATE UNIQUE INDEX IF NOT EXISTS idx_users_usuario_numero ON USERS(usuario_numero)"
+    )
+    .run();
+}
+
 export async function initAuthTables(db: Db): Promise<void> {
   await migrateUserAvatarColumns(db);
   await migrateGestorN2Role(db);
@@ -390,6 +507,8 @@ export async function initAuthTables(db: Db): Promise<void> {
   await ensureGestorN2RolePermissions(db);
   await migrateModulosPreciosGanadoYChat(db);
   await migrateModuloDocumentosDigitales(db);
+  await migrateUserEmpresaId(db);
+  await migrateUserNumero(db);
   await purgeExpiredSessions(db);
   await seedAdminIfEmpty(db);
   await migrateLegacyAdmin(db);
@@ -973,10 +1092,29 @@ export async function verifyLogin(
   return { ok: true, user: await toUserPublic(row, db) };
 }
 
-export async function listUsers(db: Db): Promise<UserPublic[]> {
-  const rows = (await db
-    .prepare("SELECT * FROM USERS ORDER BY LOWER(nombre) ASC")
-    .all()) as UserRow[];
+export async function listUsers(
+  db: Db,
+  opts?: { empresa_id?: number | null; incluir_admin_id?: number | null }
+): Promise<UserPublic[]> {
+  let sql = "SELECT * FROM USERS";
+  const params: unknown[] = [];
+
+  if (opts?.empresa_id !== undefined && opts.empresa_id !== null) {
+    if (
+      opts.incluir_admin_id !== undefined &&
+      opts.incluir_admin_id !== null
+    ) {
+      sql += " WHERE (empresa_id = ? OR id = ?)";
+      params.push(opts.empresa_id, opts.incluir_admin_id);
+    } else {
+      sql += " WHERE empresa_id = ?";
+      params.push(opts.empresa_id);
+    }
+  }
+
+  sql += " ORDER BY LOWER(nombre) ASC";
+
+  const rows = (await db.prepare(sql).all(...params)) as UserRow[];
   const result: UserPublic[] = [];
   for (const row of rows) {
     result.push(await toUserPublic(row, db));
@@ -1004,12 +1142,33 @@ export async function insertUser(db: Db, data: UserInput): Promise<UserPublic> {
   if (exists) throw new Error("Ya existe un usuario con ese email");
 
   const hash = bcrypt.hashSync(data.password, BCRYPT_ROUNDS);
+  const empresaId =
+    data.empresa_id !== undefined && data.empresa_id !== null
+      ? Number(data.empresa_id)
+      : null;
+
+  if (empresaId != null) {
+    const empresa = (await db
+      .prepare("SELECT id FROM EMPRESAS_CUENTA WHERE id = ? AND activo = 1")
+      .get(empresaId)) as { id: number } | undefined;
+    if (!empresa) throw new Error("La cuenta de empresa no existe o está inactiva");
+  }
+
+  const usuarioNumero = await nextUsuarioNumero(db);
   const result = await db
     .prepare(
-      `INSERT INTO USERS (email, password_hash, nombre, rol, activo)
-       VALUES (?, ?, ?, ?, ?)`
+      `INSERT INTO USERS (usuario_numero, email, password_hash, nombre, rol, activo, empresa_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`
     )
-    .run(email, hash, data.nombre.trim(), data.rol, data.activo === false ? 0 : 1);
+    .run(
+      usuarioNumero,
+      email,
+      hash,
+      data.nombre.trim(),
+      data.rol,
+      data.activo === false ? 0 : 1,
+      empresaId
+    );
 
   return (await getUserById(db, Number(result.lastInsertRowid)))!;
 }
@@ -1028,9 +1187,22 @@ export async function updateUser(
   const nombre = data.nombre !== undefined ? data.nombre.trim() : current.nombre;
   const rol = data.rol ?? current.rol;
   const activo = data.activo !== undefined ? (data.activo ? 1 : 0) : current.activo;
+  const empresaId =
+    data.empresa_id !== undefined
+      ? data.empresa_id === null
+        ? null
+        : Number(data.empresa_id)
+      : current.empresa_id ?? null;
 
   if (!email.includes("@")) throw new Error("Email inválido");
   if (!nombre) throw new Error("El nombre es obligatorio");
+
+  if (empresaId != null) {
+    const empresa = (await db
+      .prepare("SELECT id FROM EMPRESAS_CUENTA WHERE id = ? AND activo = 1")
+      .get(empresaId)) as { id: number } | undefined;
+    if (!empresa) throw new Error("La cuenta de empresa no existe o está inactiva");
+  }
 
   const dup = (await db
     .prepare("SELECT id FROM USERS WHERE LOWER(email) = LOWER(?) AND id != ?")
@@ -1043,19 +1215,19 @@ export async function updateUser(
     await db
       .prepare(
         `UPDATE USERS SET email = ?, nombre = ?, rol = ?, activo = ?,
-        password_hash = ?, actualizado_en = NOW()
+        empresa_id = ?, password_hash = ?, actualizado_en = NOW()
        WHERE id = ?`
       )
-      .run(email, nombre, rol, activo, hash, id);
+      .run(email, nombre, rol, activo, empresaId, hash, id);
     await deleteAllUserSessions(db, id);
   } else {
     await db
       .prepare(
         `UPDATE USERS SET email = ?, nombre = ?, rol = ?, activo = ?,
-        actualizado_en = NOW()
+        empresa_id = ?, actualizado_en = NOW()
        WHERE id = ?`
       )
-      .run(email, nombre, rol, activo, id);
+      .run(email, nombre, rol, activo, empresaId, id);
     if (activo === 0) await deleteAllUserSessions(db, id);
   }
 

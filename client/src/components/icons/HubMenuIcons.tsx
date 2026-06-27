@@ -47,7 +47,8 @@ export type HubIconId =
   | "ventas_arrendamientos"
   | "divisas_usd"
   | "divisas_brl"
-  | "usuarios_permisos_rol";
+  | "usuarios_permisos_rol"
+  | "arquitectura_sistema";
 
 function IconUserBadge({ className }: IconProps) {
   return (
@@ -243,6 +244,17 @@ function IconPermisosRol({ className }: IconProps) {
   );
 }
 
+function IconArquitecturaSistema({ className }: IconProps) {
+  return (
+    <IconShell className={className}>
+      <rect x="3" y="15" width="18" height="5" rx="1.25" {...stroke} />
+      <rect x="5.5" y="9.5" width="13" height="4.5" rx="1.25" {...stroke} />
+      <rect x="8" y="4" width="8" height="4.5" rx="1.25" {...stroke} />
+      <path d="M12 8.5v1.25M12 14v1" {...stroke} strokeWidth="1.5" />
+    </IconShell>
+  );
+}
+
 const ICONS: Record<HubIconId, (props: IconProps) => ReactNode> = {
   config_responsables: IconUserBadge,
   config_proveedores: IconBuilding,
@@ -267,6 +279,7 @@ const ICONS: Record<HubIconId, (props: IconProps) => ReactNode> = {
   divisas_usd: IconDollar,
   divisas_brl: IconReal,
   usuarios_permisos_rol: IconPermisosRol,
+  arquitectura_sistema: IconArquitecturaSistema,
 };
 
 export function HubMenuIcon({
@@ -395,5 +408,10 @@ export const HUB_ICON_THEMES: Record<HubIconId, MenuAppTheme> = {
     accent: "#b45309",
     accentSoft: "linear-gradient(145deg, #fffbeb 0%, #fef3c7 52%, #fde68a 100%)",
     accentGlow: "rgba(180, 83, 9, 0.28)",
+  },
+  arquitectura_sistema: {
+    accent: "#0369a1",
+    accentSoft: "linear-gradient(145deg, #f0f9ff 0%, #e0f2fe 52%, #bae6fd 100%)",
+    accentGlow: "rgba(3, 105, 161, 0.28)",
   },
 };

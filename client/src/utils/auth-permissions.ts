@@ -47,6 +47,11 @@ export function canAccessUsuarioActividad(user: AuthUser | null): boolean {
   return user?.rol === "admin";
 }
 
+export function canAccessArquitecturaSistema(user: AuthUser | null): boolean {
+  if (!user || user.rol !== "admin") return false;
+  return user.es_super_admin ?? user.empresa_id == null;
+}
+
 /** Módulos visibles para cualquier usuario autenticado. */
 const MODULOS_ACCESO_TODOS: Modulo[] = ["chat"];
 

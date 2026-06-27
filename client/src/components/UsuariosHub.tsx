@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { TabId } from "./Header";
 import type { AuthUser } from "../types";
 import {
+  canAccessArquitecturaSistema,
   canAccessStockMovimientos,
   canAccessUsuarioActividad,
 } from "../utils/auth-permissions";
@@ -14,13 +15,15 @@ import Usuarios from "./Usuarios";
 import UsuariosActividad from "./UsuariosActividad";
 import UsuariosRolesPanel from "./UsuariosRolesModal";
 import StockMovimientosAuditoria from "./stock/StockMovimientosAuditoria";
+import ArquitecturaSistema from "./ArquitecturaSistema";
 
 type VistaUsuarios =
   | "menu"
   | "usuarios_cuentas"
   | "permisos_por_rol"
   | "registro_actividad"
-  | "stock_movimientos";
+  | "stock_movimientos"
+  | "arquitectura_sistema";
 
 type SubmenuIcon =
   | { type: "tab"; id: TabId }
@@ -113,6 +116,13 @@ export default function UsuariosHub({
         icon: { type: "tab", id: "stock_movimientos" },
         visible: canAccessStockMovimientos(user),
       },
+      {
+        id: "arquitectura_sistema",
+        label: "Arquitectura del sistema",
+        subtitle: "Stack, módulos y estructura técnica de SAG",
+        icon: { type: "hub", id: "arquitectura_sistema" },
+        visible: canAccessArquitecturaSistema(user),
+      },
     ],
     [user]
   );
@@ -163,6 +173,18 @@ export default function UsuariosHub({
         volverLabel="Volver a Usuarios"
         onError={onError}
         onVolver={volverMenu}
+      />
+    );
+  }
+
+  if (vista === "arquitectura_sistema") {
+    return (
+      <ArquitecturaSistema
+        apiOnline={apiOnline}
+        volverLabel="Volver a Usuarios"
+        onVolver={volverMenu}
+        onError={onError}
+        onSuccess={onSuccess}
       />
     );
   }

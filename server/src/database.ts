@@ -14,7 +14,6 @@ import type {
   EstadoFinancieroMes,
   EstadoFinancieroPayload,
 } from "./types.js";
-import { EMPRESAS } from "./types.js";
 import * as prov from "./proveedores-db.js";
 import * as div from "./divisas-db.js";
 import * as pgan from "./precios-ganado-db.js";
@@ -36,6 +35,7 @@ import * as stock from "./stock-ganadero-db.js";
 import * as stockSalidas from "./stock-ganadera-salidas.js";
 import * as stockAud from "./stock-auditoria-db.js";
 import * as auth from "./auth-db.js";
+import * as empresasCuenta from "./empresas-cuenta-db.js";
 import * as docDig from "./documentos-digitales-db.js";
 import * as presDoc from "./presupuesto-documentos-db.js";
 import * as chat from "./chat-db.js";
@@ -162,7 +162,10 @@ export async function initDb(): Promise<void> {
     } else if (!existing) {
       console.warn("[SGG] Init en curso en otra instancia; omitiendo seeds pesados");
     }
+    await empresasCuenta.initEmpresasCuentaTables(db);
     await auth.initAuthTables(db);
+    await empresasCuenta.ensureCuentaMadreAdmin(db);
+    await empresasCuenta.backfillCuentaMadreUsuarios(db);
     await docDig.initDocumentosDigitalesTables(db);
     await chat.initChatTables(db);
     await stock.initStockGanaderoTables(db);
@@ -545,6 +548,7 @@ export async function getPresupuesto(id: number): Promise<Presupuesto | undefine
 
 export interface ListFilters {
   empresa?: string;
+  empresas?: string[];
   rubro?: string;
   responsable_gasto?: string;
   fecha_desde?: string;
@@ -555,13 +559,19 @@ export interface ListFilters {
 
 export async function listPresupuesto(filters: ListFilters = {}): Promise<Presupuesto[]> {
   let query = `${PRESUPUESTO_SELECT} WHERE 1=1`;
-  const params: Record<string, string> = {};
+  const params: Record<string, unknown> = {};
 
   if (filters.ingresado_por_email) {
     query += " AND LOWER(ingresado_por_email) = LOWER(@ingresado_por_email)";
     params.ingresado_por_email = filters.ingresado_por_email.trim();
   }
-  if (filters.empresa) {
+  if (filters.empresas?.length) {
+    const names = filters.empresas.map((_, i) => `@empresa_${i}`);
+    query += ` AND empresa IN (${names.join(", ")})`;
+    filters.empresas.forEach((empresa, i) => {
+      params[`empresa_${i}`] = empresa;
+    });
+  } else if (filters.empresa) {
     query += " AND empresa = @empresa";
     params.empresa = filters.empresa;
   }
@@ -1040,7 +1050,10 @@ export const documentosDigitales = {
   deleteTipoGasto: (id: number) => docDig.deleteTipoDocumentoGasto(db, id),
 };
 
-export async function getCatalogos(): Promise<{
+export async function getCatalogos(user?: {
+  es_super_admin?: boolean;
+  empresa_id?: number | null;
+}): Promise<{
   empresas: string[];
   rubros: string[];
   sub_rubros: string[];
@@ -1051,8 +1064,12 @@ export async function getCatalogos(): Promise<{
   const { rubros, sub_rubros_por_rubro: porGrupo } =
     await sub.getCatalogoGruposParaGastos(db);
   const porRubroContable = await vinc.getMapSubRubrosPorRubro(db, true);
+  const empresas =
+    user && !user.es_super_admin && user.empresa_id
+      ? await empresasCuenta.getEmpresaNombresActivosPorCuenta(db, user.empresa_id)
+      : await empresasCuenta.getEmpresaNombresActivos(db);
   return {
-    empresas: [...EMPRESAS],
+    empresas,
     rubros,
     sub_rubros: await sub.listSubRubrosNombres(db),
     sub_rubros_por_rubro: { ...porRubroContable, ...porGrupo },
@@ -1060,3 +1077,5 @@ export async function getCatalogos(): Promise<{
     funcionarios: await func.listFuncionariosParaSelector(db),
   };
 }
+
+export { empresasCuenta };

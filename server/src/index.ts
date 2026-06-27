@@ -43,6 +43,7 @@ import type { DispositivoMetaPatch } from "./stock-ganadero-db.js";
 import { parseTipoBaja, tipoBajaDesdeEstadoImport, type TipoBaja } from "./stock-ganadero-db.js";
 import { auditBajasDispositivos, auditStockMovimiento, historialAutorFromRequest } from "./stock-audit.js";
 import { EMPRESAS, type Empresa, type Presupuesto, type PresupuestoInput } from "./types.js";
+import { empresasCuenta } from "./database.js";
 import type { UserPublic } from "./auth-db.js";
 import {
   BROU_MAPEO_DEFAULT,
@@ -215,11 +216,16 @@ function addDaysIso(iso: string, dias: number): string {
 
 async function parseBody(req: Request): Promise<PresupuestoInput> {
   const body = req.body as Record<string, unknown>;
-  const empresa = String(body.empresa ?? "").trim();
-  if (!EMPRESAS.includes(empresa as Empresa)) {
-    throw new Error(
-      "Empresa inválida. Debe ser GANADERA GUAVIYU o GANADERA CHIVILCOY."
-    );
+  const user = req.user;
+  let empresa = String(body.empresa ?? "").trim();
+  if (user && !user.es_super_admin) {
+    const permitidas = await empresasPermitidas(user);
+    if (!permitidas.includes(empresa)) {
+      empresa = permitidas[0] ?? "";
+    }
+  }
+  if (!(await empresasCuenta.isValidEmpresaNombre(db.getDb(), empresa))) {
+    throw new Error("Empresa inválida o inactiva.");
   }
   const fecha = String(body.fecha ?? "").trim();
   if (!fecha) throw new Error("La fecha es obligatoria.");
@@ -319,8 +325,8 @@ async function parseBody(req: Request): Promise<PresupuestoInput> {
   };
 }
 
-app.get("/api/catalogos", async (_req, res) => {
-  res.json({ ok: true, ...(await db.getCatalogos()) });
+app.get("/api/catalogos", async (req, res) => {
+  res.json({ ok: true, ...(await db.getCatalogos(req.user)) });
 });
 
 function puedeAccederPresupuesto(row: Presupuesto, user: UserPublic): boolean {
@@ -340,7 +346,31 @@ function queryFlag(value: unknown): boolean {
   return value === "1" || value === "true" || value === "yes";
 }
 
-function presupuestoListFilters(req: Request): db.ListFilters {
+async function empresasPermitidas(user: UserPublic): Promise<string[]> {
+  if (user.es_super_admin) return [];
+  if (!user.empresa_id) return [];
+  return await empresasCuenta.getEmpresaNombresActivosPorCuenta(
+    db.getDb(),
+    user.empresa_id
+  );
+}
+
+async function applyEmpresaScopeToFilters(
+  filters: db.ListFilters,
+  user: UserPublic
+): Promise<db.ListFilters> {
+  if (user.es_super_admin) return filters;
+  const permitidas = await empresasPermitidas(user);
+  if (permitidas.length === 0) {
+    return { ...filters, empresas: ["__sin_empresas__"] };
+  }
+  if (filters.empresa && permitidas.includes(filters.empresa)) {
+    return filters;
+  }
+  return { ...filters, empresa: undefined, empresas: permitidas };
+}
+
+async function presupuestoListFilters(req: Request): Promise<db.ListFilters> {
   const user = req.user!;
   const filters: db.ListFilters = {
     empresa: req.query.empresa as string | undefined,
@@ -357,19 +387,19 @@ function presupuestoListFilters(req: Request): db.ListFilters {
     if (soloMios) {
       filters.ingresado_por_email = user.email;
     }
-    return filters;
+    return await applyEmpresaScopeToFilters(filters, user);
   }
 
   if (verTodos && (user.rol === "editor" || user.rol === "gestor_n2" || user.rol === "consulta")) {
-    return filters;
+    return await applyEmpresaScopeToFilters(filters, user);
   }
 
   filters.ingresado_por_email = user.email;
-  return filters;
+  return await applyEmpresaScopeToFilters(filters, user);
 }
 
 app.get("/api/presupuesto", async (req, res) => {
-  const data = await db.listPresupuesto(presupuestoListFilters(req));
+  const data = await db.listPresupuesto(await presupuestoListFilters(req));
   res.json({ ok: true, data });
 });
 

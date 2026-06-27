@@ -58,6 +58,10 @@ import type {
   DispositivoEmpresa,
   DispositivoEstado,
   AuthUser,
+  EmpresaCuenta,
+  EmpresaCuentaForm,
+  EmpresaOperativa,
+  EmpresaOperativaForm,
   UserForm,
   Rol,
   RolPermisosConfig,
@@ -2300,8 +2304,85 @@ export async function renombrarChatCanal(
   return json.data;
 }
 
-export async function fetchUsuarios(): Promise<AuthUser[]> {
-  const json = await request<{ data: AuthUser[] }>("/auth/users");
+export async function fetchUsuarios(
+  empresaId?: number,
+  opts?: { ambitoPropio?: boolean }
+): Promise<AuthUser[]> {
+  let q = "";
+  if (empresaId != null && Number.isFinite(empresaId)) {
+    q = `?empresa_id=${empresaId}`;
+  } else if (opts?.ambitoPropio) {
+    q = "?ambito=propio";
+  }
+  const json = await request<{ data: AuthUser[] }>(`/auth/users${q}`);
+  return json.data;
+}
+
+export async function fetchEmpresasCuenta(): Promise<EmpresaCuenta[]> {
+  const json = await request<{ data: EmpresaCuenta[] }>("/empresas-cuenta");
+  return json.data;
+}
+
+export async function crearEmpresaCuenta(
+  data: EmpresaCuentaForm
+): Promise<EmpresaCuenta> {
+  const json = await request<{ data: EmpresaCuenta }>("/empresas-cuenta", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+  return json.data;
+}
+
+export async function actualizarEmpresaCuenta(
+  id: number,
+  data: Partial<EmpresaCuentaForm>
+): Promise<EmpresaCuenta> {
+  const json = await request<{ data: EmpresaCuenta }>(`/empresas-cuenta/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+  return json.data;
+}
+
+export async function crearEmpresaOperativa(
+  cuentaId: number,
+  data: EmpresaOperativaForm
+): Promise<EmpresaOperativa> {
+  const json = await request<{ data: EmpresaOperativa }>(
+    `/empresas-cuenta/${cuentaId}/empresas`,
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    }
+  );
+  return json.data;
+}
+
+export async function crearUsuarioEmpresa(
+  empresaId: number,
+  data: UserForm
+): Promise<{ usuario: AuthUser; cuenta?: EmpresaCuenta }> {
+  const json = await request<{ data: AuthUser; cuenta?: EmpresaCuenta }>(
+    `/empresas-cuenta/${empresaId}/usuarios`,
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    }
+  );
+  return { usuario: json.data, cuenta: json.cuenta };
+}
+
+export async function asignarAdminCuenta(
+  cuentaId: number,
+  userId: number | null
+): Promise<EmpresaCuenta> {
+  const json = await request<{ data: EmpresaCuenta }>(
+    `/empresas-cuenta/${cuentaId}/admin`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ user_id: userId }),
+    }
+  );
   return json.data;
 }
 

@@ -1,0 +1,795 @@
+import type { Db } from "./db/pg-client.js";
+
+export interface EmpresaCuentaRow {
+  id: number;
+  cuenta_numero: string;
+  nombre: string;
+  codigo: string;
+  activo: number;
+  admin_user_id: number | null;
+  creado_en: string;
+  actualizado_en: string;
+}
+
+export interface EmpresaOperativaRow {
+  id: number;
+  cuenta_id: number;
+  nombre: string;
+  codigo: string;
+  activo: number;
+  creado_en: string;
+  actualizado_en: string;
+}
+
+export interface EmpresaOperativa {
+  id: number;
+  cuenta_id: number;
+  nombre: string;
+  codigo: string;
+  activo: boolean;
+  creado_en: string;
+  actualizado_en: string;
+}
+
+export interface EmpresaCuentaAdmin {
+  id: number;
+  email: string;
+  nombre: string;
+  es_super_admin: boolean;
+}
+
+export interface EmpresaCuenta {
+  id: number;
+  cuenta_numero: string;
+  nombre: string;
+  codigo: string;
+  activo: boolean;
+  creado_en: string;
+  actualizado_en: string;
+  usuarios_count: number;
+  empresas_count: number;
+  empresas: EmpresaOperativa[];
+  admin_user_id: number | null;
+  admin: EmpresaCuentaAdmin | null;
+}
+
+export interface EmpresaCuentaInput {
+  nombre: string;
+  codigo: string;
+  activo?: boolean;
+}
+
+export interface EmpresaOperativaInput {
+  nombre: string;
+  codigo: string;
+  activo?: boolean;
+}
+
+const SEED_CUENTA_MADRE = { nombre: "VILA DIAZ", codigo: "VILADIAZ" };
+
+const SEED_EMPRESAS_OPERATIVAS: Array<{ nombre: string; codigo: string }> = [
+  { nombre: "GANADERA GUAVIYU", codigo: "GUAVIYU" },
+  { nombre: "GANADERA CHIVILCOY", codigo: "CHIVILCOY" },
+];
+
+function pgNum(value: unknown, fallback = 0): number {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function pgTimestampString(value: unknown): string {
+  if (value == null) return "";
+  if (value instanceof Date) return value.toISOString();
+  return String(value);
+}
+
+function normalizeCodigo(codigo: string): string {
+  return codigo
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9_]/g, "");
+}
+
+function formatCuentaNumero(n: number): string {
+  return Math.max(1, Math.floor(n)).toString().padStart(6, "0").slice(-6);
+}
+
+function parseCuentaNumero(value: unknown): number {
+  const n = Number(String(value ?? "").replace(/\D/g, ""));
+  return Number.isFinite(n) ? n : 0;
+}
+
+function rowToPublic(
+  row: EmpresaCuentaRow,
+  usuarios_count = 0,
+  empresas: EmpresaOperativa[] = [],
+  admin: EmpresaCuentaAdmin | null = null
+): EmpresaCuenta {
+  const adminUserId =
+    row.admin_user_id != null && Number.isFinite(Number(row.admin_user_id))
+      ? Number(row.admin_user_id)
+      : null;
+  return {
+    id: row.id,
+    cuenta_numero: row.cuenta_numero || formatCuentaNumero(row.id),
+    nombre: row.nombre,
+    codigo: row.codigo,
+    activo: pgNum(row.activo) === 1,
+    creado_en: pgTimestampString(row.creado_en),
+    actualizado_en: pgTimestampString(row.actualizado_en),
+    usuarios_count,
+    empresas_count: empresas.length,
+    empresas,
+    admin_user_id: adminUserId,
+    admin,
+  };
+}
+
+async function getCuentaAdmin(
+  db: Db,
+  adminUserId: number | null
+): Promise<EmpresaCuentaAdmin | null> {
+  if (adminUserId == null) return null;
+  const row = (await db
+    .prepare("SELECT id, email, nombre, rol, empresa_id FROM USERS WHERE id = ?")
+    .get(adminUserId)) as
+    | { id: number; email: string; nombre: string; rol: string; empresa_id: number | null }
+    | undefined;
+  if (!row) return null;
+  return {
+    id: row.id,
+    email: row.email,
+    nombre: row.nombre,
+    es_super_admin: row.rol === "admin" && row.empresa_id == null,
+  };
+}
+
+function operativaToPublic(row: EmpresaOperativaRow): EmpresaOperativa {
+  return {
+    id: row.id,
+    cuenta_id: row.cuenta_id,
+    nombre: row.nombre,
+    codigo: row.codigo,
+    activo: pgNum(row.activo) === 1,
+    creado_en: pgTimestampString(row.creado_en),
+    actualizado_en: pgTimestampString(row.actualizado_en),
+  };
+}
+
+async function tableExists(db: Db, tableName: string): Promise<boolean> {
+  const row = (await db
+    .prepare(
+      `SELECT 1 AS ok FROM information_schema.tables
+       WHERE table_schema = 'public' AND table_name = ?`
+    )
+    .get(tableName.toLowerCase())) as { ok: number } | undefined;
+  return Boolean(row);
+}
+
+async function migrateDropEmpresaCheckConstraints(db: Db): Promise<void> {
+  const tables = ["presupuesto", "ventas_agricultura", "ventas_arrendamiento"];
+  for (const table of tables) {
+    const rows = (await db
+      .prepare(
+        `SELECT c.conname AS name
+         FROM pg_constraint c
+         JOIN pg_class t ON c.conrelid = t.oid
+         WHERE t.relname = ? AND c.contype = 'c'
+           AND pg_get_constraintdef(c.oid) ILIKE '%empresa%'`
+      )
+      .all(table)) as { name: string }[];
+
+    for (const row of rows) {
+      await db.prepare(`ALTER TABLE ${table} DROP CONSTRAINT "${row.name}"`).run();
+      console.info(`[SGG Empresas] CHECK empresa eliminado en ${table}`);
+    }
+  }
+}
+
+async function getCuentaIdByCodigo(
+  db: Db,
+  codigo: string
+): Promise<number | null> {
+  const row = (await db
+    .prepare("SELECT id FROM EMPRESAS_CUENTA WHERE codigo = ?")
+    .get(normalizeCodigo(codigo))) as { id: number } | undefined;
+  return row ? Number(row.id) : null;
+}
+
+async function ensureSeedCuentaMadre(db: Db): Promise<number> {
+  const existing = await getCuentaIdByCodigo(db, SEED_CUENTA_MADRE.codigo);
+  if (existing) return existing;
+
+  const result = await db
+    .prepare(
+      `INSERT INTO EMPRESAS_CUENTA (cuenta_numero, nombre, codigo, activo)
+       VALUES (?, ?, ?, 1)`
+    )
+    .run(await nextCuentaNumero(db), SEED_CUENTA_MADRE.nombre, SEED_CUENTA_MADRE.codigo);
+
+  console.info("[SGG Empresas] Cuenta madre VILA DIAZ creada");
+  return Number(result.lastInsertRowid);
+}
+
+async function ensureEmpresaOperativaSeed(
+  db: Db,
+  cuentaId: number,
+  seed: { nombre: string; codigo: string }
+): Promise<void> {
+  const exists = (await db
+    .prepare(
+      "SELECT id FROM EMPRESAS_OPERATIVAS WHERE cuenta_id = ? AND codigo = ?"
+    )
+    .get(cuentaId, seed.codigo)) as { id: number } | undefined;
+  if (exists) return;
+
+  await db
+    .prepare(
+      `INSERT INTO EMPRESAS_OPERATIVAS (cuenta_id, nombre, codigo, activo)
+       VALUES (?, ?, ?, 1)`
+    )
+    .run(cuentaId, seed.nombre, seed.codigo);
+}
+
+async function migrateCuentaAdminColumn(db: Db): Promise<void> {
+  const col = await db
+    .prepare(
+      `SELECT 1 FROM information_schema.columns
+       WHERE table_schema = 'public'
+         AND table_name = 'empresas_cuenta'
+         AND column_name = 'admin_user_id'`
+    )
+    .get();
+  if (!col) {
+    await db
+      .prepare(
+        "ALTER TABLE EMPRESAS_CUENTA ADD COLUMN admin_user_id INTEGER REFERENCES USERS(id)"
+      )
+      .run();
+    console.info("[SGG Empresas] Migración: columna empresas_cuenta.admin_user_id agregada");
+  }
+}
+
+async function nextCuentaNumero(db: Db): Promise<string> {
+  const rows = (await db
+    .prepare("SELECT cuenta_numero FROM EMPRESAS_CUENTA WHERE cuenta_numero IS NOT NULL")
+    .all()) as { cuenta_numero: string | null }[];
+  const used = new Set(rows.map((r) => String(r.cuenta_numero ?? "").trim()).filter(Boolean));
+  let next =
+    rows.reduce((max, r) => Math.max(max, parseCuentaNumero(r.cuenta_numero)), 0) + 1;
+  while (used.has(formatCuentaNumero(next))) next += 1;
+  return formatCuentaNumero(next);
+}
+
+async function migrateCuentaNumeroColumn(db: Db): Promise<void> {
+  const col = await db
+    .prepare(
+      `SELECT 1 FROM information_schema.columns
+       WHERE table_schema = 'public'
+         AND table_name = 'empresas_cuenta'
+         AND column_name = 'cuenta_numero'`
+    )
+    .get();
+  if (!col) {
+    await db
+      .prepare("ALTER TABLE EMPRESAS_CUENTA ADD COLUMN cuenta_numero TEXT")
+      .run();
+    console.info("[SGG Empresas] Migración: columna empresas_cuenta.cuenta_numero agregada");
+  }
+
+  const rows = (await db
+    .prepare(
+      `SELECT id, cuenta_numero FROM EMPRESAS_CUENTA
+       ORDER BY id ASC`
+    )
+    .all()) as { id: number; cuenta_numero: string | null }[];
+  const used = new Set(
+    rows.map((r) => String(r.cuenta_numero ?? "").trim()).filter(Boolean)
+  );
+
+  for (const row of rows) {
+    if (row.cuenta_numero?.trim()) continue;
+    let candidate = formatCuentaNumero(Number(row.id));
+    let next = Math.max(Number(row.id), 1);
+    while (used.has(candidate)) {
+      next += 1;
+      candidate = formatCuentaNumero(next);
+    }
+    await db
+      .prepare("UPDATE EMPRESAS_CUENTA SET cuenta_numero = ? WHERE id = ?")
+      .run(candidate, row.id);
+    used.add(candidate);
+  }
+
+  await db
+    .prepare(
+      "CREATE UNIQUE INDEX IF NOT EXISTS idx_empresas_cuenta_numero ON EMPRESAS_CUENTA(cuenta_numero)"
+    )
+    .run();
+}
+
+function primaryAdminEmail(): string {
+  return (process.env.SCG_ADMIN_EMAIL?.trim() || "jlvilasoler@gmail.com")
+    .trim()
+    .toLowerCase();
+}
+
+/**
+ * Asigna al administrador principal de la plataforma como administrador de la
+ * cuenta madre VILA DIAZ si todavía no tiene uno. Debe ejecutarse DESPUÉS de
+ * crear/seedear los usuarios (auth.initAuthTables).
+ */
+export async function ensureCuentaMadreAdmin(db: Db): Promise<void> {
+  const cuenta = (await db
+    .prepare(
+      "SELECT id, admin_user_id FROM EMPRESAS_CUENTA WHERE codigo = ?"
+    )
+    .get(SEED_CUENTA_MADRE.codigo)) as
+    | { id: number; admin_user_id: number | null }
+    | undefined;
+  if (!cuenta || cuenta.admin_user_id != null) return;
+
+  const admin = (await db
+    .prepare("SELECT id FROM USERS WHERE LOWER(email) = LOWER(?)")
+    .get(primaryAdminEmail())) as { id: number } | undefined;
+  if (!admin) return;
+
+  await db
+    .prepare("UPDATE EMPRESAS_CUENTA SET admin_user_id = ? WHERE id = ?")
+    .run(admin.id, cuenta.id);
+  console.info("[SGG Empresas] Administrador de VILA DIAZ asignado al admin principal");
+}
+
+const BACKFILL_USUARIOS_MARKER = "vila_diaz_usuarios_backfill";
+
+/**
+ * Asigna a la cuenta madre VILA DIAZ todos los usuarios pre-existentes que
+ * quedaron con empresa_id NULL (creados antes del modelo multi-empresa, por
+ * ejemplo los Gestor N1/N2). Excluye al administrador principal del sistema
+ * (super admin), que debe permanecer sin empresa. Se ejecuta una sola vez,
+ * usando un marcador en AUTH_AUDIT_LOG para no barrer usuarios globales que se
+ * creen a futuro. Debe ejecutarse DESPUÉS de auth.initAuthTables.
+ */
+export async function backfillCuentaMadreUsuarios(db: Db): Promise<void> {
+  const yaCorrio = (await db
+    .prepare("SELECT 1 FROM AUTH_AUDIT_LOG WHERE evento = ? LIMIT 1")
+    .get(BACKFILL_USUARIOS_MARKER)) as { [k: string]: unknown } | undefined;
+  if (yaCorrio) return;
+
+  const cuenta = (await db
+    .prepare("SELECT id FROM EMPRESAS_CUENTA WHERE codigo = ?")
+    .get(SEED_CUENTA_MADRE.codigo)) as { id: number } | undefined;
+  if (!cuenta) return;
+
+  const res = (await db
+    .prepare(
+      `UPDATE USERS SET empresa_id = ?
+       WHERE empresa_id IS NULL AND LOWER(email) <> LOWER(?)`
+    )
+    .run(cuenta.id, primaryAdminEmail())) as { changes?: number };
+
+  await db
+    .prepare(
+      `INSERT INTO AUTH_AUDIT_LOG (evento, email, detalle)
+       VALUES (?, ?, ?)`
+    )
+    .run(
+      BACKFILL_USUARIOS_MARKER,
+      primaryAdminEmail(),
+      `usuarios reasignados a VILA DIAZ=${res?.changes ?? 0}`
+    );
+
+  console.info(
+    `[SGG Empresas] Backfill: ${res?.changes ?? 0} usuario(s) asignado(s) a VILA DIAZ`
+  );
+}
+
+async function migrateVilaDiazStructure(db: Db): Promise<void> {
+  const cuentaId = await ensureSeedCuentaMadre(db);
+
+  for (const seed of SEED_EMPRESAS_OPERATIVAS) {
+    await ensureEmpresaOperativaSeed(db, cuentaId, seed);
+  }
+
+  const legacyRows = (await db
+    .prepare(
+      `SELECT id FROM EMPRESAS_CUENTA
+       WHERE codigo IN ('GUAVIYU', 'CHIVILCOY')`
+    )
+    .all()) as { id: number }[];
+
+  for (const legacy of legacyRows) {
+    await db
+      .prepare("UPDATE USERS SET empresa_id = ? WHERE empresa_id = ?")
+      .run(cuentaId, legacy.id);
+    await db.prepare("DELETE FROM EMPRESAS_CUENTA WHERE id = ?").run(legacy.id);
+  }
+}
+
+export async function initEmpresasCuentaTables(db: Db): Promise<void> {
+  await db
+    .prepare(
+      `CREATE TABLE IF NOT EXISTS EMPRESAS_CUENTA (
+        id SERIAL PRIMARY KEY,
+        cuenta_numero TEXT UNIQUE,
+        nombre TEXT NOT NULL UNIQUE,
+        codigo TEXT NOT NULL UNIQUE,
+        activo INTEGER NOT NULL DEFAULT 1,
+        creado_en TIMESTAMPTZ DEFAULT NOW(),
+        actualizado_en TIMESTAMPTZ DEFAULT NOW()
+      )`
+    )
+    .run();
+
+  await db
+    .prepare(
+      `CREATE TABLE IF NOT EXISTS EMPRESAS_OPERATIVAS (
+        id SERIAL PRIMARY KEY,
+        cuenta_id INTEGER NOT NULL REFERENCES EMPRESAS_CUENTA(id) ON DELETE CASCADE,
+        nombre TEXT NOT NULL,
+        codigo TEXT NOT NULL,
+        activo INTEGER NOT NULL DEFAULT 1,
+        creado_en TIMESTAMPTZ DEFAULT NOW(),
+        actualizado_en TIMESTAMPTZ DEFAULT NOW(),
+        UNIQUE (cuenta_id, nombre),
+        UNIQUE (cuenta_id, codigo)
+      )`
+    )
+    .run();
+
+  await migrateCuentaNumeroColumn(db);
+  await migrateCuentaAdminColumn(db);
+  await migrateDropEmpresaCheckConstraints(db);
+  await migrateVilaDiazStructure(db);
+}
+
+export async function listEmpresasCuenta(db: Db): Promise<EmpresaCuenta[]> {
+  if (!(await tableExists(db, "empresas_cuenta"))) return [];
+
+  const rows = (await db
+    .prepare(
+      `SELECT e.*, COUNT(DISTINCT u.id) AS usuarios_count
+       FROM EMPRESAS_CUENTA e
+       LEFT JOIN USERS u ON (u.empresa_id = e.id OR u.id = e.admin_user_id)
+       GROUP BY e.id
+       ORDER BY LOWER(e.nombre) ASC`
+    )
+    .all()) as Array<EmpresaCuentaRow & { usuarios_count: number }>;
+
+  const result: EmpresaCuenta[] = [];
+  for (const row of rows) {
+    result.push(
+      rowToPublic(
+        row,
+        pgNum(row.usuarios_count),
+        await listEmpresasOperativas(db, row.id),
+        await getCuentaAdmin(db, row.admin_user_id)
+      )
+    );
+  }
+  return result;
+}
+
+export async function listEmpresasActivas(db: Db): Promise<EmpresaCuenta[]> {
+  const all = await listEmpresasCuenta(db);
+  return all.filter((e) => e.activo);
+}
+
+export async function getEmpresaNombresActivos(db: Db): Promise<string[]> {
+  const rows = (await db
+    .prepare(
+      `SELECT op.nombre
+       FROM EMPRESAS_OPERATIVAS op
+       INNER JOIN EMPRESAS_CUENTA c ON c.id = op.cuenta_id
+       WHERE op.activo = 1 AND c.activo = 1
+       ORDER BY LOWER(op.nombre) ASC`
+    )
+    .all()) as { nombre: string }[];
+  return rows.map((r) => r.nombre);
+}
+
+export async function getEmpresaCodigosActivos(db: Db): Promise<string[]> {
+  const rows = (await db
+    .prepare(
+      `SELECT op.codigo
+       FROM EMPRESAS_OPERATIVAS op
+       INNER JOIN EMPRESAS_CUENTA c ON c.id = op.cuenta_id
+       WHERE op.activo = 1 AND c.activo = 1
+       ORDER BY op.codigo ASC`
+    )
+    .all()) as { codigo: string }[];
+  return rows.map((r) => r.codigo);
+}
+
+export async function getEmpresaNombresActivosPorCuenta(
+  db: Db,
+  cuentaId: number
+): Promise<string[]> {
+  const rows = (await db
+    .prepare(
+      `SELECT op.nombre
+       FROM EMPRESAS_OPERATIVAS op
+       INNER JOIN EMPRESAS_CUENTA c ON c.id = op.cuenta_id
+       WHERE op.cuenta_id = ? AND op.activo = 1 AND c.activo = 1
+       ORDER BY LOWER(op.nombre) ASC`
+    )
+    .all(cuentaId)) as { nombre: string }[];
+  return rows.map((r) => r.nombre);
+}
+
+export async function listEmpresasOperativas(
+  db: Db,
+  cuentaId: number
+): Promise<EmpresaOperativa[]> {
+  const rows = (await db
+    .prepare(
+      `SELECT * FROM EMPRESAS_OPERATIVAS
+       WHERE cuenta_id = ?
+       ORDER BY LOWER(nombre) ASC`
+    )
+    .all(cuentaId)) as EmpresaOperativaRow[];
+  return rows.map(operativaToPublic);
+}
+
+export async function getEmpresaCuentaById(
+  db: Db,
+  id: number
+): Promise<EmpresaCuenta | null> {
+  const row = (await db
+    .prepare("SELECT * FROM EMPRESAS_CUENTA WHERE id = ?")
+    .get(id)) as EmpresaCuentaRow | undefined;
+  if (!row) return null;
+
+  const countRow = (await db
+    .prepare(
+      "SELECT COUNT(DISTINCT id) AS n FROM USERS WHERE empresa_id = ? OR id = ?"
+    )
+    .get(id, row.admin_user_id)) as { n: number };
+
+  return rowToPublic(
+    row,
+    pgNum(countRow.n),
+    await listEmpresasOperativas(db, id),
+    await getCuentaAdmin(db, row.admin_user_id)
+  );
+}
+
+export async function getEmpresaCuentaByAdminUserId(
+  db: Db,
+  userId: number
+): Promise<EmpresaCuenta | null> {
+  const row = (await db
+    .prepare("SELECT id FROM EMPRESAS_CUENTA WHERE admin_user_id = ? LIMIT 1")
+    .get(userId)) as { id: number } | undefined;
+  if (!row) return null;
+  return getEmpresaCuentaById(db, row.id);
+}
+
+export async function getEmpresaCuentaByNombre(
+  db: Db,
+  nombre: string
+): Promise<EmpresaCuenta | null> {
+  const row = (await db
+    .prepare("SELECT * FROM EMPRESAS_CUENTA WHERE nombre = ?")
+    .get(nombre.trim())) as EmpresaCuentaRow | undefined;
+  return row
+    ? rowToPublic(
+        row,
+        0,
+        await listEmpresasOperativas(db, row.id),
+        await getCuentaAdmin(db, row.admin_user_id)
+      )
+    : null;
+}
+
+export async function isValidEmpresaNombre(
+  db: Db,
+  nombre: string
+): Promise<boolean> {
+  const row = (await db
+    .prepare(
+      `SELECT 1 AS ok
+       FROM EMPRESAS_OPERATIVAS op
+       INNER JOIN EMPRESAS_CUENTA c ON c.id = op.cuenta_id
+       WHERE op.nombre = ? AND op.activo = 1 AND c.activo = 1`
+    )
+    .get(nombre.trim())) as { ok: number } | undefined;
+  return Boolean(row);
+}
+
+export async function isValidEmpresaCodigo(
+  db: Db,
+  codigo: string
+): Promise<boolean> {
+  const normalized = normalizeCodigo(codigo);
+  if (!normalized) return false;
+  const row = (await db
+    .prepare(
+      `SELECT 1 AS ok
+       FROM EMPRESAS_OPERATIVAS op
+       INNER JOIN EMPRESAS_CUENTA c ON c.id = op.cuenta_id
+       WHERE op.codigo = ? AND op.activo = 1 AND c.activo = 1`
+    )
+    .get(normalized)) as { ok: number } | undefined;
+  return Boolean(row);
+}
+
+export async function insertEmpresaCuenta(
+  db: Db,
+  input: EmpresaCuentaInput
+): Promise<EmpresaCuenta> {
+  const nombre = input.nombre.trim();
+  const codigo = normalizeCodigo(input.codigo);
+
+  if (!nombre) throw new Error("El nombre de la empresa es obligatorio");
+  if (!codigo) throw new Error("El código de la empresa es obligatorio");
+
+  const dupNombre = (await db
+    .prepare("SELECT id FROM EMPRESAS_CUENTA WHERE LOWER(nombre) = LOWER(?)")
+    .get(nombre)) as { id: number } | undefined;
+  if (dupNombre) throw new Error("Ya existe una cuenta con ese nombre");
+
+  const dupCodigo = (await db
+    .prepare("SELECT id FROM EMPRESAS_CUENTA WHERE codigo = ?")
+    .get(codigo)) as { id: number } | undefined;
+  if (dupCodigo) throw new Error("Ya existe una cuenta con ese código");
+
+  const result = await db
+    .prepare(
+      `INSERT INTO EMPRESAS_CUENTA (cuenta_numero, nombre, codigo, activo)
+       VALUES (?, ?, ?, ?)`
+    )
+    .run(await nextCuentaNumero(db), nombre, codigo, input.activo === false ? 0 : 1);
+
+  return (await getEmpresaCuentaById(db, Number(result.lastInsertRowid)))!;
+}
+
+export async function updateEmpresaCuenta(
+  db: Db,
+  id: number,
+  input: Partial<EmpresaCuentaInput>
+): Promise<EmpresaCuenta> {
+  const current = (await db
+    .prepare("SELECT * FROM EMPRESAS_CUENTA WHERE id = ?")
+    .get(id)) as EmpresaCuentaRow | undefined;
+  if (!current) throw new Error("Cuenta de empresa no encontrada");
+
+  const nombre =
+    input.nombre !== undefined ? input.nombre.trim() : current.nombre;
+  const codigo =
+    input.codigo !== undefined
+      ? normalizeCodigo(input.codigo)
+      : current.codigo;
+  const activo =
+    input.activo !== undefined ? (input.activo ? 1 : 0) : current.activo;
+
+  if (!nombre) throw new Error("El nombre de la empresa es obligatorio");
+  if (!codigo) throw new Error("El código de la empresa es obligatorio");
+
+  const dupNombre = (await db
+    .prepare(
+      "SELECT id FROM EMPRESAS_CUENTA WHERE LOWER(nombre) = LOWER(?) AND id != ?"
+    )
+    .get(nombre, id)) as { id: number } | undefined;
+  if (dupNombre) throw new Error("Ya existe otra cuenta con ese nombre");
+
+  const dupCodigo = (await db
+    .prepare("SELECT id FROM EMPRESAS_CUENTA WHERE codigo = ? AND id != ?")
+    .get(codigo, id)) as { id: number } | undefined;
+  if (dupCodigo) throw new Error("Ya existe otra cuenta con ese código");
+
+  await db
+    .prepare(
+      `UPDATE EMPRESAS_CUENTA
+       SET nombre = ?, codigo = ?, activo = ?, actualizado_en = NOW()
+       WHERE id = ?`
+    )
+    .run(nombre, codigo, activo, id);
+
+  return (await getEmpresaCuentaById(db, id))!;
+}
+
+export async function insertEmpresaOperativa(
+  db: Db,
+  cuentaId: number,
+  input: EmpresaOperativaInput
+): Promise<EmpresaOperativa> {
+  const cuenta = await getEmpresaCuentaById(db, cuentaId);
+  if (!cuenta) throw new Error("Cuenta madre no encontrada");
+
+  const nombre = input.nombre.trim();
+  const codigo = normalizeCodigo(input.codigo);
+  if (!nombre) throw new Error("El nombre de la empresa es obligatorio");
+  if (!codigo) throw new Error("El código de la empresa es obligatorio");
+
+  const dupNombre = (await db
+    .prepare(
+      `SELECT id FROM EMPRESAS_OPERATIVAS
+       WHERE cuenta_id = ? AND LOWER(nombre) = LOWER(?)`
+    )
+    .get(cuentaId, nombre)) as { id: number } | undefined;
+  if (dupNombre) throw new Error("Ya existe una empresa con ese nombre en la cuenta");
+
+  const dupCodigo = (await db
+    .prepare(
+      `SELECT id FROM EMPRESAS_OPERATIVAS
+       WHERE cuenta_id = ? AND codigo = ?`
+    )
+    .get(cuentaId, codigo)) as { id: number } | undefined;
+  if (dupCodigo) throw new Error("Ya existe una empresa con ese código en la cuenta");
+
+  const result = await db
+    .prepare(
+      `INSERT INTO EMPRESAS_OPERATIVAS (cuenta_id, nombre, codigo, activo)
+       VALUES (?, ?, ?, ?)`
+    )
+    .run(cuentaId, nombre, codigo, input.activo === false ? 0 : 1);
+
+  const row = (await db
+    .prepare("SELECT * FROM EMPRESAS_OPERATIVAS WHERE id = ?")
+    .get(Number(result.lastInsertRowid))) as EmpresaOperativaRow;
+  return operativaToPublic(row);
+}
+
+/**
+ * Asigna un usuario como administrador de la cuenta madre.
+ * El usuario debe ser el administrador de la plataforma (super admin, sin cuenta)
+ * o pertenecer a esta misma cuenta. Si pertenece a la cuenta, se promueve a rol admin.
+ */
+export async function setEmpresaCuentaAdmin(
+  db: Db,
+  cuentaId: number,
+  userId: number | null
+): Promise<EmpresaCuenta> {
+  const cuenta = (await db
+    .prepare("SELECT id FROM EMPRESAS_CUENTA WHERE id = ?")
+    .get(cuentaId)) as { id: number } | undefined;
+  if (!cuenta) throw new Error("Cuenta madre no encontrada");
+
+  if (userId == null) {
+    await db
+      .prepare(
+        "UPDATE EMPRESAS_CUENTA SET admin_user_id = NULL, actualizado_en = NOW() WHERE id = ?"
+      )
+      .run(cuentaId);
+    return (await getEmpresaCuentaById(db, cuentaId))!;
+  }
+
+  const user = (await db
+    .prepare("SELECT id, rol, empresa_id FROM USERS WHERE id = ?")
+    .get(userId)) as
+    | { id: number; rol: string; empresa_id: number | null }
+    | undefined;
+  if (!user) throw new Error("Usuario no encontrado");
+
+  const esSuperAdmin = user.rol === "admin" && user.empresa_id == null;
+  const perteneceCuenta =
+    user.empresa_id != null && Number(user.empresa_id) === cuentaId;
+
+  if (!esSuperAdmin && !perteneceCuenta) {
+    throw new Error(
+      "El administrador debe pertenecer a esta cuenta o ser el administrador del sistema"
+    );
+  }
+
+  if (perteneceCuenta && user.rol !== "admin") {
+    await db
+      .prepare("UPDATE USERS SET rol = 'admin', actualizado_en = NOW() WHERE id = ?")
+      .run(userId);
+  }
+
+  await db
+    .prepare(
+      "UPDATE EMPRESAS_CUENTA SET admin_user_id = ?, actualizado_en = NOW() WHERE id = ?"
+    )
+    .run(userId, cuentaId);
+
+  return (await getEmpresaCuentaById(db, cuentaId))!;
+}
+
+export function isSuperAdminUser(user: {
+  rol: string;
+  empresa_id: number | null;
+}): boolean {
+  return user.rol === "admin" && user.empresa_id == null;
+}

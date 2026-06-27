@@ -1,4 +1,4 @@
-export type Empresa = "GANADERA GUAVIYU" | "GANADERA CHIVILCOY";
+export type Empresa = string;
 
 export interface Presupuesto {
   id: number;
@@ -877,11 +877,17 @@ export interface UserAvatar {
 
 export interface AuthUser {
   id: number;
+  usuario_numero: string;
   email: string;
   nombre: string;
   rol: Rol;
   rol_label: string;
   activo: boolean;
+  empresa_id: number | null;
+  empresa_nombre: string | null;
+  empresa_codigo: string | null;
+  empresa_cuenta_numero: string | null;
+  es_super_admin: boolean;
   permisos: Modulo[];
   puede_escribir: boolean;
   modulos_solo_lectura: Modulo[];
@@ -890,12 +896,57 @@ export interface AuthUser {
   avatar: UserAvatar;
 }
 
+export interface EmpresaCuentaAdmin {
+  id: number;
+  email: string;
+  nombre: string;
+  es_super_admin: boolean;
+}
+
+export interface EmpresaCuenta {
+  id: number;
+  cuenta_numero: string;
+  nombre: string;
+  codigo: string;
+  activo: boolean;
+  creado_en: string;
+  actualizado_en: string;
+  usuarios_count: number;
+  empresas_count: number;
+  empresas: EmpresaOperativa[];
+  admin_user_id: number | null;
+  admin: EmpresaCuentaAdmin | null;
+}
+
+export interface EmpresaOperativa {
+  id: number;
+  cuenta_id: number;
+  nombre: string;
+  codigo: string;
+  activo: boolean;
+  creado_en: string;
+  actualizado_en: string;
+}
+
+export interface EmpresaCuentaForm {
+  nombre: string;
+  codigo: string;
+  activo?: boolean;
+}
+
+export interface EmpresaOperativaForm {
+  nombre: string;
+  codigo: string;
+  activo?: boolean;
+}
+
 export interface UserForm {
   email: string;
   nombre: string;
   rol: Rol;
   password?: string;
   activo?: boolean;
+  empresa_id?: number | null;
 }
 
 export interface ModuloAccesoConfig {
