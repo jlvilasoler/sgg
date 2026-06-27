@@ -60,7 +60,24 @@ export async function initChatChannelTables(db: Db): Promise<void> {
   ).run();
 
   await migrateAddCuentaIdColumn(db, "CHAT_CHANNELS");
-  await syncTeamChannelsForAllCuentas(db);
+}
+
+let teamChannelSyncPromise: Promise<void> | null = null;
+
+/** Sincroniza canales de equipo por cuenta (no bloquea el arranque de la API). */
+export function scheduleTeamChannelSync(db: Db): void {
+  if (teamChannelSyncPromise) return;
+  teamChannelSyncPromise = syncTeamChannelsForAllCuentas(db).catch((err) => {
+    console.error("[SGG Chat] Error al sincronizar canales:", err);
+    teamChannelSyncPromise = null;
+  });
+}
+
+export async function ensureTeamChannelsSynced(db: Db): Promise<void> {
+  if (!teamChannelSyncPromise) {
+    scheduleTeamChannelSync(db);
+  }
+  await teamChannelSyncPromise;
 }
 
 async function addCuentaUsersToChannel(

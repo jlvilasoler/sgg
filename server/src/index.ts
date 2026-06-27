@@ -128,7 +128,18 @@ app.use(cors(getCorsOptions()));
 app.use(cookieParser());
 app.use(express.json({ limit: "512kb" }));
 
-app.get("/api/health", (_req, res) => {
+app.get("/api/health", async (_req, res) => {
+  if (!dbInitOk && !lastDbInitError) {
+    try {
+      await Promise.race([
+        dbReady,
+        new Promise<void>((resolve) => setTimeout(resolve, 500)),
+      ]);
+    } catch {
+      /* dbReady rechazado; se reporta abajo */
+    }
+  }
+
   if (lastDbInitError) {
     res.json({
       ok: true,

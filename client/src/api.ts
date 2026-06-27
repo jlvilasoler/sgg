@@ -130,12 +130,12 @@ export interface ApiHealthStatus {
   detail?: string;
 }
 
-export async function checkApiHealth(): Promise<ApiHealthStatus> {
+export async function checkApiHealth(timeoutMs = 8000): Promise<ApiHealthStatus> {
   try {
     const res = await fetch(`${API}/health`, {
       ...FETCH_INIT,
       cache: "no-store",
-      signal: AbortSignal.timeout(5000),
+      signal: AbortSignal.timeout(timeoutMs),
     });
     let json: { ok?: boolean; ready?: boolean; error?: string; detail?: string };
     try {

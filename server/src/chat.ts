@@ -19,6 +19,7 @@ import {
 } from "./chat-db.js";
 import {
   createChatChannel,
+  ensureTeamChannelsSynced,
   listChatChannels,
   renameChatChannel,
 } from "./chat-channels-db.js";
@@ -89,6 +90,7 @@ export function registerChatRoutes(app: Express): void {
 
     try {
       const db = getDb();
+      await ensureTeamChannelsSynced(db);
       const [channels, contacts, wallpapersByPeer, messages] = await Promise.all([
         listChatChannels(db, userId),
         listChatContacts(db, userId),
@@ -298,6 +300,7 @@ export function registerChatRoutes(app: Express): void {
 
     try {
       const db = getDb();
+      await ensureTeamChannelsSynced(db);
       const [contacts, channels] = await Promise.all([
         listChatContacts(db, userId),
         listChatChannels(db, userId),
@@ -432,7 +435,9 @@ export function registerChatRoutes(app: Express): void {
     if (userId === null) return;
 
     try {
-      const channels = await listChatChannels(getDb(), userId);
+      const db = getDb();
+      await ensureTeamChannelsSynced(db);
+      const channels = await listChatChannels(db, userId);
       res.json({ ok: true, data: { channels } });
     } catch (e) {
       res.status(500).json({

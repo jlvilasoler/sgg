@@ -42,7 +42,7 @@ import {
 } from "./utils/auth-permissions";
 import { showToast } from "./utils/toast";
 
-const DB_BOOT_TIMEOUT_MS = 25_000;
+const DB_BOOT_TIMEOUT_MS = 90_000;
 
 function parseResetTokenFromUrl(): string | null {
   const token = new URLSearchParams(window.location.search).get("reset")?.trim();
@@ -98,7 +98,9 @@ export default function App() {
   }, [user]);
 
   const connectApi = useCallback(async () => {
-    const health = await checkApiHealth();
+    const healthTimeout =
+      dbBootStartedRef.current != null ? 20_000 : 8_000;
+    const health = await checkApiHealth(healthTimeout);
     const ok = health.online && health.ready;
     setApiOnline(ok);
     setBootPhase(health.online && !health.ready ? "db" : "api");
@@ -118,7 +120,10 @@ export default function App() {
     } else if (health.online && !health.ready) {
       const startedAt = dbBootStartedRef.current ?? Date.now();
       dbBootStartedRef.current = startedAt;
-      const detail = health.detail || health.error || "";
+      const detail =
+        health.detail ||
+        health.error ||
+        "El servidor está iniciando la base de datos. En producción puede tardar hasta un minuto en el primer acceso.";
       setBootError(detail);
       if (Date.now() - startedAt >= DB_BOOT_TIMEOUT_MS) {
         setBootBlocked(true);

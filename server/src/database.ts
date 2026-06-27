@@ -39,6 +39,7 @@ import * as empresasCuenta from "./empresas-cuenta-db.js";
 import * as docDig from "./documentos-digitales-db.js";
 import * as presDoc from "./presupuesto-documentos-db.js";
 import * as chat from "./chat-db.js";
+import { scheduleTeamChannelSync } from "./chat-channels-db.js";
 import * as simVenta from "./simulador-venta-ganado-db.js";
 import * as simVentaAud from "./simulador-venta-auditoria-db.js";
 import * as simVentaDisp from "./simulador-venta-dispositivos-db.js";
@@ -149,7 +150,9 @@ export async function initDb(): Promise<void> {
 
   const existing = await schemaAlreadyApplied();
   const lockWaitMs = existing ? 3_000 : 50_000;
-  const locked = await tryAdvisoryLock(lockWaitMs);
+  // En Vercel el pooler de transacciones no soporta advisory locks de forma fiable.
+  const locked =
+    process.env.VERCEL === "1" ? true : await tryAdvisoryLock(lockWaitMs);
 
   try {
     if (!existing || locked) {
@@ -182,6 +185,8 @@ export async function initDb(): Promise<void> {
   } finally {
     if (locked) await releaseAdvisoryLock();
   }
+
+  scheduleTeamChannelSync(db);
 }
 
 export async function peekNextNroRegistro(): Promise<number> {
