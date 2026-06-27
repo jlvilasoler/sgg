@@ -1,7 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { loginAuth } from "../api";
 import { apiConnectionError, apiOfflineMessage } from "../utils/api-messages";
-import { hasCryptoWalletExtension } from "../utils/extension-noise-guard";
 import { APP_FULL_NAME, APP_NAME } from "../brand";
 import type { AuthUser } from "../types";
 import PasswordEyeIcon from "./icons/PasswordEyeIcon";
@@ -19,8 +18,6 @@ export default function LoginScreen({ apiOnline, onLogin, onError, onForgotPassw
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [walletHintDismissed, setWalletHintDismissed] = useState(false);
-  const showWalletHint = hasCryptoWalletExtension() && !walletHintDismissed;
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -54,23 +51,6 @@ export default function LoginScreen({ apiOnline, onLogin, onError, onForgotPassw
         </header>
 
         <form className="auth-login-form" onSubmit={submit}>
-          {showWalletHint && (
-            <div className="auth-login-wallet-hint" role="status">
-              <p>
-                Detectamos extensiones de billeteras crypto (MetaMask, Pelagus, etc.). Si la
-                página va lenta o ves errores en la consola, desactivalas para este sitio: SAG no
-                las necesita.
-              </p>
-              <button
-                type="button"
-                className="auth-login-wallet-hint-dismiss"
-                onClick={() => setWalletHintDismissed(true)}
-              >
-                Entendido
-              </button>
-            </div>
-          )}
-
           <div className="field">
             <label htmlFor="login-email">Email</label>
             <input
