@@ -4,6 +4,7 @@ import type {
   PresupuestoInput,
   ResumenEmpresa,
   ResumenRubro,
+  ResumenEmpresaRubro,
   ResumenSubRubro,
   ResumenSubRubroMes,
   ResumenTotales,
@@ -651,7 +652,45 @@ export async function resumenPorRubro(
   return (await db.prepare(query).all(params)) as ResumenRubro[];
 }
 
-const ESTADO_FINANCIERO_DESDE = "2026-07-01";
+export async function resumenPorEmpresaRubro(
+  fecha_desde?: string,
+  fecha_hasta?: string
+): Promise<ResumenEmpresaRubro[]> {
+  let query = `
+    SELECT empresa, rubro, COUNT(*) AS cantidad,
+      COALESCE(SUM(pesos), 0) AS total_pesos,
+      COALESCE(SUM(dolares_usd), 0) AS total_usd,
+      COALESCE(SUM(reales), 0) AS total_reales,
+      COALESCE(SUM(saldo_usd), 0) AS total_saldo_usd
+    FROM PRESUPUESTO WHERE 1=1
+  `;
+  const params: Record<string, string> = {};
+  if (fecha_desde) {
+    query += " AND fecha >= @fecha_desde";
+    params.fecha_desde = fecha_desde;
+  }
+  if (fecha_hasta) {
+    query += " AND fecha <= @fecha_hasta";
+    params.fecha_hasta = fecha_hasta;
+  }
+  query += " GROUP BY empresa, rubro ORDER BY empresa ASC, total_saldo_usd DESC";
+  return (await db.prepare(query).all(params)) as ResumenEmpresaRubro[];
+}
+
+/**
+ * Inicio del ejercicio contable agropecuario (Uruguay/IMEBA): 1/7 → 30/6.
+ * De enero a junio el ejercicio vigente empezó el 1/7 del año anterior.
+ */
+function inicioEjercicioContable(ref: Date = new Date()): Date {
+  const year = ref.getMonth() < 6 ? ref.getFullYear() - 1 : ref.getFullYear();
+  return new Date(year, 6, 1);
+}
+
+/** Fecha ISO (YYYY-MM-01) del inicio del ejercicio contable vigente. */
+function estadoFinancieroDesde(): string {
+  const d = inicioEjercicioContable();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
+}
 
 const MESES_CORTOS = [
   "ene",
@@ -680,8 +719,11 @@ function claveMesDesdeFecha(iso: string): string {
 }
 
 export function listarMesesEstadoFinanciero(fecha_hasta?: string): EstadoFinancieroMes[] {
-  const inicio = new Date(2026, 6, 1);
+  const inicio = inicioEjercicioContable();
+  // Cierre del ejercicio: 30/6 del año siguiente al inicio.
+  const finEjercicio = new Date(inicio.getFullYear() + 1, 5, 1);
   let fin = new Date();
+  if (fin > finEjercicio) fin = finEjercicio;
   if (fecha_hasta) {
     const h = new Date(`${fecha_hasta}T12:00:00`);
     if (!Number.isNaN(h.getTime()) && h < fin) fin = h;
@@ -785,7 +827,7 @@ export async function resumenPorSubRubroMensual(
     FROM PRESUPUESTO
     WHERE fecha >= @fecha_inicio
   `;
-  const params: Record<string, string> = { fecha_inicio: ESTADO_FINANCIERO_DESDE };
+  const params: Record<string, string> = { fecha_inicio: estadoFinancieroDesde() };
   if (empresa) {
     query += " AND empresa = @empresa";
     params.empresa = empresa;
@@ -825,7 +867,7 @@ export async function buildEstadoFinanciero(
 
   const movMes = new Map<string, number>();
   for (const m of movMensual) {
-    if (!m.mes || m.mes < claveMesDesdeFecha(ESTADO_FINANCIERO_DESDE)) continue;
+    if (!m.mes || m.mes < claveMesDesdeFecha(estadoFinancieroDesde())) continue;
     const clave = `${claveRubroSub(m.rubro, m.sub_rubro)}|${m.mes}`;
     movMes.set(clave, (movMes.get(clave) ?? 0) + m.total_saldo_usd);
   }

@@ -21,6 +21,7 @@ import type {
   ResponsableForm,
   ResumenEmpresa,
   ResumenRubro,
+  ResumenEmpresaRubro,
   EstadoFinancieroRubro,
   EstadoFinancieroMes,
   TipoCambio,
@@ -1953,6 +1954,7 @@ export async function fetchResumen(filters: {
   empresa?: string;
 }): Promise<{
   por_empresa: ResumenEmpresa[];
+  por_empresa_rubro: ResumenEmpresaRubro[];
   por_rubro: ResumenRubro[];
   estado_financiero: EstadoFinancieroRubro[];
   estado_financiero_meses: EstadoFinancieroMes[];

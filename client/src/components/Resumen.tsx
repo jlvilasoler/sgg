@@ -6,6 +6,7 @@ import type {
   EstadoFinancieroRubro,
   EstadoFinancieroUsd,
   ResumenEmpresa,
+  ResumenEmpresaRubro,
   ResumenRubro,
 } from "../types";
 import { empresaClass, fmtNum } from "../utils";
@@ -14,12 +15,6 @@ interface Props {
   catalogos: Catalogos;
   apiOnline: boolean;
   onError: (msg: string) => void;
-}
-
-function fmtFechaCorta(iso: string): string {
-  const [y, m, d] = iso.split("-");
-  if (!y || !m || !d) return iso;
-  return `${d}/${m}/${y}`;
 }
 
 function pct(parte: number, total: number): string {
@@ -40,16 +35,19 @@ export default function Resumen({ catalogos, apiOnline, onError }: Props) {
   const [fechaHasta, setFechaHasta] = useState("");
   const [empresa, setEmpresa] = useState("");
   const [porEmpresa, setPorEmpresa] = useState<ResumenEmpresa[]>([]);
+  const [porEmpresaRubro, setPorEmpresaRubro] = useState<ResumenEmpresaRubro[]>([]);
   const [porRubro, setPorRubro] = useState<ResumenRubro[]>([]);
   const [estadoFinanciero, setEstadoFinanciero] = useState<EstadoFinancieroRubro[]>([]);
   const [estadoFinancieroMeses, setEstadoFinancieroMeses] = useState<EstadoFinancieroMes[]>(
     []
   );
   const [rubrosAbiertos, setRubrosAbiertos] = useState<Set<string>>(new Set());
+  const [empresasAbiertas, setEmpresasAbiertas] = useState<Set<string>>(new Set());
 
   const load = useCallback(async () => {
     if (!apiOnline) {
       setPorEmpresa([]);
+      setPorEmpresaRubro([]);
       setPorRubro([]);
       setEstadoFinanciero([]);
       setEstadoFinancieroMeses([]);
@@ -62,6 +60,7 @@ export default function Resumen({ catalogos, apiOnline, onError }: Props) {
         empresa: empresa || undefined,
       });
       setPorEmpresa(data.por_empresa);
+      setPorEmpresaRubro(data.por_empresa_rubro ?? []);
       setPorRubro(data.por_rubro);
       setEstadoFinanciero(data.estado_financiero ?? []);
       setEstadoFinancieroMeses(data.estado_financiero_meses ?? []);
@@ -76,6 +75,7 @@ export default function Resumen({ catalogos, apiOnline, onError }: Props) {
 
   useEffect(() => {
     setRubrosAbiertos(new Set());
+    setEmpresasAbiertas(new Set());
   }, [estadoFinanciero, fechaDesde, fechaHasta, empresa]);
 
   const toggleRubro = (nombre: string) => {
@@ -94,6 +94,25 @@ export default function Resumen({ catalogos, apiOnline, onError }: Props) {
   const cerrarTodosRubros = () => {
     setRubrosAbiertos(new Set());
   };
+
+  const toggleEmpresa = (nombre: string) => {
+    setEmpresasAbiertas((prev) => {
+      const next = new Set(prev);
+      if (next.has(nombre)) next.delete(nombre);
+      else next.add(nombre);
+      return next;
+    });
+  };
+
+  const rubrosPorEmpresa = useMemo(() => {
+    const map = new Map<string, ResumenEmpresaRubro[]>();
+    for (const row of porEmpresaRubro) {
+      const list = map.get(row.empresa) ?? [];
+      list.push(row);
+      map.set(row.empresa, list);
+    }
+    return map;
+  }, [porEmpresaRubro]);
 
   const totEmpresa = useMemo(
     () =>
@@ -124,11 +143,10 @@ export default function Resumen({ catalogos, apiOnline, onError }: Props) {
   }, [estadoFinanciero, estadoFinancieroMeses]);
 
   const periodoEstadoLabel = useMemo(() => {
-    if (fechaHasta) {
-      return `Desde 01/07/2026 hasta ${fmtFechaCorta(fechaHasta)}`;
-    }
-    return "Desde 01/07/2026 al mes actual";
-  }, [fechaHasta]);
+    if (estadoFinancieroMeses.length === 0) return "Ejercicio contable (1/7 al 30/6)";
+    const inicioY = Number(estadoFinancieroMeses[0].clave.split("-")[0]);
+    return `Ejercicio 01/07/${inicioY} – 30/06/${inicioY + 1}`;
+  }, [estadoFinancieroMeses]);
 
   const emitidoLabel = useMemo(
     () =>
@@ -318,9 +336,9 @@ export default function Resumen({ catalogos, apiOnline, onError }: Props) {
               </h3>
               <div className="balance-doc-section-toolbar">
                 <p className="balance-doc-section-desc">
-                  Solo moneda USD (total consolidado). Columnas mensuales desde
-                  julio 2026. Hacé clic en un rubro para ver u ocultar sus
-                  sub-rubros.
+                  Solo moneda USD (total consolidado). Columnas mensuales del
+                  ejercicio contable vigente (1/7 al 30/6). Hacé clic en un rubro
+                  para ver u ocultar sus sub-rubros.
                 </p>
                 <div className="balance-doc-section-actions">
                   <button
@@ -444,11 +462,14 @@ export default function Resumen({ catalogos, apiOnline, onError }: Props) {
                 <h3 className="balance-doc-section-title">
                   Distribución por empresa (centro de costo)
                 </h3>
+                <p className="balance-doc-section-desc">
+                  Hacé clic en una empresa para ver u ocultar el desglose por rubro.
+                </p>
                 <div className="table-wrap">
-                  <table className="balance-doc-table">
+                  <table className="balance-doc-table balance-doc-table--jerarquia">
                     <thead>
                       <tr>
-                        <th className="balance-col-cuenta">Empresa</th>
+                        <th className="balance-col-cuenta">Empresa / Rubro</th>
                         <th className="num">Comprob.</th>
                         <th className="num">$ ARS</th>
                         <th className="num">USD</th>
@@ -458,27 +479,81 @@ export default function Resumen({ catalogos, apiOnline, onError }: Props) {
                       </tr>
                     </thead>
                     <tbody>
-                      {porEmpresa.map((r) => (
-                        <tr key={r.empresa}>
-                          <td className="balance-col-cuenta">
-                            <span
-                              className={`empresa-badge empresa-badge--resumen ${empresaClass(r.empresa)}`}
+                      {porEmpresa.map((r) => {
+                        const abierto = empresasAbiertas.has(r.empresa);
+                        const rubros = rubrosPorEmpresa.get(r.empresa) ?? [];
+                        const tieneRubros = rubros.length > 0;
+                        return (
+                          <Fragment key={r.empresa}>
+                            <tr
+                              className={`balance-rubro-row${
+                                abierto ? " is-open" : ""
+                              }${tieneRubros ? " balance-rubro-row--toggle" : ""}`}
                             >
-                              {r.empresa}
-                            </span>
-                          </td>
-                          <td className="num">{r.cantidad}</td>
-                          <td className="num">{fmtNum(r.total_pesos)}</td>
-                          <td className="num">{fmtNum(r.total_usd)}</td>
-                          <td className="num">{fmtNum(r.total_reales)}</td>
-                          <td className="num balance-num-total">
-                            {fmtNum(r.total_saldo_usd)}
-                          </td>
-                          <td className="num balance-col-pct">
-                            {pct(r.total_saldo_usd, totEmpresa.saldo)}
-                          </td>
-                        </tr>
-                      ))}
+                              <td className="balance-col-cuenta balance-col-rubro">
+                                {tieneRubros ? (
+                                  <button
+                                    type="button"
+                                    className="balance-rubro-toggle"
+                                    onClick={() => toggleEmpresa(r.empresa)}
+                                    aria-expanded={abierto}
+                                  >
+                                    <span
+                                      className={`balance-rubro-chevron${
+                                        abierto ? " is-open" : ""
+                                      }`}
+                                      aria-hidden
+                                    />
+                                    <span
+                                      className={`empresa-badge empresa-badge--resumen ${empresaClass(r.empresa)}`}
+                                    >
+                                      {r.empresa}
+                                    </span>
+                                  </button>
+                                ) : (
+                                  <span
+                                    className={`empresa-badge empresa-badge--resumen ${empresaClass(r.empresa)}`}
+                                  >
+                                    {r.empresa}
+                                  </span>
+                                )}
+                              </td>
+                              <td className="num">{r.cantidad}</td>
+                              <td className="num">{fmtNum(r.total_pesos)}</td>
+                              <td className="num">{fmtNum(r.total_usd)}</td>
+                              <td className="num">{fmtNum(r.total_reales)}</td>
+                              <td className="num balance-num-total">
+                                {fmtNum(r.total_saldo_usd)}
+                              </td>
+                              <td className="num balance-col-pct">
+                                {pct(r.total_saldo_usd, totEmpresa.saldo)}
+                              </td>
+                            </tr>
+                            {abierto
+                              ? rubros.map((rub) => (
+                                  <tr
+                                    key={`${r.empresa}-${rub.rubro}`}
+                                    className="balance-sub-row"
+                                  >
+                                    <td className="balance-col-cuenta balance-col-sub">
+                                      {rub.rubro}
+                                    </td>
+                                    <td className="num">{rub.cantidad}</td>
+                                    <td className="num">{fmtNum(rub.total_pesos)}</td>
+                                    <td className="num">{fmtNum(rub.total_usd)}</td>
+                                    <td className="num">{fmtNum(rub.total_reales)}</td>
+                                    <td className="num">
+                                      {fmtNum(rub.total_saldo_usd)}
+                                    </td>
+                                    <td className="num balance-col-pct">
+                                      {pct(rub.total_saldo_usd, totEmpresa.saldo)}
+                                    </td>
+                                  </tr>
+                                ))
+                              : null}
+                          </Fragment>
+                        );
+                      })}
                     </tbody>
                     <tfoot>
                       <tr className="balance-doc-total">

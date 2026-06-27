@@ -3808,6 +3808,7 @@ app.get("/api/resumen", async (req, res) => {
   res.json({
     ok: true,
     por_empresa: await db.resumenPorEmpresa(fecha_desde, fecha_hasta),
+    por_empresa_rubro: await db.resumenPorEmpresaRubro(fecha_desde, fecha_hasta),
     por_rubro: await db.resumenPorRubro(empresa, fecha_desde, fecha_hasta),
     estado_financiero: estado.rubros,
     estado_financiero_meses: estado.meses,

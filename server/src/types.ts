@@ -82,6 +82,11 @@ export interface ResumenRubro {
   total_saldo_usd: number;
 }
 
+export interface ResumenEmpresaRubro extends ResumenTotales {
+  empresa: string;
+  rubro: string;
+}
+
 export interface ResumenTotales {
   cantidad: number;
   total_pesos: number;
