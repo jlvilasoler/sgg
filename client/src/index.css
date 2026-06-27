@@ -15803,6 +15803,90 @@ button.sg-kpi-card:disabled {
   font-size: 0.74rem;
 }
 
+.auth-login-forgot-wrap {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: -0.35rem;
+}
+
+.auth-login-forgot-link,
+.auth-login-link-btn {
+  padding: 0;
+  border: none;
+  background: none;
+  color: #2d5a3d;
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.auth-login-forgot-link:hover,
+.auth-login-link-btn:hover {
+  color: #1a3d2e;
+}
+
+.auth-login-forgot-link:disabled,
+.auth-login-link-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.auth-login-link-btn {
+  align-self: flex-start;
+  margin-top: 0.15rem;
+  text-decoration: none;
+}
+
+.auth-login-recovery-intro {
+  margin: 0;
+  font-size: 0.86rem;
+  line-height: 1.5;
+  color: var(--bn-muted);
+}
+
+.auth-login-recovery-sent {
+  text-align: center;
+}
+
+.auth-login-recovery-icon {
+  width: 3rem;
+  height: 3rem;
+  margin: 0 auto 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: color-mix(in srgb, #2d5a3d 12%, #fff);
+  color: #2d5a3d;
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+.auth-login-recovery-icon--warn {
+  background: color-mix(in srgb, #c62828 10%, #fff);
+  color: #c62828;
+}
+
+.auth-login-recovery-title {
+  margin: 0 0 0.65rem;
+  font-size: 1.1rem;
+  color: var(--bn-text);
+}
+
+.auth-login-recovery-text {
+  margin: 0 0 0.75rem;
+  font-size: 0.88rem;
+  line-height: 1.55;
+  color: var(--bn-muted);
+}
+
+.auth-login-recovery-hint {
+  margin: 0 0 1rem;
+  font-size: 0.8rem;
+}
+
 .main-header-user {
   display: flex;
   align-items: center;

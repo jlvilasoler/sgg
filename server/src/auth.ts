@@ -26,6 +26,10 @@ import {
   loginRateLimiter,
   PASSWORD_POLICY_HINT,
 } from "./auth-security.js";
+import {
+  buildPasswordResetUrl,
+  sendPasswordResetEmail,
+} from "./password-reset-email.js";
 
 export {
   apiRateLimiter,
@@ -176,7 +180,10 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
     PUBLIC_PATHS.has(path) ||
     path === "/api/auth/login" ||
     path === "/api/auth/me" ||
-    path === "/api/auth/logout"
+    path === "/api/auth/logout" ||
+    path === "/api/auth/forgot-password" ||
+    path === "/api/auth/reset-password" ||
+    path === "/api/auth/reset-password/validate"
   ) {
     next();
     return;
@@ -365,6 +372,118 @@ export function registerAuthRoutes(app: Express): void {
     }
     touchUserPresence(user, { ip: clientIp(req) });
     res.json({ ok: true, data: user });
+  });
+
+  const FORGOT_PASSWORD_MESSAGE =
+    "Si el email está registrado en el sistema, recibirás un enlace para restablecer tu contraseña. Revisá tu bandeja de entrada y la carpeta de spam.";
+
+  app.post("/api/auth/forgot-password", loginRateLimiter, async (req, res) => {
+    try {
+      const email = String(req.body?.email ?? "").trim().slice(0, 254);
+      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        res.status(400).json({ ok: false, error: "Ingresá un email válido" });
+        return;
+      }
+
+      const db = getDb();
+      const ip = clientIp(req);
+      const user = await authDb.findActiveUserByEmail(db, email);
+
+      if (user) {
+        const rawToken = await authDb.createPasswordResetToken(db, user.id, { ip });
+        const resetUrl = buildPasswordResetUrl(rawToken);
+        try {
+          await sendPasswordResetEmail({
+            to: user.email,
+            nombre: user.nombre,
+            resetUrl,
+          });
+        } catch (mailErr) {
+          console.error("[SGG Auth] No se pudo enviar email de recuperación:", mailErr);
+        }
+        await authDb.recordAuthEvent(db, "password_reset_requested", {
+          email: user.email,
+          ip,
+          userAgent: req.headers["user-agent"],
+        });
+      }
+
+      await artificialLoginDelay();
+      res.json({ ok: true, message: FORGOT_PASSWORD_MESSAGE });
+    } catch (e) {
+      console.error("[SGG Auth] Error en forgot-password:", e);
+      res.status(500).json({
+        ok: false,
+        error: "No se pudo procesar la solicitud. Intentá nuevamente más tarde.",
+      });
+    }
+  });
+
+  app.get("/api/auth/reset-password/validate", async (req, res) => {
+    try {
+      const token = String(req.query.token ?? "").trim().slice(0, 128);
+      if (!isValidSessionTokenFormat(token)) {
+        res.json({ ok: true, data: { valid: false, reason: "invalid" } });
+        return;
+      }
+      const status = await authDb.peekPasswordResetToken(getDb(), token);
+      res.json({
+        ok: true,
+        data: { valid: status === "valid", reason: status },
+      });
+    } catch (e) {
+      console.error("[SGG Auth] Error al validar token de reset:", e);
+      res.status(500).json({ ok: false, error: "Error al validar enlace" });
+    }
+  });
+
+  app.post("/api/auth/reset-password", loginRateLimiter, async (req, res) => {
+    try {
+      const token = String(req.body?.token ?? "").trim().slice(0, 128);
+      const password_nueva = String(req.body?.password_nueva ?? "").slice(0, 128);
+
+      if (!isValidSessionTokenFormat(token)) {
+        res.status(400).json({
+          ok: false,
+          error: "El enlace de recuperación no es válido. Solicitá uno nuevo.",
+        });
+        return;
+      }
+      if (!password_nueva) {
+        res.status(400).json({ ok: false, error: "Ingresá la nueva contraseña" });
+        return;
+      }
+
+      const db = getDb();
+      const result = await authDb.resetPasswordWithToken(db, token, password_nueva);
+
+      if (!result.ok) {
+        const msg =
+          result.reason === "expired"
+            ? "El enlace expiró. Solicitá uno nuevo desde la pantalla de inicio de sesión."
+            : result.reason === "used"
+              ? "Este enlace ya fue utilizado. Solicitá uno nuevo si necesitás cambiar la contraseña."
+              : "El enlace de recuperación no es válido. Solicitá uno nuevo.";
+        res.status(400).json({ ok: false, error: msg });
+        return;
+      }
+
+      await authDb.recordAuthEvent(db, "password_reset_completed", {
+        email: result.email,
+        ip: clientIp(req),
+        userAgent: req.headers["user-agent"],
+      });
+
+      res.json({
+        ok: true,
+        message: "Contraseña actualizada. Ya podés iniciar sesión con tu nueva contraseña.",
+      });
+    } catch (e) {
+      res.status(400).json({
+        ok: false,
+        error: e instanceof Error ? e.message : "Error al restablecer contraseña",
+      });
+    }
   });
 
   app.post("/api/auth/cambiar-password", async (req, res) => {

@@ -10,9 +10,10 @@ interface Props {
   apiOnline: boolean;
   onLogin: (user: AuthUser) => void;
   onError: (msg: string) => void;
+  onForgotPassword?: (email: string) => void;
 }
 
-export default function LoginScreen({ apiOnline, onLogin, onError }: Props) {
+export default function LoginScreen({ apiOnline, onLogin, onError, onForgotPassword }: Props) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -92,6 +93,19 @@ export default function LoginScreen({ apiOnline, onLogin, onError }: Props) {
               </button>
             </div>
           </div>
+
+          {onForgotPassword && (
+            <div className="auth-login-forgot-wrap">
+              <button
+                type="button"
+                className="auth-login-forgot-link"
+                onClick={() => onForgotPassword(email.trim())}
+                disabled={loading}
+              >
+                ¿Olvidaste tu contraseña?
+              </button>
+            </div>
+          )}
 
           {!apiOnline && (
             <p className="auth-login-offline">{apiOfflineMessage()}</p>

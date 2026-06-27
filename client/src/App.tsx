@@ -17,6 +17,8 @@ import HomeMarketTicker from "./components/HomeMarketTicker";
 import MainHeaderNav from "./components/MainHeaderNav";
 import AppFooter from "./components/AppFooter";
 import LoginScreen from "./components/LoginScreen";
+import ForgotPasswordScreen from "./components/ForgotPasswordScreen";
+import ResetPasswordScreen from "./components/ResetPasswordScreen";
 import UsuariosHub from "./components/UsuariosHub";
 import FormGasto from "./components/FormGasto";
 import Listado from "./components/Listado";
@@ -42,6 +44,19 @@ import { showToast } from "./utils/toast";
 
 const DB_BOOT_TIMEOUT_MS = 25_000;
 
+function parseResetTokenFromUrl(): string | null {
+  const token = new URLSearchParams(window.location.search).get("reset")?.trim();
+  return token && /^[a-f0-9]{64}$/i.test(token) ? token : null;
+}
+
+function clearResetTokenFromUrl(): void {
+  const url = new URL(window.location.href);
+  if (!url.searchParams.has("reset")) return;
+  url.searchParams.delete("reset");
+  const next = `${url.pathname}${url.search}${url.hash}`;
+  window.history.replaceState({}, "", next);
+}
+
 export default function App() {
   useFormularioMayusculas();
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -58,6 +73,9 @@ export default function App() {
   const [listKey, setListKey] = useState(0);
   const [cuentaOpen, setCuentaOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
+  const [authView, setAuthView] = useState<"login" | "forgot">("login");
+  const [resetToken, setResetToken] = useState<string | null>(parseResetTokenFromUrl);
+  const [forgotEmail, setForgotEmail] = useState("");
   const hadUserRef = useRef(false);
   const dbBootStartedRef = useRef<number | null>(null);
   const screenRef = useRef<ScreenId>("home");
@@ -309,12 +327,56 @@ export default function App() {
   }
 
   if (!user) {
+    if (resetToken) {
+      return (
+        <div className="app-shell app-shell--login">
+          <ResetPasswordScreen
+            token={resetToken}
+            apiOnline={apiOnline}
+            onBack={() => {
+              clearResetTokenFromUrl();
+              setResetToken(null);
+              setAuthView("login");
+            }}
+            onSuccess={(msg) => {
+              clearResetTokenFromUrl();
+              setResetToken(null);
+              setAuthView("login");
+              notify(msg, true, "Contraseña actualizada");
+            }}
+            onError={(m) => notify(m, false)}
+          />
+          <AppFooter user={null} />
+          <ConfirmDialogHost />
+        </div>
+      );
+    }
+
+    if (authView === "forgot") {
+      return (
+        <div className="app-shell app-shell--login">
+          <ForgotPasswordScreen
+            apiOnline={apiOnline}
+            initialEmail={forgotEmail}
+            onBack={() => setAuthView("login")}
+            onError={(m) => notify(m, false)}
+          />
+          <AppFooter user={null} />
+          <ConfirmDialogHost />
+        </div>
+      );
+    }
+
     return (
       <div className="app-shell app-shell--login">
         <LoginScreen
           apiOnline={apiOnline}
           onLogin={onLogin}
           onError={(m) => notify(m, false)}
+          onForgotPassword={(email) => {
+            setForgotEmail(email);
+            setAuthView("forgot");
+          }}
         />
         <AppFooter user={null} />
         <ConfirmDialogHost />

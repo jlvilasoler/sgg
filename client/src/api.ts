@@ -2076,6 +2076,38 @@ export async function cambiarPasswordAuth(
   return json.message ?? "Contraseña actualizada";
 }
 
+export async function solicitarResetPassword(email: string): Promise<string> {
+  const json = await request<{ message?: string }>("/auth/forgot-password", {
+    method: "POST",
+    body: JSON.stringify({ email }),
+  });
+  return (
+    json.message ??
+    "Si el email está registrado, recibirás un enlace para restablecer tu contraseña."
+  );
+}
+
+export async function validarResetPasswordToken(
+  token: string
+): Promise<{ valid: boolean; reason?: string }> {
+  const params = new URLSearchParams({ token });
+  const json = await request<{
+    data?: { valid: boolean; reason?: string };
+  }>(`/auth/reset-password/validate?${params}`);
+  return json.data ?? { valid: false, reason: "invalid" };
+}
+
+export async function confirmarResetPassword(
+  token: string,
+  password_nueva: string
+): Promise<string> {
+  const json = await request<{ message?: string }>("/auth/reset-password", {
+    method: "POST",
+    body: JSON.stringify({ token, password_nueva }),
+  });
+  return json.message ?? "Contraseña actualizada";
+}
+
 async function avatarMutation(path: string, options?: RequestInit): Promise<AuthUser> {
   let res: Response;
   try {

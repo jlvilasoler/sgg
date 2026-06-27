@@ -15,6 +15,8 @@ export const AUTH_EVENTO_LABELS: Record<string, string> = {
   user_updated: "Usuario actualizado",
   role_permissions_updated: "Permisos de rol actualizados",
   password_changed: "Contrase?a cambiada",
+  password_reset_requested: "Solicitud de recuperaci?n de contrase?a",
+  password_reset_completed: "Contrase?a restablecida por email",
   navegacion: "Navegaci?n en la app",
   accion: "Acci?n en el sistema",
 };

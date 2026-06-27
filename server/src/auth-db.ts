@@ -515,6 +515,7 @@ export async function initAuthTables(db: Db): Promise<void> {
   await migrateModuloDocumentosDigitales(db);
   await migrateUserEmpresaId(db);
   await migrateUserNumero(db);
+  await migratePasswordResetTokens(db);
   await purgeExpiredSessions(db);
   await seedAdminIfEmpty(db);
   await migrateLegacyAdmin(db);
@@ -1263,6 +1264,135 @@ export async function changeOwnPassword(
     )
     .run(hash, userId);
   await deleteAllUserSessions(db, userId);
+}
+
+const RESET_TOKEN_MS = 60 * 60 * 1000;
+
+async function migratePasswordResetTokens(db: Db): Promise<void> {
+  await db
+    .prepare(
+      `CREATE TABLE IF NOT EXISTS PASSWORD_RESET_TOKENS (
+        id TEXT PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES USERS(id) ON DELETE CASCADE,
+        expira_en TIMESTAMPTZ NOT NULL,
+        usado_en TIMESTAMPTZ,
+        creado_en TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        ip TEXT
+      )`
+    )
+    .run();
+  await db
+    .prepare(
+      `CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_user
+       ON PASSWORD_RESET_TOKENS(user_id)`
+    )
+    .run();
+}
+
+async function purgeExpiredResetTokens(db: Db): Promise<void> {
+  await db
+    .prepare(
+      `DELETE FROM PASSWORD_RESET_TOKENS
+       WHERE expira_en <= NOW()
+          OR usado_en IS NOT NULL`
+    )
+    .run();
+}
+
+export async function findActiveUserByEmail(
+  db: Db,
+  email: string
+): Promise<UserRow | undefined> {
+  return (await db
+    .prepare(`SELECT * FROM USERS WHERE LOWER(email) = LOWER(?) AND activo = 1`)
+    .get(normalizeEmail(email))) as UserRow | undefined;
+}
+
+export async function createPasswordResetToken(
+  db: Db,
+  userId: number,
+  meta?: { ip?: string }
+): Promise<string> {
+  await purgeExpiredResetTokens(db);
+  await db
+    .prepare(`DELETE FROM PASSWORD_RESET_TOKENS WHERE user_id = ?`)
+    .run(userId);
+
+  const rawToken = crypto.randomBytes(32).toString("hex");
+  const tokenHash = hashSessionToken(rawToken);
+  const expira = new Date(Date.now() + RESET_TOKEN_MS).toISOString();
+
+  await db
+    .prepare(
+      `INSERT INTO PASSWORD_RESET_TOKENS (id, user_id, expira_en, ip)
+       VALUES (?, ?, ?, ?)`
+    )
+    .run(tokenHash, userId, expira, meta?.ip ?? null);
+
+  return rawToken;
+}
+
+export type ResetTokenStatus = "valid" | "invalid" | "expired" | "used";
+
+export async function peekPasswordResetToken(
+  db: Db,
+  rawToken: string
+): Promise<ResetTokenStatus> {
+  if (!isValidSessionTokenFormat(rawToken)) return "invalid";
+  await purgeExpiredResetTokens(db);
+
+  const tokenHash = hashSessionToken(rawToken);
+  const row = (await db
+    .prepare(
+      `SELECT expira_en, usado_en FROM PASSWORD_RESET_TOKENS WHERE id = ?`
+    )
+    .get(tokenHash)) as { expira_en: string; usado_en: string | null } | undefined;
+
+  if (!row) return "invalid";
+  if (row.usado_en) return "used";
+  if (new Date(row.expira_en) <= new Date()) return "expired";
+  return "valid";
+}
+
+export async function resetPasswordWithToken(
+  db: Db,
+  rawToken: string,
+  newPassword: string
+): Promise<
+  { ok: true; email: string } | { ok: false; reason: ResetTokenStatus }
+> {
+  const status = await peekPasswordResetToken(db, rawToken);
+  if (status !== "valid") return { ok: false, reason: status };
+
+  assertPasswordPolicy(newPassword);
+
+  const tokenHash = hashSessionToken(rawToken);
+  const row = (await db
+    .prepare(
+      `SELECT t.user_id, u.email
+       FROM PASSWORD_RESET_TOKENS t
+       INNER JOIN USERS u ON u.id = t.user_id
+       WHERE t.id = ? AND t.usado_en IS NULL AND t.expira_en > NOW()`
+    )
+    .get(tokenHash)) as { user_id: number; email: string } | undefined;
+
+  if (!row) return { ok: false, reason: "invalid" };
+
+  const hash = bcrypt.hashSync(newPassword, BCRYPT_ROUNDS);
+  await db
+    .prepare(
+      `UPDATE USERS SET password_hash = ?, actualizado_en = NOW(), failed_login_attempts = 0, locked_until = NULL WHERE id = ?`
+    )
+    .run(hash, row.user_id);
+  await db
+    .prepare(`UPDATE PASSWORD_RESET_TOKENS SET usado_en = NOW() WHERE id = ?`)
+    .run(tokenHash);
+  await db
+    .prepare(`DELETE FROM PASSWORD_RESET_TOKENS WHERE user_id = ? AND id != ?`)
+    .run(row.user_id, tokenHash);
+  await deleteAllUserSessions(db, row.user_id);
+
+  return { ok: true, email: row.email };
 }
 
 export async function countActiveAdmins(
