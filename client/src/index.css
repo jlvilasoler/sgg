@@ -3151,6 +3151,19 @@ body {
 .form-gasto-historial .form-gasto-historial-filters {
   padding: 0.75rem 1.25rem 0;
   border-bottom: none;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem;
+}
+
+.form-gasto-historial .form-gasto-historial-filters .field.flex-grow {
+  flex: 1 1 16rem;
+  min-width: 12rem;
+}
+
+.form-gasto-historial .form-gasto-historial-filters .listado-pro-search-btn {
+  flex: 0 0 auto;
 }
 
 .listado-pro {
