@@ -37,6 +37,8 @@ export interface StockGanaderoFilters {
   solo_bajas?: boolean;
   /** Filtrar por estado del dispositivo en stock. */
   estado_dispositivo?: DispositivoEstado;
+  /** Empresas operativas permitidas (multi-tenant). undefined = sin filtro. */
+  empresas?: string[];
 }
 
 export interface StockGanaderoEidRepetido {
@@ -1753,9 +1755,12 @@ export async function restaurarDispositivoVivoStock(
   return true;
 }
 
-export async function countStockGanaderaDispositivosActivos(db: Db): Promise<number> {
+export async function countStockGanaderaDispositivosActivos(
+  db: Db,
+  filters?: StockGanaderoFilters
+): Promise<number> {
   const [dispositivos, ventasClaves] = await Promise.all([
-    listStockGanaderaDispositivos(db),
+    listStockGanaderaDispositivos(db, filters),
     listClavesDispositivosEnVentasCerradas(db),
   ]);
   const ventas = new Set(ventasClaves);
@@ -2604,6 +2609,18 @@ const ESTADOS_BAJA = new Set<DispositivoEstado>([
   "PERDIDO",
 ]);
 
+export const SIN_EMPRESAS_SCOPE = "__sin_empresas__";
+
+function filtrarDispositivosPorEmpresas(
+  dispositivos: StockGanaderaDispositivo[],
+  empresas?: string[]
+): StockGanaderaDispositivo[] {
+  if (!empresas) return dispositivos;
+  if (empresas.length === 1 && empresas[0] === SIN_EMPRESAS_SCOPE) return [];
+  const set = new Set(empresas);
+  return dispositivos.filter((d) => set.has(d.empresa || ""));
+}
+
 function filtrarYOrdenarBajas(
   dispositivos: StockGanaderaDispositivo[],
   filters?: StockGanaderoFilters
@@ -2650,6 +2667,7 @@ export async function listStockGanaderaDispositivos(
   }
 
   dispositivos = await enrichDispositivosWithMeta(db, dispositivos);
+  dispositivos = filtrarDispositivosPorEmpresas(dispositivos, filters?.empresas);
   return filtrarYOrdenarBajas(dispositivos, filters);
 }
 
@@ -2714,24 +2732,23 @@ export async function getStockGanaderaDispositivoDetalle(
 
   const lotes = new Set(lecturas.map((l) => l.lote_id));
   const [enriquecido] = await enrichDispositivosWithMeta(db, [resumen]);
+  if (!enriquecido) return undefined;
+
+  const [scoped] = filtrarDispositivosPorEmpresas([enriquecido], filters?.empresas);
+  if (!scoped) return undefined;
 
   return {
-    ...enriquecido,
+    ...scoped,
     lecturas,
     lotes_distintos: lotes.size,
   };
 }
 
-export async function countStockGanaderaDispositivos(db: Db): Promise<number> {
-  const rows = (await db
-    .prepare(`SELECT eid, vid FROM STOCK_GANADERO_REGISTRO`)
-    .all()) as { eid: string; vid: string }[];
-  const claves = new Set<string>();
-  for (const r of rows) {
-    const k = dispositivoClave(r.eid, r.vid);
-    if (k) claves.add(k);
-  }
-  return claves.size;
+export async function countStockGanaderaDispositivos(
+  db: Db,
+  filters?: StockGanaderoFilters
+): Promise<number> {
+  return (await listStockGanaderaDispositivos(db, filters)).length;
 }
 
 const MESES_HISTORIAL = [

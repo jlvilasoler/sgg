@@ -39,7 +39,7 @@ import {
 } from "./simulador-venta-audit.js";
 import { normalizarTituloRubro } from "./text-normalize.js";
 import { parseStockGanaderoBuffer, parseStockGanaderoFile, parseStockGanaderoText, normalizeStockGanaderoRows } from "./parse-stock-ganadero-txt.js";
-import type { DispositivoMetaPatch } from "./stock-ganadero-db.js";
+import type { DispositivoMetaPatch, StockGanaderoFilters } from "./stock-ganadero-db.js";
 import { parseTipoBaja, tipoBajaDesdeEstadoImport, type TipoBaja } from "./stock-ganadero-db.js";
 import { auditBajasDispositivos, auditStockMovimiento, historialAutorFromRequest } from "./stock-audit.js";
 import { EMPRESAS, type Empresa, type Presupuesto, type PresupuestoInput } from "./types.js";
@@ -347,12 +347,39 @@ function queryFlag(value: unknown): boolean {
 }
 
 async function empresasPermitidas(user: UserPublic): Promise<string[]> {
-  if (user.es_super_admin) return [];
-  if (!user.empresa_id) return [];
-  return await empresasCuenta.getEmpresaNombresActivosPorCuenta(
-    db.getDb(),
-    user.empresa_id
-  );
+  const scope = await empresasCuenta.getEmpresasScopeFilter(db.getDb(), user);
+  if (scope === undefined) return [];
+  return scope;
+}
+
+async function stockGanaderoFiltersFromRequest(
+  req: Request,
+  base: StockGanaderoFilters = {}
+): Promise<StockGanaderoFilters> {
+  const user = req.user;
+  if (!user) return base;
+  const empresas = await empresasCuenta.getEmpresasScopeFilter(db.getDb(), user);
+  if (!empresas) return base;
+  return { ...base, empresas };
+}
+
+function stockGanaderoQueryBase(req: Request): StockGanaderoFilters {
+  const loteId = req.query.lote_id ? Number(req.query.lote_id) : undefined;
+  const estadoRaw = String(req.query.estado_dispositivo ?? "").toUpperCase();
+  const estadoDispositivo =
+    estadoRaw === "MUERTO" ||
+    estadoRaw === "VENDIDO" ||
+    estadoRaw === "FRIGORIFICO" ||
+    estadoRaw === "PERDIDO"
+      ? estadoRaw
+      : undefined;
+  return {
+    lote_id: loteId && Number.isFinite(loteId) ? loteId : undefined,
+    busqueda: req.query.busqueda as string | undefined,
+    fecha_desde: req.query.fecha_desde as string | undefined,
+    fecha_hasta: req.query.fecha_hasta as string | undefined,
+    estado_dispositivo: estadoDispositivo,
+  };
 }
 
 async function applyEmpresaScopeToFilters(
@@ -1279,59 +1306,28 @@ app.get("/api/stock-ganadero/estadisticas", async (req, res) => {
 });
 
 app.get("/api/stock-ganadero/salidas", async (req, res) => {
-  const loteId = req.query.lote_id ? Number(req.query.lote_id) : undefined;
-  const estadoRaw = String(req.query.estado_dispositivo ?? "").toUpperCase();
-  const estadoDispositivo =
-    estadoRaw === "MUERTO" ||
-    estadoRaw === "VENDIDO" ||
-    estadoRaw === "FRIGORIFICO" ||
-    estadoRaw === "PERDIDO"
-      ? estadoRaw
-      : undefined;
-  const { data, bajas_reparadas } = await db.stockGanadero.listSalidas({
-    lote_id: loteId && Number.isFinite(loteId) ? loteId : undefined,
-    busqueda: req.query.busqueda as string | undefined,
-    fecha_desde: req.query.fecha_desde as string | undefined,
-    fecha_hasta: req.query.fecha_hasta as string | undefined,
-    estado_dispositivo: estadoDispositivo,
-  });
+  const filters = await stockGanaderoFiltersFromRequest(req, stockGanaderoQueryBase(req));
+  const { data, bajas_reparadas } = await db.stockGanadero.listSalidas(filters);
   res.json({ ok: true, data, bajas_reparadas });
 });
 
 app.get("/api/stock-ganadero/dispositivos", async (req, res) => {
-  const loteId = req.query.lote_id ? Number(req.query.lote_id) : undefined;
-  const estadoRaw = String(req.query.estado_dispositivo ?? "").toUpperCase();
-  const estadoDispositivo =
-    estadoRaw === "MUERTO" ||
-    estadoRaw === "VENDIDO" ||
-    estadoRaw === "FRIGORIFICO" ||
-    estadoRaw === "PERDIDO"
-      ? estadoRaw
-      : undefined;
+  const filters = await stockGanaderoFiltersFromRequest(req, {
+    ...stockGanaderoQueryBase(req),
+    solo_repetidos:
+      req.query.solo_repetidos === "1" || req.query.solo_repetidos === "true",
+    solo_bajas:
+      req.query.solo_bajas === "1" || req.query.solo_bajas === "true",
+  });
   res.json({
     ok: true,
-    data: await db.stockGanadero.listDispositivos({
-      lote_id: loteId && Number.isFinite(loteId) ? loteId : undefined,
-      busqueda: req.query.busqueda as string | undefined,
-      fecha_desde: req.query.fecha_desde as string | undefined,
-      fecha_hasta: req.query.fecha_hasta as string | undefined,
-      solo_repetidos:
-        req.query.solo_repetidos === "1" || req.query.solo_repetidos === "true",
-      solo_bajas:
-        req.query.solo_bajas === "1" || req.query.solo_bajas === "true",
-      estado_dispositivo: estadoDispositivo,
-    }),
+    data: await db.stockGanadero.listDispositivos(filters),
   });
 });
 
 app.get("/api/stock-ganadero/dispositivos/:clave", async (req, res) => {
-  const loteId = req.query.lote_id ? Number(req.query.lote_id) : undefined;
-  const detalle = await db.stockGanadero.getDispositivo(req.params.clave, {
-    lote_id: loteId && Number.isFinite(loteId) ? loteId : undefined,
-    busqueda: req.query.busqueda as string | undefined,
-    fecha_desde: req.query.fecha_desde as string | undefined,
-    fecha_hasta: req.query.fecha_hasta as string | undefined,
-  });
+  const filters = await stockGanaderoFiltersFromRequest(req, stockGanaderoQueryBase(req));
+  const detalle = await db.stockGanadero.getDispositivo(req.params.clave, filters);
   if (!detalle) {
     res.status(404).json({ ok: false, error: "Dispositivo no encontrado" });
     return;
@@ -1643,15 +1639,16 @@ app.patch("/api/stock-ganadero/dispositivos/:clave/edad", async (req, res) => {
   }
 });
 
-app.get("/api/stock-ganadero/resumen", async (_req, res) => {
+app.get("/api/stock-ganadero/resumen", async (req, res) => {
+  const filters = await stockGanaderoFiltersFromRequest(req);
   const lotes = await db.stockGanadero.listLotes();
   res.json({
     ok: true,
     data: {
       lotes: lotes.length,
       registros: await db.stockGanadero.countRegistros(),
-      dispositivos: await db.stockGanadero.countDispositivos(),
-      dispositivos_total: await db.stockGanadero.countDispositivosTotal(),
+      dispositivos: await db.stockGanadero.countDispositivos(filters),
+      dispositivos_total: await db.stockGanadero.countDispositivosTotal(filters),
       ventas_dispositivos: await db.simuladorVentaDispositivos.countEnVentasCerradas(),
     },
   });

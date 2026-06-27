@@ -166,6 +166,7 @@ export async function initDb(): Promise<void> {
     await auth.initAuthTables(db);
     await empresasCuenta.ensureCuentaMadreAdmin(db);
     await empresasCuenta.backfillCuentaMadreUsuarios(db);
+    await empresasCuenta.syncCuentaAdminsEmpresaId(db);
     await docDig.initDocumentosDigitalesTables(db);
     await chat.initChatTables(db);
     await stock.initStockGanaderoTables(db);
@@ -370,8 +371,10 @@ export const stockGanadero = {
     stockSalidas.listSalidasSistemaDispositivos(db, filters),
   getDispositivo: (clave: string, filters?: stock.StockGanaderoFilters) =>
     stock.getStockGanaderaDispositivoDetalle(db, clave, filters),
-  countDispositivos: () => stock.countStockGanaderaDispositivosActivos(db),
-  countDispositivosTotal: () => stock.countStockGanaderaDispositivos(db),
+  countDispositivos: (filters?: stock.StockGanaderoFilters) =>
+    stock.countStockGanaderaDispositivosActivos(db, filters),
+  countDispositivosTotal: (filters?: stock.StockGanaderoFilters) =>
+    stock.countStockGanaderaDispositivos(db, filters),
   updateDispositivoSexo: (
     clave: string,
     sexo: stock.DispositivoSexo,
@@ -1051,6 +1054,7 @@ export const documentosDigitales = {
 };
 
 export async function getCatalogos(user?: {
+  id?: number;
   es_super_admin?: boolean;
   empresa_id?: number | null;
 }): Promise<{
@@ -1064,10 +1068,18 @@ export async function getCatalogos(user?: {
   const { rubros, sub_rubros_por_rubro: porGrupo } =
     await sub.getCatalogoGruposParaGastos(db);
   const porRubroContable = await vinc.getMapSubRubrosPorRubro(db, true);
+  const empresasScope =
+    user && user.id != null
+      ? await empresasCuenta.getEmpresasOperativasPermitidas(db, {
+          id: user.id,
+          es_super_admin: user.es_super_admin,
+          empresa_id: user.empresa_id,
+        })
+      : null;
   const empresas =
-    user && !user.es_super_admin && user.empresa_id
-      ? await empresasCuenta.getEmpresaNombresActivosPorCuenta(db, user.empresa_id)
-      : await empresasCuenta.getEmpresaNombresActivos(db);
+    empresasScope === null
+      ? await empresasCuenta.getEmpresaNombresActivos(db)
+      : empresasScope;
   return {
     empresas,
     rubros,

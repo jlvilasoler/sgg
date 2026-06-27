@@ -384,6 +384,34 @@ export async function backfillCuentaMadreUsuarios(db: Db): Promise<void> {
   );
 }
 
+/** Alinea empresa_id de administradores de cuenta que quedaron sin cuenta o en otra. */
+export async function syncCuentaAdminsEmpresaId(db: Db): Promise<void> {
+  const rows = (await db
+    .prepare(
+      `SELECT c.id AS cuenta_id, c.admin_user_id
+       FROM EMPRESAS_CUENTA c
+       INNER JOIN USERS u ON u.id = c.admin_user_id
+       WHERE c.admin_user_id IS NOT NULL
+         AND (u.empresa_id IS NULL OR u.empresa_id <> c.id)
+         AND LOWER(u.email) <> LOWER(?)`
+    )
+    .all(primaryAdminEmail())) as { cuenta_id: number; admin_user_id: number }[];
+
+  for (const row of rows) {
+    await db
+      .prepare(
+        "UPDATE USERS SET empresa_id = ?, actualizado_en = NOW() WHERE id = ?"
+      )
+      .run(row.cuenta_id, row.admin_user_id);
+  }
+
+  if (rows.length > 0) {
+    console.info(
+      `[SGG Empresas] ${rows.length} administrador(es) de cuenta con empresa_id sincronizado`
+    );
+  }
+}
+
 async function migrateVilaDiazStructure(db: Db): Promise<void> {
   const cuentaId = await ensureSeedCuentaMadre(db);
 
@@ -784,7 +812,38 @@ export async function setEmpresaCuentaAdmin(
     )
     .run(userId, cuentaId);
 
+  if (!esSuperAdmin) {
+    await db
+      .prepare(
+        "UPDATE USERS SET empresa_id = ?, actualizado_en = NOW() WHERE id = ?"
+      )
+      .run(cuentaId, userId);
+  }
+
   return (await getEmpresaCuentaById(db, cuentaId))!;
+}
+
+/** Marcador para consultas que no deben devolver filas (cuenta sin empresas operativas). */
+export const SIN_EMPRESAS_SCOPE = "__sin_empresas__";
+
+export async function isCuentaAdminUser(db: Db, userId: number): Promise<boolean> {
+  const row = (await db
+    .prepare("SELECT 1 AS ok FROM EMPRESAS_CUENTA WHERE admin_user_id = ? LIMIT 1")
+    .get(userId)) as { ok: number } | undefined;
+  return Boolean(row);
+}
+
+/**
+ * Super admin de plataforma: admin sin cuenta asignada y no es solo admin de una cuenta madre.
+ * El email principal (SCG_ADMIN_EMAIL) siempre es super admin aunque administre VILA DIAZ.
+ */
+export async function isPlatformSuperAdmin(
+  db: Db,
+  user: { id: number; rol: string; empresa_id: number | null; email: string }
+): Promise<boolean> {
+  if (user.rol !== "admin" || user.empresa_id != null) return false;
+  if (user.email.trim().toLowerCase() === primaryAdminEmail()) return true;
+  return !(await isCuentaAdminUser(db, user.id));
 }
 
 export function isSuperAdminUser(user: {
@@ -792,4 +851,42 @@ export function isSuperAdminUser(user: {
   empresa_id: number | null;
 }): boolean {
   return user.rol === "admin" && user.empresa_id == null;
+}
+
+/** ID de cuenta madre que delimita los datos del usuario; null = sin límite (super admin). */
+export async function resolveCuentaMadreIdForUser(
+  db: Db,
+  user: { id: number; es_super_admin?: boolean; empresa_id?: number | null }
+): Promise<number | null> {
+  if (user.es_super_admin) return null;
+  if (user.empresa_id != null && Number.isFinite(Number(user.empresa_id))) {
+    return Number(user.empresa_id);
+  }
+  const cuenta = await getEmpresaCuentaByAdminUserId(db, user.id);
+  return cuenta?.id ?? null;
+}
+
+/**
+ * Nombres de empresas operativas visibles para el usuario.
+ * null = todas (super admin); [] = ninguna.
+ */
+export async function getEmpresasOperativasPermitidas(
+  db: Db,
+  user: { id: number; es_super_admin?: boolean; empresa_id?: number | null }
+): Promise<string[] | null> {
+  if (user.es_super_admin) return null;
+  const cuentaId = await resolveCuentaMadreIdForUser(db, user);
+  if (!cuentaId) return [];
+  return await getEmpresaNombresActivosPorCuenta(db, cuentaId);
+}
+
+/** Lista para filtros SQL/API; usa marcador si la cuenta no tiene operativas. */
+export async function getEmpresasScopeFilter(
+  db: Db,
+  user: { id: number; es_super_admin?: boolean; empresa_id?: number | null }
+): Promise<string[] | undefined> {
+  const permitidas = await getEmpresasOperativasPermitidas(db, user);
+  if (permitidas === null) return undefined;
+  if (permitidas.length === 0) return [SIN_EMPRESAS_SCOPE];
+  return permitidas;
 }

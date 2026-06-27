@@ -2,6 +2,7 @@ import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import type { Db } from "./db/pg-client.js";
 import { DEFAULT_ADMIN_NAME } from "./brand.js";
+import * as empresasCuenta from "./empresas-cuenta-db.js";
 import {
   hashSessionToken,
   isValidSessionTokenFormat,
@@ -280,7 +281,12 @@ export async function toUserPublic(row: UserRow, db: Db): Promise<UserPublic> {
     empresa_nombre,
     empresa_codigo,
     empresa_cuenta_numero,
-    es_super_admin: row.rol === "admin" && empresaId == null,
+    es_super_admin: await empresasCuenta.isPlatformSuperAdmin(db, {
+      id: row.id,
+      rol: row.rol,
+      empresa_id: empresaId,
+      email: row.email,
+    }),
     permisos: caps.permisos,
     puede_escribir: caps.puede_escribir,
     modulos_solo_lectura: caps.modulos_solo_lectura,
