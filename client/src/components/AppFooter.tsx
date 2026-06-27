@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { fetchChatUnread } from "../api";
 import { canAccessChat } from "../utils/auth-permissions";
+import { prefetchChatSidebar } from "../utils/chat-sidebar-cache";
 import { playChatNotificationSound } from "../utils/chat-notification-sound";
 import type { AuthUser } from "../types";
 
@@ -45,6 +46,7 @@ export default function AppFooter({
       setChatUnread(0);
       return;
     }
+    void prefetchChatSidebar();
     void refreshUnread();
     const id = window.setInterval(() => void refreshUnread(), 20000);
     return () => window.clearInterval(id);
@@ -62,6 +64,8 @@ export default function AppFooter({
                 type="button"
                 className={`app-footer-chat-btn${drawerActive ? " app-footer-chat-btn--active" : ""}`}
                 onClick={() => onOpenChat?.()}
+                onMouseEnter={() => void prefetchChatSidebar()}
+                onFocus={() => void prefetchChatSidebar()}
                 title="Chat"
                 aria-label={`Chat${chatUnread > 0 ? `, ${chatUnread} sin leer` : ""}`}
                 aria-current={drawerActive ? "page" : undefined}

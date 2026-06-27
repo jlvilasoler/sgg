@@ -315,6 +315,7 @@ export function registerChatRoutes(app: Express): void {
       res.json({
         ok: true,
         data: {
+          channels,
           contacts: enriched,
           general_unread,
           total_unread,

@@ -16208,6 +16208,13 @@ button.sg-kpi-card:disabled {
   pointer-events: none;
 }
 
+.chat-panel-overlay--hidden .chat-panel-drawer {
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(8px);
+}
+
 .chat-panel-drawer {
   pointer-events: auto;
   position: fixed;

@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import ChatInterno from "./ChatInterno";
 import type { AuthUser } from "../types";
 
@@ -17,6 +17,12 @@ export default function ChatPanel({
   onOpenFullscreen,
   onUnreadChange,
 }: Props) {
+  const [mounted, setMounted] = useState(open);
+
+  useEffect(() => {
+    if (open) setMounted(true);
+  }, [open]);
+
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -26,10 +32,14 @@ export default function ChatPanel({
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
-  if (!open) return null;
+  if (!mounted) return null;
 
   return (
-    <div className="chat-panel-overlay" role="presentation">
+    <div
+      className={`chat-panel-overlay${open ? "" : " chat-panel-overlay--hidden"}`}
+      role="presentation"
+      aria-hidden={!open}
+    >
       <div className="chat-panel-drawer" role="dialog" aria-modal="false" aria-label="Chat">
         <ChatInterno
           user={user}

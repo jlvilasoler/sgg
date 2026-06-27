@@ -6,7 +6,6 @@ import {
   enviarChatMensaje,
   enviarPresencia,
   fetchChatBootstrap,
-  fetchChatChannels,
   fetchChatContacts,
   fetchChatMessages,
   fetchChatPresence,
@@ -19,6 +18,11 @@ import { formatChatPresence, presenceStatusClass } from "../utils/chat-presence"
 import { bubbleColorForSender, bubbleStyleVars } from "../utils/chat-bubble-colors";
 import { isDirectMessagePeer, isGroupChannelPeer, peerTabLabel } from "../utils/chat-peers";
 import { playChatNotificationSound } from "../utils/chat-notification-sound";
+import {
+  getChatSidebarCache,
+  prefetchChatSidebar,
+  setChatSidebarCache,
+} from "../utils/chat-sidebar-cache";
 import { resaltarTexto, truncarConHighlight } from "../utils/chat-search";
 import UserAvatar, { DEFAULT_USER_AVATAR } from "./UserAvatar";
 import ChatEmojiPicker from "./chat/ChatEmojiPicker";
@@ -212,9 +216,17 @@ export default function ChatInterno({
     }
     contactsInitializedRef.current = true;
     prevTotalUnreadRef.current = data.total_unread;
+    setChannels(data.channels);
     setContacts(data.contacts);
     setOnlineCount(data.online_count);
     onUnreadChange?.(data.total_unread);
+    setChatSidebarCache({
+      channels: data.channels,
+      contacts: data.contacts,
+      general_unread: data.general_unread,
+      total_unread: data.total_unread,
+      online_count: data.online_count,
+    });
     return data;
   }, [onUnreadChange]);
 
@@ -355,27 +367,42 @@ export default function ChatInterno({
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      setLoading(true);
       setError(null);
       try {
         if (isPanel) {
-          const [channelsData, contactsData] = await Promise.all([
-            fetchChatChannels(),
-            fetchChatContacts(),
-          ]);
-          if (cancelled) return;
+          const cached = getChatSidebarCache();
+          if (cached) {
+            bootstrappedRef.current = true;
+            setChannels(cached.channels);
+            setContacts(cached.contacts);
+            setOnlineCount(cached.online_count);
+            setWallpaperByPeer({});
+            setMessages([]);
+            lastIdRef.current = 0;
+            setHasMoreOlder(false);
+            contactsInitializedRef.current = true;
+            prevTotalUnreadRef.current = cached.total_unread;
+            onUnreadChange?.(cached.total_unread);
+            setLoading(false);
+          } else {
+            setLoading(true);
+          }
+
+          const data = await prefetchChatSidebar(true);
+          if (cancelled || !data) return;
           bootstrappedRef.current = true;
-          setChannels(channelsData);
-          setContacts(contactsData.contacts);
-          setOnlineCount(contactsData.online_count);
+          setChannels(data.channels);
+          setContacts(data.contacts);
+          setOnlineCount(data.online_count);
           setWallpaperByPeer({});
           setMessages([]);
           lastIdRef.current = 0;
           setHasMoreOlder(false);
           contactsInitializedRef.current = true;
-          prevTotalUnreadRef.current = contactsData.total_unread;
-          onUnreadChange?.(contactsData.total_unread);
+          prevTotalUnreadRef.current = data.total_unread;
+          onUnreadChange?.(data.total_unread);
         } else {
+          setLoading(true);
           const data = await fetchChatBootstrap(peerId, MESSAGES_PAGE);
           if (cancelled) return;
           bootstrappedRef.current = true;
@@ -389,6 +416,13 @@ export default function ChatInterno({
           contactsInitializedRef.current = true;
           prevTotalUnreadRef.current = data.total_unread;
           onUnreadChange?.(data.total_unread);
+          setChatSidebarCache({
+            channels: data.channels,
+            contacts: data.contacts,
+            general_unread: data.general_unread,
+            total_unread: data.total_unread,
+            online_count: data.online_count,
+          });
           if (data.messages.length > 0) void markRead(peerId, data.messages);
           requestAnimationFrame(() => scrollToBottom(false));
         }

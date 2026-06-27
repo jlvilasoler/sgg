@@ -2194,6 +2194,7 @@ export async function fetchChatUnread(): Promise<ChatUnreadSummary> {
 }
 
 export async function fetchChatContacts(): Promise<{
+  channels: ChatChannel[];
   contacts: ChatContact[];
   general_unread: number;
   total_unread: number;
@@ -2201,6 +2202,7 @@ export async function fetchChatContacts(): Promise<{
 }> {
   const json = await request<{
     data: {
+      channels: ChatChannel[];
       contacts: ChatContact[];
       general_unread: number;
       total_unread: number;
