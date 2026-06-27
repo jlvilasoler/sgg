@@ -15887,6 +15887,33 @@ button.sg-kpi-card:disabled {
   font-size: 0.8rem;
 }
 
+.auth-login-wallet-hint {
+  padding: 0.75rem 0.85rem;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, #f0b90b 45%, var(--bn-border));
+  background: color-mix(in srgb, #f0b90b 10%, #fff);
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: var(--bn-muted);
+}
+
+.auth-login-wallet-hint p {
+  margin: 0;
+}
+
+.auth-login-wallet-hint-dismiss {
+  margin-top: 0.55rem;
+  padding: 0;
+  border: none;
+  background: none;
+  color: #2d5a3d;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 .main-header-user {
   display: flex;
   align-items: center;
