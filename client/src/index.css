@@ -3237,6 +3237,10 @@ body {
   border-top: 1px dashed var(--bn-border);
 }
 
+.listado-pro-filters-row--unica {
+  align-items: flex-end;
+}
+
 .listado-pro-filters-actions {
   display: flex;
   align-items: flex-end;

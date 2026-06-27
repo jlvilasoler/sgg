@@ -230,7 +230,7 @@ export default function Resumen({ catalogos, apiOnline, onError }: Props) {
           </p>
         </header>
         <div className="filters filters-presupuesto listado-pro-filters mayusculas-auto">
-          <div className="listado-pro-filters-row listado-pro-filters-row--principal">
+          <div className="listado-pro-filters-row listado-pro-filters-row--unica">
             <div className="field">
               <label htmlFor="resumen-empresa">Empresa</label>
               <select
@@ -246,9 +246,6 @@ export default function Resumen({ catalogos, apiOnline, onError }: Props) {
                 ))}
               </select>
             </div>
-          </div>
-
-          <div className="listado-pro-filters-row listado-pro-filters-row--fechas">
             <div className="field field--modalidad-fecha">
               <span className="field-action-label" id="resumen-modalidad-fecha-label">
                 Filtrar por
