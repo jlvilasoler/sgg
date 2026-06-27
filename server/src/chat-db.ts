@@ -12,10 +12,45 @@ import {
   getChannelNameByPeer,
   initChatChannelTables,
 } from "./chat-channels-db.js";
+import { isPlatformSuperAdmin } from "./empresas-cuenta-db.js";
 import { isValidChatWallpaperId } from "./chat-wallpapers.js";
 import { avatarDtoFromRow } from "./user-avatar-db.js";
 import type { UserAvatarDto } from "./user-avatar-db.js";
 import type { UserPresenceStatus } from "./user-presence.js";
+
+async function getChatUserScope(
+  db: Db,
+  userId: number
+): Promise<{ cuentaId: number | null; superAdmin: boolean }> {
+  const row = (await db
+    .prepare("SELECT id, empresa_id, rol, email FROM USERS WHERE id = ?")
+    .get(userId)) as
+    | { id: number; empresa_id: number | null; rol: string; email: string }
+    | undefined;
+  if (!row) return { cuentaId: null, superAdmin: false };
+  const superAdmin = await isPlatformSuperAdmin(db, {
+    id: row.id,
+    empresa_id: row.empresa_id,
+    rol: row.rol,
+    email: row.email,
+  });
+  return { cuentaId: row.empresa_id ?? null, superAdmin };
+}
+
+/** Restringe contactos/DM a la misma cuenta madre (super admin ve todos). */
+function cuentaScopeSql(
+  alias: string,
+  cuentaId: number | null,
+  superAdmin: boolean,
+  params: Record<string, number>
+): string {
+  if (superAdmin) return "";
+  if (cuentaId != null) {
+    params.cuentaId = cuentaId;
+    return ` AND ${alias}.empresa_id = @cuentaId`;
+  }
+  return ` AND ${alias}.empresa_id IS NULL`;
+}
 
 /** 0 = canal general del equipo */
 export const CHAT_GENERAL_PEER_ID = 0;
@@ -157,10 +192,15 @@ async function assertValidPeer(db: Db, senderId: number, recipientId: number): P
     await assertUserCanAccessGroupPeer(db, senderId, recipientId);
     return;
   }
+  const scope = await getChatUserScope(db, senderId);
+  const params: Record<string, number> = { recipientId, senderId };
+  const cuentaFilter = cuentaScopeSql("u", scope.cuentaId, scope.superAdmin, params);
   const peer = (await db
-    .prepare("SELECT id FROM USERS WHERE id = ? AND activo = 1")
-    .get(recipientId)) as { id: number } | undefined;
-  if (!peer || peer.id === senderId) {
+    .prepare(
+      `SELECT id FROM USERS u WHERE u.id = @recipientId AND u.activo = 1 AND u.id != @senderId${cuentaFilter}`
+    )
+    .get(params)) as { id: number } | undefined;
+  if (!peer) {
     throw new Error("Usuario no válido para mensaje directo");
   }
 }
@@ -467,6 +507,18 @@ export async function listChatContacts(
   db: Db,
   userId: number
 ): Promise<Array<Omit<ChatContactDto, "presencia">>> {
+  const scope = await getChatUserScope(db, userId);
+  const params: Record<string, number> = {
+    userId,
+    userId2: userId,
+    userId3: userId,
+    userId4: userId,
+    userId5: userId,
+    userId6: userId,
+    userId7: userId,
+  };
+  const cuentaFilter = cuentaScopeSql("u", scope.cuentaId, scope.superAdmin, params);
+
   const rows = (await db
     .prepare(
       `SELECT u.id, u.nombre, u.rol, u.avatar_tipo, u.avatar_archivo, u.actualizado_en,
@@ -484,7 +536,7 @@ export async function listChatContacts(
                 m.attachment_mime, m.attachment_tamano, m.attachment_archivo
          FROM CHAT_MESSAGES m
          WHERE m.recipient_id > 0
-           AND ((m.sender_id = ? AND m.recipient_id = u.id) OR (m.sender_id = u.id AND m.recipient_id = ?))
+           AND ((m.sender_id = @userId AND m.recipient_id = u.id) OR (m.sender_id = u.id AND m.recipient_id = @userId2))
          ORDER BY m.id DESC
          LIMIT 1
        ) lm ON TRUE
@@ -495,15 +547,15 @@ export async function listChatContacts(
            AND m.id > COALESCE((
              SELECT rs.last_read_message_id
              FROM CHAT_READ_STATE rs
-             WHERE rs.user_id = ? AND rs.peer_id = u.id
+             WHERE rs.user_id = @userId3 AND rs.peer_id = u.id
            ), 0)
-           AND m.sender_id != ?
-           AND ((m.sender_id = ? AND m.recipient_id = u.id) OR (m.sender_id = u.id AND m.recipient_id = ?))
+           AND m.sender_id != @userId4
+           AND ((m.sender_id = @userId5 AND m.recipient_id = u.id) OR (m.sender_id = u.id AND m.recipient_id = @userId6))
        ) ur ON TRUE
-       WHERE u.activo = 1 AND u.id != ?
+       WHERE u.activo = 1 AND u.id != @userId7${cuentaFilter}
        ORDER BY LOWER(u.nombre) ASC`
     )
-    .all(userId, userId, userId, userId, userId, userId, userId)) as Array<{
+    .all(params)) as Array<{
     id: number;
     nombre: string;
     rol: string;

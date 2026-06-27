@@ -1,7 +1,9 @@
 import type { Db } from "./db/pg-client.js";
+import { migrateAddCuentaIdColumn } from "./empresas-cuenta-db.js";
 
 export interface Funcionario {
   id: number;
+  cuenta_id?: number | null;
   cedula: string;
   nombre: string;
   apellido: string;
@@ -72,6 +74,46 @@ export async function initFuncionariosTable(db: Db): Promise<void> {
       if (!/already exists|duplicate column/i.test(msg)) throw err;
     }
   }
+  await migrateAddCuentaIdColumn(db, "FUNCIONARIOS");
+  await migrateFuncionarioCedulaUniquePorCuenta(db);
+}
+
+/**
+ * La cédula deja de ser única globalmente para ser única por cuenta: dos cuentas
+ * distintas pueden tener un funcionario con la misma cédula.
+ */
+async function migrateFuncionarioCedulaUniquePorCuenta(db: Db): Promise<void> {
+  for (const stmt of [
+    "ALTER TABLE FUNCIONARIOS DROP CONSTRAINT IF EXISTS funcionarios_cedula_key",
+    "DROP INDEX IF EXISTS idx_funcionarios_cedula",
+  ]) {
+    try {
+      await db.prepare(stmt).run();
+    } catch {
+      /* ignore */
+    }
+  }
+  try {
+    await db
+      .prepare(
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_funcionarios_cuenta_cedula ON FUNCIONARIOS(cuenta_id, cedula)"
+      )
+      .run();
+  } catch {
+    /* ignore */
+  }
+}
+
+function scopeCuenta(
+  query: string,
+  params: Record<string, string | number>,
+  cuentaId?: number | null
+): string {
+  if (cuentaId != null) {
+    query += " AND cuenta_id = @cuentaId";
+    params.cuentaId = cuentaId;
+  }
+  return query;
 }
 
 function normalizeEmail(email: string): string {
@@ -80,10 +122,12 @@ function normalizeEmail(email: string): string {
 
 export async function listFuncionarios(
   db: Db,
-  opts?: { busqueda?: string; soloActivos?: boolean }
+  opts?: { busqueda?: string; soloActivos?: boolean },
+  cuentaId?: number | null
 ): Promise<Funcionario[]> {
   let query = "SELECT * FROM FUNCIONARIOS WHERE 1=1";
   const params: Record<string, string | number> = {};
+  query = scopeCuenta(query, params, cuentaId);
   if (opts?.soloActivos) query += " AND activo = 1";
   if (opts?.busqueda?.trim()) {
     query += ` AND (
@@ -99,50 +143,57 @@ export async function listFuncionarios(
 
 export async function getFuncionarioById(
   db: Db,
-  id: number
+  id: number,
+  cuentaId?: number | null
 ): Promise<Funcionario | undefined> {
-  return (await db.prepare("SELECT * FROM FUNCIONARIOS WHERE id = ?").get(id)) as
-    | Funcionario
-    | undefined;
+  let query = "SELECT * FROM FUNCIONARIOS WHERE id = @id";
+  const params: Record<string, string | number> = { id };
+  query = scopeCuenta(query, params, cuentaId);
+  return (await db.prepare(query).get(params)) as Funcionario | undefined;
 }
 
 export async function getFuncionarioByCedula(
   db: Db,
-  cedula: string
+  cedula: string,
+  cuentaId?: number | null
 ): Promise<Funcionario | undefined> {
   const n = normalizeCedula(cedula);
   if (!n) return undefined;
-  return (await db
-    .prepare(
-      `SELECT * FROM FUNCIONARIOS
-       WHERE replace(replace(replace(cedula, '.', ''), '-', ''), ' ', '') = ?`
-    )
-    .get(n)) as Funcionario | undefined;
+  let query = `SELECT * FROM FUNCIONARIOS
+       WHERE replace(replace(replace(cedula, '.', ''), '-', ''), ' ', '') = @ced`;
+  const params: Record<string, string | number> = { ced: n };
+  query = scopeCuenta(query, params, cuentaId);
+  return (await db.prepare(query).get(params)) as Funcionario | undefined;
 }
 
-export async function insertFuncionario(db: Db, data: FuncionarioInput): Promise<number> {
+export async function insertFuncionario(
+  db: Db,
+  data: FuncionarioInput,
+  cuentaId?: number | null
+): Promise<number> {
   const cedula = validateCedula(data.cedula);
   const nombre = data.nombre.trim();
   const apellido = data.apellido.trim();
   if (!nombre) throw new Error("El nombre es obligatorio.");
   if (!apellido) throw new Error("El apellido es obligatorio.");
-  if (await getFuncionarioByCedula(db, cedula)) {
+  if (await getFuncionarioByCedula(db, cedula, cuentaId)) {
     throw new Error("Ya existe un funcionario con esa cédula.");
   }
 
   const result = await db
     .prepare(
       `INSERT INTO FUNCIONARIOS (
-        cedula, nombre, apellido, domicilio, ciudad, departamento,
+        cuenta_id, cedula, nombre, apellido, domicilio, ciudad, departamento,
         banco, sucursal, cuenta, tipo_cuenta, titular_cuenta,
         cuenta_otros_bancos, moneda_otros_bancos, celular, email, activo
       ) VALUES (
-        @cedula, @nombre, @apellido, @domicilio, @ciudad, @departamento,
+        @cuenta_id, @cedula, @nombre, @apellido, @domicilio, @ciudad, @departamento,
         @banco, @sucursal, @cuenta, @tipo_cuenta, @titular_cuenta,
         @cuenta_otros_bancos, @moneda_otros_bancos, @celular, @email, @activo
       )`
     )
     .run({
+      cuenta_id: cuentaId ?? null,
       cedula,
       nombre,
       apellido,
@@ -166,9 +217,10 @@ export async function insertFuncionario(db: Db, data: FuncionarioInput): Promise
 export async function updateFuncionario(
   db: Db,
   id: number,
-  data: FuncionarioInput
+  data: FuncionarioInput,
+  cuentaId?: number | null
 ): Promise<boolean> {
-  const existing = await getFuncionarioById(db, id);
+  const existing = await getFuncionarioById(db, id, cuentaId);
   if (!existing) return false;
 
   const cedula = validateCedula(data.cedula);
@@ -177,7 +229,7 @@ export async function updateFuncionario(
   if (!nombre) throw new Error("El nombre es obligatorio.");
   if (!apellido) throw new Error("El apellido es obligatorio.");
 
-  const otro = await getFuncionarioByCedula(db, cedula);
+  const otro = await getFuncionarioByCedula(db, cedula, cuentaId);
   if (otro && otro.id !== id) {
     throw new Error("Ya existe otro funcionario con esa cédula.");
   }
@@ -218,8 +270,12 @@ export async function updateFuncionario(
   ).changes > 0;
 }
 
-export async function deleteFuncionario(db: Db, id: number): Promise<boolean> {
-  const row = await getFuncionarioById(db, id);
+export async function deleteFuncionario(
+  db: Db,
+  id: number,
+  cuentaId?: number | null
+): Promise<boolean> {
+  const row = await getFuncionarioById(db, id, cuentaId);
   if (!row) return false;
   const { n } = (await db
     .prepare(
@@ -251,11 +307,12 @@ export function esRubroRemuneracion(rubro: string, subRubro = ""): boolean {
 
 export async function getFuncionarioByNombreDisplay(
   db: Db,
-  nombreDisplay: string
+  nombreDisplay: string,
+  cuentaId?: number | null
 ): Promise<Funcionario | undefined> {
   const v = nombreDisplay.trim();
   if (!v) return undefined;
-  for (const f of await listFuncionarios(db, { soloActivos: true })) {
+  for (const f of await listFuncionarios(db, { soloActivos: true }, cuentaId)) {
     if (
       nombreFuncionarioDisplay(f).localeCompare(v, "es", { sensitivity: "accent" }) === 0
     ) {
@@ -265,14 +322,17 @@ export async function getFuncionarioByNombreDisplay(
   return undefined;
 }
 
-export async function listFuncionariosParaSelector(db: Db): Promise<
+export async function listFuncionariosParaSelector(
+  db: Db,
+  cuentaId?: number | null
+): Promise<
   Array<{
     cedula: string;
     label: string;
     nombre_display: string;
   }>
 > {
-  return (await listFuncionarios(db, { soloActivos: true })).map((f) => ({
+  return (await listFuncionarios(db, { soloActivos: true }, cuentaId)).map((f) => ({
     cedula: f.cedula,
     label: `${formatCedulaDisplay(f.cedula)} — ${nombreFuncionarioDisplay(f)}`,
     nombre_display: nombreFuncionarioDisplay(f),

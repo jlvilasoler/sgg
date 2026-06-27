@@ -1,7 +1,9 @@
 import type { Db } from "./db/pg-client.js";
+import { migrateAddCuentaIdColumn } from "./empresas-cuenta-db.js";
 
 export interface IngresoVenta {
   id: number;
+  cuenta_id?: number | null;
   nro_registro: number;
   fecha: string;
   codigo_proveedor: string;
@@ -44,7 +46,21 @@ export function calcularTotalUsdVenta(
   return Math.round(total * 10000) / 10000;
 }
 
-export async function initVentasTable(_db: Db): Promise<void> {}
+export async function initVentasTable(db: Db): Promise<void> {
+  await migrateAddCuentaIdColumn(db, "INGRESOS_VENTAS");
+}
+
+function scopeCuenta(
+  query: string,
+  params: Record<string, string | number>,
+  cuentaId?: number | null
+): string {
+  if (cuentaId != null) {
+    query += " AND cuenta_id = @cuentaId";
+    params.cuentaId = cuentaId;
+  }
+  return query;
+}
 
 async function allocNroRegistro(db: Db): Promise<number> {
   return db.transaction(async (tx) => {
@@ -88,10 +104,12 @@ function normalizeInput(data: IngresoVentaInput): IngresoVentaInput {
 
 export async function listIngresosVentas(
   db: Db,
-  filters?: IngresoVentaFilters
+  filters?: IngresoVentaFilters,
+  cuentaId?: number | null
 ): Promise<IngresoVenta[]> {
   let sql = "SELECT * FROM INGRESOS_VENTAS WHERE 1=1";
-  const params: Record<string, string> = {};
+  const params: Record<string, string | number> = {};
+  sql = scopeCuenta(sql, params, cuentaId);
 
   if (filters?.fecha_desde) {
     sql += " AND fecha >= @fecha_desde";
@@ -117,16 +135,19 @@ export async function listIngresosVentas(
 
 export async function getIngresoVentaById(
   db: Db,
-  id: number
+  id: number,
+  cuentaId?: number | null
 ): Promise<IngresoVenta | undefined> {
-  return (await db
-    .prepare("SELECT * FROM INGRESOS_VENTAS WHERE id = ?")
-    .get(id)) as IngresoVenta | undefined;
+  let sql = "SELECT * FROM INGRESOS_VENTAS WHERE id = @id";
+  const params: Record<string, string | number> = { id };
+  sql = scopeCuenta(sql, params, cuentaId);
+  return (await db.prepare(sql).get(params)) as IngresoVenta | undefined;
 }
 
 export async function insertIngresoVenta(
   db: Db,
-  data: IngresoVentaInput
+  data: IngresoVentaInput,
+  cuentaId?: number | null
 ): Promise<number> {
   const row = normalizeInput(data);
   if (!row.fecha) throw new Error("La fecha es obligatoria.");
@@ -143,20 +164,21 @@ export async function insertIngresoVenta(
     .prepare(
       `INSERT INTO INGRESOS_VENTAS (
         nro_registro, fecha, codigo_proveedor, razon_social_proveedor,
-        concepto, nro_factura, pesos, dolares_usd, tc_usd, total_usd
+        concepto, nro_factura, pesos, dolares_usd, tc_usd, total_usd, cuenta_id
       ) VALUES (
         @nro_registro, @fecha, @codigo_proveedor, @razon_social_proveedor,
-        @concepto, @nro_factura, @pesos, @dolares_usd, @tc_usd, @total_usd
+        @concepto, @nro_factura, @pesos, @dolares_usd, @tc_usd, @total_usd, @cuenta_id
       )`
     )
-    .run({ ...row, nro_registro });
+    .run({ ...row, nro_registro, cuenta_id: cuentaId ?? null });
   return Number(result.lastInsertRowid);
 }
 
 export async function updateIngresoVenta(
   db: Db,
   id: number,
-  data: IngresoVentaInput
+  data: IngresoVentaInput,
+  cuentaId?: number | null
 ): Promise<boolean> {
   const row = normalizeInput(data);
   if (!row.fecha) throw new Error("La fecha es obligatoria.");
@@ -168,10 +190,7 @@ export async function updateIngresoVenta(
     throw new Error("Ingresá el tipo de cambio (TC) para convertir pesos a USD.");
   }
 
-  return (
-    await db
-      .prepare(
-        `UPDATE INGRESOS_VENTAS SET
+  let sql = `UPDATE INGRESOS_VENTAS SET
           fecha = @fecha,
           codigo_proveedor = @codigo_proveedor,
           razon_social_proveedor = @razon_social_proveedor,
@@ -181,12 +200,22 @@ export async function updateIngresoVenta(
           dolares_usd = @dolares_usd,
           tc_usd = @tc_usd,
           total_usd = @total_usd
-         WHERE id = @id`
-      )
-      .run({ ...row, id })
-  ).changes > 0;
+         WHERE id = @id`;
+  const params: Record<string, string | number> = { ...row, id } as Record<
+    string,
+    string | number
+  >;
+  sql = scopeCuenta(sql, params, cuentaId);
+  return (await db.prepare(sql).run(params)).changes > 0;
 }
 
-export async function deleteIngresoVenta(db: Db, id: number): Promise<boolean> {
-  return (await db.prepare("DELETE FROM INGRESOS_VENTAS WHERE id = ?").run(id)).changes > 0;
+export async function deleteIngresoVenta(
+  db: Db,
+  id: number,
+  cuentaId?: number | null
+): Promise<boolean> {
+  let sql = "DELETE FROM INGRESOS_VENTAS WHERE id = @id";
+  const params: Record<string, string | number> = { id };
+  sql = scopeCuenta(sql, params, cuentaId);
+  return (await db.prepare(sql).run(params)).changes > 0;
 }

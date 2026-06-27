@@ -217,6 +217,7 @@ function addDaysIso(iso: string, dias: number): string {
 async function parseBody(req: Request): Promise<PresupuestoInput> {
   const body = req.body as Record<string, unknown>;
   const user = req.user;
+  const cuentaId = user ? await cuentaIdForUser(user) : null;
   let empresa = String(body.empresa ?? "").trim();
   if (user && !user.es_super_admin) {
     const permitidas = await empresasPermitidas(user);
@@ -261,14 +262,14 @@ async function parseBody(req: Request): Promise<PresupuestoInput> {
   const rubroSueldos = db.funcionarios.esRubroRemuneracion(rubro, sub_rubro);
 
   if (rubroSueldos && responsable_gasto && !funcionario_cedula) {
-    const porNombre = await db.funcionarios.getByNombreDisplay(responsable_gasto);
+    const porNombre = await db.funcionarios.getByNombreDisplay(responsable_gasto, cuentaId);
     if (porNombre) funcionario_cedula = porNombre.cedula;
   }
 
   if (
     responsable_gasto &&
     !rubroSueldos &&
-    !await db.responsables.existsActivo(responsable_gasto)
+    !await db.responsables.existsActivo(responsable_gasto, cuentaId)
   ) {
     throw new Error(
       "El presupuesto asignado debe existir en el catálogo y estar activo."
@@ -277,8 +278,8 @@ async function parseBody(req: Request): Promise<PresupuestoInput> {
 
   if (rubroSueldos && responsable_gasto) {
     const f =
-      (funcionario_cedula ? await db.funcionarios.getByCedula(funcionario_cedula) : undefined) ??
-      await db.funcionarios.getByNombreDisplay(responsable_gasto);
+      (funcionario_cedula ? await db.funcionarios.getByCedula(funcionario_cedula, cuentaId) : undefined) ??
+      await db.funcionarios.getByNombreDisplay(responsable_gasto, cuentaId);
     if (f) {
       if (!f.activo) {
         throw new Error(
@@ -286,7 +287,7 @@ async function parseBody(req: Request): Promise<PresupuestoInput> {
         );
       }
       funcionario_cedula = f.cedula;
-    } else if (!await db.responsables.existsActivo(responsable_gasto)) {
+    } else if (!await db.responsables.existsActivo(responsable_gasto, cuentaId)) {
       throw new Error(
         "Presupuesto asignado: elegí un empleado activo de RRHH o un nombre del catálogo Presupuesto asignado."
       );
@@ -294,7 +295,7 @@ async function parseBody(req: Request): Promise<PresupuestoInput> {
       funcionario_cedula = "";
     }
   } else if (funcionario_cedula) {
-    const f = await db.funcionarios.getByCedula(funcionario_cedula);
+    const f = await db.funcionarios.getByCedula(funcionario_cedula, cuentaId);
     if (!f || !f.activo) {
       throw new Error(
         "El funcionario (cédula) debe existir en Recursos Humanos → Funcionarios y estar activo."
@@ -350,6 +351,16 @@ async function empresasPermitidas(user: UserPublic): Promise<string[]> {
   const scope = await empresasCuenta.getEmpresasScopeFilter(db.getDb(), user);
   if (scope === undefined) return [];
   return scope;
+}
+
+/** cuenta_id para FILTRAR lecturas: número = su cuenta; null = super admin (ve todo). */
+async function cuentaIdForUser(user: UserPublic): Promise<number | null> {
+  return await empresasCuenta.resolveCuentaMadreIdForUser(db.getDb(), user);
+}
+
+/** cuenta_id para INSERTAR: su cuenta, o VILA DIAZ como fallback para super admin. */
+async function cuentaIdParaInsert(user: UserPublic): Promise<number | null> {
+  return await empresasCuenta.cuentaIdParaInsert(db.getDb(), user);
 }
 
 async function stockGanaderoFiltersFromRequest(
@@ -663,11 +674,15 @@ function parseVentaArrendamientoBody(req: Request): ventasArr.VentaArrendamiento
 }
 
 app.get("/api/ingresos-ventas", async (req, res) => {
-  const data = await db.ingresosVentas.list({
-    fecha_desde: req.query.fecha_desde as string | undefined,
-    fecha_hasta: req.query.fecha_hasta as string | undefined,
-    busqueda: req.query.busqueda as string | undefined,
-  });
+  const cuentaId = await cuentaIdForUser(req.user!);
+  const data = await db.ingresosVentas.list(
+    {
+      fecha_desde: req.query.fecha_desde as string | undefined,
+      fecha_hasta: req.query.fecha_hasta as string | undefined,
+      busqueda: req.query.busqueda as string | undefined,
+    },
+    cuentaId
+  );
   res.json({ ok: true, data });
 });
 
@@ -906,6 +921,7 @@ app.get("/api/ingresos-ventas/ventas-ganado-cerradas", async (req, res) => {
     fecha_hasta: req.query.fecha_hasta as string | undefined,
     busqueda: req.query.busqueda as string | undefined,
     limit: 500,
+    cuentaId: await cuentaIdForUser(req.user!),
   });
   res.json({ ok: true, data });
 });
@@ -924,7 +940,8 @@ app.patch("/api/ingresos-ventas/ventas-ganado-cerradas/:id", async (req, res) =>
   try {
     const row = await db.simuladorVentaGanado.updateDestino(
       id,
-      destinoRaw == null ? null : destinoRaw
+      destinoRaw == null ? null : destinoRaw,
+      await cuentaIdForUser(req.user!)
     );
     res.json({ ok: true, data: row, message: "Destino actualizado" });
   } catch (e) {
@@ -935,7 +952,8 @@ app.patch("/api/ingresos-ventas/ventas-ganado-cerradas/:id", async (req, res) =>
 
 app.get("/api/ingresos-ventas/:id", async (req, res) => {
   const id = Number(req.params.id);
-  const reg = await db.ingresosVentas.getById(id);
+  const cuentaId = await cuentaIdForUser(req.user!);
+  const reg = await db.ingresosVentas.getById(id, cuentaId);
   if (!reg) {
     res.status(404).json({ ok: false, error: "Registro no encontrado" });
     return;
@@ -946,8 +964,9 @@ app.get("/api/ingresos-ventas/:id", async (req, res) => {
 app.post("/api/ingresos-ventas", async (req, res) => {
   try {
     const payload = parseIngresoVentaBody(req);
-    const newId = await db.ingresosVentas.insert(payload);
-    const reg = await db.ingresosVentas.getById(newId);
+    const cuentaId = await cuentaIdParaInsert(req.user!);
+    const newId = await db.ingresosVentas.insert(payload, cuentaId);
+    const reg = await db.ingresosVentas.getById(newId, cuentaId);
     res.status(201).json({
       ok: true,
       data: reg,
@@ -963,13 +982,14 @@ app.put("/api/ingresos-ventas/:id", async (req, res) => {
   try {
     const id = Number(req.params.id);
     const payload = parseIngresoVentaBody(req);
-    if (!await db.ingresosVentas.update(id, payload)) {
+    const cuentaId = await cuentaIdForUser(req.user!);
+    if (!await db.ingresosVentas.update(id, payload, cuentaId)) {
       res.status(404).json({ ok: false, error: "Registro no encontrado" });
       return;
     }
     res.json({
       ok: true,
-      data: await db.ingresosVentas.getById(id),
+      data: await db.ingresosVentas.getById(id, cuentaId),
       message: "Registro actualizado",
     });
   } catch (e) {
@@ -979,7 +999,8 @@ app.put("/api/ingresos-ventas/:id", async (req, res) => {
 
 app.delete("/api/ingresos-ventas/:id", async (req, res) => {
   const id = Number(req.params.id);
-  if (!await db.ingresosVentas.delete(id)) {
+  const cuentaId = await cuentaIdForUser(req.user!);
+  if (!await db.ingresosVentas.delete(id, cuentaId)) {
     res.status(404).json({ ok: false, error: "Registro no encontrado" });
     return;
   }
@@ -2012,16 +2033,19 @@ function parseProveedorBody(req: Request) {
 
 app.get("/api/proveedores", async (req, res) => {
   const busqueda = req.query.busqueda as string | undefined;
-  res.json({ ok: true, data: await db.proveedores.list(busqueda) });
+  const cuentaId = await cuentaIdForUser(req.user!);
+  res.json({ ok: true, data: await db.proveedores.list(busqueda, cuentaId) });
 });
 
-app.get("/api/proveedores/siguiente-cod", async (_req, res) => {
-  res.json({ ok: true, cod: await db.proveedores.nextCod() });
+app.get("/api/proveedores/siguiente-cod", async (req, res) => {
+  const cuentaId = await cuentaIdParaInsert(req.user!);
+  res.json({ ok: true, cod: await db.proveedores.nextCod(cuentaId) });
 });
 
 app.get("/api/proveedores/:cod", async (req, res) => {
   const cod = Number(req.params.cod);
-  const reg = await db.proveedores.getByCod(cod);
+  const cuentaId = await cuentaIdForUser(req.user!);
+  const reg = await db.proveedores.getByCod(cod, cuentaId);
   if (!reg) {
     res.status(404).json({ ok: false, error: "Proveedor no encontrado" });
     return;
@@ -2032,14 +2056,15 @@ app.get("/api/proveedores/:cod", async (req, res) => {
 app.post("/api/proveedores", async (req, res) => {
   try {
     const payload = parseProveedorBody(req);
-    if (await db.proveedores.getByCod(payload.cod)) {
+    const cuentaId = await cuentaIdParaInsert(req.user!);
+    if (await db.proveedores.getByCod(payload.cod, cuentaId)) {
       res.status(400).json({ ok: false, error: "Ya existe un proveedor con ese código" });
       return;
     }
-    const id = await db.proveedores.insert(payload);
+    const id = await db.proveedores.insert(payload, cuentaId);
     res.status(201).json({
       ok: true,
-      data: await db.proveedores.getById(id),
+      data: await db.proveedores.getById(id, cuentaId),
       message: "Proveedor agregado",
     });
   } catch (e) {
@@ -2051,18 +2076,19 @@ app.put("/api/proveedores/id/:id", async (req, res) => {
   try {
     const id = Number(req.params.id);
     const payload = parseProveedorBody(req);
-    const existing = await db.proveedores.getByCod(payload.cod);
+    const cuentaId = await cuentaIdForUser(req.user!);
+    const existing = await db.proveedores.getByCod(payload.cod, cuentaId);
     if (existing && existing.id !== id) {
       res.status(400).json({ ok: false, error: "Ya existe otro proveedor con ese código" });
       return;
     }
-    if (!await db.proveedores.update(id, payload)) {
+    if (!await db.proveedores.update(id, payload, cuentaId)) {
       res.status(404).json({ ok: false, error: "Proveedor no encontrado" });
       return;
     }
     res.json({
       ok: true,
-      data: await db.proveedores.getById(id),
+      data: await db.proveedores.getById(id, cuentaId),
       message: "Proveedor actualizado",
     });
   } catch (e) {
@@ -2072,7 +2098,8 @@ app.put("/api/proveedores/id/:id", async (req, res) => {
 
 app.delete("/api/proveedores/id/:id", async (req, res) => {
   const id = Number(req.params.id);
-  if (!await db.proveedores.delete(id)) {
+  const cuentaId = await cuentaIdForUser(req.user!);
+  if (!await db.proveedores.delete(id, cuentaId)) {
     res.status(404).json({ ok: false, error: "Proveedor no encontrado" });
     return;
   }
@@ -2221,7 +2248,10 @@ app.post(
       const nombreProveedor =
         valores_mapeo?.proveedor?.trim() || data.beneficiario_nombre.trim();
       if (nombreProveedor) {
-        const lista = await db.proveedores.list(nombreProveedor);
+        const lista = await db.proveedores.list(
+          nombreProveedor,
+          await cuentaIdForUser(req.user!)
+        );
         const nombre = nombreProveedor.toLowerCase();
         const hit =
           lista.find((p) => p.razon_social.trim().toLowerCase() === nombre) ??
@@ -2365,7 +2395,10 @@ app.post(
       const nombreProveedor =
         valores_mapeo?.proveedor?.trim() || parsed.beneficiario_nombre.trim();
       if (nombreProveedor) {
-        const lista = await db.proveedores.list(nombreProveedor);
+        const lista = await db.proveedores.list(
+          nombreProveedor,
+          await cuentaIdForUser(req.user!)
+        );
         const nombre = nombreProveedor.toLowerCase();
         const hit =
           lista.find((p) => p.razon_social.trim().toLowerCase() === nombre) ??
@@ -2876,16 +2909,18 @@ function parseResponsableBody(req: Request) {
 
 app.get("/api/responsables", async (req, res) => {
   const soloActivos = req.query.solo_activos === "1";
-  res.json({ ok: true, data: await db.responsables.list(soloActivos) });
+  const cuentaId = await cuentaIdForUser(req.user!);
+  res.json({ ok: true, data: await db.responsables.list(soloActivos, cuentaId) });
 });
 
 app.post("/api/responsables", async (req, res) => {
   try {
     const payload = parseResponsableBody(req);
-    const id = await db.responsables.insert(payload);
+    const cuentaId = await cuentaIdParaInsert(req.user!);
+    const id = await db.responsables.insert(payload, cuentaId);
     res.status(201).json({
       ok: true,
-      data: await db.responsables.getById(id),
+      data: await db.responsables.getById(id, cuentaId),
       message: "Nombre guardado",
     });
   } catch (e) {
@@ -2897,13 +2932,14 @@ app.put("/api/responsables/:id", async (req, res) => {
   try {
     const id = Number(req.params.id);
     const payload = parseResponsableBody(req);
-    if (!await db.responsables.update(id, payload)) {
+    const cuentaId = await cuentaIdForUser(req.user!);
+    if (!await db.responsables.update(id, payload, cuentaId)) {
       res.status(404).json({ ok: false, error: "Nombre no encontrado" });
       return;
     }
     res.json({
       ok: true,
-      data: await db.responsables.getById(id),
+      data: await db.responsables.getById(id, cuentaId),
       message: "Nombre actualizado",
     });
   } catch (e) {
@@ -2914,7 +2950,8 @@ app.put("/api/responsables/:id", async (req, res) => {
 app.delete("/api/responsables/:id", async (req, res) => {
   try {
     const id = Number(req.params.id);
-    if (!await db.responsables.delete(id)) {
+    const cuentaId = await cuentaIdForUser(req.user!);
+    if (!await db.responsables.delete(id, cuentaId)) {
       res.status(404).json({ ok: false, error: "Nombre no encontrado" });
       return;
     }
@@ -3577,7 +3614,11 @@ app.get("/api/simulador-venta-ganado", async (req, res) => {
   const tipo = parseSimuladorVentaTipo(req.query.tipo) ?? undefined;
   const limitRaw = Number(req.query.limit);
   const limit = Number.isFinite(limitRaw) ? limitRaw : undefined;
-  const data = await db.simuladorVentaGanado.list({ tipo, limit });
+  const data = await db.simuladorVentaGanado.list({
+    tipo,
+    limit,
+    cuentaId: await cuentaIdForUser(req.user!),
+  });
   res.json({ ok: true, data });
 });
 
@@ -3589,10 +3630,13 @@ app.post("/api/simulador-venta-ganado", async (req, res) => {
       return;
     }
 
-    const row = await db.simuladorVentaGanado.insert({
-      ...parsed.input,
-      usuario_id: req.user!.id,
-    });
+    const row = await db.simuladorVentaGanado.insert(
+      {
+        ...parsed.input,
+        usuario_id: req.user!.id,
+      },
+      await cuentaIdParaInsert(req.user!)
+    );
     await auditSimuladorCreacion(req, row);
 
     res.json({ ok: true, data: row, message: "Simulación guardada" });
@@ -3614,13 +3658,14 @@ app.put("/api/simulador-venta-ganado/:id", async (req, res) => {
       return;
     }
 
-    const antes = await db.simuladorVentaGanado.getById(id);
+    const cuentaId = await cuentaIdForUser(req.user!);
+    const antes = await db.simuladorVentaGanado.getById(id, cuentaId);
     if (!antes) {
       res.status(404).json({ ok: false, error: "Simulación no encontrada" });
       return;
     }
 
-    const row = await db.simuladorVentaGanado.update(id, parsed.input);
+    const row = await db.simuladorVentaGanado.update(id, parsed.input, cuentaId);
     await auditSimuladorActualizacion(req, antes, row);
     res.json({ ok: true, data: row, message: "Simulación actualizada" });
   } catch (e) {
@@ -3637,8 +3682,9 @@ app.patch("/api/simulador-venta-ganado/:id", async (req, res) => {
   }
   const body = (req.body ?? {}) as Record<string, unknown>;
   const patch: Parameters<typeof db.simuladorVentaGanado.patch>[1] = {};
+  const cuentaId = await cuentaIdForUser(req.user!);
 
-  const antes = await db.simuladorVentaGanado.getById(id);
+  const antes = await db.simuladorVentaGanado.getById(id, cuentaId);
   if (!antes) {
     res.status(404).json({ ok: false, error: "Simulación no encontrada" });
     return;
@@ -3667,7 +3713,7 @@ app.patch("/api/simulador-venta-ganado/:id", async (req, res) => {
     return;
   }
   try {
-    const row = await db.simuladorVentaGanado.patch(id, patch);
+    const row = await db.simuladorVentaGanado.patch(id, patch, cuentaId);
     let restaurados = 0;
     if (patch.venta_realizada === false) {
       restaurados = await db.simuladorVentaDispositivos.revertStock(id);
@@ -3701,7 +3747,8 @@ app.delete("/api/simulador-venta-ganado/:id", async (req, res) => {
     return;
   }
   try {
-    const existing = await db.simuladorVentaGanado.getById(id);
+    const cuentaId = await cuentaIdForUser(req.user!);
+    const existing = await db.simuladorVentaGanado.getById(id, cuentaId);
     if (!existing) {
       res.status(404).json({ ok: false, error: "Simulación no encontrada" });
       return;
@@ -3714,7 +3761,7 @@ app.delete("/api/simulador-venta-ganado/:id", async (req, res) => {
       return;
     }
     await auditSimuladorEliminacion(req, existing);
-    await db.simuladorVentaGanado.delete(id);
+    await db.simuladorVentaGanado.delete(id, cuentaId);
     res.json({ ok: true, message: "Simulación eliminada" });
   } catch (e) {
     const msg = (e as Error).message;
@@ -3728,7 +3775,7 @@ app.get("/api/simulador-venta-ganado/:id/dispositivos", async (req, res) => {
     res.status(400).json({ ok: false, error: "ID inválido" });
     return;
   }
-  const existing = await db.simuladorVentaGanado.getById(id);
+  const existing = await db.simuladorVentaGanado.getById(id, await cuentaIdForUser(req.user!));
   if (!existing) {
     res.status(404).json({ ok: false, error: "Simulación no encontrada" });
     return;
@@ -3747,7 +3794,7 @@ app.put("/api/simulador-venta-ganado/:id/dispositivos", async (req, res) => {
     res.status(400).json({ ok: false, error: "ID inválido" });
     return;
   }
-  const existing = await db.simuladorVentaGanado.getById(id);
+  const existing = await db.simuladorVentaGanado.getById(id, await cuentaIdForUser(req.user!));
   if (!existing) {
     res.status(404).json({ ok: false, error: "Simulación no encontrada" });
     return;
@@ -3816,7 +3863,7 @@ app.get("/api/simulador-venta-ganado/:id/auditoria", async (req, res) => {
     res.status(400).json({ ok: false, error: "ID inválido" });
     return;
   }
-  const existing = await db.simuladorVentaGanado.getById(id);
+  const existing = await db.simuladorVentaGanado.getById(id, await cuentaIdForUser(req.user!));
   if (!existing) {
     res.status(404).json({ ok: false, error: "Simulación no encontrada" });
     return;
@@ -3868,12 +3915,14 @@ function parseFuncionarioBody(req: Request) {
 app.get("/api/funcionarios", async (req, res) => {
   const busqueda = req.query.busqueda as string | undefined;
   const soloActivos = req.query.solo_activos === "1";
-  res.json({ ok: true, data: await db.funcionarios.list({ busqueda, soloActivos }) });
+  const cuentaId = await cuentaIdForUser(req.user!);
+  res.json({ ok: true, data: await db.funcionarios.list({ busqueda, soloActivos }, cuentaId) });
 });
 
 app.get("/api/funcionarios/cedula/:cedula", async (req, res) => {
   const cedula = decodeURIComponent(paramString(req.params.cedula));
-  const row = await db.funcionarios.getByCedula(cedula);
+  const cuentaId = await cuentaIdForUser(req.user!);
+  const row = await db.funcionarios.getByCedula(cedula, cuentaId);
   if (!row) {
     res.status(404).json({ ok: false, error: "Funcionario no encontrado" });
     return;
@@ -3883,10 +3932,11 @@ app.get("/api/funcionarios/cedula/:cedula", async (req, res) => {
 
 app.post("/api/funcionarios", async (req, res) => {
   try {
-    const id = await db.funcionarios.insert(parseFuncionarioBody(req));
+    const cuentaId = await cuentaIdParaInsert(req.user!);
+    const id = await db.funcionarios.insert(parseFuncionarioBody(req), cuentaId);
     res.status(201).json({
       ok: true,
-      data: await db.funcionarios.getById(id),
+      data: await db.funcionarios.getById(id, cuentaId),
       message: "Funcionario registrado",
     });
   } catch (e) {
@@ -3897,13 +3947,14 @@ app.post("/api/funcionarios", async (req, res) => {
 app.put("/api/funcionarios/:id", async (req, res) => {
   try {
     const id = Number(req.params.id);
-    if (!await db.funcionarios.update(id, parseFuncionarioBody(req))) {
+    const cuentaId = await cuentaIdForUser(req.user!);
+    if (!await db.funcionarios.update(id, parseFuncionarioBody(req), cuentaId)) {
       res.status(404).json({ ok: false, error: "Funcionario no encontrado" });
       return;
     }
     res.json({
       ok: true,
-      data: await db.funcionarios.getById(id),
+      data: await db.funcionarios.getById(id, cuentaId),
       message: "Funcionario actualizado",
     });
   } catch (e) {
@@ -3914,7 +3965,8 @@ app.put("/api/funcionarios/:id", async (req, res) => {
 app.delete("/api/funcionarios/:id", async (req, res) => {
   try {
     const id = Number(req.params.id);
-    if (!await db.funcionarios.delete(id)) {
+    const cuentaId = await cuentaIdForUser(req.user!);
+    if (!await db.funcionarios.delete(id, cuentaId)) {
       res.status(404).json({ ok: false, error: "Funcionario no encontrado" });
       return;
     }

@@ -1,6 +1,10 @@
 import type { Db } from "./db/pg-client.js";
 import { previewTextFromRow } from "./chat-attachments-db.js";
 import { DEFAULT_TEAM_CHANNEL } from "./brand.js";
+import {
+  getSeedCuentaMadreId,
+  migrateAddCuentaIdColumn,
+} from "./empresas-cuenta-db.js";
 
 export const CHAT_GENERAL_PEER_ID = 0;
 
@@ -55,44 +59,124 @@ export async function initChatChannelTables(db: Db): Promise<void> {
     )`
   ).run();
 
-  const general = (await db
-    .prepare("SELECT id FROM CHAT_CHANNELS WHERE peer_id = 0")
-    .get()) as { id: number } | undefined;
-
-  let generalId = general?.id;
-  if (!generalId) {
-    const ins = await db
-      .prepare(
-        `INSERT INTO CHAT_CHANNELS (nombre, peer_id, es_sistema, creado_por)
-         VALUES (?, 0, 1, NULL)`
-      )
-      .run(DEFAULT_TEAM_CHANNEL);
-    generalId = Number(ins.lastInsertRowid);
-  }
-
-  await db
-    .prepare(
-      `UPDATE CHAT_CHANNELS SET nombre = ? WHERE peer_id = 0 AND nombre = 'Equipo SGG'`
-    )
-    .run(DEFAULT_TEAM_CHANNEL);
-
-  await db
-    .prepare(
-      `INSERT INTO CHAT_CHANNEL_MEMBERS (channel_id, user_id)
-       SELECT ?, u.id FROM USERS u WHERE u.activo = 1
-       ON CONFLICT (channel_id, user_id) DO NOTHING`
-    )
-    .run(generalId);
+  await migrateAddCuentaIdColumn(db, "CHAT_CHANNELS");
+  await syncTeamChannelsForAllCuentas(db);
 }
 
-async function addAllUsersToChannel(db: Db, channelId: number): Promise<void> {
+async function addCuentaUsersToChannel(
+  db: Db,
+  channelId: number,
+  cuentaId: number | null
+): Promise<void> {
+  if (cuentaId == null) {
+    await db
+      .prepare(
+        `INSERT INTO CHAT_CHANNEL_MEMBERS (channel_id, user_id)
+         SELECT @channelId, u.id FROM USERS u
+         WHERE u.activo = 1 AND u.empresa_id IS NULL
+         ON CONFLICT (channel_id, user_id) DO NOTHING`
+      )
+      .run({ channelId });
+    return;
+  }
   await db
     .prepare(
       `INSERT INTO CHAT_CHANNEL_MEMBERS (channel_id, user_id)
-       SELECT ?, u.id FROM USERS u WHERE u.activo = 1
+       SELECT @channelId, u.id FROM USERS u
+       WHERE u.activo = 1 AND u.empresa_id = @cuentaId
        ON CONFLICT (channel_id, user_id) DO NOTHING`
     )
-    .run(channelId);
+    .run({ channelId, cuentaId });
+}
+
+async function pruneChannelMembersOutsideCuenta(
+  db: Db,
+  channelId: number,
+  cuentaId: number | null
+): Promise<void> {
+  if (cuentaId == null) {
+    await db
+      .prepare(
+        `DELETE FROM CHAT_CHANNEL_MEMBERS m
+         USING USERS u
+         WHERE m.channel_id = @channelId AND m.user_id = u.id
+           AND u.empresa_id IS NOT NULL`
+      )
+      .run({ channelId });
+    return;
+  }
+  await db
+    .prepare(
+      `DELETE FROM CHAT_CHANNEL_MEMBERS m
+       USING USERS u
+       WHERE m.channel_id = @channelId AND m.user_id = u.id
+         AND (u.empresa_id IS NULL OR u.empresa_id != @cuentaId)`
+    )
+    .run({ channelId, cuentaId });
+}
+
+async function ensureTeamChannelForCuenta(
+  db: Db,
+  cuentaId: number,
+  cuentaNombre: string,
+  opts?: { peerIdZero?: boolean }
+): Promise<number> {
+  const seedId = await getSeedCuentaMadreId(db);
+  const usePeerZero = opts?.peerIdZero && cuentaId === seedId;
+  const nombre = cuentaId === seedId ? DEFAULT_TEAM_CHANNEL : `Equipo ${cuentaNombre}`;
+
+  let channelId: number | undefined;
+  if (usePeerZero) {
+    const general = (await db
+      .prepare("SELECT id FROM CHAT_CHANNELS WHERE peer_id = 0")
+      .get()) as { id: number } | undefined;
+    channelId = general?.id;
+  }
+  if (!channelId) {
+    const existing = (await db
+      .prepare(
+        "SELECT id FROM CHAT_CHANNELS WHERE cuenta_id = ? AND es_sistema = 1 LIMIT 1"
+      )
+      .get(cuentaId)) as { id: number } | undefined;
+    channelId = existing?.id;
+  }
+
+  if (!channelId) {
+    const ins = await db
+      .prepare(
+        `INSERT INTO CHAT_CHANNELS (nombre, peer_id, es_sistema, creado_por, cuenta_id)
+         VALUES (@nombre, 0, 1, NULL, @cuentaId)`
+      )
+      .run({ nombre, cuentaId });
+    channelId = Number(ins.lastInsertRowid);
+    if (!usePeerZero) {
+      await db
+        .prepare("UPDATE CHAT_CHANNELS SET peer_id = ? WHERE id = ?")
+        .run(-channelId, channelId);
+    }
+  } else {
+    await db
+      .prepare(
+        "UPDATE CHAT_CHANNELS SET nombre = @nombre, cuenta_id = @cuentaId WHERE id = @id"
+      )
+      .run({ nombre, cuentaId, id: channelId });
+  }
+
+  await pruneChannelMembersOutsideCuenta(db, channelId, cuentaId);
+  await addCuentaUsersToChannel(db, channelId, cuentaId);
+  return channelId;
+}
+
+async function syncTeamChannelsForAllCuentas(db: Db): Promise<void> {
+  const cuentas = (await db
+    .prepare("SELECT id, nombre FROM EMPRESAS_CUENTA WHERE activo = 1 ORDER BY id ASC")
+    .all()) as { id: number; nombre: string }[];
+  const seedId = await getSeedCuentaMadreId(db);
+  for (const c of cuentas) {
+    await ensureTeamChannelForCuenta(db, c.id, c.nombre, {
+      peerIdZero: c.id === seedId,
+    });
+  }
 }
 
 export async function userIsChannelMember(
@@ -215,22 +299,34 @@ export async function createChatChannel(
   nombre: string
 ): Promise<ChatChannelDto> {
   const label = trimChannelName(nombre);
-  const dup = (await db
-    .prepare("SELECT id FROM CHAT_CHANNELS WHERE LOWER(nombre) = LOWER(?)")
-    .get(label)) as { id: number } | undefined;
+  const userRow = (await db
+    .prepare("SELECT empresa_id FROM USERS WHERE id = ?")
+    .get(userId)) as { empresa_id: number | null } | undefined;
+  const cuentaId = userRow?.empresa_id ?? null;
+
+  let dupSql =
+    "SELECT id FROM CHAT_CHANNELS WHERE LOWER(nombre) = LOWER(@nombre)";
+  const dupParams: Record<string, string | number> = { nombre: label };
+  if (cuentaId != null) {
+    dupSql += " AND cuenta_id = @cuentaId";
+    dupParams.cuentaId = cuentaId;
+  } else {
+    dupSql += " AND cuenta_id IS NULL";
+  }
+  const dup = (await db.prepare(dupSql).get(dupParams)) as { id: number } | undefined;
   if (dup) throw new Error("Ya existe un canal con ese nombre");
 
   const ins = await db
     .prepare(
-      `INSERT INTO CHAT_CHANNELS (nombre, peer_id, es_sistema, creado_por)
-       VALUES (?, 0, 0, ?)`
+      `INSERT INTO CHAT_CHANNELS (nombre, peer_id, es_sistema, creado_por, cuenta_id)
+       VALUES (@nombre, 0, 0, @userId, @cuentaId)`
     )
-    .run(label, userId);
+    .run({ nombre: label, userId, cuentaId });
 
   const id = Number(ins.lastInsertRowid);
   const peerId = -id;
   await db.prepare("UPDATE CHAT_CHANNELS SET peer_id = ? WHERE id = ?").run(peerId, id);
-  await addAllUsersToChannel(db, id);
+  await addCuentaUsersToChannel(db, id, cuentaId);
 
   return {
     id,

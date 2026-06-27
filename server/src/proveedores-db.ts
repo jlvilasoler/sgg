@@ -2,9 +2,14 @@ import type { Db } from "./db/pg-client.js";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import {
+  getSeedCuentaMadreId,
+  migrateAddCuentaIdColumn,
+} from "./empresas-cuenta-db.js";
 
 export interface Proveedor {
   id: number;
+  cuenta_id?: number | null;
   cod: number;
   razon_social: string;
   rut: string;
@@ -23,13 +28,53 @@ export interface ProveedorInput {
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-export async function initProveedoresTable(_db: Db): Promise<void> {}
+export async function initProveedoresTable(db: Db): Promise<void> {
+  await migrateAddCuentaIdColumn(db, "PROVEEDORES");
+  await migrateProveedorCodUniquePorCuenta(db);
+}
+
+/** El código deja de ser único global para serlo por cuenta. */
+async function migrateProveedorCodUniquePorCuenta(db: Db): Promise<void> {
+  for (const stmt of [
+    "ALTER TABLE PROVEEDORES DROP CONSTRAINT IF EXISTS proveedores_cod_key",
+    "DROP INDEX IF EXISTS idx_proveedores_cod",
+  ]) {
+    try {
+      await db.prepare(stmt).run();
+    } catch {
+      /* ignore */
+    }
+  }
+  try {
+    await db
+      .prepare(
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_proveedores_cuenta_cod ON PROVEEDORES(cuenta_id, cod)"
+      )
+      .run();
+  } catch {
+    /* ignore */
+  }
+}
+
+function scopeCuenta(
+  query: string,
+  params: Record<string, string | number>,
+  cuentaId?: number | null
+): string {
+  if (cuentaId != null) {
+    query += " AND cuenta_id = @cuentaId";
+    params.cuentaId = cuentaId;
+  }
+  return query;
+}
 
 export async function seedProveedoresIfEmpty(db: Db): Promise<number> {
   const { n } = (await db.prepare("SELECT COUNT(*) AS n FROM PROVEEDORES").get()) as {
     n: number;
   };
   if (n > 0) return 0;
+
+  const seedId = await getSeedCuentaMadreId(db);
 
   const seedPath = path.join(__dirname, "proveedores-seed.json");
   if (!fs.existsSync(seedPath)) {
@@ -41,12 +86,13 @@ export async function seedProveedoresIfEmpty(db: Db): Promise<number> {
 
   await db.transaction(async (tx) => {
     const ins = await tx.prepare(`
-      INSERT INTO PROVEEDORES (cod, razon_social, rut, direccion, ciudad)
-      VALUES (@cod, @razon_social, @rut, @direccion, @ciudad)
-      ON CONFLICT (cod) DO NOTHING
+      INSERT INTO PROVEEDORES (cuenta_id, cod, razon_social, rut, direccion, ciudad)
+      VALUES (@cuenta_id, @cod, @razon_social, @rut, @direccion, @ciudad)
+      ON CONFLICT (cuenta_id, cod) DO NOTHING
     `);
     for (const p of rows) {
       await ins.run({
+        cuenta_id: seedId ?? null,
         cod: p.cod,
         razon_social: p.razon_social.trim(),
         rut: (p.rut ?? "").trim(),
@@ -64,58 +110,67 @@ export async function seedProveedoresIfEmpty(db: Db): Promise<number> {
 
 export async function listProveedores(
   db: Db,
-  busqueda?: string
+  busqueda?: string,
+  cuentaId?: number | null
 ): Promise<Proveedor[]> {
+  let query = "SELECT * FROM PROVEEDORES WHERE 1=1";
+  const params: Record<string, string | number> = {};
+  query = scopeCuenta(query, params, cuentaId);
   if (busqueda?.trim()) {
-    const term = `%${busqueda.trim()}%`;
-    return (await db
-      .prepare(
-        `SELECT * FROM PROVEEDORES
-         WHERE CAST(cod AS TEXT) LIKE @term
-            OR razon_social LIKE @term
-            OR rut LIKE @term
-            OR ciudad LIKE @term
-         ORDER BY cod ASC`
-      )
-      .all({ term })) as Proveedor[];
+    query += ` AND (
+      CAST(cod AS TEXT) LIKE @term
+      OR razon_social LIKE @term
+      OR rut LIKE @term
+      OR ciudad LIKE @term
+    )`;
+    params.term = `%${busqueda.trim()}%`;
   }
-  return (await db
-    .prepare("SELECT * FROM PROVEEDORES ORDER BY cod ASC")
-    .all()) as Proveedor[];
+  query += " ORDER BY cod ASC";
+  return (await db.prepare(query).all(params)) as Proveedor[];
 }
 
 export async function getProveedorByCod(
   db: Db,
-  cod: number
+  cod: number,
+  cuentaId?: number | null
 ): Promise<Proveedor | undefined> {
-  return (await db
-    .prepare("SELECT * FROM PROVEEDORES WHERE cod = ?")
-    .get(cod)) as Proveedor | undefined;
+  let query = "SELECT * FROM PROVEEDORES WHERE cod = @cod";
+  const params: Record<string, string | number> = { cod };
+  query = scopeCuenta(query, params, cuentaId);
+  return (await db.prepare(query).get(params)) as Proveedor | undefined;
 }
 
 export async function getProveedorById(
   db: Db,
-  id: number
+  id: number,
+  cuentaId?: number | null
 ): Promise<Proveedor | undefined> {
-  return (await db
-    .prepare("SELECT * FROM PROVEEDORES WHERE id = ?")
-    .get(id)) as Proveedor | undefined;
+  let query = "SELECT * FROM PROVEEDORES WHERE id = @id";
+  const params: Record<string, string | number> = { id };
+  query = scopeCuenta(query, params, cuentaId);
+  return (await db.prepare(query).get(params)) as Proveedor | undefined;
 }
 
-export async function getNextCod(db: Db): Promise<number> {
-  const row = (await db
-    .prepare("SELECT COALESCE(MAX(cod), 0) + 1 AS next FROM PROVEEDORES")
-    .get()) as { next: number };
+export async function getNextCod(db: Db, cuentaId?: number | null): Promise<number> {
+  let query = "SELECT COALESCE(MAX(cod), 0) + 1 AS next FROM PROVEEDORES WHERE 1=1";
+  const params: Record<string, string | number> = {};
+  query = scopeCuenta(query, params, cuentaId);
+  const row = (await db.prepare(query).get(params)) as { next: number };
   return row.next;
 }
 
-export async function insertProveedor(db: Db, data: ProveedorInput): Promise<number> {
+export async function insertProveedor(
+  db: Db,
+  data: ProveedorInput,
+  cuentaId?: number | null
+): Promise<number> {
   const result = await db
     .prepare(
-      `INSERT INTO PROVEEDORES (cod, razon_social, rut, direccion, ciudad)
-       VALUES (@cod, @razon_social, @rut, @direccion, @ciudad)`
+      `INSERT INTO PROVEEDORES (cuenta_id, cod, razon_social, rut, direccion, ciudad)
+       VALUES (@cuenta_id, @cod, @razon_social, @rut, @direccion, @ciudad)`
     )
     .run({
+      cuenta_id: cuentaId ?? null,
       cod: data.cod,
       razon_social: data.razon_social.trim(),
       rut: (data.rut ?? "").trim(),
@@ -128,27 +183,32 @@ export async function insertProveedor(db: Db, data: ProveedorInput): Promise<num
 export async function updateProveedor(
   db: Db,
   id: number,
-  data: ProveedorInput
+  data: ProveedorInput,
+  cuentaId?: number | null
 ): Promise<boolean> {
-  return (
-    await db
-      .prepare(
-        `UPDATE PROVEEDORES SET
+  let query = `UPDATE PROVEEDORES SET
           cod = @cod, razon_social = @razon_social,
           rut = @rut, direccion = @direccion, ciudad = @ciudad
-         WHERE id = @id`
-      )
-      .run({
-        id,
-        cod: data.cod,
-        razon_social: data.razon_social.trim(),
-        rut: (data.rut ?? "").trim(),
-        direccion: (data.direccion ?? "").trim(),
-        ciudad: (data.ciudad ?? "").trim(),
-      })
-  ).changes > 0;
+         WHERE id = @id`;
+  const params: Record<string, string | number> = {
+    id,
+    cod: data.cod,
+    razon_social: data.razon_social.trim(),
+    rut: (data.rut ?? "").trim(),
+    direccion: (data.direccion ?? "").trim(),
+    ciudad: (data.ciudad ?? "").trim(),
+  };
+  query = scopeCuenta(query, params, cuentaId);
+  return (await db.prepare(query).run(params)).changes > 0;
 }
 
-export async function deleteProveedor(db: Db, id: number): Promise<boolean> {
-  return (await db.prepare("DELETE FROM PROVEEDORES WHERE id = ?").run(id)).changes > 0;
+export async function deleteProveedor(
+  db: Db,
+  id: number,
+  cuentaId?: number | null
+): Promise<boolean> {
+  let query = "DELETE FROM PROVEEDORES WHERE id = @id";
+  const params: Record<string, string | number> = { id };
+  query = scopeCuenta(query, params, cuentaId);
+  return (await db.prepare(query).run(params)).changes > 0;
 }

@@ -260,16 +260,21 @@ export const simuladorVentaGanado = {
     simVenta.getPreciosReferenciaSimulador(db, tipo),
   list: (filters?: Parameters<typeof simVenta.listSimulacionesVentaGanado>[1]) =>
     simVenta.listSimulacionesVentaGanado(db, filters),
-  insert: (input: simVenta.SimuladorVentaGanadoInput) =>
-    simVenta.insertSimulacionVentaGanado(db, input),
-  getById: (id: number) => simVenta.getSimulacionVentaGanadoById(db, id),
-  update: (id: number, input: simVenta.SimuladorVentaGanadoInput) =>
-    simVenta.updateSimulacionVentaGanado(db, id, input),
-  patch: (id: number, patch: Parameters<typeof simVenta.patchSimulacionVentaGanado>[2]) =>
-    simVenta.patchSimulacionVentaGanado(db, id, patch),
-  updateDestino: (id: number, destino: string | null) =>
-    simVenta.updateDestinoVentaGanado(db, id, destino),
-  delete: (id: number) => simVenta.deleteSimulacionVentaGanado(db, id),
+  insert: (input: simVenta.SimuladorVentaGanadoInput, cuentaId?: number | null) =>
+    simVenta.insertSimulacionVentaGanado(db, input, cuentaId),
+  getById: (id: number, cuentaId?: number | null) =>
+    simVenta.getSimulacionVentaGanadoById(db, id, cuentaId),
+  update: (id: number, input: simVenta.SimuladorVentaGanadoInput, cuentaId?: number | null) =>
+    simVenta.updateSimulacionVentaGanado(db, id, input, cuentaId),
+  patch: (
+    id: number,
+    patch: Parameters<typeof simVenta.patchSimulacionVentaGanado>[2],
+    cuentaId?: number | null
+  ) => simVenta.patchSimulacionVentaGanado(db, id, patch, cuentaId),
+  updateDestino: (id: number, destino: string | null, cuentaId?: number | null) =>
+    simVenta.updateDestinoVentaGanado(db, id, destino, cuentaId),
+  delete: (id: number, cuentaId?: number | null) =>
+    simVenta.deleteSimulacionVentaGanado(db, id, cuentaId),
   tipos: simVenta.SIMULADOR_VENTA_TIPOS,
   categoriasPorTipo: simVenta.categoriasPorTipo,
   labelsPorTipo: simVenta.labelsPorTipo,
@@ -412,12 +417,16 @@ export const stockAuditoria = {
 };
 
 export const ingresosVentas = {
-  list: (filters?: ventas.IngresoVentaFilters) => ventas.listIngresosVentas(db, filters),
-  getById: (id: number) => ventas.getIngresoVentaById(db, id),
-  insert: (data: ventas.IngresoVentaInput) => ventas.insertIngresoVenta(db, data),
-  update: (id: number, data: ventas.IngresoVentaInput) =>
-    ventas.updateIngresoVenta(db, id, data),
-  delete: (id: number) => ventas.deleteIngresoVenta(db, id),
+  list: (filters?: ventas.IngresoVentaFilters, cuentaId?: number | null) =>
+    ventas.listIngresosVentas(db, filters, cuentaId),
+  getById: (id: number, cuentaId?: number | null) =>
+    ventas.getIngresoVentaById(db, id, cuentaId),
+  insert: (data: ventas.IngresoVentaInput, cuentaId?: number | null) =>
+    ventas.insertIngresoVenta(db, data, cuentaId),
+  update: (id: number, data: ventas.IngresoVentaInput, cuentaId?: number | null) =>
+    ventas.updateIngresoVenta(db, id, data, cuentaId),
+  delete: (id: number, cuentaId?: number | null) =>
+    ventas.deleteIngresoVenta(db, id, cuentaId),
   peekNextNro: () => ventas.peekNextNroRegistroVenta(db),
   formatNumeroOperacion: (nro: number) => ventas.formatNumeroOperacionVenta(nro),
 };
@@ -449,13 +458,17 @@ export const ventasArrendamientos = {
 };
 
 export const proveedores = {
-  list: (busqueda?: string) => prov.listProveedores(db, busqueda),
-  getByCod: (cod: number) => prov.getProveedorByCod(db, cod),
-  getById: (id: number) => prov.getProveedorById(db, id),
-  nextCod: () => prov.getNextCod(db),
-  insert: (data: prov.ProveedorInput) => prov.insertProveedor(db, data),
-  update: (id: number, data: prov.ProveedorInput) => prov.updateProveedor(db, id, data),
-  delete: (id: number) => prov.deleteProveedor(db, id),
+  list: (busqueda?: string, cuentaId?: number | null) =>
+    prov.listProveedores(db, busqueda, cuentaId),
+  getByCod: (cod: number, cuentaId?: number | null) =>
+    prov.getProveedorByCod(db, cod, cuentaId),
+  getById: (id: number, cuentaId?: number | null) => prov.getProveedorById(db, id, cuentaId),
+  nextCod: (cuentaId?: number | null) => prov.getNextCod(db, cuentaId),
+  insert: (data: prov.ProveedorInput, cuentaId?: number | null) =>
+    prov.insertProveedor(db, data, cuentaId),
+  update: (id: number, data: prov.ProveedorInput, cuentaId?: number | null) =>
+    prov.updateProveedor(db, id, data, cuentaId),
+  delete: (id: number, cuentaId?: number | null) => prov.deleteProveedor(db, id, cuentaId),
 };
 
 export async function insertPresupuesto(
@@ -954,14 +967,17 @@ export const rubros = {
 };
 
 export const responsables = {
-  list: (soloActivos?: boolean) => resp.listResponsables(db, soloActivos ?? false),
-  listNombres: () => resp.listResponsablesNombres(db),
-  getById: (id: number) => resp.getResponsableById(db, id),
-  insert: (data: resp.ResponsableInput) => resp.insertResponsable(db, data),
-  update: (id: number, data: resp.ResponsableInput) =>
-    resp.updateResponsable(db, id, data),
-  delete: (id: number) => resp.deleteResponsable(db, id),
-  existsActivo: (nombre: string) => resp.responsableExistsActivo(db, nombre),
+  list: (soloActivos?: boolean, cuentaId?: number | null) =>
+    resp.listResponsables(db, soloActivos ?? false, cuentaId),
+  listNombres: (cuentaId?: number | null) => resp.listResponsablesNombres(db, cuentaId),
+  getById: (id: number, cuentaId?: number | null) => resp.getResponsableById(db, id, cuentaId),
+  insert: (data: resp.ResponsableInput, cuentaId?: number | null) =>
+    resp.insertResponsable(db, data, cuentaId),
+  update: (id: number, data: resp.ResponsableInput, cuentaId?: number | null) =>
+    resp.updateResponsable(db, id, data, cuentaId),
+  delete: (id: number, cuentaId?: number | null) => resp.deleteResponsable(db, id, cuentaId),
+  existsActivo: (nombre: string, cuentaId?: number | null) =>
+    resp.responsableExistsActivo(db, nombre, cuentaId),
 };
 
 export const subRubros = {
@@ -994,14 +1010,19 @@ export const subRubroItems = {
 };
 
 export const funcionarios = {
-  list: (opts?: { busqueda?: string; soloActivos?: boolean }) => func.listFuncionarios(db, opts),
-  getById: (id: number) => func.getFuncionarioById(db, id),
-  getByCedula: (cedula: string) => func.getFuncionarioByCedula(db, cedula),
-  insert: (data: func.FuncionarioInput) => func.insertFuncionario(db, data),
-  update: (id: number, data: func.FuncionarioInput) => func.updateFuncionario(db, id, data),
-  delete: (id: number) => func.deleteFuncionario(db, id),
-  selector: () => func.listFuncionariosParaSelector(db),
-  getByNombreDisplay: (nombre: string) => func.getFuncionarioByNombreDisplay(db, nombre),
+  list: (opts?: { busqueda?: string; soloActivos?: boolean }, cuentaId?: number | null) =>
+    func.listFuncionarios(db, opts, cuentaId),
+  getById: (id: number, cuentaId?: number | null) => func.getFuncionarioById(db, id, cuentaId),
+  getByCedula: (cedula: string, cuentaId?: number | null) =>
+    func.getFuncionarioByCedula(db, cedula, cuentaId),
+  insert: (data: func.FuncionarioInput, cuentaId?: number | null) =>
+    func.insertFuncionario(db, data, cuentaId),
+  update: (id: number, data: func.FuncionarioInput, cuentaId?: number | null) =>
+    func.updateFuncionario(db, id, data, cuentaId),
+  delete: (id: number, cuentaId?: number | null) => func.deleteFuncionario(db, id, cuentaId),
+  selector: (cuentaId?: number | null) => func.listFuncionariosParaSelector(db, cuentaId),
+  getByNombreDisplay: (nombre: string, cuentaId?: number | null) =>
+    func.getFuncionarioByNombreDisplay(db, nombre, cuentaId),
   esRubroRemuneracion: func.esRubroRemuneracion,
   normalizeCedula: func.normalizeCedula,
   formatCedula: func.formatCedulaDisplay,
@@ -1068,14 +1089,20 @@ export async function getCatalogos(user?: {
   const { rubros, sub_rubros_por_rubro: porGrupo } =
     await sub.getCatalogoGruposParaGastos(db);
   const porRubroContable = await vinc.getMapSubRubrosPorRubro(db, true);
-  const empresasScope =
+  const scopeUser =
     user && user.id != null
-      ? await empresasCuenta.getEmpresasOperativasPermitidas(db, {
+      ? {
           id: user.id,
           es_super_admin: user.es_super_admin,
           empresa_id: user.empresa_id,
-        })
+        }
       : null;
+  const empresasScope = scopeUser
+    ? await empresasCuenta.getEmpresasOperativasPermitidas(db, scopeUser)
+    : null;
+  const cuentaId = scopeUser
+    ? await empresasCuenta.resolveCuentaMadreIdForUser(db, scopeUser)
+    : null;
   const empresas =
     empresasScope === null
       ? await empresasCuenta.getEmpresaNombresActivos(db)
@@ -1085,8 +1112,8 @@ export async function getCatalogos(user?: {
     rubros,
     sub_rubros: await sub.listSubRubrosNombres(db),
     sub_rubros_por_rubro: { ...porRubroContable, ...porGrupo },
-    responsables: await resp.listResponsablesNombres(db),
-    funcionarios: await func.listFuncionariosParaSelector(db),
+    responsables: await resp.listResponsablesNombres(db, cuentaId),
+    funcionarios: await func.listFuncionariosParaSelector(db, cuentaId),
   };
 }
 

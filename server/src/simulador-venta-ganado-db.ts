@@ -1,4 +1,5 @@
 import type { Db } from "./db/pg-client.js";
+import { migrateAddCuentaIdColumn } from "./empresas-cuenta-db.js";
 import {
   CATEGORIA_GANADO_GORDO_LABELS,
   CATEGORIA_GANADO_REPOSICION_LABELS,
@@ -305,6 +306,21 @@ export async function initSimuladorVentaGanadoTable(db: Db): Promise<void> {
      ON SIMULADOR_VENTA_GANADO(numero_operacion)
      WHERE numero_operacion IS NOT NULL AND numero_operacion != ''`
   ).run();
+
+  await migrateAddCuentaIdColumn(db, "SIMULADOR_VENTA_GANADO");
+}
+
+function scopeCuenta(
+  query: string,
+  params: Record<string, string | number>,
+  cuentaId?: number | null,
+  alias = "s"
+): string {
+  if (cuentaId != null) {
+    query += ` AND ${alias}.cuenta_id = @cuentaId`;
+    params.cuentaId = cuentaId;
+  }
+  return query;
 }
 
 export async function getPreciosReferenciaSimulador(
@@ -404,6 +420,7 @@ export interface SimuladorVentaGanadoListFilters {
   fecha_desde?: string;
   fecha_hasta?: string;
   busqueda?: string;
+  cuentaId?: number | null;
 }
 
 export async function listSimulacionesVentaGanado(
@@ -415,6 +432,8 @@ export async function listSimulacionesVentaGanado(
     LEFT JOIN USERS u ON u.id = s.usuario_id
     WHERE 1=1`;
   const params: Record<string, string | number> = {};
+
+  query = scopeCuenta(query, params, filters.cuentaId);
 
   if (filters.tipo) {
     query += " AND s.tipo = @tipo";
@@ -461,7 +480,8 @@ export async function listSimulacionesVentaGanado(
 
 export async function insertSimulacionVentaGanado(
   db: Db,
-  input: SimuladorVentaGanadoInput
+  input: SimuladorVentaGanadoInput,
+  cuentaId?: number | null
 ): Promise<SimuladorVentaGanadoRow> {
   const segmento = tipoToSegmento(input.tipo);
 
@@ -473,12 +493,12 @@ export async function insertSimulacionVentaGanado(
       tipo, segmento, categoria, modo_kg, precio_usd_kg,
       precio_ref_anio, precio_ref_semana, precio_ref_fecha_hasta,
       cantidad_animales, kg_promedio, kg_total, rendimiento, total_usd, total_usd_por_cabeza,
-      notas, usuario_id, numero_operacion
+      notas, usuario_id, numero_operacion, cuenta_id
     ) VALUES (
       @tipo, @segmento, @categoria, @modo_kg, @precio_usd_kg,
       @precio_ref_anio, @precio_ref_semana, @precio_ref_fecha_hasta,
       @cantidad_animales, @kg_promedio, @kg_total, @rendimiento, @total_usd, @total_usd_por_cabeza,
-      @notas, @usuario_id, @numero_operacion
+      @notas, @usuario_id, @numero_operacion, @cuenta_id
     )`
     ).run({
       tipo: input.tipo,
@@ -498,6 +518,7 @@ export async function insertSimulacionVentaGanado(
       notas: input.notas?.trim() || null,
       usuario_id: input.usuario_id ?? null,
       numero_operacion,
+      cuenta_id: cuentaId ?? null,
     });
 
     const id = Number(result.lastInsertRowid);
@@ -510,21 +531,27 @@ export async function insertSimulacionVentaGanado(
 
 export async function getSimulacionVentaGanadoById(
   db: Db,
-  id: number
+  id: number,
+  cuentaId?: number | null
 ): Promise<SimuladorVentaGanadoRow | null> {
-  const row = (await db
-    .prepare(
-      `${SIM_VENTA_SELECT}
+  let query = `${SIM_VENTA_SELECT}
        FROM SIMULADOR_VENTA_GANADO s
        LEFT JOIN USERS u ON u.id = s.usuario_id
-       WHERE s.id = ?`
-    )
-    .get(id)) as Record<string, unknown> | undefined;
+       WHERE s.id = @id`;
+  const params: Record<string, string | number> = { id };
+  query = scopeCuenta(query, params, cuentaId);
+  const row = (await db.prepare(query).get(params)) as
+    | Record<string, unknown>
+    | undefined;
   return row ? mapRow(row) : null;
 }
 
-export async function deleteSimulacionVentaGanado(db: Db, id: number): Promise<void> {
-  const existing = await getSimulacionVentaGanadoById(db, id);
+export async function deleteSimulacionVentaGanado(
+  db: Db,
+  id: number,
+  cuentaId?: number | null
+): Promise<void> {
+  const existing = await getSimulacionVentaGanadoById(db, id, cuentaId);
   if (!existing) throw new Error("Simulación no encontrada");
   if (existing.real_total_usd != null) {
     throw new Error("No se puede eliminar una operación con venta real registrada");
@@ -539,9 +566,10 @@ export async function deleteSimulacionVentaGanado(db: Db, id: number): Promise<v
 export async function updateSimulacionVentaGanado(
   db: Db,
   id: number,
-  input: SimuladorVentaGanadoInput
+  input: SimuladorVentaGanadoInput,
+  cuentaId?: number | null
 ): Promise<SimuladorVentaGanadoRow> {
-  const existing = await getSimulacionVentaGanadoById(db, id);
+  const existing = await getSimulacionVentaGanadoById(db, id, cuentaId);
   if (!existing) throw new Error("Simulación no encontrada");
 
   const segmento = tipoToSegmento(input.tipo);
@@ -585,9 +613,10 @@ export async function patchSimulacionVentaGanado(
     destacada?: boolean;
     venta_realizada?: boolean;
     valores_reales?: SimuladorVentaRealInput | null;
-  }
+  },
+  cuentaId?: number | null
 ): Promise<SimuladorVentaGanadoRow> {
-  const existing = await getSimulacionVentaGanadoById(db, id);
+  const existing = await getSimulacionVentaGanadoById(db, id, cuentaId);
   if (!existing) throw new Error("Simulación no encontrada");
 
   const destacada = patch.destacada ?? existing.destacada;
@@ -672,9 +701,10 @@ export async function patchSimulacionVentaGanado(
 export async function updateDestinoVentaGanado(
   db: Db,
   id: number,
-  destino: string | null
+  destino: string | null,
+  cuentaId?: number | null
 ): Promise<SimuladorVentaGanadoRow> {
-  const existing = await getSimulacionVentaGanadoById(db, id);
+  const existing = await getSimulacionVentaGanadoById(db, id, cuentaId);
   if (!existing) throw new Error("Venta no encontrada");
   if (existing.real_total_usd == null) {
     throw new Error("Solo se puede asignar destino a ventas cerradas");

@@ -529,6 +529,57 @@ export async function getEmpresaCodigosActivos(db: Db): Promise<string[]> {
   return rows.map((r) => r.codigo);
 }
 
+/** ID de la cuenta madre semilla (VILA DIAZ). Usado para backfill de datos legacy. */
+export async function getSeedCuentaMadreId(db: Db): Promise<number | null> {
+  return await getCuentaIdByCodigo(db, SEED_CUENTA_MADRE.codigo);
+}
+
+/**
+ * cuenta_id a usar al INSERTAR datos de un usuario: su cuenta, o VILA DIAZ como
+ * fallback para el super admin sin cuenta propia.
+ */
+export async function cuentaIdParaInsert(
+  db: Db,
+  user: { id: number; es_super_admin?: boolean; empresa_id?: number | null }
+): Promise<number | null> {
+  const propia = await resolveCuentaMadreIdForUser(db, user);
+  if (propia) return propia;
+  return await getSeedCuentaMadreId(db);
+}
+
+/**
+ * Migración genérica: agrega columna cuenta_id a una tabla, la rellena con
+ * VILA DIAZ para filas existentes y crea el índice. Idempotente.
+ */
+export async function migrateAddCuentaIdColumn(
+  db: Db,
+  tabla: string
+): Promise<void> {
+  try {
+    await db
+      .prepare(
+        `ALTER TABLE ${tabla} ADD COLUMN cuenta_id INTEGER REFERENCES EMPRESAS_CUENTA(id)`
+      )
+      .run();
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (!/already exists|duplicate column/i.test(msg)) throw err;
+    return;
+  }
+  const seedId = await getSeedCuentaMadreId(db);
+  if (seedId) {
+    await db
+      .prepare(`UPDATE ${tabla} SET cuenta_id = ? WHERE cuenta_id IS NULL`)
+      .run(seedId);
+  }
+  await db
+    .prepare(
+      `CREATE INDEX IF NOT EXISTS idx_${tabla.toLowerCase()}_cuenta ON ${tabla}(cuenta_id)`
+    )
+    .run();
+  console.info(`[SGG Empresas] Columna cuenta_id agregada a ${tabla}`);
+}
+
 export async function getEmpresaNombresActivosPorCuenta(
   db: Db,
   cuentaId: number
