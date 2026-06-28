@@ -35,6 +35,7 @@ const SCREEN_MODULO: Record<TabId, Modulo> = {
   stock_movimientos: "usuarios",
   registro_actividad: "usuarios",
   usuarios: "usuarios",
+  panel_admin_sitio: "usuarios",
   chat: "chat",
   documentos_digitales: "documentos_digitales",
 };
@@ -89,6 +90,7 @@ export function moduloForScreen(screen: TabId): Modulo {
 
 export function canAccessScreen(user: AuthUser | null, screen: TabId): boolean {
   if (!user) return false;
+  if (screen === "panel_admin_sitio") return canAccessArquitecturaSistema(user);
   const mod = moduloForScreen(screen);
   if (MODULOS_SOLO_ADMIN.includes(mod)) return user.rol === "admin";
   if (MODULOS_ACCESO_TODOS.includes(mod)) return true;

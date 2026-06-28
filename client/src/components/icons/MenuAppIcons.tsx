@@ -208,6 +208,20 @@ function IconChat({ className }: IconProps) {
   );
 }
 
+function IconPanelAdminSitio({ className }: IconProps) {
+  return (
+    <IconShell className={className}>
+      <path
+        d="M12 3.5 5.5 6.25V11c0 3.65 2.75 7.05 6.5 8 3.75-.95 6.5-4.35 6.5-8V6.25L12 3.5Z"
+        {...stroke}
+      />
+      <rect x="8.5" y="9.25" width="7" height="5.25" rx="1.1" {...stroke} strokeWidth="1.45" />
+      <path d="M10.25 11.75h3.5M10.25 13.5h2.25" {...stroke} strokeWidth="1.35" />
+      <circle cx="12" cy="7.25" r="1.1" fill="currentColor" fillOpacity="0.22" />
+    </IconShell>
+  );
+}
+
 function IconDocumentosDigitales({ className }: IconProps) {
   return (
     <IconShell className={className}>
@@ -242,6 +256,7 @@ const ICONS: Record<TabId, (props: IconProps) => ReactNode> = {
   stock_movimientos: IconStockMovimientos,
   registro_actividad: IconRegistroActividad,
   usuarios: IconUsuarios,
+  panel_admin_sitio: IconPanelAdminSitio,
   chat: IconChat,
   documentos_digitales: IconDocumentosDigitales,
 };
@@ -322,6 +337,11 @@ export const MENU_APP_THEMES: Record<TabId, MenuAppTheme> = {
     accent: "#4f46e5",
     accentSoft: "linear-gradient(145deg, #eef2ff 0%, #e0e7ff 52%, #c7d2fe 100%)",
     accentGlow: "rgba(79, 70, 229, 0.28)",
+  },
+  panel_admin_sitio: {
+    accent: "#b45309",
+    accentSoft: "linear-gradient(145deg, #fff7ed 0%, #ffedd5 45%, #fdba74 100%)",
+    accentGlow: "rgba(180, 83, 9, 0.32)",
   },
   chat: {
     accent: "#0d9488",

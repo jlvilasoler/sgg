@@ -71,6 +71,11 @@ export const MENU_APPS: MenuApp[] = [
     subtitle: "Administración del sistema",
   },
   {
+    id: "panel_admin_sitio",
+    label: "Administración del sitio",
+    subtitle: "Panel del administrador SAG — cuentas madre y empresas",
+  },
+  {
     id: "documentos_digitales",
     label: "Documentos Digitales",
     subtitle: "Archivo y gestión documental",
@@ -96,6 +101,7 @@ const SCREEN_TITLES: Record<TabId, string> = {
   stock_movimientos: "Movimientos de Dispositivos",
   registro_actividad: "Registro de actividad",
   usuarios: "Usuarios",
+  panel_admin_sitio: "Administración del sitio",
   chat: "Chat",
   documentos_digitales: "Documentos Digitales",
 };

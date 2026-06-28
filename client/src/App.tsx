@@ -21,6 +21,7 @@ import LoginScreen from "./components/LoginScreen";
 import ForgotPasswordScreen from "./components/ForgotPasswordScreen";
 import ResetPasswordScreen from "./components/ResetPasswordScreen";
 import UsuariosHub from "./components/UsuariosHub";
+import ArquitecturaSistema from "./components/ArquitecturaSistema";
 import FormGasto from "./components/FormGasto";
 import Listado from "./components/Listado";
 import Resumen from "./components/Resumen";
@@ -558,6 +559,16 @@ export default function App() {
                 onError={(m) => notify(m, false)}
                 onSuccess={(m) => notify(m, true)}
                 onPermissionsChanged={() => void refreshUser()}
+              />
+            )}
+            {screen === "panel_admin_sitio" && user && (
+              <ArquitecturaSistema
+                apiOnline={apiOnline}
+                titulo="Administración del sitio"
+                volverLabel="Volver al inicio"
+                onVolver={goHome}
+                onError={(m) => notify(m, false)}
+                onSuccess={(m) => notify(m, true)}
               />
             )}
             {screen === "documentos_digitales" && user?.rol === "admin" && (

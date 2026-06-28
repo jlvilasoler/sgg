@@ -14,6 +14,7 @@ interface Props {
   apiOnline: boolean;
   onVolver: () => void;
   volverLabel?: string;
+  titulo?: string;
   onError: (msg: string) => void;
   onSuccess: (msg: string) => void;
 }
@@ -22,6 +23,7 @@ export default function ArquitecturaSistema({
   apiOnline,
   onVolver,
   volverLabel = "Volver a Usuarios",
+  titulo = "Arquitectura del sistema",
   onError,
   onSuccess,
 }: Props) {
@@ -184,7 +186,7 @@ export default function ArquitecturaSistema({
       <div className="card usuarios-panel listado-pro-shell">
         <header className="listado-pro-head usuarios-admin-head">
           <div className="listado-pro-head-main">
-            <h2 className="listado-pro-head-title">Arquitectura del sistema</h2>
+            <h2 className="listado-pro-head-title">{titulo}</h2>
             <p className="listado-pro-head-sub">{subtitulo}</p>
           </div>
           <div className="usuarios-head-actions">

@@ -13,4 +13,5 @@ export type TabId =
   | "registro_actividad"
   | "usuarios"
   | "chat"
-  | "documentos_digitales";
+  | "documentos_digitales"
+  | "panel_admin_sitio";
