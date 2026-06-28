@@ -20126,8 +20126,47 @@ button.sg-kpi-card:disabled {
   box-shadow: none;
 }
 
-.stock-mov-auditoria-filters {
+.listado-pro.stock-mov-auditoria .listado-pro-filters.stock-mov-auditoria-filters {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
   align-items: flex-end;
+  justify-content: space-between;
+  width: 100%;
+  gap: 0.75rem 1rem;
+}
+
+.stock-mov-auditoria-filters-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  width: min(50%, 28rem);
+  max-width: 100%;
+  flex: 0 1 auto;
+}
+
+.stock-mov-auditoria-filters-fields .field {
+  min-width: 0;
+}
+
+.stock-mov-auditoria-filters-fields .field select {
+  width: 100%;
+}
+
+.stock-mov-auditoria-filters-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
+.stock-mov-auditoria-filters-actions .listado-pro-reset-btn,
+.stock-mov-auditoria-filters-actions .listado-pro-search-btn {
+  width: auto;
+  flex: 0 0 auto;
+  min-width: 5.5rem;
 }
 
 .stock-mov-auditoria-kpis {
@@ -20490,6 +20529,16 @@ button.sg-kpi-card:disabled {
 @media (max-width: 520px) {
   .stock-mov-auditoria-kpi-grid {
     grid-template-columns: 1fr;
+  }
+
+  .stock-mov-auditoria-filters-fields {
+    grid-template-columns: 1fr;
+    width: 100%;
+  }
+
+  .stock-mov-auditoria-filters-actions {
+    width: 100%;
+    justify-content: flex-end;
   }
 }
 

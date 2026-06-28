@@ -2568,16 +2568,20 @@ export async function fetchStockMovimientosAuditoria(filters?: {
   user_id?: number;
   tipo?: StockMovimientoTipo;
   limite?: number;
-}): Promise<StockMovimientoAuditoria[]> {
+}): Promise<{
+  data: StockMovimientoAuditoria[];
+  usuarios: Array<{ id: number; nombre: string; email: string }>;
+}> {
   const params = new URLSearchParams();
   if (filters?.user_id) params.set("user_id", String(filters.user_id));
   if (filters?.tipo) params.set("tipo", filters.tipo);
   if (filters?.limite) params.set("limite", String(filters.limite));
   const q = params.toString();
-  const json = await request<{ data: StockMovimientoAuditoria[] }>(
-    `/auth/stock-movimientos${q ? `?${q}` : ""}`
-  );
-  return json.data;
+  const json = await request<{
+    data: StockMovimientoAuditoria[];
+    usuarios?: Array<{ id: number; nombre: string; email: string }>;
+  }>(`/auth/stock-movimientos${q ? `?${q}` : ""}`);
+  return { data: json.data, usuarios: json.usuarios ?? [] };
 }
 
 export type ActividadAmbito = "total" | "cuenta";

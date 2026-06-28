@@ -948,11 +948,26 @@ export function registerAuthRoutes(app: Express): void {
   app.get("/api/auth/stock-movimientos", async (req, res) => {
     if (!requireAdmin(req, res)) return;
     try {
+      const actor = req.user!;
+      const db = getDb();
+      const cuentaId = await empresasCuenta.resolveCuentaMadreIdForUser(db, actor);
+      const allowedUserIds = cuentaId
+        ? await authDb.listUserIdsForCuentaMadre(db, cuentaId)
+        : [actor.id];
+
       const userIdRaw = req.query.user_id;
       const user_id =
         userIdRaw !== undefined && userIdRaw !== ""
           ? Number(userIdRaw)
           : undefined;
+      if (
+        user_id !== undefined &&
+        Number.isFinite(user_id) &&
+        !allowedUserIds.includes(user_id)
+      ) {
+        res.status(403).json({ ok: false, error: "Usuario fuera de su cuenta" });
+        return;
+      }
       const tipoRaw = String(req.query.tipo ?? "").toUpperCase();
       const tipo =
         tipoRaw === "ALTA" || tipoRaw === "BAJA" || tipoRaw === "MODIFICACION"
@@ -961,10 +976,30 @@ export function registerAuthRoutes(app: Express): void {
       const limite = req.query.limite ? Number(req.query.limite) : undefined;
       const data = await stockAuditoria.list({
         user_id: Number.isFinite(user_id) ? user_id : undefined,
+        user_ids_in: allowedUserIds,
         tipo,
         limite: Number.isFinite(limite) ? limite : undefined,
       });
-      res.json({ ok: true, data });
+
+      let usuarios: Array<{ id: number; nombre: string; email: string }> = [];
+      if (cuentaId) {
+        const cuenta = await empresasCuenta.getEmpresaCuentaById(db, cuentaId);
+        const users = await authDb.listUsers(db, {
+          empresa_id: cuentaId,
+          incluir_admin_id: cuenta?.admin_user_id ?? null,
+        });
+        usuarios = users.map((u) => ({
+          id: u.id,
+          nombre: u.nombre,
+          email: u.email,
+        }));
+      } else {
+        usuarios = [
+          { id: actor.id, nombre: actor.nombre, email: actor.email },
+        ];
+      }
+
+      res.json({ ok: true, data, usuarios });
     } catch (e) {
       res.status(400).json({
         ok: false,

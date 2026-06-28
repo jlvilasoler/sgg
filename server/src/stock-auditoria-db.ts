@@ -47,6 +47,8 @@ export interface StockMovimientoAuditoria {
 
 export interface StockMovimientoAuditoriaFilters {
   user_id?: number;
+  /** Limitar a usuarios de la misma cuenta (ids permitidos). */
+  user_ids_in?: number[];
   tipo?: StockMovimientoTipo;
   limite?: number;
   offset?: number;
@@ -229,6 +231,19 @@ export async function listStockMovimientosAuditoria(
              FROM STOCK_GANADERO_AUDITORIA_MOVIMIENTO WHERE 1=1`;
   const params: Record<string, unknown> = { limite, offset };
 
+  if (filters?.user_ids_in) {
+    if (filters.user_ids_in.length === 0) {
+      sql += ` AND 1=0`;
+    } else {
+      const placeholders = filters.user_ids_in
+        .map((_, i) => `@scope_uid_${i}`)
+        .join(", ");
+      sql += ` AND user_id IN (${placeholders})`;
+      filters.user_ids_in.forEach((id, i) => {
+        params[`scope_uid_${i}`] = id;
+      });
+    }
+  }
   if (filters?.user_id && Number.isFinite(filters.user_id)) {
     sql += ` AND user_id = @user_id`;
     params.user_id = filters.user_id;

@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { fetchStockMovimientosAuditoria, fetchUsuarios } from "../../api";
+import { fetchStockMovimientosAuditoria } from "../../api";
 import type {
-  AuthUser,
   StockMovimientoAuditoria,
   StockMovimientoBajaDispositivo,
   StockMovimientoTipo,
@@ -151,37 +150,31 @@ export default function StockMovimientosAuditoria({
   onVolver,
   volverLabel = "Volver al menú",
 }: Props) {
-  const [usuarios, setUsuarios] = useState<AuthUser[]>([]);
+  const [usuarios, setUsuarios] = useState<
+    Array<{ id: number; nombre: string; email: string }>
+  >([]);
   const [rows, setRows] = useState<StockMovimientoAuditoria[]>([]);
   const [loading, setLoading] = useState(true);
   const [filtroTipo, setFiltroTipo] = useState<"" | StockMovimientoTipo>("");
   const [filtroUserId, setFiltroUserId] = useState("");
 
-  useEffect(() => {
-    if (!apiOnline) {
-      setUsuarios([]);
-      return;
-    }
-    void fetchUsuarios()
-      .then(setUsuarios)
-      .catch(() => setUsuarios([]));
-  }, [apiOnline]);
-
   const load = useCallback(async () => {
     if (!apiOnline) {
       setRows([]);
+      setUsuarios([]);
       setLoading(false);
       return;
     }
     setLoading(true);
     try {
       const user_id = filtroUserId ? Number(filtroUserId) : undefined;
-      const data = await fetchStockMovimientosAuditoria({
+      const { data, usuarios: usuariosCuenta } = await fetchStockMovimientosAuditoria({
         tipo: filtroTipo || undefined,
         user_id: Number.isFinite(user_id) ? user_id : undefined,
         limite: 100,
       });
       setRows(data);
+      setUsuarios(usuariosCuenta);
     } catch (e) {
       onError(e instanceof Error ? e.message : "Error al cargar movimientos");
     } finally {
@@ -236,52 +229,56 @@ export default function StockMovimientosAuditoria({
         </header>
 
         <div className="filters listado-pro-filters stock-mov-auditoria-filters">
-          <div className="field">
-            <label htmlFor="sm-filtro-tipo">Tipo</label>
-            <select
-              id="sm-filtro-tipo"
-              value={filtroTipo}
-              disabled={!apiOnline || loading}
-              onChange={(e) => setFiltroTipo(e.target.value as "" | StockMovimientoTipo)}
-            >
-              <option value="">Todos</option>
-              <option value="ALTA">Altas</option>
-              <option value="BAJA">Bajas</option>
-              <option value="MODIFICACION">Modificaciones</option>
-            </select>
+          <div className="stock-mov-auditoria-filters-fields">
+            <div className="field">
+              <label htmlFor="sm-filtro-tipo">Tipo</label>
+              <select
+                id="sm-filtro-tipo"
+                value={filtroTipo}
+                disabled={!apiOnline || loading}
+                onChange={(e) => setFiltroTipo(e.target.value as "" | StockMovimientoTipo)}
+              >
+                <option value="">Todos</option>
+                <option value="ALTA">Altas</option>
+                <option value="BAJA">Bajas</option>
+                <option value="MODIFICACION">Modificaciones</option>
+              </select>
+            </div>
+            <div className="field">
+              <label htmlFor="sm-filtro-usuario">Usuario</label>
+              <select
+                id="sm-filtro-usuario"
+                value={filtroUserId}
+                disabled={!apiOnline || loading}
+                onChange={(e) => setFiltroUserId(e.target.value)}
+              >
+                <option value="">Todos</option>
+                {usuarios.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.nombre}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
-          <div className="field">
-            <label htmlFor="sm-filtro-usuario">Usuario</label>
-            <select
-              id="sm-filtro-usuario"
-              value={filtroUserId}
-              disabled={!apiOnline || loading}
-              onChange={(e) => setFiltroUserId(e.target.value)}
+          <div className="stock-mov-auditoria-filters-actions">
+            <button
+              type="button"
+              className="btn listado-pro-reset-btn"
+              disabled={!apiOnline || loading || (!filtroTipo && !filtroUserId)}
+              onClick={resetFiltros}
             >
-              <option value="">Todos</option>
-              {usuarios.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.nombre}
-                </option>
-              ))}
-            </select>
+              Limpiar
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary listado-pro-search-btn"
+              disabled={!apiOnline || loading}
+              onClick={() => void load()}
+            >
+              Actualizar
+            </button>
           </div>
-          <button
-            type="button"
-            className="btn listado-pro-reset-btn"
-            disabled={!apiOnline || loading || (!filtroTipo && !filtroUserId)}
-            onClick={resetFiltros}
-          >
-            Limpiar
-          </button>
-          <button
-            type="button"
-            className="btn btn-primary listado-pro-search-btn"
-            disabled={!apiOnline || loading}
-            onClick={() => void load()}
-          >
-            Actualizar
-          </button>
         </div>
 
         <section
