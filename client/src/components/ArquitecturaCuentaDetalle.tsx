@@ -28,9 +28,13 @@ import {
 
 export type CuentaDetallePanel = "none" | "user" | "operativa";
 
+export type CuentaDetalleModo = "plataforma" | "cuentaPropia";
+
 interface Props {
   cuenta: EmpresaCuenta;
   apiOnline: boolean;
+  modo?: CuentaDetalleModo;
+  volverLabel?: string;
   onVolver: () => void;
   onCuentaUpdated: (cuenta: EmpresaCuenta) => void;
   onError: (msg: string) => void;
@@ -43,12 +47,17 @@ const ROLES_EMPRESA: Rol[] = ALL_ROLES;
 export default function ArquitecturaCuentaDetalle({
   cuenta,
   apiOnline,
+  modo = "plataforma",
+  volverLabel,
   onVolver,
   onCuentaUpdated,
   onError,
   onSuccess,
   initialPanel = "none",
 }: Props) {
+  const esCuentaPropia = modo === "cuentaPropia";
+  const backLabel =
+    volverLabel ?? (esCuentaPropia ? "Volver a Configuración" : "Volver a cuentas madre");
   const [cuentaActual, setCuentaActual] = useState(cuenta);
   const [usuarios, setUsuarios] = useState<AuthUser[]>([]);
   const [loadingUsuarios, setLoadingUsuarios] = useState(true);
@@ -71,6 +80,16 @@ export default function ArquitecturaCuentaDetalle({
   const [showUsuariosSection, setShowUsuariosSection] = useState(
     initialPanel === "user"
   );
+
+  const [cuentaForm, setCuentaForm] = useState({
+    nombre: cuenta.nombre,
+    codigo: cuenta.codigo,
+  });
+  const [savingCuenta, setSavingCuenta] = useState(false);
+
+  useEffect(() => {
+    setCuentaForm({ nombre: cuenta.nombre, codigo: cuenta.codigo });
+  }, [cuenta.nombre, cuenta.codigo]);
 
   useEffect(() => {
     if (initialPanel === "operativa") setShowEmpresasSection(true);
@@ -223,10 +242,31 @@ export default function ArquitecturaCuentaDetalle({
     }
   };
 
+  const handleGuardarCuenta = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!cuentaForm.nombre.trim() || !cuentaForm.codigo.trim()) {
+      onError("Completá nombre y código de la cuenta");
+      return;
+    }
+    setSavingCuenta(true);
+    try {
+      const updated = await actualizarEmpresaCuenta(cuentaActual.id, {
+        nombre: cuentaForm.nombre.trim(),
+        codigo: cuentaForm.codigo.trim().toUpperCase(),
+      });
+      syncCuenta(updated);
+      onSuccess("Datos de la cuenta actualizados");
+    } catch (err) {
+      onError(err instanceof Error ? err.message : "Error al actualizar cuenta");
+    } finally {
+      setSavingCuenta(false);
+    }
+  };
+
   return (
     <div className="subseccion-panel arquitectura-sistema arquitectura-cuenta-detalle">
       <button type="button" className="subseccion-back" onClick={onVolver}>
-        ‹ Volver a cuentas madre
+        ‹ {backLabel}
       </button>
 
       <div className="card">
@@ -272,13 +312,15 @@ export default function ArquitecturaCuentaDetalle({
             </div>
           </div>
           <div className="arquitectura-cuenta-detalle-actions">
-            <button
-              type="button"
-              className="btn btn-ghost btn-sm"
-              onClick={() => void handleToggleActiva()}
-            >
-              {cuentaActual.activo ? "Desactivar" : "Activar"}
-            </button>
+            {!esCuentaPropia && (
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={() => void handleToggleActiva()}
+              >
+                {cuentaActual.activo ? "Desactivar" : "Activar"}
+              </button>
+            )}
             <button
               type="button"
               className="btn btn-secondary btn-sm"
@@ -308,6 +350,46 @@ export default function ArquitecturaCuentaDetalle({
         </header>
 
         <div className="arquitectura-cuenta-detalle-body">
+          {esCuentaPropia && (
+            <section className="usuarios-form-card">
+              <h3>Datos de la cuenta</h3>
+              <form className="usuarios-form-grid" onSubmit={(e) => void handleGuardarCuenta(e)}>
+                <div className="field">
+                  <label htmlFor="cuenta-nombre">Nombre de la cuenta</label>
+                  <input
+                    id="cuenta-nombre"
+                    type="text"
+                    value={cuentaForm.nombre}
+                    onChange={(e) =>
+                      setCuentaForm((f) => ({ ...f, nombre: e.target.value }))
+                    }
+                    required
+                  />
+                </div>
+                <div className="field">
+                  <label htmlFor="cuenta-codigo">Código corto</label>
+                  <input
+                    id="cuenta-codigo"
+                    type="text"
+                    value={cuentaForm.codigo}
+                    onChange={(e) =>
+                      setCuentaForm((f) => ({
+                        ...f,
+                        codigo: e.target.value.toUpperCase(),
+                      }))
+                    }
+                    required
+                  />
+                </div>
+                <div className="usuarios-form-actions">
+                  <button type="submit" className="btn btn-primary" disabled={savingCuenta}>
+                    {savingCuenta ? "Guardando…" : "Guardar cambios"}
+                  </button>
+                </div>
+              </form>
+            </section>
+          )}
+
           <section className="arquitectura-sistema-usuarios arquitectura-sistema-admin-box">
             <h3>Administrador de la cuenta</h3>
             <p className="muted">

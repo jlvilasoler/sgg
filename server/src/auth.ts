@@ -278,6 +278,23 @@ function requireSuperAdmin(req: Request, res: Response): boolean {
   return true;
 }
 
+async function cuentaIdDelActor(req: Request): Promise<number | null> {
+  if (!req.user) return null;
+  return empresasCuenta.resolveCuentaMadreIdForUser(getDb(), req.user);
+}
+
+async function assertAccesoCuentaPropia(
+  req: Request,
+  res: Response,
+  cuentaId: number
+): Promise<boolean> {
+  if (req.user?.es_super_admin) return true;
+  const propia = await cuentaIdDelActor(req);
+  if (propia === cuentaId) return true;
+  res.status(403).json({ ok: false, error: "Sin permiso sobre esta cuenta" });
+  return false;
+}
+
 function assertUserInScope(
   actor: UserPublic,
   target: UserPublic,
@@ -968,6 +985,29 @@ export function registerAuthRoutes(app: Express): void {
     }
   });
 
+  app.get("/api/empresas-cuenta/mi-cuenta", async (req, res) => {
+    if (!requireAdmin(req, res)) return;
+    const actor = req.user!;
+    if (actor.es_super_admin) {
+      res.status(403).json({
+        ok: false,
+        error: "Use el panel de Administración del sitio",
+      });
+      return;
+    }
+    const cuentaId = await empresasCuenta.resolveCuentaMadreIdForUser(getDb(), actor);
+    if (!cuentaId) {
+      res.status(404).json({ ok: false, error: "No tiene una cuenta asignada" });
+      return;
+    }
+    const cuenta = await empresasCuenta.getEmpresaCuentaById(getDb(), cuentaId);
+    if (!cuenta) {
+      res.status(404).json({ ok: false, error: "Cuenta no encontrada" });
+      return;
+    }
+    res.json({ ok: true, data: cuenta });
+  });
+
   app.get("/api/empresas-cuenta", async (req, res) => {
     if (!requireSuperAdmin(req, res)) return;
     res.json({ ok: true, data: await empresasCuenta.listEmpresasCuenta(getDb()) });
@@ -996,18 +1036,30 @@ export function registerAuthRoutes(app: Express): void {
   });
 
   app.patch("/api/empresas-cuenta/:id", async (req, res) => {
-    if (!requireSuperAdmin(req, res)) return;
+    if (!requireAdmin(req, res)) return;
     try {
       const id = Number(req.params.id);
       if (!Number.isFinite(id)) {
         res.status(400).json({ ok: false, error: "ID inválido" });
         return;
       }
+      const actor = req.user!;
+      if (!actor.es_super_admin && !(await assertAccesoCuentaPropia(req, res, id))) return;
+
       const body = req.body ?? {};
       const patch: Partial<empresasCuenta.EmpresaCuentaInput> = {};
       if (body.nombre !== undefined) patch.nombre = String(body.nombre);
       if (body.codigo !== undefined) patch.codigo = String(body.codigo);
-      if (body.activo !== undefined) patch.activo = Boolean(body.activo);
+      if (body.activo !== undefined) {
+        if (!actor.es_super_admin) {
+          res.status(403).json({
+            ok: false,
+            error: "Solo el administrador del sistema puede cambiar el estado de la cuenta",
+          });
+          return;
+        }
+        patch.activo = Boolean(body.activo);
+      }
       const empresa = await empresasCuenta.updateEmpresaCuenta(getDb(), id, patch);
       res.json({ ok: true, data: empresa });
     } catch (e) {
@@ -1019,11 +1071,14 @@ export function registerAuthRoutes(app: Express): void {
   });
 
   app.patch("/api/empresas-cuenta/:id/admin", async (req, res) => {
-    if (!requireSuperAdmin(req, res)) return;
+    if (!requireAdmin(req, res)) return;
     try {
       const cuentaId = Number(req.params.id);
       if (!Number.isFinite(cuentaId)) {
         res.status(400).json({ ok: false, error: "ID inválido" });
+        return;
+      }
+      if (!req.user!.es_super_admin && !(await assertAccesoCuentaPropia(req, res, cuentaId))) {
         return;
       }
       const body = req.body ?? {};
@@ -1054,11 +1109,14 @@ export function registerAuthRoutes(app: Express): void {
   });
 
   app.post("/api/empresas-cuenta/:id/empresas", async (req, res) => {
-    if (!requireSuperAdmin(req, res)) return;
+    if (!requireAdmin(req, res)) return;
     try {
       const cuentaId = Number(req.params.id);
       if (!Number.isFinite(cuentaId)) {
         res.status(400).json({ ok: false, error: "ID inválido" });
+        return;
+      }
+      if (!req.user!.es_super_admin && !(await assertAccesoCuentaPropia(req, res, cuentaId))) {
         return;
       }
       const body = req.body ?? {};
@@ -1077,11 +1135,14 @@ export function registerAuthRoutes(app: Express): void {
   });
 
   app.post("/api/empresas-cuenta/:id/usuarios", async (req, res) => {
-    if (!requireSuperAdmin(req, res)) return;
+    if (!requireAdmin(req, res)) return;
     try {
       const empresaId = Number(req.params.id);
       if (!Number.isFinite(empresaId)) {
         res.status(400).json({ ok: false, error: "ID inválido" });
+        return;
+      }
+      if (!req.user!.es_super_admin && !(await assertAccesoCuentaPropia(req, res, empresaId))) {
         return;
       }
       const empresa = await empresasCuenta.getEmpresaCuentaById(getDb(), empresaId);

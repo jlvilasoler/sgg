@@ -63,6 +63,12 @@ export function canAccessArquitecturaSistema(user: AuthUser | null): boolean {
   return user.es_super_admin ?? user.empresa_id == null;
 }
 
+/** Panel en Configuración: administrador de su propia cuenta (no super-admin). */
+export function canAccessAdministradorCuentas(user: AuthUser | null): boolean {
+  if (!user || user.rol !== "admin" || user.es_super_admin) return false;
+  return user.empresa_id != null;
+}
+
 /** Permisos globales por rol: solo el super-administrador de plataforma (SCG_ADMIN_EMAIL). */
 export function canAccessPermisosPorRol(user: AuthUser | null): boolean {
   return Boolean(user?.es_super_admin);

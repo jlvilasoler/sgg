@@ -2484,6 +2484,11 @@ export async function fetchEmpresasCuenta(): Promise<EmpresaCuenta[]> {
   return json.data;
 }
 
+export async function fetchMiCuentaEmpresa(): Promise<EmpresaCuenta> {
+  const json = await request<{ data: EmpresaCuenta }>("/empresas-cuenta/mi-cuenta");
+  return json.data;
+}
+
 export async function crearEmpresaCuenta(
   data: EmpresaCuentaForm
 ): Promise<EmpresaCuenta> {

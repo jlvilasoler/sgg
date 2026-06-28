@@ -2,11 +2,13 @@ import { useState } from "react";
 import { HubMenuCard } from "./HubMenuCard";
 import { useHeaderBackStep } from "../header-back";
 import type { AuthUser } from "../types";
+import { canAccessAdministradorCuentas } from "../utils/auth-permissions";
 import Proveedores from "./Proveedores";
 import ClasificacionProveedores from "./proveedores/ClasificacionProveedores";
 import Responsables from "./Responsables";
 import Rubros from "./Rubros";
 import StockGanaderoAdmin from "./stock/StockGanaderoAdmin";
+import AdministradorCuenta from "./AdministradorCuenta";
 import type { HubIconId } from "./icons/HubMenuIcons";
 import { HUB_ICON_THEMES, HubMenuIcon } from "./icons/HubMenuIcons";
 
@@ -16,7 +18,8 @@ type ModuloConfig =
   | "proveedores"
   | "clasificacion_proveedores"
   | "rubros"
-  | "stock_ganadero";
+  | "stock_ganadero"
+  | "admin_cuenta";
 
 interface Props {
   apiOnline: boolean;
@@ -135,6 +138,30 @@ export default function Configuracion({
     );
   }
 
+  if (modulo === "admin_cuenta") {
+    return (
+      <AdministradorCuenta
+        apiOnline={apiOnline}
+        onError={onError}
+        onSuccess={onSuccess}
+        onVolver={() => setModulo("menu")}
+      />
+    );
+  }
+
+  const adminCuentaItem = canAccessAdministradorCuentas(currentUser ?? null)
+    ? [
+        {
+          id: "admin_cuenta" as const,
+          label: "Administrador de Cuentas",
+          subtitle: "Datos de su cuenta, empresas y usuarios",
+          icon: "config_admin_cuenta" as HubIconId,
+        },
+      ]
+    : [];
+
+  const itemsMenu = [...MODULOS, ...adminCuentaItem];
+
   return (
     <div className="subseccion-panel configuracion-hub">
       <button type="button" className="subseccion-back" onClick={onVolver}>
@@ -150,14 +177,14 @@ export default function Configuracion({
           </p>
         </div>
         <nav className="app-grid" aria-label="Configuración">
-          {MODULOS.map((item) => (
+          {itemsMenu.map((item) => (
             <HubMenuCard
               key={item.id}
               label={item.label}
               subtitle={item.subtitle}
               theme={HUB_ICON_THEMES[item.icon]}
               icon={<HubMenuIcon id={item.icon} />}
-              onClick={() => setModulo(item.id)}
+              onClick={() => setModulo(item.id as ModuloConfig)}
             />
           ))}
         </nav>

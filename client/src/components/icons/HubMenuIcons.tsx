@@ -29,6 +29,7 @@ export type HubIconId =
   | "config_proveedores"
   | "config_clasificacion_proveedores"
   | "config_rubros"
+  | "config_admin_cuenta"
   | "prov_ingresar"
   | "prov_listado"
   | "resp_ingresar"
@@ -266,11 +267,23 @@ function IconArquitecturaSistema({ className }: IconProps) {
   );
 }
 
+function IconAdminCuenta({ className }: IconProps) {
+  return (
+    <IconShell className={className}>
+      <path d="M5 20V8.5l7-4.5 7 4.5V20" {...stroke} />
+      <path d="M9 20v-5h6v5" {...stroke} />
+      <circle cx="12" cy="11" r="2.25" {...stroke} />
+      <path d="M12 8.75V6.5" {...stroke} strokeWidth="1.5" />
+    </IconShell>
+  );
+}
+
 const ICONS: Record<HubIconId, (props: IconProps) => ReactNode> = {
   config_responsables: IconUserBadge,
   config_proveedores: IconBuilding,
   config_clasificacion_proveedores: IconLayers,
   config_rubros: IconTag,
+  config_admin_cuenta: IconAdminCuenta,
   prov_ingresar: IconAddCircle,
   prov_listado: IconCatalog,
   resp_ingresar: IconAddCircle,
@@ -325,6 +338,11 @@ export const HUB_ICON_THEMES: Record<HubIconId, MenuAppTheme> = {
     accent: "#d97706",
     accentSoft: "linear-gradient(145deg, #fffbeb 0%, #fef3c7 52%, #fde68a 100%)",
     accentGlow: "rgba(217, 119, 6, 0.28)",
+  },
+  config_admin_cuenta: {
+    accent: "#b45309",
+    accentSoft: "linear-gradient(145deg, #fff7ed 0%, #ffedd5 45%, #fdba74 100%)",
+    accentGlow: "rgba(180, 83, 9, 0.32)",
   },
   prov_ingresar: {
     accent: "#059669",
