@@ -302,12 +302,6 @@ export default function App() {
     notify("Sesión cerrada", true);
   };
 
-  const refreshUser = useCallback(async () => {
-    if (!apiOnline) return;
-    const me = await fetchCurrentUser();
-    if (me) setUser(me);
-  }, [apiOnline]);
-
   const onSaved = () => {
     setEditRow(null);
     setListKey((k) => k + 1);
