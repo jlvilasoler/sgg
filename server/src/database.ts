@@ -13,7 +13,12 @@ import type {
   EstadoFinancieroUsd,
   EstadoFinancieroMes,
   EstadoFinancieroPayload,
+  EstadoResultadosPayload,
+  GastosProveedoresReportPayload,
+  GastosProveedorTotalesLinea,
+  GastosProveedorDetalleLinea,
 } from "./types.js";
+import { buildEstadoResultados as buildEstadoResultadosCore } from "./estado-resultados.js";
 import * as prov from "./proveedores-db.js";
 import * as div from "./divisas-db.js";
 import * as pgan from "./precios-ganado-db.js";
@@ -171,16 +176,21 @@ export async function initDb(): Promise<void> {
     await empresasCuenta.backfillCuentaMadreUsuarios(db);
     await empresasCuenta.syncCuentaAdminsEmpresaId(db);
     await docDig.initDocumentosDigitalesTables(db);
-    await chat.initChatTables(db);
-    await stock.initStockGanaderoTables(db);
-    await stockAud.initStockAuditoriaTable(db);
-    await pgan.initPreciosGanadoTable(db);
-    await simVenta.initSimuladorVentaGanadoTable(db);
-    await simVentaAud.initSimuladorVentaAuditoriaTable(db);
-    await simVentaDisp.initSimuladorVentaDispositivosTable(db);
-    await ventasAgri.initVentasAgriculturaTable(db);
-    await ventasArr.initVentasArrendamientosTable(db);
+    await Promise.all([
+      chat.initChatTables(db),
+      stock.initStockGanaderoTables(db),
+      stockAud.initStockAuditoriaTable(db),
+      pgan.initPreciosGanadoTable(db),
+    ]);
+    await Promise.all([
+      simVenta.initSimuladorVentaGanadoTable(db),
+      simVentaAud.initSimuladorVentaAuditoriaTable(db),
+      simVentaDisp.initSimuladorVentaDispositivosTable(db),
+      ventasAgri.initVentasAgriculturaTable(db),
+      ventasArr.initVentasArrendamientosTable(db),
+    ]);
     await migratePresupuestoIngresadoPor(db);
+    await prov.initProveedoresTable(db);
     await presDoc.initPresupuestoDocumentosTable(db);
   } finally {
     if (locked) await releaseAdvisoryLock();
@@ -473,6 +483,16 @@ export const proveedores = {
     prov.insertProveedor(db, data, cuentaId),
   update: (id: number, data: prov.ProveedorInput, cuentaId?: number | null) =>
     prov.updateProveedor(db, id, data, cuentaId),
+  updateRubroClasificacion: (
+    id: number,
+    data: prov.ProveedorRubroClasificacionInput,
+    cuentaId?: number | null
+  ) => prov.updateProveedorRubroClasificacion(db, id, data, cuentaId),
+  updateClasificacionResultado: (
+    id: number,
+    clasificacion: prov.Proveedor["clasificacion_resultado"],
+    cuentaId?: number | null
+  ) => prov.updateProveedorClasificacionResultado(db, id, clasificacion, cuentaId),
   delete: (id: number, cuentaId?: number | null) => prov.deleteProveedor(db, id, cuentaId),
 };
 
@@ -723,6 +743,12 @@ function estadoFinancieroDesde(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
 }
 
+/** Inicio del mismo rango, un año antes (para variación interanual). */
+function estadoFinancieroDesdeAnioAnterior(): string {
+  const d = inicioEjercicioContable();
+  return `${d.getFullYear() - 1}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
+}
+
 const MESES_CORTOS = [
   "ene",
   "feb",
@@ -858,7 +884,7 @@ export async function resumenPorSubRubroMensual(
     FROM PRESUPUESTO
     WHERE fecha >= @fecha_inicio
   `;
-  const params: Record<string, string> = { fecha_inicio: estadoFinancieroDesde() };
+  const params: Record<string, string> = { fecha_inicio: estadoFinancieroDesdeAnioAnterior() };
   if (empresa) {
     query += " AND empresa = @empresa";
     params.empresa = empresa;
@@ -873,6 +899,12 @@ export async function resumenPorSubRubroMensual(
   return (await db.prepare(query).all(params)) as ResumenSubRubroMes[];
 }
 
+function claveMesAnioAnterior(clave: string): string {
+  const [y, m] = clave.split("-");
+  if (!y || !m) return clave;
+  return `${Number(y) - 1}-${m}`;
+}
+
 function porMesDesdeMovimientos(
   meses: EstadoFinancieroMes[],
   rubro: string,
@@ -883,6 +915,8 @@ function porMesDesdeMovimientos(
   const por_mes: Record<string, number> = {};
   for (const mes of meses) {
     por_mes[mes.clave] = movMes.get(`${base}|${mes.clave}`) ?? 0;
+    const claveAa = claveMesAnioAnterior(mes.clave);
+    por_mes[claveAa] = movMes.get(`${base}|${claveAa}`) ?? 0;
   }
   return por_mes;
 }
@@ -898,7 +932,7 @@ export async function buildEstadoFinanciero(
 
   const movMes = new Map<string, number>();
   for (const m of movMensual) {
-    if (!m.mes || m.mes < claveMesDesdeFecha(estadoFinancieroDesde())) continue;
+    if (!m.mes) continue;
     const clave = `${claveRubroSub(m.rubro, m.sub_rubro)}|${m.mes}`;
     movMes.set(clave, (movMes.get(clave) ?? 0) + m.total_saldo_usd);
   }
@@ -958,6 +992,166 @@ export async function buildEstadoFinanciero(
   }
 
   return { meses, rubros };
+}
+
+function totalesVacio(): ResumenTotales {
+  return {
+    cantidad: 0,
+    total_pesos: 0,
+    total_usd: 0,
+    total_reales: 0,
+    total_saldo_usd: 0,
+  };
+}
+
+export async function buildGastosProveedoresReport(
+  codigos: number[],
+  empresa?: string,
+  fecha_desde?: string,
+  fecha_hasta?: string
+): Promise<GastosProveedoresReportPayload> {
+  const codigosUnicos = [...new Set(codigos.filter((c) => Number.isFinite(c) && c > 0))];
+  if (codigosUnicos.length === 0) {
+    return { totales: [], detalle: [], consolidado: totalesVacio() };
+  }
+
+  const codStr = codigosUnicos.map(String);
+  const placeholders = codStr.map((_, i) => `@cod${i}`).join(", ");
+  const params: Record<string, string> = {};
+  codStr.forEach((c, i) => {
+    params[`cod${i}`] = c;
+  });
+
+  let where = ` WHERE trim(codigo_proveedor) IN (${placeholders})`;
+  if (fecha_desde?.trim()) {
+    where += " AND fecha >= @fecha_desde";
+    params.fecha_desde = fecha_desde.trim();
+  }
+  if (fecha_hasta?.trim()) {
+    where += " AND fecha <= @fecha_hasta";
+    params.fecha_hasta = fecha_hasta.trim();
+  }
+  if (empresa) {
+    where += " AND empresa = @empresa";
+    params.empresa = empresa;
+  }
+
+  const totalesRows = (await db
+    .prepare(
+      `
+    SELECT
+      trim(codigo_proveedor) AS codigo_proveedor,
+      MAX(razon_social_proveedor) AS razon_social_proveedor,
+      COUNT(*) AS cantidad,
+      COALESCE(SUM(pesos), 0) AS total_pesos,
+      COALESCE(SUM(dolares_usd), 0) AS total_usd,
+      COALESCE(SUM(reales), 0) AS total_reales,
+      COALESCE(SUM(saldo_usd), 0) AS total_saldo_usd
+    FROM PRESUPUESTO
+    ${where}
+    GROUP BY trim(codigo_proveedor)
+    ORDER BY total_saldo_usd DESC, codigo_proveedor ASC
+  `
+    )
+    .all(params)) as GastosProveedorTotalesLinea[];
+
+  const detalle = (await db
+    .prepare(
+      `
+    SELECT
+      id,
+      trim(codigo_proveedor) AS codigo_proveedor,
+      fecha,
+      empresa,
+      rubro,
+      COALESCE(NULLIF(trim(sub_rubro), ''), '') AS sub_rubro,
+      concepto,
+      nro_factura,
+      COALESCE(pesos, 0) AS pesos,
+      COALESCE(dolares_usd, 0) AS dolares_usd,
+      COALESCE(reales, 0) AS reales,
+      COALESCE(saldo_usd, 0) AS saldo_usd
+    FROM PRESUPUESTO
+    ${where}
+    ORDER BY trim(codigo_proveedor) ASC, fecha DESC, id DESC
+  `
+    )
+    .all(params)) as GastosProveedorDetalleLinea[];
+
+  const catalogoProveedores = await prov.listProveedores(db);
+  const nombreCatalogo = new Map(
+    catalogoProveedores.map((p) => [String(p.cod), p.razon_social])
+  );
+
+  const totalesMap = new Map(
+    totalesRows.map((row) => [String(row.codigo_proveedor), row])
+  );
+
+  const totales: GastosProveedorTotalesLinea[] = codigosUnicos.map((codNum) => {
+    const cod = String(codNum);
+    const row = totalesMap.get(cod);
+    if (row) {
+      return {
+        ...row,
+        codigo_proveedor: cod,
+        razon_social_proveedor:
+          nombreCatalogo.get(cod) ??
+          String(row.razon_social_proveedor ?? "").trim() ??
+          `Proveedor ${cod}`,
+        cantidad: Number(row.cantidad ?? 0),
+        total_pesos: Number(row.total_pesos ?? 0),
+        total_usd: Number(row.total_usd ?? 0),
+        total_reales: Number(row.total_reales ?? 0),
+        total_saldo_usd: Number(row.total_saldo_usd ?? 0),
+      };
+    }
+    return {
+      codigo_proveedor: cod,
+      razon_social_proveedor: nombreCatalogo.get(cod) ?? `Proveedor ${cod}`,
+      ...totalesVacio(),
+    };
+  });
+
+  totales.sort(
+    (a, b) =>
+      b.total_saldo_usd - a.total_saldo_usd ||
+      a.razon_social_proveedor.localeCompare(b.razon_social_proveedor, "es", {
+        sensitivity: "accent",
+      })
+  );
+
+  const consolidado = totales.reduce((acc, row) => sumarTotales(acc, row), totalesVacio());
+
+  return {
+    totales,
+    detalle: detalle.map((row) => ({
+      ...row,
+      id: Number(row.id),
+      codigo_proveedor: String(row.codigo_proveedor ?? "").trim(),
+      fecha: String(row.fecha ?? ""),
+      empresa: String(row.empresa ?? ""),
+      rubro: String(row.rubro ?? ""),
+      sub_rubro: String(row.sub_rubro ?? ""),
+      concepto: String(row.concepto ?? ""),
+      nro_factura: String(row.nro_factura ?? ""),
+      pesos: Number(row.pesos ?? 0),
+      dolares_usd: Number(row.dolares_usd ?? 0),
+      reales: Number(row.reales ?? 0),
+      saldo_usd: Number(row.saldo_usd ?? 0),
+    })),
+    consolidado,
+  };
+}
+
+export async function buildEstadoResultados(
+  opts: {
+    fecha_desde?: string;
+    fecha_hasta?: string;
+    empresa?: string;
+    cuentaId?: number | null;
+  }
+): Promise<EstadoResultadosPayload> {
+  return buildEstadoResultadosCore(db, opts);
 }
 
 export const rubros = {

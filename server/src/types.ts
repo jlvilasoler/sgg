@@ -121,6 +121,67 @@ export interface EstadoFinancieroPayload {
   rubros: EstadoFinancieroRubro[];
 }
 
+export interface GastosProveedorTotalesLinea extends ResumenTotales {
+  codigo_proveedor: string;
+  razon_social_proveedor: string;
+}
+
+export interface GastosProveedorDetalleLinea {
+  id: number;
+  codigo_proveedor: string;
+  fecha: string;
+  empresa: string;
+  rubro: string;
+  sub_rubro: string;
+  concepto: string;
+  nro_factura: string;
+  pesos: number;
+  dolares_usd: number;
+  reales: number;
+  saldo_usd: number;
+}
+
+export interface GastosProveedoresReportPayload {
+  totales: GastosProveedorTotalesLinea[];
+  detalle: GastosProveedorDetalleLinea[];
+  consolidado: ResumenTotales;
+}
+
+export interface EstadoResultadosSubRubroLinea {
+  sub_rubro: string;
+  total: number;
+}
+
+export interface EstadoResultadosRubroLinea {
+  rubro: string;
+  total: number;
+  sub_rubros: EstadoResultadosSubRubroLinea[];
+}
+
+export interface EstadoResultadosClasificacionDetalle {
+  total: number;
+  rubros: EstadoResultadosRubroLinea[];
+}
+
+export interface EstadoResultadosVentasDetalle {
+  ganado: number;
+  agricultura: number;
+  arrendamientos: number;
+}
+
+export interface EstadoResultadosPayload {
+  ventas: number;
+  ventas_detalle: EstadoResultadosVentasDetalle;
+  costos_produccion: number;
+  gastos_administrativos: number;
+  gastos_comerciales: number;
+  utilidad: number;
+  detalle: Record<
+    "COSTOS_PRODUCCION" | "GASTOS_ADMINISTRATIVOS" | "GASTOS_COMERCIALES",
+    EstadoResultadosClasificacionDetalle
+  >;
+}
+
 export interface ResumenSubRubro extends ResumenTotales {
   rubro: string;
   sub_rubro: string;

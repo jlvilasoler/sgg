@@ -8,6 +8,7 @@ import {
   logoutAuth,
   enviarPresencia,
   registrarPantallaActividad,
+  retryDbInit,
 } from "./api";
 import { DEFAULT_CATALOGOS } from "./constants";
 import type { AuthUser, Catalogos, Presupuesto } from "./types";
@@ -125,7 +126,7 @@ export default function App() {
         health.error ||
         "El servidor está iniciando la base de datos. En producción puede tardar hasta un minuto en el primer acceso.";
       setBootError(detail);
-      if (Date.now() - startedAt >= DB_BOOT_TIMEOUT_MS) {
+      if (health.detail || Date.now() - startedAt >= DB_BOOT_TIMEOUT_MS) {
         setBootBlocked(true);
       }
     } else if (!health.online) {
@@ -145,7 +146,11 @@ export default function App() {
     setBootError("");
     setBooting(true);
     setAuthChecked(false);
-    void connectApi();
+    void retryDbInit()
+      .catch(() => undefined)
+      .finally(() => {
+        void connectApi();
+      });
   }, [connectApi]);
 
   useEffect(() => {

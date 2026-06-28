@@ -3,6 +3,7 @@ import { HubMenuCard } from "./HubMenuCard";
 import { useHeaderBackStep } from "../header-back";
 import type { AuthUser } from "../types";
 import Proveedores from "./Proveedores";
+import ClasificacionProveedores from "./proveedores/ClasificacionProveedores";
 import Responsables from "./Responsables";
 import Rubros from "./Rubros";
 import StockGanaderoAdmin from "./stock/StockGanaderoAdmin";
@@ -13,6 +14,7 @@ type ModuloConfig =
   | "menu"
   | "responsables"
   | "proveedores"
+  | "clasificacion_proveedores"
   | "rubros"
   | "stock_ganadero";
 
@@ -26,7 +28,7 @@ interface Props {
 }
 
 const MODULOS: {
-  id: "responsables" | "proveedores" | "rubros" | "stock_ganadero";
+  id: "responsables" | "proveedores" | "clasificacion_proveedores" | "rubros" | "stock_ganadero";
   label: string;
   subtitle: string;
   icon: HubIconId;
@@ -42,6 +44,12 @@ const MODULOS: {
     label: "Proveedores",
     subtitle: "Catálogo de proveedores",
     icon: "config_proveedores",
+  },
+  {
+    id: "clasificacion_proveedores",
+    label: "Clasificación proveedores",
+    subtitle: "Costos de producción, gastos admin. y comerciales",
+    icon: "config_clasificacion_proveedores",
   },
   {
     id: "rubros",
@@ -91,6 +99,17 @@ export default function Configuracion({
     );
   }
 
+  if (modulo === "clasificacion_proveedores") {
+    return (
+      <ClasificacionProveedores
+        apiOnline={apiOnline}
+        onError={onError}
+        onSuccess={onSuccess}
+        onVolver={() => setModulo("menu")}
+      />
+    );
+  }
+
   if (modulo === "rubros") {
     return (
       <Rubros
@@ -130,7 +149,7 @@ export default function Configuracion({
             <strong>rubros</strong>.
           </p>
         </div>
-        <nav className="app-grid app-grid-3" aria-label="Configuración">
+        <nav className="app-grid" aria-label="Configuración">
           {MODULOS.map((item) => (
             <HubMenuCard
               key={item.id}

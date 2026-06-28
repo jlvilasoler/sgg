@@ -1,10 +1,11 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
-import { fetchResumen } from "../api";
+import { fetchEstadoResultados, fetchResumen } from "../api";
 import type {
   Catalogos,
   EstadoFinancieroMes,
   EstadoFinancieroRubro,
   EstadoFinancieroUsd,
+  EstadoResultados,
   ResumenEmpresa,
   ResumenEmpresaRubro,
   ResumenRubro,
@@ -31,6 +32,102 @@ function pct(parte: number, total: number): string {
 function celdaUsd(valor: number): string {
   return valor ? fmtNum(valor) : "—";
 }
+
+type VariacionMes = number | null | "nuevo";
+
+function claveMesAnioAnterior(clave: string): string {
+  const [y, m] = clave.split("-");
+  if (!y || !m) return clave;
+  return `${Number(y) - 1}-${m}`;
+}
+
+function variacionVsMismoMesAnioAnterior(
+  por_mes: Record<string, number>,
+  claveActual: string
+): VariacionMes {
+  const claveAa = claveMesAnioAnterior(claveActual);
+  const anterior = por_mes[claveAa] ?? 0;
+  const actual = por_mes[claveActual] ?? 0;
+  if (actual === 0 && anterior === 0) return null;
+  if (anterior === 0 && actual > 0) return "nuevo";
+  if (anterior === 0) return null;
+  return ((actual - anterior) / anterior) * 100;
+}
+
+function celdaVariacionMes(por_mes: Record<string, number>, clave: string): string {
+  const v = variacionVsMismoMesAnioAnterior(por_mes, clave);
+  if (v === null) return "—";
+  if (v === "nuevo") return "nuevo";
+  if (Math.abs(v) < 0.05) return "0,0%";
+  const sign = v > 0 ? "+" : "";
+  return `${sign}${v.toFixed(1).replace(".", ",")}%`;
+}
+
+function claseVariacionMes(por_mes: Record<string, number>, clave: string): string {
+  const v = variacionVsMismoMesAnioAnterior(por_mes, clave);
+  if (typeof v !== "number" || Math.abs(v) < 0.05) return "";
+  return v > 0 ? " balance-var--sube" : " balance-var--baja";
+}
+
+function encabezadoVariacionAnioAnterior(mes: EstadoFinancieroMes): {
+  mes: string;
+  anioAnterior: string;
+} {
+  const [y] = mes.clave.split("-");
+  const anio = y ? String(Number(y) - 1) : "";
+  return { mes: mes.label, anioAnterior: anio };
+}
+
+function fmtEstadoResultadoUsd(valor: number, esGasto = false): string {
+  if (!valor) return "—";
+  const fmt = fmtNum(Math.abs(valor), 0);
+  return esGasto ? `(${fmt})` : fmt;
+}
+
+type ErSeccionKey =
+  | "ventas"
+  | "costos_produccion"
+  | "gastos_administrativos"
+  | "gastos_comerciales";
+
+type ErDetalleClasificacionKey =
+  | "COSTOS_PRODUCCION"
+  | "GASTOS_ADMINISTRATIVOS"
+  | "GASTOS_COMERCIALES";
+
+const ESTADO_RESULTADOS_LINEAS: {
+  key: ErSeccionKey;
+  label: string;
+  esGasto: boolean;
+  detalleKey?: ErDetalleClasificacionKey;
+}[] = [
+  { key: "ventas", label: "Ventas", esGasto: false },
+  {
+    key: "costos_produccion",
+    label: "Costos de producción",
+    esGasto: true,
+    detalleKey: "COSTOS_PRODUCCION",
+  },
+  {
+    key: "gastos_administrativos",
+    label: "Gastos administrativos",
+    esGasto: true,
+    detalleKey: "GASTOS_ADMINISTRATIVOS",
+  },
+  {
+    key: "gastos_comerciales",
+    label: "Gastos comerciales",
+    esGasto: true,
+    detalleKey: "GASTOS_COMERCIALES",
+  },
+];
+
+const VENTAS_DETALLE_LINEAS: { key: keyof EstadoResultados["ventas_detalle"]; label: string }[] =
+  [
+    { key: "ganado", label: "Venta ganado" },
+    { key: "agricultura", label: "Venta agricultura" },
+    { key: "arrendamientos", label: "Arrendamientos" },
+  ];
 
 function lineaSinMovimiento(linea: EstadoFinancieroUsd): boolean {
   return linea.total_saldo_usd === 0;
@@ -63,8 +160,11 @@ export default function Resumen({ catalogos, apiOnline, onError }: Props) {
   const [estadoFinancieroMeses, setEstadoFinancieroMeses] = useState<EstadoFinancieroMes[]>(
     []
   );
+  const [estadoResultados, setEstadoResultados] = useState<EstadoResultados | null>(null);
   const [rubrosAbiertos, setRubrosAbiertos] = useState<Set<string>>(new Set());
   const [empresasAbiertas, setEmpresasAbiertas] = useState<Set<string>>(new Set());
+  const [erSeccionesAbiertas, setErSeccionesAbiertas] = useState<Set<ErSeccionKey>>(new Set());
+  const [erRubrosAbiertos, setErRubrosAbiertos] = useState<Set<string>>(new Set());
 
   const load = useCallback(async () => {
     if (!apiOnline) {
@@ -73,19 +173,25 @@ export default function Resumen({ catalogos, apiOnline, onError }: Props) {
       setPorRubro([]);
       setEstadoFinanciero([]);
       setEstadoFinancieroMeses([]);
+      setEstadoResultados(null);
       return;
     }
     try {
-      const data = await fetchResumen({
+      const filtros = {
         fecha_desde: fechaDesde || undefined,
         fecha_hasta: fechaHasta || undefined,
         empresa: empresa || undefined,
-      });
+      };
+      const [data, resultados] = await Promise.all([
+        fetchResumen(filtros),
+        fetchEstadoResultados(filtros),
+      ]);
       setPorEmpresa(data.por_empresa);
       setPorEmpresaRubro(data.por_empresa_rubro ?? []);
       setPorRubro(data.por_rubro);
       setEstadoFinanciero(data.estado_financiero ?? []);
       setEstadoFinancieroMeses(data.estado_financiero_meses ?? []);
+      setEstadoResultados(resultados);
     } catch (e) {
       onError(e instanceof Error ? e.message : "Error al cargar resumen");
     }
@@ -99,6 +205,11 @@ export default function Resumen({ catalogos, apiOnline, onError }: Props) {
     setRubrosAbiertos(new Set());
     setEmpresasAbiertas(new Set());
   }, [estadoFinanciero, fechaDesde, fechaHasta, empresa]);
+
+  useEffect(() => {
+    setErSeccionesAbiertas(new Set());
+    setErRubrosAbiertos(new Set());
+  }, [estadoResultados, fechaDesde, fechaHasta, empresa]);
 
   const resetFiltros = () => {
     const v = ejercicioVigente();
@@ -160,6 +271,27 @@ export default function Resumen({ catalogos, apiOnline, onError }: Props) {
     });
   };
 
+  const toggleErSeccion = (key: ErSeccionKey) => {
+    setErSeccionesAbiertas((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  const toggleErRubro = (seccionKey: ErSeccionKey, rubro: string) => {
+    const id = `${seccionKey}|${rubro}`;
+    setErRubrosAbiertos((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const erRubroId = (seccionKey: ErSeccionKey, rubro: string) => `${seccionKey}|${rubro}`;
+
   const rubrosPorEmpresa = useMemo(() => {
     const map = new Map<string, ResumenEmpresaRubro[]>();
     for (const row of porEmpresaRubro) {
@@ -204,6 +336,21 @@ export default function Resumen({ catalogos, apiOnline, onError }: Props) {
     return `Ejercicio 01/07/${inicioY} – 30/06/${inicioY + 1}`;
   }, [estadoFinancieroMeses]);
 
+  const periodoFiltroLabel = useMemo(() => {
+    if (modalidadFecha === "ejercicio" && ejercicio) {
+      const opt = EJERCICIOS_OPCIONES.find((e) => String(e.anioInicio) === ejercicio);
+      if (opt) return opt.label;
+    }
+    if (fechaDesde && fechaHasta) {
+      const fmt = (iso: string) => {
+        const [y, m, d] = iso.slice(0, 10).split("-");
+        return y && m && d ? `${d}/${m}/${y}` : iso;
+      };
+      return `${fmt(fechaDesde)} – ${fmt(fechaHasta)}`;
+    }
+    return periodoEstadoLabel;
+  }, [modalidadFecha, ejercicio, fechaDesde, fechaHasta, periodoEstadoLabel]);
+
   const emitidoLabel = useMemo(
     () =>
       new Date().toLocaleString("es-UY", {
@@ -224,7 +371,7 @@ export default function Resumen({ catalogos, apiOnline, onError }: Props) {
     <div className="resumen-page">
       <div className="card resumen-filters-card">
         <header className="resumen-head">
-          <h2 className="resumen-head-title">Resumen de gastos</h2>
+          <h2 className="resumen-head-title">Reporte de Control de Gestión</h2>
           <p className="resumen-head-sub">
             Totales acumulados por empresa y rubro según el período filtrado
           </p>
@@ -436,6 +583,170 @@ export default function Resumen({ catalogos, apiOnline, onError }: Props) {
           </dl>
         </header>
 
+        <div className="balance-doc-section balance-doc-section--resultados">
+          <h3 className="balance-doc-section-title">Estado de Resultados</h3>
+          <p className="balance-doc-section-desc">
+            {entidadLabel} · {periodoFiltroLabel}
+          </p>
+          <div className="estado-resultados-wrap">
+            <table className="estado-resultados-table estado-resultados-table--jerarquia">
+              <thead>
+                <tr>
+                  <th>Concepto</th>
+                  <th className="num">USD</th>
+                </tr>
+              </thead>
+              <tbody>
+                {estadoResultados ? (
+                  <>
+                    {ESTADO_RESULTADOS_LINEAS.map(({ key, label, esGasto, detalleKey }) => {
+                      const seccionAbierta = erSeccionesAbiertas.has(key);
+                      const ventasDetalle =
+                        key === "ventas" ? estadoResultados.ventas_detalle : null;
+                      const rubrosGasto =
+                        detalleKey != null
+                          ? (estadoResultados.detalle?.[detalleKey]?.rubros ?? [])
+                          : [];
+                      const tieneHijos =
+                        key === "ventas"
+                          ? VENTAS_DETALLE_LINEAS.some(
+                              ({ key: vk }) => (ventasDetalle?.[vk] ?? 0) > 0
+                            )
+                          : rubrosGasto.length > 0;
+
+                      return (
+                        <Fragment key={key}>
+                          <tr
+                            className={`balance-rubro-row${
+                              seccionAbierta ? " is-open" : ""
+                            }${tieneHijos ? " balance-rubro-row--toggle" : ""}`}
+                          >
+                            <td className="balance-col-rubro">
+                              {tieneHijos ? (
+                                <button
+                                  type="button"
+                                  className="balance-rubro-toggle"
+                                  onClick={() => toggleErSeccion(key)}
+                                  aria-expanded={seccionAbierta}
+                                >
+                                  <span
+                                    className={`balance-rubro-chevron${
+                                      seccionAbierta ? " is-open" : ""
+                                    }`}
+                                    aria-hidden
+                                  />
+                                  <span>{label}</span>
+                                </button>
+                              ) : (
+                                label
+                              )}
+                            </td>
+                            <td className="num">
+                              {fmtEstadoResultadoUsd(estadoResultados[key], esGasto)}
+                            </td>
+                          </tr>
+                          {seccionAbierta && key === "ventas" && ventasDetalle
+                            ? VENTAS_DETALLE_LINEAS.filter(
+                                ({ key: vk }) => (ventasDetalle[vk] ?? 0) > 0
+                              ).map(({ key: vk, label: subLabel }) => (
+                                <tr key={vk} className="balance-sub-row">
+                                  <td className="balance-col-sub">{subLabel}</td>
+                                  <td className="num">
+                                    {fmtEstadoResultadoUsd(ventasDetalle[vk], false)}
+                                  </td>
+                                </tr>
+                              ))
+                            : null}
+                          {seccionAbierta && detalleKey
+                            ? rubrosGasto.map((rubroLinea) => {
+                                const rubroId = erRubroId(key, rubroLinea.rubro);
+                                const rubroAbierto = erRubrosAbiertos.has(rubroId);
+                                const tieneSubs = rubroLinea.sub_rubros.length > 0;
+                                return (
+                                  <Fragment key={rubroId}>
+                                    <tr
+                                      className={`balance-rubro-row balance-rubro-row--nested${
+                                        rubroAbierto ? " is-open" : ""
+                                      }${tieneSubs ? " balance-rubro-row--toggle" : ""}`}
+                                    >
+                                      <td className="balance-col-rubro balance-col-rubro--nested">
+                                        {tieneSubs ? (
+                                          <button
+                                            type="button"
+                                            className="balance-rubro-toggle"
+                                            onClick={() =>
+                                              toggleErRubro(key, rubroLinea.rubro)
+                                            }
+                                            aria-expanded={rubroAbierto}
+                                          >
+                                            <span
+                                              className={`balance-rubro-chevron${
+                                                rubroAbierto ? " is-open" : ""
+                                              }`}
+                                              aria-hidden
+                                            />
+                                            <span>{rubroLinea.rubro}</span>
+                                          </button>
+                                        ) : (
+                                          rubroLinea.rubro
+                                        )}
+                                      </td>
+                                      <td className="num">
+                                        {fmtEstadoResultadoUsd(rubroLinea.total, esGasto)}
+                                      </td>
+                                    </tr>
+                                    {rubroAbierto
+                                      ? rubroLinea.sub_rubros.map((sub) => (
+                                          <tr
+                                            key={`${rubroId}-${sub.sub_rubro}`}
+                                            className="balance-sub-row"
+                                          >
+                                            <td className="balance-col-sub">{sub.sub_rubro}</td>
+                                            <td className="num">
+                                              {fmtEstadoResultadoUsd(sub.total, esGasto)}
+                                            </td>
+                                          </tr>
+                                        ))
+                                      : null}
+                                  </Fragment>
+                                );
+                              })
+                            : null}
+                        </Fragment>
+                      );
+                    })}
+                    <tr className="estado-resultados-utilidad">
+                      <td>
+                        <strong>Utilidad</strong>
+                      </td>
+                      <td className="num">
+                        <strong>
+                          {fmtEstadoResultadoUsd(
+                            estadoResultados.utilidad,
+                            estadoResultados.utilidad < 0
+                          )}
+                        </strong>
+                      </td>
+                    </tr>
+                  </>
+                ) : (
+                  <tr>
+                    <td colSpan={2} className="empty">
+                      Sin datos
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+          <p className="estado-resultados-nota">
+            Gastos: totales USD del Presupuesto (misma base que «Rubros y sub-rubros del
+            catálogo»), clasificados por estado de resultados del proveedor, rubro del
+            proveedor o rubro del gasto. Ventas: ventas cerradas de Ingresos por ventas
+            (ganado, agricultura y arrendamientos).
+          </p>
+        </div>
+
         {!hayEstado ? (
           <p className="balance-doc-empty">
             No hay rubros configurados en Configuración → Rubros.
@@ -566,6 +877,148 @@ export default function Resumen({ catalogos, apiOnline, onError }: Props) {
                       <td className="num balance-num-total balance-num-grand balance-col-total">
                         {fmtNum(totEstado.saldo)}
                       </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+
+            <div className="balance-doc-section">
+              <h3 className="balance-doc-section-title">
+                Variación interanual por rubro
+                {empresa ? (
+                  <span className="balance-doc-section-note"> · {empresa}</span>
+                ) : null}
+              </h3>
+              <div className="balance-doc-section-toolbar">
+                <p className="balance-doc-section-desc">
+                  Solo porcentajes: cada mes del ejercicio comparado con el mismo mes del
+                  año anterior (misma base USD que la tabla de arriba). Positivo = más
+                  gasto; negativo = menos gasto. «nuevo» = gasto en el mes sin movimiento
+                  en ese mes del año anterior.
+                </p>
+                <div className="balance-doc-section-actions">
+                  <button
+                    type="button"
+                    className="btn btn-sm balance-doc-toolbar-btn"
+                    onClick={abrirTodosRubros}
+                  >
+                    Expandir todos
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-sm balance-doc-toolbar-btn"
+                    onClick={cerrarTodosRubros}
+                  >
+                    Contraer todos
+                  </button>
+                </div>
+              </div>
+              <div className="table-wrap balance-doc-table-scroll">
+                <table className="balance-doc-table balance-doc-table--jerarquia balance-doc-table--mensual balance-doc-table--variacion">
+                  <thead>
+                    <tr>
+                      <th className="balance-col-cuenta balance-col-sticky">
+                        Rubro / Sub-rubro
+                      </th>
+                      {estadoFinancieroMeses.map((mes) => {
+                        const enc = encabezadoVariacionAnioAnterior(mes);
+                        return (
+                          <th key={mes.clave} className="num balance-col-mes balance-col-mes--variacion">
+                            <span className="balance-col-mes-head">
+                              <span className="balance-col-mes-line">{enc.mes}</span>
+                              <span className="balance-col-mes-line balance-col-mes-line--sub">
+                                vs {enc.anioAnterior}
+                              </span>
+                            </span>
+                          </th>
+                        );
+                      })}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {estadoFinanciero.map((rubro) => {
+                      const abierto = rubrosAbiertos.has(rubro.rubro);
+                      const tieneSubs = rubro.sub_rubros.length > 0;
+                      return (
+                        <Fragment key={`var-${rubro.rubro}`}>
+                          <tr
+                            className={`balance-rubro-row${
+                              abierto ? " is-open" : ""
+                            }${tieneSubs ? " balance-rubro-row--toggle" : ""}`}
+                          >
+                            <td className="balance-col-cuenta balance-col-rubro balance-col-sticky">
+                              {tieneSubs ? (
+                                <button
+                                  type="button"
+                                  className="balance-rubro-toggle"
+                                  onClick={() => toggleRubro(rubro.rubro)}
+                                  aria-expanded={abierto}
+                                >
+                                  <span
+                                    className={`balance-rubro-chevron${
+                                      abierto ? " is-open" : ""
+                                    }`}
+                                    aria-hidden
+                                  />
+                                  <span>{rubro.rubro}</span>
+                                </button>
+                              ) : (
+                                rubro.rubro
+                              )}
+                            </td>
+                            {estadoFinancieroMeses.map((mes) => (
+                              <td
+                                key={mes.clave}
+                                className={`num balance-num-total${claseVariacionMes(
+                                  rubro.totales.por_mes,
+                                  mes.clave
+                                )}`}
+                              >
+                                {celdaVariacionMes(rubro.totales.por_mes, mes.clave)}
+                              </td>
+                            ))}
+                          </tr>
+                          {abierto
+                            ? rubro.sub_rubros.map((sub) => (
+                                <tr
+                                  key={`var-${rubro.rubro}-${sub.sub_rubro}`}
+                                  className={`balance-sub-row${
+                                    lineaSinMovimiento(sub) ? " balance-sub-row--vacio" : ""
+                                  }`}
+                                >
+                                  <td className="balance-col-cuenta balance-col-sub balance-col-sticky">
+                                    {sub.sub_rubro}
+                                  </td>
+                                  {estadoFinancieroMeses.map((mes) => (
+                                    <td
+                                      key={mes.clave}
+                                      className={`num${claseVariacionMes(sub.por_mes, mes.clave)}`}
+                                    >
+                                      {celdaVariacionMes(sub.por_mes, mes.clave)}
+                                    </td>
+                                  ))}
+                                </tr>
+                              ))
+                            : null}
+                        </Fragment>
+                      );
+                    })}
+                  </tbody>
+                  <tfoot>
+                    <tr className="balance-doc-total">
+                      <td className="balance-col-cuenta balance-col-sticky">TOTAL GASTOS</td>
+                      {estadoFinancieroMeses.map((mes) => (
+                        <td
+                          key={mes.clave}
+                          className={`num balance-num-total${claseVariacionMes(
+                            totEstado.por_mes,
+                            mes.clave
+                          )}`}
+                        >
+                          {celdaVariacionMes(totEstado.por_mes, mes.clave)}
+                        </td>
+                      ))}
                     </tr>
                   </tfoot>
                 </table>

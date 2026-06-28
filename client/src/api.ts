@@ -8,6 +8,8 @@ import type {
   PresupuestoForm,
   Proveedor,
   ProveedorForm,
+  ProveedorRubroClasificacionInput,
+  ClasificacionResultado,
   Rubro,
   RubroForm,
   SubRubro,
@@ -24,6 +26,8 @@ import type {
   ResumenEmpresaRubro,
   EstadoFinancieroRubro,
   EstadoFinancieroMes,
+  EstadoResultados,
+  GastosProveedoresReport,
   TipoCambio,
   TipoCambioForm,
   VentaAgriculturaRow,
@@ -156,6 +160,34 @@ export async function checkApiHealth(timeoutMs = 8000): Promise<ApiHealthStatus>
       return { online: true, ready: false, error: json.error, detail: json.detail };
     }
     return { online: true, ready: true };
+  } catch {
+    return { online: false, ready: false };
+  }
+}
+
+export async function retryDbInit(timeoutMs = 120_000): Promise<ApiHealthStatus> {
+  try {
+    const res = await fetch(`${API}/health/retry-init`, {
+      ...FETCH_INIT,
+      method: "POST",
+      cache: "no-store",
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+    const json = (await res.json()) as {
+      ok?: boolean;
+      ready?: boolean;
+      error?: string;
+      detail?: string;
+    };
+    if (json.ok === true && json.ready === true) {
+      return { online: true, ready: true };
+    }
+    return {
+      online: true,
+      ready: false,
+      error: json.error,
+      detail: json.detail,
+    };
   } catch {
     return { online: false, ready: false };
   }
@@ -1155,6 +1187,34 @@ export async function updateProveedor(
   return json.data;
 }
 
+export async function updateProveedorRubroClasificacion(
+  id: number,
+  data: ProveedorRubroClasificacionInput
+): Promise<Proveedor> {
+  const json = await request<{ data: Proveedor; message: string }>(
+    `/proveedores/id/${id}/clasificacion`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }
+  );
+  return json.data;
+}
+
+export async function updateProveedorClasificacionResultado(
+  id: number,
+  clasificacion_resultado: ClasificacionResultado | null
+): Promise<Proveedor> {
+  const json = await request<{ data: Proveedor; message: string }>(
+    `/proveedores/id/${id}/clasificacion`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ clasificacion_resultado }),
+    }
+  );
+  return json.data;
+}
+
 export async function deleteProveedor(id: number): Promise<void> {
   await request(`/proveedores/id/${id}`, { method: "DELETE" });
 }
@@ -1969,6 +2029,43 @@ export async function fetchResumen(filters: {
   });
   const q = params.toString() ? `?${params}` : "";
   return request(`/resumen${q}`);
+}
+
+export async function fetchGastosProveedores(filters: {
+  proveedores: number[];
+  fecha_desde?: string;
+  fecha_hasta?: string;
+  empresa?: string;
+}): Promise<GastosProveedoresReport> {
+  const params = new URLSearchParams();
+  if (filters.proveedores.length > 0) {
+    params.set("proveedores", filters.proveedores.join(","));
+  }
+  Object.entries(filters).forEach(([k, v]) => {
+    if (k === "proveedores") return;
+    if (v) params.set(k, String(v));
+  });
+  const q = params.toString() ? `?${params}` : "";
+  const json = await request<{ ok: boolean; data: GastosProveedoresReport }>(
+    `/resumen/gastos-proveedores${q}`
+  );
+  return json.data;
+}
+
+export async function fetchEstadoResultados(filters: {
+  fecha_desde?: string;
+  fecha_hasta?: string;
+  empresa?: string;
+}): Promise<EstadoResultados> {
+  const params = new URLSearchParams();
+  Object.entries(filters).forEach(([k, v]) => {
+    if (v) params.set(k, v);
+  });
+  const q = params.toString() ? `?${params}` : "";
+  const json = await request<{ ok: boolean; data: EstadoResultados }>(
+    `/resumen/estado-resultados${q}`
+  );
+  return json.data;
 }
 
 export async function fetchFuncionarios(opts?: {

@@ -27,8 +27,8 @@ export const MENU_APPS: MenuApp[] = [
   },
   {
     id: "resumen",
-    label: "Resumen",
-    subtitle: "Totales por empresa y rubro",
+    label: "Reporte de Control de Gestión",
+    subtitle: "Presupuestos por Empresa y Rubro",
   },
   {
     id: "configuracion",

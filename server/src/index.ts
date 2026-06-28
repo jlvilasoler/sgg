@@ -105,17 +105,81 @@ const CLIENT_DIST = path.join(__dirname, "../../client/dist");
 const VITE_DEV_URL = process.env.SCG_VITE_URL || "http://127.0.0.1:5173";
 
 let lastDbInitError: string | null = null;
-
-const dbReady = db.initDb();
 let dbInitOk = false;
-void dbReady
-  .then(() => {
-    dbInitOk = true;
-  })
-  .catch((err) => {
-    lastDbInitError = err instanceof Error ? err.message : String(err);
-    console.error("[SGG] Error al inicializar la base de datos:", err);
-  });
+let dbInitPromise: Promise<void> | null = null;
+
+const DB_INIT_TRANSIENT = /ECONNRESET|ECONNREFUSED|ETIMEDOUT|Connection terminated|socket hang up|Client has encountered a connection error/i;
+
+async function runDbInitAttempt(): Promise<void> {
+  await db.initDb();
+}
+
+async function runDbInitWithRetry(maxAttempts = 5): Promise<void> {
+  let lastErr: unknown;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      await runDbInitAttempt();
+      return;
+    } catch (err) {
+      lastErr = err;
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(
+        `[SGG] Error al inicializar la base de datos (intento ${attempt}/${maxAttempts}):`,
+        err
+      );
+      if (attempt < maxAttempts && DB_INIT_TRANSIENT.test(msg)) {
+        try {
+          await closePool();
+        } catch {
+          /* ignore */
+        }
+        await new Promise((r) => setTimeout(r, 1500 * attempt));
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw lastErr;
+}
+
+function beginDbInit(): Promise<void> {
+  if (!dbInitPromise) {
+    dbInitPromise = runDbInitWithRetry()
+      .then(() => {
+        dbInitOk = true;
+        lastDbInitError = null;
+        console.info("[SGG] Base de datos lista");
+      })
+      .catch((err) => {
+        dbInitOk = false;
+        lastDbInitError = err instanceof Error ? err.message : String(err);
+        throw err;
+      });
+  }
+  return dbInitPromise;
+}
+
+async function retryDbInitFromScratch(): Promise<boolean> {
+  dbInitPromise = null;
+  dbInitOk = false;
+  lastDbInitError = null;
+  try {
+    await closePool();
+  } catch {
+    /* ignore */
+  }
+  try {
+    await beginDbInit();
+    return dbInitOk;
+  } catch {
+    return false;
+  }
+}
+
+const dbReady = beginDbInit();
+void dbReady.catch(() => {
+  /* lastDbInitError ya registrado */
+});
 
 const app = express();
 if (process.env.SCG_TRUST_PROXY === "1" || IS_VERCEL) {
@@ -129,14 +193,24 @@ app.use(cookieParser());
 app.use(express.json({ limit: "512kb" }));
 
 app.get("/api/health", async (_req, res) => {
-  if (!dbInitOk && !lastDbInitError) {
+  if (dbInitOk) {
+    res.json({
+      ok: true,
+      service: "scg-api",
+      database: "postgres",
+      ready: true,
+    });
+    return;
+  }
+
+  if (!lastDbInitError) {
     try {
       await Promise.race([
-        dbReady,
+        beginDbInit(),
         new Promise<void>((resolve) => setTimeout(resolve, 500)),
       ]);
     } catch {
-      /* dbReady rechazado; se reporta abajo */
+      /* init rechazado; se reporta abajo */
     }
   }
 
@@ -159,13 +233,31 @@ app.get("/api/health", async (_req, res) => {
   });
 });
 
+app.post("/api/health/retry-init", async (_req, res) => {
+  if (dbInitOk) {
+    res.json({ ok: true, ready: true });
+    return;
+  }
+  const ok = await retryDbInitFromScratch();
+  if (ok) {
+    res.json({ ok: true, ready: true });
+    return;
+  }
+  res.status(503).json({
+    ok: true,
+    ready: false,
+    error: "Base de datos no disponible",
+    detail: lastDbInitError,
+  });
+});
+
 app.use(async (req, res, next) => {
-  if (req.path === "/api/health") {
+  if (req.path === "/api/health" || req.path === "/api/health/retry-init") {
     next();
     return;
   }
   try {
-    await dbReady;
+    await beginDbInit();
     next();
   } catch (err) {
     console.error("[SGG] Base de datos no disponible:", err);
@@ -2107,6 +2199,97 @@ app.put("/api/proveedores/id/:id", async (req, res) => {
   }
 });
 
+app.patch("/api/proveedores/id/:id/clasificacion", async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id) || id <= 0) {
+      res.status(400).json({ ok: false, error: "ID inválido" });
+      return;
+    }
+    const body = req.body ?? {};
+    const cuentaId = await cuentaIdForUser(req.user!);
+    const hasRubroPayload = "rubro" in body || "sub_rubro" in body;
+
+    if (hasRubroPayload) {
+      const rubro = String(body.rubro ?? "").trim();
+      const sub_rubro = String(body.sub_rubro ?? "").trim();
+
+      if (rubro && !await db.rubros.gastoValido(rubro)) {
+        res.status(400).json({
+          ok: false,
+          error: "El rubro debe existir en Configuración → Rubros (grupo con sub-rubros activos).",
+        });
+        return;
+      }
+      if (sub_rubro) {
+        if (!rubro) {
+          res.status(400).json({ ok: false, error: "Elegí un rubro antes del sub-rubro." });
+          return;
+        }
+        if (!await db.subRubros.existsActivo(sub_rubro)) {
+          res.status(400).json({
+            ok: false,
+            error: "El sub-rubro debe existir en el catálogo SUB_RUBROS y estar activo.",
+          });
+          return;
+        }
+        if (!await db.rubroVinculos.isValidPair(rubro, sub_rubro)) {
+          res.status(400).json({
+            ok: false,
+            error:
+              "El sub-rubro no está vinculado a este rubro. Configuralo en Rubros → Configuración vínculos.",
+          });
+          return;
+        }
+      }
+
+      const data = await db.proveedores.updateRubroClasificacion(
+        id,
+        { rubro, sub_rubro },
+        cuentaId
+      );
+      if (!data) {
+        res.status(404).json({ ok: false, error: "Proveedor no encontrado" });
+        return;
+      }
+      res.json({ ok: true, data, message: "Clasificación actualizada" });
+      return;
+    }
+
+    if ("clasificacion_resultado" in body) {
+      const raw = body.clasificacion_resultado;
+      const clasificacion =
+        raw === null || raw === undefined || raw === ""
+          ? null
+          : String(raw).trim().toUpperCase();
+      if (
+        clasificacion &&
+        !["COSTOS_PRODUCCION", "GASTOS_ADMINISTRATIVOS", "GASTOS_COMERCIALES"].includes(
+          clasificacion
+        )
+      ) {
+        res.status(400).json({ ok: false, error: "Clasificación inválida" });
+        return;
+      }
+      const data = await db.proveedores.updateClasificacionResultado(
+        id,
+        clasificacion as import("./clasificacion-resultado.js").ClasificacionResultado | null,
+        cuentaId
+      );
+      if (!data) {
+        res.status(404).json({ ok: false, error: "Proveedor no encontrado" });
+        return;
+      }
+      res.json({ ok: true, data, message: "Estado de resultados actualizado" });
+      return;
+    }
+
+    res.status(400).json({ ok: false, error: "Payload de clasificación inválido" });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: (e as Error).message });
+  }
+});
+
 app.delete("/api/proveedores/id/:id", async (req, res) => {
   const id = Number(req.params.id);
   const cuentaId = await cuentaIdForUser(req.user!);
@@ -3899,6 +4082,43 @@ app.get("/api/resumen", async (req, res) => {
     estado_financiero_meses: estado.meses,
     rubros: await db.rubros.listNombres(),
   });
+});
+
+app.get("/api/resumen/gastos-proveedores", async (req, res) => {
+  const fecha_desde = req.query.fecha_desde as string | undefined;
+  const fecha_hasta = req.query.fecha_hasta as string | undefined;
+  const empresa = req.query.empresa as string | undefined;
+  const raw = req.query.proveedores;
+  const partes =
+    typeof raw === "string"
+      ? raw.split(",")
+      : Array.isArray(raw)
+        ? raw.map(String)
+        : [];
+  const codigos = partes
+    .map((s) => Number(String(s).trim()))
+    .filter((n) => Number.isFinite(n) && n > 0);
+  const data = await db.buildGastosProveedoresReport(
+    codigos,
+    empresa,
+    fecha_desde,
+    fecha_hasta
+  );
+  res.json({ ok: true, data });
+});
+
+app.get("/api/resumen/estado-resultados", async (req, res) => {
+  const fecha_desde = req.query.fecha_desde as string | undefined;
+  const fecha_hasta = req.query.fecha_hasta as string | undefined;
+  const empresa = req.query.empresa as string | undefined;
+  const cuentaId = await cuentaIdForUser(req.user!);
+  const data = await db.buildEstadoResultados({
+    fecha_desde,
+    fecha_hasta,
+    empresa,
+    cuentaId,
+  });
+  res.json({ ok: true, data });
 });
 
 function parseFuncionarioBody(req: Request) {

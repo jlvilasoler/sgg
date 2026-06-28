@@ -194,56 +194,60 @@ export default function UsuariosActividad({
         </header>
 
         <div className="filters listado-pro-filters usuarios-actividad-filters">
-          <div className="field">
-            <label htmlFor="ua-filtro-usuario">Usuario</label>
-            <select
-              id="ua-filtro-usuario"
-              value={filtroEmail}
-              disabled={!apiOnline || loading}
-              onChange={(e) => setFiltroEmail(e.target.value)}
-            >
-              <option value="">Todos</option>
-              {usuarios.map((u) => (
-                <option key={u.email} value={u.email}>
-                  {u.nombre}
-                </option>
-              ))}
-            </select>
+          <div className="listado-pro-filters-row listado-pro-filters-row--unica">
+            <div className="field">
+              <label htmlFor="ua-filtro-usuario">Usuario</label>
+              <select
+                id="ua-filtro-usuario"
+                value={filtroEmail}
+                disabled={!apiOnline || loading}
+                onChange={(e) => setFiltroEmail(e.target.value)}
+              >
+                <option value="">Todos</option>
+                {usuarios.map((u) => (
+                  <option key={u.email} value={u.email}>
+                    {u.nombre}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="field">
+              <label htmlFor="ua-filtro-evento">Tipo</label>
+              <select
+                id="ua-filtro-evento"
+                value={filtroEvento}
+                disabled={!apiOnline || loading}
+                onChange={(e) => setFiltroEvento(e.target.value)}
+              >
+                {EVENTO_OPCIONES.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="listado-pro-filters-actions">
+              <button
+                type="button"
+                className="btn listado-pro-reset-btn"
+                disabled={!apiOnline || loading || (!filtroEmail && !filtroEvento)}
+                onClick={() => {
+                  setFiltroEmail("");
+                  setFiltroEvento("");
+                }}
+              >
+                Limpiar
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary listado-pro-search-btn"
+                disabled={!apiOnline || loading}
+                onClick={() => void load()}
+              >
+                Actualizar
+              </button>
+            </div>
           </div>
-          <div className="field">
-            <label htmlFor="ua-filtro-evento">Tipo</label>
-            <select
-              id="ua-filtro-evento"
-              value={filtroEvento}
-              disabled={!apiOnline || loading}
-              onChange={(e) => setFiltroEvento(e.target.value)}
-            >
-              {EVENTO_OPCIONES.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <button
-            type="button"
-            className="btn listado-pro-reset-btn"
-            disabled={!apiOnline || loading || (!filtroEmail && !filtroEvento)}
-            onClick={() => {
-              setFiltroEmail("");
-              setFiltroEvento("");
-            }}
-          >
-            Limpiar
-          </button>
-          <button
-            type="button"
-            className="btn btn-primary listado-pro-search-btn"
-            disabled={!apiOnline || loading}
-            onClick={() => void load()}
-          >
-            Actualizar
-          </button>
         </div>
 
         <section className="usuarios-actividad-online" aria-label="Usuarios en línea">

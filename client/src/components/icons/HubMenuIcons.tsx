@@ -27,6 +27,7 @@ const stroke = {
 export type HubIconId =
   | "config_responsables"
   | "config_proveedores"
+  | "config_clasificacion_proveedores"
   | "config_rubros"
   | "prov_ingresar"
   | "prov_listado"
@@ -74,6 +75,16 @@ function IconTag({ className }: IconProps) {
     <IconShell className={className}>
       <path d="M4 12.5V5.75A1.75 1.75 0 0 1 5.75 4H12.5L20 11.5l-6.5 6.5L4 12.5Z" {...stroke} />
       <circle cx="8.75" cy="8.75" r="1.1" fill="currentColor" />
+    </IconShell>
+  );
+}
+
+function IconLayers({ className }: IconProps) {
+  return (
+    <IconShell className={className}>
+      <path d="M12 4.5 4 9l8 4.5 8-4.5-8-4.5Z" {...stroke} />
+      <path d="M4 13l8 4.5L20 13" {...stroke} />
+      <path d="M4 17l8 4.5L20 17" {...stroke} />
     </IconShell>
   );
 }
@@ -258,6 +269,7 @@ function IconArquitecturaSistema({ className }: IconProps) {
 const ICONS: Record<HubIconId, (props: IconProps) => ReactNode> = {
   config_responsables: IconUserBadge,
   config_proveedores: IconBuilding,
+  config_clasificacion_proveedores: IconLayers,
   config_rubros: IconTag,
   prov_ingresar: IconAddCircle,
   prov_listado: IconCatalog,
@@ -303,6 +315,11 @@ export const HUB_ICON_THEMES: Record<HubIconId, MenuAppTheme> = {
     accent: "#7c3aed",
     accentSoft: "linear-gradient(145deg, #f5f3ff 0%, #ede9fe 52%, #ddd6fe 100%)",
     accentGlow: "rgba(124, 58, 237, 0.28)",
+  },
+  config_clasificacion_proveedores: {
+    accent: "#0d9488",
+    accentSoft: "linear-gradient(145deg, #f0fdfa 0%, #ccfbf1 52%, #99f6e4 100%)",
+    accentGlow: "rgba(13, 148, 136, 0.28)",
   },
   config_rubros: {
     accent: "#d97706",

@@ -58,6 +58,13 @@ CREATE TABLE IF NOT EXISTS PROVEEDORES (
   rut TEXT DEFAULT '',
   direccion TEXT DEFAULT '',
   ciudad TEXT DEFAULT '',
+  rubro TEXT DEFAULT '',
+  sub_rubro TEXT DEFAULT '',
+  clasificacion_resultado TEXT CHECK (
+    clasificacion_resultado IS NULL OR clasificacion_resultado IN (
+      'COSTOS_PRODUCCION', 'GASTOS_ADMINISTRATIVOS', 'GASTOS_COMERCIALES'
+    )
+  ),
   creado_en TIMESTAMPTZ DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_proveedores_cod ON PROVEEDORES(cod);

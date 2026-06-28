@@ -431,6 +431,67 @@ export interface EstadoFinancieroRubro {
   totales: EstadoFinancieroUsd;
 }
 
+export interface GastosProveedorTotalesLinea extends ResumenTotales {
+  codigo_proveedor: string;
+  razon_social_proveedor: string;
+}
+
+export interface GastosProveedorDetalleLinea {
+  id: number;
+  codigo_proveedor: string;
+  fecha: string;
+  empresa: string;
+  rubro: string;
+  sub_rubro: string;
+  concepto: string;
+  nro_factura: string;
+  pesos: number;
+  dolares_usd: number;
+  reales: number;
+  saldo_usd: number;
+}
+
+export interface GastosProveedoresReport {
+  totales: GastosProveedorTotalesLinea[];
+  detalle: GastosProveedorDetalleLinea[];
+  consolidado: ResumenTotales;
+}
+
+export interface EstadoResultadosSubRubroLinea {
+  sub_rubro: string;
+  total: number;
+}
+
+export interface EstadoResultadosRubroLinea {
+  rubro: string;
+  total: number;
+  sub_rubros: EstadoResultadosSubRubroLinea[];
+}
+
+export interface EstadoResultadosClasificacionDetalle {
+  total: number;
+  rubros: EstadoResultadosRubroLinea[];
+}
+
+export interface EstadoResultadosVentasDetalle {
+  ganado: number;
+  agricultura: number;
+  arrendamientos: number;
+}
+
+export interface EstadoResultados {
+  ventas: number;
+  ventas_detalle: EstadoResultadosVentasDetalle;
+  costos_produccion: number;
+  gastos_administrativos: number;
+  gastos_comerciales: number;
+  utilidad: number;
+  detalle: Record<
+    "COSTOS_PRODUCCION" | "GASTOS_ADMINISTRATIVOS" | "GASTOS_COMERCIALES",
+    EstadoResultadosClasificacionDetalle
+  >;
+}
+
 export interface Catalogos {
   empresas: Empresa[];
   rubros: string[];
@@ -599,10 +660,26 @@ export interface Proveedor {
   rut: string;
   direccion: string;
   ciudad: string;
+  rubro: string;
+  sub_rubro: string;
+  clasificacion_resultado: ClasificacionResultado | null;
   creado_en?: string;
 }
 
-export type ProveedorForm = Omit<Proveedor, "id" | "creado_en">;
+export type ProveedorRubroClasificacionInput = {
+  rubro: string;
+  sub_rubro: string;
+};
+
+export type ProveedorForm = Omit<
+  Proveedor,
+  "id" | "creado_en" | "clasificacion_resultado" | "rubro" | "sub_rubro"
+>;
+
+export type ClasificacionResultado =
+  | "COSTOS_PRODUCCION"
+  | "GASTOS_ADMINISTRATIVOS"
+  | "GASTOS_COMERCIALES";
 
 export type ParDivisa = "UYU_USD" | "BRL_USD";
 
