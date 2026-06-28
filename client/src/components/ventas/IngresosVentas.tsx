@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import type { AuthUser } from "../../types";
+import type { AuthUser, Catalogos } from "../../types";
 import { canWriteIngresosVentas } from "../../utils/auth-permissions";
 import { HubMenuCard } from "../HubMenuCard";
 import { useHeaderBackContext } from "../../header-back";
@@ -19,6 +19,7 @@ type VistaVentas =
 
 interface Props {
   user: AuthUser;
+  catalogos: Catalogos;
   apiOnline: boolean;
   onError: (msg: string) => void;
   onSuccess: (msg: string, title?: string) => void;
@@ -59,6 +60,7 @@ const SUBMENU: {
 
 export default function IngresosVentas({
   user,
+  catalogos,
   apiOnline,
   onError,
   onSuccess,
@@ -112,6 +114,7 @@ export default function IngresosVentas({
   if (vista === "ventas_agricultura") {
     return (
       <VentasAgricultura
+        catalogos={catalogos}
         user={user}
         apiOnline={apiOnline}
         onError={onError}
@@ -124,6 +127,7 @@ export default function IngresosVentas({
   if (vista === "ventas_arrendamientos") {
     return (
       <VentasArrendamientos
+        catalogos={catalogos}
         modo="ingresos"
         user={user}
         apiOnline={apiOnline}

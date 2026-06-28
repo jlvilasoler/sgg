@@ -42,7 +42,7 @@ import { parseStockGanaderoBuffer, parseStockGanaderoFile, parseStockGanaderoTex
 import type { DispositivoMetaPatch, StockGanaderoFilters } from "./stock-ganadero-db.js";
 import { parseTipoBaja, tipoBajaDesdeEstadoImport, type TipoBaja } from "./stock-ganadero-db.js";
 import { auditBajasDispositivos, auditStockMovimiento, historialAutorFromRequest } from "./stock-audit.js";
-import { EMPRESAS, type Empresa, type Presupuesto, type PresupuestoInput } from "./types.js";
+import { type Empresa, type Presupuesto, type PresupuestoInput } from "./types.js";
 import { empresasCuenta } from "./database.js";
 import type { UserPublic } from "./auth-db.js";
 import {
@@ -433,7 +433,23 @@ app.get("/api/catalogos", async (req, res) => {
   res.json({ ok: true, ...(await db.getCatalogos(req.user)) });
 });
 
-function puedeAccederPresupuesto(row: Presupuesto, user: UserPublic): boolean {
+app.get("/api/empresas-operativas", async (req, res) => {
+  const user = req.user!;
+  if (user.es_super_admin) {
+    res.json({ ok: true, data: await empresasCuenta.getEmpresaNombresActivos(db.getDb()) });
+    return;
+  }
+  const permitidas = await empresasCuenta.getEmpresasOperativasPermitidas(db.getDb(), user);
+  res.json({ ok: true, data: permitidas ?? [] });
+});
+
+async function puedeAccederPresupuesto(row: Presupuesto, user: UserPublic): Promise<boolean> {
+  if (!user.es_super_admin) {
+    const permitidas = await empresasPermitidas(user);
+    if (permitidas.length > 0 && !permitidas.includes(row.empresa)) {
+      return false;
+    }
+  }
   if (
     user.rol === "admin" ||
     user.rol === "editor" ||
@@ -579,7 +595,7 @@ app.get("/api/presupuesto/:id", async (req, res) => {
     res.status(404).json({ ok: false, error: "Registro no encontrado" });
     return;
   }
-  if (!puedeAccederPresupuesto(reg, req.user!)) {
+  if (!(await puedeAccederPresupuesto(reg, req.user!))) {
     res.status(403).json({ ok: false, error: "No tenés permiso para ver este registro" });
     return;
   }
@@ -613,7 +629,7 @@ app.put("/api/presupuesto/:id", async (req, res) => {
       res.status(404).json({ ok: false, error: "Registro no encontrado" });
       return;
     }
-    if (!puedeAccederPresupuesto(prev, req.user!)) {
+    if (!(await puedeAccederPresupuesto(prev, req.user!))) {
       res.status(403).json({ ok: false, error: "No tenés permiso para modificar este registro" });
       return;
     }
@@ -639,7 +655,7 @@ app.delete("/api/presupuesto/:id", async (req, res) => {
     res.status(404).json({ ok: false, error: "Registro no encontrado" });
     return;
   }
-  if (!puedeAccederPresupuesto(prev, req.user!)) {
+  if (!(await puedeAccederPresupuesto(prev, req.user!))) {
     res.status(403).json({ ok: false, error: "No tenés permiso para eliminar este registro" });
     return;
   }
@@ -661,7 +677,7 @@ app.post(
         res.status(404).json({ ok: false, error: "Registro no encontrado" });
         return;
       }
-      if (!puedeAccederPresupuesto(reg, req.user!)) {
+      if (!(await puedeAccederPresupuesto(reg, req.user!))) {
         res.status(403).json({ ok: false, error: "No tenés permiso para modificar este registro" });
         return;
       }
@@ -693,7 +709,7 @@ app.get("/api/presupuesto/:id/documento", async (req, res) => {
     res.status(404).json({ ok: false, error: "Registro no encontrado" });
     return;
   }
-  if (!puedeAccederPresupuesto(reg, req.user!)) {
+  if (!(await puedeAccederPresupuesto(reg, req.user!))) {
     res.status(403).json({ ok: false, error: "No tenés permiso para ver este documento" });
     return;
   }
@@ -736,15 +752,62 @@ function parseIngresoVentaBody(req: Request) {
   };
 }
 
-function parseVentaAgriculturaBody(req: Request): ventasAgri.VentaAgriculturaInput {
+async function ventasAgriculturaFiltersFromRequest(
+  req: Request
+): Promise<ventasAgri.VentaAgriculturaFilters> {
+  const mesRaw = Number(req.query.mes);
+  const anioRaw = Number(req.query.anio);
+  const empresaQuery = req.query.empresa as string | undefined;
+  const scope = await resumenEmpresaScope(req.user!, empresaQuery);
+  return {
+    empresa: scope.empresa,
+    empresas: scope.empresas,
+    mes: Number.isFinite(mesRaw) ? mesRaw : undefined,
+    anio: Number.isFinite(anioRaw) ? anioRaw : undefined,
+    cultivo: req.query.cultivo as string | undefined,
+    busqueda: req.query.busqueda as string | undefined,
+  };
+}
+
+async function ventasArrendamientoFiltersFromRequest(
+  req: Request
+): Promise<ventasArr.VentaArrendamientoFilters> {
+  const empresaQuery = req.query.empresa as string | undefined;
+  const scope = await resumenEmpresaScope(req.user!, empresaQuery);
+  return {
+    empresa: scope.empresa,
+    empresas: scope.empresas,
+    departamento: req.query.departamento as string | undefined,
+    busqueda: req.query.busqueda as string | undefined,
+  };
+}
+
+async function assertEmpresaPermitida(user: UserPublic, empresa: string): Promise<void> {
+  const nombre = empresa.trim();
+  if (!nombre) throw new Error("La empresa es obligatoria.");
+  if (user.es_super_admin) {
+    if (!(await empresasCuenta.isValidEmpresaNombre(db.getDb(), nombre))) {
+      throw new Error("Empresa inválida o inactiva.");
+    }
+    return;
+  }
+  const permitidas = await empresasPermitidas(user);
+  if (!permitidas.includes(nombre)) {
+    throw new Error("Empresa inválida o no pertenece a su cuenta.");
+  }
+}
+
+async function parseVentaAgriculturaBody(req: Request): Promise<ventasAgri.VentaAgriculturaInput> {
   const body = req.body as Record<string, unknown>;
   const hectareas = Number(body.hectareas);
   const rendimiento_ton_ha = Number(body.rendimiento_ton_ha);
   const precio_usd_ton = Number(body.precio_usd_ton);
   const total_ton = hectareas * rendimiento_ton_ha;
   const importe_usd = (total_ton * precio_usd_ton) / 1000;
+  const empresa = String(body.empresa ?? "").trim();
+  await assertEmpresaPermitida(req.user!, empresa);
   return {
-    empresa: String(body.empresa ?? "").trim() as ventasAgri.EmpresaAgricultura,
+    empresa,
     mes_inicio: Number(body.mes_inicio ?? body.mes),
     mes_fin: Number(body.mes_fin ?? body.mes_inicio ?? body.mes),
     anio_inicio: Number(body.anio_inicio ?? body.anio),
@@ -758,7 +821,7 @@ function parseVentaAgriculturaBody(req: Request): ventasAgri.VentaAgriculturaInp
   };
 }
 
-function parseVentaArrendamientoBody(req: Request): ventasArr.VentaArrendamientoInput {
+async function parseVentaArrendamientoBody(req: Request): Promise<ventasArr.VentaArrendamientoInput> {
   const body = req.body as Record<string, unknown>;
   const hectareas = Number(body.hectareas);
   const precio_usd_ha = Number(body.precio_usd_ha);
@@ -770,8 +833,10 @@ function parseVentaArrendamientoBody(req: Request): ventasArr.VentaArrendamiento
     fecha_inicio,
     fecha_fin
   );
+  const empresa = String(body.empresa ?? "").trim();
+  await assertEmpresaPermitida(req.user!, empresa);
   return {
-    empresa: String(body.empresa ?? "").trim() as ventasArr.EmpresaArrendamiento,
+    empresa,
     fecha_inicio,
     fecha_fin,
     departamento: String(body.departamento ?? "").trim() as ventasArr.DepartamentoArrendamiento,
@@ -818,21 +883,13 @@ app.get("/api/ingresos-ventas/siguiente-operacion", async (_req, res) => {
 });
 
 app.get("/api/ingresos-ventas/ventas-agricultura", async (req, res) => {
-  const mesRaw = Number(req.query.mes);
-  const anioRaw = Number(req.query.anio);
-  const data = await db.ventasAgricultura.list({
-    empresa: req.query.empresa as string | undefined,
-    mes: Number.isFinite(mesRaw) ? mesRaw : undefined,
-    anio: Number.isFinite(anioRaw) ? anioRaw : undefined,
-    cultivo: req.query.cultivo as string | undefined,
-    busqueda: req.query.busqueda as string | undefined,
-  });
+  const data = await db.ventasAgricultura.list(await ventasAgriculturaFiltersFromRequest(req));
   res.json({ ok: true, data });
 });
 
 app.post("/api/ingresos-ventas/ventas-agricultura", async (req, res) => {
   try {
-    const payload = parseVentaAgriculturaBody(req);
+    const payload = await parseVentaAgriculturaBody(req);
     const newId = await db.ventasAgricultura.insert(payload);
     const reg = await db.ventasAgricultura.getById(newId);
     res.status(201).json({
@@ -852,7 +909,7 @@ app.put("/api/ingresos-ventas/ventas-agricultura/:id", async (req, res) => {
     return;
   }
   try {
-    const payload = parseVentaAgriculturaBody(req);
+    const payload = await parseVentaAgriculturaBody(req);
     const row = await db.ventasAgricultura.update(id, payload);
     res.json({ ok: true, data: row, message: "Simulación actualizada" });
   } catch (e) {
@@ -926,17 +983,13 @@ app.delete("/api/ingresos-ventas/ventas-agricultura/:id", async (req, res) => {
 });
 
 app.get("/api/ingresos-ventas/ventas-arrendamientos", async (req, res) => {
-  const data = await db.ventasArrendamientos.list({
-    empresa: req.query.empresa as string | undefined,
-    departamento: req.query.departamento as string | undefined,
-    busqueda: req.query.busqueda as string | undefined,
-  });
+  const data = await db.ventasArrendamientos.list(await ventasArrendamientoFiltersFromRequest(req));
   res.json({ ok: true, data });
 });
 
 app.post("/api/ingresos-ventas/ventas-arrendamientos", async (req, res) => {
   try {
-    const payload = parseVentaArrendamientoBody(req);
+    const payload = await parseVentaArrendamientoBody(req);
     const newId = await db.ventasArrendamientos.insert(payload);
     const reg = await db.ventasArrendamientos.getById(newId);
     res.status(201).json({
@@ -956,7 +1009,7 @@ app.put("/api/ingresos-ventas/ventas-arrendamientos/:id", async (req, res) => {
     return;
   }
   try {
-    const payload = parseVentaArrendamientoBody(req);
+    const payload = await parseVentaArrendamientoBody(req);
     const row = await db.ventasArrendamientos.update(id, payload);
     res.json({ ok: true, data: row, message: "Simulación actualizada" });
   } catch (e) {

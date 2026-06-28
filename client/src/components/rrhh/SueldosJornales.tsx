@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { fetchFuncionarios, fetchPagosPorCedula } from "../../api";
-import { EMPRESAS } from "../../constants";
 import { formatCuentaOtrosBancos, isBancoSantander } from "../../constants/bancosUruguay";
 import BancoLogo from "./BancoLogo";
-import type { Funcionario, ResumenPagosFuncionario, VinculoPago } from "../../types";
+import type { Catalogos, Funcionario, ResumenPagosFuncionario, VinculoPago } from "../../types";
 import { fmtDate, fmtNum } from "../../utils";
 
 interface Props {
+  catalogos: Catalogos;
   apiOnline: boolean;
   cedulaInicial?: string;
   onError: (msg: string) => void;
@@ -29,6 +29,7 @@ function vinculoCorto(v: VinculoPago): string {
 const COLS_MONEDA = ["$", "USD", "R$", "TOTAL USD"] as const;
 
 export default function SueldosJornales({
+  catalogos,
   apiOnline,
   cedulaInicial = "",
   onError,
@@ -150,7 +151,7 @@ export default function SueldosJornales({
                 onChange={(e) => setEmpresa(e.target.value)}
               >
                 <option value="">Todas</option>
-                {EMPRESAS.map((e) => (
+                {catalogos.empresas.map((e) => (
                   <option key={e} value={e}>
                     {e}
                   </option>

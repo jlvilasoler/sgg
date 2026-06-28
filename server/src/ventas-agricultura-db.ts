@@ -1,10 +1,10 @@
 import type { Db } from "./db/pg-client.js";
+import { appendEmpresaScope, type ResumenEmpresaScope } from "./empresa-scope.js";
 
 export const CULTIVOS_AGRICULTURA = ["TRIGO", "SOJA", "MAIZ", "COLZA"] as const;
 export type CultivoAgricultura = (typeof CULTIVOS_AGRICULTURA)[number];
 
-export const EMPRESAS_AGRICULTURA = ["GANADERA GUAVIYU", "GANADERA CHIVILCOY"] as const;
-export type EmpresaAgricultura = (typeof EMPRESAS_AGRICULTURA)[number];
+export type EmpresaAgricultura = string;
 
 export interface VentaAgriculturaRow {
   id: number;
@@ -64,6 +64,7 @@ export interface VentaAgriculturaInput {
 
 export interface VentaAgriculturaFilters {
   empresa?: string;
+  empresas?: string[];
   mes?: number;
   anio?: number;
   cultivo?: string;
@@ -74,7 +75,7 @@ export async function initVentasAgriculturaTable(db: Db): Promise<void> {
   await db.prepare(
     `CREATE TABLE IF NOT EXISTS VENTAS_AGRICULTURA (
       id SERIAL PRIMARY KEY,
-      empresa TEXT NOT NULL CHECK (empresa IN ('GANADERA GUAVIYU', 'GANADERA CHIVILCOY')),
+      empresa TEXT NOT NULL,
       mes INTEGER NOT NULL CHECK (mes >= 1 AND mes <= 12),
       anio INTEGER NOT NULL CHECK (anio >= 2025 AND anio <= 2040),
       cultivo TEXT NOT NULL CHECK (cultivo IN ('TRIGO', 'SOJA', 'MAIZ', 'COLZA')),
@@ -183,8 +184,8 @@ function normalizeInput(data: VentaAgriculturaInput): VentaAgriculturaInput {
   const anio_inicio = Number(data.anio_inicio);
   const anio_fin = Number(data.anio_fin);
 
-  if (!EMPRESAS_AGRICULTURA.includes(data.empresa)) {
-    throw new Error("Empresa inválida");
+  if (!String(data.empresa ?? "").trim()) {
+    throw new Error("La empresa es obligatoria");
   }
   if (!CULTIVOS_AGRICULTURA.includes(data.cultivo)) {
     throw new Error("Cultivo inválido");
@@ -243,11 +244,12 @@ export async function listVentasAgricultura(
 ): Promise<VentaAgriculturaRow[]> {
   let sql = "SELECT * FROM VENTAS_AGRICULTURA WHERE 1=1";
   const params: Record<string, string | number> = {};
+  const scope: ResumenEmpresaScope | undefined =
+    filters.empresas?.length || filters.empresa
+      ? { empresa: filters.empresa, empresas: filters.empresas }
+      : undefined;
+  sql = appendEmpresaScope(sql, params as Record<string, string>, scope);
 
-  if (filters.empresa) {
-    sql += " AND empresa = @empresa";
-    params.empresa = filters.empresa;
-  }
   if (filters.mes != null && Number.isFinite(filters.mes)) {
     sql += ` AND (
       (COALESCE(mes_inicio, mes) <= COALESCE(mes_fin, mes) AND @mes BETWEEN COALESCE(mes_inicio, mes) AND COALESCE(mes_fin, mes))

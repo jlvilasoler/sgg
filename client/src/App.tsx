@@ -508,6 +508,7 @@ export default function App() {
             {screen === "simulador_venta_ganado" && (
               <SimuladorVentas
                 user={user}
+                catalogos={catalogos}
                 apiOnline={apiOnline}
                 onError={(m) => notify(m, false)}
                 onSuccess={(m) => notify(m, true)}
@@ -515,6 +516,7 @@ export default function App() {
             )}
             {screen === "recursos_humanos" && (
               <RecursosHumanos
+                catalogos={catalogos}
                 apiOnline={apiOnline}
                 onError={(m) => notify(m, false)}
                 onSuccess={(m) => notify(m, true)}
@@ -536,6 +538,7 @@ export default function App() {
             {screen === "ingresos_ventas" && user && (
               <IngresosVentas
                 user={user}
+                catalogos={catalogos}
                 apiOnline={apiOnline}
                 onError={(m) => notify(m, false)}
                 onSuccess={(m, t) => notify(m, true, t)}

@@ -6,11 +6,12 @@ import { HUB_ICON_THEMES, HubMenuIcon } from "./icons/HubMenuIcons";
 import FuncionarioForm from "./rrhh/FuncionarioForm";
 import FuncionarioListado from "./rrhh/FuncionarioListado";
 import SueldosJornales from "./rrhh/SueldosJornales";
-import type { Funcionario } from "../types";
+import type { Catalogos, Funcionario } from "../types";
 
 type VistaRRHH = "menu" | "funcionarios" | "funcionario-form" | "sueldos";
 
 interface Props {
+  catalogos: Catalogos;
   apiOnline: boolean;
   onError: (msg: string) => void;
   onSuccess: (msg: string) => void;
@@ -40,6 +41,7 @@ const SUBMENU: {
 ];
 
 export default function RecursosHumanos({
+  catalogos,
   apiOnline,
   onError,
   onSuccess,
@@ -137,6 +139,7 @@ export default function RecursosHumanos({
   if (vista === "sueldos") {
     return (
       <SueldosJornales
+        catalogos={catalogos}
         apiOnline={apiOnline}
         cedulaInicial={cedulaSueldos}
         onError={onError}

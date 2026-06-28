@@ -1,8 +1,4 @@
-import type { Catalogos, Empresa } from "./types";
-
-export const EMPRESAS: Empresa[] = [  "GANADERA GUAVIYU",
-  "GANADERA CHIVILCOY",
-];
+import type { Catalogos } from "./types";
 
 export const RUBROS_DEFAULT = [
   "Sueldos y cargas sociales",
@@ -28,7 +24,7 @@ export const RESPONSABLES_DEFAULT = ["Elida Diaz Saravia"];
 export const FILTRO_SIN_RESPONSABLE = "__none__";
 
 export const DEFAULT_CATALOGOS: Catalogos = {
-  empresas: EMPRESAS,
+  empresas: [],
   rubros: [],
   sub_rubros: [],
   sub_rubros_por_rubro: {},

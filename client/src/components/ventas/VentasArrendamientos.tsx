@@ -6,7 +6,7 @@ import {
   patchVentaArrendamiento,
   updateVentaArrendamiento,
 } from "../../api";
-import type { AuthUser, VentaArrendamientoRealInput, VentaArrendamientoRow } from "../../types";
+import type { AuthUser, Catalogos, VentaArrendamientoRealInput, VentaArrendamientoRow } from "../../types";
 import { confirmAction } from "../../utils/confirm";
 import { fmtNum } from "../../utils";
 import TablePagination, {
@@ -20,7 +20,7 @@ import {
   calcularMontoMensualArrendamiento,
   describeTotalPagosMensual,
   DEPARTAMENTOS_ARRENDAMIENTO,
-  EMPRESAS_ARRENDAMIENTO,
+  empresasSelectOptions,
   fechaFinArrendamientoPorMeses,
   formatOperacionArrendamiento,
   formatPeriodoArrendamiento,
@@ -60,6 +60,7 @@ import {
 import { canWriteSimuladorVentaGanado, canWriteIngresosVentas } from "../../utils/auth-permissions";
 
 interface Props {
+  catalogos: Catalogos;
   apiOnline: boolean;
   onError: (msg: string) => void;
   onSuccess?: (msg: string) => void;
@@ -69,6 +70,7 @@ interface Props {
 }
 
 export default function VentasArrendamientos({
+  catalogos,
   apiOnline,
   onError,
   onSuccess,
@@ -77,6 +79,10 @@ export default function VentasArrendamientos({
   user = null,
 }: Props) {
   const copy = VENTAS_ARRENDAMIENTOS_COPY[modo];
+  const empresasOpciones = useMemo(
+    () => empresasSelectOptions(catalogos.empresas),
+    [catalogos.empresas]
+  );
   const esSimulador = modo === "simulador";
   const puedeEditar = esSimulador
     ? canWriteSimuladorVentaGanado(user)
@@ -625,7 +631,7 @@ export default function VentasArrendamientos({
                 onChange={(e) => setEmpresa(e.target.value as EmpresaArrendamiento)}
               >
                 <option value="">Seleccionar...</option>
-                {EMPRESAS_ARRENDAMIENTO.map((item) => (
+                {empresasOpciones.map((item) => (
                   <option key={item.value} value={item.value}>
                     {item.label}
                   </option>
@@ -1085,7 +1091,7 @@ export default function VentasArrendamientos({
               onChange={(e) => setFiltroEmpresa(e.target.value)}
             >
               <option value="">Todas</option>
-              {EMPRESAS_ARRENDAMIENTO.map((item) => (
+              {empresasOpciones.map((item) => (
                 <option key={item.value} value={item.value}>
                   {item.label}
                 </option>

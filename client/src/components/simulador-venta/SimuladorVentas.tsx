@@ -11,10 +11,11 @@ import {
   SIMULADOR_VENTA_TIPO_MAP,
   type SimuladorVentaTipoConfig,
 } from "./simulador-venta-config";
-import type { AuthUser, SimuladorVentaTipo } from "../../types";
+import type { AuthUser, Catalogos, SimuladorVentaTipo } from "../../types";
 
 interface Props {
   user: AuthUser;
+  catalogos: Catalogos;
   apiOnline: boolean;
   onError: (msg: string) => void;
   onSuccess: (msg: string) => void;
@@ -61,6 +62,7 @@ const VISTA_LABELS: Record<Exclude<VistaSimulador, "menu">, string> = {
 
 export default function SimuladorVentas({
   user,
+  catalogos,
   apiOnline,
   onError,
   onSuccess,
@@ -129,6 +131,7 @@ export default function SimuladorVentas({
   if (vista === "ventas_agricultura") {
     return (
       <VentasAgricultura
+        catalogos={catalogos}
         modo="simulador"
         user={user}
         apiOnline={apiOnline}
@@ -142,6 +145,7 @@ export default function SimuladorVentas({
   if (vista === "ventas_arrendamientos") {
     return (
       <VentasArrendamientos
+        catalogos={catalogos}
         modo="simulador"
         user={user}
         apiOnline={apiOnline}

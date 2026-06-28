@@ -1,10 +1,10 @@
 import type { Db } from "./db/pg-client.js";
+import { appendEmpresaScope, type ResumenEmpresaScope } from "./empresa-scope.js";
 
 export const DEPARTAMENTOS_ARRENDAMIENTO = ["RIVERA", "RIO_NEGRO"] as const;
 export type DepartamentoArrendamiento = (typeof DEPARTAMENTOS_ARRENDAMIENTO)[number];
 
-export const EMPRESAS_ARRENDAMIENTO = ["GANADERA GUAVIYU", "GANADERA CHIVILCOY"] as const;
-export type EmpresaArrendamiento = (typeof EMPRESAS_ARRENDAMIENTO)[number];
+export type EmpresaArrendamiento = string;
 
 export const FRECUENCIAS_PAGO_ARRENDAMIENTO = ["MENSUAL", "ANUAL"] as const;
 export type FrecuenciaPagoArrendamiento = (typeof FRECUENCIAS_PAGO_ARRENDAMIENTO)[number];
@@ -86,6 +86,7 @@ export interface VentaArrendamientoInput {
 
 export interface VentaArrendamientoFilters {
   empresa?: string;
+  empresas?: string[];
   departamento?: string;
   busqueda?: string;
 }
@@ -152,7 +153,7 @@ export async function initVentasArrendamientosTable(db: Db): Promise<void> {
   await db.prepare(
     `CREATE TABLE IF NOT EXISTS VENTAS_ARRENDAMIENTO (
       id SERIAL PRIMARY KEY,
-      empresa TEXT NOT NULL CHECK (empresa IN ('GANADERA GUAVIYU', 'GANADERA CHIVILCOY')),
+      empresa TEXT NOT NULL,
       fecha_inicio DATE NOT NULL,
       fecha_fin DATE NOT NULL,
       departamento TEXT NOT NULL CHECK (departamento IN ('RIVERA', 'RIO_NEGRO')),
@@ -282,8 +283,8 @@ function mapRow(row: Record<string, unknown>): VentaArrendamientoRow {
 }
 
 function normalizeInput(data: VentaArrendamientoInput): VentaArrendamientoInput {
-  if (!EMPRESAS_ARRENDAMIENTO.includes(data.empresa)) {
-    throw new Error("Empresa inválida");
+  if (!String(data.empresa ?? "").trim()) {
+    throw new Error("La empresa es obligatoria");
   }
   if (!DEPARTAMENTOS_ARRENDAMIENTO.includes(data.departamento)) {
     throw new Error("Departamento inválido");
@@ -386,11 +387,12 @@ export async function listVentasArrendamientos(
 ): Promise<VentaArrendamientoRow[]> {
   let sql = "SELECT * FROM VENTAS_ARRENDAMIENTO WHERE 1=1";
   const params: Record<string, string | number> = {};
+  const scope: ResumenEmpresaScope | undefined =
+    filters.empresas?.length || filters.empresa
+      ? { empresa: filters.empresa, empresas: filters.empresas }
+      : undefined;
+  sql = appendEmpresaScope(sql, params as Record<string, string>, scope);
 
-  if (filters.empresa) {
-    sql += " AND empresa = @empresa";
-    params.empresa = filters.empresa;
-  }
   if (filters.departamento) {
     sql += " AND departamento = @departamento";
     params.departamento = filters.departamento;

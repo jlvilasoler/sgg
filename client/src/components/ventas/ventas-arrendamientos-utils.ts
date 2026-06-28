@@ -1,5 +1,6 @@
 import type { Empresa } from "../../types";
 import { fmtNum } from "../../utils";
+import { empresasSelectOptions } from "../../utils/empresas-catalogo";
 
 export const DEPARTAMENTOS_ARRENDAMIENTO = [
   { id: "RIVERA", label: "Rivera" },
@@ -9,12 +10,9 @@ export const DEPARTAMENTOS_ARRENDAMIENTO = [
 export type DepartamentoArrendamientoId = (typeof DEPARTAMENTOS_ARRENDAMIENTO)[number]["id"];
 export type DepartamentoArrendamiento = DepartamentoArrendamientoId | "";
 
-export const EMPRESAS_ARRENDAMIENTO: { value: Empresa; label: string }[] = [
-  { value: "GANADERA GUAVIYU", label: "Ganadera Guaviyú" },
-  { value: "GANADERA CHIVILCOY", label: "Ganadera Chivilcoy" },
-];
-
 export type EmpresaArrendamiento = Empresa | "";
+
+export { empresasSelectOptions };
 
 export function parsePositiveDecimal(value: string): number | null {
   const n = Number(value.replace(",", ".").trim());
@@ -39,7 +37,7 @@ export function formatOperacionArrendamiento(id: number): string {
 }
 
 export function labelEmpresaArrendamiento(empresa: string): string {
-  return EMPRESAS_ARRENDAMIENTO.find((e) => e.value === empresa)?.label ?? empresa;
+  return empresa;
 }
 
 export function labelDepartamentoArrendamiento(departamento: string): string {

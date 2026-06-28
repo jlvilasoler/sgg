@@ -1,5 +1,6 @@
 import type { Empresa } from "../../types";
 import { fmtNum } from "../../utils";
+import { empresasSelectOptions } from "../../utils/empresas-catalogo";
 
 export const CULTIVOS_AGRICULTURA = [
   { id: "TRIGO", label: "Trigo", color: "#d97706" },
@@ -10,12 +11,9 @@ export const CULTIVOS_AGRICULTURA = [
 
 export type CultivoAgriculturaId = (typeof CULTIVOS_AGRICULTURA)[number]["id"];
 
-export const EMPRESAS_AGRICULTURA: { value: Empresa; label: string }[] = [
-  { value: "GANADERA GUAVIYU", label: "Ganadera Guaviyú" },
-  { value: "GANADERA CHIVILCOY", label: "Ganadera Chivilcoy" },
-];
-
 export type EmpresaAgricultura = Empresa | "";
+
+export { empresasSelectOptions };
 
 export const MESES_AGRICULTURA = [
   { value: 1, label: "Enero" },
@@ -81,7 +79,7 @@ export function formatRendimientoAgricultura(value: number): string {
 }
 
 export function labelEmpresaAgricultura(empresa: string): string {
-  return EMPRESAS_AGRICULTURA.find((e) => e.value === empresa)?.label ?? empresa;
+  return empresa;
 }
 
 export function colorCultivoAgricultura(cultivo: string): string {

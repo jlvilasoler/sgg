@@ -6,7 +6,7 @@ import {
   patchVentaAgricultura,
   updateVentaAgricultura,
 } from "../../api";
-import type { AuthUser, VentaAgriculturaRealInput, VentaAgriculturaRow } from "../../types";
+import type { AuthUser, Catalogos, VentaAgriculturaRealInput, VentaAgriculturaRow } from "../../types";
 import { confirmAction } from "../../utils/confirm";
 import { fmtNum } from "../../utils";
 import TablePagination, {
@@ -16,7 +16,7 @@ import TablePagination, {
 import {
   ANIOS_AGRICULTURA,
   CULTIVOS_AGRICULTURA,
-  EMPRESAS_AGRICULTURA,
+  empresasSelectOptions,
   MESES_AGRICULTURA,
   calcularImporteAgricultura,
   calcularTotalProduccionAgricultura,
@@ -46,6 +46,7 @@ import {
 import { canWriteSimuladorVentaGanado, canWriteIngresosVentas } from "../../utils/auth-permissions";
 
 interface Props {
+  catalogos: Catalogos;
   apiOnline: boolean;
   onError: (msg: string) => void;
   onSuccess?: (msg: string) => void;
@@ -55,6 +56,7 @@ interface Props {
 }
 
 export default function VentasAgricultura({
+  catalogos,
   apiOnline,
   onError,
   onSuccess,
@@ -63,6 +65,10 @@ export default function VentasAgricultura({
   user = null,
 }: Props) {
   const copy = VENTAS_AGRICULTURA_COPY[modo];
+  const empresasOpciones = useMemo(
+    () => empresasSelectOptions(catalogos.empresas),
+    [catalogos.empresas]
+  );
   const esSimulador = modo === "simulador";
   const puedeEditar = esSimulador
     ? canWriteSimuladorVentaGanado(user)
@@ -365,7 +371,7 @@ export default function VentasAgricultura({
               onChange={(e) => setEmpresa(e.target.value as EmpresaAgricultura)}
             >
               <option value="">Seleccionar...</option>
-              {EMPRESAS_AGRICULTURA.map((item) => (
+              {empresasOpciones.map((item) => (
                 <option key={item.value} value={item.value}>
                   {item.label}
                 </option>
@@ -567,7 +573,7 @@ export default function VentasAgricultura({
               onChange={(e) => setFiltroEmpresa(e.target.value)}
             >
               <option value="">Todas</option>
-              {EMPRESAS_AGRICULTURA.map((item) => (
+              {empresasOpciones.map((item) => (
                 <option key={item.value} value={item.value}>
                   {item.label}
                 </option>

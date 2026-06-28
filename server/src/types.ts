@@ -1,9 +1,4 @@
-export const EMPRESAS = [
-  "GANADERA GUAVIYU",
-  "GANADERA CHIVILCOY",
-] as const;
-
-export type Empresa = (typeof EMPRESAS)[number];
+export type Empresa = string;
 
 export const RUBROS_DEFAULT = [
   "Sueldos y cargas sociales",

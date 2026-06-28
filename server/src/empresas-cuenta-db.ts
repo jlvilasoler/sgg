@@ -910,11 +910,12 @@ export async function resolveCuentaMadreIdForUser(
   user: { id: number; es_super_admin?: boolean; empresa_id?: number | null }
 ): Promise<number | null> {
   if (user.es_super_admin) return null;
+  const cuentaAdmin = await getEmpresaCuentaByAdminUserId(db, user.id);
+  if (cuentaAdmin) return cuentaAdmin.id;
   if (user.empresa_id != null && Number.isFinite(Number(user.empresa_id))) {
     return Number(user.empresa_id);
   }
-  const cuenta = await getEmpresaCuentaByAdminUserId(db, user.id);
-  return cuenta?.id ?? null;
+  return null;
 }
 
 /**

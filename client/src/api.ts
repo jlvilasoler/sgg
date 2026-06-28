@@ -212,6 +212,12 @@ export async function fetchCatalogos(): Promise<Catalogos> {
   };
 }
 
+/** Empresas operativas de la cuenta del usuario (centros de costo). */
+export async function fetchEmpresasOperativas(): Promise<string[]> {
+  const json = await request<{ data: string[] }>("/empresas-operativas");
+  return json.data ?? [];
+}
+
 export async function fetchPresupuesto(filters: {
   empresa?: string;
   rubro?: string;

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { deletePresupuesto, fetchPresupuesto, presupuestoDocumentoUrl } from "../api";
+import { deletePresupuesto, fetchEmpresasOperativas, fetchPresupuesto, presupuestoDocumentoUrl } from "../api";
 import { FILTRO_SIN_RESPONSABLE } from "../constants";
 import type { Catalogos, Presupuesto } from "../types";
 import { confirmAction } from "../utils/confirm";
@@ -75,6 +75,23 @@ export default function Listado({ catalogos, apiOnline, onEdit, onDeleted, onErr
   const [exportando, setExportando] = useState<"excel" | "pdf" | "csv" | null>(null);
   const [detalleRow, setDetalleRow] = useState<Presupuesto | null>(null);
   const [documentoRow, setDocumentoRow] = useState<Presupuesto | null>(null);
+  const [empresas, setEmpresas] = useState<string[]>(catalogos.empresas);
+
+  useEffect(() => {
+    if (!apiOnline) {
+      setEmpresas([]);
+      return;
+    }
+    fetchEmpresasOperativas()
+      .then(setEmpresas)
+      .catch(() => setEmpresas(catalogos.empresas));
+  }, [apiOnline, catalogos.empresas]);
+
+  useEffect(() => {
+    if (empresa && empresas.length > 0 && !empresas.includes(empresa)) {
+      setEmpresa("");
+    }
+  }, [empresas, empresa]);
 
   const load = useCallback(async () => {
     if (!apiOnline) {
@@ -282,7 +299,7 @@ export default function Listado({ catalogos, apiOnline, onEdit, onDeleted, onErr
                 onChange={(e) => setEmpresa(e.target.value)}
               >
                 <option value="">Todas</option>
-                {catalogos.empresas.map((e) => (
+                {empresas.map((e) => (
                   <option key={e} value={e}>
                     {e}
                   </option>

@@ -164,7 +164,9 @@ export function moduleFromApiPath(path: string): Modulo | null {
   }
   if (p.startsWith("/api/stock-ganadero")) return "stock";
   if (p.startsWith("/api/documentos-digitales")) return "documentos_digitales";
-  if (p.startsWith("/api/catalogos")) return "presupuesto";
+  if (p.startsWith("/api/catalogos") || p.startsWith("/api/empresas-operativas")) {
+    return "presupuesto";
+  }
   return null;
 }
 
