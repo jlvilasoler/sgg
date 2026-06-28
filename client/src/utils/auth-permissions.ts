@@ -125,6 +125,11 @@ export function canAccessAdministradorCuentas(user: AuthUser | null): boolean {
   return user.empresa_id != null;
 }
 
+/** Alta, edición y baja de usuarios del equipo: solo el admin designado de la cuenta. */
+export function canManageUsuariosCuenta(user: AuthUser | null): boolean {
+  return Boolean(user?.es_admin_cuenta);
+}
+
 /** Permisos globales por rol: solo el super-administrador de plataforma (SCG_ADMIN_EMAIL). */
 export function canAccessPermisosPorRol(user: AuthUser | null): boolean {
   return Boolean(user?.es_super_admin);

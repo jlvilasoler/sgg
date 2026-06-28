@@ -19839,6 +19839,99 @@ button.sg-kpi-card:disabled {
   margin-bottom: 0.45rem;
 }
 
+.usuarios-admin-rol-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.usuarios-rol-info-wrap {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.usuarios-rol-info-wrap::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: -0.25rem;
+  right: -0.25rem;
+  height: 0.45rem;
+}
+
+.usuarios-rol-info-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.35rem;
+  height: 1.35rem;
+  padding: 0;
+  border: 1px solid var(--bn-border-soft);
+  border-radius: 50%;
+  background: #fff;
+  color: #64748b;
+  cursor: pointer;
+  transition:
+    color 0.15s ease,
+    border-color 0.15s ease,
+    background 0.15s ease;
+}
+
+.usuarios-rol-info-btn:hover,
+.usuarios-rol-info-wrap:hover .usuarios-rol-info-btn,
+.usuarios-rol-info-wrap:focus-within .usuarios-rol-info-btn {
+  color: #1e3d2a;
+  border-color: rgba(45, 106, 79, 0.35);
+  background: #f3f8f5;
+}
+
+.usuarios-rol-info-panel {
+  position: absolute;
+  z-index: 20;
+  top: 100%;
+  left: 0;
+  width: min(16rem, 72vw);
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--bn-border-soft);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 10px 28px -12px rgba(15, 23, 42, 0.35);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity 0.12s ease,
+    visibility 0.12s ease;
+}
+
+.usuarios-rol-info-wrap:hover .usuarios-rol-info-panel,
+.usuarios-rol-info-wrap:focus-within .usuarios-rol-info-panel {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.usuarios-rol-info-panel-title {
+  margin: 0 0 0.4rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--bn-text);
+}
+
+.usuarios-rol-info-panel-list {
+  margin: 0;
+  padding-left: 1rem;
+  font-size: 0.76rem;
+  line-height: 1.45;
+  color: var(--bn-muted);
+}
+
+.usuarios-rol-info-panel-list li + li {
+  margin-top: 0.25rem;
+}
+
 .usuarios-admin-rol-count {
   font-size: 1.1rem;
   font-weight: 700;

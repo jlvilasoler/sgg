@@ -5,7 +5,7 @@ import {
   fetchUsuarios,
 } from "../api";
 import type { AuthUser, Rol, UserForm } from "../types";
-import { ALL_ROLES, ROL_DESCRIPCION, ROL_LABELS_DETALLE } from "../types";
+import { ALL_ROLES, ROL_DESCRIPCION, ROL_INFO_DETALLE, ROL_LABELS_DETALLE } from "../types";
 import {
   PASSWORD_POLICY_HINT,
   validatePasswordStrength,
@@ -23,6 +23,44 @@ interface Props {
 }
 
 const ROLES: Rol[] = ALL_ROLES;
+
+function IconoInfo() {
+  return (
+    <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true">
+      <path
+        fill="currentColor"
+        d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 4.5a1.25 1.25 0 1 1 0 2.5 1.25 1.25 0 0 1 0-2.5zM11 11h2v7h-2v-7z"
+      />
+    </svg>
+  );
+}
+
+function RolInfoButton({ rol }: { rol: Rol }) {
+  const info = ROL_INFO_DETALLE[rol];
+  const panelId = `rol-info-${rol}`;
+
+  return (
+    <span className="usuarios-rol-info-wrap">
+      <button
+        type="button"
+        className="usuarios-rol-info-btn"
+        aria-describedby={panelId}
+        title={`Información sobre ${info.titulo}`}
+      >
+        <IconoInfo />
+        <span className="sr-only">Información sobre {info.titulo}</span>
+      </button>
+      <div id={panelId} className="usuarios-rol-info-panel" role="tooltip">
+        <p className="usuarios-rol-info-panel-title">{info.titulo}</p>
+        <ul className="usuarios-rol-info-panel-list">
+          {info.puntos.map((punto) => (
+            <li key={punto}>{punto}</li>
+          ))}
+        </ul>
+      </div>
+    </span>
+  );
+}
 
 function IconoOjo({ visible }: { visible: boolean }) {
   if (visible) {
@@ -312,8 +350,11 @@ export default function Usuarios({
                 return (
                   <div key={rol} className={`usuarios-admin-rol-card usuarios-admin-rol-card--${rol}`}>
                     <div className="usuarios-admin-rol-top">
-                      <span className={`usuarios-rol-badge usuarios-rol-badge--${rol}`}>
-                        {ROL_LABELS_DETALLE[rol]}
+                      <span className="usuarios-admin-rol-label">
+                        <span className={`usuarios-rol-badge usuarios-rol-badge--${rol}`}>
+                          {ROL_LABELS_DETALLE[rol]}
+                        </span>
+                        <RolInfoButton rol={rol} />
                       </span>
                       <strong className="usuarios-admin-rol-count">
                         {loading || !apiOnline ? "—" : count}

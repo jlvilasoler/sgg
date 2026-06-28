@@ -266,6 +266,43 @@ function parseActividadAmbito(raw: unknown): authDb.ActividadAmbito | undefined 
   return undefined;
 }
 
+async function requireCuentaAdmin(req: Request, res: Response): Promise<boolean> {
+  if (!req.user) {
+    res.status(401).json({ ok: false, error: "No autenticado" });
+    return false;
+  }
+  if (req.user.es_admin_cuenta) return true;
+  const cuenta = await empresasCuenta.getEmpresaCuentaByAdminUserId(
+    getDb(),
+    req.user.id
+  );
+  if (cuenta) return true;
+  res.status(403).json({
+    ok: false,
+    error: "Solo el administrador de la cuenta puede gestionar usuarios",
+  });
+  return false;
+}
+
+async function assertUserInCuentaScope(
+  actor: UserPublic,
+  target: UserPublic,
+  res: Response
+): Promise<boolean> {
+  const cuenta = await empresasCuenta.getEmpresaCuentaByAdminUserId(getDb(), actor.id);
+  if (!cuenta) {
+    res.status(403).json({ ok: false, error: "Sin permiso sobre este usuario" });
+    return false;
+  }
+  const inScope =
+    target.empresa_id === cuenta.id || target.id === cuenta.admin_user_id;
+  if (!inScope) {
+    res.status(403).json({ ok: false, error: "Sin permiso sobre este usuario" });
+    return false;
+  }
+  return true;
+}
+
 function requireAdmin(req: Request, res: Response): boolean {
   if (!req.user || req.user.rol !== "admin") {
     res.status(403).json({ ok: false, error: "Solo administradores" });
@@ -638,68 +675,30 @@ export function registerAuthRoutes(app: Express): void {
   });
 
   app.get("/api/auth/users", async (req, res) => {
-    if (!requireAdmin(req, res)) return;
+    if (!(await requireCuentaAdmin(req, res))) return;
     const actor = req.user!;
-    const empresaQuery = req.query.empresa_id;
-    const ambitoPropio = String(req.query.ambito ?? "") === "propio";
-    if (actor.es_super_admin) {
-      if (empresaQuery != null && String(empresaQuery).trim() !== "") {
-        const empresaId = Number(empresaQuery);
-        if (!Number.isFinite(empresaId)) {
-          res.status(400).json({ ok: false, error: "empresa_id inválido" });
-          return;
-        }
-        const cuenta = await empresasCuenta.getEmpresaCuentaById(
-          getDb(),
-          empresaId
-        );
-        res.json({
-          ok: true,
-          data: await authDb.listUsers(getDb(), {
-            empresa_id: empresaId,
-            incluir_admin_id: cuenta?.admin_user_id ?? null,
-          }),
-        });
-        return;
-      }
-      if (ambitoPropio) {
-        const cuenta = await empresasCuenta.getEmpresaCuentaByAdminUserId(
-          getDb(),
-          actor.id
-        );
-        if (cuenta) {
-          res.json({
-            ok: true,
-            data: await authDb.listUsers(getDb(), {
-              empresa_id: cuenta.id,
-              incluir_admin_id: cuenta.admin_user_id,
-            }),
-          });
-          return;
-        }
-      }
-      res.json({ ok: true, data: await authDb.listUsers(getDb()) });
-      return;
-    }
-    if (actor.empresa_id) {
-      const cuenta = await empresasCuenta.getEmpresaCuentaById(
-        getDb(),
-        actor.empresa_id
-      );
-      res.json({
-        ok: true,
-        data: await authDb.listUsers(getDb(), {
-          empresa_id: actor.empresa_id,
-          incluir_admin_id: cuenta?.admin_user_id ?? null,
-        }),
+    const cuenta = await empresasCuenta.getEmpresaCuentaByAdminUserId(
+      getDb(),
+      actor.id
+    );
+    if (!cuenta) {
+      res.status(403).json({
+        ok: false,
+        error: "Solo el administrador de la cuenta puede gestionar usuarios",
       });
       return;
     }
-    res.json({ ok: true, data: await authDb.listUsers(getDb()) });
+    res.json({
+      ok: true,
+      data: await authDb.listUsers(getDb(), {
+        empresa_id: cuenta.id,
+        incluir_admin_id: cuenta.admin_user_id,
+      }),
+    });
   });
 
   app.post("/api/auth/users", async (req, res) => {
-    if (!requireAdmin(req, res)) return;
+    if (!(await requireCuentaAdmin(req, res))) return;
     try {
       const actor = req.user!;
       const body = req.body ?? {};
@@ -725,9 +724,15 @@ export function registerAuthRoutes(app: Express): void {
           );
           data.empresa_id = propia?.id ?? null;
         }
-      } else if (actor.empresa_id) {
-        data.empresa_id = actor.empresa_id;
       } else {
+        const propia = await empresasCuenta.getEmpresaCuentaByAdminUserId(
+          getDb(),
+          actor.id
+        );
+        data.empresa_id = propia?.id ?? actor.empresa_id ?? null;
+      }
+
+      if (data.empresa_id == null) {
         res.status(403).json({ ok: false, error: "Sin permiso para crear usuarios" });
         return;
       }
@@ -747,7 +752,7 @@ export function registerAuthRoutes(app: Express): void {
   });
 
   app.patch("/api/auth/users/:id", async (req, res) => {
-    if (!requireAdmin(req, res)) return;
+    if (!(await requireCuentaAdmin(req, res))) return;
     try {
       const id = Number(req.params.id);
       if (!Number.isFinite(id)) {
@@ -775,7 +780,7 @@ export function registerAuthRoutes(app: Express): void {
         return;
       }
 
-      if (!assertUserInScope(req.user!, current, res)) return;
+      if (!(await assertUserInCuentaScope(req.user!, current, res))) return;
 
       if (body.empresa_id !== undefined && req.user!.es_super_admin) {
         updateData.empresa_id =

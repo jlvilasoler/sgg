@@ -927,11 +927,54 @@ export const ROL_LABELS_DETALLE: Record<Rol, string> = {
 };
 
 export const ROL_DESCRIPCION: Record<Rol, string> = {
-  admin: "Acceso total al sistema (no editable)",
+  admin: "Administrador designado de la cuenta. Gestiona usuarios y configuración.",
   editor: "Gestión operativa según sectores habilitados (sin usuarios ni ventas)",
   gestor_n2:
     "Gastos, configuración, stock, RRHH y resumen. Divisas solo lectura. Sin ventas ni usuarios.",
-  consulta: "Solo lectura en los sectores habilitados",
+  consulta: "Solo lectura (lector) en los sectores habilitados",
+};
+
+/** Texto extendido para el panel informativo de cada rol. */
+export const ROL_INFO_DETALLE: Record<
+  Rol,
+  { titulo: string; puntos: string[] }
+> = {
+  admin: {
+    titulo: "Administrador",
+    puntos: [
+      "Usuario designado como administrador de la cuenta.",
+      "Puede crear, editar y desactivar usuarios de su equipo.",
+      "Acceso completo a configuración y módulos operativos.",
+      "Es el único rol que administra usuarios de la cuenta.",
+    ],
+  },
+  editor: {
+    titulo: "Gestor N1",
+    puntos: [
+      "Operación diaria según los sectores habilitados por el administrador.",
+      "Puede registrar y consultar gastos, stock, RRHH y resumen.",
+      "Accede a configuración operativa (catálogos, proveedores, etc.).",
+      "No gestiona usuarios ni ingresos por ventas.",
+    ],
+  },
+  gestor_n2: {
+    titulo: "Gestor N2",
+    puntos: [
+      "Perfil intermedio con acceso acotado por el administrador.",
+      "Gastos, configuración, stock, RRHH y resumen según permisos.",
+      "Divisas en solo lectura.",
+      "Sin acceso a ventas ni administración de usuarios.",
+    ],
+  },
+  consulta: {
+    titulo: "Consulta (Lector)",
+    puntos: [
+      "Perfil de solo lectura en los sectores habilitados.",
+      "Puede consultar listados, reportes y datos operativos.",
+      "No puede crear, editar ni eliminar registros.",
+      "Ideal para supervisión o auditoría sin intervención.",
+    ],
+  },
 };
 
 export type Modulo =
@@ -970,6 +1013,8 @@ export interface AuthUser {
   cuenta_actividad_id: number | null;
   cuenta_actividad_nombre: string | null;
   es_super_admin: boolean;
+  /** Usuario designado como administrador de su cuenta. */
+  es_admin_cuenta: boolean;
   permisos: Modulo[];
   puede_escribir: boolean;
   modulos_solo_lectura: Modulo[];

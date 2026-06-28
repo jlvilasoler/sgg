@@ -133,6 +133,8 @@ export interface UserPublic {
   cuenta_actividad_id: number | null;
   cuenta_actividad_nombre: string | null;
   es_super_admin: boolean;
+  /** Usuario designado como administrador de su cuenta (EMPRESAS_CUENTA.admin_user_id). */
+  es_admin_cuenta: boolean;
   permisos: Modulo[];
   puede_escribir: boolean;
   modulos_solo_lectura: Modulo[];
@@ -290,6 +292,8 @@ export async function toUserPublic(row: UserRow, db: Db): Promise<UserPublic> {
     cuentaActividadNombre = cuentaRow?.nombre ?? null;
   }
 
+  const cuentaAdmin = await empresasCuenta.getEmpresaCuentaByAdminUserId(db, row.id);
+
   return {
     id: row.id,
     usuario_numero: formatUsuarioNumero(row.usuario_numero ?? row.id),
@@ -305,6 +309,7 @@ export async function toUserPublic(row: UserRow, db: Db): Promise<UserPublic> {
     cuenta_actividad_id: cuentaActividadId,
     cuenta_actividad_nombre: cuentaActividadNombre,
     es_super_admin: esSuperAdmin,
+    es_admin_cuenta: cuentaAdmin != null,
     permisos: caps.permisos,
     puede_escribir: caps.puede_escribir,
     modulos_solo_lectura: caps.modulos_solo_lectura,

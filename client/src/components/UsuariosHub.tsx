@@ -8,6 +8,7 @@ import {
   canAccessArquitecturaSistema,
   canAccessPermisosPorRol,
   canAccessStockMovimientos,
+  canManageUsuariosCuenta,
 } from "../utils/auth-permissions";
 import { HubMenuCard } from "./HubMenuCard";
 import { MENU_APP_THEMES, MenuAppIcon } from "./icons/MenuAppIcons";
@@ -106,7 +107,7 @@ export default function UsuariosHub({
         label: "Administración de Usuarios",
         subtitle: "Cuentas, altas y edición de usuarios",
         icon: { type: "tab", id: "usuarios" },
-        visible: true,
+        visible: canManageUsuariosCuenta(user),
       },
       {
         id: "permisos_por_rol",
@@ -160,9 +161,12 @@ export default function UsuariosHub({
     if (vista === "permisos_por_rol" && !canAccessPermisosPorRol(user)) {
       setVista("menu");
     }
+    if (vista === "usuarios_cuentas" && !canManageUsuariosCuenta(user)) {
+      setVista("menu");
+    }
   }, [vista, user]);
 
-  if (vista === "usuarios_cuentas") {
+  if (vista === "usuarios_cuentas" && canManageUsuariosCuenta(user)) {
     return (
       <Usuarios
         apiOnline={apiOnline}
