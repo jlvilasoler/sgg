@@ -50,6 +50,9 @@ import * as simVentaAud from "./simulador-venta-auditoria-db.js";
 import * as simVentaDisp from "./simulador-venta-dispositivos-db.js";
 import * as simVentaStock from "./simulador-venta-stock-sync.js";
 import { applySchema } from "./db/init-schema.js";
+import { appendEmpresaScope, type ResumenEmpresaScope } from "./empresa-scope.js";
+
+export type { ResumenEmpresaScope } from "./empresa-scope.js";
 
 let db: PgDb;
 
@@ -650,7 +653,8 @@ export async function listPresupuesto(filters: ListFilters = {}): Promise<Presup
 
 export async function resumenPorEmpresa(
   fecha_desde?: string,
-  fecha_hasta?: string
+  fecha_hasta?: string,
+  scope?: ResumenEmpresaScope
 ): Promise<ResumenEmpresa[]> {
   let query = `
     SELECT empresa, COUNT(*) AS cantidad,
@@ -661,6 +665,7 @@ export async function resumenPorEmpresa(
     FROM PRESUPUESTO WHERE 1=1
   `;
   const params: Record<string, string> = {};
+  query = appendEmpresaScope(query, params, scope);
   if (fecha_desde) {
     query += " AND fecha >= @fecha_desde";
     params.fecha_desde = fecha_desde;
@@ -674,7 +679,7 @@ export async function resumenPorEmpresa(
 }
 
 export async function resumenPorRubro(
-  empresa?: string,
+  scope?: ResumenEmpresaScope,
   fecha_desde?: string,
   fecha_hasta?: string
 ): Promise<ResumenRubro[]> {
@@ -687,10 +692,7 @@ export async function resumenPorRubro(
     FROM PRESUPUESTO WHERE 1=1
   `;
   const params: Record<string, string> = {};
-  if (empresa) {
-    query += " AND empresa = @empresa";
-    params.empresa = empresa;
-  }
+  query = appendEmpresaScope(query, params, scope);
   if (fecha_desde) {
     query += " AND fecha >= @fecha_desde";
     params.fecha_desde = fecha_desde;
@@ -705,7 +707,8 @@ export async function resumenPorRubro(
 
 export async function resumenPorEmpresaRubro(
   fecha_desde?: string,
-  fecha_hasta?: string
+  fecha_hasta?: string,
+  scope?: ResumenEmpresaScope
 ): Promise<ResumenEmpresaRubro[]> {
   let query = `
     SELECT empresa, rubro, COUNT(*) AS cantidad,
@@ -716,6 +719,7 @@ export async function resumenPorEmpresaRubro(
     FROM PRESUPUESTO WHERE 1=1
   `;
   const params: Record<string, string> = {};
+  query = appendEmpresaScope(query, params, scope);
   if (fecha_desde) {
     query += " AND fecha >= @fecha_desde";
     params.fecha_desde = fecha_desde;
@@ -840,7 +844,7 @@ function sumarTotales(acc: ResumenTotales, row: ResumenTotales): ResumenTotales 
 }
 
 export async function resumenPorSubRubro(
-  empresa?: string,
+  scope?: ResumenEmpresaScope,
   fecha_desde?: string,
   fecha_hasta?: string
 ): Promise<ResumenSubRubro[]> {
@@ -855,10 +859,7 @@ export async function resumenPorSubRubro(
     FROM PRESUPUESTO WHERE 1=1
   `;
   const params: Record<string, string> = {};
-  if (empresa) {
-    query += " AND empresa = @empresa";
-    params.empresa = empresa;
-  }
+  query = appendEmpresaScope(query, params, scope);
   if (fecha_desde) {
     query += " AND fecha >= @fecha_desde";
     params.fecha_desde = fecha_desde;
@@ -873,7 +874,7 @@ export async function resumenPorSubRubro(
 }
 
 export async function resumenPorSubRubroMensual(
-  empresa?: string,
+  scope?: ResumenEmpresaScope,
   fecha_hasta?: string
 ): Promise<ResumenSubRubroMes[]> {
   let query = `
@@ -885,10 +886,7 @@ export async function resumenPorSubRubroMensual(
     WHERE fecha >= @fecha_inicio
   `;
   const params: Record<string, string> = { fecha_inicio: estadoFinancieroDesdeAnioAnterior() };
-  if (empresa) {
-    query += " AND empresa = @empresa";
-    params.empresa = empresa;
-  }
+  query = appendEmpresaScope(query, params, scope);
   if (fecha_hasta) {
     query += " AND fecha <= @fecha_hasta";
     params.fecha_hasta = fecha_hasta;
@@ -923,12 +921,12 @@ function porMesDesdeMovimientos(
 
 /** Estado financiero: catálogo Configuración → Rubros, USD por mes desde 01/07/2026. */
 export async function buildEstadoFinanciero(
-  empresa?: string,
+  scope?: ResumenEmpresaScope,
   fecha_hasta?: string
 ): Promise<EstadoFinancieroPayload> {
   const catalogo = await sub.getCatalogoGruposParaGastos(db);
   const meses = listarMesesEstadoFinanciero(fecha_hasta);
-  const movMensual = await resumenPorSubRubroMensual(empresa, fecha_hasta);
+  const movMensual = await resumenPorSubRubroMensual(scope, fecha_hasta);
 
   const movMes = new Map<string, number>();
   for (const m of movMensual) {
@@ -1006,7 +1004,7 @@ function totalesVacio(): ResumenTotales {
 
 export async function buildGastosProveedoresReport(
   codigos: number[],
-  empresa?: string,
+  scope?: ResumenEmpresaScope,
   fecha_desde?: string,
   fecha_hasta?: string
 ): Promise<GastosProveedoresReportPayload> {
@@ -1023,6 +1021,7 @@ export async function buildGastosProveedoresReport(
   });
 
   let where = ` WHERE trim(codigo_proveedor) IN (${placeholders})`;
+  where = appendEmpresaScope(where, params, scope);
   if (fecha_desde?.trim()) {
     where += " AND fecha >= @fecha_desde";
     params.fecha_desde = fecha_desde.trim();
@@ -1030,10 +1029,6 @@ export async function buildGastosProveedoresReport(
   if (fecha_hasta?.trim()) {
     where += " AND fecha <= @fecha_hasta";
     params.fecha_hasta = fecha_hasta.trim();
-  }
-  if (empresa) {
-    where += " AND empresa = @empresa";
-    params.empresa = empresa;
   }
 
   const totalesRows = (await db
@@ -1148,6 +1143,7 @@ export async function buildEstadoResultados(
     fecha_desde?: string;
     fecha_hasta?: string;
     empresa?: string;
+    empresas?: string[];
     cuentaId?: number | null;
   }
 ): Promise<EstadoResultadosPayload> {

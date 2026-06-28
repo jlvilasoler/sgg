@@ -511,6 +511,23 @@ async function applyEmpresaScopeToFilters(
   return { ...filters, empresa: undefined, empresas: permitidas };
 }
 
+async function resumenEmpresaScope(
+  user: UserPublic,
+  empresa?: string
+): Promise<db.ResumenEmpresaScope> {
+  if (user.es_super_admin) {
+    return empresa ? { empresa } : {};
+  }
+  const permitidas = await empresasPermitidas(user);
+  if (permitidas.length === 0) {
+    return { empresas: ["__sin_empresas__"] };
+  }
+  if (empresa && permitidas.includes(empresa)) {
+    return { empresa };
+  }
+  return { empresas: permitidas };
+}
+
 async function presupuestoListFilters(req: Request): Promise<db.ListFilters> {
   const user = req.user!;
   const filters: db.ListFilters = {
@@ -4072,12 +4089,13 @@ app.get("/api/resumen", async (req, res) => {
   const fecha_desde = req.query.fecha_desde as string | undefined;
   const fecha_hasta = req.query.fecha_hasta as string | undefined;
   const empresa = req.query.empresa as string | undefined;
-  const estado = await db.buildEstadoFinanciero(empresa, fecha_hasta);
+  const scope = await resumenEmpresaScope(req.user!, empresa);
+  const estado = await db.buildEstadoFinanciero(scope, fecha_hasta);
   res.json({
     ok: true,
-    por_empresa: await db.resumenPorEmpresa(fecha_desde, fecha_hasta),
-    por_empresa_rubro: await db.resumenPorEmpresaRubro(fecha_desde, fecha_hasta),
-    por_rubro: await db.resumenPorRubro(empresa, fecha_desde, fecha_hasta),
+    por_empresa: await db.resumenPorEmpresa(fecha_desde, fecha_hasta, scope),
+    por_empresa_rubro: await db.resumenPorEmpresaRubro(fecha_desde, fecha_hasta, scope),
+    por_rubro: await db.resumenPorRubro(scope, fecha_desde, fecha_hasta),
     estado_financiero: estado.rubros,
     estado_financiero_meses: estado.meses,
     rubros: await db.rubros.listNombres(),
@@ -4098,9 +4116,10 @@ app.get("/api/resumen/gastos-proveedores", async (req, res) => {
   const codigos = partes
     .map((s) => Number(String(s).trim()))
     .filter((n) => Number.isFinite(n) && n > 0);
+  const scope = await resumenEmpresaScope(req.user!, empresa);
   const data = await db.buildGastosProveedoresReport(
     codigos,
-    empresa,
+    scope,
     fecha_desde,
     fecha_hasta
   );
@@ -4111,11 +4130,13 @@ app.get("/api/resumen/estado-resultados", async (req, res) => {
   const fecha_desde = req.query.fecha_desde as string | undefined;
   const fecha_hasta = req.query.fecha_hasta as string | undefined;
   const empresa = req.query.empresa as string | undefined;
+  const scope = await resumenEmpresaScope(req.user!, empresa);
   const cuentaId = await cuentaIdForUser(req.user!);
   const data = await db.buildEstadoResultados({
     fecha_desde,
     fecha_hasta,
-    empresa,
+    empresa: scope.empresa,
+    empresas: scope.empresas,
     cuentaId,
   });
   res.json({ ok: true, data });

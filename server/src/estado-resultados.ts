@@ -1,4 +1,5 @@
 import type { Db } from "./db/pg-client.js";
+import { appendEmpresaScope, type ResumenEmpresaScope } from "./empresa-scope.js";
 import type {
   EstadoResultadosClasificacionDetalle,
   EstadoResultadosPayload,
@@ -108,6 +109,7 @@ async function gastosClasificadosUsd(
     fecha_desde?: string;
     fecha_hasta?: string;
     empresa?: string;
+    empresas?: string[];
     cuentaId?: number | null;
   }
 ): Promise<GastoFila[]> {
@@ -128,14 +130,11 @@ async function gastosClasificadosUsd(
     )`;
   const params: Record<string, string | number> = {};
   q += " WHERE 1=1";
-  if (opts.cuentaId != null) {
-    q += " AND (pr.id IS NULL OR pr.cuenta_id = @cuentaId)";
-    params.cuentaId = opts.cuentaId;
-  }
-  if (opts.empresa) {
-    q += " AND p.empresa = @empresa";
-    params.empresa = opts.empresa;
-  }
+  const scope: ResumenEmpresaScope | undefined =
+    opts.empresas?.length || opts.empresa
+      ? { empresa: opts.empresa, empresas: opts.empresas }
+      : undefined;
+  q = appendEmpresaScope(q, params as Record<string, string>, scope, "p.empresa");
   if (opts.fecha_desde) {
     q += " AND p.fecha >= @fecha_desde";
     params.fecha_desde = opts.fecha_desde;
@@ -169,9 +168,15 @@ async function ventasIngresosSeccionUsd(
     fecha_desde?: string;
     fecha_hasta?: string;
     empresa?: string;
+    empresas?: string[];
     cuentaId?: number | null;
   }
 ): Promise<EstadoResultadosVentasDetalle> {
+  const scope: ResumenEmpresaScope | undefined =
+    opts.empresas?.length || opts.empresa
+      ? { empresa: opts.empresa, empresas: opts.empresas }
+      : undefined;
+
   const paramsSim: Record<string, string | number> = {};
   let qSim = `
     SELECT COALESCE(SUM(real_total_usd), 0) AS total
@@ -197,10 +202,7 @@ async function ventasIngresosSeccionUsd(
     SELECT COALESCE(SUM(COALESCE(real_importe_usd, importe_usd)), 0) AS total
     FROM VENTAS_AGRICULTURA
     WHERE venta_realizada = 1`;
-  if (opts.empresa) {
-    qAgri += " AND empresa = @empresa";
-    paramsAgri.empresa = opts.empresa;
-  }
+  qAgri = appendEmpresaScope(qAgri, paramsAgri as Record<string, string>, scope);
   if (opts.cuentaId != null) {
     qAgri += " AND cuenta_id = @cuentaId";
     paramsAgri.cuentaId = opts.cuentaId;
@@ -221,10 +223,7 @@ async function ventasIngresosSeccionUsd(
     SELECT COALESCE(SUM(real_total_usd), 0) AS total
     FROM VENTAS_ARRENDAMIENTO
     WHERE venta_realizada = 1 AND real_total_usd IS NOT NULL`;
-  if (opts.empresa) {
-    qArr += " AND empresa = @empresa";
-    paramsArr.empresa = opts.empresa;
-  }
+  qArr = appendEmpresaScope(qArr, paramsArr as Record<string, string>, scope);
   if (opts.cuentaId != null) {
     qArr += " AND cuenta_id = @cuentaId";
     paramsArr.cuentaId = opts.cuentaId;
@@ -249,6 +248,7 @@ export async function buildEstadoResultados(
     fecha_desde?: string;
     fecha_hasta?: string;
     empresa?: string;
+    empresas?: string[];
     cuentaId?: number | null;
   }
 ): Promise<EstadoResultadosPayload> {
