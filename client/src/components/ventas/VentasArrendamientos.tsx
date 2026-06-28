@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   createVentaArrendamiento,
   deleteVentaArrendamiento,
+  fetchEmpresasOperativas,
   fetchVentasArrendamientos,
   patchVentaArrendamiento,
   updateVentaArrendamiento,
@@ -79,9 +80,10 @@ export default function VentasArrendamientos({
   user = null,
 }: Props) {
   const copy = VENTAS_ARRENDAMIENTOS_COPY[modo];
+  const [empresasCuenta, setEmpresasCuenta] = useState<string[]>(catalogos.empresas);
   const empresasOpciones = useMemo(
-    () => empresasSelectOptions(catalogos.empresas),
-    [catalogos.empresas]
+    () => empresasSelectOptions(empresasCuenta),
+    [empresasCuenta]
   );
   const esSimulador = modo === "simulador";
   const puedeEditar = esSimulador
@@ -119,6 +121,25 @@ export default function VentasArrendamientos({
   const [savingRealId, setSavingRealId] = useState<number | null>(null);
   const [patchingId, setPatchingId] = useState<number | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!apiOnline) {
+      setEmpresasCuenta([]);
+      return;
+    }
+    fetchEmpresasOperativas()
+      .then(setEmpresasCuenta)
+      .catch(() => setEmpresasCuenta(catalogos.empresas));
+  }, [apiOnline, catalogos.empresas]);
+
+  useEffect(() => {
+    if (empresa && empresasCuenta.length > 0 && !empresasCuenta.includes(empresa)) {
+      setEmpresa("");
+    }
+    if (filtroEmpresa && empresasCuenta.length > 0 && !empresasCuenta.includes(filtroEmpresa)) {
+      setFiltroEmpresa("");
+    }
+  }, [empresasCuenta, empresa, filtroEmpresa]);
 
   const hasNum = useMemo(() => parsePositiveDecimal(hectareas), [hectareas]);
   const precioNum = useMemo(() => parsePositiveDecimal(precioUsdHa), [precioUsdHa]);

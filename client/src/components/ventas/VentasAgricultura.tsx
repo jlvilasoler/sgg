@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   createVentaAgricultura,
   deleteVentaAgricultura,
+  fetchEmpresasOperativas,
   fetchVentasAgricultura,
   patchVentaAgricultura,
   updateVentaAgricultura,
@@ -65,9 +66,10 @@ export default function VentasAgricultura({
   user = null,
 }: Props) {
   const copy = VENTAS_AGRICULTURA_COPY[modo];
+  const [empresasCuenta, setEmpresasCuenta] = useState<string[]>(catalogos.empresas);
   const empresasOpciones = useMemo(
-    () => empresasSelectOptions(catalogos.empresas),
-    [catalogos.empresas]
+    () => empresasSelectOptions(empresasCuenta),
+    [empresasCuenta]
   );
   const esSimulador = modo === "simulador";
   const puedeEditar = esSimulador
@@ -93,6 +95,26 @@ export default function VentasAgricultura({
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<PageSize>(30);
   const [editingRealId, setEditingRealId] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!apiOnline) {
+      setEmpresasCuenta([]);
+      return;
+    }
+    fetchEmpresasOperativas()
+      .then(setEmpresasCuenta)
+      .catch(() => setEmpresasCuenta(catalogos.empresas));
+  }, [apiOnline, catalogos.empresas]);
+
+  useEffect(() => {
+    if (empresa && empresasCuenta.length > 0 && !empresasCuenta.includes(empresa)) {
+      setEmpresa("");
+    }
+    if (filtroEmpresa && empresasCuenta.length > 0 && !empresasCuenta.includes(filtroEmpresa)) {
+      setFiltroEmpresa("");
+    }
+  }, [empresasCuenta, empresa, filtroEmpresa]);
+
   const [editingId, setEditingId] = useState<number | null>(null);
   const [savingRealId, setSavingRealId] = useState<number | null>(null);
   const [patchingId, setPatchingId] = useState<number | null>(null);

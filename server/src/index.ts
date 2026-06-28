@@ -797,6 +797,25 @@ function parseIngresoVentaBody(req: Request) {
   };
 }
 
+/** cuenta_id para proveedores: null = super admin (todos); 0 = sin cuenta (ninguno). */
+async function proveedoresCuentaId(user: UserPublic): Promise<number | null> {
+  if (user.es_super_admin) return null;
+  const cuentaId = await cuentaIdForUser(user);
+  return cuentaId ?? 0;
+}
+
+/** Cuenta obligatoria al crear proveedores (nunca mezclar cuentas). */
+async function proveedoresCuentaIdParaInsert(user: UserPublic): Promise<number> {
+  if (user.es_super_admin) {
+    const cuentaId = await cuentaIdParaInsert(user);
+    if (!cuentaId) throw new Error("Sin cuenta para registrar proveedores");
+    return cuentaId;
+  }
+  const cuentaId = await cuentaIdForUser(user);
+  if (!cuentaId) throw new Error("Sin cuenta para registrar proveedores");
+  return cuentaId;
+}
+
 async function ventasAgriculturaFiltersFromRequest(
   req: Request
 ): Promise<ventasAgri.VentaAgriculturaFilters> {
@@ -2329,18 +2348,22 @@ function parseProveedorBody(req: Request) {
 
 app.get("/api/proveedores", async (req, res) => {
   const busqueda = req.query.busqueda as string | undefined;
-  const cuentaId = await cuentaIdForUser(req.user!);
+  const cuentaId = await proveedoresCuentaId(req.user!);
   res.json({ ok: true, data: await db.proveedores.list(busqueda, cuentaId) });
 });
 
 app.get("/api/proveedores/siguiente-cod", async (req, res) => {
-  const cuentaId = await cuentaIdParaInsert(req.user!);
-  res.json({ ok: true, cod: await db.proveedores.nextCod(cuentaId) });
+  try {
+    const cuentaId = await proveedoresCuentaIdParaInsert(req.user!);
+    res.json({ ok: true, cod: await db.proveedores.nextCod(cuentaId) });
+  } catch (e) {
+    res.status(403).json({ ok: false, error: (e as Error).message });
+  }
 });
 
 app.get("/api/proveedores/:cod", async (req, res) => {
   const cod = Number(req.params.cod);
-  const cuentaId = await cuentaIdForUser(req.user!);
+  const cuentaId = await proveedoresCuentaId(req.user!);
   const reg = await db.proveedores.getByCod(cod, cuentaId);
   if (!reg) {
     res.status(404).json({ ok: false, error: "Proveedor no encontrado" });
@@ -2352,7 +2375,7 @@ app.get("/api/proveedores/:cod", async (req, res) => {
 app.post("/api/proveedores", async (req, res) => {
   try {
     const payload = parseProveedorBody(req);
-    const cuentaId = await cuentaIdParaInsert(req.user!);
+    const cuentaId = await proveedoresCuentaIdParaInsert(req.user!);
     if (await db.proveedores.getByCod(payload.cod, cuentaId)) {
       res.status(400).json({ ok: false, error: "Ya existe un proveedor con ese código" });
       return;
@@ -2372,7 +2395,7 @@ app.put("/api/proveedores/id/:id", async (req, res) => {
   try {
     const id = Number(req.params.id);
     const payload = parseProveedorBody(req);
-    const cuentaId = await cuentaIdForUser(req.user!);
+    const cuentaId = await proveedoresCuentaId(req.user!);
     const existing = await db.proveedores.getByCod(payload.cod, cuentaId);
     if (existing && existing.id !== id) {
       res.status(400).json({ ok: false, error: "Ya existe otro proveedor con ese código" });
@@ -2400,7 +2423,7 @@ app.patch("/api/proveedores/id/:id/clasificacion", async (req, res) => {
       return;
     }
     const body = req.body ?? {};
-    const cuentaId = await cuentaIdForUser(req.user!);
+    const cuentaId = await proveedoresCuentaId(req.user!);
     const hasRubroPayload = "rubro" in body || "sub_rubro" in body;
 
     if (hasRubroPayload) {
@@ -2485,7 +2508,7 @@ app.patch("/api/proveedores/id/:id/clasificacion", async (req, res) => {
 
 app.delete("/api/proveedores/id/:id", async (req, res) => {
   const id = Number(req.params.id);
-  const cuentaId = await cuentaIdForUser(req.user!);
+  const cuentaId = await proveedoresCuentaId(req.user!);
   if (!await db.proveedores.delete(id, cuentaId)) {
     res.status(404).json({ ok: false, error: "Proveedor no encontrado" });
     return;
@@ -2637,7 +2660,7 @@ app.post(
       if (nombreProveedor) {
         const lista = await db.proveedores.list(
           nombreProveedor,
-          await cuentaIdForUser(req.user!)
+          await proveedoresCuentaId(req.user!)
         );
         const nombre = nombreProveedor.toLowerCase();
         const hit =
@@ -2784,7 +2807,7 @@ app.post(
       if (nombreProveedor) {
         const lista = await db.proveedores.list(
           nombreProveedor,
-          await cuentaIdForUser(req.user!)
+          await proveedoresCuentaId(req.user!)
         );
         const nombre = nombreProveedor.toLowerCase();
         const hit =

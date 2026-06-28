@@ -82,13 +82,14 @@ export default function ResponsableIngresar({
           </p>
         </div>
 
-        <form className="form-grid" onSubmit={guardar}>
-          <div className="field span-2">
+        <form className="form-grid responsable-ingresar-form" onSubmit={guardar}>
+          <div className="field span-3">
             <label htmlFor="resp-nombre">Nombre completo *</label>
             <input
               id="resp-nombre"
               required
-              placeholder="Ej: Elida Diaz Saravia"
+              data-sin-mayusculas="true"
+              placeholder="Ingresar Nombre"
               value={form.nombre}
               onChange={(e) =>
                 setForm((f) => ({ ...f, nombre: aMayusculas(e.target.value) }))
@@ -96,18 +97,19 @@ export default function ResponsableIngresar({
             />
           </div>
 
-          <div className="field checkbox-field">
-            <label>
+          <div className="field checkbox-field span-3">
+            <label className="checkbox-inline-label" htmlFor="resp-activo">
               <input
+                id="resp-activo"
                 type="checkbox"
                 checked={form.activo}
                 onChange={(e) => setForm((f) => ({ ...f, activo: e.target.checked }))}
               />
-              Activo (visible en gastos y filtros)
+              <span>Activo (visible en gastos y filtros)</span>
             </label>
           </div>
 
-          <div className="form-actions span-2">
+          <div className="form-actions span-3">
             {editId && (
               <button type="button" className="btn btn-secondary" onClick={nuevo}>
                 Nuevo nombre

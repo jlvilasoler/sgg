@@ -56,6 +56,7 @@ async function proveedorColumnExists(db: Db, column: string): Promise<boolean> {
 export async function initProveedoresTable(db: Db): Promise<void> {
   await migrateAddCuentaIdColumn(db, "PROVEEDORES");
   await migrateProveedorCodUniquePorCuenta(db);
+  await backfillProveedoresCuentaNulos(db);
 
   const columnMigrations: Array<{ name: string; ddl: string }> = [
     {
@@ -96,12 +97,24 @@ async function migrateProveedorCodUniquePorCuenta(db: Db): Promise<void> {
   }
 }
 
+/** Filas legacy sin cuenta: asignar a cuenta semilla (solo migración). */
+async function backfillProveedoresCuentaNulos(db: Db): Promise<void> {
+  const seedId = await getSeedCuentaMadreId(db);
+  if (!seedId) return;
+  await db
+    .prepare("UPDATE PROVEEDORES SET cuenta_id = @seedId WHERE cuenta_id IS NULL")
+    .run({ seedId });
+}
+
 function scopeCuenta(
   query: string,
   params: Record<string, string | number>,
   cuentaId?: number | null
 ): string {
-  if (cuentaId != null) {
+  if (cuentaId === 0) {
+    return `${query} AND 1=0`;
+  }
+  if (cuentaId != null && cuentaId > 0) {
     query += " AND cuenta_id = @cuentaId";
     params.cuentaId = cuentaId;
   }

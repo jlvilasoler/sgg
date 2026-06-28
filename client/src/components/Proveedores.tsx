@@ -60,6 +60,11 @@ export default function Proveedores({ apiOnline, onError, onSuccess, onVolver }:
     setVista("ingresar");
   };
 
+  const irListado = () => {
+    setEditProveedor(null);
+    setVista("listado");
+  };
+
   if (vista === "ingresar") {
     return (
       <ProveedorIngresar
@@ -71,6 +76,7 @@ export default function Proveedores({ apiOnline, onError, onSuccess, onVolver }:
           if (editProveedor) volverMenu();
         }}
         onCancelEdit={() => setEditProveedor(null)}
+        onVerListado={irListado}
         onError={onError}
         onSuccess={onSuccess}
         onVolver={volverMenu}

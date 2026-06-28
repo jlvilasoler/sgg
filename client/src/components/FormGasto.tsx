@@ -4,6 +4,7 @@ import {
   createSubRubroByRubro,
   createSubRubroItemByNombre,
   esRubroRemuneracion,
+  fetchEmpresasOperativas,
   fetchSiguienteNumeroOperacion,
   fetchSubRubroItemsByNombre,
   fetchSubRubros,
@@ -148,6 +149,7 @@ export default function FormGasto({
   onSuccess,
 }: Props) {
   const [form, setForm] = useState<FormState>(initial);
+  const [empresasCuenta, setEmpresasCuenta] = useState<string[]>(catalogos.empresas);
   const handleMoneyChange = useCallback(
     (patch: Partial<FormState>) => setForm((f) => ({ ...f, ...patch })),
     []
@@ -442,6 +444,31 @@ export default function FormGasto({
     catalogos.responsables,
     form.responsable_gasto,
   ]);
+
+  const presupuestoEmpresasHint = useMemo(() => {
+    if (empresasCuenta.length === 0) return "Tabla PRESUPUESTO";
+    if (empresasCuenta.length <= 4) {
+      return `Tabla PRESUPUESTO — ${empresasCuenta.join(" / ")}`;
+    }
+    return `Tabla PRESUPUESTO — ${empresasCuenta.length} empresas de su cuenta`;
+  }, [empresasCuenta]);
+
+  useEffect(() => {
+    if (!apiOnline) {
+      setEmpresasCuenta([]);
+      return;
+    }
+    fetchEmpresasOperativas()
+      .then(setEmpresasCuenta)
+      .catch(() => setEmpresasCuenta(catalogos.empresas));
+  }, [apiOnline, catalogos.empresas]);
+
+  useEffect(() => {
+    if (!form.empresa || empresasCuenta.length === 0) return;
+    if (!empresasCuenta.includes(form.empresa)) {
+      setForm((f) => ({ ...f, empresa: "" }));
+    }
+  }, [empresasCuenta, form.empresa]);
 
   useEffect(() => {
     if (!apiOnline || rubroOptions.length > 0) return;
@@ -899,7 +926,7 @@ export default function FormGasto({
         <p className="muted">
           {brouImportado
             ? "Comprobante detectado — transferencia a otros bancos"
-            : "Tabla PRESUPUESTO — Ganadera Guaviyú / Ganadera Chivilcoy"}
+            : presupuestoEmpresasHint}
         </p>
       </div>
 
@@ -923,7 +950,7 @@ export default function FormGasto({
             onChange={(e) => set("empresa", e.target.value as Empresa | "")}
           >
             <option value="">Seleccionar...</option>
-            {catalogos.empresas.map((e) => (
+            {empresasCuenta.map((e) => (
               <option key={e} value={e}>
                 {e}
               </option>

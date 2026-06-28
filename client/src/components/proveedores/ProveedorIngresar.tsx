@@ -12,6 +12,7 @@ interface Props {
   editProveedor: Proveedor | null;
   onSaved: () => void;
   onCancelEdit: () => void;
+  onVerListado: () => void;
   onError: (msg: string) => void;
   onSuccess: (msg: string) => void;
   onVolver: () => void;
@@ -30,6 +31,7 @@ export default function ProveedorIngresar({
   editProveedor,
   onSaved,
   onCancelEdit,
+  onVerListado,
   onError,
   onSuccess,
   onVolver,
@@ -58,16 +60,6 @@ export default function ProveedorIngresar({
     })();
   }, [editProveedor]);
 
-  const nuevo = async () => {
-    onCancelEdit();
-    try {
-      const cod = await fetchSiguienteCodProveedor();
-      setForm({ ...emptyForm(), cod });
-    } catch {
-      setForm(emptyForm());
-    }
-  };
-
   const setCampo = <K extends keyof ProveedorForm>(k: K, v: ProveedorForm[K]) => {
     const val =
       typeof v === "string" ? (aMayusculas(v) as ProveedorForm[K]) : v;
@@ -85,14 +77,12 @@ export default function ProveedorIngresar({
         await updateProveedor(editId, form);
         onSuccess("Proveedor actualizado");
       } else {
-        await createProveedor(form);
+        const cod = await fetchSiguienteCodProveedor();
+        await createProveedor({ ...form, cod });
         onSuccess("Proveedor agregado");
+        setForm({ ...emptyForm(), cod: await fetchSiguienteCodProveedor() });
       }
       onSaved();
-      if (!editId) {
-        const cod = await fetchSiguienteCodProveedor();
-        setForm({ ...emptyForm(), cod });
-      }
     } catch (err) {
       onError(err instanceof Error ? err.message : "Error al guardar");
     }
@@ -101,30 +91,37 @@ export default function ProveedorIngresar({
   return (
     <div className="subseccion-panel">
       <button type="button" className="subseccion-back" onClick={onVolver}>
-        ‹ Volver a Proveedores
+        ? Volver a Proveedores
       </button>
 
       <div className="card">
         <div className="form-header">
           <h2>{editId ? `Editar proveedor #${form.cod}` : "Ingresar proveedor"}</h2>
-          <p className="muted">Base de datos PROVEEDORES</p>
+          <p className="muted">
+            Cada cuenta administra su propia base de proveedores. Los c?digos son independientes
+            por cuenta y se asignan autom?ticamente de forma correlativa.
+          </p>
         </div>
 
         <form className="proveedor-form" onSubmit={guardar}>
           <div className="form-grid proveedor-form-grid">
             <div className="field">
-              <label htmlFor="prov-cod">Cód. *</label>
+              <label htmlFor="prov-cod">C?digo Proveedor *</label>
               <input
                 id="prov-cod"
                 type="number"
                 min={1}
                 required
+                readOnly
+                className="input-readonly"
+                aria-readonly="true"
+                title="Asignado autom?ticamente (correlativo por cuenta)"
                 value={form.cod || ""}
-                onChange={(e) => setCampo("cod", Number(e.target.value))}
+                tabIndex={-1}
               />
             </div>
             <div className="field span-2">
-              <label htmlFor="prov-razon">Razón social *</label>
+              <label htmlFor="prov-razon">Raz?n social *</label>
               <input
                 id="prov-razon"
                 required
@@ -141,7 +138,7 @@ export default function ProveedorIngresar({
               />
             </div>
             <div className="field span-2">
-              <label htmlFor="prov-dir">Dirección</label>
+              <label htmlFor="prov-dir">Direcci?n</label>
               <input
                 id="prov-dir"
                 value={form.direccion}
@@ -161,12 +158,12 @@ export default function ProveedorIngresar({
             <button type="submit" className="btn btn-primary" disabled={!apiOnline}>
               {editId ? "Actualizar proveedor" : "Guardar proveedor"}
             </button>
-            <button type="button" className="btn btn-ghost" onClick={nuevo}>
-              Nuevo (siguiente código)
+            <button type="button" className="btn btn-secondary" onClick={onVerListado}>
+              Listado de proveedores
             </button>
             {editId && (
-              <button type="button" className="btn btn-secondary" onClick={onCancelEdit}>
-                Cancelar edición
+              <button type="button" className="btn btn-ghost" onClick={onCancelEdit}>
+                Cancelar edici?n
               </button>
             )}
           </div>
