@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
-import { fetchAuthActividad, fetchUsuarios, fetchUsuariosOnline } from "../api";
+import { fetchAuthActividad, fetchEmpresasCuenta, fetchUsuarios, fetchUsuariosOnline } from "../api";
 import type { ActividadAmbito } from "../api";
-import type { AuthActividadLog, AuthUser, UsuarioOnline } from "../types";
+import type { AuthActividadLog, AuthUser, EmpresaCuenta, UsuarioOnline } from "../types";
 import {
+  canAccessActividadSagTotal,
   canFiltrarActividadPorUsuario,
   canVerUsuariosOnlineActividad,
 } from "../utils/auth-permissions";
@@ -89,6 +90,8 @@ export default function UsuariosActividad({
   onVolver,
   volverLabel = "Volver al menú",
 }: Props) {
+  const accesoDenegado = modo === "total" && !canAccessActividadSagTotal(currentUser);
+  const puedeFiltrarCuenta = modo === "total" && canAccessActividadSagTotal(currentUser);
   const puedeFiltrarUsuario = canFiltrarActividadPorUsuario(currentUser) && modo !== "propio";
   const puedeVerOnline = canVerUsuariosOnlineActividad(currentUser) && modo !== "propio";
   const ambitoApi: ActividadAmbito | undefined =
@@ -107,26 +110,54 @@ export default function UsuariosActividad({
   });
   const [online, setOnline] = useState<UsuarioOnline[]>([]);
   const [usuarios, setUsuarios] = useState<{ email: string; nombre: string }[]>([]);
+  const [cuentas, setCuentas] = useState<EmpresaCuenta[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingOnline, setLoadingOnline] = useState(true);
+  const [filtroCuentaId, setFiltroCuentaId] = useState("");
   const [filtroEmail, setFiltroEmail] = useState("");
   const [filtroEvento, setFiltroEvento] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<PageSize>(20);
+
+  const filtroCuentaIdNum =
+    filtroCuentaId !== "" && Number.isFinite(Number(filtroCuentaId))
+      ? Number(filtroCuentaId)
+      : undefined;
+
+  useEffect(() => {
+    if (!apiOnline || !puedeFiltrarCuenta) {
+      setCuentas([]);
+      return;
+    }
+    void fetchEmpresasCuenta()
+      .then(setCuentas)
+      .catch(() => setCuentas([]));
+  }, [apiOnline, puedeFiltrarCuenta]);
 
   useEffect(() => {
     if (!apiOnline || !puedeFiltrarUsuario) {
       setUsuarios([]);
       return;
     }
-    void fetchUsuarios(cuentaIdFiltro)
+    const fetchOpts =
+      modo === "total"
+        ? {
+            ambitoActividadTotal: true as const,
+            cuentaId: filtroCuentaIdNum,
+          }
+        : undefined;
+    void fetchUsuarios(cuentaIdFiltro, fetchOpts)
       .then((list) => setUsuarios(list.map((u) => ({ email: u.email, nombre: u.nombre }))))
       .catch(() => setUsuarios([]));
-  }, [apiOnline, puedeFiltrarUsuario, cuentaIdFiltro, modo]);
+  }, [apiOnline, puedeFiltrarUsuario, cuentaIdFiltro, modo, filtroCuentaIdNum]);
+
+  useEffect(() => {
+    setFiltroEmail("");
+  }, [filtroCuentaId]);
 
   useEffect(() => {
     setPage(1);
-  }, [filtroEmail, filtroEvento, pageSize]);
+  }, [filtroEmail, filtroEvento, filtroCuentaId, pageSize]);
 
   useEffect(() => {
     const maxPage = Math.max(1, Math.ceil(total / pageSize));
@@ -150,6 +181,7 @@ export default function UsuariosActividad({
         limite: pageSize,
         offset,
         ambito: ambitoApi,
+        cuentaId: filtroCuentaIdNum,
       });
       setRows(result.items);
       setTotal(result.total);
@@ -162,7 +194,7 @@ export default function UsuariosActividad({
     } finally {
       setLoading(false);
     }
-  }, [apiOnline, filtroEmail, filtroEvento, page, pageSize, onError, ambitoApi]);
+  }, [apiOnline, filtroEmail, filtroEvento, filtroCuentaIdNum, page, pageSize, onError, ambitoApi]);
 
   useEffect(() => {
     void load();
@@ -175,13 +207,13 @@ export default function UsuariosActividad({
       return;
     }
     try {
-      setOnline(await fetchUsuariosOnline(ambitoApi));
+      setOnline(await fetchUsuariosOnline(ambitoApi, filtroCuentaIdNum));
     } catch {
       /* no interrumpir la vista principal */
     } finally {
       setLoadingOnline(false);
     }
-  }, [apiOnline, puedeVerOnline, ambitoApi]);
+  }, [apiOnline, puedeVerOnline, ambitoApi, filtroCuentaIdNum]);
 
   useEffect(() => {
     if (!puedeVerOnline) {
@@ -206,6 +238,27 @@ export default function UsuariosActividad({
         ? "Sin registros de actividad todavía"
         : `${total} registro${total === 1 ? "" : "s"} en el historial`;
 
+  if (accesoDenegado) {
+    return (
+      <div className="subseccion-panel">
+        <div className="card">
+          <div className="form-header">
+            <h2>Acceso restringido</h2>
+            <p className="muted">
+              El registro de actividad global solo está disponible para el superadministrador de
+              plataforma.
+            </p>
+          </div>
+          <div className="form-actions">
+            <button type="button" className="btn btn-secondary" onClick={onVolver}>
+              {volverLabel}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="subseccion-panel usuarios-actividad">
       <button type="button" className="subseccion-back" onClick={onVolver}>
@@ -225,6 +278,24 @@ export default function UsuariosActividad({
 
         <div className="filters listado-pro-filters usuarios-actividad-filters">
           <div className="listado-pro-filters-row listado-pro-filters-row--unica">
+            {puedeFiltrarCuenta ? (
+              <div className="field">
+                <label htmlFor="ua-filtro-cuenta">Cuenta</label>
+                <select
+                  id="ua-filtro-cuenta"
+                  value={filtroCuentaId}
+                  disabled={!apiOnline || loading}
+                  onChange={(e) => setFiltroCuentaId(e.target.value)}
+                >
+                  <option value="">Todas las cuentas</option>
+                  {cuentas.map((c) => (
+                    <option key={c.id} value={String(c.id)}>
+                      {c.nombre}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : null}
             {puedeFiltrarUsuario ? (
               <div className="field">
                 <label htmlFor="ua-filtro-usuario">Usuario</label>
@@ -262,8 +333,13 @@ export default function UsuariosActividad({
               <button
                 type="button"
                 className="btn listado-pro-reset-btn"
-                disabled={!apiOnline || loading || (!filtroEmail && !filtroEvento)}
+                disabled={
+                  !apiOnline ||
+                  loading ||
+                  (!filtroEmail && !filtroEvento && !filtroCuentaId)
+                }
                 onClick={() => {
+                  setFiltroCuentaId("");
                   setFiltroEmail("");
                   setFiltroEvento("");
                 }}

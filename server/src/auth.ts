@@ -266,6 +266,12 @@ function parseActividadAmbito(raw: unknown): authDb.ActividadAmbito | undefined 
   return undefined;
 }
 
+function parseActividadCuentaId(raw: unknown): number | undefined {
+  if (raw == null || String(raw).trim() === "") return undefined;
+  const n = Number(raw);
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : undefined;
+}
+
 async function requireCuentaAdmin(req: Request, res: Response): Promise<boolean> {
   if (!req.user) {
     res.status(401).json({ ok: false, error: "No autenticado" });
@@ -675,8 +681,47 @@ export function registerAuthRoutes(app: Express): void {
   });
 
   app.get("/api/auth/users", async (req, res) => {
-    if (!(await requireCuentaAdmin(req, res))) return;
     const actor = req.user!;
+    const ambito = String(req.query.ambito ?? "").trim().toLowerCase();
+
+    if (ambito === "actividad_total") {
+      if (!empresasCuenta.isPrimaryPlatformAdmin(actor)) {
+        res.status(403).json({
+          ok: false,
+          error: "Solo el superadministrador de plataforma puede listar todos los usuarios",
+        });
+        return;
+      }
+      const cuentaIdRaw = req.query.cuenta_id;
+      const cuentaId =
+        cuentaIdRaw != null && String(cuentaIdRaw).trim() !== ""
+          ? Number(cuentaIdRaw)
+          : null;
+      if (cuentaId != null && Number.isFinite(cuentaId)) {
+        const cuenta = await empresasCuenta.getEmpresaCuentaById(getDb(), cuentaId);
+        if (!cuenta) {
+          res.status(404).json({ ok: false, error: "Cuenta no encontrada" });
+          return;
+        }
+        res.json({
+          ok: true,
+          data: await authDb.listUsers(getDb(), {
+            empresa_id: cuentaId,
+            incluir_admin_id: cuenta.admin_user_id,
+          }),
+        });
+        return;
+      }
+      res.json({ ok: true, data: await authDb.listUsers(getDb()) });
+      return;
+    }
+
+    if (ambito === "propio") {
+      res.json({ ok: true, data: [actor] });
+      return;
+    }
+
+    if (!(await requireCuentaAdmin(req, res))) return;
     const cuenta = await empresasCuenta.getEmpresaCuentaByAdminUserId(
       getDb(),
       actor.id
@@ -836,7 +881,8 @@ export function registerAuthRoutes(app: Express): void {
     const allowedIds = await authDb.resolveActividadOnlineUserIds(
       db,
       actor,
-      parseActividadAmbito(req.query.ambito)
+      parseActividadAmbito(req.query.ambito),
+      parseActividadCuentaId(req.query.cuenta_id)
     );
     const base = listOnlineUsers().filter(
       (u) => allowedIds === null || allowedIds.includes(u.id)
@@ -887,11 +933,13 @@ export function registerAuthRoutes(app: Express): void {
       const limite = req.query.limite ? Number(req.query.limite) : undefined;
       const offset = req.query.offset ? Number(req.query.offset) : undefined;
       const ambito = parseActividadAmbito(req.query.ambito);
+      const cuentaId = parseActividadCuentaId(req.query.cuenta_id);
       const scopeResult = await authDb.resolveAuthAuditLogScope(
         getDb(),
         actor,
         email,
-        ambito
+        ambito,
+        cuentaId
       );
       if (!scopeResult.ok) {
         res.status(403).json({ ok: false, error: scopeResult.error });

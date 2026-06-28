@@ -105,7 +105,7 @@ const SAG_MODULOS: {
   {
     id: "registro_actividad_total",
     label: "Registro de actividad SAG total",
-    subtitle: "Todas las cuentas y usuarios de la plataforma",
+    subtitle: "Solo superadministrador de plataforma · todas las cuentas",
     icon: { type: "tab", id: "registro_actividad" },
   },
   {

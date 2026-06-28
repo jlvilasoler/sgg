@@ -471,7 +471,8 @@ export async function resolveAuthAuditLogScope(
   db: Db,
   actor: UserPublic,
   requestedEmail?: string,
-  ambito?: ActividadAmbito
+  ambito?: ActividadAmbito,
+  cuentaIdFilter?: number
 ): Promise<
   | { ok: true; filters: Pick<AuthAuditLogFilters, "email" | "scope"> }
   | { ok: false; error: string }
@@ -494,6 +495,24 @@ export async function resolveAuthAuditLogScope(
         ok: false,
         error: "Solo el superadministrador de plataforma puede ver actividad global",
       };
+    }
+    if (cuentaIdFilter != null && Number.isFinite(cuentaIdFilter)) {
+      const cuenta = await empresasCuenta.getEmpresaCuentaById(db, cuentaIdFilter);
+      if (!cuenta) {
+        return { ok: false, error: "Cuenta no encontrada" };
+      }
+      const emailsIn = await listUserEmailsForCuentaMadre(db, cuentaIdFilter);
+      if (emailQuery) {
+        const normalized = normalizeEmail(emailQuery);
+        if (!emailsIn.includes(normalized)) {
+          return { ok: false, error: "Usuario fuera de la cuenta seleccionada" };
+        }
+        return {
+          ok: true,
+          filters: { email: emailQuery, scope: { emails_in: emailsIn } },
+        };
+      }
+      return { ok: true, filters: { scope: { emails_in: emailsIn } } };
     }
     return { ok: true, filters: { email: emailQuery, scope: undefined } };
   }
@@ -543,10 +562,17 @@ export async function listUserIdsForCuentaMadre(
 export async function resolveActividadOnlineUserIds(
   db: Db,
   actor: UserPublic,
-  ambito?: ActividadAmbito
+  ambito?: ActividadAmbito,
+  cuentaIdFilter?: number
 ): Promise<number[] | null> {
   if (ambito === "total") {
-    return empresasCuenta.isPrimaryPlatformAdmin(actor) ? null : [];
+    if (!empresasCuenta.isPrimaryPlatformAdmin(actor)) return [];
+    if (cuentaIdFilter != null && Number.isFinite(cuentaIdFilter)) {
+      const cuenta = await empresasCuenta.getEmpresaCuentaById(db, cuentaIdFilter);
+      if (!cuenta) return [];
+      return await listUserIdsForCuentaMadre(db, cuentaIdFilter);
+    }
+    return null;
   }
   if (actor.rol === "admin") {
     const cuentaId =

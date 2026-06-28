@@ -2479,10 +2479,17 @@ export async function renombrarChatCanal(
 
 export async function fetchUsuarios(
   empresaId?: number,
-  opts?: { ambitoPropio?: boolean }
+  opts?: { ambitoPropio?: boolean; ambitoActividadTotal?: boolean; cuentaId?: number }
 ): Promise<AuthUser[]> {
   let q = "";
-  if (empresaId != null && Number.isFinite(empresaId)) {
+  if (opts?.ambitoActividadTotal) {
+    const params = new URLSearchParams({ ambito: "actividad_total" });
+    const cuentaId = opts.cuentaId ?? empresaId;
+    if (cuentaId != null && Number.isFinite(cuentaId)) {
+      params.set("cuenta_id", String(cuentaId));
+    }
+    q = `?${params.toString()}`;
+  } else if (empresaId != null && Number.isFinite(empresaId)) {
     q = `?empresa_id=${empresaId}`;
   } else if (opts?.ambitoPropio) {
     q = "?ambito=propio";
@@ -2592,6 +2599,7 @@ export async function fetchAuthActividad(filters?: {
   limite?: number;
   offset?: number;
   ambito?: ActividadAmbito;
+  cuentaId?: number;
 }): Promise<{
   items: AuthActividadLog[];
   total: number;
@@ -2603,6 +2611,9 @@ export async function fetchAuthActividad(filters?: {
   if (filters?.limite != null) params.set("limite", String(filters.limite));
   if (filters?.offset != null) params.set("offset", String(filters.offset));
   if (filters?.ambito) params.set("ambito", filters.ambito);
+  if (filters?.cuentaId != null && Number.isFinite(filters.cuentaId)) {
+    params.set("cuenta_id", String(filters.cuentaId));
+  }
   const q = params.toString();
   const json = await request<{
     data: AuthActividadLog[];
@@ -2631,9 +2642,19 @@ export function enviarPresencia(pantalla?: string): void {
   });
 }
 
-export async function fetchUsuariosOnline(ambito?: ActividadAmbito): Promise<UsuarioOnline[]> {
-  const q = ambito ? `?ambito=${ambito}` : "";
-  const json = await request<{ data: UsuarioOnline[] }>(`/auth/actividad/online${q}`);
+export async function fetchUsuariosOnline(
+  ambito?: ActividadAmbito,
+  cuentaId?: number
+): Promise<UsuarioOnline[]> {
+  const params = new URLSearchParams();
+  if (ambito) params.set("ambito", ambito);
+  if (cuentaId != null && Number.isFinite(cuentaId)) {
+    params.set("cuenta_id", String(cuentaId));
+  }
+  const q = params.toString();
+  const json = await request<{ data: UsuarioOnline[] }>(
+    `/auth/actividad/online${q ? `?${q}` : ""}`
+  );
   return json.data;
 }
 

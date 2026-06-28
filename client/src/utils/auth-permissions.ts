@@ -73,7 +73,6 @@ export type ActividadVistaModo = "total" | "cuenta" | "propio";
 
 /** Vista por defecto si se abre actividad fuera del hub de Usuarios. */
 export function actividadModoPorDefecto(user: AuthUser | null): ActividadVistaModo {
-  if (canAccessActividadSagTotal(user)) return "total";
   if (canAccessActividadCuenta(user)) return "cuenta";
   return "propio";
 }
