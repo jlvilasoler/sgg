@@ -222,10 +222,10 @@ export default function ProveedorIngresar({
           <div className="responsable-ingresar-grid">
             <section className="responsable-form-block" aria-labelledby="prov-seccion-id">
               <h3 id="prov-seccion-id" className="responsable-form-block-title">
-                Identificaci?n
+                Identificación
               </h3>
               <div className="field">
-                <label htmlFor="prov-cod">C?digo proveedor</label>
+                <label htmlFor="prov-cod">Código proveedor</label>
                 <input
                   id="prov-cod"
                   type="number"
