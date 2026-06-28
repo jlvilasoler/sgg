@@ -1276,6 +1276,7 @@ export const documentosDigitales = {
 
 export async function getCatalogos(user?: {
   id?: number;
+  email?: string;
   es_super_admin?: boolean;
   empresa_id?: number | null;
 }): Promise<{
@@ -1293,6 +1294,7 @@ export async function getCatalogos(user?: {
     user && user.id != null
       ? {
           id: user.id,
+          email: user.email,
           es_super_admin: user.es_super_admin,
           empresa_id: user.empresa_id,
         }
@@ -1303,10 +1305,7 @@ export async function getCatalogos(user?: {
   const cuentaId = scopeUser
     ? await empresasCuenta.resolveCuentaMadreIdForUser(db, scopeUser)
     : null;
-  const empresas =
-    empresasScope === null
-      ? await empresasCuenta.getEmpresaNombresActivos(db)
-      : empresasScope;
+  const empresas = empresasScope ?? [];
 
   const restringirPorCuenta = Boolean(scopeUser && !scopeUser.es_super_admin);
   const responsables =

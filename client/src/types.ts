@@ -964,6 +964,9 @@ export interface AuthUser {
   empresa_nombre: string | null;
   empresa_codigo: string | null;
   empresa_cuenta_numero: string | null;
+  /** Cuenta madre para actividad (p. ej. VILA DIAZ para super-admin principal). */
+  cuenta_actividad_id: number | null;
+  cuenta_actividad_nombre: string | null;
   es_super_admin: boolean;
   permisos: Modulo[];
   puede_escribir: boolean;

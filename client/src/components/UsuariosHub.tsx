@@ -2,10 +2,12 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { TabId } from "./Header";
 import type { AuthUser } from "../types";
 import {
+  canAccessActividadCuenta,
+  canAccessActividadPropia,
+  canAccessActividadSagTotal,
   canAccessArquitecturaSistema,
   canAccessPermisosPorRol,
   canAccessStockMovimientos,
-  canAccessUsuarioActividad,
 } from "../utils/auth-permissions";
 import { HubMenuCard } from "./HubMenuCard";
 import { MENU_APP_THEMES, MenuAppIcon } from "./icons/MenuAppIcons";
@@ -17,12 +19,13 @@ import UsuariosActividad from "./UsuariosActividad";
 import UsuariosRolesPanel from "./UsuariosRolesModal";
 import StockMovimientosAuditoria from "./stock/StockMovimientosAuditoria";
 import ArquitecturaSistema from "./ArquitecturaSistema";
-
 type VistaUsuarios =
   | "menu"
   | "usuarios_cuentas"
   | "permisos_por_rol"
-  | "registro_actividad"
+  | "registro_actividad_total"
+  | "registro_actividad_cuenta"
+  | "registro_actividad_propio"
   | "stock_movimientos"
   | "arquitectura_sistema";
 
@@ -59,6 +62,14 @@ function submenuIconNode(icon: SubmenuIcon) {
   );
 }
 
+function nombreCuentaActividad(user: AuthUser): string {
+  return (
+    user.cuenta_actividad_nombre?.trim() ||
+    user.empresa_nombre?.trim() ||
+    "Cuenta"
+  );
+}
+
 export default function UsuariosHub({
   user,
   apiOnline,
@@ -68,6 +79,7 @@ export default function UsuariosHub({
   onVolver,
 }: Props) {
   const [vista, setVista] = useState<VistaUsuarios>("menu");
+  const cuentaNombre = nombreCuentaActividad(user);
 
   const volverMenu = useCallback(() => {
     setVista("menu");
@@ -104,11 +116,25 @@ export default function UsuariosHub({
         visible: canAccessPermisosPorRol(user),
       },
       {
-        id: "registro_actividad",
-        label: "Registro de actividad",
-        subtitle: "Logins, navegación y usuarios en línea",
+        id: "registro_actividad_total",
+        label: "Registro de actividad SAG total",
+        subtitle: "Todas las cuentas y usuarios de la plataforma",
         icon: { type: "tab", id: "registro_actividad" },
-        visible: canAccessUsuarioActividad(user),
+        visible: canAccessActividadSagTotal(user),
+      },
+      {
+        id: "registro_actividad_cuenta",
+        label: `Actividad de cuenta ${cuentaNombre}`,
+        subtitle: "Logins, navegación y usuarios de su equipo",
+        icon: { type: "tab", id: "registro_actividad" },
+        visible: canAccessActividadCuenta(user),
+      },
+      {
+        id: "registro_actividad_propio",
+        label: "Mi registro de actividad",
+        subtitle: "Su historial de uso en la aplicación",
+        icon: { type: "tab", id: "registro_actividad" },
+        visible: canAccessActividadPropia(user),
       },
       {
         id: "stock_movimientos",
@@ -125,7 +151,7 @@ export default function UsuariosHub({
         visible: canAccessArquitecturaSistema(user),
       },
     ],
-    [user]
+    [user, cuentaNombre]
   );
 
   const itemsVisibles = submenu.filter((item) => item.visible);
@@ -162,11 +188,44 @@ export default function UsuariosHub({
     );
   }
 
-  if (vista === "registro_actividad") {
+  if (vista === "registro_actividad_total") {
     return (
       <UsuariosActividad
         apiOnline={apiOnline}
         currentUser={user}
+        modo="total"
+        titulo="Registro de actividad SAG total"
+        subtituloAmbito="Todas las cuentas y usuarios de la plataforma"
+        volverLabel="Volver a Usuarios"
+        onError={onError}
+        onVolver={volverMenu}
+      />
+    );
+  }
+
+  if (vista === "registro_actividad_cuenta") {
+    return (
+      <UsuariosActividad
+        apiOnline={apiOnline}
+        currentUser={user}
+        modo="cuenta"
+        titulo={`Actividad de cuenta ${cuentaNombre}`}
+        subtituloAmbito={`Usuarios y actividad de ${cuentaNombre}`}
+        volverLabel="Volver a Usuarios"
+        onError={onError}
+        onVolver={volverMenu}
+      />
+    );
+  }
+
+  if (vista === "registro_actividad_propio") {
+    return (
+      <UsuariosActividad
+        apiOnline={apiOnline}
+        currentUser={user}
+        modo="propio"
+        titulo="Mi registro de actividad"
+        subtituloAmbito="Su historial personal en la aplicación"
         volverLabel="Volver a Usuarios"
         onError={onError}
         onVolver={volverMenu}

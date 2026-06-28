@@ -259,6 +259,13 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
   next();
 }
 
+function parseActividadAmbito(raw: unknown): authDb.ActividadAmbito | undefined {
+  const v = String(raw ?? "").trim().toLowerCase();
+  if (v === "total") return "total";
+  if (v === "cuenta") return "cuenta";
+  return undefined;
+}
+
 function requireAdmin(req: Request, res: Response): boolean {
   if (!req.user || req.user.rol !== "admin") {
     res.status(403).json({ ok: false, error: "Solo administradores" });
@@ -821,7 +828,11 @@ export function registerAuthRoutes(app: Express): void {
       return;
     }
     const db = getDb();
-    const allowedIds = await authDb.resolveActividadOnlineUserIds(db, actor);
+    const allowedIds = await authDb.resolveActividadOnlineUserIds(
+      db,
+      actor,
+      parseActividadAmbito(req.query.ambito)
+    );
     const base = listOnlineUsers().filter(
       (u) => allowedIds === null || allowedIds.includes(u.id)
     );
@@ -870,10 +881,12 @@ export function registerAuthRoutes(app: Express): void {
       const evento = String(req.query.evento ?? "").trim() || undefined;
       const limite = req.query.limite ? Number(req.query.limite) : undefined;
       const offset = req.query.offset ? Number(req.query.offset) : undefined;
+      const ambito = parseActividadAmbito(req.query.ambito);
       const scopeResult = await authDb.resolveAuthAuditLogScope(
         getDb(),
         actor,
-        email
+        email,
+        ambito
       );
       if (!scopeResult.ok) {
         res.status(403).json({ ok: false, error: scopeResult.error });

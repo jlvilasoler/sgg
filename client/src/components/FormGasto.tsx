@@ -460,7 +460,7 @@ export default function FormGasto({
     }
     fetchEmpresasOperativas()
       .then(setEmpresasCuenta)
-      .catch(() => setEmpresasCuenta(catalogos.empresas));
+      .catch(() => setEmpresasCuenta([]));
   }, [apiOnline, catalogos.empresas]);
 
   useEffect(() => {

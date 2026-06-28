@@ -4,6 +4,8 @@ import { DEFAULT_TEAM_CHANNEL } from "./brand.js";
 import {
   getSeedCuentaMadreId,
   migrateAddCuentaIdColumn,
+  resolveCuentaMadreIdForUser,
+  isPlatformSuperAdmin,
 } from "./empresas-cuenta-db.js";
 
 export const CHAT_GENERAL_PEER_ID = 0;
@@ -104,6 +106,29 @@ async function addCuentaUsersToChannel(
        ON CONFLICT (channel_id, user_id) DO NOTHING`
     )
     .run({ channelId, cuentaId });
+
+  const admins = (await db
+    .prepare(
+      "SELECT id, email, empresa_id, rol FROM USERS WHERE activo = 1 AND rol = 'admin'"
+    )
+    .all()) as Array<{ id: number; email: string; empresa_id: number | null; rol: string }>;
+  for (const admin of admins) {
+    const esSuperAdmin = await isPlatformSuperAdmin(db, admin);
+    const resolved = await resolveCuentaMadreIdForUser(db, {
+      id: admin.id,
+      email: admin.email,
+      es_super_admin: esSuperAdmin,
+      empresa_id: admin.empresa_id,
+    });
+    if (resolved !== cuentaId) continue;
+    await db
+      .prepare(
+        `INSERT INTO CHAT_CHANNEL_MEMBERS (channel_id, user_id)
+         VALUES (?, ?)
+         ON CONFLICT (channel_id, user_id) DO NOTHING`
+      )
+      .run(channelId, admin.id);
+  }
 }
 
 async function pruneChannelMembersOutsideCuenta(
@@ -326,9 +351,21 @@ export async function createChatChannel(
 ): Promise<ChatChannelDto> {
   const label = trimChannelName(nombre);
   const userRow = (await db
-    .prepare("SELECT empresa_id FROM USERS WHERE id = ?")
-    .get(userId)) as { empresa_id: number | null } | undefined;
-  const cuentaId = userRow?.empresa_id ?? null;
+    .prepare("SELECT id, email, empresa_id, rol FROM USERS WHERE id = ?")
+    .get(userId)) as
+    | { id: number; email: string; empresa_id: number | null; rol: string }
+    | undefined;
+  const esSuperAdmin = userRow
+    ? await isPlatformSuperAdmin(db, userRow)
+    : false;
+  const cuentaId = userRow
+    ? await resolveCuentaMadreIdForUser(db, {
+        id: userRow.id,
+        email: userRow.email,
+        es_super_admin: esSuperAdmin,
+        empresa_id: userRow.empresa_id,
+      })
+    : null;
 
   let dupSql =
     "SELECT id FROM CHAT_CHANNELS WHERE LOWER(nombre) = LOWER(@nombre)";

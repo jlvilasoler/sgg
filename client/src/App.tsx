@@ -43,6 +43,8 @@ import { HeaderBackProvider } from "./header-back";
 import {
   canAccessChat,
   canAccessScreen,
+  actividadModoPorDefecto,
+  actividadTituloPorModo,
 } from "./utils/auth-permissions";
 import { showToast } from "./utils/toast";
 
@@ -577,15 +579,22 @@ export default function App() {
                 onPermissionsChanged={() => void refreshUser()}
               />
             )}
-            {screen === "registro_actividad" && user && (
+            {screen === "registro_actividad" && user && (() => {
+              const modo = actividadModoPorDefecto(user);
+              const { titulo, subtituloAmbito } = actividadTituloPorModo(user, modo);
+              return (
               <UsuariosActividad
                 apiOnline={apiOnline}
                 currentUser={user}
+                modo={modo}
+                titulo={titulo}
+                subtituloAmbito={subtituloAmbito}
                 volverLabel="Volver al inicio"
                 onError={(m) => notify(m, false)}
                 onVolver={goHome}
               />
-            )}
+              );
+            })()}
             {screen === "panel_admin_sitio" && user && (
               <ArquitecturaSistema
                 apiOnline={apiOnline}

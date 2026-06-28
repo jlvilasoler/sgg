@@ -12,7 +12,7 @@ import {
   getChannelNameByPeer,
   initChatChannelTables,
 } from "./chat-channels-db.js";
-import { isPlatformSuperAdmin } from "./empresas-cuenta-db.js";
+import { resolveCuentaMadreIdForUser, isPlatformSuperAdmin } from "./empresas-cuenta-db.js";
 import { isValidChatWallpaperId } from "./chat-wallpapers.js";
 import { avatarDtoFromRow } from "./user-avatar-db.js";
 import type { UserAvatarDto } from "./user-avatar-db.js";
@@ -21,35 +21,34 @@ import type { UserPresenceStatus } from "./user-presence.js";
 async function getChatUserScope(
   db: Db,
   userId: number
-): Promise<{ cuentaId: number | null; superAdmin: boolean }> {
+): Promise<{ cuentaId: number | null }> {
   const row = (await db
     .prepare("SELECT id, empresa_id, rol, email FROM USERS WHERE id = ?")
     .get(userId)) as
     | { id: number; empresa_id: number | null; rol: string; email: string }
     | undefined;
-  if (!row) return { cuentaId: null, superAdmin: false };
-  const superAdmin = await isPlatformSuperAdmin(db, {
+  if (!row) return { cuentaId: null };
+  const esSuperAdmin = await isPlatformSuperAdmin(db, row);
+  const cuentaId = await resolveCuentaMadreIdForUser(db, {
     id: row.id,
-    empresa_id: row.empresa_id,
-    rol: row.rol,
     email: row.email,
+    es_super_admin: esSuperAdmin,
+    empresa_id: row.empresa_id,
   });
-  return { cuentaId: row.empresa_id ?? null, superAdmin };
+  return { cuentaId };
 }
 
-/** Restringe contactos/DM a la misma cuenta madre (super admin ve todos). */
+/** Restringe contactos/DM al equipo de la misma cuenta madre. */
 function cuentaScopeSql(
   alias: string,
   cuentaId: number | null,
-  superAdmin: boolean,
   params: Record<string, number>
 ): string {
-  if (superAdmin) return "";
   if (cuentaId != null) {
     params.cuentaId = cuentaId;
     return ` AND ${alias}.empresa_id = @cuentaId`;
   }
-  return ` AND ${alias}.empresa_id IS NULL`;
+  return " AND 1=0";
 }
 
 /** 0 = canal general del equipo */
@@ -194,7 +193,7 @@ async function assertValidPeer(db: Db, senderId: number, recipientId: number): P
   }
   const scope = await getChatUserScope(db, senderId);
   const params: Record<string, number> = { recipientId, senderId };
-  const cuentaFilter = cuentaScopeSql("u", scope.cuentaId, scope.superAdmin, params);
+  const cuentaFilter = cuentaScopeSql("u", scope.cuentaId, params);
   const peer = (await db
     .prepare(
       `SELECT id FROM USERS u WHERE u.id = @recipientId AND u.activo = 1 AND u.id != @senderId${cuentaFilter}`
@@ -233,6 +232,8 @@ export async function listChatMessages(
   peerId: number,
   opts?: { since_id?: number; before_id?: number; around_id?: number; limit?: number }
 ): Promise<ChatMessageDto[]> {
+  await assertValidPeer(db, userId, peerId);
+
   const limit = Math.min(Math.max(opts?.limit ?? MESSAGES_DEFAULT_LIMIT, 1), 120);
   const sinceId = Math.max(0, opts?.since_id ?? 0);
   const beforeId = opts?.before_id ?? 0;
@@ -402,7 +403,15 @@ export async function userCanAccessChatMessage(
       return null;
     }
   }
-  if (row.sender_id === userId || row.recipient_id === userId) return row;
+  if (row.sender_id === userId || row.recipient_id === userId) {
+    const peerId = row.sender_id === userId ? row.recipient_id : row.sender_id;
+    try {
+      await assertValidPeer(db, userId, peerId);
+      return row;
+    } catch {
+      return null;
+    }
+  }
   return null;
 }
 
@@ -460,6 +469,17 @@ export async function getChatUnreadSummary(
   db: Db,
   userId: number
 ): Promise<{ total: number; general: number }> {
+  const scope = await getChatUserScope(db, userId);
+  const dmParams: Record<string, number> = {
+    userId,
+    userId2: userId,
+    userId3: userId,
+    userId4: userId,
+    userId5: userId,
+    userId6: userId,
+  };
+  const dmCuentaFilter = cuentaScopeSql("peer", scope.cuentaId, dmParams);
+
   const channelRows = (await db
     .prepare(
       `SELECT c.peer_id, COUNT(msg.id) AS n
@@ -476,18 +496,20 @@ export async function getChatUnreadSummary(
   const dmRows = (await db
     .prepare(
       `SELECT
-         CASE WHEN m.sender_id = ? THEN m.recipient_id ELSE m.sender_id END AS peer_id,
+         CASE WHEN m.sender_id = @userId THEN m.recipient_id ELSE m.sender_id END AS peer_id,
          COUNT(*) AS n
        FROM CHAT_MESSAGES m
-       LEFT JOIN CHAT_READ_STATE rs ON rs.user_id = ?
-         AND rs.peer_id = CASE WHEN m.sender_id = ? THEN m.recipient_id ELSE m.sender_id END
+       JOIN USERS peer ON peer.id = CASE WHEN m.sender_id = @userId2 THEN m.recipient_id ELSE m.sender_id END
+       LEFT JOIN CHAT_READ_STATE rs ON rs.user_id = @userId3
+         AND rs.peer_id = CASE WHEN m.sender_id = @userId4 THEN m.recipient_id ELSE m.sender_id END
        WHERE m.recipient_id > 0
-         AND (m.sender_id = ? OR m.recipient_id = ?)
+         AND (m.sender_id = @userId5 OR m.recipient_id = @userId6)
          AND m.id > COALESCE(rs.last_read_message_id, 0)
-         AND m.sender_id != ?
+         AND m.sender_id != @userId6
+         ${dmCuentaFilter}
        GROUP BY 1`
     )
-    .all(userId, userId, userId, userId, userId, userId)) as Array<{
+    .all(dmParams)) as Array<{
     peer_id: number;
     n: number | string;
   }>;
@@ -517,7 +539,7 @@ export async function listChatContacts(
     userId6: userId,
     userId7: userId,
   };
-  const cuentaFilter = cuentaScopeSql("u", scope.cuentaId, scope.superAdmin, params);
+  const cuentaFilter = cuentaScopeSql("u", scope.cuentaId, params);
 
   const rows = (await db
     .prepare(
@@ -625,6 +647,11 @@ export async function searchChatMessages(
   >;
 
   if (peerId !== undefined && peerId <= 0) {
+    try {
+      await assertUserCanAccessGroupPeer(db, userId, peerId);
+    } catch {
+      return [];
+    }
     const label = (await getChannelNameByPeer(db, peerId)) ?? "Canal";
     rows = (await db
       .prepare(
@@ -638,6 +665,11 @@ export async function searchChatMessages(
       SenderRow & { peer_id: number; peer_label: string }
     >;
   } else if (peerId !== undefined && peerId > 0) {
+    try {
+      await assertValidPeer(db, userId, peerId);
+    } catch {
+      return [];
+    }
     const peer = (await db
       .prepare("SELECT nombre FROM USERS WHERE id = ?")
       .get(peerId)) as { nombre: string } | undefined;
@@ -656,12 +688,23 @@ export async function searchChatMessages(
       SenderRow & { peer_id: number; peer_label: string }
     >;
   } else {
+    const scope = await getChatUserScope(db, userId);
+    const searchParams: Record<string, number | string> = {
+      userId,
+      userId2: userId,
+      userId3: userId,
+      userId4: userId,
+      userId5: userId,
+      pattern,
+      limit,
+    };
+    const dmCuentaFilter = cuentaScopeSql("p", scope.cuentaId, searchParams as Record<string, number>);
     rows = (await db
       .prepare(
         `SELECT m.*, ${SENDER_JOIN_FIELDS},
            CASE
              WHEN m.recipient_id <= 0 THEN m.recipient_id
-             WHEN m.sender_id = ? THEN m.recipient_id
+             WHEN m.sender_id = @userId THEN m.recipient_id
              ELSE m.sender_id
            END AS peer_id,
            CASE
@@ -672,22 +715,21 @@ export async function searchChatMessages(
          JOIN USERS u ON u.id = m.sender_id
          LEFT JOIN CHAT_CHANNELS ch ON ch.peer_id = m.recipient_id AND m.recipient_id <= 0
          LEFT JOIN USERS p ON p.id = CASE
-           WHEN m.recipient_id > 0 AND m.sender_id = ? THEN m.recipient_id
+           WHEN m.recipient_id > 0 AND m.sender_id = @userId2 THEN m.recipient_id
            WHEN m.recipient_id > 0 THEN m.sender_id
            ELSE NULL END
          WHERE (
            (m.recipient_id <= 0 AND EXISTS (
              SELECT 1 FROM CHAT_CHANNEL_MEMBERS cm
              JOIN CHAT_CHANNELS c2 ON c2.id = cm.channel_id
-             WHERE c2.peer_id = m.recipient_id AND cm.user_id = ?
+             WHERE c2.peer_id = m.recipient_id AND cm.user_id = @userId3
            ))
-           OR m.sender_id = ?
-           OR m.recipient_id = ?
+           OR (m.recipient_id > 0 AND (m.sender_id = @userId4 OR m.recipient_id = @userId5)${dmCuentaFilter})
          )
-         AND m.body ILIKE ? ESCAPE '\\'
-         ORDER BY m.id DESC LIMIT ?`
+         AND m.body ILIKE @pattern ESCAPE '\\'
+         ORDER BY m.id DESC LIMIT @limit`
       )
-      .all(userId, userId, userId, userId, userId, pattern, limit)) as Array<
+      .all(searchParams)) as Array<
       SenderRow & { peer_id: number; peer_label: string }
     >;
   }

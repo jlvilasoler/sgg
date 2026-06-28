@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { fetchAuthActividad, fetchUsuarios, fetchUsuariosOnline } from "../api";
+import type { ActividadAmbito } from "../api";
 import type { AuthActividadLog, AuthUser, UsuarioOnline } from "../types";
 import {
   canFiltrarActividadPorUsuario,
@@ -37,6 +38,9 @@ const EVENTO_OPCIONES = [
 interface Props {
   apiOnline: boolean;
   currentUser: AuthUser;
+  modo: ActividadAmbito | "propio";
+  titulo: string;
+  subtituloAmbito?: string;
   onError: (msg: string) => void;
   onVolver: () => void;
   volverLabel?: string;
@@ -78,12 +82,21 @@ function fmtHaceSegundos(seg: number): string {
 export default function UsuariosActividad({
   apiOnline,
   currentUser,
+  modo,
+  titulo,
+  subtituloAmbito,
   onError,
   onVolver,
   volverLabel = "Volver al menú",
 }: Props) {
-  const puedeFiltrarUsuario = canFiltrarActividadPorUsuario(currentUser);
-  const puedeVerOnline = canVerUsuariosOnlineActividad(currentUser);
+  const puedeFiltrarUsuario = canFiltrarActividadPorUsuario(currentUser) && modo !== "propio";
+  const puedeVerOnline = canVerUsuariosOnlineActividad(currentUser) && modo !== "propio";
+  const ambitoApi: ActividadAmbito | undefined =
+    modo === "propio" ? undefined : modo;
+  const cuentaIdFiltro =
+    modo === "cuenta"
+      ? currentUser.cuenta_actividad_id ?? currentUser.empresa_id ?? undefined
+      : undefined;
   const [rows, setRows] = useState<AuthActividadLog[]>([]);
   const [total, setTotal] = useState(0);
   const [resumen, setResumen] = useState({
@@ -106,10 +119,10 @@ export default function UsuariosActividad({
       setUsuarios([]);
       return;
     }
-    void fetchUsuarios()
+    void fetchUsuarios(cuentaIdFiltro)
       .then((list) => setUsuarios(list.map((u) => ({ email: u.email, nombre: u.nombre }))))
       .catch(() => setUsuarios([]));
-  }, [apiOnline, puedeFiltrarUsuario]);
+  }, [apiOnline, puedeFiltrarUsuario, cuentaIdFiltro, modo]);
 
   useEffect(() => {
     setPage(1);
@@ -136,6 +149,7 @@ export default function UsuariosActividad({
         evento: filtroEvento || undefined,
         limite: pageSize,
         offset,
+        ambito: ambitoApi,
       });
       setRows(result.items);
       setTotal(result.total);
@@ -148,7 +162,7 @@ export default function UsuariosActividad({
     } finally {
       setLoading(false);
     }
-  }, [apiOnline, filtroEmail, filtroEvento, page, pageSize, onError]);
+  }, [apiOnline, filtroEmail, filtroEvento, page, pageSize, onError, ambitoApi]);
 
   useEffect(() => {
     void load();
@@ -161,13 +175,13 @@ export default function UsuariosActividad({
       return;
     }
     try {
-      setOnline(await fetchUsuariosOnline());
+      setOnline(await fetchUsuariosOnline(ambitoApi));
     } catch {
       /* no interrumpir la vista principal */
     } finally {
       setLoadingOnline(false);
     }
-  }, [apiOnline, puedeVerOnline]);
+  }, [apiOnline, puedeVerOnline, ambitoApi]);
 
   useEffect(() => {
     if (!puedeVerOnline) {
@@ -201,8 +215,11 @@ export default function UsuariosActividad({
       <div className="card usuarios-panel listado-pro-shell">
         <header className="listado-pro-head usuarios-actividad-head">
           <div className="listado-pro-head-main">
-            <h2 className="listado-pro-head-title">Registro de actividad</h2>
-            <p className="listado-pro-head-sub">{subtitulo}</p>
+            <h2 className="listado-pro-head-title">{titulo}</h2>
+            <p className="listado-pro-head-sub">
+              {subtituloAmbito ? `${subtituloAmbito} · ` : ""}
+              {subtitulo}
+            </p>
           </div>
         </header>
 

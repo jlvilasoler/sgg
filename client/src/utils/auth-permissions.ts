@@ -45,15 +45,71 @@ export function canAccessStockMovimientos(user: AuthUser | null): boolean {
 }
 
 export function canAccessUsuarioActividad(user: AuthUser | null): boolean {
-  return Boolean(user);
+  return (
+    canAccessActividadSagTotal(user) ||
+    canAccessActividadCuenta(user) ||
+    canAccessActividadPropia(user)
+  );
 }
 
-/** Admin de cuenta o super-admin: puede filtrar actividad por usuario. */
+/** Super-administrador de plataforma: actividad global de todas las cuentas. */
+export function canAccessActividadSagTotal(user: AuthUser | null): boolean {
+  return Boolean(user?.es_super_admin);
+}
+
+/** Administrador de cuenta: actividad de su equipo (Gestores, Lectores, etc.). */
+export function canAccessActividadCuenta(user: AuthUser | null): boolean {
+  if (!user || user.rol !== "admin") return false;
+  if (user.es_super_admin) return Boolean(user.cuenta_actividad_id);
+  return user.empresa_id != null || Boolean(user.cuenta_actividad_id);
+}
+
+/** Gestor, Consulta, Lector, etc.: solo su propia actividad. */
+export function canAccessActividadPropia(user: AuthUser | null): boolean {
+  return Boolean(user && user.rol !== "admin");
+}
+
+export type ActividadVistaModo = "total" | "cuenta" | "propio";
+
+/** Vista por defecto si se abre actividad fuera del hub de Usuarios. */
+export function actividadModoPorDefecto(user: AuthUser | null): ActividadVistaModo {
+  if (canAccessActividadSagTotal(user)) return "total";
+  if (canAccessActividadCuenta(user)) return "cuenta";
+  return "propio";
+}
+
+export function actividadTituloPorModo(
+  user: AuthUser | null,
+  modo: ActividadVistaModo
+): { titulo: string; subtituloAmbito: string } {
+  const cuenta =
+    user?.cuenta_actividad_nombre?.trim() ||
+    user?.empresa_nombre?.trim() ||
+    "Cuenta";
+  if (modo === "total") {
+    return {
+      titulo: "Registro de actividad SAG total",
+      subtituloAmbito: "Todas las cuentas y usuarios de la plataforma",
+    };
+  }
+  if (modo === "cuenta") {
+    return {
+      titulo: `Actividad de cuenta ${cuenta}`,
+      subtituloAmbito: `Usuarios y actividad de ${cuenta}`,
+    };
+  }
+  return {
+    titulo: "Mi registro de actividad",
+    subtituloAmbito: "Su historial personal en la aplicación",
+  };
+}
+
+/** Admin de cuenta o super-admin en vista total/cuenta: puede filtrar por usuario. */
 export function canFiltrarActividadPorUsuario(user: AuthUser | null): boolean {
   return user?.rol === "admin";
 }
 
-/** Admin de cuenta o super-admin: ve usuarios en línea de su ámbito. */
+/** Admin de cuenta o super-admin en vista total/cuenta: ve usuarios en línea de su ámbito. */
 export function canVerUsuariosOnlineActividad(user: AuthUser | null): boolean {
   return user?.rol === "admin";
 }

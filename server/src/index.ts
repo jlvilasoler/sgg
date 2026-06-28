@@ -322,10 +322,10 @@ async function parseBody(req: Request): Promise<PresupuestoInput> {
   const user = req.user;
   const cuentaId = user ? await cuentaIdForUser(user) : null;
   let empresa = String(body.empresa ?? "").trim();
-  if (user && !user.es_super_admin) {
+  if (user) {
     const permitidas = await empresasPermitidas(user);
-    if (!permitidas.includes(empresa)) {
-      empresa = permitidas[0] ?? "";
+    if (permitidas.length > 0 && !permitidas.includes(empresa)) {
+      throw new Error("La empresa seleccionada no pertenece a su cuenta.");
     }
   }
   if (!(await empresasCuenta.isValidEmpresaNombre(db.getDb(), empresa))) {
@@ -436,32 +436,36 @@ app.get("/api/catalogos", async (req, res) => {
 app.get("/api/empresas-operativas", async (req, res) => {
   const user = req.user!;
   const formato = String(req.query.formato ?? "nombre").toLowerCase();
+  const scopeUser = {
+    id: user.id,
+    email: user.email,
+    es_super_admin: user.es_super_admin,
+    empresa_id: user.empresa_id,
+  };
   if (formato === "stock") {
     const detalle = await empresasCuenta.getEmpresasOperativasDetallePermitidas(
       db.getDb(),
-      user
+      scopeUser
     );
     res.json({ ok: true, data: detalle });
     return;
   }
   if (formato === "codigo") {
-    if (user.es_super_admin) {
-      res.json({ ok: true, data: await empresasCuenta.getEmpresaCodigosActivos(db.getDb()) });
-      return;
-    }
     const permitidas = await empresasCuenta.getEmpresasCodigosOperativasPermitidas(
       db.getDb(),
-      user
+      scopeUser
     );
     res.json({ ok: true, data: permitidas ?? [] });
     return;
   }
-  if (user.es_super_admin) {
-    res.json({ ok: true, data: await empresasCuenta.getEmpresaNombresActivos(db.getDb()) });
-    return;
-  }
-  const permitidas = await empresasCuenta.getEmpresasOperativasPermitidas(db.getDb(), user);
-  res.json({ ok: true, data: permitidas ?? [] });
+  const permitidas = await empresasCuenta.getEmpresasOperativasPermitidas(
+    db.getDb(),
+    scopeUser
+  );
+  res.json({
+    ok: true,
+    data: permitidas ?? [],
+  });
 });
 
 async function puedeAccederPresupuesto(row: Presupuesto, user: UserPublic): Promise<boolean> {

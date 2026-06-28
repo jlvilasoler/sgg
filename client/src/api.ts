@@ -2568,11 +2568,14 @@ export async function fetchStockMovimientosAuditoria(filters?: {
   return json.data;
 }
 
+export type ActividadAmbito = "total" | "cuenta";
+
 export async function fetchAuthActividad(filters?: {
   email?: string;
   evento?: string;
   limite?: number;
   offset?: number;
+  ambito?: ActividadAmbito;
 }): Promise<{
   items: AuthActividadLog[];
   total: number;
@@ -2583,6 +2586,7 @@ export async function fetchAuthActividad(filters?: {
   if (filters?.evento) params.set("evento", filters.evento);
   if (filters?.limite != null) params.set("limite", String(filters.limite));
   if (filters?.offset != null) params.set("offset", String(filters.offset));
+  if (filters?.ambito) params.set("ambito", filters.ambito);
   const q = params.toString();
   const json = await request<{
     data: AuthActividadLog[];
@@ -2611,8 +2615,9 @@ export function enviarPresencia(pantalla?: string): void {
   });
 }
 
-export async function fetchUsuariosOnline(): Promise<UsuarioOnline[]> {
-  const json = await request<{ data: UsuarioOnline[] }>("/auth/actividad/online");
+export async function fetchUsuariosOnline(ambito?: ActividadAmbito): Promise<UsuarioOnline[]> {
+  const q = ambito ? `?ambito=${ambito}` : "";
+  const json = await request<{ data: UsuarioOnline[] }>(`/auth/actividad/online${q}`);
   return json.data;
 }
 

@@ -129,6 +129,9 @@ export interface UserPublic {
   empresa_nombre: string | null;
   empresa_codigo: string | null;
   empresa_cuenta_numero: string | null;
+  /** Cuenta madre para actividad/chat (p. ej. VILA DIAZ para super-admin principal). */
+  cuenta_actividad_id: number | null;
+  cuenta_actividad_nombre: string | null;
   es_super_admin: boolean;
   permisos: Modulo[];
   puede_escribir: boolean;
@@ -269,6 +272,24 @@ export async function toUserPublic(row: UserRow, db: Db): Promise<UserPublic> {
     }
   }
 
+  const esSuperAdmin = await empresasCuenta.isPlatformSuperAdmin(db, {
+    id: row.id,
+    rol: row.rol,
+    empresa_id: empresaId,
+    email: row.email,
+  });
+  const cuentaActividadId = await empresasCuenta.resolveCuentaMadreIdForUser(db, {
+    id: row.id,
+    email: row.email,
+    es_super_admin: esSuperAdmin,
+    empresa_id: empresaId,
+  });
+  let cuentaActividadNombre: string | null = null;
+  if (cuentaActividadId != null) {
+    const cuentaRow = await empresasCuenta.getEmpresaCuentaById(db, cuentaActividadId);
+    cuentaActividadNombre = cuentaRow?.nombre ?? null;
+  }
+
   return {
     id: row.id,
     usuario_numero: formatUsuarioNumero(row.usuario_numero ?? row.id),
@@ -281,12 +302,9 @@ export async function toUserPublic(row: UserRow, db: Db): Promise<UserPublic> {
     empresa_nombre,
     empresa_codigo,
     empresa_cuenta_numero,
-    es_super_admin: await empresasCuenta.isPlatformSuperAdmin(db, {
-      id: row.id,
-      rol: row.rol,
-      empresa_id: empresaId,
-      email: row.email,
-    }),
+    cuenta_actividad_id: cuentaActividadId,
+    cuenta_actividad_nombre: cuentaActividadNombre,
+    es_super_admin: esSuperAdmin,
     permisos: caps.permisos,
     puede_escribir: caps.puede_escribir,
     modulos_solo_lectura: caps.modulos_solo_lectura,
@@ -439,49 +457,61 @@ export async function listUserEmailsForCuentaMadre(
   return users.map((u) => normalizeEmail(u.email));
 }
 
+export type ActividadAmbito = "total" | "cuenta";
+
 export async function resolveAuthAuditLogScope(
   db: Db,
   actor: UserPublic,
-  requestedEmail?: string
+  requestedEmail?: string,
+  ambito?: ActividadAmbito
 ): Promise<
   | { ok: true; filters: Pick<AuthAuditLogFilters, "email" | "scope"> }
   | { ok: false; error: string }
 > {
   const emailQuery = requestedEmail?.trim() || undefined;
 
-  if (actor.es_super_admin) {
+  if (actor.rol !== "admin") {
+    if (emailQuery && normalizeEmail(emailQuery) !== normalizeEmail(actor.email)) {
+      return { ok: false, error: "Solo puede ver su propia actividad" };
+    }
+    return {
+      ok: true,
+      filters: { scope: { email_exacto: normalizeEmail(actor.email) } },
+    };
+  }
+
+  if (actor.es_super_admin && ambito === "total") {
     return { ok: true, filters: { email: emailQuery, scope: undefined } };
   }
 
-  if (actor.rol === "admin") {
-    const cuentaId = await empresasCuenta.resolveCuentaMadreIdForUser(db, actor);
-    if (!cuentaId) {
-      return {
-        ok: true,
-        filters: { scope: { email_exacto: normalizeEmail(actor.email) } },
-      };
-    }
-    const emailsIn = await listUserEmailsForCuentaMadre(db, cuentaId);
-    if (emailQuery) {
-      const normalized = normalizeEmail(emailQuery);
-      if (!emailsIn.includes(normalized)) {
-        return { ok: false, error: "Usuario fuera de su cuenta" };
-      }
-      return {
-        ok: true,
-        filters: { email: emailQuery, scope: { emails_in: emailsIn } },
-      };
-    }
-    return { ok: true, filters: { scope: { emails_in: emailsIn } } };
+  if (actor.es_super_admin && ambito !== "cuenta") {
+    return {
+      ok: false,
+      error: "Indique el ámbito de actividad (total o cuenta)",
+    };
   }
 
-  if (emailQuery && normalizeEmail(emailQuery) !== normalizeEmail(actor.email)) {
-    return { ok: false, error: "Solo puede ver su propia actividad" };
+  const cuentaId =
+    actor.cuenta_actividad_id ??
+    (await empresasCuenta.resolveCuentaMadreIdForUser(db, actor));
+  if (!cuentaId) {
+    return {
+      ok: true,
+      filters: { scope: { email_exacto: normalizeEmail(actor.email) } },
+    };
   }
-  return {
-    ok: true,
-    filters: { scope: { email_exacto: normalizeEmail(actor.email) } },
-  };
+  const emailsIn = await listUserEmailsForCuentaMadre(db, cuentaId);
+  if (emailQuery) {
+    const normalized = normalizeEmail(emailQuery);
+    if (!emailsIn.includes(normalized)) {
+      return { ok: false, error: "Usuario fuera de su cuenta" };
+    }
+    return {
+      ok: true,
+      filters: { email: emailQuery, scope: { emails_in: emailsIn } },
+    };
+  }
+  return { ok: true, filters: { scope: { emails_in: emailsIn } } };
 }
 
 export async function listUserIdsForCuentaMadre(
@@ -498,11 +528,14 @@ export async function listUserIdsForCuentaMadre(
 
 export async function resolveActividadOnlineUserIds(
   db: Db,
-  actor: UserPublic
+  actor: UserPublic,
+  ambito?: ActividadAmbito
 ): Promise<number[] | null> {
-  if (actor.es_super_admin) return null;
+  if (actor.es_super_admin && ambito === "total") return null;
   if (actor.rol === "admin") {
-    const cuentaId = await empresasCuenta.resolveCuentaMadreIdForUser(db, actor);
+    const cuentaId =
+      actor.cuenta_actividad_id ??
+      (await empresasCuenta.resolveCuentaMadreIdForUser(db, actor));
     if (cuentaId) return await listUserIdsForCuentaMadre(db, cuentaId);
     return [actor.id];
   }
