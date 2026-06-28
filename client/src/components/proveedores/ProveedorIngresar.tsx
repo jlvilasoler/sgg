@@ -106,7 +106,7 @@ export default function ProveedorIngresar({
         <form className="proveedor-form" onSubmit={guardar}>
           <div className="form-grid proveedor-form-grid">
             <div className="field">
-              <label htmlFor="prov-cod">C?digo Proveedor *</label>
+              <label htmlFor="prov-cod">Código Proveedor *</label>
               <input
                 id="prov-cod"
                 type="number"
@@ -121,7 +121,7 @@ export default function ProveedorIngresar({
               />
             </div>
             <div className="field span-2">
-              <label htmlFor="prov-razon">Raz?n social *</label>
+              <label htmlFor="prov-razon">Razón Social *</label>
               <input
                 id="prov-razon"
                 required
@@ -138,7 +138,7 @@ export default function ProveedorIngresar({
               />
             </div>
             <div className="field span-2">
-              <label htmlFor="prov-dir">Direcci?n</label>
+              <label htmlFor="prov-dir">Dirección</label>
               <input
                 id="prov-dir"
                 value={form.direccion}
