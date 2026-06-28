@@ -596,16 +596,17 @@ export async function migrateAddCuentaIdColumn(
   db: Db,
   tabla: string
 ): Promise<void> {
+  let added = false;
   try {
     await db
       .prepare(
         `ALTER TABLE ${tabla} ADD COLUMN cuenta_id INTEGER REFERENCES EMPRESAS_CUENTA(id)`
       )
       .run();
+    added = true;
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     if (!/already exists|duplicate column/i.test(msg)) throw err;
-    return;
   }
   const seedId = await getSeedCuentaMadreId(db);
   if (seedId) {
@@ -618,7 +619,9 @@ export async function migrateAddCuentaIdColumn(
       `CREATE INDEX IF NOT EXISTS idx_${tabla.toLowerCase()}_cuenta ON ${tabla}(cuenta_id)`
     )
     .run();
-  console.info(`[SGG Empresas] Columna cuenta_id agregada a ${tabla}`);
+  if (added) {
+    console.info(`[SGG Empresas] Columna cuenta_id agregada a ${tabla}`);
+  }
 }
 
 /** Asigna cuenta_id según el nombre de empresa operativa (columna empresa). */

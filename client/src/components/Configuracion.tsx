@@ -56,7 +56,7 @@ const CATALOGOS: {
   {
     id: "proveedores",
     label: "Proveedores",
-    subtitle: "Catálogo de proveedores",
+    subtitle: "Catálogo de Proveedores",
     icon: "config_proveedores",
   },
   {

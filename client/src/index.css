@@ -3766,6 +3766,616 @@ body {
   max-width: 28rem;
 }
 
+/* ===== Asignación de presupuesto — módulo completo ===== */
+.responsable-module {
+  display: flex;
+  flex-direction: column;
+  gap: 1.15rem;
+  width: 100%;
+  max-width: none;
+  align-self: stretch;
+}
+
+.responsable-ingresar-page {
+  width: 100%;
+  max-width: none;
+  align-self: stretch;
+}
+
+.responsable-module-hero {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.25rem;
+  padding: 1.35rem 1.5rem;
+  border: 1px solid rgba(30, 61, 42, 0.1);
+  border-radius: 14px;
+  background: linear-gradient(135deg, #f7faf8 0%, #ffffff 55%, #f3f8f5 100%);
+  box-shadow:
+    0 1px 2px rgba(15, 28, 20, 0.04),
+    0 14px 36px -22px rgba(15, 28, 20, 0.2);
+}
+
+.responsable-module-hero-icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 3.25rem;
+  height: 3.25rem;
+  border-radius: 12px;
+  background: linear-gradient(145deg, #e8f3ec 0%, #d8ebe0 100%);
+  border: 1px solid rgba(45, 106, 79, 0.18);
+  color: #1e3d2a;
+}
+
+.responsable-module-hero-icon .menu-app-icon-svg {
+  width: 1.65rem;
+  height: 1.65rem;
+}
+
+.responsable-module-hero-body {
+  min-width: 0;
+  flex: 1;
+}
+
+.responsable-module-kicker {
+  display: inline-block;
+  margin-bottom: 0.4rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  background: rgba(45, 106, 79, 0.1);
+  color: #1e3d2a;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.responsable-module-hero h2 {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--primary);
+  letter-spacing: -0.02em;
+}
+
+.responsable-module-hero p {
+  margin: 0.5rem 0 0;
+  max-width: 42rem;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+.responsable-module-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  margin-top: 1rem;
+}
+
+.responsable-module-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 4.5rem;
+  padding: 0.55rem 0.85rem;
+  border-radius: 10px;
+  border: 1px solid rgba(30, 61, 42, 0.1);
+  background: rgba(255, 255, 255, 0.75);
+}
+
+.responsable-module-stat-val {
+  font-size: 1.15rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #1e3d2a;
+  line-height: 1.1;
+}
+
+.responsable-module-stat-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #6b7d72;
+}
+
+.responsable-module-shell {
+  overflow: hidden;
+  border: 1px solid rgba(30, 61, 42, 0.12);
+  border-radius: 14px;
+  box-shadow:
+    0 1px 2px rgba(15, 28, 20, 0.04),
+    0 12px 32px -18px rgba(15, 28, 20, 0.18);
+  padding: 0;
+}
+
+.responsable-module-page-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.35rem 1.5rem 1.15rem;
+  border-bottom: 1px solid rgba(30, 61, 42, 0.08);
+  background: linear-gradient(180deg, #f7faf8 0%, #ffffff 100%);
+}
+
+.responsable-module-page-head-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.responsable-module-page-icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 10px;
+  background: rgba(45, 106, 79, 0.1);
+  border: 1px solid rgba(45, 106, 79, 0.15);
+  color: #1e3d2a;
+}
+
+.responsable-module-page-icon .menu-app-icon-svg {
+  width: 1.35rem;
+  height: 1.35rem;
+}
+
+.responsable-module-page-title {
+  margin: 0;
+  font-size: 1.28rem;
+  font-weight: 700;
+  color: var(--primary);
+  letter-spacing: -0.01em;
+}
+
+.responsable-module-page-sub {
+  margin: 0.45rem 0 0;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.responsable-module-mode-badge {
+  flex-shrink: 0;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  background: rgba(45, 106, 79, 0.12);
+  color: #1e3d2a;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.responsable-activos-panel {
+  padding: 1.15rem 1.5rem;
+  border-bottom: 1px solid rgba(30, 61, 42, 0.07);
+  background: linear-gradient(180deg, #fafcfa 0%, #ffffff 100%);
+}
+
+.responsable-activos-panel-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.85rem;
+}
+
+.responsable-activos-panel-head h3 {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.responsable-activos-panel-head p {
+  margin: 0.25rem 0 0;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.responsable-module-stat-pill {
+  flex-shrink: 0;
+  padding: 0.25rem 0.65rem;
+  border-radius: 999px;
+  background: rgba(45, 106, 79, 0.12);
+  color: #1e3d2a;
+  font-size: 0.78rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.responsable-activos-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 1.25rem 1rem;
+  border: 1px dashed rgba(30, 61, 42, 0.14);
+  border-radius: 12px;
+  background: rgba(248, 251, 249, 0.8);
+  text-align: center;
+}
+
+.responsable-activos-empty p {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--text);
+}
+
+.responsable-activos-empty .muted {
+  font-size: 0.8rem;
+}
+
+.responsable-activos-empty-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  margin-bottom: 0.25rem;
+  border-radius: 50%;
+  background: rgba(45, 106, 79, 0.08);
+  color: #5a6b60;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.responsable-activos-empty-icon .menu-app-icon-svg {
+  width: 1.25rem;
+  height: 1.25rem;
+  opacity: 0.65;
+}
+
+.responsable-activos-hint {
+  margin: 0.65rem 0 0;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.responsable-ingresar-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.responsable-ingresar-chip {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  margin: 0;
+  padding: 0.42rem 0.75rem;
+  border: 1px solid rgba(30, 61, 42, 0.14);
+  border-radius: 999px;
+  background: #fff;
+  color: #1f2a24;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.12s ease;
+}
+
+.responsable-ingresar-chip:hover {
+  border-color: rgba(45, 106, 79, 0.35);
+  background: #f3f8f5;
+  box-shadow: 0 4px 12px -8px rgba(15, 28, 20, 0.35);
+}
+
+.responsable-ingresar-chip.is-selected {
+  border-color: #2d6a4f;
+  background: linear-gradient(180deg, #e8f3ec 0%, #f4faf6 100%);
+  box-shadow: inset 0 0 0 1px rgba(45, 106, 79, 0.12);
+}
+
+.responsable-ingresar-chip-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.responsable-ingresar-chip-note {
+  margin-left: 0.15rem;
+  color: #7a8a80;
+  font-weight: 700;
+}
+
+.responsable-ingresar-form {
+  display: flex;
+  flex-direction: column;
+}
+
+.responsable-ingresar-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 1.5rem;
+  padding: 0 1.5rem;
+}
+
+.responsable-form-block {
+  padding: 1.25rem 0;
+  border-bottom: 1px solid rgba(30, 61, 42, 0.07);
+}
+
+.responsable-form-block--full {
+  grid-column: 1 / -1;
+  border-bottom: none;
+}
+
+.responsable-form-block-title {
+  margin: 0 0 0.85rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #5a6b60;
+}
+
+.responsable-form-block .field label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  color: var(--text);
+}
+
+.responsable-form-block .field input,
+.responsable-form-block .field textarea {
+  width: 100%;
+  max-width: none;
+  border-radius: 10px;
+  border-color: rgba(30, 61, 42, 0.16);
+  background: #fcfdfc;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    background 0.15s ease;
+}
+
+.responsable-form-block .field input {
+  min-height: 2.65rem;
+}
+
+.responsable-form-block .field textarea {
+  min-height: 6.5rem;
+  resize: vertical;
+  line-height: 1.5;
+  text-transform: none;
+}
+
+.responsable-form-block .field input:hover,
+.responsable-form-block .field textarea:hover {
+  border-color: rgba(45, 106, 79, 0.35);
+  background: #fff;
+}
+
+.responsable-form-block .field input:focus,
+.responsable-form-block .field textarea:focus {
+  border-color: #2d6a4f;
+  box-shadow: 0 0 0 3px rgba(45, 106, 79, 0.14);
+  background: #fff;
+}
+
+.responsable-listado-toolbar {
+  padding: 0.85rem 1.5rem 0.25rem;
+}
+
+.responsable-listado-search {
+  max-width: 22rem;
+}
+
+.responsable-listado-search input {
+  width: 100%;
+}
+
+.responsable-estado-badge {
+  display: inline-block;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  background: #e9ecef;
+  color: #495057;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.responsable-estado-badge.is-active {
+  background: #d8f3dc;
+  color: #1b4332;
+}
+
+.responsable-listado-table .small-cell {
+  max-width: 18rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.field-hint {
+  margin: 0.35rem 0 0;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.responsable-ingresar-meta {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 0.35rem;
+}
+
+.responsable-ingresar-counter {
+  flex-shrink: 0;
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  color: #7a8a80;
+}
+
+.responsable-ingresar-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  margin: 0;
+  padding: 0.95rem 1rem;
+  border: 1px solid rgba(30, 61, 42, 0.12);
+  border-radius: 12px;
+  background: #f8faf9;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.responsable-ingresar-toggle:hover {
+  border-color: rgba(45, 106, 79, 0.28);
+  background: #f3f7f4;
+}
+
+.responsable-ingresar-toggle.is-on {
+  border-color: rgba(45, 106, 79, 0.35);
+  background: linear-gradient(180deg, #f0f7f2 0%, #f8fbf9 100%);
+  box-shadow: inset 0 0 0 1px rgba(45, 106, 79, 0.06);
+}
+
+.responsable-ingresar-toggle input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.responsable-ingresar-toggle-track {
+  flex-shrink: 0;
+  position: relative;
+  width: 2.5rem;
+  height: 1.45rem;
+  margin-top: 0.1rem;
+  border-radius: 999px;
+  background: #c5cec8;
+  transition: background 0.2s ease;
+}
+
+.responsable-ingresar-toggle-track::after {
+  content: "";
+  position: absolute;
+  top: 0.15rem;
+  left: 0.15rem;
+  width: 1.15rem;
+  height: 1.15rem;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(15, 28, 20, 0.18);
+  transition: transform 0.2s ease;
+}
+
+.responsable-ingresar-toggle.is-on .responsable-ingresar-toggle-track {
+  background: #2d6a4f;
+}
+
+.responsable-ingresar-toggle.is-on .responsable-ingresar-toggle-track::after {
+  transform: translateX(1.05rem);
+}
+
+.responsable-ingresar-toggle-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.responsable-ingresar-toggle-copy strong {
+  font-size: 0.92rem;
+  color: var(--text);
+}
+
+.responsable-ingresar-toggle-copy span:last-child {
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.responsable-ingresar-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 1rem 1.5rem 1.25rem;
+  border-top: 1px solid rgba(30, 61, 42, 0.08);
+  background: #fafbfa;
+}
+
+.responsable-ingresar-foot-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.55rem;
+  margin-left: auto;
+}
+
+@media (max-width: 860px) {
+  .responsable-ingresar-grid {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  .responsable-form-block--full {
+    grid-column: auto;
+  }
+}
+
+@media (max-width: 560px) {
+  .responsable-module-hero {
+    flex-direction: column;
+    padding: 1.15rem 1rem;
+  }
+
+  .responsable-module-page-head,
+  .responsable-activos-panel,
+  .responsable-ingresar-grid,
+  .responsable-ingresar-foot,
+  .responsable-listado-toolbar {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  .responsable-module-page-head {
+    flex-direction: column;
+  }
+
+  .responsable-ingresar-foot {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .responsable-ingresar-foot-actions {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .responsable-ingresar-foot-actions .btn {
+    flex: 1;
+  }
+}
+
 .bn-ui .field.checkbox-field .checkbox-inline-label {
   color: var(--bn-text);
 }
@@ -13600,7 +14210,7 @@ button.sg-kpi-card:disabled {
    Binance UI — tablas, dashboards y paneles de datos (global en .bn-ui)
    ============================================================================= */
 
-.bn-ui .card:not(.configuracion-hub-card):not(.rrhh-hub-card):not(.stock-import-hero):not(.stock-import-spec):not(.stock-import-panel):not(.stock-baja-manual-buscar):not(.stock-baja-manual-candidatos):not(.stock-baja-manual-resultado):not(.stock-baja-tipo):not(.vinculos-mapa-card):not(.rrhh-funcionario-card):not(.divisas-ultimos):not(.precios-ganado-ultimos) {
+.bn-ui .card:not(.configuracion-hub-card):not(.rrhh-hub-card):not(.stock-import-hero):not(.stock-import-spec):not(.stock-import-panel):not(.stock-baja-manual-buscar):not(.stock-baja-manual-candidatos):not(.stock-baja-manual-resultado):not(.stock-baja-tipo):not(.vinculos-mapa-card):not(.rrhh-funcionario-card):not(.divisas-ultimos):not(.responsable-module-shell):not(.responsable-module-hero):not(.precios-ganado-ultimos):not(.responsable-module-shell):not(.responsable-module-hero) {
   background: var(--bn-bg);
   border: 1px solid var(--bn-border);
   border-radius: 8px;
@@ -13613,13 +14223,13 @@ button.sg-kpi-card:disabled {
   padding: 0;
 }
 
-.bn-ui .card:not(.configuracion-hub-card):not(.rrhh-hub-card):not(.stock-import-hero):not(.stock-import-spec):not(.stock-import-panel):not(.stock-baja-manual-buscar):not(.stock-baja-manual-candidatos):not(.stock-baja-manual-resultado):not(.stock-baja-tipo):not(.vinculos-mapa-card):not(.rrhh-funcionario-card):not(.divisas-ultimos) > .form-header {
+.bn-ui .card:not(.configuracion-hub-card):not(.rrhh-hub-card):not(.stock-import-hero):not(.stock-import-spec):not(.stock-import-panel):not(.stock-baja-manual-buscar):not(.stock-baja-manual-candidatos):not(.stock-baja-manual-resultado):not(.stock-baja-tipo):not(.vinculos-mapa-card):not(.rrhh-funcionario-card):not(.divisas-ultimos):not(.responsable-module-shell):not(.responsable-module-hero) > .form-header {
   margin-bottom: 0;
   padding: 1.1rem 1.25rem 0.85rem;
   border-bottom: 1px solid var(--bn-border-soft);
 }
 
-.bn-ui .card:not(.configuracion-hub-card):not(.rrhh-hub-card):not(.stock-import-hero):not(.stock-import-spec):not(.stock-import-panel):not(.stock-baja-manual-buscar):not(.stock-baja-manual-candidatos):not(.stock-baja-manual-resultado):not(.stock-baja-tipo):not(.vinculos-mapa-card):not(.rrhh-funcionario-card):not(.divisas-ultimos) .form-header h2,
+.bn-ui .card:not(.configuracion-hub-card):not(.rrhh-hub-card):not(.stock-import-hero):not(.stock-import-spec):not(.stock-import-panel):not(.stock-baja-manual-buscar):not(.stock-baja-manual-candidatos):not(.stock-baja-manual-resultado):not(.stock-baja-tipo):not(.vinculos-mapa-card):not(.rrhh-funcionario-card):not(.divisas-ultimos):not(.responsable-module-shell):not(.responsable-module-hero) .form-header h2,
 .bn-ui form.card.form-card .form-header h2,
 .bn-ui .listado-toolbar .form-header h2 {
   margin: 0;
@@ -14413,19 +15023,19 @@ button.sg-kpi-card:disabled {
   border-bottom: 1px solid var(--bn-border-soft);
 }
 
-.bn-ui .card:not(.configuracion-hub-card):not(.rrhh-hub-card):not(.stock-import-hero):not(.stock-import-spec):not(.stock-import-panel):not(.stock-baja-manual-buscar):not(.stock-baja-manual-candidatos):not(.stock-baja-manual-resultado):not(.stock-baja-tipo):not(.vinculos-mapa-card):not(.rrhh-funcionario-card):not(.divisas-ultimos) > form,
-.bn-ui .card:not(.configuracion-hub-card):not(.rrhh-hub-card):not(.stock-import-hero):not(.stock-import-spec):not(.stock-import-panel):not(.stock-baja-manual-buscar):not(.stock-baja-manual-candidatos):not(.stock-baja-manual-resultado):not(.stock-baja-tipo):not(.vinculos-mapa-card):not(.rrhh-funcionario-card):not(.divisas-ultimos) > .form-grid,
+.bn-ui .card:not(.configuracion-hub-card):not(.rrhh-hub-card):not(.stock-import-hero):not(.stock-import-spec):not(.stock-import-panel):not(.stock-baja-manual-buscar):not(.stock-baja-manual-candidatos):not(.stock-baja-manual-resultado):not(.stock-baja-tipo):not(.vinculos-mapa-card):not(.rrhh-funcionario-card):not(.divisas-ultimos):not(.responsable-module-shell):not(.responsable-module-hero) > form,
+.bn-ui .card:not(.configuracion-hub-card):not(.rrhh-hub-card):not(.stock-import-hero):not(.stock-import-spec):not(.stock-import-panel):not(.stock-baja-manual-buscar):not(.stock-baja-manual-candidatos):not(.stock-baja-manual-resultado):not(.stock-baja-tipo):not(.vinculos-mapa-card):not(.rrhh-funcionario-card):not(.divisas-ultimos):not(.responsable-module-shell):not(.responsable-module-hero) > .form-grid,
 .bn-ui form.card.form-card .form-grid,
 .bn-ui form.card.form-card .form-actions,
 .bn-ui form.card.form-card .importe-moneda-block,
-.bn-ui .card:not(.configuracion-hub-card):not(.rrhh-hub-card):not(.stock-import-hero):not(.stock-import-spec):not(.stock-import-panel):not(.stock-baja-manual-buscar):not(.stock-baja-manual-candidatos):not(.stock-baja-manual-resultado):not(.stock-baja-tipo):not(.vinculos-mapa-card):not(.rrhh-funcionario-card):not(.divisas-ultimos) .form-actions,
-.bn-ui .card:not(.configuracion-hub-card):not(.rrhh-hub-card):not(.stock-import-hero):not(.stock-import-spec):not(.stock-import-panel):not(.stock-baja-manual-buscar):not(.stock-baja-manual-candidatos):not(.stock-baja-manual-resultado):not(.stock-baja-tipo):not(.vinculos-mapa-card):not(.rrhh-funcionario-card):not(.divisas-ultimos) .importe-moneda-block {
+.bn-ui .card:not(.configuracion-hub-card):not(.rrhh-hub-card):not(.stock-import-hero):not(.stock-import-spec):not(.stock-import-panel):not(.stock-baja-manual-buscar):not(.stock-baja-manual-candidatos):not(.stock-baja-manual-resultado):not(.stock-baja-tipo):not(.vinculos-mapa-card):not(.rrhh-funcionario-card):not(.divisas-ultimos):not(.responsable-module-shell):not(.responsable-module-hero) .form-actions,
+.bn-ui .card:not(.configuracion-hub-card):not(.rrhh-hub-card):not(.stock-import-hero):not(.stock-import-spec):not(.stock-import-panel):not(.stock-baja-manual-buscar):not(.stock-baja-manual-candidatos):not(.stock-baja-manual-resultado):not(.stock-baja-tipo):not(.vinculos-mapa-card):not(.rrhh-funcionario-card):not(.divisas-ultimos):not(.responsable-module-shell):not(.responsable-module-hero) .importe-moneda-block {
   padding-left: 1.25rem;
   padding-right: 1.25rem;
 }
 
-.bn-ui .card:not(.configuracion-hub-card):not(.rrhh-hub-card):not(.stock-import-hero):not(.stock-import-spec):not(.stock-import-panel):not(.stock-baja-manual-buscar):not(.stock-baja-manual-candidatos):not(.stock-baja-manual-resultado):not(.stock-baja-tipo):not(.vinculos-mapa-card):not(.rrhh-funcionario-card):not(.divisas-ultimos) > form,
-.bn-ui .card:not(.configuracion-hub-card):not(.rrhh-hub-card):not(.stock-import-hero):not(.stock-import-spec):not(.stock-import-panel):not(.stock-baja-manual-buscar):not(.stock-baja-manual-candidatos):not(.stock-baja-manual-resultado):not(.stock-baja-tipo):not(.vinculos-mapa-card):not(.rrhh-funcionario-card):not(.divisas-ultimos) > .form-grid,
+.bn-ui .card:not(.configuracion-hub-card):not(.rrhh-hub-card):not(.stock-import-hero):not(.stock-import-spec):not(.stock-import-panel):not(.stock-baja-manual-buscar):not(.stock-baja-manual-candidatos):not(.stock-baja-manual-resultado):not(.stock-baja-tipo):not(.vinculos-mapa-card):not(.rrhh-funcionario-card):not(.divisas-ultimos):not(.responsable-module-shell):not(.responsable-module-hero) > form,
+.bn-ui .card:not(.configuracion-hub-card):not(.rrhh-hub-card):not(.stock-import-hero):not(.stock-import-spec):not(.stock-import-panel):not(.stock-baja-manual-buscar):not(.stock-baja-manual-candidatos):not(.stock-baja-manual-resultado):not(.stock-baja-tipo):not(.vinculos-mapa-card):not(.rrhh-funcionario-card):not(.divisas-ultimos):not(.responsable-module-shell):not(.responsable-module-hero) > .form-grid,
 .bn-ui form.card.form-card .form-grid {
   padding-top: 1rem;
   padding-bottom: 1.25rem;
@@ -14436,7 +15046,7 @@ button.sg-kpi-card:disabled {
   margin-top: 0;
 }
 
-.bn-ui .card:not(.configuracion-hub-card):not(.rrhh-hub-card):not(.stock-import-hero):not(.stock-import-spec):not(.stock-import-panel):not(.stock-baja-manual-buscar):not(.stock-baja-manual-candidatos):not(.stock-baja-manual-resultado):not(.stock-baja-tipo):not(.vinculos-mapa-card):not(.rrhh-funcionario-card):not(.divisas-ultimos) .form-actions {
+.bn-ui .card:not(.configuracion-hub-card):not(.rrhh-hub-card):not(.stock-import-hero):not(.stock-import-spec):not(.stock-import-panel):not(.stock-baja-manual-buscar):not(.stock-baja-manual-candidatos):not(.stock-baja-manual-resultado):not(.stock-baja-tipo):not(.vinculos-mapa-card):not(.rrhh-funcionario-card):not(.divisas-ultimos):not(.responsable-module-shell):not(.responsable-module-hero) .form-actions {
   padding-bottom: 1.25rem;
   margin-top: 0;
 }

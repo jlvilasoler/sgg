@@ -3341,13 +3341,21 @@ function parseResponsableBody(req: Request) {
   const body = req.body as Record<string, unknown>;
   const nombre = String(body.nombre ?? "").trim();
   const activo = body.activo !== false && body.activo !== 0 && body.activo !== "0";
-  return { nombre, activo };
+  const observaciones = String(body.observaciones ?? "").trim().slice(0, 500);
+  return { nombre, activo, observaciones };
 }
 
 app.get("/api/responsables", async (req, res) => {
   const soloActivos = req.query.solo_activos === "1";
   const user = req.user!;
-  const cuentaId = await cuentaIdForScopedRead(user);
+  let cuentaId = await cuentaIdForScopedRead(user);
+  if (user.es_super_admin && String(req.query.ambito ?? "") === "cuenta") {
+    cuentaId = await cuentaIdForUser(user);
+    if (!cuentaId) {
+      res.json({ ok: true, data: [] });
+      return;
+    }
+  }
   if (!user.es_super_admin && cuentaId == null) {
     res.json({ ok: true, data: [] });
     return;

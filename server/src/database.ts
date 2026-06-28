@@ -92,7 +92,6 @@ async function runModuleSeeds(): Promise<void> {
     sub.initSubRubrosTable(db),
     subItems.initSubRubroItemsTable(db),
     vinc.initRubroSubRubrosTable(db),
-    resp.initResponsablesTable(db),
     func.initFuncionariosTable(db),
     ventas.initVentasTable(db),
     vsub.initVentaSubRubrosTable(db),
@@ -194,6 +193,7 @@ export async function initDb(): Promise<void> {
     ]);
     await migratePresupuestoIngresadoPor(db);
     await prov.initProveedoresTable(db);
+    await resp.initResponsablesTable(db);
     await presDoc.initPresupuestoDocumentosTable(db);
   } finally {
     if (locked) await releaseAdvisoryLock();

@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { deleteResponsable, fetchResponsables } from "../../api";
 import type { Responsable } from "../../types";
 import { confirmAction } from "../../utils/confirm";
+import { HubMenuIcon } from "../icons/HubMenuIcons";
 
 interface Props {
   apiOnline: boolean;
@@ -20,6 +21,7 @@ export default function ResponsableListado({
 }: Props) {
   const [rows, setRows] = useState<Responsable[]>([]);
   const [loading, setLoading] = useState(true);
+  const [busqueda, setBusqueda] = useState("");
 
   const load = useCallback(async () => {
     if (!apiOnline) {
@@ -29,7 +31,7 @@ export default function ResponsableListado({
     }
     setLoading(true);
     try {
-      setRows(await fetchResponsables(false));
+      setRows(await fetchResponsables(false, { ambitoCuenta: true }));
     } catch (e) {
       onError(e instanceof Error ? e.message : "Error al cargar");
     } finally {
@@ -41,18 +43,30 @@ export default function ResponsableListado({
     load();
   }, [load]);
 
+  const filtradas = useMemo(() => {
+    const term = busqueda.trim().toLowerCase();
+    if (!term) return rows;
+    return rows.filter(
+      (r) =>
+        r.nombre.toLowerCase().includes(term) ||
+        (r.observaciones ?? "").toLowerCase().includes(term)
+    );
+  }, [rows, busqueda]);
+
+  const activos = rows.filter((r) => r.activo).length;
+
   const borrar = async (id: number) => {
     const ok = await confirmAction({
-      title: "Eliminar nombre",
+      title: "Eliminar asignación",
       message:
-        "¿Eliminar este nombre? Solo es posible si no tiene gastos asociados.",
+        "¿Eliminar esta asignación? Solo es posible si no tiene gastos asociados.",
       confirmText: "Eliminar",
       variant: "danger",
     });
     if (!ok) return;
     try {
       await deleteResponsable(id);
-      onSuccess("Nombre eliminado");
+      onSuccess("Asignación eliminada");
       load();
     } catch (err) {
       onError(err instanceof Error ? err.message : "Error al eliminar");
@@ -60,49 +74,83 @@ export default function ResponsableListado({
   };
 
   return (
-    <div className="subseccion-panel">
+    <div className="subseccion-panel responsable-module">
       <button type="button" className="subseccion-back" onClick={onVolver}>
-        ‹ Volver a PRESUPUESTO ASIGNADO
+        ‹ Volver a Asignación de presupuesto
       </button>
 
-      <div className="card">
-        <div className="form-header">
-          <h2>Listado de presupuesto asignado</h2>
-          <p className="muted">
-            {loading
-              ? "Cargando..."
-              : `${rows.length} nombre(s). Los inactivos no aparecen al cargar gastos nuevos.`}
-          </p>
+      <div className="card responsable-module-shell listado-pro-shell">
+        <header className="responsable-module-page-head listado-pro-head">
+          <div className="responsable-module-page-head-main">
+            <div className="responsable-module-page-icon" aria-hidden>
+              <HubMenuIcon id="resp_listado" className="menu-app-icon-svg" />
+            </div>
+            <div>
+              <span className="responsable-module-kicker">Asignación de presupuesto</span>
+              <h2 className="responsable-module-page-title listado-pro-head-title">
+                Listado completo
+              </h2>
+              <p className="responsable-module-page-sub listado-pro-head-sub">
+                {loading
+                  ? "Cargando catálogo…"
+                  : `${rows.length} asignación${rows.length === 1 ? "" : "es"} · ${activos} activa${activos === 1 ? "" : "s"}`}
+              </p>
+            </div>
+          </div>
+        </header>
+
+        <div className="responsable-listado-toolbar">
+          <div className="field responsable-listado-search">
+            <label htmlFor="resp-listado-busqueda">Buscar</label>
+            <input
+              id="resp-listado-busqueda"
+              type="search"
+              placeholder="Nombre u observación…"
+              value={busqueda}
+              disabled={loading || !apiOnline}
+              onChange={(e) => setBusqueda(e.target.value)}
+            />
+          </div>
         </div>
 
-        <div className="table-wrap">
-          <table className="data-table">
+        <div className="table-wrap listado-pro-table-wrap">
+          <table className="data-table listado-pro-table responsable-listado-table">
             <thead>
               <tr>
                 <th>Nombre</th>
+                <th>Observaciones</th>
                 <th>Estado</th>
-                <th />
+                <th aria-label="Acciones" />
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={3} className="muted">
-                    Cargando...
+                  <td colSpan={4} className="empty">
+                    Cargando asignaciones…
                   </td>
                 </tr>
-              ) : rows.length === 0 ? (
+              ) : filtradas.length === 0 ? (
                 <tr>
-                  <td colSpan={3} className="muted">
-                    No hay nombres. Agregá uno desde Ingresar nombre.
+                  <td colSpan={4} className="empty">
+                    {rows.length === 0
+                      ? "No hay asignaciones. Creá una desde Nueva asignación."
+                      : "Ningún resultado coincide con la búsqueda."}
                   </td>
                 </tr>
               ) : (
-                rows.map((r) => (
+                filtradas.map((r) => (
                   <tr key={r.id}>
-                    <td>{r.nombre}</td>
                     <td>
-                      <span className={r.activo ? "badge-ok" : "badge-muted"}>
+                      <strong>{r.nombre}</strong>
+                    </td>
+                    <td className="muted small-cell">
+                      {(r.observaciones ?? "").trim() || "—"}
+                    </td>
+                    <td>
+                      <span
+                        className={`responsable-estado-badge${r.activo ? " is-active" : ""}`}
+                      >
                         {r.activo ? "Activo" : "Inactivo"}
                       </span>
                     </td>

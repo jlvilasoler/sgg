@@ -9,17 +9,32 @@ export interface Responsable {
   id: number;
   cuenta_id?: number | null;
   nombre: string;
+  observaciones?: string;
   activo: number;
   creado_en?: string;
 }
 
 export interface ResponsableInput {
   nombre: string;
+  observaciones?: string;
   activo?: boolean;
+}
+
+async function migrateObservacionesColumn(db: Db): Promise<void> {
+  try {
+    await db
+      .prepare(
+        "ALTER TABLE RESPONSABLES ADD COLUMN observaciones TEXT NOT NULL DEFAULT ''"
+      )
+      .run();
+  } catch {
+    /* columna ya existe */
+  }
 }
 
 export async function initResponsablesTable(db: Db): Promise<void> {
   await migrateAddCuentaIdColumn(db, "RESPONSABLES");
+  await migrateObservacionesColumn(db);
   await migrateResponsableUniquePorCuenta(db);
   await seedResponsablesIfEmpty(db);
   await syncResponsablesFromPresupuesto(db);
@@ -149,14 +164,20 @@ export async function insertResponsable(
 ): Promise<number> {
   const nombre = data.nombre.trim();
   if (!nombre) throw new Error("El nombre del responsable es obligatorio.");
+  const observaciones = String(data.observaciones ?? "").trim().slice(0, 500);
   if (await getResponsableByNombre(db, nombre, cuentaId)) {
     throw new Error("Ya existe un responsable con ese nombre.");
   }
   const result = await db
     .prepare(
-      "INSERT INTO RESPONSABLES (nombre, activo, cuenta_id) VALUES (@nombre, @activo, @cuenta_id)"
+      "INSERT INTO RESPONSABLES (nombre, activo, cuenta_id, observaciones) VALUES (@nombre, @activo, @cuenta_id, @observaciones)"
     )
-    .run({ nombre, activo: data.activo === false ? 0 : 1, cuenta_id: cuentaId ?? null });
+    .run({
+      nombre,
+      activo: data.activo === false ? 0 : 1,
+      cuenta_id: cuentaId ?? null,
+      observaciones,
+    });
   return Number(result.lastInsertRowid);
 }
 
@@ -168,16 +189,18 @@ export async function updateResponsable(
 ): Promise<boolean> {
   const nombre = data.nombre.trim();
   if (!nombre) throw new Error("El nombre del responsable es obligatorio.");
+  const observaciones = String(data.observaciones ?? "").trim().slice(0, 500);
   const existing = await getResponsableByNombre(db, nombre, cuentaId);
   if (existing && existing.id !== id) {
     throw new Error("Ya existe otro responsable con ese nombre.");
   }
   let query =
-    "UPDATE RESPONSABLES SET nombre = @nombre, activo = @activo WHERE id = @id";
+    "UPDATE RESPONSABLES SET nombre = @nombre, activo = @activo, observaciones = @observaciones WHERE id = @id";
   const params: Record<string, string | number> = {
     id,
     nombre,
     activo: data.activo === false ? 0 : 1,
+    observaciones,
   };
   query = scopeCuenta(query, params, cuentaId);
   return (await db.prepare(query).run(params)).changes > 0;

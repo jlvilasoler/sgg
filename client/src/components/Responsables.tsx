@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { fetchResponsables } from "../api";
 import type { Responsable } from "../types";
 import { HubMenuCard } from "./HubMenuCard";
 import type { HubIconId } from "./icons/HubMenuIcons";
@@ -13,7 +14,6 @@ interface Props {
   onError: (msg: string) => void;
   onSuccess: (msg: string) => void;
   onCatalogosChanged: () => void;
-  /** Vuelve al menú de Configuración (si se abrió desde ahí). */
   onVolver?: () => void;
 }
 
@@ -25,14 +25,14 @@ const SUBMENU: {
 }[] = [
   {
     id: "ingresar",
-    label: "Ingresar nombre",
-    subtitle: "Alta o edición en presupuesto asignado",
+    label: "Nueva asignación",
+    subtitle: "Alta y edición de personas del catálogo",
     icon: "resp_ingresar",
   },
   {
     id: "listado",
-    label: "Listado nombres",
-    subtitle: "Ver, activar/desactivar y eliminar",
+    label: "Listado completo",
+    subtitle: "Activar, editar o eliminar asignaciones",
     icon: "resp_listado",
   },
 ];
@@ -47,6 +47,27 @@ export default function Responsables({
   const [vista, setVista] = useState<VistaResponsables>("menu");
   const [editResponsable, setEditResponsable] = useState<Responsable | null>(null);
   const [listRefresh, setListRefresh] = useState(0);
+  const [stats, setStats] = useState({ total: 0, activos: 0 });
+
+  const cargarStats = useCallback(async () => {
+    if (!apiOnline) {
+      setStats({ total: 0, activos: 0 });
+      return;
+    }
+    try {
+      const rows = await fetchResponsables(false, { ambitoCuenta: true });
+      setStats({
+        total: rows.length,
+        activos: rows.filter((r) => r.activo).length,
+      });
+    } catch {
+      setStats({ total: 0, activos: 0 });
+    }
+  }, [apiOnline]);
+
+  useEffect(() => {
+    if (vista === "menu") void cargarStats();
+  }, [vista, cargarStats, listRefresh]);
 
   const volverMenu = () => {
     setVista("menu");
@@ -67,6 +88,7 @@ export default function Responsables({
         editResponsable={editResponsable}
         onSaved={onSaved}
         onCancelEdit={() => setEditResponsable(null)}
+        onEditarExistente={(r) => setEditResponsable(r)}
         onError={onError}
         onSuccess={onSuccess}
         onVolver={volverMenu}
@@ -94,17 +116,42 @@ export default function Responsables({
   }
 
   return (
-    <div className="proveedores-hub">
+    <div className="subseccion-panel responsable-module">
       {onVolver && (
         <button type="button" className="subseccion-back" onClick={onVolver}>
           ‹ Volver a Configuración
         </button>
       )}
-      <p className="muted hub-intro">
-        Administrá las personas del <strong>presupuesto asignado</strong>. Solo los nombres{" "}
-        <strong>activos</strong> aparecen al registrar gastos y en los filtros del listado.
-      </p>
-      <nav className="app-grid app-grid-2" aria-label="Opciones de presupuesto asignado">
+
+      <div className="card responsable-module-hero">
+        <div className="responsable-module-hero-icon" aria-hidden>
+          <HubMenuIcon id="config_responsables" className="menu-app-icon-svg" />
+        </div>
+        <div className="responsable-module-hero-body">
+          <span className="responsable-module-kicker">Configuración</span>
+          <h2>Asignación de presupuesto</h2>
+          <p>
+            Personas a quien se asigna el gasto al registrar operaciones. Solo los nombres{" "}
+            <strong>activos</strong> aparecen en gastos y filtros.
+          </p>
+          <div className="responsable-module-stats" aria-label="Resumen del catálogo">
+            <div className="responsable-module-stat">
+              <span className="responsable-module-stat-val">
+                {apiOnline ? stats.activos : "—"}
+              </span>
+              <span className="responsable-module-stat-label">Activos</span>
+            </div>
+            <div className="responsable-module-stat">
+              <span className="responsable-module-stat-val">
+                {apiOnline ? stats.total : "—"}
+              </span>
+              <span className="responsable-module-stat-label">Total</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <nav className="app-grid app-grid-2" aria-label="Asignación de presupuesto">
         {SUBMENU.map((item) => (
           <HubMenuCard
             key={item.id}

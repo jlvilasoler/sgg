@@ -1677,9 +1677,15 @@ export async function fetchRubroVinculosMapa(): Promise<RubroVinculoMapaItem[]> 
   return json.data;
 }
 
-export async function fetchResponsables(soloActivos = false): Promise<Responsable[]> {
-  const q = soloActivos ? "?solo_activos=1" : "";
-  const json = await request<{ data: Responsable[] }>(`/responsables${q}`);
+export async function fetchResponsables(
+  soloActivos = false,
+  opts?: { ambitoCuenta?: boolean }
+): Promise<Responsable[]> {
+  const params = new URLSearchParams();
+  if (soloActivos) params.set("solo_activos", "1");
+  if (opts?.ambitoCuenta) params.set("ambito", "cuenta");
+  const q = params.toString();
+  const json = await request<{ data: Responsable[] }>(`/responsables${q ? `?${q}` : ""}`);
   return json.data;
 }
 

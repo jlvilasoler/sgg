@@ -644,12 +644,14 @@ export interface RubroVinculoMapaItem {
 export interface Responsable {
   id: number;
   nombre: string;
+  observaciones?: string;
   activo: number;
   creado_en?: string;
 }
 
 export type ResponsableForm = {
   nombre: string;
+  observaciones?: string;
   activo: boolean;
 };
 
