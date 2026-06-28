@@ -172,7 +172,7 @@ export default function ClasificacionProveedores({
     }
     setLoading(true);
     try {
-      setCatalogRows(await fetchProveedores());
+      setCatalogRows(await fetchProveedores(undefined, { ambitoCuenta: true }));
     } catch (e) {
       onError(e instanceof Error ? e.message : "Error al cargar proveedores");
       setCatalogRows([]);

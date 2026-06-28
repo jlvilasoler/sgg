@@ -1187,9 +1187,15 @@ export async function deleteStockGanaderoLote(id: number): Promise<void> {
   await request(`/stock-ganadero/lotes/${id}`, { method: "DELETE" });
 }
 
-export async function fetchProveedores(busqueda?: string): Promise<Proveedor[]> {
-  const q = busqueda?.trim() ? `?busqueda=${encodeURIComponent(busqueda.trim())}` : "";
-  const json = await request<{ data: Proveedor[] }>(`/proveedores${q}`);
+export async function fetchProveedores(
+  busqueda?: string,
+  opts?: { ambitoCuenta?: boolean }
+): Promise<Proveedor[]> {
+  const params = new URLSearchParams();
+  if (busqueda?.trim()) params.set("busqueda", busqueda.trim());
+  if (opts?.ambitoCuenta) params.set("ambito", "cuenta");
+  const q = params.toString();
+  const json = await request<{ data: Proveedor[] }>(`/proveedores${q ? `?${q}` : ""}`);
   return json.data;
 }
 

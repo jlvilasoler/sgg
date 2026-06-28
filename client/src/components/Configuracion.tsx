@@ -1,8 +1,8 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { HubMenuCard } from "./HubMenuCard";
 import { useHeaderBackStep } from "../header-back";
 import type { AuthUser } from "../types";
-import { canAccessAdministradorCuentas, canAccessDocumentosDigitales } from "../utils/auth-permissions";
+import { canAccessAdministradorCuentas, canAccessClasificacionProveedores, canAccessDocumentosDigitales, canAccessStockGanaderoAdmin } from "../utils/auth-permissions";
 import Proveedores from "./Proveedores";
 import ClasificacionProveedores from "./proveedores/ClasificacionProveedores";
 import Responsables from "./Responsables";
@@ -49,7 +49,7 @@ const CATALOGOS: {
 }[] = [
   {
     id: "responsables",
-    label: "Presupuesto asignado",
+    label: "Asignación de Presupuesto",
     subtitle: "Personas a quien se asigna el gasto",
     icon: "config_responsables",
   },
@@ -149,6 +149,21 @@ export default function Configuracion({
     backStep?.onBack ?? (() => setModulo("menu")),
     backStep?.label ?? "Configuración"
   );
+
+  useEffect(() => {
+    if (
+      modulo === "clasificacion_proveedores" &&
+      !canAccessClasificacionProveedores(currentUser ?? null)
+    ) {
+      setModulo(esSuperAdmin ? "cuenta_hub" : "menu");
+    }
+    if (
+      modulo === "stock_ganadero" &&
+      !canAccessStockGanaderoAdmin(currentUser ?? null)
+    ) {
+      setModulo(esSuperAdmin ? "cuenta_hub" : "menu");
+    }
+  }, [modulo, currentUser, esSuperAdmin]);
 
   if (modulo === "responsables") {
     return (
@@ -255,7 +270,17 @@ export default function Configuracion({
       ]
     : [];
 
-  const itemsCuenta = [...CATALOGOS, ...adminCuentaItem];
+  const catalogosVisibles = CATALOGOS.filter((item) => {
+    if (item.id === "clasificacion_proveedores") {
+      return canAccessClasificacionProveedores(currentUser ?? null);
+    }
+    if (item.id === "stock_ganadero") {
+      return canAccessStockGanaderoAdmin(currentUser ?? null);
+    }
+    return true;
+  });
+
+  const itemsCuenta = [...catalogosVisibles, ...adminCuentaItem];
   const itemsSag = SAG_MODULOS.filter((item) =>
     item.id === "documentos_digitales"
       ? canAccessDocumentosDigitales(currentUser ?? null)

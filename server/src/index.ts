@@ -2358,7 +2358,10 @@ function parseProveedorBody(req: Request) {
 
 app.get("/api/proveedores", async (req, res) => {
   const busqueda = req.query.busqueda as string | undefined;
-  const cuentaId = await proveedoresCuentaId(req.user!);
+  let cuentaId = await proveedoresCuentaId(req.user!);
+  if (req.user!.es_super_admin && String(req.query.ambito ?? "") === "cuenta") {
+    cuentaId = (await cuentaIdForUser(req.user!)) ?? 0;
+  }
   res.json({ ok: true, data: await db.proveedores.list(busqueda, cuentaId) });
 });
 
@@ -2426,6 +2429,13 @@ app.put("/api/proveedores/id/:id", async (req, res) => {
 });
 
 app.patch("/api/proveedores/id/:id/clasificacion", async (req, res) => {
+  if (!req.user?.es_super_admin) {
+    res.status(403).json({
+      ok: false,
+      error: "Clasificación de proveedores disponible solo para superadministrador",
+    });
+    return;
+  }
   try {
     const id = Number(req.params.id);
     if (!Number.isFinite(id) || id <= 0) {
@@ -2433,7 +2443,14 @@ app.patch("/api/proveedores/id/:id/clasificacion", async (req, res) => {
       return;
     }
     const body = req.body ?? {};
-    const cuentaId = await proveedoresCuentaId(req.user!);
+    const cuentaId = await cuentaIdForUser(req.user!);
+    if (!cuentaId) {
+      res.status(403).json({
+        ok: false,
+        error: "Sin cuenta para clasificar proveedores",
+      });
+      return;
+    }
     const hasRubroPayload = "rubro" in body || "sub_rubro" in body;
 
     if (hasRubroPayload) {

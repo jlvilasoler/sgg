@@ -135,6 +135,16 @@ export function canAccessDocumentosDigitales(user: AuthUser | null): boolean {
   return Boolean(user?.es_super_admin);
 }
 
+/** Clasificación proveedores (estado de resultados): solo super-admin, en prueba. */
+export function canAccessClasificacionProveedores(user: AuthUser | null): boolean {
+  return Boolean(user?.es_super_admin);
+}
+
+/** Administración de Stock Ganadero (vaciar/restaurar base): solo administradores de cuenta. */
+export function canAccessStockGanaderoAdmin(user: AuthUser | null): boolean {
+  return user?.rol === "admin";
+}
+
 /** Módulos visibles para cualquier usuario autenticado. */
 const MODULOS_ACCESO_TODOS: Modulo[] = ["chat"];
 
