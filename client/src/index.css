@@ -26392,6 +26392,20 @@ button.sg-kpi-card:disabled {
   margin-top: 0.85rem;
 }
 
+.arquitectura-cuenta-seccion-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.85rem;
+  padding-top: 0.65rem;
+  border-top: 1px dashed var(--border, #e2e8f0);
+}
+
+.arquitectura-cuenta-seccion-form {
+  margin-top: 0.85rem;
+  padding-top: 0.85rem;
+  border-top: 1px dashed var(--border, #e2e8f0);
+}
+
 .arquitectura-cuenta-seccion + .arquitectura-sistema-user-form {
   margin-top: 0;
 }
@@ -26711,3 +26725,449 @@ button.sg-kpi-card:disabled {
   color: var(--primary, #1b4332);
 }
 
+/* ── Cuenta detalle — diseño moderno ── */
+.cuenta-detalle-shell {
+  overflow: hidden;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    0 12px 40px rgba(15, 23, 42, 0.07);
+}
+
+.cuenta-detalle-hero {
+  position: relative;
+  padding: 0;
+  border-bottom: none;
+}
+
+.cuenta-detalle-hero-bg {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 80% 120% at 100% 0%, rgba(251, 191, 36, 0.18) 0%, transparent 55%),
+    radial-gradient(ellipse 70% 90% at 0% 100%, rgba(14, 165, 233, 0.14) 0%, transparent 50%),
+    linear-gradient(135deg, #f8fafc 0%, #eef2ff 48%, #fffbeb 100%);
+  border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+}
+
+.cuenta-detalle-hero-inner {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.5rem 1.5rem 1rem;
+}
+
+.cuenta-detalle-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  font-size: 1.05rem;
+  box-shadow:
+    0 4px 14px rgba(3, 105, 161, 0.28),
+    0 0 0 4px rgba(255, 255, 255, 0.85);
+}
+
+.cuenta-detalle-eyebrow {
+  margin: 0 0 0.2rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.cuenta-detalle-hero-text h2 {
+  margin: 0 0 0.5rem;
+  font-size: clamp(1.35rem, 2.5vw, 1.75rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #0f172a;
+}
+
+.cuenta-detalle-admin-chip {
+  margin-top: 0.35rem;
+}
+
+.cuenta-detalle-stats {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.65rem;
+  padding: 0 1.5rem 1.35rem;
+}
+
+.cuenta-detalle-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.75rem 0.85rem;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
+  backdrop-filter: blur(8px);
+}
+
+.cuenta-detalle-stat-val {
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #0f172a;
+  font-variant-numeric: tabular-nums;
+}
+
+.cuenta-detalle-stat-lbl {
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748b;
+}
+
+.cuenta-detalle-stat--empresas .cuenta-detalle-stat-val {
+  color: #0369a1;
+}
+
+.cuenta-detalle-stat--usuarios .cuenta-detalle-stat-val {
+  color: #b45309;
+}
+
+.arquitectura-cuenta-detalle.is-cuenta-propia .arquitectura-cuenta-detalle-body {
+  gap: 1rem;
+  padding: 1.25rem 1.5rem 1.65rem;
+  background: linear-gradient(180deg, #fafbfc 0%, #fff 120px);
+}
+
+.cuenta-panel {
+  border-radius: 16px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+  overflow: hidden;
+}
+
+.cuenta-panel-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  padding: 1.1rem 1.2rem 0.35rem;
+}
+
+.cuenta-panel-head h3 {
+  margin: 0 0 0.2rem;
+  font-size: 1.02rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.cuenta-panel-head .muted {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.cuenta-panel-icon {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  color: #fff;
+}
+
+.cuenta-panel-icon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.cuenta-panel-icon--datos {
+  background: linear-gradient(145deg, #6366f1 0%, #4f46e5 100%);
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.28);
+}
+
+.cuenta-panel-icon--admin {
+  background: linear-gradient(145deg, #0ea5e9 0%, #0284c7 100%);
+  box-shadow: 0 4px 12px rgba(2, 132, 199, 0.28);
+}
+
+.cuenta-panel-icon--empresas {
+  background: linear-gradient(145deg, #10b981 0%, #059669 100%);
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.28);
+}
+
+.cuenta-panel-icon--usuarios {
+  background: linear-gradient(145deg, #f59e0b 0%, #d97706 100%);
+  box-shadow: 0 4px 12px rgba(217, 119, 6, 0.28);
+}
+
+.cuenta-panel--datos {
+  padding-bottom: 0.25rem;
+}
+
+.cuenta-panel-form {
+  padding: 0.5rem 1.2rem 1.15rem;
+}
+
+.cuenta-panel-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem 1rem;
+}
+
+.cuenta-panel-form-grid .field label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.cuenta-panel-form-grid input {
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  padding: 0.62rem 0.75rem;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.cuenta-panel-form-grid input:focus {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+  outline: none;
+}
+
+.cuenta-panel-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.85rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid #f1f5f9;
+}
+
+.cuenta-panel--admin {
+  padding-bottom: 1rem;
+}
+
+.cuenta-panel--admin .arquitectura-sistema-admin-control {
+  margin: 0.65rem 1.2rem 0;
+  padding: 0.85rem 1rem;
+  border-radius: 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+.cuenta-panel--admin .arquitectura-sistema-admin-control select {
+  border-radius: 10px;
+  padding: 0.55rem 0.65rem;
+}
+
+.cuenta-panel--collapsible {
+  padding: 0;
+}
+
+.cuenta-panel-toggle {
+  gap: 0.85rem !important;
+  padding: 1rem 1.15rem !important;
+  background: #fff !important;
+  transition: background 0.15s;
+}
+
+.cuenta-panel-toggle:hover {
+  background: #fafbfc !important;
+}
+
+.cuenta-panel-toggle-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+  text-align: left;
+}
+
+.cuenta-panel-toggle-text strong {
+  font-size: 0.98rem;
+  color: #0f172a;
+}
+
+.cuenta-panel-toggle-text .muted {
+  font-size: 0.78rem;
+}
+
+.cuenta-panel--collapsible.is-expanded .arquitectura-cuenta-seccion-count {
+  background: #dbeafe;
+  color: #0369a1;
+}
+
+.cuenta-panel--collapsible.is-expanded {
+  box-shadow: 0 4px 18px rgba(15, 23, 42, 0.06);
+}
+
+.cuenta-entity-list {
+  display: grid;
+  gap: 0.55rem;
+  margin-top: 0.85rem !important;
+}
+
+.cuenta-entity-card {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 0.85rem !important;
+  border-radius: 12px !important;
+  border: 1px solid #eef2f7 !important;
+  background: #fafbfc !important;
+  transition: transform 0.12s, box-shadow 0.12s, border-color 0.12s;
+}
+
+.cuenta-entity-card:hover {
+  transform: translateY(-1px);
+  border-color: #dbeafe !important;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06) !important;
+}
+
+.cuenta-entity-avatar {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+.cuenta-entity-avatar--empresa {
+  background: linear-gradient(145deg, #34d399 0%, #059669 100%);
+}
+
+.cuenta-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  margin-top: 0.85rem;
+  padding: 1.35rem 1rem;
+  border-radius: 12px;
+  border: 1px dashed #cbd5e1;
+  background: #f8fafc;
+  text-align: center;
+}
+
+.cuenta-empty-state p {
+  margin: 0;
+  font-weight: 600;
+  color: #334155;
+}
+
+.cuenta-empty-state-icon {
+  font-size: 1.5rem;
+  line-height: 1;
+  margin-bottom: 0.25rem;
+}
+
+.cuenta-add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.52rem 1rem;
+  border-radius: 999px;
+  border: 1px solid rgba(27, 67, 50, 0.15);
+  background: linear-gradient(180deg, #fff 0%, #f8fafc 100%);
+  color: #1b4332;
+  font-size: 0.82rem;
+  font-weight: 700;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.06);
+  transition: transform 0.12s, box-shadow 0.12s, background 0.12s;
+}
+
+.cuenta-add-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.1);
+  background: #fff;
+}
+
+.cuenta-add-btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.35rem;
+  height: 1.35rem;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #fbbf24 0%, #f59e0b 100%);
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.cuenta-loading-rows {
+  display: grid;
+  gap: 0.55rem;
+  margin-top: 0.85rem;
+}
+
+.cuenta-loading-rows span {
+  height: 52px;
+  border-radius: 12px;
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: cuenta-shimmer 1.2s ease-in-out infinite;
+}
+
+@keyframes cuenta-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.cuenta-detalle-skeleton {
+  overflow: hidden;
+}
+
+.cuenta-detalle-skeleton-hero {
+  height: 180px;
+  background: linear-gradient(135deg, #eef2ff 0%, #fffbeb 100%);
+}
+
+.cuenta-detalle-skeleton-body {
+  padding: 1.25rem 1.5rem;
+  display: grid;
+  gap: 0.85rem;
+}
+
+.cuenta-detalle-skeleton-body span {
+  height: 88px;
+  border-radius: 16px;
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: cuenta-shimmer 1.2s ease-in-out infinite;
+}
+
+@media (max-width: 720px) {
+  .cuenta-detalle-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .cuenta-panel-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .cuenta-panel-head,
+  .cuenta-panel-form,
+  .cuenta-panel--admin .arquitectura-sistema-admin-control {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  .cuenta-detalle-hero-inner,
+  .cuenta-detalle-stats {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+}

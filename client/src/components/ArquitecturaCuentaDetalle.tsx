@@ -75,10 +75,10 @@ export default function ArquitecturaCuentaDetalle({
   );
   const [savingOperativa, setSavingOperativa] = useState(false);
   const [showEmpresasSection, setShowEmpresasSection] = useState(
-    initialPanel === "operativa"
+    initialPanel === "operativa" || modo === "cuentaPropia"
   );
   const [showUsuariosSection, setShowUsuariosSection] = useState(
-    initialPanel === "user"
+    initialPanel === "user" || modo === "cuentaPropia"
   );
 
   const [cuentaForm, setCuentaForm] = useState({
@@ -264,124 +264,140 @@ export default function ArquitecturaCuentaDetalle({
   };
 
   return (
-    <div className="subseccion-panel arquitectura-sistema arquitectura-cuenta-detalle">
+    <div
+      className={`subseccion-panel arquitectura-sistema arquitectura-cuenta-detalle${
+        esCuentaPropia ? " is-cuenta-propia" : ""
+      }`}
+    >
       <button type="button" className="subseccion-back" onClick={onVolver}>
         ‹ {backLabel}
       </button>
 
-      <div className="card">
-        <header className="arquitectura-cuenta-detalle-head">
-          <div className="arquitectura-cuenta-detalle-identidad">
-            <span className="arquitectura-sistema-empresa-avatar" aria-hidden="true">
-              {iniciales(cuentaActual.nombre)}
-            </span>
-            <div>
-              <h2>{cuentaActual.nombre}</h2>
-              <div className="arquitectura-sistema-pills">
-                <span className="arquitectura-sistema-pill arquitectura-sistema-pill--cuenta">
-                  ID cuenta {cuentaActual.cuenta_numero}
-                </span>
-                <span className="arquitectura-sistema-pill">{cuentaActual.codigo}</span>
-                <span className="arquitectura-sistema-pill">
-                  {cuentaActual.empresas_count} empresa
-                  {cuentaActual.empresas_count === 1 ? "" : "s"}
-                </span>
-                <span className="arquitectura-sistema-pill">
-                  {cuentaActual.usuarios_count} usuario
-                  {cuentaActual.usuarios_count === 1 ? "" : "s"}
-                </span>
-                {!cuentaActual.activo && (
-                  <span className="arquitectura-sistema-badge arquitectura-sistema-badge--inactiva">
-                    Inactiva
-                  </span>
-                )}
-              </div>
+      <div className="card cuenta-detalle-shell">
+        <header className="cuenta-detalle-hero">
+          <div className="cuenta-detalle-hero-bg" aria-hidden="true" />
+          <div className="cuenta-detalle-hero-inner">
+            <div className="arquitectura-cuenta-detalle-identidad">
               <span
-                className={`arquitectura-sistema-admin-chip${cuentaActual.admin ? "" : " is-empty"}`}
+                className="arquitectura-sistema-empresa-avatar cuenta-detalle-avatar"
+                aria-hidden="true"
               >
-                {cuentaActual.admin ? (
-                  <>
+                {iniciales(cuentaActual.nombre)}
+              </span>
+              <div className="cuenta-detalle-hero-text">
+                <p className="cuenta-detalle-eyebrow">Administración de cuenta</p>
+                <h2>{cuentaActual.nombre}</h2>
+                {!esCuentaPropia && (
+                  <div className="arquitectura-sistema-pills cuenta-detalle-pills">
+                    <span className="arquitectura-sistema-pill arquitectura-sistema-pill--cuenta">
+                      ID cuenta {cuentaActual.cuenta_numero}
+                    </span>
+                    <span className="arquitectura-sistema-pill">{cuentaActual.codigo}</span>
+                    {!cuentaActual.activo && (
+                      <span className="arquitectura-sistema-badge arquitectura-sistema-badge--inactiva">
+                        Inactiva
+                      </span>
+                    )}
+                  </div>
+                )}
+                {cuentaActual.admin && (
+                  <span className="arquitectura-sistema-admin-chip cuenta-detalle-admin-chip">
                     <span className="arquitectura-sistema-admin-dot" />
                     {cuentaActual.admin.nombre}
                     {cuentaActual.admin.es_super_admin ? " · admin SAG" : ""}
-                  </>
-                ) : (
-                  "Sin administrador asignado"
+                  </span>
                 )}
-              </span>
+              </div>
             </div>
-          </div>
-          <div className="arquitectura-cuenta-detalle-actions">
             {!esCuentaPropia && (
-              <button
-                type="button"
-                className="btn btn-ghost btn-sm"
-                onClick={() => void handleToggleActiva()}
-              >
-                {cuentaActual.activo ? "Desactivar" : "Activar"}
-              </button>
+              <div className="arquitectura-cuenta-detalle-actions">
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => void handleToggleActiva()}
+                >
+                  {cuentaActual.activo ? "Desactivar" : "Activar"}
+                </button>
+              </div>
             )}
-            <button
-              type="button"
-              className="btn btn-secondary btn-sm"
-              onClick={() => {
-                setShowEmpresasSection(true);
-                setShowOperativaForm(true);
-                setShowUserForm(false);
-                setOperativaForm(emptyOperativaForm());
-              }}
-            >
-              + Empresa
-            </button>
-            <button
-              type="button"
-              className="btn btn-secondary btn-sm"
-              onClick={() => {
-                setShowUsuariosSection(true);
-                setShowUserForm(true);
-                setShowOperativaForm(false);
-                setUserForm(emptyUserForm());
-                setShowUserPassword(false);
-              }}
-            >
-              + Usuario
-            </button>
+          </div>
+          <div className="cuenta-detalle-stats" aria-label="Resumen de la cuenta">
+            <article className="cuenta-detalle-stat">
+              <span className="cuenta-detalle-stat-val">{cuentaActual.cuenta_numero}</span>
+              <span className="cuenta-detalle-stat-lbl">ID cuenta</span>
+            </article>
+            <article className="cuenta-detalle-stat">
+              <span className="cuenta-detalle-stat-val">{cuentaActual.codigo}</span>
+              <span className="cuenta-detalle-stat-lbl">Código</span>
+            </article>
+            <article className="cuenta-detalle-stat cuenta-detalle-stat--empresas">
+              <span className="cuenta-detalle-stat-val">{cuentaActual.empresas_count}</span>
+              <span className="cuenta-detalle-stat-lbl">
+                Empresa{cuentaActual.empresas_count === 1 ? "" : "s"}
+              </span>
+            </article>
+            <article className="cuenta-detalle-stat cuenta-detalle-stat--usuarios">
+              <span className="cuenta-detalle-stat-val">{cuentaActual.usuarios_count}</span>
+              <span className="cuenta-detalle-stat-lbl">
+                Usuario{cuentaActual.usuarios_count === 1 ? "" : "s"}
+              </span>
+            </article>
           </div>
         </header>
 
         <div className="arquitectura-cuenta-detalle-body">
           {esCuentaPropia && (
-            <section className="usuarios-form-card">
-              <h3>Datos de la cuenta</h3>
-              <form className="usuarios-form-grid" onSubmit={(e) => void handleGuardarCuenta(e)}>
-                <div className="field">
-                  <label htmlFor="cuenta-nombre">Nombre de la cuenta</label>
-                  <input
-                    id="cuenta-nombre"
-                    type="text"
-                    value={cuentaForm.nombre}
-                    onChange={(e) =>
-                      setCuentaForm((f) => ({ ...f, nombre: e.target.value }))
-                    }
-                    required
-                  />
+            <section className="cuenta-panel cuenta-panel--datos">
+              <div className="cuenta-panel-head">
+                <span className="cuenta-panel-icon cuenta-panel-icon--datos" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none">
+                    <path
+                      d="M4 7.5V6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v1.5M4 7.5h16M4 7.5v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-10"
+                      stroke="currentColor"
+                      strokeWidth="1.65"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                </span>
+                <div>
+                  <h3>Datos de la cuenta</h3>
+                  <p className="muted">Nombre e identificador de su organización</p>
                 </div>
-                <div className="field">
-                  <label htmlFor="cuenta-codigo">Código corto</label>
-                  <input
-                    id="cuenta-codigo"
-                    type="text"
-                    value={cuentaForm.codigo}
-                    onChange={(e) =>
-                      setCuentaForm((f) => ({
-                        ...f,
-                        codigo: e.target.value.toUpperCase(),
-                      }))
-                    }
-                    required
-                  />
+              </div>
+              <form
+                className="cuenta-panel-form"
+                onSubmit={(e) => void handleGuardarCuenta(e)}
+              >
+                <div className="cuenta-panel-form-grid">
+                  <div className="field">
+                    <label htmlFor="cuenta-nombre">Nombre de la cuenta</label>
+                    <input
+                      id="cuenta-nombre"
+                      type="text"
+                      value={cuentaForm.nombre}
+                      onChange={(e) =>
+                        setCuentaForm((f) => ({ ...f, nombre: e.target.value }))
+                      }
+                      required
+                    />
+                  </div>
+                  <div className="field">
+                    <label htmlFor="cuenta-codigo">Código corto</label>
+                    <input
+                      id="cuenta-codigo"
+                      type="text"
+                      value={cuentaForm.codigo}
+                      onChange={(e) =>
+                        setCuentaForm((f) => ({
+                          ...f,
+                          codigo: e.target.value.toUpperCase(),
+                        }))
+                      }
+                      required
+                    />
+                  </div>
                 </div>
-                <div className="usuarios-form-actions">
+                <div className="cuenta-panel-form-actions">
                   <button type="submit" className="btn btn-primary" disabled={savingCuenta}>
                     {savingCuenta ? "Guardando…" : "Guardar cambios"}
                   </button>
@@ -390,13 +406,38 @@ export default function ArquitecturaCuentaDetalle({
             </section>
           )}
 
-          <section className="arquitectura-sistema-usuarios arquitectura-sistema-admin-box">
-            <h3>Administrador de la cuenta</h3>
-            <p className="muted">
-              {cuentaActual.admin
-                ? `${cuentaActual.admin.nombre} · ${cuentaActual.admin.email}${cuentaActual.admin.es_super_admin ? " (también administrador del sistema SAG)" : ""}`
-                : "Esta cuenta todavía no tiene un administrador asignado."}
-            </p>
+          <section className="cuenta-panel cuenta-panel--admin arquitectura-sistema-admin-box">
+            <div className="cuenta-panel-head">
+              <span className="cuenta-panel-icon cuenta-panel-icon--admin" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="8" r="3.25" stroke="currentColor" strokeWidth="1.65" />
+                  <path
+                    d="M6 19v-.75c0-2.2 2.69-4 6-4s6 1.8 6 4V19"
+                    stroke="currentColor"
+                    strokeWidth="1.65"
+                    strokeLinecap="round"
+                  />
+                  <path
+                    d="M16.5 6.5 18.5 5l2 1.5"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </span>
+              <div>
+                <h3>Administrador de la cuenta</h3>
+                <p className="muted">
+                  {cuentaActual.admin
+                    ? `${cuentaActual.admin.nombre} · ${cuentaActual.admin.email}${
+                        cuentaActual.admin.es_super_admin
+                          ? " (también administrador del sistema SAG)"
+                          : ""
+                      }`
+                    : "Esta cuenta todavía no tiene un administrador asignado."}
+                </p>
+              </div>
+            </div>
             <div className="arquitectura-sistema-admin-control">
               <label>
                 <span>Asignar administrador</span>
@@ -429,17 +470,31 @@ export default function ArquitecturaCuentaDetalle({
           </section>
 
           <section
-            className={`arquitectura-cuenta-seccion arquitectura-sistema-usuarios${
+            className={`cuenta-panel cuenta-panel--collapsible arquitectura-cuenta-seccion${
               showEmpresasSection ? " is-expanded" : ""
             }`}
           >
             <button
               type="button"
-              className="arquitectura-cuenta-seccion-toggle"
+              className="arquitectura-cuenta-seccion-toggle cuenta-panel-toggle"
               onClick={() => setShowEmpresasSection((v) => !v)}
               aria-expanded={showEmpresasSection}
             >
-              <h3>Empresas dentro de {cuentaActual.nombre}</h3>
+              <span className="cuenta-panel-icon cuenta-panel-icon--empresas" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="M5 20V8.5l7-4.5 7 4.5V20M9 20v-5h6v5"
+                    stroke="currentColor"
+                    strokeWidth="1.65"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </span>
+              <span className="cuenta-panel-toggle-text">
+                <strong>Empresas operativas</strong>
+                <span className="muted">Unidades de negocio dentro de {cuentaActual.nombre}</span>
+              </span>
               <span className="arquitectura-cuenta-seccion-count">
                 {cuentaActual.empresas_count}
               </span>
@@ -450,11 +505,18 @@ export default function ArquitecturaCuentaDetalle({
             {showEmpresasSection && (
               <div className="arquitectura-cuenta-seccion-body">
                 {cuentaActual.empresas.length === 0 ? (
-                  <p className="muted">Sin empresas internas todavía.</p>
+                  <div className="cuenta-empty-state">
+                    <span className="cuenta-empty-state-icon" aria-hidden="true">🏢</span>
+                    <p>Todavía no hay empresas operativas.</p>
+                    <span className="muted">Agregá la primera con el botón de abajo.</span>
+                  </div>
                 ) : (
-                  <ul className="arquitectura-sistema-usuarios-list">
+                  <ul className="arquitectura-sistema-usuarios-list cuenta-entity-list">
                     {cuentaActual.empresas.map((op) => (
-                      <li key={op.id}>
+                      <li key={op.id} className="cuenta-entity-card">
+                        <span className="cuenta-entity-avatar cuenta-entity-avatar--empresa" aria-hidden="true">
+                          {iniciales(op.nombre)}
+                        </span>
                         <div className="arquitectura-sistema-usuario-info">
                           <strong>{op.nombre}</strong>
                           <span className="muted">Código {op.codigo}</span>
@@ -472,172 +534,106 @@ export default function ArquitecturaCuentaDetalle({
                     ))}
                   </ul>
                 )}
+
+                {showOperativaForm ? (
+                  <form
+                    className="arquitectura-sistema-user-form arquitectura-cuenta-seccion-form"
+                    onSubmit={(e) => void handleCrearOperativa(e)}
+                  >
+                    <h4>Nueva empresa dentro de {cuentaActual.nombre}</h4>
+                    <div className="arquitectura-sistema-form-grid">
+                      <label>
+                        <span>Nombre de empresa</span>
+                        <input
+                          type="text"
+                          value={operativaForm.nombre}
+                          onChange={(e) =>
+                            setOperativaForm((f) => ({ ...f, nombre: e.target.value }))
+                          }
+                          placeholder="Ej. GANADERA GUAVIYU"
+                          required
+                        />
+                      </label>
+                      <label>
+                        <span>Código corto</span>
+                        <input
+                          type="text"
+                          value={operativaForm.codigo}
+                          onChange={(e) =>
+                            setOperativaForm((f) => ({
+                              ...f,
+                              codigo: e.target.value.toUpperCase(),
+                            }))
+                          }
+                          placeholder="Ej. GUAVIYU"
+                          required
+                        />
+                      </label>
+                    </div>
+                    <div className="arquitectura-sistema-form-actions">
+                      <button
+                        type="button"
+                        className="btn btn-ghost"
+                        onClick={() => setShowOperativaForm(false)}
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        type="submit"
+                        className="btn btn-primary"
+                        disabled={savingOperativa}
+                      >
+                        {savingOperativa ? "Guardando…" : "Agregar empresa"}
+                      </button>
+                    </div>
+                  </form>
+                ) : (
+                  <div className="arquitectura-cuenta-seccion-actions">
+                    <button
+                      type="button"
+                      className="btn cuenta-add-btn"
+                      onClick={() => {
+                        setShowOperativaForm(true);
+                        setShowUserForm(false);
+                        setOperativaForm(emptyOperativaForm());
+                      }}
+                    >
+                      <span className="cuenta-add-btn-icon" aria-hidden="true">+</span>
+                      Nueva empresa
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </section>
 
-          {showOperativaForm && showEmpresasSection && (
-            <form
-              className="arquitectura-sistema-user-form"
-              onSubmit={(e) => void handleCrearOperativa(e)}
-            >
-              <h4>Nueva empresa dentro de {cuentaActual.nombre}</h4>
-              <div className="arquitectura-sistema-form-grid">
-                <label>
-                  <span>Nombre de empresa</span>
-                  <input
-                    type="text"
-                    value={operativaForm.nombre}
-                    onChange={(e) =>
-                      setOperativaForm((f) => ({ ...f, nombre: e.target.value }))
-                    }
-                    placeholder="Ej. GANADERA GUAVIYU"
-                    required
-                  />
-                </label>
-                <label>
-                  <span>Código corto</span>
-                  <input
-                    type="text"
-                    value={operativaForm.codigo}
-                    onChange={(e) =>
-                      setOperativaForm((f) => ({
-                        ...f,
-                        codigo: e.target.value.toUpperCase(),
-                      }))
-                    }
-                    placeholder="Ej. GUAVIYU"
-                    required
-                  />
-                </label>
-              </div>
-              <div className="arquitectura-sistema-form-actions">
-                <button
-                  type="button"
-                  className="btn btn-ghost"
-                  onClick={() => setShowOperativaForm(false)}
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  className="btn btn-primary"
-                  disabled={savingOperativa}
-                >
-                  {savingOperativa ? "Guardando…" : "Agregar empresa"}
-                </button>
-              </div>
-            </form>
-          )}
-
-          {showUserForm && showUsuariosSection && (
-            <form
-              className="arquitectura-sistema-user-form"
-              onSubmit={(e) => void handleCrearUsuario(e)}
-            >
-              <h4>Nuevo usuario para {cuentaActual.nombre}</h4>
-              <div className="arquitectura-sistema-form-grid">
-                <label>
-                  <span>Email</span>
-                  <input
-                    type="email"
-                    value={userForm.email}
-                    onChange={(e) =>
-                      setUserForm((f) => ({ ...f, email: e.target.value }))
-                    }
-                    required
-                  />
-                </label>
-                <label>
-                  <span>Nombre</span>
-                  <input
-                    type="text"
-                    value={userForm.nombre}
-                    onChange={(e) =>
-                      setUserForm((f) => ({ ...f, nombre: e.target.value }))
-                    }
-                    required
-                  />
-                </label>
-                <label>
-                  <span>Rol</span>
-                  <select
-                    value={userForm.rol}
-                    onChange={(e) =>
-                      setUserForm((f) => ({
-                        ...f,
-                        rol: e.target.value as Rol,
-                      }))
-                    }
-                  >
-                    {ROLES_EMPRESA.map((r) => (
-                      <option key={r} value={r}>
-                        {ROL_LABELS_DETALLE[r]}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  <span>Contraseña</span>
-                  <div className="arquitectura-sistema-password-wrap">
-                    <input
-                      type={showUserPassword ? "text" : "password"}
-                      autoComplete="new-password"
-                      data-sin-mayusculas="true"
-                      value={userForm.password ?? ""}
-                      onChange={(e) =>
-                        setUserForm((f) => ({
-                          ...f,
-                          password: e.target.value,
-                        }))
-                      }
-                      required
-                    />
-                    <button
-                      type="button"
-                      className="arquitectura-sistema-password-toggle"
-                      onClick={() => setShowUserPassword((v) => !v)}
-                      tabIndex={-1}
-                      aria-label={
-                        showUserPassword ? "Ocultar contraseña" : "Mostrar contraseña"
-                      }
-                      title={
-                        showUserPassword ? "Ocultar contraseña" : "Mostrar contraseña"
-                      }
-                    >
-                      <IconoOjo visible={showUserPassword} />
-                    </button>
-                  </div>
-                  <small className="muted">{PASSWORD_POLICY_HINT}</small>
-                </label>
-              </div>
-              <div className="arquitectura-sistema-form-actions">
-                <button
-                  type="button"
-                  className="btn btn-ghost"
-                  onClick={() => setShowUserForm(false)}
-                >
-                  Cancelar
-                </button>
-                <button type="submit" className="btn btn-primary" disabled={savingUser}>
-                  {savingUser ? "Guardando…" : "Crear usuario"}
-                </button>
-              </div>
-            </form>
-          )}
-
           <section
-            className={`arquitectura-cuenta-seccion arquitectura-sistema-usuarios${
+            className={`cuenta-panel cuenta-panel--collapsible arquitectura-cuenta-seccion${
               showUsuariosSection ? " is-expanded" : ""
             }`}
           >
             <button
               type="button"
-              className="arquitectura-cuenta-seccion-toggle"
+              className="arquitectura-cuenta-seccion-toggle cuenta-panel-toggle"
               onClick={() => setShowUsuariosSection((v) => !v)}
               aria-expanded={showUsuariosSection}
             >
-              <h3>Usuarios de la cuenta</h3>
+              <span className="cuenta-panel-icon cuenta-panel-icon--usuarios" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none">
+                  <circle cx="9" cy="9" r="2.75" stroke="currentColor" strokeWidth="1.65" />
+                  <circle cx="16.5" cy="10" r="2.25" stroke="currentColor" strokeWidth="1.65" />
+                  <path
+                    d="M4.5 18.5c.75-2.5 2.75-4 4.5-4s3.75 1.5 4.5 4M13.5 18.5c.5-1.75 1.75-3 3.25-3"
+                    stroke="currentColor"
+                    strokeWidth="1.65"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </span>
+              <span className="cuenta-panel-toggle-text">
+                <strong>Usuarios de la cuenta</strong>
+                <span className="muted">Personas con acceso a {cuentaActual.nombre}</span>
+              </span>
               <span className="arquitectura-cuenta-seccion-count">
                 {cuentaActual.usuarios_count}
               </span>
@@ -648,15 +644,19 @@ export default function ArquitecturaCuentaDetalle({
             {showUsuariosSection && (
               <div className="arquitectura-cuenta-seccion-body">
                 {loadingUsuarios ? (
-                  <p className="muted">Cargando usuarios…</p>
+                  <div className="cuenta-loading-rows" aria-hidden="true">
+                    <span /><span /><span />
+                  </div>
                 ) : usuarios.length === 0 ? (
-                  <p className="muted">
-                    Sin usuarios. Agregá el primero con el botón + Usuario.
-                  </p>
+                  <div className="cuenta-empty-state">
+                    <span className="cuenta-empty-state-icon" aria-hidden="true">👤</span>
+                    <p>Sin usuarios todavía.</p>
+                    <span className="muted">Creá el primero con el botón de abajo.</span>
+                  </div>
                 ) : (
-                  <ul className="arquitectura-sistema-usuarios-list">
+                  <ul className="arquitectura-sistema-usuarios-list cuenta-entity-list">
                     {usuarios.map((u) => (
-                      <li key={u.id}>
+                      <li key={u.id} className="cuenta-entity-card">
                         <UserAvatar nombre={u.nombre} avatar={u.avatar} variant="list" />
                         <div className="arquitectura-sistema-usuario-info">
                           <strong>{u.nombre}</strong>
@@ -685,6 +685,118 @@ export default function ArquitecturaCuentaDetalle({
                       </li>
                     ))}
                   </ul>
+                )}
+
+                {showUserForm ? (
+                  <form
+                    className="arquitectura-sistema-user-form arquitectura-cuenta-seccion-form"
+                    onSubmit={(e) => void handleCrearUsuario(e)}
+                  >
+                    <h4>Nuevo usuario para {cuentaActual.nombre}</h4>
+                    <div className="arquitectura-sistema-form-grid">
+                      <label>
+                        <span>Email</span>
+                        <input
+                          type="email"
+                          value={userForm.email}
+                          onChange={(e) =>
+                            setUserForm((f) => ({ ...f, email: e.target.value }))
+                          }
+                          required
+                        />
+                      </label>
+                      <label>
+                        <span>Nombre</span>
+                        <input
+                          type="text"
+                          value={userForm.nombre}
+                          onChange={(e) =>
+                            setUserForm((f) => ({ ...f, nombre: e.target.value }))
+                          }
+                          required
+                        />
+                      </label>
+                      <label>
+                        <span>Rol</span>
+                        <select
+                          value={userForm.rol}
+                          onChange={(e) =>
+                            setUserForm((f) => ({
+                              ...f,
+                              rol: e.target.value as Rol,
+                            }))
+                          }
+                        >
+                          {ROLES_EMPRESA.map((r) => (
+                            <option key={r} value={r}>
+                              {ROL_LABELS_DETALLE[r]}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label>
+                        <span>Contraseña</span>
+                        <div className="arquitectura-sistema-password-wrap">
+                          <input
+                            type={showUserPassword ? "text" : "password"}
+                            autoComplete="new-password"
+                            data-sin-mayusculas="true"
+                            value={userForm.password ?? ""}
+                            onChange={(e) =>
+                              setUserForm((f) => ({
+                                ...f,
+                                password: e.target.value,
+                              }))
+                            }
+                            required
+                          />
+                          <button
+                            type="button"
+                            className="arquitectura-sistema-password-toggle"
+                            onClick={() => setShowUserPassword((v) => !v)}
+                            tabIndex={-1}
+                            aria-label={
+                              showUserPassword ? "Ocultar contraseña" : "Mostrar contraseña"
+                            }
+                            title={
+                              showUserPassword ? "Ocultar contraseña" : "Mostrar contraseña"
+                            }
+                          >
+                            <IconoOjo visible={showUserPassword} />
+                          </button>
+                        </div>
+                        <small className="muted">{PASSWORD_POLICY_HINT}</small>
+                      </label>
+                    </div>
+                    <div className="arquitectura-sistema-form-actions">
+                      <button
+                        type="button"
+                        className="btn btn-ghost"
+                        onClick={() => setShowUserForm(false)}
+                      >
+                        Cancelar
+                      </button>
+                      <button type="submit" className="btn btn-primary" disabled={savingUser}>
+                        {savingUser ? "Guardando…" : "Crear usuario"}
+                      </button>
+                    </div>
+                  </form>
+                ) : (
+                  <div className="arquitectura-cuenta-seccion-actions">
+                    <button
+                      type="button"
+                      className="btn cuenta-add-btn"
+                      onClick={() => {
+                        setShowUserForm(true);
+                        setShowOperativaForm(false);
+                        setUserForm(emptyUserForm());
+                        setShowUserPassword(false);
+                      }}
+                    >
+                      <span className="cuenta-add-btn-icon" aria-hidden="true">+</span>
+                      Nuevo usuario
+                    </button>
+                  </div>
                 )}
               </div>
             )}

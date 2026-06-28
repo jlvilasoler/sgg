@@ -42,12 +42,15 @@ export default function AdministradorCuenta({
 
   if (loading) {
     return (
-      <div className="subseccion-panel">
+      <div className="subseccion-panel arquitectura-cuenta-detalle is-cuenta-propia">
         <button type="button" className="subseccion-back" onClick={onVolver}>
           ‹ Volver a Configuración
         </button>
-        <div className="card">
-          <p className="muted">Cargando datos de su cuenta…</p>
+        <div className="card cuenta-detalle-shell cuenta-detalle-skeleton" aria-busy="true">
+          <div className="cuenta-detalle-skeleton-hero" />
+          <div className="cuenta-detalle-skeleton-body">
+            <span /><span /><span />
+          </div>
         </div>
       </div>
     );
