@@ -61,6 +61,7 @@ export function clasificarRubroEnResultado(rubro: string): ClasificacionResultad
   const key = normRubro(rubro);
   if (COSTOS_PRODUCCION.has(key)) return "COSTOS_PRODUCCION";
   if (GASTOS_COMERCIALES.has(key)) return "GASTOS_COMERCIALES";
+  if (GASTOS_ADMINISTRATIVOS.has(key)) return "GASTOS_ADMINISTRATIVOS";
   return "GASTOS_ADMINISTRATIVOS";
 }
 
