@@ -544,6 +544,84 @@ body {
   overflow: hidden;
 }
 
+.app-card-btn.hub-menu-card--cuenta:hover {
+  border-color: rgba(45, 106, 79, 0.55);
+  background: linear-gradient(180deg, #ffffff 0%, #f3f8f5 100%);
+  box-shadow:
+    0 2px 4px rgba(30, 61, 42, 0.08),
+    0 14px 32px rgba(45, 106, 79, 0.22);
+}
+
+.app-card-btn.hub-menu-card--cuenta:hover .app-card-icon {
+  --app-icon-accent: #2d6a4f;
+  --app-icon-bg: linear-gradient(145deg, #ecfdf5 0%, #d8f3dc 52%, #b7e4c7 100%);
+  --app-icon-glow: rgba(45, 106, 79, 0.4);
+  color: #2d6a4f;
+  border-color: rgba(45, 106, 79, 0.3);
+}
+
+.app-card-btn.hub-menu-card--cuenta:hover .app-card-label {
+  color: #1b4332;
+}
+
+.app-card-btn.hub-menu-card--cuenta:hover::before {
+  background: linear-gradient(
+    120deg,
+    transparent 0%,
+    rgba(45, 106, 79, 0.1) 48%,
+    transparent 100%
+  );
+}
+
+.app-card-btn.hub-menu-card--sag-superadmin {
+  border-color: rgba(220, 38, 38, 0.42);
+  background: linear-gradient(180deg, #ffffff 0%, #fff5f5 100%);
+  box-shadow:
+    0 1px 2px rgba(127, 29, 29, 0.06),
+    0 8px 24px rgba(220, 38, 38, 0.08);
+}
+
+.app-card-btn.hub-menu-card--sag-superadmin .app-card-icon {
+  --app-icon-accent: #dc2626;
+  --app-icon-bg: linear-gradient(145deg, #fef2f2 0%, #fee2e2 52%, #fecaca 100%);
+  --app-icon-glow: rgba(220, 38, 38, 0.35);
+  color: #dc2626;
+  border-color: rgba(220, 38, 38, 0.2);
+}
+
+.app-card-btn.hub-menu-card--sag-superadmin .app-card-label {
+  color: #991b1b;
+}
+
+.app-card-btn.hub-menu-card--sag-superadmin:hover {
+  border-color: rgba(234, 88, 12, 0.55);
+  background: linear-gradient(180deg, #ffffff 0%, #fff7ed 100%);
+  box-shadow:
+    0 2px 4px rgba(154, 52, 18, 0.08),
+    0 14px 32px rgba(249, 115, 22, 0.22);
+}
+
+.app-card-btn.hub-menu-card--sag-superadmin:hover .app-card-icon {
+  --app-icon-accent: #ea580c;
+  --app-icon-bg: linear-gradient(145deg, #fff7ed 0%, #ffedd5 52%, #fed7aa 100%);
+  --app-icon-glow: rgba(249, 115, 22, 0.38);
+  color: #ea580c;
+  border-color: rgba(234, 88, 12, 0.28);
+}
+
+.app-card-btn.hub-menu-card--sag-superadmin:hover .app-card-label {
+  color: #c2410c;
+}
+
+.app-card-btn.hub-menu-card--sag-superadmin:hover::before {
+  background: linear-gradient(
+    120deg,
+    transparent 0%,
+    rgba(249, 115, 22, 0.1) 48%,
+    transparent 100%
+  );
+}
+
 .app-footer {
   position: fixed;
   left: 0;
@@ -1094,6 +1172,20 @@ body {
 
 .proveedor-form-grid {
   grid-template-columns: 100px 1fr 1fr;
+}
+
+.proveedores-module {
+  width: 100%;
+  max-width: none;
+  align-self: stretch;
+}
+
+.proveedor-ingresar-form .field input.input-readonly {
+  max-width: 8rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #1e3d2a;
+  background: rgba(45, 106, 79, 0.06);
 }
 
 .proveedores-hub {
@@ -3776,6 +3868,19 @@ body {
   align-self: stretch;
 }
 
+.responsable-module-hub-card {
+  width: 100%;
+  max-width: none;
+  align-self: stretch;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid rgba(30, 61, 42, 0.1);
+  border-radius: 14px;
+  box-shadow:
+    0 1px 2px rgba(15, 28, 20, 0.04),
+    0 14px 36px -22px rgba(15, 28, 20, 0.2);
+}
+
 .responsable-ingresar-page {
   width: 100%;
   max-width: none;
@@ -3785,14 +3890,19 @@ body {
 .responsable-module-hero {
   display: flex;
   align-items: flex-start;
-  gap: 1.25rem;
+  justify-content: space-between;
+  gap: 1.25rem 1.5rem;
   padding: 1.35rem 1.5rem;
-  border: 1px solid rgba(30, 61, 42, 0.1);
-  border-radius: 14px;
+  border-bottom: 1px solid rgba(30, 61, 42, 0.08);
   background: linear-gradient(135deg, #f7faf8 0%, #ffffff 55%, #f3f8f5 100%);
-  box-shadow:
-    0 1px 2px rgba(15, 28, 20, 0.04),
-    0 14px 36px -22px rgba(15, 28, 20, 0.2);
+}
+
+.responsable-module-hero-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.25rem;
+  min-width: 0;
+  flex: 1;
 }
 
 .responsable-module-hero-icon {
@@ -3841,7 +3951,7 @@ body {
 
 .responsable-module-hero p {
   margin: 0.5rem 0 0;
-  max-width: 42rem;
+  max-width: none;
   font-size: 0.9rem;
   line-height: 1.55;
   color: var(--muted);
@@ -3849,24 +3959,28 @@ body {
 
 .responsable-module-stats {
   display: flex;
+  flex-shrink: 0;
   flex-wrap: wrap;
   gap: 0.65rem;
-  margin-top: 1rem;
+  align-self: flex-start;
 }
 
 .responsable-module-stat {
   display: flex;
   flex-direction: column;
-  gap: 0.1rem;
-  min-width: 4.5rem;
-  padding: 0.55rem 0.85rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.15rem;
+  min-width: 5.25rem;
+  padding: 0.65rem 0.9rem;
   border-radius: 10px;
   border: 1px solid rgba(30, 61, 42, 0.1);
-  background: rgba(255, 255, 255, 0.75);
+  background: rgba(255, 255, 255, 0.85);
+  text-align: center;
 }
 
 .responsable-module-stat-val {
-  font-size: 1.15rem;
+  font-size: 1.25rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   color: #1e3d2a;
@@ -3876,12 +3990,30 @@ body {
 .responsable-module-stat-label {
   font-size: 0.72rem;
   font-weight: 600;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.03em;
   text-transform: uppercase;
   color: #6b7d72;
+  white-space: nowrap;
+}
+
+.responsable-module-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  padding: 1.15rem 1.5rem 1.35rem;
+  background: #fff;
+}
+
+.responsable-module-actions .app-card-btn {
+  height: auto;
+  min-height: 6.75rem;
+  max-height: none;
 }
 
 .responsable-module-shell {
+  width: 100%;
+  max-width: none;
+  align-self: stretch;
   overflow: hidden;
   border: 1px solid rgba(30, 61, 42, 0.12);
   border-radius: 14px;
@@ -3889,6 +4021,22 @@ body {
     0 1px 2px rgba(15, 28, 20, 0.04),
     0 12px 32px -18px rgba(15, 28, 20, 0.18);
   padding: 0;
+}
+
+.responsable-module-shell .table-wrap {
+  margin: 0;
+  border: none;
+  border-radius: 0;
+  border-top: 1px solid rgba(30, 61, 42, 0.07);
+  overflow: auto;
+  max-height: none;
+  box-shadow: none;
+}
+
+.responsable-module-shell .table-pagination {
+  padding: 0.85rem 1.5rem 1.1rem;
+  border-top: 1px solid rgba(30, 61, 42, 0.07);
+  background: linear-gradient(180deg, #fafcfa 0%, #ffffff 100%);
 }
 
 .responsable-module-page-head {
@@ -4172,15 +4320,83 @@ body {
 }
 
 .responsable-listado-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem;
   padding: 0.85rem 1.5rem 0.25rem;
 }
 
 .responsable-listado-search {
-  max-width: 22rem;
+  flex: 1;
+  min-width: min(100%, 16rem);
+  max-width: 28rem;
 }
 
 .responsable-listado-search input {
   width: 100%;
+  border-radius: 10px;
+  border-color: rgba(30, 61, 42, 0.16);
+  background: #fcfdfc;
+}
+
+.responsable-listado-search input:focus {
+  border-color: rgba(45, 106, 79, 0.45);
+  box-shadow: 0 0 0 3px rgba(45, 106, 79, 0.12);
+}
+
+.responsable-listado-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.responsable-listado-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 0.72rem 1rem;
+  background: #f7faf8;
+  border-bottom: 1px solid rgba(30, 61, 42, 0.1);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #5a6b60;
+  text-align: left;
+  box-shadow: none;
+}
+
+.responsable-listado-table tbody td {
+  padding: 0.78rem 1rem;
+  border-bottom: 1px solid rgba(30, 61, 42, 0.06);
+  font-size: 0.88rem;
+  vertical-align: middle;
+  background: #fff;
+}
+
+.responsable-listado-table tbody tr:hover td {
+  background: #f8fbf9;
+}
+
+.responsable-listado-table .num {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  color: #1e3d2a;
+}
+
+.responsable-listado-table .actions-cell {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.responsable-listado-table .actions-cell .btn + .btn {
+  margin-left: 0.35rem;
+}
+
+.responsable-listado-table .empty {
+  text-align: center;
+  padding: 2rem 1rem;
+  color: var(--muted);
 }
 
 .responsable-estado-badge {
@@ -4342,10 +4558,29 @@ body {
   }
 }
 
-@media (max-width: 560px) {
+@media (max-width: 720px) {
   .responsable-module-hero {
     flex-direction: column;
+  }
+
+  .responsable-module-stats {
+    width: 100%;
+  }
+
+  .responsable-module-actions {
+    grid-template-columns: 1fr;
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+}
+
+@media (max-width: 560px) {
+  .responsable-module-hero {
     padding: 1.15rem 1rem;
+  }
+
+  .responsable-module-hero-main {
+    flex-direction: column;
   }
 
   .responsable-module-page-head,
@@ -14210,7 +14445,7 @@ button.sg-kpi-card:disabled {
    Binance UI — tablas, dashboards y paneles de datos (global en .bn-ui)
    ============================================================================= */
 
-.bn-ui .card:not(.configuracion-hub-card):not(.rrhh-hub-card):not(.stock-import-hero):not(.stock-import-spec):not(.stock-import-panel):not(.stock-baja-manual-buscar):not(.stock-baja-manual-candidatos):not(.stock-baja-manual-resultado):not(.stock-baja-tipo):not(.vinculos-mapa-card):not(.rrhh-funcionario-card):not(.divisas-ultimos):not(.responsable-module-shell):not(.responsable-module-hero):not(.precios-ganado-ultimos):not(.responsable-module-shell):not(.responsable-module-hero) {
+.bn-ui .card:not(.configuracion-hub-card):not(.rrhh-hub-card):not(.stock-import-hero):not(.stock-import-spec):not(.stock-import-panel):not(.stock-baja-manual-buscar):not(.stock-baja-manual-candidatos):not(.stock-baja-manual-resultado):not(.stock-baja-tipo):not(.vinculos-mapa-card):not(.rrhh-funcionario-card):not(.divisas-ultimos):not(.responsable-module-shell):not(.responsable-module-hero):not(.responsable-module-hub-card):not(.precios-ganado-ultimos):not(.responsable-module-shell):not(.responsable-module-hero):not(.responsable-module-hub-card) {
   background: var(--bn-bg);
   border: 1px solid var(--bn-border);
   border-radius: 8px;
@@ -14223,13 +14458,13 @@ button.sg-kpi-card:disabled {
   padding: 0;
 }
 
-.bn-ui .card:not(.configuracion-hub-card):not(.rrhh-hub-card):not(.stock-import-hero):not(.stock-import-spec):not(.stock-import-panel):not(.stock-baja-manual-buscar):not(.stock-baja-manual-candidatos):not(.stock-baja-manual-resultado):not(.stock-baja-tipo):not(.vinculos-mapa-card):not(.rrhh-funcionario-card):not(.divisas-ultimos):not(.responsable-module-shell):not(.responsable-module-hero) > .form-header {
+.bn-ui .card:not(.configuracion-hub-card):not(.rrhh-hub-card):not(.stock-import-hero):not(.stock-import-spec):not(.stock-import-panel):not(.stock-baja-manual-buscar):not(.stock-baja-manual-candidatos):not(.stock-baja-manual-resultado):not(.stock-baja-tipo):not(.vinculos-mapa-card):not(.rrhh-funcionario-card):not(.divisas-ultimos):not(.responsable-module-shell):not(.responsable-module-hero):not(.responsable-module-hub-card) > .form-header {
   margin-bottom: 0;
   padding: 1.1rem 1.25rem 0.85rem;
   border-bottom: 1px solid var(--bn-border-soft);
 }
 
-.bn-ui .card:not(.configuracion-hub-card):not(.rrhh-hub-card):not(.stock-import-hero):not(.stock-import-spec):not(.stock-import-panel):not(.stock-baja-manual-buscar):not(.stock-baja-manual-candidatos):not(.stock-baja-manual-resultado):not(.stock-baja-tipo):not(.vinculos-mapa-card):not(.rrhh-funcionario-card):not(.divisas-ultimos):not(.responsable-module-shell):not(.responsable-module-hero) .form-header h2,
+.bn-ui .card:not(.configuracion-hub-card):not(.rrhh-hub-card):not(.stock-import-hero):not(.stock-import-spec):not(.stock-import-panel):not(.stock-baja-manual-buscar):not(.stock-baja-manual-candidatos):not(.stock-baja-manual-resultado):not(.stock-baja-tipo):not(.vinculos-mapa-card):not(.rrhh-funcionario-card):not(.divisas-ultimos):not(.responsable-module-shell):not(.responsable-module-hero):not(.responsable-module-hub-card) .form-header h2,
 .bn-ui form.card.form-card .form-header h2,
 .bn-ui .listado-toolbar .form-header h2 {
   margin: 0;
@@ -15023,19 +15258,19 @@ button.sg-kpi-card:disabled {
   border-bottom: 1px solid var(--bn-border-soft);
 }
 
-.bn-ui .card:not(.configuracion-hub-card):not(.rrhh-hub-card):not(.stock-import-hero):not(.stock-import-spec):not(.stock-import-panel):not(.stock-baja-manual-buscar):not(.stock-baja-manual-candidatos):not(.stock-baja-manual-resultado):not(.stock-baja-tipo):not(.vinculos-mapa-card):not(.rrhh-funcionario-card):not(.divisas-ultimos):not(.responsable-module-shell):not(.responsable-module-hero) > form,
-.bn-ui .card:not(.configuracion-hub-card):not(.rrhh-hub-card):not(.stock-import-hero):not(.stock-import-spec):not(.stock-import-panel):not(.stock-baja-manual-buscar):not(.stock-baja-manual-candidatos):not(.stock-baja-manual-resultado):not(.stock-baja-tipo):not(.vinculos-mapa-card):not(.rrhh-funcionario-card):not(.divisas-ultimos):not(.responsable-module-shell):not(.responsable-module-hero) > .form-grid,
+.bn-ui .card:not(.configuracion-hub-card):not(.rrhh-hub-card):not(.stock-import-hero):not(.stock-import-spec):not(.stock-import-panel):not(.stock-baja-manual-buscar):not(.stock-baja-manual-candidatos):not(.stock-baja-manual-resultado):not(.stock-baja-tipo):not(.vinculos-mapa-card):not(.rrhh-funcionario-card):not(.divisas-ultimos):not(.responsable-module-shell):not(.responsable-module-hero):not(.responsable-module-hub-card) > form,
+.bn-ui .card:not(.configuracion-hub-card):not(.rrhh-hub-card):not(.stock-import-hero):not(.stock-import-spec):not(.stock-import-panel):not(.stock-baja-manual-buscar):not(.stock-baja-manual-candidatos):not(.stock-baja-manual-resultado):not(.stock-baja-tipo):not(.vinculos-mapa-card):not(.rrhh-funcionario-card):not(.divisas-ultimos):not(.responsable-module-shell):not(.responsable-module-hero):not(.responsable-module-hub-card) > .form-grid,
 .bn-ui form.card.form-card .form-grid,
 .bn-ui form.card.form-card .form-actions,
 .bn-ui form.card.form-card .importe-moneda-block,
-.bn-ui .card:not(.configuracion-hub-card):not(.rrhh-hub-card):not(.stock-import-hero):not(.stock-import-spec):not(.stock-import-panel):not(.stock-baja-manual-buscar):not(.stock-baja-manual-candidatos):not(.stock-baja-manual-resultado):not(.stock-baja-tipo):not(.vinculos-mapa-card):not(.rrhh-funcionario-card):not(.divisas-ultimos):not(.responsable-module-shell):not(.responsable-module-hero) .form-actions,
-.bn-ui .card:not(.configuracion-hub-card):not(.rrhh-hub-card):not(.stock-import-hero):not(.stock-import-spec):not(.stock-import-panel):not(.stock-baja-manual-buscar):not(.stock-baja-manual-candidatos):not(.stock-baja-manual-resultado):not(.stock-baja-tipo):not(.vinculos-mapa-card):not(.rrhh-funcionario-card):not(.divisas-ultimos):not(.responsable-module-shell):not(.responsable-module-hero) .importe-moneda-block {
+.bn-ui .card:not(.configuracion-hub-card):not(.rrhh-hub-card):not(.stock-import-hero):not(.stock-import-spec):not(.stock-import-panel):not(.stock-baja-manual-buscar):not(.stock-baja-manual-candidatos):not(.stock-baja-manual-resultado):not(.stock-baja-tipo):not(.vinculos-mapa-card):not(.rrhh-funcionario-card):not(.divisas-ultimos):not(.responsable-module-shell):not(.responsable-module-hero):not(.responsable-module-hub-card) .form-actions,
+.bn-ui .card:not(.configuracion-hub-card):not(.rrhh-hub-card):not(.stock-import-hero):not(.stock-import-spec):not(.stock-import-panel):not(.stock-baja-manual-buscar):not(.stock-baja-manual-candidatos):not(.stock-baja-manual-resultado):not(.stock-baja-tipo):not(.vinculos-mapa-card):not(.rrhh-funcionario-card):not(.divisas-ultimos):not(.responsable-module-shell):not(.responsable-module-hero):not(.responsable-module-hub-card) .importe-moneda-block {
   padding-left: 1.25rem;
   padding-right: 1.25rem;
 }
 
-.bn-ui .card:not(.configuracion-hub-card):not(.rrhh-hub-card):not(.stock-import-hero):not(.stock-import-spec):not(.stock-import-panel):not(.stock-baja-manual-buscar):not(.stock-baja-manual-candidatos):not(.stock-baja-manual-resultado):not(.stock-baja-tipo):not(.vinculos-mapa-card):not(.rrhh-funcionario-card):not(.divisas-ultimos):not(.responsable-module-shell):not(.responsable-module-hero) > form,
-.bn-ui .card:not(.configuracion-hub-card):not(.rrhh-hub-card):not(.stock-import-hero):not(.stock-import-spec):not(.stock-import-panel):not(.stock-baja-manual-buscar):not(.stock-baja-manual-candidatos):not(.stock-baja-manual-resultado):not(.stock-baja-tipo):not(.vinculos-mapa-card):not(.rrhh-funcionario-card):not(.divisas-ultimos):not(.responsable-module-shell):not(.responsable-module-hero) > .form-grid,
+.bn-ui .card:not(.configuracion-hub-card):not(.rrhh-hub-card):not(.stock-import-hero):not(.stock-import-spec):not(.stock-import-panel):not(.stock-baja-manual-buscar):not(.stock-baja-manual-candidatos):not(.stock-baja-manual-resultado):not(.stock-baja-tipo):not(.vinculos-mapa-card):not(.rrhh-funcionario-card):not(.divisas-ultimos):not(.responsable-module-shell):not(.responsable-module-hero):not(.responsable-module-hub-card) > form,
+.bn-ui .card:not(.configuracion-hub-card):not(.rrhh-hub-card):not(.stock-import-hero):not(.stock-import-spec):not(.stock-import-panel):not(.stock-baja-manual-buscar):not(.stock-baja-manual-candidatos):not(.stock-baja-manual-resultado):not(.stock-baja-tipo):not(.vinculos-mapa-card):not(.rrhh-funcionario-card):not(.divisas-ultimos):not(.responsable-module-shell):not(.responsable-module-hero):not(.responsable-module-hub-card) > .form-grid,
 .bn-ui form.card.form-card .form-grid {
   padding-top: 1rem;
   padding-bottom: 1.25rem;
@@ -15046,7 +15281,7 @@ button.sg-kpi-card:disabled {
   margin-top: 0;
 }
 
-.bn-ui .card:not(.configuracion-hub-card):not(.rrhh-hub-card):not(.stock-import-hero):not(.stock-import-spec):not(.stock-import-panel):not(.stock-baja-manual-buscar):not(.stock-baja-manual-candidatos):not(.stock-baja-manual-resultado):not(.stock-baja-tipo):not(.vinculos-mapa-card):not(.rrhh-funcionario-card):not(.divisas-ultimos):not(.responsable-module-shell):not(.responsable-module-hero) .form-actions {
+.bn-ui .card:not(.configuracion-hub-card):not(.rrhh-hub-card):not(.stock-import-hero):not(.stock-import-spec):not(.stock-import-panel):not(.stock-baja-manual-buscar):not(.stock-baja-manual-candidatos):not(.stock-baja-manual-resultado):not(.stock-baja-tipo):not(.vinculos-mapa-card):not(.rrhh-funcionario-card):not(.divisas-ultimos):not(.responsable-module-shell):not(.responsable-module-hero):not(.responsable-module-hub-card) .form-actions {
   padding-bottom: 1.25rem;
   margin-top: 0;
 }

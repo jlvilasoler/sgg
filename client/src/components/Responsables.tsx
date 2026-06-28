@@ -123,17 +123,21 @@ export default function Responsables({
         </button>
       )}
 
-      <div className="card responsable-module-hero">
-        <div className="responsable-module-hero-icon" aria-hidden>
-          <HubMenuIcon id="config_responsables" className="menu-app-icon-svg" />
-        </div>
-        <div className="responsable-module-hero-body">
-          <span className="responsable-module-kicker">Configuración</span>
-          <h2>Asignación de presupuesto</h2>
-          <p>
-            Personas a quien se asigna el gasto al registrar operaciones. Solo los nombres{" "}
-            <strong>activos</strong> aparecen en gastos y filtros.
-          </p>
+      <div className="card responsable-module-hub-card">
+        <header className="responsable-module-hero">
+          <div className="responsable-module-hero-main">
+            <div className="responsable-module-hero-icon" aria-hidden>
+              <HubMenuIcon id="config_responsables" className="menu-app-icon-svg" />
+            </div>
+            <div className="responsable-module-hero-body">
+              <span className="responsable-module-kicker">Configuración</span>
+              <h2>Asignación de presupuesto</h2>
+              <p>
+                Personas a quien se asigna el gasto al registrar operaciones. Solo los nombres{" "}
+                <strong>activos</strong> aparecen en gastos y filtros.
+              </p>
+            </div>
+          </div>
           <div className="responsable-module-stats" aria-label="Resumen del catálogo">
             <div className="responsable-module-stat">
               <span className="responsable-module-stat-val">
@@ -148,24 +152,24 @@ export default function Responsables({
               <span className="responsable-module-stat-label">Total</span>
             </div>
           </div>
-        </div>
-      </div>
+        </header>
 
-      <nav className="app-grid app-grid-2" aria-label="Asignación de presupuesto">
-        {SUBMENU.map((item) => (
-          <HubMenuCard
-            key={item.id}
-            label={item.label}
-            subtitle={item.subtitle}
-            theme={HUB_ICON_THEMES[item.icon]}
-            icon={<HubMenuIcon id={item.icon} />}
-            onClick={() => {
-              setEditResponsable(null);
-              setVista(item.id);
-            }}
-          />
-        ))}
-      </nav>
+        <nav className="responsable-module-actions" aria-label="Asignación de presupuesto">
+          {SUBMENU.map((item) => (
+            <HubMenuCard
+              key={item.id}
+              label={item.label}
+              subtitle={item.subtitle}
+              theme={HUB_ICON_THEMES[item.icon]}
+              icon={<HubMenuIcon id={item.icon} />}
+              onClick={() => {
+                setEditResponsable(null);
+                setVista(item.id);
+              }}
+            />
+          ))}
+        </nav>
+      </div>
     </div>
   );
 }

@@ -7,6 +7,7 @@ export interface HubMenuCardProps {
   icon: ReactNode;
   theme: MenuAppTheme;
   onClick: () => void;
+  className?: string;
 }
 
 export function hubCardStyle(theme: MenuAppTheme): CSSProperties {
@@ -17,11 +18,18 @@ export function hubCardStyle(theme: MenuAppTheme): CSSProperties {
   } as CSSProperties;
 }
 
-export function HubMenuCard({ label, subtitle, icon, theme, onClick }: HubMenuCardProps) {
+export function HubMenuCard({
+  label,
+  subtitle,
+  icon,
+  theme,
+  onClick,
+  className,
+}: HubMenuCardProps) {
   return (
     <button
       type="button"
-      className="app-card-btn"
+      className={className ? `app-card-btn ${className}` : "app-card-btn"}
       style={hubCardStyle(theme)}
       onClick={onClick}
     >

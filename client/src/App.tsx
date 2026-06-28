@@ -21,7 +21,6 @@ import AppFooter from "./components/AppFooter";
 import LoginScreen from "./components/LoginScreen";
 import ForgotPasswordScreen from "./components/ForgotPasswordScreen";
 import ResetPasswordScreen from "./components/ResetPasswordScreen";
-import UsuariosHub from "./components/UsuariosHub";
 import UsuariosActividad from "./components/UsuariosActividad";
 import ArquitecturaSistema from "./components/ArquitecturaSistema";
 import FormGasto from "./components/FormGasto";
@@ -567,16 +566,6 @@ export default function App() {
                 onError={(m) => notify(m, false)}
                 onSuccess={(m, t) => notify(m, true, t)}
                 onVolver={goHome}
-              />
-            )}
-            {screen === "usuarios" && user && (
-              <UsuariosHub
-                user={user}
-                apiOnline={apiOnline}
-                onVolver={goHome}
-                onError={(m) => notify(m, false)}
-                onSuccess={(m) => notify(m, true)}
-                onPermissionsChanged={() => void refreshUser()}
               />
             )}
             {screen === "registro_actividad" && user && (() => {

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { HubMenuCard } from "./HubMenuCard";
 import { useHeaderBackStep } from "../header-back";
 import type { AuthUser } from "../types";
-import { canAccessAdministradorCuentas, canAccessClasificacionProveedores, canAccessDocumentosDigitales, canAccessStockGanaderoAdmin } from "../utils/auth-permissions";
+import { canAccessAdministradorCuentas, canAccessActividadSagTotal, canAccessArquitecturaSistema, canAccessClasificacionProveedores, canAccessDocumentosDigitales, canAccessStockGanaderoAdmin, canManageUsuariosCuenta } from "../utils/auth-permissions";
 import Proveedores from "./Proveedores";
 import ClasificacionProveedores from "./proveedores/ClasificacionProveedores";
 import Responsables from "./Responsables";
@@ -11,6 +11,9 @@ import StockGanaderoAdmin from "./stock/StockGanaderoAdmin";
 import AdministradorCuenta from "./AdministradorCuenta";
 import ArquitecturaSistema from "./ArquitecturaSistema";
 import DocumentosDigitales from "./DocumentosDigitales";
+import Usuarios from "./Usuarios";
+import UsuariosActividad from "./UsuariosActividad";
+import type { TabId } from "./Header";
 import type { HubIconId } from "./icons/HubMenuIcons";
 import { HUB_ICON_THEMES, HubMenuIcon } from "./icons/HubMenuIcons";
 import { MENU_APP_THEMES, MenuAppIcon } from "./icons/MenuAppIcons";
@@ -21,9 +24,17 @@ type CatalogoModulo =
   | "clasificacion_proveedores"
   | "rubros"
   | "stock_ganadero"
-  | "admin_cuenta";
+  | "admin_cuenta"
+  | "usuarios";
 
-type SagModulo = "sag_arquitectura" | "documentos_digitales";
+type SagModulo =
+  | "sag_arquitectura"
+  | "registro_actividad_total"
+  | "documentos_digitales";
+
+type SagModuloIcon =
+  | { type: "tab"; id: TabId }
+  | { type: "hub"; id: HubIconId };
 
 type ModuloConfig =
   | "menu"
@@ -83,21 +94,39 @@ const SAG_MODULOS: {
   id: SagModulo;
   label: string;
   subtitle: string;
-  icon: "panel_admin_sitio" | "documentos_digitales";
+  icon: SagModuloIcon;
 }[] = [
   {
     id: "sag_arquitectura",
-    label: "Administración del sitio",
-    subtitle: "Cuentas madre, empresas y usuarios de la plataforma",
-    icon: "panel_admin_sitio",
+    label: "Arquitectura del sistema",
+    subtitle: "Stack, módulos y estructura técnica de SAG",
+    icon: { type: "hub", id: "arquitectura_sistema" },
+  },
+  {
+    id: "registro_actividad_total",
+    label: "Registro de actividad SAG total",
+    subtitle: "Todas las cuentas y usuarios de la plataforma",
+    icon: { type: "tab", id: "registro_actividad" },
   },
   {
     id: "documentos_digitales",
     label: "Documentos Digitales",
     subtitle: "Archivo y gestión documental global",
-    icon: "documentos_digitales",
+    icon: { type: "tab", id: "documentos_digitales" },
   },
 ];
+
+function sagModuloTheme(icon: SagModuloIcon) {
+  return icon.type === "tab" ? MENU_APP_THEMES[icon.id] : HUB_ICON_THEMES[icon.id];
+}
+
+function sagModuloIconNode(icon: SagModuloIcon) {
+  return icon.type === "tab" ? (
+    <MenuAppIcon id={icon.id} className="menu-app-icon-svg" />
+  ) : (
+    <HubMenuIcon id={icon.id} className="menu-app-icon-svg" />
+  );
+}
 
 function nombreCuentaConfig(user: AuthUser | null | undefined): string {
   return (
@@ -114,7 +143,8 @@ function isCatalogoModulo(modulo: ModuloConfig): modulo is CatalogoModulo {
     modulo === "clasificacion_proveedores" ||
     modulo === "rubros" ||
     modulo === "stock_ganadero" ||
-    modulo === "admin_cuenta"
+    modulo === "admin_cuenta" ||
+    modulo === "usuarios"
   );
 }
 
@@ -135,7 +165,7 @@ export default function Configuracion({
     if (modulo === "cuenta_hub" || modulo === "sag_hub") {
       return { onBack: () => setModulo("menu"), label: "Configuración" };
     }
-    if (modulo === "sag_arquitectura" || modulo === "documentos_digitales") {
+    if (modulo === "sag_arquitectura" || modulo === "documentos_digitales" || modulo === "registro_actividad_total") {
       return { onBack: () => setModulo("sag_hub"), label: "Configuración SAG" };
     }
     if (esSuperAdmin && isCatalogoModulo(modulo)) {
@@ -161,6 +191,15 @@ export default function Configuracion({
       modulo === "stock_ganadero" &&
       !canAccessStockGanaderoAdmin(currentUser ?? null)
     ) {
+      setModulo(esSuperAdmin ? "cuenta_hub" : "menu");
+    }
+    if (
+      modulo === "registro_actividad_total" &&
+      !canAccessActividadSagTotal(currentUser ?? null)
+    ) {
+      setModulo("sag_hub");
+    }
+    if (modulo === "usuarios" && !canManageUsuariosCuenta(currentUser ?? null)) {
       setModulo(esSuperAdmin ? "cuenta_hub" : "menu");
     }
   }, [modulo, currentUser, esSuperAdmin]);
@@ -235,15 +274,50 @@ export default function Configuracion({
     );
   }
 
+  if (
+    modulo === "usuarios" &&
+    currentUser &&
+    canManageUsuariosCuenta(currentUser)
+  ) {
+    return (
+      <Usuarios
+        apiOnline={apiOnline}
+        currentUser={currentUser}
+        volverLabel={esSuperAdmin ? "Volver a Configuración cuenta" : "Volver a Configuración"}
+        onVolver={backStep?.onBack ?? (() => setModulo(esSuperAdmin ? "cuenta_hub" : "menu"))}
+        onError={onError}
+        onSuccess={onSuccess}
+      />
+    );
+  }
+
   if (modulo === "sag_arquitectura") {
     return (
       <ArquitecturaSistema
         apiOnline={apiOnline}
-        titulo="Administración del sitio"
         volverLabel="Volver a Configuración SAG"
         onVolver={backStep?.onBack ?? (() => setModulo("sag_hub"))}
         onError={onError}
         onSuccess={onSuccess}
+      />
+    );
+  }
+
+  if (
+    modulo === "registro_actividad_total" &&
+    currentUser &&
+    canAccessActividadSagTotal(currentUser)
+  ) {
+    return (
+      <UsuariosActividad
+        apiOnline={apiOnline}
+        currentUser={currentUser}
+        modo="total"
+        titulo="Registro de actividad SAG total"
+        subtituloAmbito="Todas las cuentas y usuarios de la plataforma"
+        volverLabel="Volver a Configuración SAG"
+        onError={onError}
+        onVolver={backStep?.onBack ?? (() => setModulo("sag_hub"))}
       />
     );
   }
@@ -281,11 +355,31 @@ export default function Configuracion({
   });
 
   const itemsCuenta = [...catalogosVisibles, ...adminCuentaItem];
-  const itemsSag = SAG_MODULOS.filter((item) =>
-    item.id === "documentos_digitales"
-      ? canAccessDocumentosDigitales(currentUser ?? null)
-      : true
-  );
+  const showUsuariosCuenta = canManageUsuariosCuenta(currentUser ?? null);
+
+  const renderUsuariosCuentaCard = () =>
+    showUsuariosCuenta ? (
+      <HubMenuCard
+        key="usuarios"
+        label="Usuarios"
+        subtitle={`Administración de usuarios de ${cuentaNombre}`}
+        theme={MENU_APP_THEMES.usuarios}
+        icon={<MenuAppIcon id="usuarios" className="menu-app-icon-svg" />}
+        onClick={() => setModulo("usuarios")}
+      />
+    ) : null;
+  const itemsSag = SAG_MODULOS.filter((item) => {
+    if (item.id === "documentos_digitales") {
+      return canAccessDocumentosDigitales(currentUser ?? null);
+    }
+    if (item.id === "registro_actividad_total") {
+      return canAccessActividadSagTotal(currentUser ?? null);
+    }
+    if (item.id === "sag_arquitectura") {
+      return canAccessArquitecturaSistema(currentUser ?? null);
+    }
+    return true;
+  });
 
   if (modulo === "cuenta_hub") {
     return (
@@ -298,7 +392,7 @@ export default function Configuracion({
             <h2>Configuración cuenta {cuentaNombre}</h2>
             <p className="muted">
               Catálogos y ajustes operativos de <strong>{cuentaNombre}</strong>: presupuesto
-              asignado, proveedores y rubros.
+              asignado, proveedores, rubros y usuarios de la cuenta.
             </p>
           </div>
           <nav className="app-grid" aria-label="Configuración de cuenta">
@@ -312,6 +406,7 @@ export default function Configuracion({
                 onClick={() => setModulo(item.id)}
               />
             ))}
+            {renderUsuariosCuentaCard()}
           </nav>
         </div>
       </div>
@@ -338,8 +433,8 @@ export default function Configuracion({
                 key={item.id}
                 label={item.label}
                 subtitle={item.subtitle}
-                theme={MENU_APP_THEMES[item.icon]}
-                icon={<MenuAppIcon id={item.icon} className="menu-app-icon-svg" />}
+                theme={sagModuloTheme(item.icon)}
+                icon={sagModuloIconNode(item.icon)}
                 onClick={() => setModulo(item.id)}
               />
             ))}
@@ -368,6 +463,7 @@ export default function Configuracion({
               label="Configuración cuenta"
               subtitle={`Catálogos y ajustes de ${cuentaNombre}`}
               theme={MENU_APP_THEMES.configuracion}
+              className="hub-menu-card--cuenta"
               icon={<MenuAppIcon id="configuracion" className="menu-app-icon-svg" />}
               onClick={() => setModulo("cuenta_hub")}
             />
@@ -375,6 +471,7 @@ export default function Configuracion({
               label="Configuración SAG (Superadministrador)"
               subtitle="Cuentas madre, empresas y administración global"
               theme={MENU_APP_THEMES.panel_admin_sitio}
+              className="hub-menu-card--sag-superadmin"
               icon={<MenuAppIcon id="panel_admin_sitio" className="menu-app-icon-svg" />}
               onClick={() => setModulo("sag_hub")}
             />
@@ -409,6 +506,7 @@ export default function Configuracion({
               onClick={() => setModulo(item.id)}
             />
           ))}
+          {renderUsuariosCuentaCard()}
         </nav>
       </div>
     </div>

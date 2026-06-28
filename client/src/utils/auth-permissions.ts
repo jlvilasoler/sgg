@@ -52,9 +52,9 @@ export function canAccessUsuarioActividad(user: AuthUser | null): boolean {
   );
 }
 
-/** Super-administrador de plataforma: actividad global de todas las cuentas. */
+/** Superadministrador de plataforma (SCG_ADMIN_EMAIL): actividad global de todas las cuentas. */
 export function canAccessActividadSagTotal(user: AuthUser | null): boolean {
-  return Boolean(user?.es_super_admin);
+  return Boolean(user?.es_admin_plataforma);
 }
 
 /** Administrador de cuenta: actividad de su equipo (Gestores, Lectores, etc.). */
@@ -188,6 +188,7 @@ export function moduloForScreen(screen: TabId): Modulo {
 export function canAccessScreen(user: AuthUser | null, screen: TabId): boolean {
   if (!user) return false;
   if (screen === "registro_actividad") return true;
+  if (screen === "usuarios") return false;
   if (screen === "documentos_digitales") return canAccessDocumentosDigitales(user);
   if (screen === "panel_admin_sitio") return canAccessArquitecturaSistema(user);
   const mod = moduloForScreen(screen);

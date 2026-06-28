@@ -133,6 +133,8 @@ export interface UserPublic {
   cuenta_actividad_id: number | null;
   cuenta_actividad_nombre: string | null;
   es_super_admin: boolean;
+  /** Superadministrador de plataforma (SCG_ADMIN_EMAIL); distinto de otros super-admins. */
+  es_admin_plataforma: boolean;
   /** Usuario designado como administrador de su cuenta (EMPRESAS_CUENTA.admin_user_id). */
   es_admin_cuenta: boolean;
   permisos: Modulo[];
@@ -309,6 +311,7 @@ export async function toUserPublic(row: UserRow, db: Db): Promise<UserPublic> {
     cuenta_actividad_id: cuentaActividadId,
     cuenta_actividad_nombre: cuentaActividadNombre,
     es_super_admin: esSuperAdmin,
+    es_admin_plataforma: empresasCuenta.isPrimaryPlatformAdmin({ email: row.email }),
     es_admin_cuenta: cuentaAdmin != null,
     permisos: caps.permisos,
     puede_escribir: caps.puede_escribir,
@@ -485,7 +488,13 @@ export async function resolveAuthAuditLogScope(
     };
   }
 
-  if (actor.es_super_admin && ambito === "total") {
+  if (ambito === "total") {
+    if (!empresasCuenta.isPrimaryPlatformAdmin(actor)) {
+      return {
+        ok: false,
+        error: "Solo el superadministrador de plataforma puede ver actividad global",
+      };
+    }
     return { ok: true, filters: { email: emailQuery, scope: undefined } };
   }
 
@@ -536,7 +545,9 @@ export async function resolveActividadOnlineUserIds(
   actor: UserPublic,
   ambito?: ActividadAmbito
 ): Promise<number[] | null> {
-  if (actor.es_super_admin && ambito === "total") return null;
+  if (ambito === "total") {
+    return empresasCuenta.isPrimaryPlatformAdmin(actor) ? null : [];
+  }
   if (actor.rol === "admin") {
     const cuentaId =
       actor.cuenta_actividad_id ??

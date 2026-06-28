@@ -71,21 +71,6 @@ export const MENU_APPS: MenuApp[] = [
     subtitle: "Historial de accesos y acciones en el sistema",
   },
   {
-    id: "usuarios",
-    label: "Usuarios",
-    subtitle: "Administración del sistema",
-  },
-  {
-    id: "panel_admin_sitio",
-    label: "Administración del sitio",
-    subtitle: "Panel del administrador SAG — cuentas madre y empresas",
-  },
-  {
-    id: "documentos_digitales",
-    label: "Documentos Digitales",
-    subtitle: "Archivo y gestión documental",
-  },
-  {
     id: "chat",
     label: "Chat",
     subtitle: "Mensajes con el equipo y mensajes directos",

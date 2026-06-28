@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { deleteProveedor, fetchProveedores } from "../../api";
 import type { Proveedor } from "../../types";
 import { confirmAction } from "../../utils/confirm";
+import { HubMenuIcon } from "../icons/HubMenuIcons";
 import TablePagination, {
   paginateSlice,
   type PageSize,
@@ -78,38 +79,50 @@ export default function ProveedorListado({
   };
 
   return (
-    <div className="subseccion-panel">
+    <div className="subseccion-panel responsable-module proveedores-module">
       <button type="button" className="subseccion-back" onClick={onVolver}>
         ‹ Volver a Proveedores
       </button>
 
-      <div className="card">
-        <div className="form-header">
-          <h2>Listado de proveedores</h2>
-          <p className="muted">
-            {loading ? "Cargando..." : `${rows.length} proveedor(es) encontrados`}
-          </p>
-        </div>
+      <div className="card responsable-module-shell">
+        <header className="responsable-module-page-head">
+          <div className="responsable-module-page-head-main">
+            <div className="responsable-module-page-icon" aria-hidden>
+              <HubMenuIcon id="prov_listado" className="menu-app-icon-svg" />
+            </div>
+            <div>
+              <span className="responsable-module-kicker">Proveedores</span>
+              <h2 className="responsable-module-page-title">Listado de proveedores</h2>
+              <p className="responsable-module-page-sub">
+                {loading
+                  ? "Cargando catálogo…"
+                  : `${rows.length} proveedor${rows.length === 1 ? "" : "es"} en su cuenta`}
+              </p>
+            </div>
+          </div>
+          {!loading && apiOnline ? (
+            <span className="responsable-module-stat-pill" aria-live="polite">
+              {rows.length} total
+            </span>
+          ) : null}
+        </header>
 
-        <div className="filters mayusculas-auto">
-          <div className="field flex-grow">
+        <div className="responsable-listado-toolbar">
+          <div className="field responsable-listado-search">
             <label htmlFor="busq-prov">Buscar</label>
             <input
               id="busq-prov"
               type="search"
-              placeholder="Código, razón social, RUT, ciudad..."
+              placeholder="Código, razón social, RUT, ciudad…"
               value={busqueda}
+              disabled={loading || !apiOnline}
               onChange={(e) => setBusqueda(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && load()}
             />
           </div>
-          <button type="button" className="btn btn-primary" onClick={load}>
-            Buscar
-          </button>
         </div>
 
         <div className="table-wrap">
-          <table className="data-table">
+          <table className="data-table responsable-listado-table">
             <thead>
               <tr>
                 <th>Cód.</th>
@@ -117,14 +130,14 @@ export default function ProveedorListado({
                 <th>RUT</th>
                 <th>Dirección</th>
                 <th>Ciudad</th>
-                <th />
+                <th aria-label="Acciones" />
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
                   <td colSpan={6} className="empty">
-                    Cargando...
+                    Cargando proveedores…
                   </td>
                 </tr>
               ) : !apiOnline ? (
@@ -136,31 +149,35 @@ export default function ProveedorListado({
               ) : rows.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="empty">
-                    Sin proveedores con esos filtros
+                    {busqueda.trim()
+                      ? "Ningún resultado coincide con la búsqueda."
+                      : "No hay proveedores. Creá uno desde Ingresar proveedor."}
                   </td>
                 </tr>
               ) : (
                 rowsPagina.map((p) => (
                   <tr key={p.id}>
                     <td className="num">{p.cod}</td>
-                    <td>{p.razon_social}</td>
-                    <td>{p.rut}</td>
-                    <td>{p.direccion}</td>
-                    <td>{p.ciudad}</td>
+                    <td>
+                      <strong>{p.razon_social}</strong>
+                    </td>
+                    <td>{p.rut || "—"}</td>
+                    <td className="muted small-cell">{p.direccion || "—"}</td>
+                    <td>{p.ciudad || "—"}</td>
                     <td className="actions-cell">
                       <button
                         type="button"
-                        className="btn btn-sm btn-edit"
+                        className="btn btn-sm"
                         onClick={() => onEdit(p)}
                       >
                         Editar
                       </button>
                       <button
                         type="button"
-                        className="btn btn-sm btn-delete"
+                        className="btn btn-sm btn-danger"
                         onClick={() => borrar(p.id)}
                       >
-                        Borrar
+                        Eliminar
                       </button>
                     </td>
                   </tr>

@@ -314,6 +314,11 @@ function primaryAdminEmail(): string {
     .toLowerCase();
 }
 
+/** Superadministrador único de plataforma (SCG_ADMIN_EMAIL): actividad global, etc. */
+export function isPrimaryPlatformAdmin(user: { email: string }): boolean {
+  return user.email.trim().toLowerCase() === primaryAdminEmail();
+}
+
 /**
  * Asigna al administrador principal de la plataforma como administrador de la
  * cuenta madre VILA DIAZ si todavía no tiene uno. Debe ejecutarse DESPUÉS de

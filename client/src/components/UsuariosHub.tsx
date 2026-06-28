@@ -4,8 +4,6 @@ import type { AuthUser } from "../types";
 import {
   canAccessActividadCuenta,
   canAccessActividadPropia,
-  canAccessActividadSagTotal,
-  canAccessArquitecturaSistema,
   canAccessPermisosPorRol,
   canAccessStockMovimientos,
   canManageUsuariosCuenta,
@@ -19,16 +17,13 @@ import Usuarios from "./Usuarios";
 import UsuariosActividad from "./UsuariosActividad";
 import UsuariosRolesPanel from "./UsuariosRolesModal";
 import StockMovimientosAuditoria from "./stock/StockMovimientosAuditoria";
-import ArquitecturaSistema from "./ArquitecturaSistema";
 type VistaUsuarios =
   | "menu"
   | "usuarios_cuentas"
   | "permisos_por_rol"
-  | "registro_actividad_total"
   | "registro_actividad_cuenta"
   | "registro_actividad_propio"
-  | "stock_movimientos"
-  | "arquitectura_sistema";
+  | "stock_movimientos";
 
 type SubmenuIcon =
   | { type: "tab"; id: TabId }
@@ -117,13 +112,6 @@ export default function UsuariosHub({
         visible: canAccessPermisosPorRol(user),
       },
       {
-        id: "registro_actividad_total",
-        label: "Registro de actividad SAG total",
-        subtitle: "Todas las cuentas y usuarios de la plataforma",
-        icon: { type: "tab", id: "registro_actividad" },
-        visible: canAccessActividadSagTotal(user),
-      },
-      {
         id: "registro_actividad_cuenta",
         label: `Actividad de cuenta ${cuentaNombre}`,
         subtitle: "Logins, navegación y usuarios de su equipo",
@@ -143,13 +131,6 @@ export default function UsuariosHub({
         subtitle: "Altas, bajas y modificaciones de dispositivos",
         icon: { type: "tab", id: "stock_movimientos" },
         visible: canAccessStockMovimientos(user),
-      },
-      {
-        id: "arquitectura_sistema",
-        label: "Arquitectura del sistema",
-        subtitle: "Stack, módulos y estructura técnica de SAG",
-        icon: { type: "hub", id: "arquitectura_sistema" },
-        visible: canAccessArquitecturaSistema(user),
       },
     ],
     [user, cuentaNombre]
@@ -192,21 +173,6 @@ export default function UsuariosHub({
     );
   }
 
-  if (vista === "registro_actividad_total") {
-    return (
-      <UsuariosActividad
-        apiOnline={apiOnline}
-        currentUser={user}
-        modo="total"
-        titulo="Registro de actividad SAG total"
-        subtituloAmbito="Todas las cuentas y usuarios de la plataforma"
-        volverLabel="Volver a Usuarios"
-        onError={onError}
-        onVolver={volverMenu}
-      />
-    );
-  }
-
   if (vista === "registro_actividad_cuenta") {
     return (
       <UsuariosActividad
@@ -244,18 +210,6 @@ export default function UsuariosHub({
         volverLabel="Volver a Usuarios"
         onError={onError}
         onVolver={volverMenu}
-      />
-    );
-  }
-
-  if (vista === "arquitectura_sistema") {
-    return (
-      <ArquitecturaSistema
-        apiOnline={apiOnline}
-        volverLabel="Volver a Usuarios"
-        onVolver={volverMenu}
-        onError={onError}
-        onSuccess={onSuccess}
       />
     );
   }

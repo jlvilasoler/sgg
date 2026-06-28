@@ -1013,6 +1013,8 @@ export interface AuthUser {
   cuenta_actividad_id: number | null;
   cuenta_actividad_nombre: string | null;
   es_super_admin: boolean;
+  /** Superadministrador de plataforma (SCG_ADMIN_EMAIL). */
+  es_admin_plataforma: boolean;
   /** Usuario designado como administrador de su cuenta. */
   es_admin_cuenta: boolean;
   permisos: Modulo[];
