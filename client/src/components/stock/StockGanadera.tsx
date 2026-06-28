@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   deleteStockGanaderaDispositivos,
+  fetchEmpresasOperativasStock,
   fetchStockGanaderaDispositivos,
   fetchStockGanaderaSalidas,
   fetchStockGanaderaVentasDispositivos,
@@ -48,16 +49,14 @@ import {
   SIN_FECHA_NAC_FILTRO_KEY,
 } from "./stock-ganadera-utils";
 import {
+  clearStockGanaderaPageCache,
   filtrosCacheKey,
   readStockGanaderaPageCache,
   rowsDesdeCache,
+  stockGanaderaCacheScope,
   ventasClavesDesdeCache,
-  clearStockGanaderaPageCache,
   writeStockGanaderaPageCache,
 } from "./stock-ganadera-page-cache";
-
-const cacheInicial = readStockGanaderaPageCache();
-const filtrosInicialesKey = filtrosCacheKey({});
 
 function toggleSet<T>(prev: Set<T>, value: T): Set<T> {
   const next = new Set(prev);
@@ -128,6 +127,10 @@ export default function StockGanadera({
   refreshKey = 0,
 }: Props) {
   const esAdmin = currentUser?.rol === "admin";
+  const cacheScope = currentUser ? stockGanaderaCacheScope(currentUser) : "";
+  const filtrosInicialesKey = filtrosCacheKey({});
+  const cacheInicial = cacheScope ? readStockGanaderaPageCache(cacheScope) : null;
+
   const [rows, setRows] = useState<StockGanaderaDispositivo[]>(() =>
     rowsDesdeCache(cacheInicial, filtrosInicialesKey)
   );
@@ -146,7 +149,7 @@ export default function StockGanadera({
   const volverEditar = useCallback(() => setEditarDispositivo(null), []);
   const volverBulk = useCallback(() => setBulkOpen(false), []);
   const volverHistorial = useCallback(() => setHistorialCambios(null), []);
-  const [loading, setLoading] = useState(() => !cacheInicial);
+  const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<PageSize>(30);
   const [seleccion, setSeleccion] = useState<Set<string>>(() => new Set());
@@ -175,6 +178,34 @@ export default function StockGanadera({
   );
   const [filtroVentasCerradas, setFiltroVentasCerradas] = useState(false);
   const [filtroSalidasSistema, setFiltroSalidasSistema] = useState(false);
+  const [empresasOperativas, setEmpresasOperativas] = useState<
+    Awaited<ReturnType<typeof fetchEmpresasOperativasStock>>
+  >([]);
+
+  useEffect(() => {
+    if (!apiOnline) {
+      setEmpresasOperativas([]);
+      return;
+    }
+    fetchEmpresasOperativasStock()
+      .then(setEmpresasOperativas)
+      .catch(() => setEmpresasOperativas([]));
+  }, [apiOnline]);
+
+  const empresaOpciones = useMemo(
+    () => [
+      ...empresasOperativas.map((e) => ({ key: e.codigo, label: e.nombre })),
+      { key: "", label: "Sin definir" },
+    ],
+    [empresasOperativas]
+  );
+
+  useEffect(() => {
+    if (filtroEmpresa.size === 0) return;
+    const validas = new Set(empresaOpciones.map((o) => o.key));
+    const next = new Set([...filtroEmpresa].filter((k) => validas.has(k)));
+    if (next.size !== filtroEmpresa.size) setFiltroEmpresa(next);
+  }, [empresaOpciones, filtroEmpresa]);
 
   useHeaderBackStep(!!editarDispositivo, volverEditar, "Stock Ganadero");
   useHeaderBackStep(!!bulkOpen, volverBulk, "Stock Ganadero");
@@ -190,9 +221,29 @@ export default function StockGanadera({
     [busqueda, fechaDesde, fechaHasta]
   );
 
+  useEffect(() => {
+    setLoading(true);
+    if (!cacheScope) {
+      setRows([]);
+      setStatsRows([]);
+      setVentasClaves(new Set());
+      return;
+    }
+    const cache = readStockGanaderaPageCache(cacheScope);
+    if (!cache) {
+      setRows([]);
+      setStatsRows([]);
+      setVentasClaves(new Set());
+      return;
+    }
+    setRows(rowsDesdeCache(cache, filtrosInicialesKey));
+    setStatsRows(cache.statsRows);
+    setVentasClaves(ventasClavesDesdeCache(cache));
+  }, [cacheScope, filtrosInicialesKey]);
+
   const load = useCallback(async () => {
     if (!apiOnline) {
-      if (!readStockGanaderaPageCache()) {
+      if (!cacheScope || !readStockGanaderaPageCache(cacheScope)) {
         setRows([]);
         setStatsRows([]);
         setVentasClaves(new Set());
@@ -213,12 +264,15 @@ export default function StockGanadera({
       setRows(dispositivos);
       setStatsRows(todos);
       setVentasClaves(ventasSet);
-      writeStockGanaderaPageCache({
-        rows: dispositivos,
-        statsRows: todos,
-        ventasClaves: ventas.claves,
-        filtrosKey,
-      });
+      writeStockGanaderaPageCache(
+        {
+          rows: dispositivos,
+          statsRows: todos,
+          ventasClaves: ventas.claves,
+          filtrosKey,
+        },
+        cacheScope
+      );
       if (salidasRes.bajasReparadas > 0) {
         onSuccess?.(
           `Se sincronizaron ${salidasRes.bajasReparadas} baja(s) pendiente(s) desde ventas cerradas.`
@@ -229,7 +283,7 @@ export default function StockGanadera({
     } finally {
       setLoading(false);
     }
-  }, [apiOnline, filtros, onError, onSuccess]);
+  }, [apiOnline, cacheScope, filtros, onError, onSuccess]);
 
   useEffect(() => {
     load();
@@ -293,6 +347,7 @@ export default function StockGanadera({
   }, [rowsBase, filtroSexo, filtroEmpresa, filtroEstado, filtroEdad, filtroGrupoLibre, filtroCategoria, filtroSinFechaNac, filtroVentasCerradas, filtroSalidasSistema, ventasClaves]);
 
   const sinDatosPrevios = statsRows.length === 0 && rows.length === 0;
+  const kpisCargando = loading;
   const mostrarCargaVacia = loading && sinDatosPrevios;
 
   const activosCount = resumenKpis.activos.length;
@@ -330,7 +385,8 @@ export default function StockGanadera({
 
   const facetCounts = useMemo(() => {
     const sexo: Record<string, number> = { MACHO: 0, HEMBRA: 0, "": 0 };
-    const empresa: Record<string, number> = { GUAVIYU: 0, CHIVILCOY: 0, "": 0 };
+    const empresa: Record<string, number> = { "": 0 };
+    for (const e of empresasOperativas) empresa[e.codigo] = 0;
     const estado: Record<string, number> = {};
     const edad: Record<string, number> = {};
     const grupoLibre: Record<string, number> = {};
@@ -358,7 +414,7 @@ export default function StockGanadera({
       }
     }
     return { sexo, empresa, estado, edad, grupoLibre, categoria, sinFechaNac };
-  }, [rows]);
+  }, [rows, empresasOperativas]);
 
   const grupoLibreOpciones = useMemo(() => {
     const keys = Object.keys(facetCounts.grupoLibre).filter(
@@ -508,15 +564,18 @@ export default function StockGanadera({
     });
     setStatsRows((prev) => {
       const next = prev.map((r) => (r.clave === actualizado.clave ? actualizado : r));
-      const cached = readStockGanaderaPageCache();
-      if (cached) {
-        writeStockGanaderaPageCache({
-          ...cached,
-          rows: cached.filtrosKey === filtrosCacheKey(filtros)
-            ? cached.rows.map((r) => (r.clave === actualizado.clave ? actualizado : r))
-            : cached.rows,
-          statsRows: next,
-        });
+      const cached = cacheScope ? readStockGanaderaPageCache(cacheScope) : null;
+      if (cached && cacheScope) {
+        writeStockGanaderaPageCache(
+          {
+            ...cached,
+            rows: cached.filtrosKey === filtrosCacheKey(filtros)
+              ? cached.rows.map((r) => (r.clave === actualizado.clave ? actualizado : r))
+              : cached.rows,
+            statsRows: next,
+          },
+          cacheScope
+        );
       }
       return next;
     });
@@ -526,6 +585,7 @@ export default function StockGanadera({
     return (
       <StockGanaderaEditarPanel
         dispositivo={editarDispositivo}
+        empresas={empresasOperativas}
         apiOnline={apiOnline}
         onVolver={() => setEditarDispositivo(null)}
         onSaved={(actualizado) => {
@@ -544,6 +604,7 @@ export default function StockGanadera({
   if (bulkOpen) {
     return (
       <StockGanaderaBulkPanel
+        empresas={empresasOperativas}
         onVolver={() => setBulkOpen(false)}
         seleccionados={seleccionados}
         totalFiltrados={filteredRows.length}
@@ -625,7 +686,7 @@ export default function StockGanadera({
                 hint={`${activosCount} activos · ${salidasCount} salidas del sistema`}
                 variant="total"
                 sexoStats={sexoTotal}
-                loading={mostrarCargaVacia}
+                loading={kpisCargando}
               />
               <StockGanaderaDashKpi
                 label="Dispositivos activos"
@@ -633,7 +694,7 @@ export default function StockGanadera({
                 hint="En stock hoy (sin bajas)"
                 variant="activos"
                 sexoStats={sexoActivos}
-                loading={mostrarCargaVacia}
+                loading={kpisCargando}
               />
               <StockGanaderaDashKpi
                 label="Salidas del sistema"
@@ -641,7 +702,7 @@ export default function StockGanadera({
                 hint={salidasHint}
                 variant="salida"
                 sexoStats={sexoSalidas}
-                loading={mostrarCargaVacia}
+                loading={kpisCargando}
                 active={filtroSalidasSistema}
                 disabled={salidasCount === 0}
                 onClick={() => {
@@ -660,7 +721,7 @@ export default function StockGanadera({
                 }
                 variant="vendido"
                 sexoStats={sexoVentas}
-                loading={mostrarCargaVacia}
+                loading={kpisCargando}
                 active={filtroEstado.size === 1 && filtroEstado.has("VENDIDO")}
                 disabled={ventasCount === 0}
                 onClick={() => {
@@ -680,7 +741,7 @@ export default function StockGanadera({
                 hint="Registradas en salidas del sistema"
                 variant="muerto"
                 sexoStats={sexoMuertes}
-                loading={mostrarCargaVacia}
+                loading={kpisCargando}
                 active={filtroEstado.size === 1 && filtroEstado.has("MUERTO")}
                 disabled={muertesCount === 0}
                 onClick={() => {
@@ -698,7 +759,7 @@ export default function StockGanadera({
                 hint="Registrados como extraviados en salidas"
                 variant="extraviado"
                 sexoStats={sexoExtraviados}
-                loading={mostrarCargaVacia}
+                loading={kpisCargando}
                 active={filtroEstado.size === 1 && filtroEstado.has("PERDIDO")}
                 disabled={extraviadosCount === 0}
                 onClick={() => {
@@ -717,6 +778,7 @@ export default function StockGanadera({
         <div className="stock-ganadera-layout">
           {apiOnline && (
             <StockGanaderaFiltrosSidebar
+              empresaOpciones={empresaOpciones}
               fechaDesde={fechaDesde}
               fechaHasta={fechaHasta}
               onFechaDesde={setFechaDesde}

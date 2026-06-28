@@ -366,12 +366,16 @@ export const ventaGrupoIconos = {
 };
 
 export const stockGanadero = {
-  listLotes: () => stock.listStockGanaderoLotes(db),
+  listLotes: (filters?: stock.StockGanaderoFilters) =>
+    stock.listStockGanaderoLotes(db, filters),
   getLote: (id: number) => stock.getStockGanaderoLoteById(db, id),
   listRegistros: (filters?: stock.StockGanaderoFilters) =>
     stock.listStockGanaderoRegistros(db, filters),
-  importRows: (nombreArchivo: string, rows: stock.StockGanaderoRowInput[]) =>
-    stock.importStockGanaderoRows(db, nombreArchivo, rows),
+  importRows: (
+    nombreArchivo: string,
+    rows: stock.StockGanaderoRowInput[],
+    cuentaId?: number | null
+  ) => stock.importStockGanaderoRows(db, nombreArchivo, rows, cuentaId),
   importBaja: (
     rows: stock.StockGanaderoRowInput[],
     tipo_baja: stock.TipoBaja,
@@ -385,7 +389,8 @@ export const stockGanadero = {
   importBajaDetalle: (items: stock.BajaDispositivoItemInput[], autor?: stock.HistorialAutor) =>
     stock.importBajaDetalle(db, items, autor),
   deleteLote: (id: number) => stock.deleteStockGanaderoLote(db, id),
-  countRegistros: () => stock.countStockGanaderoRegistros(db),
+  countRegistros: (filters?: stock.StockGanaderoFilters) =>
+    stock.countStockGanaderoRegistros(db, filters),
   estadisticas: (filters?: stock.StockGanaderoFilters) =>
     stock.getStockGanaderoEstadisticas(db, filters),
   listDispositivos: (filters?: stock.StockGanaderoFilters) =>

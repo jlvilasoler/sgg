@@ -3,6 +3,7 @@ import type { StockGanaderaDispositivo } from "../../types";
 const STORAGE_KEY = "scg:stock-ganadera-page";
 
 export interface StockGanaderaPageCache {
+  scopeKey: string;
   rows: StockGanaderaDispositivo[];
   statsRows: StockGanaderaDispositivo[];
   ventasClaves: string[];
@@ -10,6 +11,13 @@ export interface StockGanaderaPageCache {
 }
 
 let memCache: StockGanaderaPageCache | null = null;
+
+export function stockGanaderaCacheScope(user: {
+  id: number;
+  empresa_id: number | null;
+}): string {
+  return `${user.id}:${user.empresa_id ?? "na"}`;
+}
 
 export function filtrosCacheKey(filtros: {
   busqueda?: string;
@@ -28,23 +36,33 @@ function readSessionCache(): StockGanaderaPageCache | null {
     const raw = sessionStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as StockGanaderaPageCache;
-    if (!Array.isArray(parsed.statsRows)) return null;
+    if (!parsed.scopeKey || !Array.isArray(parsed.statsRows)) return null;
     return parsed;
   } catch {
     return null;
   }
 }
 
-export function readStockGanaderaPageCache(): StockGanaderaPageCache | null {
-  if (memCache) return memCache;
-  memCache = readSessionCache();
-  return memCache;
+export function readStockGanaderaPageCache(scopeKey: string): StockGanaderaPageCache | null {
+  if (!scopeKey) return null;
+  const cache = memCache ?? readSessionCache();
+  if (!cache || cache.scopeKey !== scopeKey) {
+    if (memCache && memCache.scopeKey !== scopeKey) memCache = null;
+    return null;
+  }
+  memCache = cache;
+  return cache;
 }
 
-export function writeStockGanaderaPageCache(cache: StockGanaderaPageCache): void {
-  memCache = cache;
+export function writeStockGanaderaPageCache(
+  cache: Omit<StockGanaderaPageCache, "scopeKey">,
+  scopeKey: string
+): void {
+  if (!scopeKey) return;
+  const full: StockGanaderaPageCache = { ...cache, scopeKey };
+  memCache = full;
   try {
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(cache));
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(full));
   } catch {
     /* quota / modo privado */
   }

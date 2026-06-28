@@ -61,6 +61,7 @@ const WRITE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
 function canAccessModulo(user: UserPublic, modulo: Modulo): boolean {
   if (authDb.MODULOS_TODOS_LOS_USUARIOS.includes(modulo)) return true;
+  if (modulo === "documentos_digitales") return Boolean(user.es_super_admin);
   if (authDb.MODULOS_SOLO_ADMIN.includes(modulo)) return user.rol === "admin";
   if (user.rol === "admin") return true;
   return user.permisos.includes(modulo);
@@ -79,6 +80,9 @@ function canWriteInModulo(user: UserPublic, modulo: Modulo | null): boolean {
 function effectiveModuloForPath(user: UserPublic, path: string): Modulo | null {
   const p = path.toLowerCase();
   if (p === "/api/documentos-digitales/parse-brou-transferencia") {
+    return "presupuesto";
+  }
+  if (p === "/api/documentos-digitales/leer-comprobante") {
     return "presupuesto";
   }
   const modulo = moduleFromApiPath(path);
@@ -214,13 +218,23 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
   const modulo = effectiveModuloForPath(user, path);
   const stockDispositivosLectura =
     req.method === "GET" && path.startsWith("/api/stock-ganadero/dispositivos");
+  const empresasOperativasLectura =
+    req.method === "GET" && path.startsWith("/api/empresas-operativas");
   const tiposGastoLectura =
     req.method === "GET" && path.startsWith("/api/documentos-digitales/tipos-gasto");
+  const actividadLectura =
+    req.method === "GET" &&
+    (path === "/api/auth/actividad" || path === "/api/auth/actividad/online");
 
   if (
     modulo &&
     !canAccessModulo(user, modulo) &&
     !stockDispositivosLectura &&
+    !actividadLectura &&
+    !(
+      empresasOperativasLectura &&
+      (canAccessModulo(user, "presupuesto") || canAccessModulo(user, "stock"))
+    ) &&
     !(tiposGastoLectura && canAccessModulo(user, "presupuesto"))
   ) {
     res.status(403).json({ ok: false, error: "Sin permiso para este módulo" });
@@ -784,9 +798,16 @@ export function registerAuthRoutes(app: Express): void {
   });
 
   app.get("/api/auth/actividad/online", async (req, res) => {
-    if (!requireAdmin(req, res)) return;
+    const actor = req.user;
+    if (!actor) {
+      res.status(401).json({ ok: false, error: "No autenticado" });
+      return;
+    }
     const db = getDb();
-    const base = listOnlineUsers();
+    const allowedIds = await authDb.resolveActividadOnlineUserIds(db, actor);
+    const base = listOnlineUsers().filter(
+      (u) => allowedIds === null || allowedIds.includes(u.id)
+    );
     const data = [];
     for (const u of base) {
       const row = (await db
@@ -822,14 +843,28 @@ export function registerAuthRoutes(app: Express): void {
   });
 
   app.get("/api/auth/actividad", async (req, res) => {
-    if (!requireAdmin(req, res)) return;
+    const actor = req.user;
+    if (!actor) {
+      res.status(401).json({ ok: false, error: "No autenticado" });
+      return;
+    }
     try {
       const email = String(req.query.email ?? "").trim() || undefined;
       const evento = String(req.query.evento ?? "").trim() || undefined;
       const limite = req.query.limite ? Number(req.query.limite) : undefined;
       const offset = req.query.offset ? Number(req.query.offset) : undefined;
+      const scopeResult = await authDb.resolveAuthAuditLogScope(
+        getDb(),
+        actor,
+        email
+      );
+      if (!scopeResult.ok) {
+        res.status(403).json({ ok: false, error: scopeResult.error });
+        return;
+      }
       const page = await authDb.listAuthAuditLog(getDb(), {
-        email,
+        email: scopeResult.filters.email,
+        scope: scopeResult.filters.scope,
         evento,
         limite: Number.isFinite(limite) ? limite : undefined,
         offset: Number.isFinite(offset) ? offset : undefined,
@@ -904,12 +939,12 @@ export function registerAuthRoutes(app: Express): void {
   });
 
   app.get("/api/auth/role-permissions", async (req, res) => {
-    if (!requireAdmin(req, res)) return;
+    if (!requireSuperAdmin(req, res)) return;
     res.json({ ok: true, data: await authDb.listRolePermissions(getDb()) });
   });
 
   app.patch("/api/auth/role-permissions/:rol", async (req, res) => {
-    if (!requireAdmin(req, res)) return;
+    if (!requireSuperAdmin(req, res)) return;
     try {
       const rol = String(req.params.rol) as authDb.Rol;
       if (!authDb.isValidRol(rol)) {

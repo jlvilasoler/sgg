@@ -3,6 +3,7 @@ import type { TabId } from "./Header";
 import type { AuthUser } from "../types";
 import {
   canAccessArquitecturaSistema,
+  canAccessPermisosPorRol,
   canAccessStockMovimientos,
   canAccessUsuarioActividad,
 } from "../utils/auth-permissions";
@@ -100,7 +101,7 @@ export default function UsuariosHub({
         label: "Permisos por rol",
         subtitle: "Sectores y acceso de Gestor, Consulta, etc.",
         icon: { type: "hub", id: "usuarios_permisos_rol" },
-        visible: true,
+        visible: canAccessPermisosPorRol(user),
       },
       {
         id: "registro_actividad",
@@ -129,6 +130,12 @@ export default function UsuariosHub({
 
   const itemsVisibles = submenu.filter((item) => item.visible);
 
+  useEffect(() => {
+    if (vista === "permisos_por_rol" && !canAccessPermisosPorRol(user)) {
+      setVista("menu");
+    }
+  }, [vista, user]);
+
   if (vista === "usuarios_cuentas") {
     return (
       <Usuarios
@@ -142,7 +149,7 @@ export default function UsuariosHub({
     );
   }
 
-  if (vista === "permisos_por_rol") {
+  if (vista === "permisos_por_rol" && canAccessPermisosPorRol(user)) {
     return (
       <UsuariosRolesPanel
         apiOnline={apiOnline}
@@ -159,6 +166,7 @@ export default function UsuariosHub({
     return (
       <UsuariosActividad
         apiOnline={apiOnline}
+        currentUser={user}
         volverLabel="Volver a Usuarios"
         onError={onError}
         onVolver={volverMenu}

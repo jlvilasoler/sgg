@@ -66,6 +66,11 @@ export const MENU_APPS: MenuApp[] = [
     subtitle: "Importar lecturas EID desde archivo o carga manual",
   },
   {
+    id: "registro_actividad",
+    label: "Registro de actividad",
+    subtitle: "Historial de accesos y acciones en el sistema",
+  },
+  {
     id: "usuarios",
     label: "Usuarios",
     subtitle: "Administración del sistema",

@@ -11,6 +11,7 @@ import {
   retryDbInit,
 } from "./api";
 import { DEFAULT_CATALOGOS } from "./constants";
+import { clearStockGanaderaPageCache } from "./components/stock/stock-ganadera-page-cache";
 import type { AuthUser, Catalogos, Presupuesto } from "./types";
 import type { TabId } from "./components/Header";
 import HomeMenu, { type ScreenId } from "./components/HomeMenu";
@@ -21,6 +22,7 @@ import LoginScreen from "./components/LoginScreen";
 import ForgotPasswordScreen from "./components/ForgotPasswordScreen";
 import ResetPasswordScreen from "./components/ResetPasswordScreen";
 import UsuariosHub from "./components/UsuariosHub";
+import UsuariosActividad from "./components/UsuariosActividad";
 import ArquitecturaSistema from "./components/ArquitecturaSistema";
 import FormGasto from "./components/FormGasto";
 import Listado from "./components/Listado";
@@ -280,6 +282,7 @@ export default function App() {
       /* cerrar sesión local aunque falle la API */
     }
     setUser(null);
+    clearStockGanaderaPageCache();
     navHistoryRef.current = [];
     setNavHistory([]);
     setScreen("home");
@@ -564,6 +567,15 @@ export default function App() {
                 onPermissionsChanged={() => void refreshUser()}
               />
             )}
+            {screen === "registro_actividad" && user && (
+              <UsuariosActividad
+                apiOnline={apiOnline}
+                currentUser={user}
+                volverLabel="Volver al inicio"
+                onError={(m) => notify(m, false)}
+                onVolver={goHome}
+              />
+            )}
             {screen === "panel_admin_sitio" && user && (
               <ArquitecturaSistema
                 apiOnline={apiOnline}
@@ -574,7 +586,7 @@ export default function App() {
                 onSuccess={(m) => notify(m, true)}
               />
             )}
-            {screen === "documentos_digitales" && user?.rol === "admin" && (
+            {screen === "documentos_digitales" && user?.es_super_admin && (
               <DocumentosDigitales
                 apiOnline={apiOnline}
                 onVolver={goHome}

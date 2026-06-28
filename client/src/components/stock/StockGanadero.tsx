@@ -100,6 +100,7 @@ export default function StockGanadero({
     return (
       <StockGanaderoImportar
         apiOnline={apiOnline}
+        currentUser={currentUser}
         onImported={() => {
           setListRefresh((k) => k + 1);
           setVista("listado");

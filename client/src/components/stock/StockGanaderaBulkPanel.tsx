@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { bulkPatchStockGanaderaDispositivos } from "../../api";
+import { bulkPatchStockGanaderaDispositivos, type EmpresaOperativaStock } from "../../api";
 import { useHeaderBackStep } from "../../header-back";
 import type {
   DispositivoEmpresa,
@@ -22,6 +22,7 @@ import {
 } from "./stock-ganadera-utils";
 
 interface Props {
+  empresas: EmpresaOperativaStock[];
   onVolver: () => void;
   seleccionados: StockGanaderaDispositivo[];
   totalFiltrados: number;
@@ -34,6 +35,7 @@ interface Props {
 }
 
 export default function StockGanaderaBulkPanel({
+  empresas,
   onVolver,
   seleccionados,
   totalFiltrados,
@@ -172,6 +174,7 @@ export default function StockGanaderaBulkPanel({
             Empresa
           </span>
           <SelectEmpresaDispositivo
+            empresas={empresas}
             value={empresa}
             onChange={(e) =>
               setEmpresa(e === EMPRESA_PENDIENTE ? "" : (e as DispositivoEmpresa))

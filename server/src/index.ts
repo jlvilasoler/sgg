@@ -435,6 +435,27 @@ app.get("/api/catalogos", async (req, res) => {
 
 app.get("/api/empresas-operativas", async (req, res) => {
   const user = req.user!;
+  const formato = String(req.query.formato ?? "nombre").toLowerCase();
+  if (formato === "stock") {
+    const detalle = await empresasCuenta.getEmpresasOperativasDetallePermitidas(
+      db.getDb(),
+      user
+    );
+    res.json({ ok: true, data: detalle });
+    return;
+  }
+  if (formato === "codigo") {
+    if (user.es_super_admin) {
+      res.json({ ok: true, data: await empresasCuenta.getEmpresaCodigosActivos(db.getDb()) });
+      return;
+    }
+    const permitidas = await empresasCuenta.getEmpresasCodigosOperativasPermitidas(
+      db.getDb(),
+      user
+    );
+    res.json({ ok: true, data: permitidas ?? [] });
+    return;
+  }
   if (user.es_super_admin) {
     res.json({ ok: true, data: await empresasCuenta.getEmpresaNombresActivos(db.getDb()) });
     return;
@@ -491,6 +512,30 @@ async function stockGanaderoFiltersFromRequest(
   const empresas = await empresasCuenta.getEmpresasScopeFilter(db.getDb(), user);
   if (!empresas) return base;
   return { ...base, empresas };
+}
+
+/** Filtro por cuenta madre para lotes y lecturas importadas. */
+async function stockLecturasFiltersFromRequest(
+  req: Request,
+  base: StockGanaderoFilters = {}
+): Promise<StockGanaderoFilters> {
+  const user = req.user;
+  if (!user || user.es_super_admin) return base;
+  const cuentaId = await cuentaIdForUser(user);
+  if (!cuentaId) return { ...base, cuenta_id: 0 };
+  return { ...base, cuenta_id: cuentaId };
+}
+
+async function assertLoteEnCuentaUsuario(req: Request, loteId: number): Promise<void> {
+  const lote = await db.stockGanadero.getLote(loteId);
+  if (!lote) throw new Error("Lote no encontrado");
+  const user = req.user!;
+  if (user.es_super_admin) return;
+  const cuentaId = await cuentaIdForUser(user);
+  const loteCuenta = lote.cuenta_id ?? null;
+  if (!cuentaId || loteCuenta !== cuentaId) {
+    throw new Error("Sin permiso sobre esta importación");
+  }
 }
 
 function stockGanaderoQueryBase(req: Request): StockGanaderoFilters {
@@ -794,6 +839,44 @@ async function assertEmpresaPermitida(user: UserPublic, empresa: string): Promis
   const permitidas = await empresasPermitidas(user);
   if (!permitidas.includes(nombre)) {
     throw new Error("Empresa inválida o no pertenece a su cuenta.");
+  }
+}
+
+async function empresasCodigosPermitidos(user: UserPublic): Promise<string[]> {
+  const scope = await empresasCuenta.getEmpresasCodigosOperativasPermitidas(
+    db.getDb(),
+    user
+  );
+  if (scope === null) {
+    return await empresasCuenta.getEmpresaCodigosActivos(db.getDb());
+  }
+  return scope;
+}
+
+async function assertEmpresaCodigoPermitida(
+  user: UserPublic,
+  codigo: string
+): Promise<void> {
+  const normalized = codigo.trim().toUpperCase();
+  if (!normalized) return;
+  if (user.es_super_admin) {
+    if (!(await empresasCuenta.isValidEmpresaCodigo(db.getDb(), normalized))) {
+      throw new Error("Empresa inválida o inactiva.");
+    }
+    return;
+  }
+  const permitidas = await empresasCodigosPermitidos(user);
+  if (!permitidas.includes(normalized)) {
+    throw new Error("Empresa inválida o no pertenece a su cuenta.");
+  }
+}
+
+async function assertStockImportRowsEmpresas(
+  user: UserPublic,
+  rows: Array<{ empresa?: string }>
+): Promise<void> {
+  for (const row of rows) {
+    await assertEmpresaCodigoPermitida(user, String(row.empresa ?? ""));
   }
 }
 
@@ -1468,34 +1551,51 @@ app.delete("/api/venta-grupo-iconos/:grupo/imagen", async (req, res) => {
   }
 });
 
-app.get("/api/stock-ganadero/lotes", async (_req, res) => {
-  res.json({ ok: true, data: await db.stockGanadero.listLotes() });
+app.get("/api/stock-ganadero/ultima-importacion-archivo", async (req, res) => {
+  const filters = await stockLecturasFiltersFromRequest(req);
+  const lotes = await db.stockGanadero.listLotes(filters);
+  const lote = lotes.find((l) => l.nombre_archivo !== "carga-manual");
+  if (!lote) {
+    res.json({ ok: true, data: null });
+    return;
+  }
+  res.json({
+    ok: true,
+    data: { id: lote.id, nombre: lote.nombre_archivo, filas: lote.filas },
+  });
+});
+
+app.get("/api/stock-ganadero/lotes", async (req, res) => {
+  const filters = await stockLecturasFiltersFromRequest(req);
+  res.json({ ok: true, data: await db.stockGanadero.listLotes(filters) });
 });
 
 app.get("/api/stock-ganadero/registros", async (req, res) => {
   const loteId = req.query.lote_id ? Number(req.query.lote_id) : undefined;
+  const filters = await stockLecturasFiltersFromRequest(req, {
+    lote_id: loteId && Number.isFinite(loteId) ? loteId : undefined,
+    busqueda: req.query.busqueda as string | undefined,
+    fecha_desde: req.query.fecha_desde as string | undefined,
+    fecha_hasta: req.query.fecha_hasta as string | undefined,
+    solo_repetidos: req.query.solo_repetidos === "1" || req.query.solo_repetidos === "true",
+  });
   res.json({
     ok: true,
-    data: await db.stockGanadero.listRegistros({
-      lote_id: loteId && Number.isFinite(loteId) ? loteId : undefined,
-      busqueda: req.query.busqueda as string | undefined,
-      fecha_desde: req.query.fecha_desde as string | undefined,
-      fecha_hasta: req.query.fecha_hasta as string | undefined,
-      solo_repetidos: req.query.solo_repetidos === "1" || req.query.solo_repetidos === "true",
-    }),
+    data: await db.stockGanadero.listRegistros(filters),
   });
 });
 
 app.get("/api/stock-ganadero/estadisticas", async (req, res) => {
   const loteId = req.query.lote_id ? Number(req.query.lote_id) : undefined;
+  const filters = await stockLecturasFiltersFromRequest(req, {
+    lote_id: loteId && Number.isFinite(loteId) ? loteId : undefined,
+    busqueda: req.query.busqueda as string | undefined,
+    fecha_desde: req.query.fecha_desde as string | undefined,
+    fecha_hasta: req.query.fecha_hasta as string | undefined,
+  });
   res.json({
     ok: true,
-    data: await db.stockGanadero.estadisticas({
-      lote_id: loteId && Number.isFinite(loteId) ? loteId : undefined,
-      busqueda: req.query.busqueda as string | undefined,
-      fecha_desde: req.query.fecha_desde as string | undefined,
-      fecha_hasta: req.query.fecha_hasta as string | undefined,
-    }),
+    data: await db.stockGanadero.estadisticas(filters),
   });
 });
 
@@ -1503,6 +1603,14 @@ app.get("/api/stock-ganadero/salidas", async (req, res) => {
   const filters = await stockGanaderoFiltersFromRequest(req, stockGanaderoQueryBase(req));
   const { data, bajas_reparadas } = await db.stockGanadero.listSalidas(filters);
   res.json({ ok: true, data, bajas_reparadas });
+});
+
+app.get("/api/stock-ganadero/empresas-operativas", async (req, res) => {
+  const detalle = await empresasCuenta.getEmpresasOperativasDetallePermitidas(
+    db.getDb(),
+    req.user!
+  );
+  res.json({ ok: true, data: detalle });
 });
 
 app.get("/api/stock-ganadero/dispositivos", async (req, res) => {
@@ -1558,10 +1666,9 @@ app.patch("/api/stock-ganadero/dispositivos/bulk", async (req, res) => {
       metaPatch.sexo = String(patch.sexo).toUpperCase() as "" | "MACHO" | "HEMBRA";
     }
     if (patch.empresa !== undefined) {
-      metaPatch.empresa = String(patch.empresa).toUpperCase() as
-        | ""
-        | "GUAVIYU"
-        | "CHIVILCOY";
+      const empresa = String(patch.empresa).trim().toUpperCase();
+      await assertEmpresaCodigoPermitida(req.user!, empresa);
+      metaPatch.empresa = empresa;
     }
     if (patch.nacimiento_mes !== undefined) {
       const v = patch.nacimiento_mes;
@@ -1729,10 +1836,8 @@ app.patch("/api/stock-ganadero/dispositivos/:clave", async (req, res) => {
   try {
     const body = req.body ?? {};
     const sexo = String(body.sexo ?? "").toUpperCase() as "" | "MACHO" | "HEMBRA";
-    const empresa = String(body.empresa ?? "").toUpperCase() as
-      | ""
-      | "GUAVIYU"
-      | "CHIVILCOY";
+    const empresa = String(body.empresa ?? "").trim().toUpperCase();
+    await assertEmpresaCodigoPermitida(req.user!, empresa);
     const mesRaw = body.nacimiento_mes;
     const nacimiento_mes =
       mesRaw === null || mesRaw === undefined || mesRaw === ""
@@ -1835,12 +1940,13 @@ app.patch("/api/stock-ganadero/dispositivos/:clave/edad", async (req, res) => {
 
 app.get("/api/stock-ganadero/resumen", async (req, res) => {
   const filters = await stockGanaderoFiltersFromRequest(req);
-  const lotes = await db.stockGanadero.listLotes();
+  const lecturasFilters = await stockLecturasFiltersFromRequest(req);
+  const lotes = await db.stockGanadero.listLotes(lecturasFilters);
   res.json({
     ok: true,
     data: {
       lotes: lotes.length,
-      registros: await db.stockGanadero.countRegistros(),
+      registros: await db.stockGanadero.countRegistros(lecturasFilters),
       dispositivos: await db.stockGanadero.countDispositivos(filters),
       dispositivos_total: await db.stockGanadero.countDispositivosTotal(filters),
       ventas_dispositivos: await db.simuladorVentaDispositivos.countEnVentasCerradas(),
@@ -1864,7 +1970,12 @@ app.post("/api/stock-ganadero/import/file", upload.single("file"), async (req, r
       return;
     }
     const rows = await parseStockGanaderoFile(file.buffer, file.originalname || "import.txt");
-    const result = await db.stockGanadero.importRows(file.originalname || "import.txt", rows);
+    const cuentaId = await cuentaIdParaInsert(req.user!);
+    const result = await db.stockGanadero.importRows(
+      file.originalname || "import.txt",
+      rows,
+      cuentaId
+    );
     const lote = await db.stockGanadero.getLote(result.lote_id);
     if (result.insertados > 0) {
       await auditStockMovimiento(req, "ALTA", {
@@ -1891,7 +2002,8 @@ app.post("/api/stock-ganadero/import/text", async (req, res) => {
     const texto = String((req.body as { texto?: string }).texto ?? "");
     const nombre = String((req.body as { nombre_archivo?: string }).nombre_archivo ?? "pegado.txt");
     const rows = parseStockGanaderoText(texto);
-    const result = await db.stockGanadero.importRows(nombre, rows);
+    const cuentaId = await cuentaIdParaInsert(req.user!);
+    const result = await db.stockGanadero.importRows(nombre, rows, cuentaId);
     const lote = await db.stockGanadero.getLote(result.lote_id);
     if (result.insertados > 0) {
       await auditStockMovimiento(req, "ALTA", {
@@ -1924,8 +2036,10 @@ app.post("/api/stock-ganadero/import/rows", async (req, res) => {
       nombre_archivo?: string;
     };
     const rows = normalizeStockGanaderoRows(body.rows ?? []);
+    await assertStockImportRowsEmpresas(req.user!, rows);
     const nombre = String(body.nombre_archivo ?? "carga-manual").trim() || "carga-manual";
-    const result = await db.stockGanadero.importRows(nombre, rows);
+    const cuentaId = await cuentaIdParaInsert(req.user!);
+    const result = await db.stockGanadero.importRows(nombre, rows, cuentaId);
     const lote = await db.stockGanadero.getLote(result.lote_id);
     if (result.insertados > 0) {
       await auditStockMovimiento(req, "ALTA", {
@@ -2176,6 +2290,15 @@ app.post("/api/stock-ganadero/baja/dispositivos", async (req, res) => {
 
 app.delete("/api/stock-ganadero/lotes/:id", async (req, res) => {
   const id = Number(req.params.id);
+  try {
+    await assertLoteEnCuentaUsuario(req, id);
+  } catch (e) {
+    res.status(403).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Sin permiso sobre esta importación",
+    });
+    return;
+  }
   if (!await db.stockGanadero.deleteLote(id)) {
     res.status(404).json({ ok: false, error: "Lote no encontrado" });
     return;

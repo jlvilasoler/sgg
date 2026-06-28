@@ -529,6 +529,47 @@ export async function getEmpresaCodigosActivos(db: Db): Promise<string[]> {
   return rows.map((r) => r.codigo);
 }
 
+export async function getEmpresaCodigosActivosPorCuenta(
+  db: Db,
+  cuentaId: number
+): Promise<string[]> {
+  const rows = (await db
+    .prepare(
+      `SELECT op.codigo
+       FROM EMPRESAS_OPERATIVAS op
+       INNER JOIN EMPRESAS_CUENTA c ON c.id = op.cuenta_id
+       WHERE op.cuenta_id = ? AND op.activo = 1 AND c.activo = 1
+       ORDER BY op.codigo ASC`
+    )
+    .all(cuentaId)) as { codigo: string }[];
+  return rows.map((r) => r.codigo);
+}
+
+export async function getEmpresasOperativasDetalleActivas(
+  db: Db
+): Promise<Array<{ codigo: string; nombre: string }>> {
+  const rows = (await db
+    .prepare(
+      `SELECT op.codigo, op.nombre
+       FROM EMPRESAS_OPERATIVAS op
+       INNER JOIN EMPRESAS_CUENTA c ON c.id = op.cuenta_id
+       WHERE op.activo = 1 AND c.activo = 1
+       ORDER BY LOWER(op.nombre) ASC`
+    )
+    .all()) as { codigo: string; nombre: string }[];
+  return rows.map((r) => ({ codigo: r.codigo, nombre: r.nombre }));
+}
+
+export async function getEmpresasOperativasDetallePorCuenta(
+  db: Db,
+  cuentaId: number
+): Promise<Array<{ codigo: string; nombre: string }>> {
+  const ops = await listEmpresasOperativas(db, cuentaId);
+  return ops
+    .filter((o) => o.activo)
+    .map((o) => ({ codigo: o.codigo, nombre: o.nombre }));
+}
+
 /** ID de la cuenta madre semilla (VILA DIAZ). Usado para backfill de datos legacy. */
 export async function getSeedCuentaMadreId(db: Db): Promise<number | null> {
   return await getCuentaIdByCodigo(db, SEED_CUENTA_MADRE.codigo);
@@ -909,9 +950,9 @@ export async function resolveCuentaMadreIdForUser(
   db: Db,
   user: { id: number; es_super_admin?: boolean; empresa_id?: number | null }
 ): Promise<number | null> {
-  if (user.es_super_admin) return null;
   const cuentaAdmin = await getEmpresaCuentaByAdminUserId(db, user.id);
   if (cuentaAdmin) return cuentaAdmin.id;
+  if (user.es_super_admin) return null;
   if (user.empresa_id != null && Number.isFinite(Number(user.empresa_id))) {
     return Number(user.empresa_id);
   }
@@ -926,10 +967,30 @@ export async function getEmpresasOperativasPermitidas(
   db: Db,
   user: { id: number; es_super_admin?: boolean; empresa_id?: number | null }
 ): Promise<string[] | null> {
-  if (user.es_super_admin) return null;
   const cuentaId = await resolveCuentaMadreIdForUser(db, user);
-  if (!cuentaId) return [];
-  return await getEmpresaNombresActivosPorCuenta(db, cuentaId);
+  if (cuentaId) return await getEmpresaNombresActivosPorCuenta(db, cuentaId);
+  if (user.es_super_admin) return null;
+  return [];
+}
+
+export async function getEmpresasCodigosOperativasPermitidas(
+  db: Db,
+  user: { id: number; es_super_admin?: boolean; empresa_id?: number | null }
+): Promise<string[] | null> {
+  const cuentaId = await resolveCuentaMadreIdForUser(db, user);
+  if (cuentaId) return await getEmpresaCodigosActivosPorCuenta(db, cuentaId);
+  if (user.es_super_admin) return null;
+  return [];
+}
+
+export async function getEmpresasOperativasDetallePermitidas(
+  db: Db,
+  user: { id: number; es_super_admin?: boolean; empresa_id?: number | null }
+): Promise<Array<{ codigo: string; nombre: string }>> {
+  const cuentaId = await resolveCuentaMadreIdForUser(db, user);
+  if (cuentaId) return await getEmpresasOperativasDetallePorCuenta(db, cuentaId);
+  if (user.es_super_admin) return await getEmpresasOperativasDetalleActivas(db);
+  return [];
 }
 
 /** Lista para filtros SQL/API; usa marcador si la cuenta no tiene operativas. */

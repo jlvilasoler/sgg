@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import type { DispositivoEstado, DispositivoEmpresa } from "../../types";
+import type { DispositivoEstado } from "../../types";
 import {
   CATEGORIA_FILTRO_HEMBRA,
   CATEGORIA_FILTRO_MACHO,
@@ -25,6 +25,7 @@ interface Props {
   fechaHasta: string;
   onFechaDesde: (v: string) => void;
   onFechaHasta: (v: string) => void;
+  empresaOpciones: Array<{ key: string; label: string }>;
   filtroSexo: Set<string>;
   filtroEmpresa: Set<string>;
   filtroEstado: Set<DispositivoEstado>;
@@ -59,12 +60,6 @@ const SEXO_OPCIONES = [
   { key: "HEMBRA", label: "Hembra" },
   { key: "", label: "Sin definir" },
 ] as const;
-
-const EMPRESA_OPCIONES: { key: DispositivoEmpresa | ""; label: string }[] = [
-  { key: "GUAVIYU", label: "Guaviyú" },
-  { key: "CHIVILCOY", label: "Chivilcoy" },
-  { key: "", label: "Sin definir" },
-];
 
 function FacetGroup({
   title,
@@ -123,6 +118,7 @@ export default function StockGanaderaFiltrosSidebar({
   fechaHasta,
   onFechaDesde,
   onFechaHasta,
+  empresaOpciones,
   filtroSexo,
   filtroEmpresa,
   filtroEstado,
@@ -228,7 +224,7 @@ export default function StockGanaderaFiltrosSidebar({
           showClear={filtroEmpresa.size > 0}
           onClear={onLimpiarEmpresa}
         >
-          {EMPRESA_OPCIONES.map((o) => (
+          {empresaOpciones.map((o) => (
             <FacetOption
               key={o.key || "sin"}
               checked={filtroEmpresa.has(o.key)}

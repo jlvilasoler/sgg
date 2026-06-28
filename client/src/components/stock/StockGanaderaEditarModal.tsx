@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { saveStockGanaderaDispositivo } from "../../api";
+import { saveStockGanaderaDispositivo, type EmpresaOperativaStock } from "../../api";
 import { useHeaderBackStep } from "../../header-back";
 import type {
   DispositivoEmpresa,
@@ -31,6 +31,7 @@ import {
 
 interface Props {
   dispositivo: StockGanaderaDispositivo;
+  empresas: EmpresaOperativaStock[];
   apiOnline: boolean;
   onVolver: () => void;
   volverLabel?: string;
@@ -41,6 +42,7 @@ interface Props {
 
 export default function StockGanaderaEditarPanel({
   dispositivo,
+  empresas,
   apiOnline,
   onVolver,
   volverLabel = "Volver a Stock Ganadero",
@@ -248,6 +250,7 @@ export default function StockGanaderaEditarPanel({
                   <label htmlFor="edit-ganadera-empresa">Empresa</label>
                   <SelectEmpresaDispositivo
                     id="edit-ganadera-empresa"
+                    empresas={empresas}
                     value={empresa}
                     disabled={guardando || !apiOnline}
                     onChange={(e) =>

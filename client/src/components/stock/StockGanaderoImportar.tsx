@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useId, useRef, useState, type FormEvent } from "react";
 import {
   deleteStockGanaderoLote,
-  fetchStockGanaderoLotes,
+  fetchEmpresasOperativasStock,
+  fetchStockGanaderoUltimaImportacionArchivo,
   importStockGanaderoFile,
   importStockGanaderoRows,
 } from "../../api";
-import type { DispositivoEmpresa, StockGanaderoLote } from "../../types";
+import type { AuthUser, DispositivoEmpresa } from "../../types";
 import { confirmAction } from "../../utils/confirm";
 import SelectEmpresaDispositivo, {
   EMPRESA_PENDIENTE,
@@ -15,6 +16,7 @@ import { EID_PREFIX_LEN, splitEidVid } from "./stock-ganadera-utils";
 
 interface Props {
   apiOnline: boolean;
+  currentUser?: AuthUser | null;
   onImported: () => void;
   onError: (msg: string) => void;
   onSuccess: (msg: string, title?: string) => void;
@@ -43,23 +45,12 @@ interface FormLectura {
 
 const COLUMNAS = ["EID", "VID", "Date", "Time", "Condición"] as const;
 const EXTENSIONES_ACEPTADAS = [".txt", ".csv", ".xlsx", ".xls"] as const;
-const CARGA_MANUAL_LOTE = "carga-manual";
 const EID_PREFIJO = "858";
 
 interface UltimaImportacionArchivo {
   id: number;
   nombre: string;
   filas: number;
-}
-
-function esImportacionPorArchivo(lote: Pick<StockGanaderoLote, "nombre_archivo">): boolean {
-  return lote.nombre_archivo !== CARGA_MANUAL_LOTE;
-}
-
-function ultimaImportacionDesdeLotes(lotes: StockGanaderoLote[]): UltimaImportacionArchivo | null {
-  const lote = lotes.find(esImportacionPorArchivo);
-  if (!lote) return null;
-  return { id: lote.id, nombre: lote.nombre_archivo, filas: lote.filas };
 }
 
 function fechaHoy(): string {
@@ -147,6 +138,7 @@ function nextLecturaId(): string {
 
 export default function StockGanaderoImportar({
   apiOnline,
+  currentUser,
   onImported,
   onError,
   onSuccess,
@@ -161,25 +153,63 @@ export default function StockGanaderoImportar({
   const [undoing, setUndoing] = useState(false);
   const [ultimaImportacionArchivo, setUltimaImportacionArchivo] =
     useState<UltimaImportacionArchivo | null>(null);
+  const [ultimaImportacionLoading, setUltimaImportacionLoading] = useState(true);
   const [dragOver, setDragOver] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const [empresas, setEmpresas] = useState<
+    Awaited<ReturnType<typeof fetchEmpresasOperativasStock>>
+  >([]);
+
+  useEffect(() => {
+    if (!apiOnline) {
+      setEmpresas([]);
+      return;
+    }
+    fetchEmpresasOperativasStock()
+      .then(setEmpresas)
+      .catch(() => setEmpresas([]));
+  }, [apiOnline]);
+
+  useEffect(() => {
+    if (empresas.length === 0) return;
+    setForm((prev) => {
+      if (prev.empresa === EMPRESA_PENDIENTE || prev.empresa === "") return prev;
+      if (empresas.some((e) => e.codigo === prev.empresa)) return prev;
+      return { ...prev, empresa: EMPRESA_PENDIENTE };
+    });
+    setPendientes((prev) =>
+      prev.filter(
+        (row) => !row.empresa || empresas.some((e) => e.codigo === row.empresa)
+      )
+    );
+  }, [empresas]);
+
+  const cuentaScope = currentUser
+    ? `${currentUser.id}:${currentUser.empresa_id ?? "na"}`
+    : "";
 
   const cargarUltimaImportacionArchivo = useCallback(async () => {
     if (!apiOnline) {
       setUltimaImportacionArchivo(null);
+      setUltimaImportacionLoading(false);
       return;
     }
+    setUltimaImportacionLoading(true);
     try {
-      const lotes = await fetchStockGanaderoLotes();
-      setUltimaImportacionArchivo(ultimaImportacionDesdeLotes(lotes));
+      const ultima = await fetchStockGanaderoUltimaImportacionArchivo();
+      setUltimaImportacionArchivo(ultima);
     } catch {
       setUltimaImportacionArchivo(null);
+    } finally {
+      setUltimaImportacionLoading(false);
     }
   }, [apiOnline]);
 
   useEffect(() => {
+    setUltimaImportacionArchivo(null);
+    setUltimaImportacionLoading(true);
     void cargarUltimaImportacionArchivo();
-  }, [cargarUltimaImportacionArchivo]);
+  }, [cargarUltimaImportacionArchivo, cuentaScope]);
 
   const pickFile = useCallback(
     (f: File | null) => {
@@ -496,7 +526,7 @@ export default function StockGanaderoImportar({
                   )}
                 </div>
 
-                {ultimaImportacionArchivo && (
+                {!ultimaImportacionLoading && ultimaImportacionArchivo && (
                   <div className="stock-import-undo" role="status">
                     <div className="stock-import-undo-text">
                       <strong>Última importación por archivo</strong>
@@ -546,6 +576,7 @@ export default function StockGanaderoImportar({
                       <label htmlFor={`${formId}-empresa`}>Empresa</label>
                       <SelectEmpresaDispositivo
                         id={`${formId}-empresa`}
+                        empresas={empresas}
                         value={form.empresa}
                         requiereSeleccion
                         onChange={(empresa) => setForm((p) => ({ ...p, empresa }))}

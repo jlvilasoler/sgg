@@ -7,7 +7,7 @@ export interface StockGanaderoRowInput {
   fecha: string;
   hora: string;
   condicion: string;
-  empresa?: "GUAVIYU" | "CHIVILCOY" | "";
+  empresa?: string;
   sexo?: "MACHO" | "HEMBRA" | "";
 }
 
@@ -223,8 +223,7 @@ export function normalizeStockGanaderoRows(
     }
     const horaRaw = String(row.hora ?? "").trim();
     const empresaRaw = String(row.empresa ?? "").trim().toUpperCase();
-    const empresa =
-      empresaRaw === "GUAVIYU" || empresaRaw === "CHIVILCOY" ? empresaRaw : "";
+    const empresa = /^[A-Z0-9_]+$/.test(empresaRaw) ? empresaRaw : "";
     const { eid, vid } = splitEidVid(eidRaw, String(row.vid ?? "").trim());
     out.push({
       eid,

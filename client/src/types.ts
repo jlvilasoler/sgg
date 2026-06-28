@@ -270,7 +270,7 @@ export interface StockGanaderoEstadisticas {
 }
 
 export type DispositivoSexo = "" | "MACHO" | "HEMBRA";
-export type DispositivoEmpresa = "" | "GUAVIYU" | "CHIVILCOY";
+export type DispositivoEmpresa = string;
 export type DispositivoEstado = "VIVO" | "MUERTO" | "VENDIDO" | "FRIGORIFICO" | "PERDIDO";
 
 export type TipoBaja =

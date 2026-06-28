@@ -1,5 +1,6 @@
 import type { Db } from "./db/pg-client.js";
 import type { StockGanaderoRowInput } from "./parse-stock-ganadero-txt.js";
+import { migrateAddCuentaIdColumn } from "./empresas-cuenta-db.js";
 import { listClavesDispositivosEnVentasCerradas } from "./simulador-venta-dispositivos-db.js";
 import { labelCategoriaSalidaDispositivo } from "./stock-ganadera-categoria.js";
 import { dispositivoClave, eidClave, splitEidVid } from "./stock-ganadero-id.js";
@@ -13,6 +14,7 @@ export interface StockGanaderoLote {
   nombre_archivo: string;
   filas: number;
   importado_en: string;
+  cuenta_id?: number | null;
 }
 
 export interface StockGanaderoRegistro {
@@ -39,6 +41,8 @@ export interface StockGanaderoFilters {
   estado_dispositivo?: DispositivoEstado;
   /** Empresas operativas permitidas (multi-tenant). undefined = sin filtro. */
   empresas?: string[];
+  /** Cuenta madre dueña de la importación. undefined = sin filtro (super admin). */
+  cuenta_id?: number;
 }
 
 export interface StockGanaderoEidRepetido {
@@ -83,6 +87,10 @@ function appendRegistroFilters(
     )`;
     params.busqueda = `%${filters.busqueda.trim()}%`;
   }
+  if (filters?.cuenta_id != null) {
+    sql += ` AND ${p}lote_id IN (SELECT id FROM STOCK_GANADERO_LOTE WHERE cuenta_id = @cuenta_id)`;
+    params.cuenta_id = filters.cuenta_id;
+  }
   return sql;
 }
 
@@ -112,11 +120,16 @@ async function clavesEidRepetidas(
 }
 
 export async function initStockGanaderoTables(db: Db): Promise<void> {
+  await migrateStockGanaderoLoteCuenta(db);
   await migrateGrupoLibreColumn(db);
   await migrateBajaMetaColumns(db);
   await migrateFechasSlashLatam(db);
   await migrateStockGanaderoDispositivoHistorial(db);
   await migrateHistorialAutorColumns(db);
+}
+
+async function migrateStockGanaderoLoteCuenta(db: Db): Promise<void> {
+  await migrateAddCuentaIdColumn(db, "STOCK_GANADERO_LOTE");
 }
 
 async function migrateHistorialAutorColumns(db: Db): Promise<void> {
@@ -351,7 +364,7 @@ function grupoDesdeNacimiento(anio: number | null): string {
 }
 
 export type DispositivoSexo = "" | "MACHO" | "HEMBRA";
-export type DispositivoEmpresa = "" | "GUAVIYU" | "CHIVILCOY";
+export type DispositivoEmpresa = string;
 export type DispositivoEstado = "VIVO" | "MUERTO" | "VENDIDO" | "FRIGORIFICO" | "PERDIDO";
 
 export type TipoBaja =
@@ -362,7 +375,6 @@ export type TipoBaja =
   | "PERDIDO";
 
 const SEXOS_VALIDOS = new Set<DispositivoSexo>(["", "MACHO", "HEMBRA"]);
-const EMPRESAS_VALIDAS = new Set<DispositivoEmpresa>(["", "GUAVIYU", "CHIVILCOY"]);
 const ESTADOS_VALIDOS = new Set<DispositivoEstado>([
   "VIVO",
   "MUERTO",
@@ -428,6 +440,21 @@ export function parseTipoBaja(raw: unknown): TipoBaja {
     );
   }
   return tipo;
+}
+
+function normalizarEmpresaDispositivo(raw: string | null | undefined): DispositivoEmpresa {
+  const v = String(raw ?? "")
+    .trim()
+    .toUpperCase();
+  if (!v) return "";
+  if (/^[A-Z0-9_]+$/.test(v)) return v;
+  return "";
+}
+
+function esEmpresaDispositivoValida(raw: string | null | undefined): boolean {
+  const v = String(raw ?? "").trim();
+  if (!v) return true;
+  return normalizarEmpresaDispositivo(raw).length > 0;
 }
 
 const GRUPO_LIBRE_MAX = 48;
@@ -516,9 +543,7 @@ function normalizarMetaDispositivo(row: Partial<DispositivoMetaRow>): Dispositiv
   const sexo = SEXOS_VALIDOS.has(row.sexo as DispositivoSexo)
     ? (row.sexo as DispositivoSexo)
     : "";
-  const empresa = EMPRESAS_VALIDAS.has(row.empresa as DispositivoEmpresa)
-    ? (row.empresa as DispositivoEmpresa)
-    : "";
+  const empresa = normalizarEmpresaDispositivo(row.empresa);
   const mes =
     row.nacimiento_mes === null || row.nacimiento_mes === undefined
       ? null
@@ -684,9 +709,9 @@ export async function saveStockGanaderaDispositivo(
   const sexo = SEXOS_VALIDOS.has(input.sexo) ? input.sexo : "";
   if (!SEXOS_VALIDOS.has(sexo)) throw new Error("Sexo inválido. Use MACHO o HEMBRA.");
 
-  const empresa = EMPRESAS_VALIDAS.has(input.empresa) ? input.empresa : "";
-  if (!EMPRESAS_VALIDAS.has(empresa)) {
-    throw new Error("Empresa inválida. Use GUAVIYU o CHIVILCOY.");
+  const empresa = normalizarEmpresaDispositivo(input.empresa);
+  if (!esEmpresaDispositivoValida(input.empresa)) {
+    throw new Error("Empresa inválida.");
   }
 
   const nacimiento = validarNacimiento(input.nacimiento_mes, input.nacimiento_anio);
@@ -2131,12 +2156,18 @@ export async function updateStockGanaderaDispositivoEdad(
   return edadNorm;
 }
 
-export async function listStockGanaderoLotes(db: Db): Promise<StockGanaderoLote[]> {
-  return (await db
-    .prepare(
-      `SELECT * FROM STOCK_GANADERO_LOTE ORDER BY importado_en DESC, id DESC`
-    )
-    .all()) as StockGanaderoLote[];
+export async function listStockGanaderoLotes(
+  db: Db,
+  filters?: StockGanaderoFilters
+): Promise<StockGanaderoLote[]> {
+  let sql = `SELECT * FROM STOCK_GANADERO_LOTE WHERE 1=1`;
+  const params: Record<string, number> = {};
+  if (filters?.cuenta_id != null) {
+    sql += ` AND cuenta_id = @cuenta_id`;
+    params.cuenta_id = filters.cuenta_id;
+  }
+  sql += ` ORDER BY importado_en DESC, id DESC`;
+  return (await db.prepare(sql).all(params)) as StockGanaderoLote[];
 }
 
 export async function getStockGanaderoLoteById(
@@ -2238,7 +2269,8 @@ export async function getStockGanaderoEstadisticas(
 export async function importStockGanaderoRows(
   db: Db,
   nombreArchivo: string,
-  rows: StockGanaderoRowInput[]
+  rows: StockGanaderoRowInput[],
+  cuentaId?: number | null
 ): Promise<{ lote_id: number; insertados: number }> {
   if (!rows.length) throw new Error("El archivo no contiene lecturas válidas.");
 
@@ -2247,9 +2279,13 @@ export async function importStockGanaderoRows(
 
     const lote = await tx
       .prepare(
-        `INSERT INTO STOCK_GANADERO_LOTE (nombre_archivo, filas) VALUES (@nombre_archivo, @filas)`
+        `INSERT INTO STOCK_GANADERO_LOTE (nombre_archivo, filas, cuenta_id) VALUES (@nombre_archivo, @filas, @cuenta_id)`
       )
-      .run({ nombre_archivo: nombreArchivo.trim() || "import.txt", filas: rows.length });
+      .run({
+        nombre_archivo: nombreArchivo.trim() || "import.txt",
+        filas: rows.length,
+        cuenta_id: cuentaId ?? null,
+      });
     const lote_id = Number(lote.lastInsertRowid);
 
     const ins = await tx.prepare(
@@ -2280,10 +2316,7 @@ export async function importStockGanaderoRows(
         condicion: r.condicion,
       });
 
-      const empresaImport =
-        EMPRESAS_VALIDAS.has(r.empresa as DispositivoEmpresa) && r.empresa
-          ? r.empresa
-          : "";
+      const empresaImport = normalizarEmpresaDispositivo(r.empresa);
       const sexoImport = r.sexo === "MACHO" || r.sexo === "HEMBRA" ? r.sexo : "";
       if (clave && (empresaImport || sexoImport)) {
         await upsertEmpresaDispositivo.run({
@@ -2334,10 +2367,14 @@ export async function deleteStockGanaderoLote(db: Db, id: number): Promise<boole
   });
 }
 
-export async function countStockGanaderoRegistros(db: Db): Promise<number> {
-  const row = (await db
-    .prepare("SELECT COUNT(*) AS n FROM STOCK_GANADERO_REGISTRO")
-    .get()) as { n: number };
+export async function countStockGanaderoRegistros(
+  db: Db,
+  filters?: StockGanaderoFilters
+): Promise<number> {
+  let sql = `SELECT COUNT(*) AS n FROM STOCK_GANADERO_REGISTRO WHERE 1=1`;
+  const params: Record<string, string | number> = {};
+  sql = appendRegistroFilters(sql, params, filters);
+  const row = (await db.prepare(sql).get(params)) as { n: number };
   return row.n;
 }
 

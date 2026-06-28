@@ -1,5 +1,5 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
-import { fetchEstadoResultados, fetchResumen } from "../api";
+import { fetchEmpresasOperativas, fetchEstadoResultados, fetchResumen } from "../api";
 import type {
   Catalogos,
   EstadoFinancieroMes,
@@ -165,6 +165,23 @@ export default function Resumen({ catalogos, apiOnline, onError }: Props) {
   const [empresasAbiertas, setEmpresasAbiertas] = useState<Set<string>>(new Set());
   const [erSeccionesAbiertas, setErSeccionesAbiertas] = useState<Set<ErSeccionKey>>(new Set());
   const [erRubrosAbiertos, setErRubrosAbiertos] = useState<Set<string>>(new Set());
+  const [empresas, setEmpresas] = useState<string[]>(catalogos.empresas);
+
+  useEffect(() => {
+    if (!apiOnline) {
+      setEmpresas([]);
+      return;
+    }
+    fetchEmpresasOperativas()
+      .then(setEmpresas)
+      .catch(() => setEmpresas(catalogos.empresas));
+  }, [apiOnline, catalogos.empresas]);
+
+  useEffect(() => {
+    if (empresa && empresas.length > 0 && !empresas.includes(empresa)) {
+      setEmpresa("");
+    }
+  }, [empresas, empresa]);
 
   const load = useCallback(async () => {
     if (!apiOnline) {
@@ -386,7 +403,7 @@ export default function Resumen({ catalogos, apiOnline, onError }: Props) {
                 onChange={(e) => setEmpresa(e.target.value)}
               >
                 <option value="">Todas</option>
-                {catalogos.empresas.map((e) => (
+                {empresas.map((e) => (
                   <option key={e} value={e}>
                     {e}
                   </option>

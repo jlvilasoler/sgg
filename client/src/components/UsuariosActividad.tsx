@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { fetchAuthActividad, fetchUsuarios, fetchUsuariosOnline } from "../api";
-import type { AuthActividadLog, UsuarioOnline } from "../types";
+import type { AuthActividadLog, AuthUser, UsuarioOnline } from "../types";
+import {
+  canFiltrarActividadPorUsuario,
+  canVerUsuariosOnlineActividad,
+} from "../utils/auth-permissions";
 import UserAvatar from "./UserAvatar";
 import TablePagination, { type PageSize } from "./TablePagination";
 
@@ -32,6 +36,7 @@ const EVENTO_OPCIONES = [
 
 interface Props {
   apiOnline: boolean;
+  currentUser: AuthUser;
   onError: (msg: string) => void;
   onVolver: () => void;
   volverLabel?: string;
@@ -72,10 +77,13 @@ function fmtHaceSegundos(seg: number): string {
 
 export default function UsuariosActividad({
   apiOnline,
+  currentUser,
   onError,
   onVolver,
   volverLabel = "Volver al menú",
 }: Props) {
+  const puedeFiltrarUsuario = canFiltrarActividadPorUsuario(currentUser);
+  const puedeVerOnline = canVerUsuariosOnlineActividad(currentUser);
   const [rows, setRows] = useState<AuthActividadLog[]>([]);
   const [total, setTotal] = useState(0);
   const [resumen, setResumen] = useState({
@@ -94,14 +102,14 @@ export default function UsuariosActividad({
   const [pageSize, setPageSize] = useState<PageSize>(20);
 
   useEffect(() => {
-    if (!apiOnline) {
+    if (!apiOnline || !puedeFiltrarUsuario) {
       setUsuarios([]);
       return;
     }
     void fetchUsuarios()
       .then((list) => setUsuarios(list.map((u) => ({ email: u.email, nombre: u.nombre }))))
       .catch(() => setUsuarios([]));
-  }, [apiOnline]);
+  }, [apiOnline, puedeFiltrarUsuario]);
 
   useEffect(() => {
     setPage(1);
@@ -147,7 +155,7 @@ export default function UsuariosActividad({
   }, [load]);
 
   const loadOnline = useCallback(async () => {
-    if (!apiOnline) {
+    if (!apiOnline || !puedeVerOnline) {
       setOnline([]);
       setLoadingOnline(false);
       return;
@@ -159,14 +167,19 @@ export default function UsuariosActividad({
     } finally {
       setLoadingOnline(false);
     }
-  }, [apiOnline]);
+  }, [apiOnline, puedeVerOnline]);
 
   useEffect(() => {
+    if (!puedeVerOnline) {
+      setOnline([]);
+      setLoadingOnline(false);
+      return;
+    }
     void loadOnline();
     if (!apiOnline) return;
     const id = window.setInterval(() => void loadOnline(), 12_000);
     return () => window.clearInterval(id);
-  }, [apiOnline, loadOnline]);
+  }, [apiOnline, loadOnline, puedeVerOnline]);
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const pageSafe = Math.min(page, totalPages);
@@ -195,22 +208,24 @@ export default function UsuariosActividad({
 
         <div className="filters listado-pro-filters usuarios-actividad-filters">
           <div className="listado-pro-filters-row listado-pro-filters-row--unica">
-            <div className="field">
-              <label htmlFor="ua-filtro-usuario">Usuario</label>
-              <select
-                id="ua-filtro-usuario"
-                value={filtroEmail}
-                disabled={!apiOnline || loading}
-                onChange={(e) => setFiltroEmail(e.target.value)}
-              >
-                <option value="">Todos</option>
-                {usuarios.map((u) => (
-                  <option key={u.email} value={u.email}>
-                    {u.nombre}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {puedeFiltrarUsuario ? (
+              <div className="field">
+                <label htmlFor="ua-filtro-usuario">Usuario</label>
+                <select
+                  id="ua-filtro-usuario"
+                  value={filtroEmail}
+                  disabled={!apiOnline || loading}
+                  onChange={(e) => setFiltroEmail(e.target.value)}
+                >
+                  <option value="">Todos</option>
+                  {usuarios.map((u) => (
+                    <option key={u.email} value={u.email}>
+                      {u.nombre}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : null}
             <div className="field">
               <label htmlFor="ua-filtro-evento">Tipo</label>
               <select
@@ -250,7 +265,8 @@ export default function UsuariosActividad({
           </div>
         </div>
 
-        <section className="usuarios-actividad-online" aria-label="Usuarios en línea">
+        {puedeVerOnline ? (
+          <section className="usuarios-actividad-online" aria-label="Usuarios en línea">
           <div className="usuarios-actividad-online-head">
             <h3 className="usuarios-actividad-online-title">
               <span className="usuarios-online-pulse" aria-hidden />
@@ -292,15 +308,18 @@ export default function UsuariosActividad({
             </ul>
           )}
         </section>
+        ) : null}
 
         <section className="usuarios-actividad-kpis" aria-label="Resumen">
           <div className="usuarios-actividad-kpi-grid">
-            <div className="usuarios-actividad-kpi usuarios-actividad-kpi--online">
-              <span className="usuarios-actividad-kpi-label">En línea</span>
-              <span className="usuarios-actividad-kpi-valor">
-                {loadingOnline || !apiOnline ? "—" : online.length}
-              </span>
-            </div>
+            {puedeVerOnline ? (
+              <div className="usuarios-actividad-kpi usuarios-actividad-kpi--online">
+                <span className="usuarios-actividad-kpi-label">En línea</span>
+                <span className="usuarios-actividad-kpi-valor">
+                  {loadingOnline || !apiOnline ? "—" : online.length}
+                </span>
+              </div>
+            ) : null}
             <div className="usuarios-actividad-kpi">
               <span className="usuarios-actividad-kpi-label">Registros</span>
               <span className="usuarios-actividad-kpi-valor">

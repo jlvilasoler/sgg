@@ -366,6 +366,13 @@ export interface AuthAuditLogFilters {
   evento?: string;
   limite?: number;
   offset?: number;
+  scope?: AuthAuditLogScope;
+}
+
+/** Alcance de lectura: super admin sin scope; admin de cuenta por emails; usuario por email propio. */
+export interface AuthAuditLogScope {
+  emails_in?: string[];
+  email_exacto?: string;
 }
 
 export interface AuthAuditLogResumen {
@@ -390,6 +397,24 @@ function authAuditLogWhere(filters?: AuthAuditLogFilters): {
              WHERE 1=1`;
   const params: Record<string, unknown> = {};
 
+  const scope = filters?.scope;
+  if (scope?.email_exacto) {
+    sql += ` AND LOWER(TRIM(a.email)) = LOWER(@scope_email_exacto)`;
+    params.scope_email_exacto = scope.email_exacto.trim();
+  } else if (scope?.emails_in) {
+    if (scope.emails_in.length === 0) {
+      sql += ` AND 1=0`;
+    } else {
+      const placeholders = scope.emails_in
+        .map((_, i) => `@scope_email_in_${i}`)
+        .join(", ");
+      sql += ` AND LOWER(TRIM(a.email)) IN (${placeholders})`;
+      scope.emails_in.forEach((email, i) => {
+        params[`scope_email_in_${i}`] = email.toLowerCase();
+      });
+    }
+  }
+
   if (filters?.email?.trim()) {
     sql += ` AND LOWER(a.email) LIKE LOWER(@email)`;
     params.email = `%${filters.email.trim()}%`;
@@ -400,6 +425,88 @@ function authAuditLogWhere(filters?: AuthAuditLogFilters): {
   }
 
   return { sql, params };
+}
+
+export async function listUserEmailsForCuentaMadre(
+  db: Db,
+  cuentaId: number
+): Promise<string[]> {
+  const cuenta = await empresasCuenta.getEmpresaCuentaById(db, cuentaId);
+  const users = await listUsers(db, {
+    empresa_id: cuentaId,
+    incluir_admin_id: cuenta?.admin_user_id ?? null,
+  });
+  return users.map((u) => normalizeEmail(u.email));
+}
+
+export async function resolveAuthAuditLogScope(
+  db: Db,
+  actor: UserPublic,
+  requestedEmail?: string
+): Promise<
+  | { ok: true; filters: Pick<AuthAuditLogFilters, "email" | "scope"> }
+  | { ok: false; error: string }
+> {
+  const emailQuery = requestedEmail?.trim() || undefined;
+
+  if (actor.es_super_admin) {
+    return { ok: true, filters: { email: emailQuery, scope: undefined } };
+  }
+
+  if (actor.rol === "admin") {
+    const cuentaId = await empresasCuenta.resolveCuentaMadreIdForUser(db, actor);
+    if (!cuentaId) {
+      return {
+        ok: true,
+        filters: { scope: { email_exacto: normalizeEmail(actor.email) } },
+      };
+    }
+    const emailsIn = await listUserEmailsForCuentaMadre(db, cuentaId);
+    if (emailQuery) {
+      const normalized = normalizeEmail(emailQuery);
+      if (!emailsIn.includes(normalized)) {
+        return { ok: false, error: "Usuario fuera de su cuenta" };
+      }
+      return {
+        ok: true,
+        filters: { email: emailQuery, scope: { emails_in: emailsIn } },
+      };
+    }
+    return { ok: true, filters: { scope: { emails_in: emailsIn } } };
+  }
+
+  if (emailQuery && normalizeEmail(emailQuery) !== normalizeEmail(actor.email)) {
+    return { ok: false, error: "Solo puede ver su propia actividad" };
+  }
+  return {
+    ok: true,
+    filters: { scope: { email_exacto: normalizeEmail(actor.email) } },
+  };
+}
+
+export async function listUserIdsForCuentaMadre(
+  db: Db,
+  cuentaId: number
+): Promise<number[]> {
+  const cuenta = await empresasCuenta.getEmpresaCuentaById(db, cuentaId);
+  const users = await listUsers(db, {
+    empresa_id: cuentaId,
+    incluir_admin_id: cuenta?.admin_user_id ?? null,
+  });
+  return users.map((u) => u.id);
+}
+
+export async function resolveActividadOnlineUserIds(
+  db: Db,
+  actor: UserPublic
+): Promise<number[] | null> {
+  if (actor.es_super_admin) return null;
+  if (actor.rol === "admin") {
+    const cuentaId = await empresasCuenta.resolveCuentaMadreIdForUser(db, actor);
+    if (cuentaId) return await listUserIdsForCuentaMadre(db, cuentaId);
+    return [actor.id];
+  }
+  return [actor.id];
 }
 
 export async function listAuthAuditLog(

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { fetchStockGanaderaSalidas } from "../../api";
+import { fetchEmpresasOperativasStock, fetchStockGanaderaSalidas } from "../../api";
 import type { StockGanaderaDispositivo } from "../../types";
 import TablePagination, {
   paginateSlice,
@@ -59,6 +59,19 @@ export default function StockGanaderaSalidas({
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<PageSize>(30);
+  const [empresas, setEmpresas] = useState<
+    Awaited<ReturnType<typeof fetchEmpresasOperativasStock>>
+  >([]);
+
+  useEffect(() => {
+    if (!apiOnline) {
+      setEmpresas([]);
+      return;
+    }
+    fetchEmpresasOperativasStock()
+      .then(setEmpresas)
+      .catch(() => setEmpresas([]));
+  }, [apiOnline]);
 
   const aniosBaja = useMemo(() => listAniosNacimiento(), []);
 
@@ -146,6 +159,7 @@ export default function StockGanaderaSalidas({
     return (
       <StockGanaderaEditarPanel
         dispositivo={editarDispositivo}
+        empresas={empresas}
         apiOnline={apiOnline}
         onVolver={() => setEditarDispositivo(null)}
         volverLabel="Volver a Salidas del sistema"

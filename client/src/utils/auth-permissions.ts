@@ -45,12 +45,32 @@ export function canAccessStockMovimientos(user: AuthUser | null): boolean {
 }
 
 export function canAccessUsuarioActividad(user: AuthUser | null): boolean {
+  return Boolean(user);
+}
+
+/** Admin de cuenta o super-admin: puede filtrar actividad por usuario. */
+export function canFiltrarActividadPorUsuario(user: AuthUser | null): boolean {
+  return user?.rol === "admin";
+}
+
+/** Admin de cuenta o super-admin: ve usuarios en línea de su ámbito. */
+export function canVerUsuariosOnlineActividad(user: AuthUser | null): boolean {
   return user?.rol === "admin";
 }
 
 export function canAccessArquitecturaSistema(user: AuthUser | null): boolean {
   if (!user || user.rol !== "admin") return false;
   return user.es_super_admin ?? user.empresa_id == null;
+}
+
+/** Permisos globales por rol: solo el super-administrador de plataforma (SCG_ADMIN_EMAIL). */
+export function canAccessPermisosPorRol(user: AuthUser | null): boolean {
+  return Boolean(user?.es_super_admin);
+}
+
+/** Documentos Digitales (configuración): solo super-administrador de plataforma. */
+export function canAccessDocumentosDigitales(user: AuthUser | null): boolean {
+  return Boolean(user?.es_super_admin);
 }
 
 /** Módulos visibles para cualquier usuario autenticado. */
@@ -90,6 +110,8 @@ export function moduloForScreen(screen: TabId): Modulo {
 
 export function canAccessScreen(user: AuthUser | null, screen: TabId): boolean {
   if (!user) return false;
+  if (screen === "registro_actividad") return true;
+  if (screen === "documentos_digitales") return canAccessDocumentosDigitales(user);
   if (screen === "panel_admin_sitio") return canAccessArquitecturaSistema(user);
   const mod = moduloForScreen(screen);
   if (MODULOS_SOLO_ADMIN.includes(mod)) return user.rol === "admin";

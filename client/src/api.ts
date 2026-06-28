@@ -218,6 +218,19 @@ export async function fetchEmpresasOperativas(): Promise<string[]> {
   return json.data ?? [];
 }
 
+export interface EmpresaOperativaStock {
+  codigo: string;
+  nombre: string;
+}
+
+/** Empresas operativas con código y nombre (Stock Ganadero). */
+export async function fetchEmpresasOperativasStock(): Promise<EmpresaOperativaStock[]> {
+  const json = await request<{ data: EmpresaOperativaStock[] }>(
+    "/stock-ganadero/empresas-operativas"
+  );
+  return json.data ?? [];
+}
+
 export async function fetchPresupuesto(filters: {
   empresa?: string;
   rubro?: string;
@@ -600,6 +613,17 @@ export async function deleteIngresoVenta(id: number): Promise<void> {
 export async function fetchStockGanaderoLotes(): Promise<StockGanaderoLote[]> {
   const json = await request<{ data: StockGanaderoLote[] }>("/stock-ganadero/lotes");
   return json.data;
+}
+
+export async function fetchStockGanaderoUltimaImportacionArchivo(): Promise<{
+  id: number;
+  nombre: string;
+  filas: number;
+} | null> {
+  const json = await request<{
+    data: { id: number; nombre: string; filas: number } | null;
+  }>("/stock-ganadero/ultima-importacion-archivo");
+  return json.data ?? null;
 }
 
 export async function fetchStockGanaderoRegistros(filters: {
