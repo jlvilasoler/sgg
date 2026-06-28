@@ -28,6 +28,6 @@ export const DEFAULT_CATALOGOS: Catalogos = {
   rubros: [],
   sub_rubros: [],
   sub_rubros_por_rubro: {},
-  responsables: [...RESPONSABLES_DEFAULT],
+  responsables: [],
   funcionarios: [],
 };

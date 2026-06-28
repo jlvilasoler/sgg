@@ -621,6 +621,34 @@ export async function migrateAddCuentaIdColumn(
   console.info(`[SGG Empresas] Columna cuenta_id agregada a ${tabla}`);
 }
 
+/** Asigna cuenta_id según el nombre de empresa operativa (columna empresa). */
+export async function backfillCuentaIdPorEmpresa(
+  db: Db,
+  tabla: string,
+  empresaColumn = "empresa"
+): Promise<void> {
+  try {
+    const result = await db
+      .prepare(
+        `UPDATE ${tabla} AS t
+         SET cuenta_id = op.cuenta_id
+         FROM EMPRESAS_OPERATIVAS op
+         WHERE LOWER(TRIM(op.nombre)) = LOWER(TRIM(t.${empresaColumn}))
+           AND (t.cuenta_id IS NULL OR t.cuenta_id IS DISTINCT FROM op.cuenta_id)`
+      )
+      .run();
+    if (result.changes > 0) {
+      console.info(
+        `[SGG Empresas] backfill cuenta_id en ${tabla}: ${result.changes} fila(s)`
+      );
+    }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (/does not exist|no such column|duplicate column/i.test(msg)) return;
+    throw err;
+  }
+}
+
 export async function getEmpresaNombresActivosPorCuenta(
   db: Db,
   cuentaId: number

@@ -498,6 +498,12 @@ async function cuentaIdForUser(user: UserPublic): Promise<number | null> {
   return await empresasCuenta.resolveCuentaMadreIdForUser(db.getDb(), user);
 }
 
+/** Scope de lectura por cuenta: super admin ve todo; resto solo su cuenta (nunca null sin filtro). */
+async function cuentaIdForScopedRead(user: UserPublic): Promise<number | null> {
+  if (user.es_super_admin) return null;
+  return await cuentaIdForUser(user);
+}
+
 /** cuenta_id para INSERTAR: su cuenta, o VILA DIAZ como fallback para super admin. */
 async function cuentaIdParaInsert(user: UserPublic): Promise<number | null> {
   return await empresasCuenta.cuentaIdParaInsert(db.getDb(), user);
@@ -3319,7 +3325,12 @@ function parseResponsableBody(req: Request) {
 
 app.get("/api/responsables", async (req, res) => {
   const soloActivos = req.query.solo_activos === "1";
-  const cuentaId = await cuentaIdForUser(req.user!);
+  const user = req.user!;
+  const cuentaId = await cuentaIdForScopedRead(user);
+  if (!user.es_super_admin && cuentaId == null) {
+    res.json({ ok: true, data: [] });
+    return;
+  }
   res.json({ ok: true, data: await db.responsables.list(soloActivos, cuentaId) });
 });
 

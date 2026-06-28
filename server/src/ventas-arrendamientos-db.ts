@@ -1,5 +1,9 @@
 import type { Db } from "./db/pg-client.js";
 import { appendEmpresaScope, type ResumenEmpresaScope } from "./empresa-scope.js";
+import {
+  backfillCuentaIdPorEmpresa,
+  migrateAddCuentaIdColumn,
+} from "./empresas-cuenta-db.js";
 
 export const DEPARTAMENTOS_ARRENDAMIENTO = ["RIVERA", "RIO_NEGRO"] as const;
 export type DepartamentoArrendamiento = (typeof DEPARTAMENTOS_ARRENDAMIENTO)[number];
@@ -229,6 +233,9 @@ export async function initVentasArrendamientosTable(db: Db): Promise<void> {
     `CREATE INDEX IF NOT EXISTS idx_ventas_arr_empresa
      ON VENTAS_ARRENDAMIENTO(empresa, fecha_inicio DESC)`
   ).run();
+
+  await migrateAddCuentaIdColumn(db, "VENTAS_ARRENDAMIENTO");
+  await backfillCuentaIdPorEmpresa(db, "VENTAS_ARRENDAMIENTO");
 }
 
 function mapRow(row: Record<string, unknown>): VentaArrendamientoRow {

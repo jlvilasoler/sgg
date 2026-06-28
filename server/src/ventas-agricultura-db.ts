@@ -1,5 +1,9 @@
 import type { Db } from "./db/pg-client.js";
 import { appendEmpresaScope, type ResumenEmpresaScope } from "./empresa-scope.js";
+import {
+  backfillCuentaIdPorEmpresa,
+  migrateAddCuentaIdColumn,
+} from "./empresas-cuenta-db.js";
 
 export const CULTIVOS_AGRICULTURA = ["TRIGO", "SOJA", "MAIZ", "COLZA"] as const;
 export type CultivoAgricultura = (typeof CULTIVOS_AGRICULTURA)[number];
@@ -131,6 +135,9 @@ export async function initVentasAgriculturaTable(db: Db): Promise<void> {
      WHERE mes_inicio IS NULL OR mes_fin IS NULL
         OR anio_inicio IS NULL OR anio_fin IS NULL`
   ).run();
+
+  await migrateAddCuentaIdColumn(db, "VENTAS_AGRICULTURA");
+  await backfillCuentaIdPorEmpresa(db, "VENTAS_AGRICULTURA");
 }
 
 function mapRow(row: Record<string, unknown>): VentaAgriculturaRow {

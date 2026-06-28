@@ -1307,13 +1307,27 @@ export async function getCatalogos(user?: {
     empresasScope === null
       ? await empresasCuenta.getEmpresaNombresActivos(db)
       : empresasScope;
+
+  const restringirPorCuenta = Boolean(scopeUser && !scopeUser.es_super_admin);
+  const responsables =
+    restringirPorCuenta && cuentaId == null
+      ? []
+      : await resp.listResponsablesNombres(db, restringirPorCuenta ? cuentaId : null);
+  const funcionarios =
+    restringirPorCuenta && cuentaId == null
+      ? []
+      : await func.listFuncionariosParaSelector(
+          db,
+          restringirPorCuenta ? cuentaId : null
+        );
+
   return {
     empresas,
     rubros,
     sub_rubros: await sub.listSubRubrosNombres(db),
     sub_rubros_por_rubro: { ...porRubroContable, ...porGrupo },
-    responsables: await resp.listResponsablesNombres(db, cuentaId),
-    funcionarios: await func.listFuncionariosParaSelector(db, cuentaId),
+    responsables,
+    funcionarios,
   };
 }
 

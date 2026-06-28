@@ -119,7 +119,13 @@ export default function App() {
       if (me) {
         void fetchCatalogos()
           .then((c) => setCatalogos(c))
-          .catch(() => setCatalogos(DEFAULT_CATALOGOS));
+          .catch(() =>
+            setCatalogos((prev) => ({
+              ...prev,
+              responsables: [],
+              funcionarios: [],
+            }))
+          );
       }
     } else if (health.online && !health.ready) {
       const startedAt = dbBootStartedRef.current ?? Date.now();
@@ -269,7 +275,11 @@ export default function App() {
         const c = await fetchCatalogos();
         setCatalogos(c);
       } catch {
-        setCatalogos(DEFAULT_CATALOGOS);
+        setCatalogos((prev) => ({
+          ...prev,
+          responsables: [],
+          funcionarios: [],
+        }));
       }
     })();
     notify(`Bienvenido, ${u.nombre}`, true, "Sesión iniciada");
