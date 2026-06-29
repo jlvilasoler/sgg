@@ -21612,8 +21612,8 @@ button.sg-kpi-card:disabled {
 }
 
 .usuarios-actividad-online-count--reciente {
-  background: #fef3c7;
-  color: #92400e;
+  background: #fef9e7;
+  color: #a16207;
 }
 
 .usuarios-actividad-online-sep {
@@ -21665,8 +21665,8 @@ button.sg-kpi-card:disabled {
 }
 
 .usuarios-online-item--stale-offline {
-  background: #fff5f5;
-  border-color: #fecaca;
+  background: #fffafa;
+  border-color: #fee8e8;
   box-shadow: none;
 }
 
@@ -21676,29 +21676,33 @@ button.sg-kpi-card:disabled {
 }
 
 .usuarios-online-item--stale-offline .usuarios-online-hace {
-  color: #b91c1c;
+  color: #dc2626;
 }
 
 .usuarios-online-item--stale-offline .usuarios-online-offline-tag {
-  color: #991b1b;
+  color: #b91c1c;
 }
 
 .usuarios-actividad-online-count--stale {
-  color: #dc2626;
-  background: #fee2e2;
+  color: #b91c1c;
+  background: #fee8e8;
 }
 
 .usuarios-actividad-online-recientes-label--stale {
-  color: #dc2626;
+  color: #b91c1c;
 }
 
 .usuarios-online-item--reciente-offline {
-  background: #fffbeb;
-  border-color: #fde68a;
+  background: #fffef8;
+  border-color: #fef9e7;
   box-shadow: none;
 }
 
 .usuarios-online-item--reciente-offline .usuarios-online-hace {
+  color: #b45309;
+}
+
+.usuarios-online-item--reciente-offline .usuarios-online-offline-tag {
   color: #a16207;
 }
 
