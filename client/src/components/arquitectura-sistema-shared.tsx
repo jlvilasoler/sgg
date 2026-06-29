@@ -30,8 +30,8 @@ export function IconoOjo({ visible }: { visible: boolean }) {
 
 export const emptyEmpresaForm = (): EmpresaCuentaForm => ({
   nombre: "",
-  codigo: "",
   activo: true,
+  admin_email: "",
 });
 
 export const emptyUserForm = (): UserForm => ({

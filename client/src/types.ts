@@ -1059,13 +1059,20 @@ export interface EmpresaOperativa {
 
 export interface EmpresaCuentaForm {
   nombre: string;
-  codigo: string;
+  codigo?: string;
   activo?: boolean;
+  admin_email?: string;
+  empresa_operativa?: Pick<EmpresaOperativaForm, "nombre">;
+}
+
+export interface EmpresaCuentaCreateResult {
+  cuenta: EmpresaCuenta;
+  admin_password_temporal?: string;
 }
 
 export interface EmpresaOperativaForm {
   nombre: string;
-  codigo: string;
+  codigo?: string;
   activo?: boolean;
 }
 

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   actualizarEmpresaCuenta,
+  actualizarEmpresaOperativa,
   asignarAdminCuenta,
   crearEmpresaOperativa,
   crearUsuarioEmpresa,
@@ -74,6 +75,12 @@ export default function ArquitecturaCuentaDetalle({
     emptyOperativaForm
   );
   const [savingOperativa, setSavingOperativa] = useState(false);
+  const [editingOperativaId, setEditingOperativaId] = useState<number | null>(null);
+  const [operativaEditForm, setOperativaEditForm] = useState({
+    nombre: "",
+    activo: true,
+  });
+  const [savingOperativaEdit, setSavingOperativaEdit] = useState(false);
   const [showEmpresasSection, setShowEmpresasSection] = useState(
     initialPanel === "operativa" || modo === "cuentaPropia"
   );
@@ -83,13 +90,12 @@ export default function ArquitecturaCuentaDetalle({
 
   const [cuentaForm, setCuentaForm] = useState({
     nombre: cuenta.nombre,
-    codigo: cuenta.codigo,
   });
   const [savingCuenta, setSavingCuenta] = useState(false);
 
   useEffect(() => {
-    setCuentaForm({ nombre: cuenta.nombre, codigo: cuenta.codigo });
-  }, [cuenta.nombre, cuenta.codigo]);
+    setCuentaForm({ nombre: cuenta.nombre });
+  }, [cuenta.nombre]);
 
   useEffect(() => {
     if (initialPanel === "operativa") setShowEmpresasSection(true);
@@ -214,15 +220,14 @@ export default function ArquitecturaCuentaDetalle({
 
   const handleCrearOperativa = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!operativaForm.nombre.trim() || !operativaForm.codigo.trim()) {
-      onError("Completá nombre y código de la empresa interna");
+    if (!operativaForm.nombre.trim()) {
+      onError("Completá el nombre de la empresa interna");
       return;
     }
     setSavingOperativa(true);
     try {
       const created = await crearEmpresaOperativa(cuentaActual.id, {
         nombre: operativaForm.nombre.trim(),
-        codigo: operativaForm.codigo.trim().toUpperCase(),
         activo: true,
       });
       syncCuenta({
@@ -242,17 +247,54 @@ export default function ArquitecturaCuentaDetalle({
     }
   };
 
+  const openEditOperativa = (op: (typeof cuentaActual.empresas)[number]) => {
+    setEditingOperativaId(op.id);
+    setOperativaEditForm({ nombre: op.nombre, activo: op.activo });
+    setShowOperativaForm(false);
+  };
+
+  const closeEditOperativa = () => {
+    setEditingOperativaId(null);
+    setOperativaEditForm({ nombre: "", activo: true });
+  };
+
+  const handleGuardarOperativa = async (e: React.FormEvent, empresaId: number) => {
+    e.preventDefault();
+    if (!operativaEditForm.nombre.trim()) {
+      onError("Completá el nombre de la empresa");
+      return;
+    }
+    setSavingOperativaEdit(true);
+    try {
+      const updated = await actualizarEmpresaOperativa(cuentaActual.id, empresaId, {
+        nombre: operativaEditForm.nombre.trim(),
+        activo: operativaEditForm.activo,
+      });
+      syncCuenta({
+        ...cuentaActual,
+        empresas: cuentaActual.empresas
+          .map((e) => (e.id === updated.id ? updated : e))
+          .sort((a, b) => a.nombre.localeCompare(b.nombre, "es")),
+      });
+      closeEditOperativa();
+      onSuccess(`Empresa actualizada: ${updated.nombre}`);
+    } catch (err) {
+      onError(err instanceof Error ? err.message : "Error al actualizar empresa");
+    } finally {
+      setSavingOperativaEdit(false);
+    }
+  };
+
   const handleGuardarCuenta = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!cuentaForm.nombre.trim() || !cuentaForm.codigo.trim()) {
-      onError("Completá nombre y código de la cuenta");
+    if (!cuentaForm.nombre.trim()) {
+      onError("Completá el nombre de la cuenta");
       return;
     }
     setSavingCuenta(true);
     try {
       const updated = await actualizarEmpresaCuenta(cuentaActual.id, {
         nombre: cuentaForm.nombre.trim(),
-        codigo: cuentaForm.codigo.trim().toUpperCase(),
       });
       syncCuenta(updated);
       onSuccess("Datos de la cuenta actualizados");
@@ -292,7 +334,9 @@ export default function ArquitecturaCuentaDetalle({
                     <span className="arquitectura-sistema-pill arquitectura-sistema-pill--cuenta">
                       ID cuenta {cuentaActual.cuenta_numero}
                     </span>
-                    <span className="arquitectura-sistema-pill">{cuentaActual.codigo}</span>
+                    <span className="arquitectura-sistema-pill arquitectura-sistema-pill--codigo">
+                      {cuentaActual.codigo}
+                    </span>
                     {!cuentaActual.activo && (
                       <span className="arquitectura-sistema-badge arquitectura-sistema-badge--inactiva">
                         Inactiva
@@ -382,19 +426,15 @@ export default function ArquitecturaCuentaDetalle({
                     />
                   </div>
                   <div className="field">
-                    <label htmlFor="cuenta-codigo">Código corto</label>
-                    <input
-                      id="cuenta-codigo"
-                      type="text"
-                      value={cuentaForm.codigo}
-                      onChange={(e) =>
-                        setCuentaForm((f) => ({
-                          ...f,
-                          codigo: e.target.value.toUpperCase(),
-                        }))
-                      }
-                      required
-                    />
+                    <span className="field-label">Código</span>
+                    <p className="cuenta-panel-codigo-readonly">
+                      <span className="arquitectura-sistema-pill arquitectura-sistema-pill--codigo">
+                        {cuentaActual.codigo}
+                      </span>
+                    </p>
+                    <p className="muted usuarios-rol-hint">
+                      Asignado automáticamente al crear la cuenta (C00001, C00002…)
+                    </p>
                   </div>
                 </div>
                 <div className="cuenta-panel-form-actions">
@@ -513,23 +553,108 @@ export default function ArquitecturaCuentaDetalle({
                 ) : (
                   <ul className="arquitectura-sistema-usuarios-list cuenta-entity-list">
                     {cuentaActual.empresas.map((op) => (
-                      <li key={op.id} className="cuenta-entity-card">
-                        <span className="cuenta-entity-avatar cuenta-entity-avatar--empresa" aria-hidden="true">
-                          {iniciales(op.nombre)}
-                        </span>
-                        <div className="arquitectura-sistema-usuario-info">
-                          <strong>{op.nombre}</strong>
-                          <span className="muted">Código {op.codigo}</span>
-                        </div>
-                        <span
-                          className={
-                            op.activo
-                              ? "arquitectura-sistema-estado arquitectura-sistema-estado--activo"
-                              : "arquitectura-sistema-estado"
-                          }
-                        >
-                          {op.activo ? "Activa" : "Inactiva"}
-                        </span>
+                      <li
+                        key={op.id}
+                        className={`cuenta-entity-card${
+                          editingOperativaId === op.id ? " cuenta-entity-card--editing" : ""
+                        }`}
+                      >
+                        {editingOperativaId === op.id ? (
+                          <form
+                            className="cuenta-entity-edit-form"
+                            onSubmit={(e) => void handleGuardarOperativa(e, op.id)}
+                          >
+                            <div className="cuenta-entity-edit-form-head">
+                              <strong>Editar empresa</strong>
+                              <span className="arquitectura-sistema-pill arquitectura-sistema-pill--codigo">
+                                {op.codigo}
+                              </span>
+                            </div>
+                            <div className="arquitectura-sistema-form-grid cuenta-entity-edit-form-grid">
+                              <label>
+                                <span>Nombre de empresa</span>
+                                <input
+                                  type="text"
+                                  value={operativaEditForm.nombre}
+                                  onChange={(e) =>
+                                    setOperativaEditForm((f) => ({
+                                      ...f,
+                                      nombre: e.target.value,
+                                    }))
+                                  }
+                                  required
+                                  autoFocus
+                                />
+                              </label>
+                              <label className="cuenta-entity-edit-activo">
+                                <input
+                                  type="checkbox"
+                                  checked={operativaEditForm.activo}
+                                  onChange={(e) =>
+                                    setOperativaEditForm((f) => ({
+                                      ...f,
+                                      activo: e.target.checked,
+                                    }))
+                                  }
+                                />
+                                <span>Empresa activa</span>
+                              </label>
+                            </div>
+                            <div className="arquitectura-sistema-form-actions">
+                              <button
+                                type="button"
+                                className="btn btn-ghost btn-sm"
+                                disabled={savingOperativaEdit}
+                                onClick={closeEditOperativa}
+                              >
+                                Cancelar
+                              </button>
+                              <button
+                                type="submit"
+                                className="btn btn-primary btn-sm"
+                                disabled={savingOperativaEdit}
+                              >
+                                {savingOperativaEdit ? "Guardando…" : "Guardar cambios"}
+                              </button>
+                            </div>
+                          </form>
+                        ) : (
+                          <>
+                            <span
+                              className="cuenta-entity-avatar cuenta-entity-avatar--empresa"
+                              aria-hidden="true"
+                            >
+                              {iniciales(op.nombre)}
+                            </span>
+                            <div className="arquitectura-sistema-usuario-info">
+                              <strong>{op.nombre}</strong>
+                              <span className="muted">
+                                Código{" "}
+                                <span className="arquitectura-sistema-pill arquitectura-sistema-pill--codigo arquitectura-sistema-pill--inline">
+                                  {op.codigo}
+                                </span>
+                              </span>
+                            </div>
+                            <span
+                              className={
+                                op.activo
+                                  ? "arquitectura-sistema-estado arquitectura-sistema-estado--activo"
+                                  : "arquitectura-sistema-estado"
+                              }
+                            >
+                              {op.activo ? "Activa" : "Inactiva"}
+                            </span>
+                            <div className="cuenta-entity-actions">
+                              <button
+                                type="button"
+                                className="btn btn-ghost btn-sm"
+                                onClick={() => openEditOperativa(op)}
+                              >
+                                Editar
+                              </button>
+                            </div>
+                          </>
+                        )}
                       </li>
                     ))}
                   </ul>
@@ -541,6 +666,9 @@ export default function ArquitecturaCuentaDetalle({
                     onSubmit={(e) => void handleCrearOperativa(e)}
                   >
                     <h4>Nueva empresa dentro de {cuentaActual.nombre}</h4>
+                    <p className="muted arquitectura-cuenta-form-hint">
+                      El código se asigna automáticamente (E00001, E00002…).
+                    </p>
                     <div className="arquitectura-sistema-form-grid">
                       <label>
                         <span>Nombre de empresa</span>
@@ -551,21 +679,6 @@ export default function ArquitecturaCuentaDetalle({
                             setOperativaForm((f) => ({ ...f, nombre: e.target.value }))
                           }
                           placeholder="Ej. GANADERA GUAVIYU"
-                          required
-                        />
-                      </label>
-                      <label>
-                        <span>Código corto</span>
-                        <input
-                          type="text"
-                          value={operativaForm.codigo}
-                          onChange={(e) =>
-                            setOperativaForm((f) => ({
-                              ...f,
-                              codigo: e.target.value.toUpperCase(),
-                            }))
-                          }
-                          placeholder="Ej. GUAVIYU"
                           required
                         />
                       </label>
@@ -595,6 +708,7 @@ export default function ArquitecturaCuentaDetalle({
                       onClick={() => {
                         setShowOperativaForm(true);
                         setShowUserForm(false);
+                        closeEditOperativa();
                         setOperativaForm(emptyOperativaForm());
                       }}
                     >

@@ -19907,6 +19907,37 @@ button.sg-kpi-card:disabled {
     0 16px 48px rgba(24, 26, 32, 0.14);
 }
 
+.usuarios-form-modal--compact {
+  width: min(720px, 96vw);
+  max-height: min(92vh, 720px);
+}
+
+.usuarios-form-grid--cuenta-nombre {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+}
+
+.usuarios-form-grid--single {
+  grid-template-columns: 1fr;
+}
+
+.usuarios-form-grid-span-full {
+  grid-column: 1 / -1;
+}
+
+.usuarios-form-apellidos {
+  gap: 0;
+}
+
+.usuarios-form-apellidos-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem 0.75rem;
+}
+
+.usuarios-form-apellidos-grid .field {
+  gap: 0.35rem;
+}
+
 .usuarios-form-modal-head {
   display: flex;
   align-items: flex-start;
@@ -19983,6 +20014,29 @@ button.sg-kpi-card:disabled {
   padding: 1.15rem 1.35rem 1.25rem;
   overflow-y: auto;
   background: linear-gradient(180deg, #fbfcfd 0%, var(--bn-bg) 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.usuarios-form-modal-section-title {
+  margin: 0 0 0.85rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--bn-text);
+}
+
+.usuarios-form-modal-section-hint {
+  margin: -0.55rem 0 0.85rem;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--bn-muted);
+}
+
+.usuarios-form-modal-panel--secondary {
+  background: linear-gradient(180deg, #fff 0%, #f8fafb 100%);
 }
 
 .usuarios-form-modal-panel {
@@ -20122,6 +20176,10 @@ button.sg-kpi-card:disabled {
   }
 
   .usuarios-form-modal .usuarios-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .usuarios-form-apellidos-grid {
     grid-template-columns: 1fr;
   }
 }
@@ -27758,6 +27816,13 @@ button.sg-kpi-card:disabled {
   font-variant-numeric: tabular-nums;
 }
 
+.arquitectura-sistema-pill--codigo {
+  background: #fef3c7;
+  color: #92400e;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
 .arquitectura-sistema-badge {
   font-size: 0.68rem;
   font-weight: 700;
@@ -28315,6 +28380,55 @@ button.sg-kpi-card:disabled {
 
 .cuenta-entity-avatar--empresa {
   background: linear-gradient(145deg, #34d399 0%, #059669 100%);
+}
+
+.cuenta-entity-card--editing {
+  flex-wrap: wrap;
+  align-items: stretch;
+  border-color: #fde68a !important;
+  background: #fffbeb !important;
+}
+
+.cuenta-entity-actions {
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.cuenta-entity-edit-form {
+  flex: 1 1 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.cuenta-entity-edit-form-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.cuenta-entity-edit-form-grid {
+  width: 100%;
+}
+
+.cuenta-entity-edit-activo {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center;
+  gap: 0.45rem;
+  margin-top: 0.15rem;
+}
+
+.cuenta-entity-edit-activo input[type="checkbox"] {
+  width: auto;
+  margin: 0;
+}
+
+.arquitectura-sistema-pill--inline {
+  display: inline-flex;
+  vertical-align: middle;
+  margin-left: 0.15rem;
 }
 
 .cuenta-empty-state {

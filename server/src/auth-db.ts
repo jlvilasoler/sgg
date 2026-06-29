@@ -357,6 +357,12 @@ function assertPasswordPolicy(password: string): void {
   if (err) throw new Error(err);
 }
 
+/** Contraseña inicial aleatoria que cumple la política del sistema. */
+export function generateInitialPassword(): string {
+  const token = crypto.randomBytes(8).toString("hex");
+  return `Sg1!${token}Aa`;
+}
+
 export async function recordAuthEvent(
   db: Db,
   evento: string,

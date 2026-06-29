@@ -345,6 +345,26 @@ async function assertAccesoCuentaPropia(
   return false;
 }
 
+async function assertListUsersCuenta(
+  actor: UserPublic,
+  res: Response,
+  cuentaId: number
+): Promise<Awaited<ReturnType<typeof empresasCuenta.getEmpresaCuentaById>> | null> {
+  const cuenta = await empresasCuenta.getEmpresaCuentaById(getDb(), cuentaId);
+  if (!cuenta) {
+    res.status(404).json({ ok: false, error: "Cuenta no encontrada" });
+    return null;
+  }
+  if (actor.es_admin_plataforma || actor.es_super_admin) return cuenta;
+  const propia = await empresasCuenta.getEmpresaCuentaByAdminUserId(getDb(), actor.id);
+  if (propia?.id === cuentaId) return cuenta;
+  res.status(403).json({
+    ok: false,
+    error: "Sin permiso para listar usuarios de esta cuenta",
+  });
+  return null;
+}
+
 function assertUserInScope(
   actor: UserPublic,
   target: UserPublic,
@@ -718,6 +738,24 @@ export function registerAuthRoutes(app: Express): void {
 
     if (ambito === "propio") {
       res.json({ ok: true, data: [actor] });
+      return;
+    }
+
+    const empresaIdRaw = req.query.empresa_id ?? req.query.cuenta_id;
+    const empresaId =
+      empresaIdRaw != null && String(empresaIdRaw).trim() !== ""
+        ? Number(empresaIdRaw)
+        : null;
+    if (empresaId != null && Number.isFinite(empresaId)) {
+      const cuenta = await assertListUsersCuenta(actor, res, empresaId);
+      if (!cuenta) return;
+      res.json({
+        ok: true,
+        data: await authDb.listUsers(getDb(), {
+          empresa_id: cuenta.id,
+          incluir_admin_id: cuenta.admin_user_id,
+        }),
+      });
       return;
     }
 
@@ -1118,16 +1156,69 @@ export function registerAuthRoutes(app: Express): void {
     if (!requireSuperAdmin(req, res)) return;
     try {
       const body = req.body ?? {};
-      const empresa = await empresasCuenta.insertEmpresaCuenta(getDb(), {
-        nombre: String(body.nombre ?? ""),
-        codigo: String(body.codigo ?? ""),
-        activo: body.activo !== false,
+      const adminEmail = String(body.admin_email ?? "").trim();
+      if (!adminEmail.includes("@")) {
+        res.status(400).json({
+          ok: false,
+          error: "El email del administrador de la cuenta es obligatorio",
+        });
+        return;
+      }
+
+      const nombre = String(body.nombre ?? "");
+      const activo = body.activo !== false;
+      const opRaw = body.empresa_operativa ?? {};
+      const opNombre = String(opRaw.nombre ?? "").trim();
+      if (!opNombre) {
+        res.status(400).json({
+          ok: false,
+          error: "La primera empresa operativa (nombre) es obligatoria",
+        });
+        return;
+      }
+
+      const db = getDb();
+      const tempPassword = authDb.generateInitialPassword();
+
+      const empresa = await db.transaction(async (tx) => {
+        const created = await empresasCuenta.insertEmpresaCuenta(tx, {
+          nombre,
+          activo,
+        });
+        const adminUser = await authDb.insertUser(tx, {
+          email: adminEmail,
+          nombre: created.nombre,
+          rol: "admin",
+          password: tempPassword,
+          activo: true,
+          empresa_id: created.id,
+        });
+        const withAdmin = await empresasCuenta.setEmpresaCuentaAdmin(
+          tx,
+          created.id,
+          adminUser.id
+        );
+        await empresasCuenta.insertEmpresaOperativa(tx, withAdmin.id, {
+          nombre: opNombre,
+          activo: true,
+        });
+        return (await empresasCuenta.getEmpresaCuentaById(tx, withAdmin.id))!;
       });
+
       await authDb.recordAuthEvent(getDb(), "empresa_cuenta_created", {
         email: req.user!.email,
-        detalle: `empresa=${empresa.nombre}`,
+        detalle: `empresa=${empresa.nombre};admin=${adminEmail};op=${opNombre}`,
       });
-      res.status(201).json({ ok: true, data: empresa });
+      await authDb.recordAuthEvent(getDb(), "user_created", {
+        email: adminEmail,
+        detalle: `rol=admin;empresa=${empresa.nombre};auto_alta_cuenta`,
+      });
+
+      res.status(201).json({
+        ok: true,
+        data: empresa,
+        admin_password_temporal: tempPassword,
+      });
     } catch (e) {
       res.status(400).json({
         ok: false,
@@ -1150,7 +1241,6 @@ export function registerAuthRoutes(app: Express): void {
       const body = req.body ?? {};
       const patch: Partial<empresasCuenta.EmpresaCuentaInput> = {};
       if (body.nombre !== undefined) patch.nombre = String(body.nombre);
-      if (body.codigo !== undefined) patch.codigo = String(body.codigo);
       if (body.activo !== undefined) {
         if (!actor.es_super_admin) {
           res.status(403).json({
@@ -1223,7 +1313,6 @@ export function registerAuthRoutes(app: Express): void {
       const body = req.body ?? {};
       const empresa = await empresasCuenta.insertEmpresaOperativa(getDb(), cuentaId, {
         nombre: String(body.nombre ?? ""),
-        codigo: String(body.codigo ?? ""),
         activo: body.activo !== false,
       });
       res.status(201).json({ ok: true, data: empresa });
@@ -1231,6 +1320,37 @@ export function registerAuthRoutes(app: Express): void {
       res.status(400).json({
         ok: false,
         error: e instanceof Error ? e.message : "Error al crear empresa interna",
+      });
+    }
+  });
+
+  app.patch("/api/empresas-cuenta/:cuentaId/empresas/:empresaId", async (req, res) => {
+    if (!requireAdmin(req, res)) return;
+    try {
+      const cuentaId = Number(req.params.cuentaId);
+      const empresaId = Number(req.params.empresaId);
+      if (!Number.isFinite(cuentaId) || !Number.isFinite(empresaId)) {
+        res.status(400).json({ ok: false, error: "ID inválido" });
+        return;
+      }
+      if (!req.user!.es_super_admin && !(await assertAccesoCuentaPropia(req, res, cuentaId))) {
+        return;
+      }
+      const body = req.body ?? {};
+      const patch: Partial<empresasCuenta.EmpresaOperativaInput> = {};
+      if (body.nombre !== undefined) patch.nombre = String(body.nombre);
+      if (body.activo !== undefined) patch.activo = body.activo !== false;
+      const empresa = await empresasCuenta.updateEmpresaOperativa(
+        getDb(),
+        cuentaId,
+        empresaId,
+        patch
+      );
+      res.json({ ok: true, data: empresa });
+    } catch (e) {
+      res.status(400).json({
+        ok: false,
+        error: e instanceof Error ? e.message : "Error al actualizar empresa operativa",
       });
     }
   });

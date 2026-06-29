@@ -55,13 +55,13 @@ export interface EmpresaCuenta {
 
 export interface EmpresaCuentaInput {
   nombre: string;
-  codigo: string;
+  codigo?: string;
   activo?: boolean;
 }
 
 export interface EmpresaOperativaInput {
   nombre: string;
-  codigo: string;
+  codigo?: string;
   activo?: boolean;
 }
 
@@ -88,6 +88,125 @@ function normalizeCodigo(codigo: string): string {
     .trim()
     .toUpperCase()
     .replace(/[^A-Z0-9_]/g, "");
+}
+
+function formatEmpresaOperativaCodigo(seq: number): string {
+  return `E${Math.max(1, Math.floor(seq)).toString().padStart(5, "0")}`;
+}
+
+function parseEmpresaOperativaCodigoSeq(codigo: string): number | null {
+  const m = /^E(\d{5})$/i.exec(String(codigo ?? "").trim());
+  if (!m) return null;
+  const n = Number(m[1]);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+function formatCuentaMadreCodigo(seq: number): string {
+  return `C${Math.max(1, Math.floor(seq)).toString().padStart(5, "0")}`;
+}
+
+function parseCuentaMadreCodigoSeq(codigo: string): number | null {
+  const m = /^C(\d{5})$/i.exec(String(codigo ?? "").trim());
+  if (!m) return null;
+  const n = Number(m[1]);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+async function maxCuentaMadreCodigoSeq(db: Db): Promise<number> {
+  const rows = (await db
+    .prepare("SELECT codigo FROM EMPRESAS_CUENTA")
+    .all()) as { codigo: string }[];
+  let max = 0;
+  for (const row of rows) {
+    const n = parseCuentaMadreCodigoSeq(row.codigo);
+    if (n != null && n > max) max = n;
+  }
+  return max;
+}
+
+/** Código correlativo global C00001, C00002, … único en todas las cuentas madre. */
+export async function nextCuentaMadreCodigo(db: Db): Promise<string> {
+  let next = (await maxCuentaMadreCodigoSeq(db)) + 1;
+  while (true) {
+    const candidate = formatCuentaMadreCodigo(next);
+    const dup = (await db
+      .prepare("SELECT 1 AS ok FROM EMPRESAS_CUENTA WHERE codigo = ?")
+      .get(candidate)) as { ok: number } | undefined;
+    if (!dup) return candidate;
+    next += 1;
+  }
+}
+
+async function migrateCuentaMadreCodigosCorrelativos(db: Db): Promise<void> {
+  const rows = (await db
+    .prepare("SELECT id, codigo FROM EMPRESAS_CUENTA ORDER BY id ASC")
+    .all()) as { id: number; codigo: string }[];
+
+  let maxSeq = await maxCuentaMadreCodigoSeq(db);
+
+  for (const row of rows) {
+    if (parseCuentaMadreCodigoSeq(row.codigo) != null) continue;
+    maxSeq += 1;
+    const newCodigo = formatCuentaMadreCodigo(maxSeq);
+    await db
+      .prepare("UPDATE EMPRESAS_CUENTA SET codigo = ? WHERE id = ?")
+      .run(newCodigo, row.id);
+  }
+}
+
+async function maxEmpresaOperativaCodigoSeq(db: Db): Promise<number> {
+  const rows = (await db
+    .prepare("SELECT codigo FROM EMPRESAS_OPERATIVAS")
+    .all()) as { codigo: string }[];
+  let max = 0;
+  for (const row of rows) {
+    const n = parseEmpresaOperativaCodigoSeq(row.codigo);
+    if (n != null && n > max) max = n;
+  }
+  return max;
+}
+
+/** Código correlativo global E00001, E00002, … único en todas las empresas operativas. */
+export async function nextEmpresaOperativaCodigo(db: Db): Promise<string> {
+  let next = (await maxEmpresaOperativaCodigoSeq(db)) + 1;
+  while (true) {
+    const candidate = formatEmpresaOperativaCodigo(next);
+    const dup = (await db
+      .prepare("SELECT 1 AS ok FROM EMPRESAS_OPERATIVAS WHERE codigo = ?")
+      .get(candidate)) as { ok: number } | undefined;
+    if (!dup) return candidate;
+    next += 1;
+  }
+}
+
+async function migrateEmpresaOperativaCodigosCorrelativos(db: Db): Promise<void> {
+  const rows = (await db
+    .prepare("SELECT id, codigo FROM EMPRESAS_OPERATIVAS ORDER BY id ASC")
+    .all()) as { id: number; codigo: string }[];
+
+  let maxSeq = await maxEmpresaOperativaCodigoSeq(db);
+
+  for (const row of rows) {
+    if (parseEmpresaOperativaCodigoSeq(row.codigo) != null) continue;
+    const oldCodigo = row.codigo.trim();
+    if (!oldCodigo) continue;
+    maxSeq += 1;
+    const newCodigo = formatEmpresaOperativaCodigo(maxSeq);
+    await db
+      .prepare("UPDATE EMPRESAS_OPERATIVAS SET codigo = ? WHERE id = ?")
+      .run(newCodigo, row.id);
+    await db
+      .prepare(
+        "UPDATE STOCK_GANADERO_DISPOSITIVO SET empresa = ? WHERE UPPER(TRIM(empresa)) = UPPER(TRIM(?))"
+      )
+      .run(newCodigo, oldCodigo);
+  }
+
+  await db
+    .prepare(
+      "CREATE UNIQUE INDEX IF NOT EXISTS idx_empresas_operativas_codigo_global ON EMPRESAS_OPERATIVAS(codigo)"
+    )
+    .run();
 }
 
 function formatCuentaNumero(n: number): string {
@@ -186,6 +305,16 @@ async function migrateDropEmpresaCheckConstraints(db: Db): Promise<void> {
   }
 }
 
+async function getCuentaIdByNombre(
+  db: Db,
+  nombre: string
+): Promise<number | null> {
+  const row = (await db
+    .prepare("SELECT id FROM EMPRESAS_CUENTA WHERE LOWER(nombre) = LOWER(?)")
+    .get(nombre.trim())) as { id: number } | undefined;
+  return row ? Number(row.id) : null;
+}
+
 async function getCuentaIdByCodigo(
   db: Db,
   codigo: string
@@ -197,7 +326,7 @@ async function getCuentaIdByCodigo(
 }
 
 async function ensureSeedCuentaMadre(db: Db): Promise<number> {
-  const existing = await getCuentaIdByCodigo(db, SEED_CUENTA_MADRE.codigo);
+  const existing = await getCuentaIdByNombre(db, SEED_CUENTA_MADRE.nombre);
   if (existing) return existing;
 
   const result = await db
@@ -205,7 +334,11 @@ async function ensureSeedCuentaMadre(db: Db): Promise<number> {
       `INSERT INTO EMPRESAS_CUENTA (cuenta_numero, nombre, codigo, activo)
        VALUES (?, ?, ?, 1)`
     )
-    .run(await nextCuentaNumero(db), SEED_CUENTA_MADRE.nombre, SEED_CUENTA_MADRE.codigo);
+    .run(
+      await nextCuentaNumero(db),
+      SEED_CUENTA_MADRE.nombre,
+      await nextCuentaMadreCodigo(db)
+    );
 
   console.info("[SGG Empresas] Cuenta madre VILA DIAZ creada");
   return Number(result.lastInsertRowid);
@@ -218,9 +351,9 @@ async function ensureEmpresaOperativaSeed(
 ): Promise<void> {
   const exists = (await db
     .prepare(
-      "SELECT id FROM EMPRESAS_OPERATIVAS WHERE cuenta_id = ? AND codigo = ?"
+      "SELECT id FROM EMPRESAS_OPERATIVAS WHERE cuenta_id = ? AND LOWER(nombre) = LOWER(?)"
     )
-    .get(cuentaId, seed.codigo)) as { id: number } | undefined;
+    .get(cuentaId, seed.nombre)) as { id: number } | undefined;
   if (exists) return;
 
   await db
@@ -228,7 +361,7 @@ async function ensureEmpresaOperativaSeed(
       `INSERT INTO EMPRESAS_OPERATIVAS (cuenta_id, nombre, codigo, activo)
        VALUES (?, ?, ?, 1)`
     )
-    .run(cuentaId, seed.nombre, seed.codigo);
+    .run(cuentaId, seed.nombre, await nextEmpresaOperativaCodigo(db));
 }
 
 async function migrateCuentaAdminColumn(db: Db): Promise<void> {
@@ -327,9 +460,9 @@ export function isPrimaryPlatformAdmin(user: { email: string }): boolean {
 export async function ensureCuentaMadreAdmin(db: Db): Promise<void> {
   const cuenta = (await db
     .prepare(
-      "SELECT id, admin_user_id FROM EMPRESAS_CUENTA WHERE codigo = ?"
+      "SELECT id, admin_user_id FROM EMPRESAS_CUENTA WHERE LOWER(nombre) = LOWER(?)"
     )
-    .get(SEED_CUENTA_MADRE.codigo)) as
+    .get(SEED_CUENTA_MADRE.nombre)) as
     | { id: number; admin_user_id: number | null }
     | undefined;
   if (!cuenta || cuenta.admin_user_id != null) return;
@@ -362,8 +495,8 @@ export async function backfillCuentaMadreUsuarios(db: Db): Promise<void> {
   if (yaCorrio) return;
 
   const cuenta = (await db
-    .prepare("SELECT id FROM EMPRESAS_CUENTA WHERE codigo = ?")
-    .get(SEED_CUENTA_MADRE.codigo)) as { id: number } | undefined;
+    .prepare("SELECT id FROM EMPRESAS_CUENTA WHERE LOWER(nombre) = LOWER(?)")
+    .get(SEED_CUENTA_MADRE.nombre)) as { id: number } | undefined;
   if (!cuenta) return;
 
   const res = (await db
@@ -474,6 +607,8 @@ export async function initEmpresasCuentaTables(db: Db): Promise<void> {
   await migrateCuentaAdminColumn(db);
   await migrateDropEmpresaCheckConstraints(db);
   await migrateVilaDiazStructure(db);
+  await migrateEmpresaOperativaCodigosCorrelativos(db);
+  await migrateCuentaMadreCodigosCorrelativos(db);
 }
 
 export async function listEmpresasCuenta(db: Db): Promise<EmpresaCuenta[]> {
@@ -577,7 +712,7 @@ export async function getEmpresasOperativasDetallePorCuenta(
 
 /** ID de la cuenta madre semilla (VILA DIAZ). Usado para backfill de datos legacy. */
 export async function getSeedCuentaMadreId(db: Db): Promise<number | null> {
-  return await getCuentaIdByCodigo(db, SEED_CUENTA_MADRE.codigo);
+  return await getCuentaIdByNombre(db, SEED_CUENTA_MADRE.nombre);
 }
 
 /**
@@ -775,10 +910,9 @@ export async function insertEmpresaCuenta(
   input: EmpresaCuentaInput
 ): Promise<EmpresaCuenta> {
   const nombre = input.nombre.trim();
-  const codigo = normalizeCodigo(input.codigo);
-
   if (!nombre) throw new Error("El nombre de la empresa es obligatorio");
-  if (!codigo) throw new Error("El código de la empresa es obligatorio");
+
+  const codigo = await nextCuentaMadreCodigo(db);
 
   const dupNombre = (await db
     .prepare("SELECT id FROM EMPRESAS_CUENTA WHERE LOWER(nombre) = LOWER(?)")
@@ -812,10 +946,7 @@ export async function updateEmpresaCuenta(
 
   const nombre =
     input.nombre !== undefined ? input.nombre.trim() : current.nombre;
-  const codigo =
-    input.codigo !== undefined
-      ? normalizeCodigo(input.codigo)
-      : current.codigo;
+  const codigo = current.codigo;
   const activo =
     input.activo !== undefined ? (input.activo ? 1 : 0) : current.activo;
 
@@ -854,9 +985,9 @@ export async function insertEmpresaOperativa(
   if (!cuenta) throw new Error("Cuenta madre no encontrada");
 
   const nombre = input.nombre.trim();
-  const codigo = normalizeCodigo(input.codigo);
   if (!nombre) throw new Error("El nombre de la empresa es obligatorio");
-  if (!codigo) throw new Error("El código de la empresa es obligatorio");
+
+  const codigo = await nextEmpresaOperativaCodigo(db);
 
   const dupNombre = (await db
     .prepare(
@@ -867,12 +998,9 @@ export async function insertEmpresaOperativa(
   if (dupNombre) throw new Error("Ya existe una empresa con ese nombre en la cuenta");
 
   const dupCodigo = (await db
-    .prepare(
-      `SELECT id FROM EMPRESAS_OPERATIVAS
-       WHERE cuenta_id = ? AND codigo = ?`
-    )
-    .get(cuentaId, codigo)) as { id: number } | undefined;
-  if (dupCodigo) throw new Error("Ya existe una empresa con ese código en la cuenta");
+    .prepare("SELECT id FROM EMPRESAS_OPERATIVAS WHERE codigo = ?")
+    .get(codigo)) as { id: number } | undefined;
+  if (dupCodigo) throw new Error("Ya existe una empresa con ese código");
 
   const result = await db
     .prepare(
@@ -884,6 +1012,46 @@ export async function insertEmpresaOperativa(
   const row = (await db
     .prepare("SELECT * FROM EMPRESAS_OPERATIVAS WHERE id = ?")
     .get(Number(result.lastInsertRowid))) as EmpresaOperativaRow;
+  return operativaToPublic(row);
+}
+
+export async function updateEmpresaOperativa(
+  db: Db,
+  cuentaId: number,
+  empresaId: number,
+  input: Partial<EmpresaOperativaInput>
+): Promise<EmpresaOperativa> {
+  const current = (await db
+    .prepare("SELECT * FROM EMPRESAS_OPERATIVAS WHERE id = ? AND cuenta_id = ?")
+    .get(empresaId, cuentaId)) as EmpresaOperativaRow | undefined;
+  if (!current) throw new Error("Empresa operativa no encontrada");
+
+  const nombre =
+    input.nombre !== undefined ? input.nombre.trim() : current.nombre;
+  const activo =
+    input.activo !== undefined ? (input.activo ? 1 : 0) : current.activo;
+
+  if (!nombre) throw new Error("El nombre de la empresa es obligatorio");
+
+  const dupNombre = (await db
+    .prepare(
+      `SELECT id FROM EMPRESAS_OPERATIVAS
+       WHERE cuenta_id = ? AND LOWER(nombre) = LOWER(?) AND id != ?`
+    )
+    .get(cuentaId, nombre, empresaId)) as { id: number } | undefined;
+  if (dupNombre) throw new Error("Ya existe una empresa con ese nombre en la cuenta");
+
+  await db
+    .prepare(
+      `UPDATE EMPRESAS_OPERATIVAS
+       SET nombre = ?, activo = ?, actualizado_en = NOW()
+       WHERE id = ? AND cuenta_id = ?`
+    )
+    .run(nombre, activo, empresaId, cuentaId);
+
+  const row = (await db
+    .prepare("SELECT * FROM EMPRESAS_OPERATIVAS WHERE id = ?")
+    .get(empresaId)) as EmpresaOperativaRow;
   return operativaToPublic(row);
 }
 

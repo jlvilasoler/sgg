@@ -64,6 +64,7 @@ import type {
   AuthUser,
   EmpresaCuenta,
   EmpresaCuentaForm,
+  EmpresaCuentaCreateResult,
   EmpresaOperativa,
   EmpresaOperativaForm,
   UserForm,
@@ -2510,12 +2511,18 @@ export async function fetchMiCuentaEmpresa(): Promise<EmpresaCuenta> {
 
 export async function crearEmpresaCuenta(
   data: EmpresaCuentaForm
-): Promise<EmpresaCuenta> {
-  const json = await request<{ data: EmpresaCuenta }>("/empresas-cuenta", {
+): Promise<EmpresaCuentaCreateResult> {
+  const json = await request<{
+    data: EmpresaCuenta;
+    admin_password_temporal?: string;
+  }>("/empresas-cuenta", {
     method: "POST",
     body: JSON.stringify(data),
   });
-  return json.data;
+  return {
+    cuenta: json.data,
+    admin_password_temporal: json.admin_password_temporal,
+  };
 }
 
 export async function actualizarEmpresaCuenta(
@@ -2537,6 +2544,21 @@ export async function crearEmpresaOperativa(
     `/empresas-cuenta/${cuentaId}/empresas`,
     {
       method: "POST",
+      body: JSON.stringify(data),
+    }
+  );
+  return json.data;
+}
+
+export async function actualizarEmpresaOperativa(
+  cuentaId: number,
+  empresaId: number,
+  data: Partial<EmpresaOperativaForm>
+): Promise<EmpresaOperativa> {
+  const json = await request<{ data: EmpresaOperativa }>(
+    `/empresas-cuenta/${cuentaId}/empresas/${empresaId}`,
+    {
+      method: "PATCH",
       body: JSON.stringify(data),
     }
   );

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   actualizarEmpresaCuenta,
   crearEmpresaCuenta,
@@ -8,7 +9,11 @@ import type { EmpresaCuenta, EmpresaCuentaForm } from "../types";
 import ArquitecturaCuentaDetalle, {
   type CuentaDetallePanel,
 } from "./ArquitecturaCuentaDetalle";
-import { emptyEmpresaForm, iniciales } from "./arquitectura-sistema-shared";
+import {
+  emptyEmpresaForm,
+  emptyOperativaForm,
+  iniciales,
+} from "./arquitectura-sistema-shared";
 
 interface Props {
   apiOnline: boolean;
@@ -34,6 +39,12 @@ export default function ArquitecturaSistema({
 
   const [showNuevaEmpresa, setShowNuevaEmpresa] = useState(false);
   const [empresaForm, setEmpresaForm] = useState<EmpresaCuentaForm>(emptyEmpresaForm);
+  const [cuentaNombrePartes, setCuentaNombrePartes] = useState({
+    nombre: "",
+    primerApellido: "",
+    segundoApellido: "",
+  });
+  const [operativaForm, setOperativaForm] = useState(emptyOperativaForm);
   const [savingEmpresa, setSavingEmpresa] = useState(false);
 
   const [filtroTexto, setFiltroTexto] = useState("");
@@ -100,6 +111,34 @@ export default function ArquitecturaSistema({
     setFiltroEstado("");
   };
 
+  const openNuevaEmpresa = () => {
+    setEmpresaForm(emptyEmpresaForm());
+    setCuentaNombrePartes({ nombre: "", primerApellido: "", segundoApellido: "" });
+    setOperativaForm(emptyOperativaForm());
+    setShowNuevaEmpresa(true);
+  };
+
+  const closeNuevaEmpresa = useCallback(() => {
+    setShowNuevaEmpresa(false);
+    setEmpresaForm(emptyEmpresaForm());
+    setCuentaNombrePartes({ nombre: "", primerApellido: "", segundoApellido: "" });
+    setOperativaForm(emptyOperativaForm());
+  }, []);
+
+  useEffect(() => {
+    if (!showNuevaEmpresa) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !savingEmpresa) closeNuevaEmpresa();
+    };
+    document.addEventListener("keydown", onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [showNuevaEmpresa, savingEmpresa, closeNuevaEmpresa]);
+
   const openCuenta = (cuentaId: number, panel: CuentaDetallePanel = "none") => {
     setSelectedCuentaId(cuentaId);
     setDetallePanel(panel);
@@ -107,23 +146,49 @@ export default function ArquitecturaSistema({
 
   const handleCrearEmpresa = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!empresaForm.nombre.trim() || !empresaForm.codigo.trim()) {
-      onError("Completá nombre y código de la empresa");
+    const nombreCompleto = [
+      cuentaNombrePartes.nombre,
+      cuentaNombrePartes.primerApellido,
+      cuentaNombrePartes.segundoApellido,
+    ]
+      .map((part) => part.trim())
+      .filter(Boolean)
+      .join(" ");
+
+    if (!nombreCompleto) {
+      onError("Completá nombre y apellidos de la cuenta");
+      return;
+    }
+    const adminEmail = empresaForm.admin_email?.trim() ?? "";
+    if (!adminEmail.includes("@")) {
+      onError("Ingresá el email del administrador de la cuenta");
+      return;
+    }
+    if (!operativaForm.nombre.trim()) {
+      onError("Completá el nombre de la primera empresa operativa");
       return;
     }
     setSavingEmpresa(true);
     try {
-      const created = await crearEmpresaCuenta({
-        nombre: empresaForm.nombre.trim(),
-        codigo: empresaForm.codigo.trim().toUpperCase(),
+      const opNombre = operativaForm.nombre.trim();
+      const { cuenta: created, admin_password_temporal } = await crearEmpresaCuenta({
+        nombre: nombreCompleto,
         activo: true,
+        admin_email: adminEmail,
+        empresa_operativa: {
+          nombre: opNombre,
+        },
       });
       setEmpresas((prev) =>
         [...prev, created].sort((a, b) => a.nombre.localeCompare(b.nombre, "es"))
       );
       setEmpresaForm(emptyEmpresaForm());
-      setShowNuevaEmpresa(false);
-      onSuccess(`Cuenta creada: ${created.nombre}`);
+      closeNuevaEmpresa();
+      onSuccess(
+        admin_password_temporal
+          ? `Cuenta ${created.nombre} creada con empresa ${opNombre}. Admin ${adminEmail} — contraseña inicial: ${admin_password_temporal}`
+          : `Cuenta ${created.nombre} creada con empresa ${opNombre} · administrador ${adminEmail}`
+      );
     } catch (err) {
       onError(err instanceof Error ? err.message : "Error al crear cuenta");
     } finally {
@@ -194,9 +259,9 @@ export default function ArquitecturaSistema({
               type="button"
               className="btn btn-primary"
               disabled={!apiOnline}
-              onClick={() => setShowNuevaEmpresa((v) => !v)}
+              onClick={openNuevaEmpresa}
             >
-              {showNuevaEmpresa ? "Cancelar" : "+ Nueva cuenta madre"}
+              + Nueva cuenta madre
             </button>
           </div>
         </header>
@@ -233,56 +298,6 @@ export default function ArquitecturaSistema({
             </article>
           </div>
         </section>
-
-        {showNuevaEmpresa && (
-          <section className="usuarios-form-card">
-            <h3>Nueva cuenta madre</h3>
-            <form className="usuarios-form-grid" onSubmit={(e) => void handleCrearEmpresa(e)}>
-              <div className="field">
-                <label htmlFor="arq-nombre">Nombre completo</label>
-                <input
-                  id="arq-nombre"
-                  type="text"
-                  value={empresaForm.nombre}
-                  onChange={(e) =>
-                    setEmpresaForm((f) => ({ ...f, nombre: e.target.value }))
-                  }
-                  placeholder="Ej. VILA DIAZ"
-                  required
-                />
-              </div>
-              <div className="field">
-                <label htmlFor="arq-codigo">Código corto</label>
-                <input
-                  id="arq-codigo"
-                  type="text"
-                  value={empresaForm.codigo}
-                  onChange={(e) =>
-                    setEmpresaForm((f) => ({
-                      ...f,
-                      codigo: e.target.value.toUpperCase(),
-                    }))
-                  }
-                  placeholder="Ej. NUEVA"
-                  required
-                />
-                <p className="usuarios-rol-hint">Código de la cuenta madre</p>
-              </div>
-              <div className="usuarios-form-actions">
-                <button
-                  type="button"
-                  className="btn btn-ghost"
-                  onClick={() => setShowNuevaEmpresa(false)}
-                >
-                  Cancelar
-                </button>
-                <button type="submit" className="btn btn-primary" disabled={savingEmpresa}>
-                  {savingEmpresa ? "Creando…" : "Crear cuenta"}
-                </button>
-              </div>
-            </form>
-          </section>
-        )}
 
         <div className="filters listado-pro-filters usuarios-admin-filters">
           <div className="field usuarios-admin-search">
@@ -391,7 +406,11 @@ export default function ArquitecturaSistema({
                         {empresa.cuenta_numero}
                       </span>
                     </td>
-                    <td className="usuarios-admin-email">{empresa.codigo}</td>
+                    <td className="usuarios-admin-fecha">
+                      <span className="arquitectura-sistema-pill arquitectura-sistema-pill--codigo">
+                        {empresa.codigo}
+                      </span>
+                    </td>
                     <td>{empresa.empresas_count}</td>
                     <td>{empresa.usuarios_count}</td>
                     <td>
@@ -434,6 +453,167 @@ export default function ArquitecturaSistema({
           </table>
         </div>
       </div>
+
+      {showNuevaEmpresa &&
+        createPortal(
+          <div
+            className="pd-overlay usuarios-form-modal-overlay bn-ui"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="arq-nueva-cuenta-modal-title"
+            onClick={() => {
+              if (!savingEmpresa) closeNuevaEmpresa();
+            }}
+          >
+            <div
+              className="pd-dialog usuarios-form-modal usuarios-form-modal--compact"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <header className="usuarios-form-modal-head">
+                <div className="usuarios-form-modal-head-main">
+                  <p className="usuarios-form-modal-kicker">Arquitectura del sistema</p>
+                  <h2 id="arq-nueva-cuenta-modal-title" className="usuarios-form-modal-title">
+                    Nueva cuenta madre
+                  </h2>
+                  <p className="usuarios-form-modal-sub">
+                    Registre la cuenta madre, la primera empresa operativa y el email del
+                    administrador; el sistema crea todo automáticamente
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="usuarios-form-modal-close"
+                  disabled={savingEmpresa}
+                  onClick={closeNuevaEmpresa}
+                  aria-label="Cerrar"
+                >
+                  ×
+                </button>
+              </header>
+              <form onSubmit={(e) => void handleCrearEmpresa(e)}>
+                <div className="usuarios-form-modal-body">
+                  <div className="usuarios-form-modal-panel">
+                    <p className="usuarios-form-modal-section-title">Cuenta madre</p>
+                    <p className="usuarios-form-modal-section-hint">
+                      El código de cuenta (C00001, C00002…) y el ID se asignan automáticamente.
+                    </p>
+                    <div className="usuarios-form-grid usuarios-form-grid--cuenta-nombre">
+                      <div className="field">
+                        <label htmlFor="arq-nombre">Nombre completo</label>
+                        <input
+                          id="arq-nombre"
+                          type="text"
+                          value={cuentaNombrePartes.nombre}
+                          autoFocus
+                          onChange={(e) =>
+                            setCuentaNombrePartes((f) => ({ ...f, nombre: e.target.value }))
+                          }
+                          placeholder="INGRESAR NOMBRE COMPLETO"
+                          required
+                        />
+                      </div>
+                      <div className="field usuarios-form-apellidos">
+                        <div className="usuarios-form-apellidos-grid">
+                          <div className="field">
+                            <label htmlFor="arq-primer-apellido">Primer apellido</label>
+                            <input
+                              id="arq-primer-apellido"
+                              type="text"
+                              value={cuentaNombrePartes.primerApellido}
+                              onChange={(e) =>
+                                setCuentaNombrePartes((f) => ({
+                                  ...f,
+                                  primerApellido: e.target.value,
+                                }))
+                              }
+                              placeholder="Primer apellido"
+                              required
+                            />
+                          </div>
+                          <div className="field">
+                            <label htmlFor="arq-segundo-apellido">Segundo apellido</label>
+                            <input
+                              id="arq-segundo-apellido"
+                              type="text"
+                              value={cuentaNombrePartes.segundoApellido}
+                              onChange={(e) =>
+                                setCuentaNombrePartes((f) => ({
+                                  ...f,
+                                  segundoApellido: e.target.value,
+                                }))
+                              }
+                              placeholder="Segundo apellido"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                      <div className="field usuarios-form-grid-span-full">
+                        <label htmlFor="arq-admin-email">Email del administrador</label>
+                        <input
+                          id="arq-admin-email"
+                          type="email"
+                          value={empresaForm.admin_email ?? ""}
+                          onChange={(e) =>
+                            setEmpresaForm((f) => ({ ...f, admin_email: e.target.value }))
+                          }
+                          placeholder="mail@empresa.com"
+                          autoComplete="email"
+                          required
+                        />
+                        <p className="usuarios-rol-hint">
+                          Se creará automáticamente la cuenta de administrador de esta cuenta madre
+                          con este email
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="usuarios-form-modal-panel usuarios-form-modal-panel--secondary">
+                    <p className="usuarios-form-modal-section-title">Agregar empresa</p>
+                    <p className="usuarios-form-modal-section-hint">
+                      Primera empresa operativa de la cuenta. El código (E00001, E00002…) se
+                      asigna automáticamente. Podrá agregar más después desde el detalle de la
+                      cuenta.
+                    </p>
+                    <div className="usuarios-form-grid usuarios-form-grid--single">
+                      <div className="field usuarios-form-grid-span-full">
+                        <label htmlFor="arq-op-nombre">Nombre de empresa</label>
+                        <input
+                          id="arq-op-nombre"
+                          type="text"
+                          value={operativaForm.nombre}
+                          onChange={(e) =>
+                            setOperativaForm((f) => ({ ...f, nombre: e.target.value }))
+                          }
+                          placeholder="INGRESAR NOMBRE DE EMPRESA"
+                          required
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <footer className="usuarios-form-modal-footer">
+                  <button
+                    type="button"
+                    className="btn btn-ghost usuarios-form-modal-cancel"
+                    disabled={savingEmpresa}
+                    onClick={closeNuevaEmpresa}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn btn-primary"
+                    disabled={savingEmpresa || !apiOnline}
+                  >
+                    {savingEmpresa ? "Creando…" : "Crear cuenta y empresa"}
+                  </button>
+                </footer>
+              </form>
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   );
 }
