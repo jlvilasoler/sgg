@@ -6184,6 +6184,69 @@ a.gasto-acciones-item {
   animation: confirm-in 0.22s ease-out;
 }
 
+.under-construction-dialog {
+  width: min(420px, 100%);
+  padding: 1.75rem 1.65rem 1.5rem;
+  text-align: center;
+  border: 1px solid rgba(45, 90, 61, 0.14);
+  border-top: 4px solid var(--header-green);
+  box-shadow:
+    0 0 0 1px rgba(45, 90, 61, 0.06),
+    0 22px 56px rgba(15, 28, 20, 0.22);
+  animation: pd-dialog-in 0.26s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.under-construction-icon-wrap {
+  width: 5.5rem;
+  height: 5.5rem;
+  margin: 0 auto 0.85rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #f0f7f2 0%, #e2efe6 55%, #d4e8db 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+
+.under-construction-icon-svg {
+  width: 4rem;
+  height: 4rem;
+  display: block;
+}
+
+.under-construction-kicker {
+  margin: 0 0 0.35rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--header-green);
+}
+
+.under-construction-title {
+  margin: 0 0 0.85rem;
+  font-size: 1.35rem;
+  line-height: 1.25;
+  color: var(--text);
+}
+
+.under-construction-message {
+  margin: 0 0 0.65rem;
+  font-size: 0.98rem;
+  line-height: 1.55;
+  color: var(--text-muted, #4a5c50);
+}
+
+.under-construction-note {
+  margin: 0 0 1.35rem;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.under-construction-btn {
+  min-width: 11rem;
+}
+
 @keyframes confirm-in {
   from {
     opacity: 0;
@@ -7865,48 +7928,39 @@ select optgroup {
   flex-wrap: wrap;
   gap: 0.35rem;
   justify-content: flex-end;
-}
-
-.stock-ganadera-row-eid {
+}.stock-ganadera-row-eid,
+.stock-equina-row-eid{
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-}
-
-.stock-ganadera-row-icon {
+}.stock-ganadera-row-icon,
+.stock-equina-row-icon{
   width: 1.65rem;
   height: 1.65rem;
   flex-shrink: 0;
   display: block;
   object-fit: contain;
-}
-
-.stock-ganadera-row--macho .stock-ganadera-link {
+}.stock-ganadera-row--macho .stock-ganadera-link,
+.stock-equina-row--macho .stock-equina-link{
   color: #c62828;
-}
-
-.stock-ganadera-row--macho .stock-ganadera-link:hover {
+}.stock-ganadera-row--macho .stock-ganadera-link:hover,
+.stock-equina-row--macho .stock-equina-link:hover{
   color: #8e0000;
-}
-
-.stock-ganadera-row--hembra .stock-ganadera-link {
+}.stock-ganadera-row--hembra .stock-ganadera-link,
+.stock-equina-row--hembra .stock-equina-link{
   color: #2e7d32;
-}
-
-.stock-ganadera-row--hembra .stock-ganadera-link:hover {
+}.stock-ganadera-row--hembra .stock-ganadera-link:hover,
+.stock-equina-row--hembra .stock-equina-link:hover{
   color: #1b5e20;
-}
-
-.stock-ganadera-row--sin-sexo .stock-ganadera-link {
+}.stock-ganadera-row--sin-sexo .stock-ganadera-link,
+.stock-equina-row--sin-sexo .stock-equina-link{
   color: #1a1a1a;
-}
-
-.stock-ganadera-row--sin-sexo .stock-ganadera-link:hover {
+}.stock-ganadera-row--sin-sexo .stock-ganadera-link:hover,
+.stock-equina-row--sin-sexo .stock-equina-link:hover{
   color: #000;
-}
-
-.stock-ganadera-link {
+}.stock-ganadera-link,
+.stock-equina-link{
   padding: 0;
   border: none;
   background: none;
@@ -7917,9 +7971,8 @@ select optgroup {
   text-align: left;
   text-decoration: underline;
   text-underline-offset: 2px;
-}
-
-.stock-ganadera-link:hover {
+}.stock-ganadera-link:hover,
+.stock-equina-link:hover{
   color: color-mix(in srgb, var(--primary) 75%, #000);
 }
 
@@ -7980,50 +8033,43 @@ select optgroup {
 .stock-badge-rep--inline {
   margin-left: 0.35rem;
   vertical-align: middle;
-}
-
-.stock-ganadera-detalle-resumen {
+}.stock-ganadera-detalle-resumen,
+.stock-equina-detalle-resumen{
   margin-bottom: 1.25rem;
   padding: 0.85rem 1rem;
   background: #f8f6f2;
   border: 1px solid var(--border);
   border-radius: 8px;
-}
-
-.stock-ganadera-detalle-grid {
+}.stock-ganadera-detalle-grid,
+.stock-equina-detalle-grid{
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
   gap: 0.75rem 1.25rem;
-}
-
-.stock-ganadera-detalle-item {
+}.stock-ganadera-detalle-item,
+.stock-equina-detalle-item{
   display: flex;
   flex-direction: column;
   gap: 0.2rem;
-}
-
-.stock-ganadera-detalle-label {
+}.stock-ganadera-detalle-label,
+.stock-equina-detalle-label{
   font-size: 0.76rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--muted);
-}
-
-.stock-ganadera-detalle-valor {
+}.stock-ganadera-detalle-valor,
+.stock-equina-detalle-valor{
   font-size: 0.95rem;
   font-weight: 600;
   color: var(--text);
   word-break: break-word;
-}
-
-.stock-ganadera-detalle-actions {
+}.stock-ganadera-detalle-actions,
+.stock-equina-detalle-actions{
   display: flex;
   justify-content: flex-end;
   margin: 0 0 1rem;
-}
-
-.stock-ganadera-detalle-titulo {
+}.stock-ganadera-detalle-titulo,
+.stock-equina-detalle-titulo{
   margin: 0 0 0.65rem;
   font-size: 0.9rem;
   font-weight: 700;
@@ -8049,13 +8095,11 @@ select optgroup {
 .stock-sexo-select:disabled {
   opacity: 0.65;
   cursor: wait;
-}
-
-.stock-ganadera-table .stock-sexo-select {
+}.stock-ganadera-table .stock-sexo-select,
+.stock-equina-table .stock-sexo-select{
   min-width: 5.75rem;
-}
-
-.stock-ganadera-table .stock-sexo-select {
+}.stock-ganadera-table .stock-sexo-select,
+.stock-equina-table .stock-sexo-select{
   min-width: 5.75rem;
 }
 
@@ -8137,13 +8181,11 @@ select optgroup {
 
 .stock-table-pro .stock-td--vid {
   text-align: center;
-}
-
-.stock-table-pro .stock-td--vid .stock-ganadera-row-eid {
+}.stock-table-pro .stock-td--vid .stock-ganadera-row-eid,
+.stock-table-pro .stock-td--vid .stock-equina-row-eid{
   justify-content: center;
-}
-
-.stock-table-pro .stock-ganadera-row-icon {
+}.stock-table-pro .stock-ganadera-row-icon,
+.stock-table-pro .stock-equina-row-icon{
   width: 1.35rem;
   height: 1.35rem;
   opacity: 0.92;
@@ -8179,36 +8221,31 @@ select optgroup {
 
 .stock-table-pro-row--selected td {
   background: #f0f7f2;
-}
-
-.stock-ganadera-layout {
+}.stock-ganadera-layout,
+.stock-equina-layout{
   display: flex;
   align-items: stretch;
   border-top: 1px solid var(--border);
-}
-
-.stock-ganadera-main {
+}.stock-ganadera-main,
+.stock-equina-main{
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
-}
-
-.stock-ganadera-search-bar {
+}.stock-ganadera-search-bar,
+.stock-equina-search-bar{
   display: flex;
   align-items: stretch;
   gap: 0.5rem;
   padding: 0.85rem 1.25rem;
   background: var(--bn-bg, #fff);
   border-bottom: 1px solid var(--border);
-}
-
-.stock-ganadera-search-field {
+}.stock-ganadera-search-field,
+.stock-equina-search-field{
   flex: 1;
   min-width: 0;
-}
-
-.stock-ganadera-search-field input {
+}.stock-ganadera-search-field input,
+.stock-equina-search-field input{
   width: 100%;
   box-sizing: border-box;
   min-height: 2.35rem;
@@ -8217,15 +8254,13 @@ select optgroup {
   border-radius: 6px;
   font: inherit;
   font-size: 0.9rem;
-}
-
-.stock-ganadera-search-field input:focus {
+}.stock-ganadera-search-field input:focus,
+.stock-equina-search-field input:focus{
   outline: none;
   border-color: var(--primary);
   box-shadow: 0 0 0 2px rgba(45, 90, 61, 0.12);
-}
-
-.stock-ganadera-filtros-mobile-btn {
+}.stock-ganadera-filtros-mobile-btn,
+.stock-equina-filtros-mobile-btn{
   display: none;
   align-items: center;
   gap: 0.4rem;
@@ -8238,16 +8273,14 @@ select optgroup {
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
-}
-
-.stock-ganadera-filtros-badge {
+}.stock-ganadera-filtros-badge,
+.stock-equina-filtros-badge{
   width: 0.45rem;
   height: 0.45rem;
   border-radius: 50%;
   background: var(--bn-gold, #f0b90b);
-}
-
-.stock-ganadera-chips {
+}.stock-ganadera-chips,
+.stock-equina-chips{
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -8256,9 +8289,8 @@ select optgroup {
   background: #f7f8f9;
   border-bottom: 1px solid var(--border);
   font-size: 0.8rem;
-}
-
-.stock-ganadera-chip {
+}.stock-ganadera-chip,
+.stock-equina-chip{
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
@@ -8267,9 +8299,8 @@ select optgroup {
   border: 1px solid #d5d9d9;
   background: #fff;
   color: var(--text);
-}
-
-.stock-ganadera-chip button {
+}.stock-ganadera-chip button,
+.stock-equina-chip button{
   border: none;
   background: none;
   padding: 0 0.1rem;
@@ -8277,13 +8308,11 @@ select optgroup {
   line-height: 1;
   color: var(--muted);
   cursor: pointer;
-}
-
-.stock-ganadera-chip button:hover {
+}.stock-ganadera-chip button:hover,
+.stock-equina-chip button:hover{
   color: var(--text);
-}
-
-.stock-ganadera-chips-clear {
+}.stock-ganadera-chips-clear,
+.stock-equina-chips-clear{
   border: none;
   background: none;
   padding: 0.25rem 0.35rem;
@@ -8292,9 +8321,8 @@ select optgroup {
   color: var(--primary);
   text-decoration: underline;
   cursor: pointer;
-}
-
-.stock-ganadera-selection-bar {
+}.stock-ganadera-selection-bar,
+.stock-equina-selection-bar{
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -8304,14 +8332,12 @@ select optgroup {
   background: #fff8e6;
   border-bottom: 1px solid #f0d78c;
   font-size: 0.88rem;
-}
-
-.stock-ganadera-selection-count strong {
+}.stock-ganadera-selection-count strong,
+.stock-equina-selection-count strong{
   color: #b45309;
   font-size: 1.05rem;
-}
-
-.stock-ganadera-selection-actions {
+}.stock-ganadera-selection-actions,
+.stock-equina-selection-actions{
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -8627,22 +8653,18 @@ select optgroup {
   .stock-bulk-modal-grid {
     grid-template-columns: 1fr;
   }
-}
-
-.stock-ganadera-tools {
+}.stock-ganadera-tools,
+.stock-equina-tools{
   margin-bottom: 0;
   border-bottom: 1px solid var(--border);
-}
-
-.stock-ganadera-tools-filters {
+}.stock-ganadera-tools-filters,
+.stock-equina-tools-filters{
   margin-bottom: 0 !important;
-}
-
-.bn-ui .stock-ganadera-tools {
+}.bn-ui .stock-ganadera-tools,
+.bn-ui .stock-equina-tools{
   border-bottom: 1px solid var(--bn-border-soft);
-}
-
-.bn-ui .stock-ganadera-tools-filters {
+}.bn-ui .stock-ganadera-tools-filters,
+.bn-ui .stock-equina-tools-filters{
   padding-bottom: 0.85rem !important;
 }
 
@@ -9206,19 +9228,17 @@ select optgroup {
 .stock-ganadera-table:not(.stock-table-pro) td {
   text-align: center;
   vertical-align: middle;
-}
-
-.stock-ganadera-table:not(.stock-table-pro) th.num,
-.stock-ganadera-table:not(.stock-table-pro) td.num {
+}.stock-ganadera-table:not(.stock-table-pro) th.num,
+.stock-equina-table:not(.stock-table-pro) th.num,
+.stock-ganadera-table:not(.stock-table-pro) td.num,
+.stock-equina-table:not(.stock-table-pro) td.num{
   text-align: center;
-}
-
-.stock-ganadera-table:not(.stock-table-pro) .stock-ganadera-row-eid {
+}.stock-ganadera-table:not(.stock-table-pro) .stock-ganadera-row-eid,
+.stock-equina-table:not(.stock-table-pro) .stock-equina-row-eid{
   justify-content: center;
   width: 100%;
-}
-
-.stock-ganadera-table:not(.stock-table-pro) .stock-ganadera-link {
+}.stock-ganadera-table:not(.stock-table-pro) .stock-ganadera-link,
+.stock-equina-table:not(.stock-table-pro) .stock-equina-link{
   text-align: center;
 }
 
@@ -9303,9 +9323,8 @@ select optgroup {
   to {
     opacity: 1;
   }
-}
-
-.stock-ganadera-editar-modal {
+}.stock-ganadera-editar-modal,
+.stock-equina-editar-modal{
   position: relative;
   z-index: 10001;
   width: min(calc(1200px - 2cm), calc(100vw - 2.5rem));
@@ -9322,39 +9341,42 @@ select optgroup {
   border-radius: 14px;
   box-shadow: 0 24px 64px rgba(20, 38, 28, 0.22);
   animation: stock-edit-slide-up 0.28s cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-.stock-ganadera-editar-modal::-webkit-scrollbar {
+}.stock-ganadera-editar-modal::-webkit-scrollbar,
+.stock-equina-editar-modal::-webkit-scrollbar{
   display: none;
   width: 0;
   height: 0;
-}
-
-:is(.stock-ganadera-editar-modal, .stock-ganadera-editar-page) .stock-ganadera-editar-head {
+}:is(.stock-ganadera-editar-modal,
+:is(.stock-equina-editar-modal,
+.stock-ganadera-editar-page) .stock-ganadera-editar-head,
+.stock-equina-editar-page) .stock-equina-editar-head{
   padding: 0.75rem 1.2rem;
-}
-
-:is(.stock-ganadera-editar-modal, .stock-ganadera-editar-page) .stock-ganadera-editar-id-badge {
+}:is(.stock-ganadera-editar-modal,
+:is(.stock-equina-editar-modal,
+.stock-ganadera-editar-page) .stock-ganadera-editar-id-badge,
+.stock-equina-editar-page) .stock-equina-editar-id-badge{
   padding: 0.28rem 0.62rem;
   font-size: clamp(1rem, 2.2vw, 1.28rem);
-}
-
-:is(.stock-ganadera-editar-modal, .stock-ganadera-editar-page) .stock-ganadera-editar-eid-sub {
+}:is(.stock-ganadera-editar-modal,
+:is(.stock-equina-editar-modal,
+.stock-ganadera-editar-page) .stock-ganadera-editar-eid-sub,
+.stock-equina-editar-page) .stock-equina-editar-eid-sub{
   margin-top: 0.15rem;
   font-size: 0.62rem;
-}
-
-:is(.stock-ganadera-editar-modal, .stock-ganadera-editar-page) .stock-ganadera-editar-icon-wrap {
+}:is(.stock-ganadera-editar-modal,
+:is(.stock-equina-editar-modal,
+.stock-ganadera-editar-page) .stock-ganadera-editar-icon-wrap,
+.stock-equina-editar-page) .stock-equina-editar-icon-wrap{
   width: 2.35rem;
   height: 2.35rem;
-}
-
-:is(.stock-ganadera-editar-modal, .stock-ganadera-editar-page) .stock-ganadera-editar-icon {
+}:is(.stock-ganadera-editar-modal,
+:is(.stock-equina-editar-modal,
+.stock-ganadera-editar-page) .stock-ganadera-editar-icon,
+.stock-equina-editar-page) .stock-equina-editar-icon{
   width: 1.65rem;
   height: 1.65rem;
-}
-
-.stock-ganadera-editar-head {
+}.stock-ganadera-editar-head,
+.stock-equina-editar-head{
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -9370,9 +9392,8 @@ select optgroup {
   position: relative;
   grid-row: 1;
   border-radius: 14px 14px 0 0;
-}
-
-.stock-ganadera-editar-head::after {
+}.stock-ganadera-editar-head::after,
+.stock-equina-editar-head::after{
   content: "";
   position: absolute;
   inset: 0;
@@ -9382,18 +9403,16 @@ select optgroup {
     transparent 55%
   );
   pointer-events: none;
-}
-
-.stock-ganadera-editar-head-main {
+}.stock-ganadera-editar-head-main,
+.stock-equina-editar-head-main{
   display: flex;
   align-items: center;
   gap: 0.9rem;
   min-width: 0;
   position: relative;
   z-index: 1;
-}
-
-.stock-ganadera-editar-icon-wrap {
+}.stock-ganadera-editar-icon-wrap,
+.stock-equina-editar-icon-wrap{
   width: 2.65rem;
   height: 2.65rem;
   flex-shrink: 0;
@@ -9404,18 +9423,15 @@ select optgroup {
   background: rgba(255, 255, 255, 0.14);
   border: 1px solid rgba(255, 255, 255, 0.22);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-
-.stock-ganadera-editar-icon {
+}.stock-ganadera-editar-icon,
+.stock-equina-editar-icon{
   width: 1.9rem;
   height: 1.9rem;
-}
-
-.stock-ganadera-editar-head-text {
+}.stock-ganadera-editar-head-text,
+.stock-equina-editar-head-text{
   min-width: 0;
-}
-
-.stock-ganadera-editar-kicker {
+}.stock-ganadera-editar-kicker,
+.stock-equina-editar-kicker{
   margin: 0 0 0.2rem;
   font-size: 0.68rem;
   font-weight: 600;
@@ -9423,26 +9439,23 @@ select optgroup {
   text-transform: uppercase;
   letter-spacing: 0.1em;
   opacity: 0.9;
-}
-
-.stock-ganadera-editar-head h2 {
+}.stock-ganadera-editar-head h2,
+.stock-equina-editar-head h2{
   margin: 0;
   font-size: 1.05rem;
   font-weight: 700;
   letter-spacing: -0.02em;
   line-height: 1.2;
-}
-
-.stock-ganadera-editar-ids {
+}.stock-ganadera-editar-ids,
+.stock-equina-editar-ids{
   display: flex;
   flex-wrap: wrap;
   align-items: stretch;
   gap: 0.45rem;
   margin: 0.4rem 0 0;
   max-width: 100%;
-}
-
-.stock-ganadera-editar-id-badge {
+}.stock-ganadera-editar-id-badge,
+.stock-equina-editar-id-badge{
   margin: 0;
   display: inline-flex;
   align-items: center;
@@ -9457,33 +9470,28 @@ select optgroup {
   letter-spacing: 0.06em;
   line-height: 1.15;
   color: #fff;
-}
-
-.stock-ganadera-editar-id-badge--vid {
+}.stock-ganadera-editar-id-badge--vid,
+.stock-equina-editar-id-badge--vid{
   flex: 1 1 auto;
   min-width: 0;
   word-break: break-all;
-}
-
-.stock-ganadera-editar-eid-sub {
+}.stock-ganadera-editar-eid-sub,
+.stock-equina-editar-eid-sub{
   margin: 0.25rem 0 0;
   font-size: 0.68rem;
   opacity: 0.88;
   letter-spacing: 0.02em;
   line-height: 1.45;
-}
-
-.stock-ganadera-editar-head-sep {
+}.stock-ganadera-editar-head-sep,
+.stock-equina-editar-head-sep{
   margin: 0 0.25rem;
   opacity: 0.55;
-}
-
-.stock-ganadera-editar-head-meta-item {
+}.stock-ganadera-editar-head-meta-item,
+.stock-equina-editar-head-meta-item{
   font-weight: 500;
   white-space: nowrap;
-}
-
-.stock-ganadera-editar-close {
+}.stock-ganadera-editar-close,
+.stock-equina-editar-close{
   position: relative;
   z-index: 1;
   flex-shrink: 0;
@@ -9502,33 +9510,28 @@ select optgroup {
   padding: 0 0 0.08rem;
   cursor: pointer;
   transition: background 0.15s, transform 0.15s;
-}
-
-.stock-ganadera-editar-close:hover:not(:disabled) {
+}.stock-ganadera-editar-close:hover:not(:disabled),
+.stock-equina-editar-close:hover:not(:disabled){
   background: rgba(0, 0, 0, 0.22);
-}
-
-.stock-ganadera-editar-close:disabled {
+}.stock-ganadera-editar-close:disabled,
+.stock-equina-editar-close:disabled{
   opacity: 0.5;
   cursor: not-allowed;
-}
-
-.stock-ganadera-editar-body {
+}.stock-ganadera-editar-body,
+.stock-equina-editar-body{
   flex: 1 1 auto;
   min-height: 0;
   overflow: hidden;
   padding: 1rem 1.35rem;
   display: flex;
   flex-direction: column;
-}
-
-.stock-ganadera-editar-stats {
+}.stock-ganadera-editar-stats,
+.stock-equina-editar-stats{
   display: grid;
   grid-template-columns: minmax(4.25rem, 0.7fr) minmax(0, 1.65fr) minmax(0, 1.25fr) minmax(4.5rem, 0.75fr);
   gap: 0.55rem;
-}
-
-.stock-ganadera-stat {
+}.stock-ganadera-stat,
+.stock-equina-stat{
   display: flex;
   flex-direction: column;
   gap: 0.3rem;
@@ -9537,40 +9540,34 @@ select optgroup {
   border: 1px solid var(--border);
   border-radius: 10px;
   box-shadow: 0 1px 3px rgba(26, 46, 31, 0.04);
-}
-
-.stock-ganadera-stat--accent {
+}.stock-ganadera-stat--accent,
+.stock-equina-stat--accent{
   border-color: rgba(45, 106, 79, 0.28);
   background: linear-gradient(180deg, #fff 0%, #f2f8f4 100%);
-}
-
-.stock-ganadera-stat-label {
+}.stock-ganadera-stat-label,
+.stock-equina-stat-label{
   font-size: 0.68rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--muted);
-}
-
-.stock-ganadera-stat-value {
+}.stock-ganadera-stat-value,
+.stock-equina-stat-value{
   font-size: 0.92rem;
   font-weight: 600;
   color: var(--text);
   line-height: 1.3;
   word-break: break-word;
-}
-
-.stock-ganadera-stat-value--sm {
+}.stock-ganadera-stat-value--sm,
+.stock-equina-stat-value--sm{
   font-size: 0.8rem;
   font-weight: 500;
-}
-
-.stock-ganadera-stat--accent .stock-ganadera-stat-value {
+}.stock-ganadera-stat--accent .stock-ganadera-stat-value,
+.stock-equina-stat--accent .stock-equina-stat-value{
   font-size: 1.15rem;
   color: var(--primary);
-}
-
-.stock-ganadera-editar-panel {
+}.stock-ganadera-editar-panel,
+.stock-equina-editar-panel{
   flex: 1 1 auto;
   min-height: 0;
   display: flex;
@@ -9581,9 +9578,8 @@ select optgroup {
   border: 1px solid var(--border);
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(26, 46, 31, 0.04);
-}
-
-.stock-ganadera-editar-section-title {
+}.stock-ganadera-editar-section-title,
+.stock-equina-editar-section-title{
   margin: 0 0 0.65rem;
   padding-bottom: 0.45rem;
   border-bottom: 1px solid #eef1ee;
@@ -9592,9 +9588,8 @@ select optgroup {
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--primary);
-}
-
-.stock-ganadera-editar-grid {
+}.stock-ganadera-editar-grid,
+.stock-equina-editar-grid{
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 0.65rem 0.85rem;
@@ -9647,11 +9642,18 @@ select optgroup {
   text-transform: none;
   letter-spacing: 0;
   color: var(--muted);
-}
-
-:is(.stock-ganadera-editar-modal, .stock-ganadera-editar-page) .stock-sexo-select,
-:is(.stock-ganadera-editar-modal, .stock-ganadera-editar-page) .stock-empresa-select,
-:is(.stock-ganadera-editar-modal, .stock-ganadera-editar-page) .stock-edit-select {
+}:is(.stock-ganadera-editar-modal,
+:is(.stock-equina-editar-modal,
+.stock-ganadera-editar-page) .stock-sexo-select,
+.stock-equina-editar-page) .stock-sexo-select,
+:is(.stock-ganadera-editar-modal,
+:is(.stock-equina-editar-modal,
+.stock-ganadera-editar-page) .stock-empresa-select,
+.stock-equina-editar-page) .stock-empresa-select,
+:is(.stock-ganadera-editar-modal,
+:is(.stock-equina-editar-modal,
+.stock-ganadera-editar-page) .stock-edit-select,
+.stock-equina-editar-page) .stock-edit-select{
   width: 100%;
   min-height: 2.35rem;
   height: 2.35rem;
@@ -9666,12 +9668,19 @@ select optgroup {
   color: var(--text);
   box-sizing: border-box;
   transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
-}
-
-:is(.stock-ganadera-editar-modal, .stock-ganadera-editar-page) .stock-sexo-select:focus,
-:is(.stock-ganadera-editar-modal, .stock-ganadera-editar-page) .stock-empresa-select:focus,
-:is(.stock-ganadera-editar-modal, .stock-ganadera-editar-page) .stock-edit-select:focus,
-.stock-observaciones-input:focus {
+}:is(.stock-ganadera-editar-modal,
+:is(.stock-equina-editar-modal,
+.stock-ganadera-editar-page) .stock-sexo-select:focus,
+.stock-equina-editar-page) .stock-sexo-select:focus,
+:is(.stock-ganadera-editar-modal,
+:is(.stock-equina-editar-modal,
+.stock-ganadera-editar-page) .stock-empresa-select:focus,
+.stock-equina-editar-page) .stock-empresa-select:focus,
+:is(.stock-ganadera-editar-modal,
+:is(.stock-equina-editar-modal,
+.stock-ganadera-editar-page) .stock-edit-select:focus,
+.stock-equina-editar-page) .stock-edit-select:focus,
+.stock-observaciones-input:focus{
   outline: none;
   border-color: var(--primary);
   box-shadow: 0 0 0 3px rgba(45, 106, 79, 0.14);
@@ -9901,9 +9910,10 @@ select optgroup {
   font-size: 0.85rem;
   color: #1a3d2e;
   background: #fff;
-}
-
-:is(.stock-ganadera-editar-modal, .stock-ganadera-editar-page) .stock-evolucion-baja-select {
+}:is(.stock-ganadera-editar-modal,
+:is(.stock-equina-editar-modal,
+.stock-ganadera-editar-page) .stock-evolucion-baja-select,
+.stock-equina-editar-page) .stock-evolucion-baja-select{
   min-height: 2.35rem;
   height: 2.35rem;
   padding: 0.38rem 0.55rem;
@@ -11086,9 +11096,10 @@ select optgroup {
   border-top: 1px solid #eef1ee;
   position: relative;
   z-index: 2;
-}
-
-:is(.stock-ganadera-editar-modal, .stock-ganadera-editar-page) .stock-observaciones-input {
+}:is(.stock-ganadera-editar-modal,
+:is(.stock-equina-editar-modal,
+.stock-ganadera-editar-page) .stock-observaciones-input,
+.stock-equina-editar-page) .stock-observaciones-input{
   width: 100%;
   min-height: 2rem;
   padding: 0.38rem 0.5rem;
@@ -11099,9 +11110,8 @@ select optgroup {
   font-size: 0.9rem;
   line-height: 1.4;
   transition: border-color 0.15s, box-shadow 0.15s;
-}
-
-.stock-ganadera-editar-footer {
+}.stock-ganadera-editar-footer,
+.stock-equina-editar-footer{
   grid-row: 3;
   display: flex;
   flex-wrap: wrap;
@@ -11126,48 +11136,59 @@ select optgroup {
   display: block;
   scrollbar-width: thin;
   scrollbar-color: rgba(26, 61, 46, 0.35) transparent;
-}
-
-:is(.stock-ganadera-editar-modal, .stock-ganadera-editar-page) .stock-ganadera-editar-body::-webkit-scrollbar {
+}:is(.stock-ganadera-editar-modal,
+:is(.stock-equina-editar-modal,
+.stock-ganadera-editar-page) .stock-ganadera-editar-body::-webkit-scrollbar,
+.stock-equina-editar-page) .stock-equina-editar-body::-webkit-scrollbar{
   width: 6px;
-}
-
-:is(.stock-ganadera-editar-modal, .stock-ganadera-editar-page) .stock-ganadera-editar-body::-webkit-scrollbar-thumb {
+}:is(.stock-ganadera-editar-modal,
+:is(.stock-equina-editar-modal,
+.stock-ganadera-editar-page) .stock-ganadera-editar-body::-webkit-scrollbar-thumb,
+.stock-equina-editar-page) .stock-equina-editar-body::-webkit-scrollbar-thumb{
   background: rgba(26, 61, 46, 0.28);
   border-radius: 999px;
-}
-
-:is(.stock-ganadera-editar-modal, .stock-ganadera-editar-page) .stock-ganadera-editar-panel {
+}:is(.stock-ganadera-editar-modal,
+:is(.stock-equina-editar-modal,
+.stock-ganadera-editar-page) .stock-ganadera-editar-panel,
+.stock-equina-editar-page) .stock-equina-editar-panel{
   overflow: visible;
   min-height: 0;
   padding: 0.65rem 0.95rem 0.65rem;
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
-}
-
-:is(.stock-ganadera-editar-modal, .stock-ganadera-editar-page) .stock-ganadera-editar-section-title {
+}:is(.stock-ganadera-editar-modal,
+:is(.stock-equina-editar-modal,
+.stock-ganadera-editar-page) .stock-ganadera-editar-section-title,
+.stock-equina-editar-page) .stock-equina-editar-section-title{
   flex-shrink: 0;
   margin-bottom: 0.35rem;
   padding-bottom: 0.28rem;
-}
-
-:is(.stock-ganadera-editar-modal, .stock-ganadera-editar-page) .stock-ganadera-editar-grid {
+}:is(.stock-ganadera-editar-modal,
+:is(.stock-equina-editar-modal,
+.stock-ganadera-editar-page) .stock-ganadera-editar-grid,
+.stock-equina-editar-page) .stock-equina-editar-grid{
   flex-shrink: 0;
   gap: 0.55rem 0.85rem;
-}
-
-:is(.stock-ganadera-editar-modal, .stock-ganadera-editar-page) .stock-edit-row-4,
-:is(.stock-ganadera-editar-modal, .stock-ganadera-editar-page) .stock-edit-row-3 {
+}:is(.stock-ganadera-editar-modal,
+:is(.stock-equina-editar-modal,
+.stock-ganadera-editar-page) .stock-edit-row-4,
+.stock-equina-editar-page) .stock-edit-row-4,
+:is(.stock-ganadera-editar-modal,
+:is(.stock-equina-editar-modal,
+.stock-ganadera-editar-page) .stock-edit-row-3,
+.stock-equina-editar-page) .stock-edit-row-3{
   gap: 0.5rem 0.75rem;
-}
-
-:is(.stock-ganadera-editar-modal, .stock-ganadera-editar-page) .stock-evolucion-head {
+}:is(.stock-ganadera-editar-modal,
+:is(.stock-equina-editar-modal,
+.stock-ganadera-editar-page) .stock-evolucion-head,
+.stock-equina-editar-page) .stock-evolucion-head{
   flex-shrink: 0;
   margin-bottom: 0.45rem;
-}
-
-:is(.stock-ganadera-editar-modal, .stock-ganadera-editar-page) .stock-evolucion {
+}:is(.stock-ganadera-editar-modal,
+:is(.stock-equina-editar-modal,
+.stock-ganadera-editar-page) .stock-evolucion,
+.stock-equina-editar-page) .stock-evolucion{
   flex: 0 0 auto;
   min-height: 0;
   margin-top: 0.35rem;
@@ -11176,19 +11197,24 @@ select optgroup {
   display: flex;
   flex-direction: column;
   overflow: visible;
-}
-
-:is(.stock-ganadera-editar-modal, .stock-ganadera-editar-page) .stock-evolucion-chart {
+}:is(.stock-ganadera-editar-modal,
+:is(.stock-equina-editar-modal,
+.stock-ganadera-editar-page) .stock-evolucion-chart,
+.stock-equina-editar-page) .stock-evolucion-chart{
   flex: 1 1 auto;
   flex-shrink: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-}
-
-:is(.stock-ganadera-editar-modal, .stock-ganadera-editar-page) .stock-evo-macho,
-:is(.stock-ganadera-editar-modal, .stock-ganadera-editar-page) .stock-evo-hembra {
+}:is(.stock-ganadera-editar-modal,
+:is(.stock-equina-editar-modal,
+.stock-ganadera-editar-page) .stock-evo-macho,
+.stock-equina-editar-page) .stock-evo-macho,
+:is(.stock-ganadera-editar-modal,
+:is(.stock-equina-editar-modal,
+.stock-ganadera-editar-page) .stock-evo-hembra,
+.stock-equina-editar-page) .stock-evo-hembra{
   flex: 1 1 auto;
   flex-shrink: 1;
   min-height: 0;
@@ -11196,41 +11222,65 @@ select optgroup {
   flex-direction: column;
   padding: 0.85rem 1.1rem 0.85rem;
   overflow: hidden;
-}
-
-:is(.stock-ganadera-editar-modal, .stock-ganadera-editar-page) .stock-evo-macho-board,
-:is(.stock-ganadera-editar-modal, .stock-ganadera-editar-page) .stock-evo-hembra-board {
+}:is(.stock-ganadera-editar-modal,
+:is(.stock-equina-editar-modal,
+.stock-ganadera-editar-page) .stock-evo-macho-board,
+.stock-equina-editar-page) .stock-evo-macho-board,
+:is(.stock-ganadera-editar-modal,
+:is(.stock-equina-editar-modal,
+.stock-ganadera-editar-page) .stock-evo-hembra-board,
+.stock-equina-editar-page) .stock-evo-hembra-board{
   flex: 0 0 auto;
   flex-shrink: 0;
   min-height: auto;
   align-content: start;
   overflow: visible;
   gap: 0.55rem;
-}
-
-:is(.stock-ganadera-editar-modal, .stock-ganadera-editar-page) .stock-evo-macho-resumen,
-:is(.stock-ganadera-editar-modal, .stock-ganadera-editar-page) .stock-evo-hembra-resumen {
+}:is(.stock-ganadera-editar-modal,
+:is(.stock-equina-editar-modal,
+.stock-ganadera-editar-page) .stock-evo-macho-resumen,
+.stock-equina-editar-page) .stock-evo-macho-resumen,
+:is(.stock-ganadera-editar-modal,
+:is(.stock-equina-editar-modal,
+.stock-ganadera-editar-page) .stock-evo-hembra-resumen,
+.stock-equina-editar-page) .stock-evo-hembra-resumen{
   display: none;
-}
-
-:is(.stock-ganadera-editar-modal, .stock-ganadera-editar-page) .stock-evo-macho-card,
-:is(.stock-ganadera-editar-modal, .stock-ganadera-editar-page) .stock-evo-hembra-card {
+}:is(.stock-ganadera-editar-modal,
+:is(.stock-equina-editar-modal,
+.stock-ganadera-editar-page) .stock-evo-macho-card,
+.stock-equina-editar-page) .stock-evo-macho-card,
+:is(.stock-ganadera-editar-modal,
+:is(.stock-equina-editar-modal,
+.stock-ganadera-editar-page) .stock-evo-hembra-card,
+.stock-equina-editar-page) .stock-evo-hembra-card{
   min-height: 3.75rem;
   padding: 0.55rem 0.7rem 0.6rem;
-}
-
-:is(.stock-ganadera-editar-modal, .stock-ganadera-editar-page) .stock-evo-macho-card-titulo,
-:is(.stock-ganadera-editar-modal, .stock-ganadera-editar-page) .stock-evo-hembra-card-titulo {
+}:is(.stock-ganadera-editar-modal,
+:is(.stock-equina-editar-modal,
+.stock-ganadera-editar-page) .stock-evo-macho-card-titulo,
+.stock-equina-editar-page) .stock-evo-macho-card-titulo,
+:is(.stock-ganadera-editar-modal,
+:is(.stock-equina-editar-modal,
+.stock-ganadera-editar-page) .stock-evo-hembra-card-titulo,
+.stock-equina-editar-page) .stock-evo-hembra-card-titulo{
   font-size: 0.9rem;
-}
-
-:is(.stock-ganadera-editar-modal, .stock-ganadera-editar-page) .stock-evo-macho-card-rango,
-:is(.stock-ganadera-editar-modal, .stock-ganadera-editar-page) .stock-evo-hembra-card-rango {
+}:is(.stock-ganadera-editar-modal,
+:is(.stock-equina-editar-modal,
+.stock-ganadera-editar-page) .stock-evo-macho-card-rango,
+.stock-equina-editar-page) .stock-evo-macho-card-rango,
+:is(.stock-ganadera-editar-modal,
+:is(.stock-equina-editar-modal,
+.stock-ganadera-editar-page) .stock-evo-hembra-card-rango,
+.stock-equina-editar-page) .stock-evo-hembra-card-rango{
   font-size: 0.76rem;
-}
-
-:is(.stock-ganadera-editar-modal, .stock-ganadera-editar-page) .stock-evo-macho-track-wrap,
-:is(.stock-ganadera-editar-modal, .stock-ganadera-editar-page) .stock-evo-hembra-track-wrap {
+}:is(.stock-ganadera-editar-modal,
+:is(.stock-equina-editar-modal,
+.stock-ganadera-editar-page) .stock-evo-macho-track-wrap,
+.stock-equina-editar-page) .stock-evo-macho-track-wrap,
+:is(.stock-ganadera-editar-modal,
+:is(.stock-equina-editar-modal,
+.stock-ganadera-editar-page) .stock-evo-hembra-track-wrap,
+.stock-equina-editar-page) .stock-evo-hembra-track-wrap{
   flex: 1 1 auto;
   min-height: 6.5rem;
   margin-top: 0.35rem;
@@ -11239,77 +11289,113 @@ select optgroup {
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
-}
-
-:is(.stock-ganadera-editar-modal, .stock-ganadera-editar-page) .stock-evo-macho-pin-label,
-:is(.stock-ganadera-editar-modal, .stock-ganadera-editar-page) .stock-evo-hembra-pin-label {
+}:is(.stock-ganadera-editar-modal,
+:is(.stock-equina-editar-modal,
+.stock-ganadera-editar-page) .stock-evo-macho-pin-label,
+.stock-equina-editar-page) .stock-evo-macho-pin-label,
+:is(.stock-ganadera-editar-modal,
+:is(.stock-equina-editar-modal,
+.stock-ganadera-editar-page) .stock-evo-hembra-pin-label,
+.stock-equina-editar-page) .stock-evo-hembra-pin-label{
   bottom: calc(100% + 0.2rem);
   padding: 0.14rem 0.45rem;
   font-size: 0.72rem;
-}
-
-:is(.stock-ganadera-editar-modal, .stock-ganadera-editar-page) .stock-evo-macho-campo,
-:is(.stock-ganadera-editar-modal, .stock-ganadera-editar-page) .stock-evo-hembra-campo {
+}:is(.stock-ganadera-editar-modal,
+:is(.stock-equina-editar-modal,
+.stock-ganadera-editar-page) .stock-evo-macho-campo,
+.stock-equina-editar-page) .stock-evo-macho-campo,
+:is(.stock-ganadera-editar-modal,
+:is(.stock-equina-editar-modal,
+.stock-ganadera-editar-page) .stock-evo-hembra-campo,
+.stock-equina-editar-page) .stock-evo-hembra-campo{
   flex: 1 1 auto;
   margin-top: 0.25rem;
   min-height: 3rem;
-}
-
-:is(.stock-ganadera-editar-modal, .stock-ganadera-editar-page) .stock-evo-macho-pasto,
-:is(.stock-ganadera-editar-modal, .stock-ganadera-editar-page) .stock-evo-hembra-pasto {
+}:is(.stock-ganadera-editar-modal,
+:is(.stock-equina-editar-modal,
+.stock-ganadera-editar-page) .stock-evo-macho-pasto,
+.stock-equina-editar-page) .stock-evo-macho-pasto,
+:is(.stock-ganadera-editar-modal,
+:is(.stock-equina-editar-modal,
+.stock-ganadera-editar-page) .stock-evo-hembra-pasto,
+.stock-equina-editar-page) .stock-evo-hembra-pasto{
   height: 1.15rem;
   bottom: 0.28rem;
-}
-
-:is(.stock-ganadera-editar-modal, .stock-ganadera-editar-page) .stock-evo-macho-suelo,
-:is(.stock-ganadera-editar-modal, .stock-ganadera-editar-page) .stock-evo-hembra-suelo {
+}:is(.stock-ganadera-editar-modal,
+:is(.stock-equina-editar-modal,
+.stock-ganadera-editar-page) .stock-evo-macho-suelo,
+.stock-equina-editar-page) .stock-evo-macho-suelo,
+:is(.stock-ganadera-editar-modal,
+:is(.stock-equina-editar-modal,
+.stock-ganadera-editar-page) .stock-evo-hembra-suelo,
+.stock-equina-editar-page) .stock-evo-hembra-suelo{
   height: 0.32rem;
-}
-
-:is(.stock-ganadera-editar-modal, .stock-ganadera-editar-page) .stock-evo-macho-vaca-img,
-:is(.stock-ganadera-editar-modal, .stock-ganadera-editar-page) .stock-evo-hembra-vaca-img {
+}:is(.stock-ganadera-editar-modal,
+:is(.stock-equina-editar-modal,
+.stock-ganadera-editar-page) .stock-evo-macho-vaca-img,
+.stock-equina-editar-page) .stock-evo-macho-vaca-img,
+:is(.stock-ganadera-editar-modal,
+:is(.stock-equina-editar-modal,
+.stock-ganadera-editar-page) .stock-evo-hembra-vaca-img,
+.stock-equina-editar-page) .stock-evo-hembra-vaca-img{
   width: 3.35rem;
-}
-
-:is(.stock-ganadera-editar-modal, .stock-ganadera-editar-page) .stock-evo-macho-track--escala,
-:is(.stock-ganadera-editar-modal, .stock-ganadera-editar-page) .stock-evo-hembra-track--escala {
+}:is(.stock-ganadera-editar-modal,
+:is(.stock-equina-editar-modal,
+.stock-ganadera-editar-page) .stock-evo-macho-track--escala,
+.stock-equina-editar-page) .stock-evo-macho-track--escala,
+:is(.stock-ganadera-editar-modal,
+:is(.stock-equina-editar-modal,
+.stock-ganadera-editar-page) .stock-evo-hembra-track--escala,
+.stock-equina-editar-page) .stock-evo-hembra-track--escala{
   height: 0.65rem;
-}
-
-:is(.stock-ganadera-editar-modal, .stock-ganadera-editar-page) .stock-evo-macho-escala-leyenda,
-:is(.stock-ganadera-editar-modal, .stock-ganadera-editar-page) .stock-evo-hembra-escala-leyenda {
+}:is(.stock-ganadera-editar-modal,
+:is(.stock-equina-editar-modal,
+.stock-ganadera-editar-page) .stock-evo-macho-escala-leyenda,
+.stock-equina-editar-page) .stock-evo-macho-escala-leyenda,
+:is(.stock-ganadera-editar-modal,
+:is(.stock-equina-editar-modal,
+.stock-ganadera-editar-page) .stock-evo-hembra-escala-leyenda,
+.stock-equina-editar-page) .stock-evo-hembra-escala-leyenda{
   min-height: 2.35rem;
   margin-top: 0.2rem;
   margin-bottom: 0.1rem;
   padding: 0.3rem 0.2rem 0.28rem;
-}
-
-:is(.stock-ganadera-editar-modal, .stock-ganadera-editar-page) .stock-evo-macho-escala-wrap,
-:is(.stock-ganadera-editar-modal, .stock-ganadera-editar-page) .stock-evo-hembra-escala-wrap {
+}:is(.stock-ganadera-editar-modal,
+:is(.stock-equina-editar-modal,
+.stock-ganadera-editar-page) .stock-evo-macho-escala-wrap,
+.stock-equina-editar-page) .stock-evo-macho-escala-wrap,
+:is(.stock-ganadera-editar-modal,
+:is(.stock-equina-editar-modal,
+.stock-ganadera-editar-page) .stock-evo-hembra-escala-wrap,
+.stock-equina-editar-page) .stock-evo-hembra-escala-wrap{
   margin-top: 0.12rem;
   margin-bottom: 0.05rem;
-}
-
-:is(.stock-ganadera-editar-modal, .stock-ganadera-editar-page) .stock-edit-field--observaciones {
+}:is(.stock-ganadera-editar-modal,
+:is(.stock-equina-editar-modal,
+.stock-ganadera-editar-page) .stock-edit-field--observaciones,
+.stock-equina-editar-page) .stock-edit-field--observaciones{
   flex-shrink: 0;
   margin-top: 0.75rem;
   padding-top: 0;
-}
-
-:is(.stock-ganadera-editar-modal, .stock-ganadera-editar-page) .stock-ganadera-editar-footer {
+}:is(.stock-ganadera-editar-modal,
+:is(.stock-equina-editar-modal,
+.stock-ganadera-editar-page) .stock-ganadera-editar-footer,
+.stock-equina-editar-page) .stock-equina-editar-footer{
   padding: 0.65rem 1.2rem 0.75rem;
   gap: 0.45rem;
   box-shadow: 0 -4px 16px rgba(20, 38, 28, 0.06);
-}
-
-:is(.stock-ganadera-editar-modal, .stock-ganadera-editar-page) .stock-ganadera-editar-footer-links {
+}:is(.stock-ganadera-editar-modal,
+:is(.stock-equina-editar-modal,
+.stock-ganadera-editar-page) .stock-ganadera-editar-footer-links,
+.stock-equina-editar-page) .stock-equina-editar-footer-links{
   flex-direction: row;
   flex-wrap: wrap;
   align-items: center;
   gap: 0.45rem 0.85rem;
-}
-
-:is(.stock-ganadera-editar-modal, .stock-ganadera-editar-page) .stock-edit-link-btn {
+}:is(.stock-ganadera-editar-modal,
+:is(.stock-equina-editar-modal,
+.stock-ganadera-editar-page) .stock-edit-link-btn,
+.stock-equina-editar-page) .stock-edit-link-btn{
   font-size: 0.78rem;
   padding: 0.1rem 0;
 }
@@ -11906,9 +11992,8 @@ select optgroup {
 .stock-edit-link-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
-}
-
-.stock-ganadera-editar-footer-links {
+}.stock-ganadera-editar-footer-links,
+.stock-equina-editar-footer-links{
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -11921,9 +12006,8 @@ select optgroup {
 
 .stock-edit-link-btn--audit:hover:not(:disabled) {
   color: #3d3224;
-}
-
-.stock-ganadera-editar-footer-actions {
+}.stock-ganadera-editar-footer-actions,
+.stock-equina-editar-footer-actions{
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -11952,9 +12036,8 @@ select optgroup {
 .btn-ghost:disabled {
   opacity: 0.55;
   cursor: not-allowed;
-}
-
-.stock-ganadera-detalle-item--full {
+}.stock-ganadera-detalle-item--full,
+.stock-equina-detalle-item--full{
   grid-column: 1 / -1;
 }
 
@@ -14690,40 +14773,33 @@ button.sg-kpi-card:disabled {
 .bn-ui .stock-bulk-obs-text {
   background: #fff;
   border-color: var(--bn-border);
-}
-
-.bn-ui .stock-ganadera-layout {
+}.bn-ui .stock-ganadera-layout,
+.bn-ui .stock-equina-layout{
   border-top: 1px solid var(--bn-border-soft);
-}
-
-.bn-ui .stock-ganadera-search-bar {
+}.bn-ui .stock-ganadera-search-bar,
+.bn-ui .stock-equina-search-bar{
   background: var(--bn-bg);
   border-bottom: 1px solid var(--bn-border-soft);
   padding: 0.85rem 1.25rem;
-}
-
-.bn-ui .stock-ganadera-search-field input {
+}.bn-ui .stock-ganadera-search-field input,
+.bn-ui .stock-equina-search-field input{
   border-color: var(--bn-border);
   border-radius: 4px;
   background: var(--bn-surface);
-}
-
-.bn-ui .stock-ganadera-search-field input:focus {
+}.bn-ui .stock-ganadera-search-field input:focus,
+.bn-ui .stock-equina-search-field input:focus{
   border-color: var(--bn-gold);
   box-shadow: none;
-}
-
-.bn-ui .stock-ganadera-chips {
+}.bn-ui .stock-ganadera-chips,
+.bn-ui .stock-equina-chips{
   background: var(--bn-bg);
   border-bottom-color: var(--bn-border-soft);
-}
-
-.bn-ui .stock-ganadera-chip {
+}.bn-ui .stock-ganadera-chip,
+.bn-ui .stock-equina-chip{
   border-color: var(--bn-border);
   background: var(--bn-surface);
-}
-
-.bn-ui .stock-ganadera-selection-bar {
+}.bn-ui .stock-ganadera-selection-bar,
+.bn-ui .stock-equina-selection-bar{
   background: #fffbeb;
   border-bottom-color: rgba(240, 185, 11, 0.45);
 }
@@ -26128,31 +26204,26 @@ button.sg-kpi-card:disabled {
 /* —— Editar caravana: vista en página (no modal) —— */
 .stock-ganadera-editar-page.subseccion-inline-card {
   overflow: visible;
-}
-
-.stock-ganadera-editar-page .subseccion-inline-body {
+}.stock-ganadera-editar-page .subseccion-inline-body,
+.stock-equina-editar-page .subseccion-inline-body{
   padding: 0;
-}
-
-.stock-ganadera-editar-page {
+}.stock-ganadera-editar-page,
+.stock-equina-editar-page{
   display: flex;
   flex-direction: column;
   overflow: visible;
-}
-
-.stock-ganadera-editar-hero {
+}.stock-ganadera-editar-hero,
+.stock-equina-editar-hero{
   padding: 1rem 1.5rem;
   border-bottom: 1px solid var(--border);
   background: linear-gradient(180deg, #f4f8f5 0%, var(--surface) 100%);
-}
-
-.stock-ganadera-editar-hero-main {
+}.stock-ganadera-editar-hero-main,
+.stock-equina-editar-hero-main{
   display: flex;
   align-items: flex-start;
   gap: 1rem;
-}
-
-.stock-ganadera-editar-hero-icon {
+}.stock-ganadera-editar-hero-icon,
+.stock-equina-editar-hero-icon{
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -26163,14 +26234,12 @@ button.sg-kpi-card:disabled {
   background: #fff;
   border: 1px solid #dce8e0;
   box-shadow: 0 2px 8px rgba(26, 61, 46, 0.06);
-}
-
-.stock-ganadera-editar-page .stock-ganadera-editar-icon {
+}.stock-ganadera-editar-page .stock-ganadera-editar-icon,
+.stock-equina-editar-page .stock-equina-editar-icon{
   width: 1.75rem;
   height: 1.75rem;
-}
-
-.stock-ganadera-editar-hero-kicker {
+}.stock-ganadera-editar-hero-kicker,
+.stock-equina-editar-hero-kicker{
   display: block;
   font-size: 0.72rem;
   font-weight: 700;
@@ -26178,16 +26247,14 @@ button.sg-kpi-card:disabled {
   letter-spacing: 0.08em;
   color: var(--muted);
   margin-bottom: 0.35rem;
-}
-
-.stock-ganadera-editar-hero-ids {
+}.stock-ganadera-editar-hero-ids,
+.stock-equina-editar-hero-ids{
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
   margin-bottom: 0.35rem;
-}
-
-.stock-ganadera-editar-hero-badge {
+}.stock-ganadera-editar-hero-badge,
+.stock-equina-editar-hero-badge{
   display: inline-flex;
   align-items: center;
   padding: 0.35rem 0.75rem;
@@ -26199,55 +26266,48 @@ button.sg-kpi-card:disabled {
   border: 1px solid #d4e4da;
   color: var(--primary);
   box-shadow: 0 1px 3px rgba(26, 61, 46, 0.05);
-}
-
-.stock-ganadera-editar-hero-badge--vid {
+}.stock-ganadera-editar-hero-badge--vid,
+.stock-equina-editar-hero-badge--vid{
   background: #fff8f0;
   border-color: #f0dcc4;
   color: #9a5b18;
-}
-
-.stock-ganadera-editar-hero-meta {
+}.stock-ganadera-editar-hero-meta,
+.stock-equina-editar-hero-meta{
   margin: 0;
   font-size: 0.82rem;
-}
-
-.stock-ganadera-editar-page-body {
+}.stock-ganadera-editar-page-body,
+.stock-equina-editar-page-body{
   padding: 1.25rem 1.5rem 1.5rem;
   display: flex;
   flex-direction: column;
   gap: 1rem;
-}
-
-.stock-ganadera-editar-page-foot {
+}.stock-ganadera-editar-page-foot,
+.stock-equina-editar-page-foot{
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
   width: 100%;
-}
-
-.stock-ganadera-editar-page .stock-ganadera-editar-panel {
+}.stock-ganadera-editar-page .stock-ganadera-editar-panel,
+.stock-equina-editar-page .stock-equina-editar-panel{
   overflow: visible;
   min-height: auto;
-}
-
-.stock-ganadera-editar-page .stock-evolucion {
+}.stock-ganadera-editar-page .stock-evolucion,
+.stock-equina-editar-page .stock-evolucion{
   margin-top: 0.75rem;
   padding-top: 0.75rem;
   border-top: 1px solid #eef1ee;
   overflow: visible;
-}
-
-.stock-ganadera-editar-page .stock-edit-field--observaciones {
+}.stock-ganadera-editar-page .stock-edit-field--observaciones,
+.stock-equina-editar-page .stock-edit-field--observaciones{
   margin-top: 0.75rem;
   padding-top: 0.75rem;
   border-top: 1px solid #eef1ee;
-}
-
-.stock-ganadera-editar-page .stock-evo-macho,
-.stock-ganadera-editar-page .stock-evo-hembra {
+}.stock-ganadera-editar-page .stock-evo-macho,
+.stock-equina-editar-page .stock-evo-macho,
+.stock-ganadera-editar-page .stock-evo-hembra,
+.stock-equina-editar-page .stock-evo-hembra{
   overflow: visible;
 }
 
@@ -26348,9 +26408,8 @@ button.sg-kpi-card:disabled {
   .sim-audit-page.subseccion-inline-card--hist .subseccion-inline-body {
     padding: 0 1rem 1rem;
   }
-}
-
-.stock-ganadera-detalle-foot {
+}.stock-ganadera-detalle-foot,
+.stock-equina-detalle-foot{
   justify-content: flex-end;
   margin-top: 0.5rem;
 }
@@ -26360,26 +26419,22 @@ button.sg-kpi-card:disabled {
   display: flex;
   flex-direction: column;
   overflow: visible;
-}
-
-.stock-ganadera-detalle-page-head {
+}.stock-ganadera-detalle-page-head,
+.stock-equina-detalle-page-head{
   padding-bottom: 1rem;
   border-bottom: 1px solid var(--border);
   margin-bottom: 0;
-}
-
-.bn-ui .stock-ganadera-detalle-page-head h2 {
+}.bn-ui .stock-ganadera-detalle-page-head h2,
+.bn-ui .stock-equina-detalle-page-head h2{
   border-bottom: none;
   padding-bottom: 0;
   display: block;
-}
-
-.stock-ganadera-detalle-empty {
+}.stock-ganadera-detalle-empty,
+.stock-equina-detalle-empty{
   padding: 2rem 1.5rem;
   text-align: center;
-}
-
-.stock-ganadera-detalle-hero {
+}.stock-ganadera-detalle-hero,
+.stock-equina-detalle-hero{
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -26388,17 +26443,15 @@ button.sg-kpi-card:disabled {
   padding: 1rem 1.5rem;
   border-bottom: 1px solid var(--border);
   background: linear-gradient(180deg, #f4f8f5 0%, var(--surface) 100%);
-}
-
-.stock-ganadera-detalle-hero-main {
+}.stock-ganadera-detalle-hero-main,
+.stock-equina-detalle-hero-main{
   display: flex;
   align-items: flex-start;
   gap: 1rem;
   flex: 1 1 16rem;
   min-width: 0;
-}
-
-.stock-ganadera-detalle-hero-icon {
+}.stock-ganadera-detalle-hero-icon,
+.stock-equina-detalle-hero-icon{
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -26409,19 +26462,16 @@ button.sg-kpi-card:disabled {
   background: #fff;
   border: 1px solid #dce8e0;
   box-shadow: 0 2px 8px rgba(26, 61, 46, 0.06);
-}
-
-.stock-ganadera-detalle-wifi-icon {
+}.stock-ganadera-detalle-wifi-icon,
+.stock-equina-detalle-wifi-icon{
   width: 1.75rem;
   height: 1.75rem;
   object-fit: contain;
-}
-
-.stock-ganadera-detalle-hero-text {
+}.stock-ganadera-detalle-hero-text,
+.stock-equina-detalle-hero-text{
   min-width: 0;
-}
-
-.stock-ganadera-detalle-hero-kicker {
+}.stock-ganadera-detalle-hero-kicker,
+.stock-equina-detalle-hero-kicker{
   display: block;
   font-size: 0.72rem;
   font-weight: 700;
@@ -26429,16 +26479,14 @@ button.sg-kpi-card:disabled {
   letter-spacing: 0.08em;
   color: var(--muted);
   margin-bottom: 0.35rem;
-}
-
-.stock-ganadera-detalle-hero-ids {
+}.stock-ganadera-detalle-hero-ids,
+.stock-equina-detalle-hero-ids{
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
   margin-bottom: 0.45rem;
-}
-
-.stock-ganadera-detalle-hero-badge {
+}.stock-ganadera-detalle-hero-badge,
+.stock-equina-detalle-hero-badge{
   display: inline-flex;
   align-items: center;
   padding: 0.35rem 0.75rem;
@@ -26450,129 +26498,108 @@ button.sg-kpi-card:disabled {
   border: 1px solid #d4e4da;
   color: var(--primary);
   box-shadow: 0 1px 3px rgba(26, 61, 46, 0.05);
-}
-
-.stock-ganadera-detalle-hero-badge--vid {
+}.stock-ganadera-detalle-hero-badge--vid,
+.stock-equina-detalle-hero-badge--vid{
   background: #fff8f0;
   border-color: #f0dcc4;
   color: #9a5b18;
-}
-
-.stock-ganadera-detalle-hero-meta {
+}.stock-ganadera-detalle-hero-meta,
+.stock-equina-detalle-hero-meta{
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 0.5rem 0.85rem;
-}
-
-.stock-ganadera-detalle-hero-stat {
+}.stock-ganadera-detalle-hero-stat,
+.stock-equina-detalle-hero-stat{
   font-size: 0.82rem;
   font-weight: 600;
   color: var(--muted);
-}
-
-.stock-ganadera-detalle-body {
+}.stock-ganadera-detalle-body,
+.stock-equina-detalle-body{
   padding: 1.25rem 1.5rem 0.5rem;
   display: flex;
   flex-direction: column;
   gap: 1rem;
-}
-
-.stock-ganadera-detalle-block {
+}.stock-ganadera-detalle-block,
+.stock-equina-detalle-block{
   padding: 1rem 1.15rem;
   background: #fafbf9;
   border: 1px solid #e8ece9;
   border-radius: 10px;
-}
-
-.stock-ganadera-detalle-block--table {
+}.stock-ganadera-detalle-block--table,
+.stock-equina-detalle-block--table{
   padding-bottom: 0.75rem;
   background: #fff;
-}
-
-.stock-ganadera-detalle-block-head {
+}.stock-ganadera-detalle-block-head,
+.stock-equina-detalle-block-head{
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
   justify-content: space-between;
   gap: 0.35rem 1rem;
   margin-bottom: 0.75rem;
-}
-
-.stock-ganadera-detalle-block-title {
+}.stock-ganadera-detalle-block-title,
+.stock-equina-detalle-block-title{
   margin: 0 0 0.75rem;
   font-size: 0.78rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--primary);
-}
-
-.stock-ganadera-detalle-block-head .stock-ganadera-detalle-block-title {
+}.stock-ganadera-detalle-block-head .stock-ganadera-detalle-block-title,
+.stock-equina-detalle-block-head .stock-equina-detalle-block-title{
   margin-bottom: 0;
-}
-
-.stock-ganadera-detalle-table-count {
+}.stock-ganadera-detalle-table-count,
+.stock-equina-detalle-table-count{
   font-size: 0.78rem;
   font-weight: 500;
-}
-
-.stock-ganadera-detalle-fields {
+}.stock-ganadera-detalle-fields,
+.stock-equina-detalle-fields{
   display: grid;
   gap: 0.85rem 1.25rem;
-}
-
-.stock-ganadera-detalle-fields--3 {
+}.stock-ganadera-detalle-fields--3,
+.stock-equina-detalle-fields--3{
   grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-.stock-ganadera-detalle-fields--4 {
+}.stock-ganadera-detalle-fields--4,
+.stock-equina-detalle-fields--4{
   grid-template-columns: repeat(4, minmax(0, 1fr));
-}
-
-.stock-ganadera-detalle-campo {
+}.stock-ganadera-detalle-campo,
+.stock-equina-detalle-campo{
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
   min-width: 0;
-}
-
-.stock-ganadera-detalle-campo--full {
+}.stock-ganadera-detalle-campo--full,
+.stock-equina-detalle-campo--full{
   grid-column: 1 / -1;
-}
-
-.stock-ganadera-detalle-valor--vacio {
+}.stock-ganadera-detalle-valor--vacio,
+.stock-equina-detalle-valor--vacio{
   color: #b8c0ba;
   font-weight: 500;
-}
-
-.stock-ganadera-detalle-obs {
+}.stock-ganadera-detalle-obs,
+.stock-equina-detalle-obs{
   margin-top: 0.85rem;
   padding-top: 0.85rem;
   border-top: 1px solid #e8ece9;
-}
-
-.stock-ganadera-detalle-obs-texto {
+}.stock-ganadera-detalle-obs-texto,
+.stock-equina-detalle-obs-texto{
   margin: 0.35rem 0 0;
   font-size: 0.92rem;
   line-height: 1.5;
   color: var(--text);
   white-space: pre-wrap;
   word-break: break-word;
-}
-
-.stock-ganadera-detalle-table-wrap {
+}.stock-ganadera-detalle-table-wrap,
+.stock-equina-detalle-table-wrap{
   margin-top: 0;
-}
-
-.stock-ganadera-detalle-table {
+}.stock-ganadera-detalle-table,
+.stock-equina-detalle-table{
   width: 100%;
   min-width: 0;
   border-collapse: collapse;
   font-size: 0.8125rem;
-}
-
-.stock-ganadera-detalle-table thead th {
+}.stock-ganadera-detalle-table thead th,
+.stock-equina-detalle-table thead th{
   padding: 0.55rem 0.75rem;
   background: #fafafa;
   border-bottom: 1px solid #eaecef;
@@ -26583,23 +26610,19 @@ button.sg-kpi-card:disabled {
   color: #848e9c;
   text-align: left;
   white-space: nowrap;
-}
-
-.stock-ganadera-detalle-table tbody td {
+}.stock-ganadera-detalle-table tbody td,
+.stock-equina-detalle-table tbody td{
   padding: 0.55rem 0.75rem;
   border-bottom: 1px solid #f0f2f1;
   vertical-align: middle;
-}
-
-.stock-ganadera-detalle-table tbody tr:hover td {
+}.stock-ganadera-detalle-table tbody tr:hover td,
+.stock-equina-detalle-table tbody tr:hover td{
   background: #f8faf9;
-}
-
-.stock-ganadera-detalle-table tbody tr:last-child td {
+}.stock-ganadera-detalle-table tbody tr:last-child td,
+.stock-equina-detalle-table tbody tr:last-child td{
   border-bottom: none;
-}
-
-.stock-ganadera-detalle-archivo {
+}.stock-ganadera-detalle-archivo,
+.stock-equina-detalle-archivo{
   font-size: 0.78rem;
   color: var(--muted);
   word-break: break-all;

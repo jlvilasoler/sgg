@@ -66,6 +66,11 @@ export const MENU_APPS: MenuApp[] = [
     subtitle: "Importar lecturas EID desde archivo o carga manual",
   },
   {
+    id: "stock_equino",
+    label: "Stock Equino",
+    subtitle: "Importar lecturas EID de equinos desde archivo o carga manual",
+  },
+  {
     id: "registro_actividad",
     label: "Registro de actividad",
     subtitle: "Historial de accesos y acciones en el sistema",
@@ -88,6 +93,7 @@ const SCREEN_TITLES: Record<TabId, string> = {
   recursos_humanos: "Recursos Humanos",
   ingresos_ventas: "Ingresos por ventas",
   stock_ganadero: "Stock Ganadero",
+  stock_equino: "Stock Equino",
   stock_movimientos: "Movimientos de Dispositivos",
   registro_actividad: "Registro de actividad",
   usuarios: "Usuarios",

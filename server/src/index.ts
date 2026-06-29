@@ -1,4 +1,4 @@
-import "./load-env.js";
+﻿import "./load-env.js";
 import "./pdf-node-polyfills.js";
 import cors from "cors";
 import cookieParser from "cookie-parser";
@@ -40,6 +40,7 @@ import {
 import { normalizarTituloRubro } from "./text-normalize.js";
 import { parseStockGanaderoBuffer, parseStockGanaderoFile, parseStockGanaderoText, normalizeStockGanaderoRows } from "./parse-stock-ganadero-txt.js";
 import type { DispositivoMetaPatch, StockGanaderoFilters } from "./stock-ganadero-db.js";
+import type { StockEquinoFilters } from "./stock-equino-db.js";
 import { parseTipoBaja, tipoBajaDesdeEstadoImport, type TipoBaja } from "./stock-ganadero-db.js";
 import { auditBajasDispositivos, auditStockMovimiento, historialAutorFromRequest } from "./stock-audit.js";
 import { type Empresa, type Presupuesto, type PresupuestoInput } from "./types.js";
@@ -519,9 +520,30 @@ async function stockGanaderoFiltersFromRequest(
 ): Promise<StockGanaderoFilters> {
   const user = req.user;
   if (!user) return base;
-  const empresas = await empresasCuenta.getEmpresasScopeFilter(db.getDb(), user);
-  if (!empresas) return base;
-  return { ...base, empresas };
+  let filters: StockGanaderoFilters = { ...base };
+  const empresas = await empresasCuenta.getEmpresasCodigosScopeFilter(db.getDb(), user);
+  if (empresas) filters = { ...filters, empresas };
+  const lecturasScope = await stockLecturasFiltersFromRequest(req, {});
+  if (lecturasScope.cuenta_id != null) {
+    filters = { ...filters, cuenta_id: lecturasScope.cuenta_id };
+  }
+  return filters;
+}
+
+async function stockEquinoFiltersFromRequest(
+  req: Request,
+  base: StockEquinoFilters = {}
+): Promise<StockEquinoFilters> {
+  const user = req.user;
+  if (!user) return base;
+  let filters: StockEquinoFilters = { ...base };
+  const empresas = await empresasCuenta.getEmpresasCodigosScopeFilter(db.getDb(), user);
+  if (empresas) filters = { ...filters, empresas };
+  const lecturasScope = await stockLecturasFiltersFromRequest(req, {});
+  if (lecturasScope.cuenta_id != null) {
+    filters = { ...filters, cuenta_id: lecturasScope.cuenta_id };
+  }
+  return filters;
 }
 
 /** Filtro por cuenta madre para lotes y lecturas importadas. */
@@ -530,7 +552,12 @@ async function stockLecturasFiltersFromRequest(
   base: StockGanaderoFilters = {}
 ): Promise<StockGanaderoFilters> {
   const user = req.user;
-  if (!user || user.es_super_admin) return base;
+  if (!user) return base;
+  if (user.es_super_admin) {
+    const cuentaId = await cuentaIdForUser(user);
+    if (cuentaId == null) return base;
+    return { ...base, cuenta_id: cuentaId };
+  }
   const cuentaId = await cuentaIdForUser(user);
   if (!cuentaId) return { ...base, cuenta_id: 0 };
   return { ...base, cuenta_id: cuentaId };
@@ -538,6 +565,18 @@ async function stockLecturasFiltersFromRequest(
 
 async function assertLoteEnCuentaUsuario(req: Request, loteId: number): Promise<void> {
   const lote = await db.stockGanadero.getLote(loteId);
+  if (!lote) throw new Error("Lote no encontrado");
+  const user = req.user!;
+  if (user.es_super_admin) return;
+  const cuentaId = await cuentaIdForUser(user);
+  const loteCuenta = lote.cuenta_id ?? null;
+  if (!cuentaId || loteCuenta !== cuentaId) {
+    throw new Error("Sin permiso sobre esta importación");
+  }
+}
+
+async function assertLoteEquinoEnCuentaUsuario(req: Request, loteId: number): Promise<void> {
+  const lote = await db.stockEquino.getLote(loteId);
   if (!lote) throw new Error("Lote no encontrado");
   const user = req.user!;
   if (user.es_super_admin) return;
@@ -565,6 +604,10 @@ function stockGanaderoQueryBase(req: Request): StockGanaderoFilters {
     fecha_hasta: req.query.fecha_hasta as string | undefined,
     estado_dispositivo: estadoDispositivo,
   };
+}
+
+function stockEquinoQueryBase(req: Request): StockEquinoFilters {
+  return stockGanaderoQueryBase(req) as StockEquinoFilters;
 }
 
 async function applyEmpresaScopeToFilters(
@@ -2377,6 +2420,708 @@ app.delete("/api/stock-ganadero/lotes/:id", async (req, res) => {
     return;
   }
   if (!await db.stockGanadero.deleteLote(id)) {
+    res.status(404).json({ ok: false, error: "Lote no encontrado" });
+    return;
+  }
+  await auditStockMovimiento(req, "MODIFICACION", {
+    resumen: `Eliminó lote de importación #${id}`,
+    detalle: { lote_id: id },
+  });
+  res.json({ ok: true, message: "Importación eliminada" });
+});
+
+// —— Stock equino (clon de rutas ganadero) ——
+app.get("/api/stock-equino/ultima-importacion-archivo", async (req, res) => {
+  const filters = await stockLecturasFiltersFromRequest(req);
+  const lotes = await db.stockEquino.listLotes(filters);
+  const lote = lotes.find((l) => l.nombre_archivo !== "carga-manual");
+  if (!lote) {
+    res.json({ ok: true, data: null });
+    return;
+  }
+  res.json({
+    ok: true,
+    data: { id: lote.id, nombre: lote.nombre_archivo, filas: lote.filas },
+  });
+});
+
+app.get("/api/stock-equino/lotes", async (req, res) => {
+  const filters = await stockLecturasFiltersFromRequest(req);
+  res.json({ ok: true, data: await db.stockEquino.listLotes(filters) });
+});
+
+app.get("/api/stock-equino/registros", async (req, res) => {
+  const loteId = req.query.lote_id ? Number(req.query.lote_id) : undefined;
+  const filters = await stockLecturasFiltersFromRequest(req, {
+    lote_id: loteId && Number.isFinite(loteId) ? loteId : undefined,
+    busqueda: req.query.busqueda as string | undefined,
+    fecha_desde: req.query.fecha_desde as string | undefined,
+    fecha_hasta: req.query.fecha_hasta as string | undefined,
+    solo_repetidos: req.query.solo_repetidos === "1" || req.query.solo_repetidos === "true",
+  });
+  res.json({
+    ok: true,
+    data: await db.stockEquino.listRegistros(filters),
+  });
+});
+
+app.get("/api/stock-equino/estadisticas", async (req, res) => {
+  const loteId = req.query.lote_id ? Number(req.query.lote_id) : undefined;
+  const filters = await stockLecturasFiltersFromRequest(req, {
+    lote_id: loteId && Number.isFinite(loteId) ? loteId : undefined,
+    busqueda: req.query.busqueda as string | undefined,
+    fecha_desde: req.query.fecha_desde as string | undefined,
+    fecha_hasta: req.query.fecha_hasta as string | undefined,
+  });
+  res.json({
+    ok: true,
+    data: await db.stockEquino.estadisticas(filters),
+  });
+});
+
+app.get("/api/stock-equino/salidas", async (req, res) => {
+  const filters = await stockEquinoFiltersFromRequest(req, stockEquinoQueryBase(req));
+  const { data, bajas_reparadas } = await db.stockEquino.listSalidas(filters);
+  res.json({ ok: true, data, bajas_reparadas });
+});
+
+app.get("/api/stock-equino/empresas-operativas", async (req, res) => {
+  const detalle = await empresasCuenta.getEmpresasOperativasDetallePermitidas(
+    db.getDb(),
+    req.user!
+  );
+  res.json({ ok: true, data: detalle });
+});
+
+app.get("/api/stock-equino/dispositivos", async (req, res) => {
+  const filters = await stockEquinoFiltersFromRequest(req, {
+    ...stockEquinoQueryBase(req),
+    solo_repetidos:
+      req.query.solo_repetidos === "1" || req.query.solo_repetidos === "true",
+    solo_bajas:
+      req.query.solo_bajas === "1" || req.query.solo_bajas === "true",
+  });
+  res.json({
+    ok: true,
+    data: await db.stockEquino.listDispositivos(filters),
+  });
+});
+
+app.get("/api/stock-equino/dispositivos/:clave", async (req, res) => {
+  const filters = await stockEquinoFiltersFromRequest(req, stockEquinoQueryBase(req));
+  const detalle = await db.stockEquino.getDispositivo(req.params.clave, filters);
+  if (!detalle) {
+    res.status(404).json({ ok: false, error: "Dispositivo no encontrado" });
+    return;
+  }
+  res.json({ ok: true, data: detalle });
+});
+
+app.get("/api/stock-equino/dispositivos/:clave/historial-cambios", async (req, res) => {
+  try {
+    const data = await db.stockEquino.listHistorialCambios(req.params.clave);
+    res.json({ ok: true, data });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al cargar historial",
+    });
+  }
+});
+
+app.patch("/api/stock-equino/dispositivos/bulk", async (req, res) => {
+  try {
+    const body = req.body ?? {};
+    const claves = Array.isArray(body.claves)
+      ? body.claves.map((c: unknown) => String(c).trim()).filter(Boolean)
+      : [];
+    const patch = (body.patch ?? {}) as Record<string, unknown>;
+    const eids =
+      body.eids && typeof body.eids === "object" && !Array.isArray(body.eids)
+        ? (body.eids as Record<string, string>)
+        : {};
+
+    const metaPatch: DispositivoMetaPatch = {};
+    if (patch.sexo !== undefined) {
+      metaPatch.sexo = String(patch.sexo).toUpperCase() as "" | "MACHO" | "HEMBRA";
+    }
+    if (patch.empresa !== undefined) {
+      const empresa = String(patch.empresa).trim().toUpperCase();
+      await assertEmpresaCodigoPermitida(req.user!, empresa);
+      metaPatch.empresa = empresa;
+    }
+    if (patch.nacimiento_mes !== undefined) {
+      const v = patch.nacimiento_mes;
+      metaPatch.nacimiento_mes =
+        v === null || v === "" ? null : Number(v);
+    }
+    if (patch.nacimiento_anio !== undefined) {
+      const v = patch.nacimiento_anio;
+      metaPatch.nacimiento_anio =
+        v === null || v === "" ? null : Number(v);
+    }
+    if (patch.observaciones !== undefined) {
+      metaPatch.observaciones = String(patch.observaciones);
+    }
+    if (patch.estado !== undefined) {
+      metaPatch.estado = String(patch.estado).toUpperCase() as
+        | "VIVO"
+        | "MUERTO"
+        | "VENDIDO"
+        | "FRIGORIFICO";
+    }
+    if (patch.baja_mes !== undefined) {
+      const v = patch.baja_mes;
+      metaPatch.baja_mes = v === null || v === "" ? null : Number(v);
+    }
+    if (patch.baja_anio !== undefined) {
+      const v = patch.baja_anio;
+      metaPatch.baja_anio = v === null || v === "" ? null : Number(v);
+    }
+
+    const result = await db.stockEquino.bulkPatchDispositivos(
+      claves,
+      metaPatch,
+      eids,
+      historialAutorFromRequest(req, "MASIVO")
+    );
+    if (result.actualizados > 0) {
+      await auditStockMovimiento(req, "MODIFICACION", {
+        cantidad: result.actualizados,
+        resumen: `Modificación masiva de ${result.actualizados} dispositivo(s)`,
+        detalle: { claves: claves.slice(0, 25), patch: metaPatch },
+      });
+    }
+    res.json({ ok: true, data: result });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al actualizar dispositivos",
+    });
+  }
+});
+
+app.post("/api/stock-equino/dispositivos/bulk-delete", async (req, res) => {
+  if (!req.user || req.user.rol !== "admin") {
+    res.status(403).json({ ok: false, error: "Solo administradores" });
+    return;
+  }
+  try {
+    const body = req.body ?? {};
+    const claves = Array.isArray(body.claves)
+      ? body.claves.map((c: unknown) => String(c).trim()).filter(Boolean)
+      : [];
+    const result = await db.stockEquino.deleteDispositivos(claves);
+    await auditStockMovimiento(req, "MODIFICACION", {
+      cantidad: result.eliminados,
+      resumen: `Eliminó ${result.eliminados} dispositivo(s) del sistema`,
+      detalle: {
+        claves: claves.slice(0, 25),
+        lecturas_eliminadas: result.lecturas_eliminadas,
+        no_encontrados: result.no_encontrados,
+      },
+    });
+    res.json({ ok: true, data: result });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al eliminar dispositivos",
+    });
+  }
+});
+
+app.post("/api/stock-equino/dispositivos/wipe-all", async (req, res) => {
+  if (!req.user || req.user.rol !== "admin") {
+    res.status(403).json({ ok: false, error: "Solo administradores" });
+    return;
+  }
+  const cuentaId = await requireStockAdminCuentaId(req, res);
+  if (cuentaId == null && !req.user!.es_super_admin) return;
+  try {
+    const result = await db.stockEquino.vaciarCompleto(cuentaId);
+    await auditStockMovimiento(req, "MODIFICACION", {
+      resumen: "Vació todo el stock equino",
+      detalle: { ...result },
+    });
+    res.json({ ok: true, data: result });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al vaciar el stock",
+    });
+  }
+});
+
+app.get("/api/stock-equino/backup", async (req, res) => {
+  if (!req.user || req.user.rol !== "admin") {
+    res.status(403).json({ ok: false, error: "Solo administradores" });
+    return;
+  }
+  const cuentaId = await requireStockAdminCuentaId(req, res);
+  if (cuentaId == null) {
+    if (req.user.es_super_admin) {
+      res.json({
+        ok: true,
+        data: {
+          disponible: false,
+          creado_en: null,
+          dispositivos: 0,
+          lecturas: 0,
+          historial: 0,
+          vinculos_sim: 0,
+        },
+      });
+      return;
+    }
+    return;
+  }
+  try {
+    res.json({ ok: true, data: await db.stockEquino.backupInfo(cuentaId) });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al leer respaldo",
+    });
+  }
+});
+
+app.post("/api/stock-equino/backup/restore", async (req, res) => {
+  if (!req.user || req.user.rol !== "admin") {
+    res.status(403).json({ ok: false, error: "Solo administradores" });
+    return;
+  }
+  const cuentaId = await requireStockAdminCuentaId(req, res);
+  if (cuentaId == null) {
+    if (!req.user.es_super_admin) return;
+    res.status(400).json({
+      ok: false,
+      error: "Recuperación de respaldo requiere una cuenta madre asociada",
+    });
+    return;
+  }
+  try {
+    const result = await db.stockEquino.restaurarDesdeBackup(cuentaId);
+    await auditStockMovimiento(req, "MODIFICACION", {
+      resumen: `Restauró stock ganadero desde respaldo (${result.dispositivos_restaurados} dispositivo(s))`,
+      detalle: { ...result },
+    });
+    res.json({ ok: true, data: result });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al restaurar respaldo",
+    });
+  }
+});
+
+app.patch("/api/stock-equino/dispositivos/:clave/sexo", async (req, res) => {
+  try {
+    const sexo = String(req.body?.sexo ?? "").toUpperCase() as
+      | ""
+      | "MACHO"
+      | "HEMBRA";
+    const eid = typeof req.body?.eid === "string" ? req.body.eid : undefined;
+    const actualizado = await db.stockEquino.updateDispositivoSexo(
+      req.params.clave,
+      sexo,
+      eid,
+      historialAutorFromRequest(req, "FICHA")
+    );
+    await auditStockMovimiento(req, "MODIFICACION", {
+      clave: req.params.clave,
+      resumen: `Cambió sexo del dispositivo ${req.params.clave}`,
+      detalle: { sexo: actualizado },
+    });
+    res.json({ ok: true, data: { sexo: actualizado } });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al guardar sexo",
+    });
+  }
+});
+
+app.patch("/api/stock-equino/dispositivos/:clave", async (req, res) => {
+  try {
+    const body = req.body ?? {};
+    const sexo = String(body.sexo ?? "").toUpperCase() as "" | "MACHO" | "HEMBRA";
+    const empresa = String(body.empresa ?? "").trim().toUpperCase();
+    await assertEmpresaCodigoPermitida(req.user!, empresa);
+    const mesRaw = body.nacimiento_mes;
+    const nacimiento_mes =
+      mesRaw === null || mesRaw === undefined || mesRaw === ""
+        ? null
+        : Number(mesRaw);
+    const anioRaw = body.nacimiento_anio;
+    const nacimiento_anio =
+      anioRaw === null || anioRaw === undefined || anioRaw === ""
+        ? null
+        : Number(anioRaw);
+    const observaciones =
+      typeof body.observaciones === "string" ? body.observaciones : "";
+    const grupo_libre =
+      typeof body.grupo_libre === "string" ? body.grupo_libre : "";
+    const estado = String(body.estado ?? "VIVO").toUpperCase() as
+      | "VIVO"
+      | "MUERTO"
+      | "VENDIDO"
+      | "FRIGORIFICO"
+      | "PERDIDO";
+    const tipo_baja = optionalTipoBaja(body.tipo_baja);
+    const numero_guia =
+      typeof body.numero_guia === "string" ? body.numero_guia : "";
+    const bajaMesRaw = body.baja_mes;
+    const baja_mes =
+      bajaMesRaw === null || bajaMesRaw === undefined || bajaMesRaw === ""
+        ? null
+        : Number(bajaMesRaw);
+    const bajaAnioRaw = body.baja_anio;
+    const baja_anio =
+      bajaAnioRaw === null || bajaAnioRaw === undefined || bajaAnioRaw === ""
+        ? null
+        : Number(bajaAnioRaw);
+    const eid = typeof body.eid === "string" ? body.eid : undefined;
+
+    const data = await db.stockEquino.saveDispositivo(
+      req.params.clave,
+      {
+        sexo,
+        empresa,
+        grupo: "",
+        grupo_libre,
+        nacimiento_mes,
+        nacimiento_anio,
+        observaciones,
+        estado,
+        tipo_baja,
+        numero_guia,
+        baja_mes,
+        baja_anio,
+      },
+      eid,
+      historialAutorFromRequest(req, "FICHA")
+    );
+    await auditStockMovimiento(req, "MODIFICACION", {
+      clave: req.params.clave,
+      resumen: `Modificó dispositivo ${req.params.clave}`,
+      detalle: {
+        estado: data.estado,
+        tipo_baja: data.tipo_baja,
+        sexo: data.sexo,
+        empresa: data.empresa,
+      },
+    });
+    res.json({ ok: true, data });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al guardar dispositivo",
+    });
+  }
+});
+
+app.patch("/api/stock-equino/dispositivos/:clave/edad", async (req, res) => {
+  try {
+    const raw = req.body?.edad;
+    const edad =
+      raw === null || raw === undefined || raw === ""
+        ? null
+        : Number(raw);
+    const eid = typeof req.body?.eid === "string" ? req.body.eid : undefined;
+    const actualizado = await db.stockEquino.updateDispositivoEdad(
+      req.params.clave,
+      edad,
+      eid
+    );
+    await auditStockMovimiento(req, "MODIFICACION", {
+      clave: req.params.clave,
+      resumen: `Actualizó edad del dispositivo ${req.params.clave}`,
+      detalle: { edad: actualizado },
+    });
+    res.json({ ok: true, data: { edad: actualizado } });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al guardar edad",
+    });
+  }
+});
+
+app.get("/api/stock-equino/resumen", async (req, res) => {
+  const filters = await stockEquinoFiltersFromRequest(req);
+  const lecturasFilters = await stockLecturasFiltersFromRequest(req);
+  const lotes = await db.stockEquino.listLotes(lecturasFilters);
+  res.json({
+    ok: true,
+    data: {
+      lotes: lotes.length,
+      registros: await db.stockEquino.countRegistros(lecturasFilters),
+      dispositivos: await db.stockEquino.countDispositivos(filters),
+      dispositivos_total: await db.stockEquino.countDispositivosTotal(filters),
+      ventas_dispositivos: 0,
+    },
+  });
+});
+
+app.get("/api/stock-equino/ventas-dispositivos", async (_req, res) => {
+  const [total, claves] = await Promise.all([
+    db.simuladorVentaDispositivos.countEnVentasCerradas(),
+    db.simuladorVentaDispositivos.listClavesEnVentasCerradas(),
+  ]);
+  res.json({ ok: true, data: { total, claves } });
+});
+
+app.post("/api/stock-equino/import/file", upload.single("file"), async (req, res) => {
+  try {
+    const file = req.file;
+    if (!file?.buffer?.length) {
+      res.status(400).json({ ok: false, error: "Seleccioná un archivo .txt, .csv o .xlsx" });
+      return;
+    }
+    const rows = await parseStockGanaderoFile(file.buffer, file.originalname || "import.txt");
+    const cuentaId = await cuentaIdParaInsert(req.user!);
+    const result = await db.stockEquino.importRows(
+      file.originalname || "import.txt",
+      rows,
+      cuentaId
+    );
+    const lote = await db.stockEquino.getLote(result.lote_id);
+    if (result.insertados > 0) {
+      await auditStockMovimiento(req, "ALTA", {
+        cantidad: result.insertados,
+        resumen: `Importó ${result.insertados} lectura(s) desde archivo`,
+        detalle: {
+          archivo: lote?.nombre_archivo ?? file.originalname,
+          lote_id: result.lote_id,
+        },
+      });
+    }
+    res.status(201).json({
+      ok: true,
+      message: `Importadas ${result.insertados} lectura(s) desde «${lote?.nombre_archivo ?? "archivo"}»`,
+      data: { ...result, lote },
+    });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: (e as Error).message });
+  }
+});
+
+app.post("/api/stock-equino/import/text", async (req, res) => {
+  try {
+    const texto = String((req.body as { texto?: string }).texto ?? "");
+    const nombre = String((req.body as { nombre_archivo?: string }).nombre_archivo ?? "pegado.txt");
+    const rows = parseStockGanaderoText(texto);
+    const cuentaId = await cuentaIdParaInsert(req.user!);
+    const result = await db.stockEquino.importRows(nombre, rows, cuentaId);
+    const lote = await db.stockEquino.getLote(result.lote_id);
+    if (result.insertados > 0) {
+      await auditStockMovimiento(req, "ALTA", {
+        cantidad: result.insertados,
+        resumen: `Importó ${result.insertados} lectura(s) desde texto`,
+        detalle: { archivo: nombre, lote_id: result.lote_id },
+      });
+    }
+    res.status(201).json({
+      ok: true,
+      message: `Importadas ${result.insertados} lectura(s)`,
+      data: { ...result, lote },
+    });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: (e as Error).message });
+  }
+});
+
+app.post("/api/stock-equino/import/rows", async (req, res) => {
+  try {
+    const body = req.body as {
+      rows?: Array<{
+        eid?: string;
+        vid?: string;
+        fecha?: string;
+        hora?: string;
+        condicion?: string;
+        empresa?: string;
+      }>;
+      nombre_archivo?: string;
+    };
+    const rows = normalizeStockGanaderoRows(body.rows ?? []);
+    await assertStockImportRowsEmpresas(req.user!, rows);
+    const nombre = String(body.nombre_archivo ?? "carga-manual").trim() || "carga-manual";
+    const cuentaId = await cuentaIdParaInsert(req.user!);
+    const result = await db.stockEquino.importRows(nombre, rows, cuentaId);
+    const lote = await db.stockEquino.getLote(result.lote_id);
+    if (result.insertados > 0) {
+      await auditStockMovimiento(req, "ALTA", {
+        cantidad: result.insertados,
+        resumen: `Carga manual: ${result.insertados} lectura(s)`,
+        detalle: { archivo: nombre, lote_id: result.lote_id },
+      });
+    }
+    res.status(201).json({
+      ok: true,
+      message: `Importadas ${result.insertados} lectura(s) (carga manual)`,
+      data: { ...result, lote },
+    });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: (e as Error).message });
+  }
+});
+
+app.post("/api/stock-equino/baja/file", upload.single("file"), async (req, res) => {
+  try {
+    const file = req.file;
+    if (!file?.buffer?.length) {
+      res.status(400).json({ ok: false, error: "Seleccioná un archivo .txt o .csv" });
+      return;
+    }
+    const tipo_baja = parseTipoBajaForImport(req.body ?? {});
+    const rows = parseStockGanaderoBuffer(file.buffer);
+    const result = await db.stockEquino.importBaja(
+      rows,
+      tipo_baja,
+      historialAutorFromRequest(req, "IMPORT")
+    );
+    if (result.dispositivos_bajados.length > 0) {
+      await auditBajasDispositivos(req, result.dispositivos_bajados);
+    }
+    res.status(201).json({
+      ok: true,
+      message: mensajeImportBaja(result, tipo_baja),
+      data: { ...result, tipo_baja },
+    });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: (e as Error).message });
+  }
+});
+
+app.post("/api/stock-equino/baja/text", async (req, res) => {
+  try {
+    const body = req.body as { texto?: string; tipo_baja?: string; estado?: string };
+    const texto = String(body.texto ?? "");
+    const tipo_baja = parseTipoBajaForImport(body);
+    const rows = parseStockGanaderoText(texto);
+    const result = await db.stockEquino.importBaja(
+      rows,
+      tipo_baja,
+      historialAutorFromRequest(req, "IMPORT")
+    );
+    if (result.dispositivos_bajados.length > 0) {
+      await auditBajasDispositivos(req, result.dispositivos_bajados);
+    }
+    res.status(201).json({
+      ok: true,
+      message: mensajeImportBaja(result, tipo_baja),
+      data: { ...result, tipo_baja },
+    });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: (e as Error).message });
+  }
+});
+
+app.post("/api/stock-equino/baja/rows", async (req, res) => {
+  try {
+    const body = req.body as {
+      rows?: Array<{
+        eid?: string;
+        vid?: string;
+        fecha?: string;
+        hora?: string;
+        condicion?: string;
+      }>;
+      tipo_baja?: string;
+      estado?: string;
+    };
+    const tipo_baja = parseTipoBajaForImport(body);
+    const rows = normalizeStockGanaderoRows(body.rows ?? []);
+    const result = await db.stockEquino.importBaja(
+      rows,
+      tipo_baja,
+      historialAutorFromRequest(req, "IMPORT")
+    );
+    if (result.dispositivos_bajados.length > 0) {
+      await auditBajasDispositivos(req, result.dispositivos_bajados);
+    }
+    res.status(201).json({
+      ok: true,
+      message: mensajeImportBaja(result, tipo_baja),
+      data: { ...result, tipo_baja },
+    });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: (e as Error).message });
+  }
+});
+
+app.post("/api/stock-equino/baja/dispositivos", async (req, res) => {
+  try {
+    const body = req.body as {
+      items?: Array<{
+        numero?: string;
+        tipo_baja?: string;
+        fecha?: string;
+        numero_guia?: string;
+        observaciones?: string;
+      }>;
+      dispositivos?: string[];
+      estado?: string;
+    };
+
+    if (Array.isArray(body.items) && body.items.length > 0) {
+      const items = body.items.map((item) => ({
+        numero: String(item.numero ?? "").trim(),
+        tipo_baja: parseTipoBaja(item.tipo_baja),
+        fecha: String(item.fecha ?? "").trim(),
+        numero_guia: String(item.numero_guia ?? "").trim() || undefined,
+        observaciones: String(item.observaciones ?? "").trim() || undefined,
+      }));
+      const result = await db.stockEquino.importBajaDetalle(
+        items,
+        historialAutorFromRequest(req, "IMPORT")
+      );
+      if (result.dispositivos_bajados.length > 0) {
+        await auditBajasDispositivos(req, result.dispositivos_bajados);
+      }
+      res.status(201).json({
+        ok: true,
+        message: mensajeImportBajaDetalle(result),
+        data: result,
+      });
+      return;
+    }
+
+    const tipo_baja = parseTipoBajaForImport(body);
+    const dispositivos = Array.isArray(body.dispositivos)
+      ? body.dispositivos.map((n) => String(n ?? "").trim()).filter(Boolean)
+      : [];
+    const result = await db.stockEquino.importBajaNumeros(
+      dispositivos,
+      tipo_baja,
+      historialAutorFromRequest(req, "IMPORT")
+    );
+    if (result.dispositivos_bajados.length > 0) {
+      await auditBajasDispositivos(req, result.dispositivos_bajados);
+    }
+    res.status(201).json({
+      ok: true,
+      message: mensajeImportBaja(result, tipo_baja),
+      data: { ...result, tipo_baja },
+    });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: (e as Error).message });
+  }
+});
+
+app.delete("/api/stock-equino/lotes/:id", async (req, res) => {
+  const id = Number(req.params.id);
+  try {
+    await assertLoteEquinoEnCuentaUsuario(req, id);
+  } catch (e) {
+    res.status(403).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Sin permiso sobre esta importación",
+    });
+    return;
+  }
+  if (!await db.stockEquino.deleteLote(id)) {
     res.status(404).json({ ok: false, error: "Lote no encontrado" });
     return;
   }

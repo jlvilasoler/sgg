@@ -328,6 +328,15 @@ export interface StockGanaderaDispositivoHistorial {
   origen: string;
 }
 
+export type StockEquinoLote = StockGanaderoLote;
+export type StockEquinoRegistro = StockGanaderoRegistro;
+export type StockEquinoEidRepetido = StockGanaderoEidRepetido;
+export type StockEquinoEstadisticas = StockGanaderoEstadisticas;
+export type StockEquinaDispositivo = StockGanaderaDispositivo;
+export type StockEquinaLecturaDetalle = StockGanaderaLecturaDetalle;
+export type StockEquinaDispositivoDetalle = StockGanaderaDispositivoDetalle;
+export type StockEquinaDispositivoHistorial = StockGanaderaDispositivoHistorial;
+
 export type StockMovimientoTipo = "ALTA" | "BAJA" | "MODIFICACION";
 
 export interface StockMovimientoBajaDispositivo {

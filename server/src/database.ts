@@ -37,7 +37,9 @@ import * as vsub from "./venta-sub-rubros-db.js";
 import * as vsubItems from "./venta-sub-rubro-items-db.js";
 import * as vgicon from "./venta-grupo-iconos-db.js";
 import * as stock from "./stock-ganadero-db.js";
+import * as stockEquinoDb from "./stock-equino-db.js";
 import * as stockSalidas from "./stock-ganadera-salidas.js";
+import * as stockEquinoSalidas from "./stock-equina-salidas.js";
 import * as stockAud from "./stock-auditoria-db.js";
 import * as auth from "./auth-db.js";
 import * as empresasCuenta from "./empresas-cuenta-db.js";
@@ -98,6 +100,7 @@ async function runModuleSeeds(): Promise<void> {
     vsubItems.initVentaSubRubroItemsTable(db),
     vgicon.initVentaGrupoIconosTable(db),
     stock.initStockGanaderoTables(db),
+    stockEquinoDb.initStockEquinoTables(db),
   ]);
 
   await sub.migrateUnificarGruposIconos(db);
@@ -181,6 +184,7 @@ export async function initDb(): Promise<void> {
     await Promise.all([
       chat.initChatTables(db),
       stock.initStockGanaderoTables(db),
+    stockEquinoDb.initStockEquinoTables(db),
       stockAud.initStockAuditoriaTable(db),
       pgan.initPreciosGanadoTable(db),
     ]);
@@ -434,6 +438,75 @@ export const stockGanadero = {
     stock.restaurarStockGanaderaDesdeBackup(db, cuentaId),
   listHistorialCambios: (clave: string) =>
     stock.listStockGanaderaDispositivoHistorial(db, clave),
+};
+
+export const stockEquino = {
+  listLotes: (filters?: stockEquinoDb.StockEquinoFilters) =>
+    stockEquinoDb.listStockEquinoLotes(db, filters),
+  getLote: (id: number) => stockEquinoDb.getStockEquinoLoteById(db, id),
+  listRegistros: (filters?: stockEquinoDb.StockEquinoFilters) =>
+    stockEquinoDb.listStockEquinoRegistros(db, filters),
+  importRows: (
+    nombreArchivo: string,
+    rows: stockEquinoDb.StockEquinoRowInput[],
+    cuentaId?: number | null
+  ) => stockEquinoDb.importStockEquinoRows(db, nombreArchivo, rows, cuentaId),
+  importBaja: (
+    rows: stockEquinoDb.StockEquinoRowInput[],
+    tipo_baja: stockEquinoDb.TipoBaja,
+    autor?: stockEquinoDb.HistorialAutor
+  ) => stockEquinoDb.importBajaDispositivos(db, rows, tipo_baja, autor),
+  importBajaNumeros: (
+    numeros: string[],
+    tipo_baja: stockEquinoDb.TipoBaja,
+    autor?: stockEquinoDb.HistorialAutor
+  ) => stockEquinoDb.importBajaPorNumeros(db, numeros, tipo_baja, autor),
+  importBajaDetalle: (items: stockEquinoDb.BajaDispositivoItemInput[], autor?: stockEquinoDb.HistorialAutor) =>
+    stockEquinoDb.importBajaDetalle(db, items, autor),
+  deleteLote: (id: number) => stockEquinoDb.deleteStockEquinoLote(db, id),
+  countRegistros: (filters?: stockEquinoDb.StockEquinoFilters) =>
+    stockEquinoDb.countStockEquinoRegistros(db, filters),
+  estadisticas: (filters?: stockEquinoDb.StockEquinoFilters) =>
+    stockEquinoDb.getStockEquinoEstadisticas(db, filters),
+  listDispositivos: (filters?: stockEquinoDb.StockEquinoFilters) =>
+    stockEquinoDb.listStockEquinaDispositivos(db, filters),
+  listSalidas: (filters?: stockEquinoDb.StockEquinoFilters) =>
+    stockEquinoSalidas.listSalidasSistemaDispositivos(db, filters),
+  getDispositivo: (clave: string, filters?: stockEquinoDb.StockEquinoFilters) =>
+    stockEquinoDb.getStockEquinaDispositivoDetalle(db, clave, filters),
+  countDispositivos: (filters?: stockEquinoDb.StockEquinoFilters) =>
+    stockEquinoDb.countStockEquinaDispositivosActivos(db, filters),
+  countDispositivosTotal: (filters?: stockEquinoDb.StockEquinoFilters) =>
+    stockEquinoDb.countStockEquinaDispositivos(db, filters),
+  updateDispositivoSexo: (
+    clave: string,
+    sexo: stockEquinoDb.DispositivoSexo,
+    eid?: string,
+    autor?: stockEquinoDb.HistorialAutor
+  ) => stockEquinoDb.updateStockEquinaDispositivoSexo(db, clave, sexo, eid, autor),
+  updateDispositivoEdad: (clave: string, edad: number | null, eid?: string) =>
+    stockEquinoDb.updateStockEquinaDispositivoEdad(db, clave, edad, eid),
+  saveDispositivo: (
+    clave: string,
+    input: stockEquinoDb.DispositivoMetaInput,
+    eid?: string,
+    autor?: stockEquinoDb.HistorialAutor
+  ) => stockEquinoDb.saveStockEquinaDispositivo(db, clave, input, eid, autor),
+  bulkPatchDispositivos: (
+    claves: string[],
+    patch: stockEquinoDb.DispositivoMetaPatch,
+    eids?: Record<string, string>,
+    autor?: stockEquinoDb.HistorialAutor
+  ) => stockEquinoDb.bulkPatchStockEquinaDispositivos(db, claves, patch, eids, autor),
+  deleteDispositivos: (claves: string[]) =>
+    stockEquinoDb.deleteStockEquinaDispositivos(db, claves),
+  vaciarCompleto: (cuentaId: number | null) =>
+    stockEquinoDb.vaciarStockEquinaCompleto(db, cuentaId),
+  backupInfo: (cuentaId: number) => stockEquinoDb.infoStockEquinaBackup(db, cuentaId),
+  restaurarDesdeBackup: (cuentaId: number) =>
+    stockEquinoDb.restaurarStockEquinaDesdeBackup(db, cuentaId),
+  listHistorialCambios: (clave: string) =>
+    stockEquinoDb.listStockEquinaDispositivoHistorial(db, clave),
 };
 
 export const stockAuditoria = {
@@ -1311,18 +1384,14 @@ export async function getCatalogos(user?: {
     : null;
   const empresas = empresasScope ?? [];
 
-  const restringirPorCuenta = Boolean(scopeUser && !scopeUser.es_super_admin);
-  const responsables =
-    restringirPorCuenta && cuentaId == null
-      ? []
-      : await resp.listResponsablesNombres(db, restringirPorCuenta ? cuentaId : null);
-  const funcionarios =
-    restringirPorCuenta && cuentaId == null
-      ? []
-      : await func.listFuncionariosParaSelector(
-          db,
-          restringirPorCuenta ? cuentaId : null
-        );
+  const sinCuentaOperativa =
+    scopeUser && !scopeUser.es_super_admin && cuentaId == null;
+  const responsables = sinCuentaOperativa
+    ? []
+    : await resp.listResponsablesNombres(db, cuentaId);
+  const funcionarios = sinCuentaOperativa
+    ? []
+    : await func.listFuncionariosParaSelector(db, cuentaId);
 
   return {
     empresas,

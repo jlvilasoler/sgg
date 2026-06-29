@@ -32,6 +32,7 @@ const SCREEN_MODULO: Record<TabId, Modulo> = {
   recursos_humanos: "rrhh",
   ingresos_ventas: "ventas",
   stock_ganadero: "stock",
+  stock_equino: "stock",
   stock_movimientos: "usuarios",
   registro_actividad: "usuarios",
   usuarios: "usuarios",

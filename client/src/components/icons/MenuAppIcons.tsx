@@ -133,6 +133,20 @@ function IconStockGanadero({ className }: IconProps) {
   );
 }
 
+function IconStockEquino({ className }: IconProps) {
+  return (
+    <IconShell className={className}>
+      <path d="M5.5 15.5c1.5-3 4-5 6.5-5s5 2 6.5 5" {...stroke} />
+      <path d="M4 15.5h16" {...stroke} />
+      <path d="M7.5 11c.8-2 2.5-3.5 4.5-3.5s3.7 1.5 4.5 3.5" {...stroke} />
+      <path d="M9 9.5c.4-.8 1.2-1.3 2.2-1.3" {...stroke} strokeWidth="1.4" />
+      <circle cx="10.5" cy="8.5" r=".75" fill="currentColor" />
+      <path d="M14.5 7.5c1.2-.3 2.3.2 3 1.2l1.2 2" {...stroke} strokeWidth="1.4" />
+      <path d="M17.5 6.5l2 1.5-1.2 1.8" {...stroke} strokeWidth="1.4" />
+    </IconShell>
+  );
+}
+
 function IconStockMovimientos({ className }: IconProps) {
   return (
     <IconShell className={className}>
@@ -253,6 +267,7 @@ const ICONS: Record<TabId, (props: IconProps) => ReactNode> = {
   recursos_humanos: IconRecursosHumanos,
   ingresos_ventas: IconIngresosVentas,
   stock_ganadero: IconStockGanadero,
+  stock_equino: IconStockEquino,
   stock_movimientos: IconStockMovimientos,
   registro_actividad: IconRegistroActividad,
   usuarios: IconUsuarios,
@@ -322,6 +337,11 @@ export const MENU_APP_THEMES: Record<TabId, MenuAppTheme> = {
     accent: "#92400e",
     accentSoft: "linear-gradient(145deg, #fffbeb 0%, #fde68a 40%, #fbbf24 100%)",
     accentGlow: "rgba(146, 64, 14, 0.26)",
+  },
+  stock_equino: {
+    accent: "#4338ca",
+    accentSoft: "linear-gradient(145deg, #eef2ff 0%, #e0e7ff 45%, #c7d2fe 100%)",
+    accentGlow: "rgba(67, 56, 202, 0.28)",
   },
   stock_movimientos: {
     accent: "#ea580c",

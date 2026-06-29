@@ -12,6 +12,7 @@ import {
 } from "./api";
 import { DEFAULT_CATALOGOS } from "./constants";
 import { clearStockGanaderaPageCache } from "./components/stock/stock-ganadera-page-cache";
+import { clearStockEquinaPageCache } from "./components/stock-equino/stock-equina-page-cache";
 import type { AuthUser, Catalogos, Presupuesto } from "./types";
 import type { TabId } from "./components/Header";
 import HomeMenu, { type ScreenId } from "./components/HomeMenu";
@@ -33,6 +34,7 @@ import SimuladorVentas from "./components/simulador-venta/SimuladorVentas";
 import RecursosHumanos from "./components/RecursosHumanos";
 import IngresosVentas from "./components/ventas/IngresosVentas";
 import StockGanadero from "./components/stock/StockGanadero";
+import StockEquino from "./components/stock-equino/StockEquino";
 import DocumentosDigitales from "./components/DocumentosDigitales";
 import ChatPanel from "./components/ChatPanel";
 import ChatInterno from "./components/ChatInterno";
@@ -294,6 +296,7 @@ export default function App() {
     }
     setUser(null);
     clearStockGanaderaPageCache();
+    clearStockEquinaPageCache();
     navHistoryRef.current = [];
     setNavHistory([]);
     setScreen("home");
@@ -555,6 +558,15 @@ export default function App() {
             )}
             {screen === "stock_ganadero" && (
               <StockGanadero
+                apiOnline={apiOnline}
+                currentUser={user}
+                onError={(m) => notify(m, false)}
+                onSuccess={(m, t) => notify(m, true, t)}
+                onVolver={goHome}
+              />
+            )}
+            {screen === "stock_equino" && (
+              <StockEquino
                 apiOnline={apiOnline}
                 currentUser={user}
                 onError={(m) => notify(m, false)}

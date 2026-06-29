@@ -167,6 +167,7 @@ export function moduleFromApiPath(path: string): Modulo | null {
     return "ventas";
   }
   if (p.startsWith("/api/stock-ganadero")) return "stock";
+  if (p.startsWith("/api/stock-equino")) return "stock";
   if (p.startsWith("/api/documentos-digitales")) return "documentos_digitales";
   if (p.startsWith("/api/catalogos") || p.startsWith("/api/empresas-operativas")) {
     return "presupuesto";
@@ -217,7 +218,9 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
 
   const modulo = effectiveModuloForPath(user, path);
   const stockDispositivosLectura =
-    req.method === "GET" && path.startsWith("/api/stock-ganadero/dispositivos");
+    req.method === "GET" &&
+    (path.startsWith("/api/stock-ganadero/dispositivos") ||
+      path.startsWith("/api/stock-equino/dispositivos"));
   const empresasOperativasLectura =
     req.method === "GET" && path.startsWith("/api/empresas-operativas");
   const tiposGastoLectura =

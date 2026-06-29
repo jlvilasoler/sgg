@@ -1,4 +1,4 @@
-import type {
+﻿import type {
   Catalogos,
   IngresoVenta,
   IngresoVentaForm,
@@ -54,6 +54,12 @@ import type {
   StockGanaderaDispositivo,
   StockGanaderaDispositivoDetalle,
   StockGanaderaDispositivoHistorial,
+  StockEquinoLote,
+  StockEquinoRegistro,
+  StockEquinoEstadisticas,
+  StockEquinaDispositivo,
+  StockEquinaDispositivoDetalle,
+  StockEquinaDispositivoHistorial,
   StockMovimientoAuditoria,
   AuthActividadLog,
   UsuarioOnline,
@@ -1186,6 +1192,557 @@ export async function importStockGanaderoBajaDispositivos(
 
 export async function deleteStockGanaderoLote(id: number): Promise<void> {
   await request(`/stock-ganadero/lotes/${id}`, { method: "DELETE" });
+}
+
+// —— Stock equino ——
+export async function fetchStockEquinoLotes(): Promise<StockEquinoLote[]> {
+  const json = await request<{ data: StockEquinoLote[] }>("/stock-equino/lotes");
+  return json.data;
+}
+
+export async function fetchStockEquinoUltimaImportacionArchivo(): Promise<{
+  id: number;
+  nombre: string;
+  filas: number;
+} | null> {
+  const json = await request<{
+    data: { id: number; nombre: string; filas: number } | null;
+  }>("/stock-equino/ultima-importacion-archivo");
+  return json.data ?? null;
+}
+
+export async function fetchStockEquinoRegistros(filters: {
+  lote_id?: number;
+  busqueda?: string;
+  fecha_desde?: string;
+  fecha_hasta?: string;
+  solo_repetidos?: boolean;
+}): Promise<StockEquinoRegistro[]> {
+  const params = new URLSearchParams();
+  if (filters.lote_id) params.set("lote_id", String(filters.lote_id));
+  if (filters.busqueda?.trim()) params.set("busqueda", filters.busqueda.trim());
+  if (filters.fecha_desde) params.set("fecha_desde", filters.fecha_desde);
+  if (filters.fecha_hasta) params.set("fecha_hasta", filters.fecha_hasta);
+  if (filters.solo_repetidos) params.set("solo_repetidos", "1");
+  const q = params.toString() ? `?${params}` : "";
+  const json = await request<{ data: StockEquinoRegistro[] }>(
+    `/stock-equino/registros${q}`
+  );
+  return json.data;
+}
+
+export async function fetchStockEquinoEstadisticas(filters: {
+  lote_id?: number;
+  busqueda?: string;
+  fecha_desde?: string;
+  fecha_hasta?: string;
+}): Promise<StockEquinoEstadisticas> {
+  const params = new URLSearchParams();
+  if (filters.lote_id) params.set("lote_id", String(filters.lote_id));
+  if (filters.busqueda?.trim()) params.set("busqueda", filters.busqueda.trim());
+  if (filters.fecha_desde) params.set("fecha_desde", filters.fecha_desde);
+  if (filters.fecha_hasta) params.set("fecha_hasta", filters.fecha_hasta);
+  const q = params.toString() ? `?${params}` : "";
+  const json = await request<{ data: StockEquinoEstadisticas }>(
+    `/stock-equino/estadisticas${q}`
+  );
+  return json.data;
+}
+
+export async function fetchStockEquinoResumen(): Promise<{
+  lotes: number;
+  registros: number;
+  dispositivos: number;
+  dispositivos_total: number;
+  ventas_dispositivos: number;
+}> {
+  const json = await request<{
+    data: {
+      lotes: number;
+      registros: number;
+      dispositivos: number;
+      dispositivos_total?: number;
+      ventas_dispositivos: number;
+    };
+  }>("/stock-equino/resumen");
+  return {
+    lotes: json.data.lotes,
+    registros: json.data.registros,
+    dispositivos: json.data.dispositivos,
+    dispositivos_total: json.data.dispositivos_total ?? json.data.dispositivos,
+    ventas_dispositivos: json.data.ventas_dispositivos,
+  };
+}
+
+export async function fetchStockEquinaVentasDispositivos(): Promise<{
+  total: number;
+  claves: string[];
+}> {
+  const json = await request<{ data: { total: number; claves: string[] } }>(
+    "/stock-equino/ventas-dispositivos"
+  );
+  return json.data;
+}
+
+export async function fetchStockEquinaSalidas(filters: {
+  busqueda?: string;
+  fecha_desde?: string;
+  fecha_hasta?: string;
+  estado_dispositivo?: DispositivoEstado;
+} = {}): Promise<{
+  dispositivos: StockEquinaDispositivo[];
+  bajasReparadas: number;
+}> {
+  const params = new URLSearchParams();
+  if (filters.busqueda?.trim()) params.set("busqueda", filters.busqueda.trim());
+  if (filters.fecha_desde) params.set("fecha_desde", filters.fecha_desde);
+  if (filters.fecha_hasta) params.set("fecha_hasta", filters.fecha_hasta);
+  if (
+    filters.estado_dispositivo === "MUERTO" ||
+    filters.estado_dispositivo === "VENDIDO" ||
+    filters.estado_dispositivo === "FRIGORIFICO" ||
+    filters.estado_dispositivo === "PERDIDO"
+  ) {
+    params.set("estado_dispositivo", filters.estado_dispositivo);
+  }
+  const q = params.toString() ? `?${params}` : "";
+  const json = await request<{
+    data: StockEquinaDispositivo[];
+    bajas_reparadas: number;
+  }>(`/stock-equino/salidas${q}`);
+  return {
+    dispositivos: json.data,
+    bajasReparadas: json.bajas_reparadas ?? 0,
+  };
+}
+
+export async function fetchStockEquinaDispositivos(filters: {
+  busqueda?: string;
+  fecha_desde?: string;
+  fecha_hasta?: string;
+  solo_repetidos?: boolean;
+  solo_bajas?: boolean;
+  estado_dispositivo?: DispositivoEstado;
+}): Promise<StockEquinaDispositivo[]> {
+  const params = new URLSearchParams();
+  if (filters.busqueda?.trim()) params.set("busqueda", filters.busqueda.trim());
+  if (filters.fecha_desde) params.set("fecha_desde", filters.fecha_desde);
+  if (filters.fecha_hasta) params.set("fecha_hasta", filters.fecha_hasta);
+  if (filters.solo_repetidos) params.set("solo_repetidos", "1");
+  if (filters.solo_bajas) params.set("solo_bajas", "1");
+  if (
+    filters.estado_dispositivo === "MUERTO" ||
+    filters.estado_dispositivo === "VENDIDO" ||
+    filters.estado_dispositivo === "FRIGORIFICO" ||
+    filters.estado_dispositivo === "PERDIDO"
+  ) {
+    params.set("estado_dispositivo", filters.estado_dispositivo);
+  }
+  const q = params.toString() ? `?${params}` : "";
+  const json = await request<{ data: StockEquinaDispositivo[] }>(
+    `/stock-equino/dispositivos${q}`
+  );
+  return json.data;
+}
+
+export async function fetchStockEquinaDispositivo(
+  clave: string
+): Promise<StockEquinaDispositivoDetalle> {
+  const json = await request<{ data: StockEquinaDispositivoDetalle }>(
+    `/stock-equino/dispositivos/${encodeURIComponent(clave)}`
+  );
+  return json.data;
+}
+
+export async function fetchStockEquinaDispositivoHistorial(
+  clave: string
+): Promise<StockEquinaDispositivoHistorial[]> {
+  const json = await request<{ data: StockEquinaDispositivoHistorial[] }>(
+    `/stock-equino/dispositivos/${encodeURIComponent(clave)}/historial-cambios`
+  );
+  return json.data;
+}
+
+export async function updateStockEquinaDispositivoSexo(
+  clave: string,
+  sexo: DispositivoSexo,
+  eid?: string
+): Promise<DispositivoSexo> {
+  const json = await request<{ data: { sexo: DispositivoSexo } }>(
+    `/stock-equino/dispositivos/${encodeURIComponent(clave)}/sexo`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ sexo, eid }),
+    }
+  );
+  return json.data.sexo;
+}
+
+export async function updateStockEquinaDispositivoEdad(
+  clave: string,
+  edad: number | null,
+  eid?: string
+): Promise<number | null> {
+  const json = await request<{ data: { edad: number | null } }>(
+    `/stock-equino/dispositivos/${encodeURIComponent(clave)}/edad`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ edad, eid }),
+    }
+  );
+  return json.data.edad;
+}
+
+export async function saveStockEquinaDispositivo(
+  clave: string,
+  data: {
+    sexo: DispositivoSexo;
+    empresa: DispositivoEmpresa;
+    grupo: string;
+    grupo_libre: string;
+    nacimiento_mes: number | null;
+    nacimiento_anio: number | null;
+    observaciones: string;
+    estado: DispositivoEstado;
+    tipo_baja?: TipoBaja | "";
+    numero_guia?: string;
+    baja_mes: number | null;
+    baja_anio: number | null;
+  },
+  eid?: string
+): Promise<{
+  sexo: DispositivoSexo;
+  empresa: DispositivoEmpresa;
+  grupo: string;
+  grupo_libre: string;
+  edad: number | null;
+  nacimiento_mes: number | null;
+  nacimiento_anio: number | null;
+  observaciones: string;
+  estado: DispositivoEstado;
+  tipo_baja: TipoBaja | "";
+  numero_guia: string;
+  baja_mes: number | null;
+  baja_anio: number | null;
+}> {
+  const json = await request<{
+    data: {
+      sexo: DispositivoSexo;
+      empresa: DispositivoEmpresa;
+      grupo: string;
+      grupo_libre: string;
+      edad: number | null;
+      nacimiento_mes: number | null;
+      nacimiento_anio: number | null;
+      observaciones: string;
+      estado: DispositivoEstado;
+      tipo_baja: TipoBaja | "";
+      numero_guia: string;
+      baja_mes: number | null;
+      baja_anio: number | null;
+    };
+  }>(`/stock-equino/dispositivos/${encodeURIComponent(clave)}`, {
+    method: "PATCH",
+    body: JSON.stringify({ ...data, eid }),
+  });
+  return json.data;
+}
+
+export async function bulkPatchStockEquinaDispositivos(
+  claves: string[],
+  patch: Record<string, unknown>,
+  eids: Record<string, string> = {}
+): Promise<{
+  actualizados: number;
+  errores: { clave: string; mensaje: string }[];
+}> {
+  const json = await request<{
+    data: {
+      actualizados: number;
+      errores: { clave: string; mensaje: string }[];
+    };
+  }>("/stock-equino/dispositivos/bulk", {
+    method: "PATCH",
+    body: JSON.stringify({ claves, patch, eids }),
+  });
+  return json.data;
+}
+
+export async function deleteStockEquinaDispositivos(claves: string[]): Promise<{
+  eliminados: number;
+  lecturas_eliminadas: number;
+  no_encontrados: string[];
+}> {
+  const json = await request<{
+    data: {
+      eliminados: number;
+      lecturas_eliminadas: number;
+      no_encontrados: string[];
+    };
+  }>("/stock-equino/dispositivos/bulk-delete", {
+    method: "POST",
+    body: JSON.stringify({ claves }),
+  });
+  return json.data;
+}
+
+export async function vaciarStockEquinaCompleto(): Promise<{
+  dispositivos_eliminados: number;
+  lecturas_eliminadas: number;
+  vinculos_sim_venta: number;
+}> {
+  const json = await request<{
+    data: {
+      dispositivos_eliminados: number;
+      lecturas_eliminadas: number;
+      vinculos_sim_venta: number;
+    };
+  }>("/stock-equino/dispositivos/wipe-all", {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+  return json.data;
+}
+
+export async function fetchStockEquinaBackupInfo(): Promise<{
+  disponible: boolean;
+  creado_en: string | null;
+  dispositivos: number;
+  lecturas: number;
+  historial: number;
+  vinculos_sim: number;
+}> {
+  const json = await request<{
+    data: {
+      disponible: boolean;
+      creado_en: string | null;
+      dispositivos: number;
+      lecturas: number;
+      historial: number;
+      vinculos_sim: number;
+    };
+  }>("/stock-equino/backup");
+  return json.data;
+}
+
+export async function restaurarStockEquinaDesdeBackup(): Promise<{
+  dispositivos_restaurados: number;
+  lecturas_restauradas: number;
+  historial_restaurado: number;
+  vinculos_sim_restaurados: number;
+}> {
+  const json = await request<{
+    data: {
+      dispositivos_restaurados: number;
+      lecturas_restauradas: number;
+      historial_restaurado: number;
+      vinculos_sim_restaurados: number;
+    };
+  }>("/stock-equino/backup/restore", {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+  return json.data;
+}
+
+export async function importStockEquinoFile(
+  file: File
+): Promise<{ message: string; lote_id: number; insertados: number }> {
+  const form = new FormData();
+  form.append("file", file);
+  let res: Response;
+  try {
+    res = await fetch(`${API}/stock-equino/import/file`, {
+      ...FETCH_INIT,
+      method: "POST",
+      body: form,
+    });
+  } catch {
+    throw new Error(apiConnectionError());
+  }
+  const json = (await res.json()) as {
+    ok?: boolean;
+    error?: string;
+    message?: string;
+    data?: { lote_id: number; insertados: number };
+  };
+  if (!json.ok || !json.data) {
+    throw new Error(json.error || "Error al importar");
+  }
+  return {
+    message: json.message ?? "Importación completada",
+    lote_id: json.data.lote_id,
+    insertados: json.data.insertados,
+  };
+}
+
+export async function importStockEquinoText(
+  texto: string,
+  nombreArchivo = "pegado.txt"
+): Promise<{ message: string; lote_id: number; insertados: number }> {
+  const json = await request<{
+    message: string;
+    data: { lote_id: number; insertados: number };
+  }>("/stock-equino/import/text", {
+    method: "POST",
+    body: JSON.stringify({ texto, nombre_archivo: nombreArchivo }),
+  });
+  return {
+    message: json.message,
+    lote_id: json.data.lote_id,
+    insertados: json.data.insertados,
+  };
+}
+
+export async function importStockEquinoRows(
+  rows: Array<{
+    eid: string;
+    vid?: string;
+    fecha: string;
+    hora?: string;
+    condicion?: string;
+    empresa?: string;
+  }>,
+  nombreArchivo = "carga-manual"
+): Promise<{ message: string; lote_id: number; insertados: number }> {
+  const json = await request<{
+    message: string;
+    data: { lote_id: number; insertados: number };
+  }>("/stock-equino/import/rows", {
+    method: "POST",
+    body: JSON.stringify({ rows, nombre_archivo: nombreArchivo }),
+  });
+  return {
+    message: json.message,
+    lote_id: json.data.lote_id,
+    insertados: json.data.insertados,
+  };
+}
+
+export async function importStockEquinoBajaFile(
+  file: File,
+  tipo_baja: TipoBaja
+): Promise<ImportBajaDispositivosResult> {
+  const form = new FormData();
+  form.append("file", file);
+  form.append("tipo_baja", tipo_baja);
+  let res: Response;
+  try {
+    res = await fetch(`${API}/stock-equino/baja/file`, {
+      ...FETCH_INIT,
+      method: "POST",
+      body: form,
+    });
+  } catch {
+    throw new Error(apiConnectionError());
+  }
+  const json = (await res.json()) as {
+    ok?: boolean;
+    error?: string;
+    message?: string;
+    data?: {
+      actualizados: number;
+      no_encontrados: number;
+      duplicados_omitidos: number;
+      ambiguos: number;
+      muestra_no_encontrados: string[];
+      muestra_ambiguos: string[];
+      estado: TipoBajaImport;
+      tipo_baja?: TipoBaja;
+    };
+  };
+  if (!json.ok || !json.data) {
+    throw new Error(json.error || "Error al importar bajas");
+  }
+  return {
+    message: json.message ?? "Bajas procesadas",
+    ...json.data,
+  };
+}
+
+export async function importStockEquinoBajaText(
+  texto: string,
+  estado: TipoBajaImport
+): Promise<ImportBajaDispositivosResult> {
+  const json = await request<{
+    message: string;
+    data: {
+      actualizados: number;
+      no_encontrados: number;
+      duplicados_omitidos: number;
+      ambiguos: number;
+      muestra_no_encontrados: string[];
+      muestra_ambiguos: string[];
+      estado: TipoBajaImport;
+      tipo_baja?: TipoBaja;
+    };
+  }>("/stock-equino/baja/text", {
+    method: "POST",
+    body: JSON.stringify({ texto, estado }),
+  });
+  return {
+    message: json.message,
+    ...json.data,
+  };
+}
+
+export async function importStockEquinoBajaRows(
+  rows: Array<{
+    eid: string;
+    vid?: string;
+    fecha: string;
+    hora?: string;
+    condicion?: string;
+  }>,
+  estado: TipoBajaImport
+): Promise<ImportBajaDispositivosResult> {
+  const json = await request<{
+    message: string;
+    data: {
+      actualizados: number;
+      no_encontrados: number;
+      duplicados_omitidos: number;
+      ambiguos: number;
+      muestra_no_encontrados: string[];
+      muestra_ambiguos: string[];
+      estado: TipoBajaImport;
+      tipo_baja?: TipoBaja;
+    };
+  }>("/stock-equino/baja/rows", {
+    method: "POST",
+    body: JSON.stringify({ rows, estado }),
+  });
+  return {
+    message: json.message,
+    ...json.data,
+  };
+}
+
+export async function importStockEquinoBajaDispositivos(
+  items: BajaDispositivoDetalleInput[]
+): Promise<ImportBajaDispositivosResult> {
+  const json = await request<{
+    message: string;
+    data: {
+      actualizados: number;
+      no_encontrados: number;
+      duplicados_omitidos: number;
+      ambiguos: number;
+      muestra_no_encontrados: string[];
+      muestra_ambiguos: string[];
+    };
+  }>("/stock-equino/baja/dispositivos", {
+    method: "POST",
+    body: JSON.stringify({ items }),
+  });
+  return {
+    message: json.message,
+    ...json.data,
+  };
+}
+
+export async function deleteStockEquinoLote(id: number): Promise<void> {
+  await request(`/stock-equino/lotes/${id}`, { method: "DELETE" });
 }
 
 export async function fetchProveedores(

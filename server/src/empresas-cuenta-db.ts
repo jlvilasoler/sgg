@@ -1239,3 +1239,19 @@ export async function getEmpresasScopeFilter(
   if (permitidas.length === 0) return [SIN_EMPRESAS_SCOPE];
   return permitidas;
 }
+
+/** Igual que getEmpresasScopeFilter pero con códigos (stock RFID guarda codigo, no nombre). */
+export async function getEmpresasCodigosScopeFilter(
+  db: Db,
+  user: {
+    id: number;
+    email?: string;
+    es_super_admin?: boolean;
+    empresa_id?: number | null;
+  }
+): Promise<string[] | undefined> {
+  const permitidas = await getEmpresasCodigosOperativasPermitidas(db, user);
+  if (permitidas === null) return undefined;
+  if (permitidas.length === 0) return [SIN_EMPRESAS_SCOPE];
+  return permitidas;
+}

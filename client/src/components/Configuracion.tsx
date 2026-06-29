@@ -8,6 +8,7 @@ import ClasificacionProveedores from "./proveedores/ClasificacionProveedores";
 import Responsables from "./Responsables";
 import Rubros from "./Rubros";
 import StockGanaderoAdmin from "./stock/StockGanaderoAdmin";
+import StockEquinoAdmin from "./stock-equino/StockEquinoAdmin";
 import AdministradorCuenta from "./AdministradorCuenta";
 import ArquitecturaSistema from "./ArquitecturaSistema";
 import DocumentosDigitales from "./DocumentosDigitales";
@@ -24,6 +25,7 @@ type CatalogoModulo =
   | "clasificacion_proveedores"
   | "rubros"
   | "stock_ganadero"
+  | "stock_equino"
   | "admin_cuenta"
   | "usuarios";
 
@@ -88,6 +90,12 @@ const CATALOGOS: {
     subtitle: "Vaciar y administrar la base de dispositivos",
     icon: "stock_dispositivos",
   },
+  {
+    id: "stock_equino",
+    label: "Administración de Stock Equino",
+    subtitle: "Vaciar y administrar la base de dispositivos equinos",
+    icon: "stock_dispositivos",
+  },
 ];
 
 const SAG_MODULOS: {
@@ -143,6 +151,7 @@ function isCatalogoModulo(modulo: ModuloConfig): modulo is CatalogoModulo {
     modulo === "clasificacion_proveedores" ||
     modulo === "rubros" ||
     modulo === "stock_ganadero" ||
+    modulo === "stock_equino" ||
     modulo === "admin_cuenta" ||
     modulo === "usuarios"
   );
@@ -188,7 +197,7 @@ export default function Configuracion({
       setModulo(esSuperAdmin ? "cuenta_hub" : "menu");
     }
     if (
-      modulo === "stock_ganadero" &&
+      (modulo === "stock_ganadero" || modulo === "stock_equino") &&
       !canAccessStockGanaderoAdmin(currentUser ?? null)
     ) {
       setModulo(esSuperAdmin ? "cuenta_hub" : "menu");
@@ -254,6 +263,18 @@ export default function Configuracion({
   if (modulo === "stock_ganadero") {
     return (
       <StockGanaderoAdmin
+        apiOnline={apiOnline}
+        currentUser={currentUser}
+        onError={onError}
+        onSuccess={onSuccess}
+        onVolver={backStep?.onBack ?? (() => setModulo("menu"))}
+      />
+    );
+  }
+
+  if (modulo === "stock_equino") {
+    return (
+      <StockEquinoAdmin
         apiOnline={apiOnline}
         currentUser={currentUser}
         onError={onError}
@@ -350,7 +371,7 @@ export default function Configuracion({
     if (item.id === "clasificacion_proveedores") {
       return canAccessClasificacionProveedores(currentUser ?? null);
     }
-    if (item.id === "stock_ganadero") {
+    if (item.id === "stock_ganadero" || item.id === "stock_equino") {
       return canAccessStockGanaderoAdmin(currentUser ?? null);
     }
     return true;

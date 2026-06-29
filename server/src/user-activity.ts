@@ -86,6 +86,14 @@ export function describeApiActivity(method: string, path: string): string | null
     if (m === "PUT" || m === "PATCH") return "Modific? un dispositivo del stock";
     if (m === "DELETE") return "Elimin? datos del stock ganadero";
   }
+  if (p.startsWith("/api/stock-equino")) {
+    if (p.includes("/baja")) return "Registr? bajas de dispositivos equinos";
+    if (p.includes("/import") || p.includes("/file") || p.includes("/text"))
+      return "Import? lecturas equinas (alta)";
+    if (m === "POST") return "Carg? datos en stock equino";
+    if (m === "PUT" || m === "PATCH") return "Modific? un dispositivo equino";
+    if (m === "DELETE") return "Elimin? datos del stock equino";
+  }
   if (p.startsWith("/api/auth/users")) {
     if (m === "POST") return "Cre? un usuario";
     if (m === "PATCH") return "Actualiz? un usuario";
@@ -148,6 +156,7 @@ export const PANTALLA_LABELS: Record<string, string> = {
   recursos_humanos: "Recursos Humanos",
   ingresos_ventas: "Ingresos por ventas",
   stock_ganadero: "Stock Ganadero",
+  stock_equino: "Stock Equino",
   stock_movimientos: "Movimientos de dispositivos",
   registro_actividad: "Registro de actividad",
   usuarios: "Administración de Usuarios",

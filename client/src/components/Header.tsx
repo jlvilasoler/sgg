@@ -9,6 +9,7 @@ export type TabId =
   | "recursos_humanos"
   | "ingresos_ventas"
   | "stock_ganadero"
+  | "stock_equino"
   | "stock_movimientos"
   | "registro_actividad"
   | "usuarios"
