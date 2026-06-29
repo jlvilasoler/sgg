@@ -97,7 +97,7 @@ export function describeApiActivity(method: string, path: string): string | null
     return "Cambi? su contrase?a";
   }
 
-  return `Operaci?n ${m} en ${path.replace(/^\/api\//, "")}`;
+  return `Operación ${m} en ${path.replace(/^\/api\//, "")}`;
 }
 
 const SKIP_ACTIVITY_PATHS = new Set([
