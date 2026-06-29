@@ -729,7 +729,7 @@ export default function ArquitecturaCuentaDetalle({
                           onChange={(e) =>
                             setOperativaForm((f) => ({ ...f, nombre: e.target.value }))
                           }
-                          placeholder="Ej. GANADERA GUAVIYU"
+                          placeholder="INGRESAR NUEVA EMPRESA"
                           required
                         />
                       </label>

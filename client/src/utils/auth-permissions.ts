@@ -129,6 +129,11 @@ export function canManageUsuariosCuenta(user: AuthUser | null): boolean {
   return Boolean(user?.es_admin_cuenta);
 }
 
+/** Direcciones IP en registro de actividad: solo superadministrador de plataforma. */
+export function canVerIpEnActividad(user: AuthUser | null): boolean {
+  return Boolean(user?.es_super_admin);
+}
+
 /** Permisos globales por rol: solo el super-administrador de plataforma (SCG_ADMIN_EMAIL). */
 export function canAccessPermisosPorRol(user: AuthUser | null): boolean {
   return Boolean(user?.es_super_admin);

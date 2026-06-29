@@ -328,6 +328,15 @@ function requireSuperAdmin(req: Request, res: Response): boolean {
   return true;
 }
 
+function puedeVerIpActividad(user: UserPublic): boolean {
+  return Boolean(user.es_super_admin);
+}
+
+function ocultarIpActividad<T extends { ip?: string | null }>(user: UserPublic, items: T[]): T[] {
+  if (puedeVerIpActividad(user)) return items;
+  return items.map((item) => ({ ...item, ip: null }));
+}
+
 async function cuentaIdDelActor(req: Request): Promise<number | null> {
   if (!req.user) return null;
   return empresasCuenta.resolveCuentaMadreIdForUser(getDb(), req.user);
@@ -960,12 +969,17 @@ export function registerAuthRoutes(app: Express): void {
     res.json({
       ok: true,
       data: {
-        online: await enrichPresenceUsers(filterAllowed(listOnlineUsers())),
-        recently_offline: await enrichPresenceUsers(
-          filterAllowed(listRecentlyOfflineUsers())
+        online: ocultarIpActividad(
+          actor,
+          await enrichPresenceUsers(filterAllowed(listOnlineUsers()))
         ),
-        stale_offline: await enrichPresenceUsers(
-          filterAllowed(listStaleOfflineUsers())
+        recently_offline: ocultarIpActividad(
+          actor,
+          await enrichPresenceUsers(filterAllowed(listRecentlyOfflineUsers()))
+        ),
+        stale_offline: ocultarIpActividad(
+          actor,
+          await enrichPresenceUsers(filterAllowed(listStaleOfflineUsers()))
         ),
       },
     });
@@ -1018,7 +1032,7 @@ export function registerAuthRoutes(app: Express): void {
       });
       res.json({
         ok: true,
-        data: page.rows,
+        data: ocultarIpActividad(actor, page.rows),
         total: page.total,
         resumen: page.resumen,
       });

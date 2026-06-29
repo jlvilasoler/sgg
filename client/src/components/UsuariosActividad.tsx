@@ -5,6 +5,7 @@ import type { AuthActividadLog, AuthUser, EmpresaCuenta, UsuarioOnline } from ".
 import {
   canAccessActividadSagTotal,
   canFiltrarActividadPorUsuario,
+  canVerIpEnActividad,
   canVerUsuariosOnlineActividad,
 } from "../utils/auth-permissions";
 import UserAvatar from "./UserAvatar";
@@ -85,9 +86,11 @@ function fmtHaceSegundos(seg: number): string {
 function TarjetaUsuarioPresencia({
   u,
   estado = "online",
+  mostrarIp = false,
 }: {
   u: UsuarioOnline;
   estado?: "online" | "reciente-offline" | "stale-offline";
+  mostrarIp?: boolean;
 }) {
   const claseEstado =
     estado === "reciente-offline"
@@ -104,17 +107,23 @@ function TarjetaUsuarioPresencia({
   return (
     <li className={`usuarios-online-item${claseEstado}`}>
       <UserAvatar nombre={u.nombre} avatar={u.avatar} variant="list" />
-      <div className="usuarios-online-main">
-        <strong>{u.nombre}</strong>
-        <span className="muted usuarios-act-email">{u.email}</span>
-      </div>
-      <div className="usuarios-online-meta">
-        {u.pantalla ? (
-          <span className="usuarios-online-pantalla">{u.pantalla}</span>
-        ) : null}
-        <span className="usuarios-online-hace">{fmtHaceSegundos(u.hace_segundos)}</span>
-        {tag ? <span className="usuarios-online-offline-tag">{tag}</span> : null}
-        {u.ip ? <span className="usuarios-online-ip muted">{u.ip}</span> : null}
+      <div className="usuarios-online-body">
+        <div className="usuarios-online-main">
+          <strong>{u.nombre}</strong>
+          <span className="muted usuarios-act-email">{u.email}</span>
+        </div>
+        <div className="usuarios-online-meta">
+          {u.pantalla ? (
+            <span className="usuarios-online-pantalla">{u.pantalla}</span>
+          ) : null}
+          <div className="usuarios-online-meta-status">
+            <span className="usuarios-online-hace">{fmtHaceSegundos(u.hace_segundos)}</span>
+            {tag ? <span className="usuarios-online-offline-tag">{tag}</span> : null}
+          </div>
+          {mostrarIp && u.ip ? (
+            <span className="usuarios-online-ip muted">{u.ip}</span>
+          ) : null}
+        </div>
       </div>
     </li>
   );
@@ -130,6 +139,7 @@ export default function UsuariosActividad({
   onVolver,
   volverLabel = "Volver al menú",
 }: Props) {
+  const puedeVerIp = canVerIpEnActividad(currentUser);
   const esActividadTotalPlataforma =
     modo === "total" && canAccessActividadSagTotal(currentUser);
   const puedeFiltrarCuenta = esActividadTotalPlataforma;
@@ -356,13 +366,23 @@ export default function UsuariosActividad({
       ) : (
         <ul className="usuarios-online-list">
           {online.map((u) => (
-            <TarjetaUsuarioPresencia key={`on-${u.email}`} u={u} />
+            <TarjetaUsuarioPresencia key={`on-${u.email}`} u={u} mostrarIp={puedeVerIp} />
           ))}
           {recentlyOffline.map((u) => (
-            <TarjetaUsuarioPresencia key={`off-${u.email}`} u={u} estado="reciente-offline" />
+            <TarjetaUsuarioPresencia
+              key={`off-${u.email}`}
+              u={u}
+              estado="reciente-offline"
+              mostrarIp={puedeVerIp}
+            />
           ))}
           {staleOffline.map((u) => (
-            <TarjetaUsuarioPresencia key={`stale-${u.email}`} u={u} estado="stale-offline" />
+            <TarjetaUsuarioPresencia
+              key={`stale-${u.email}`}
+              u={u}
+              estado="stale-offline"
+              mostrarIp={puedeVerIp}
+            />
           ))}
         </ul>
       )}
@@ -536,19 +556,19 @@ export default function UsuariosActividad({
                 <th>Usuario</th>
                 <th>Tipo</th>
                 <th>Actividad</th>
-                <th>IP</th>
+                {puedeVerIp ? <th>IP</th> : null}
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={5} className="empty">
+                  <td colSpan={puedeVerIp ? 5 : 4} className="empty">
                     Cargando actividad…
                   </td>
                 </tr>
               ) : rows.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="empty">
+                  <td colSpan={puedeVerIp ? 5 : 4} className="empty">
                     Sin registros de actividad
                   </td>
                 </tr>
@@ -573,7 +593,9 @@ export default function UsuariosActividad({
                         </span>
                       </td>
                       <td className="usuarios-act-detalle">{row.detalle || "—"}</td>
-                      <td className="muted small-cell">{row.ip || "—"}</td>
+                      {puedeVerIp ? (
+                        <td className="muted small-cell">{row.ip || "—"}</td>
+                      ) : null}
                     </tr>
                   );
                 })
