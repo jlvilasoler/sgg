@@ -1,6 +1,6 @@
 import type { Db } from "./db/pg-client.js";
 import type { StockGanaderoRowInput } from "./parse-stock-ganadero-txt.js";
-import { migrateAddCuentaIdColumn } from "./empresas-cuenta-db.js";
+import { migrateAddCuentaIdColumn, getEmpresaCodigosActivosPorCuenta } from "./empresas-cuenta-db.js";
 import { listClavesDispositivosEnVentasCerradas } from "./simulador-venta-dispositivos-db.js";
 import { labelCategoriaSalidaDispositivo } from "./stock-ganadera-categoria.js";
 import { dispositivoClave, eidClave, splitEidVid } from "./stock-ganadero-id.js";
@@ -1003,7 +1003,8 @@ export interface RestaurarStockGanaderaResult {
 }
 
 interface StockGanaderaBackupPayload {
-  v: 1;
+  v: 2;
+  cuenta_id: number;
   registros: {
     lote_id: number;
     eid: string;
@@ -1049,11 +1050,27 @@ interface StockGanaderaBackupPayload {
   }[];
 }
 
+async function migrateStockGanaderaBackupTableSchema(db: Db): Promise<void> {
+  const legacy = (await db
+    .prepare(
+      `SELECT 1 AS ok FROM information_schema.columns
+       WHERE table_schema = 'public'
+         AND table_name = 'stock_ganadero_backup'
+         AND column_name = 'id'
+       LIMIT 1`
+    )
+    .get()) as { ok: number } | undefined;
+  if (legacy) {
+    await db.prepare(`DROP TABLE IF EXISTS STOCK_GANADERO_BACKUP`).run();
+  }
+}
+
 async function ensureStockGanaderaBackupTable(db: Db): Promise<void> {
+  await migrateStockGanaderaBackupTableSchema(db);
   await db
     .prepare(
       `CREATE TABLE IF NOT EXISTS STOCK_GANADERO_BACKUP (
-         id INTEGER PRIMARY KEY CHECK (id = 1),
+         cuenta_id INTEGER PRIMARY KEY,
          payload TEXT NOT NULL,
          creado_en TIMESTAMPTZ NOT NULL DEFAULT NOW()
        )`
@@ -1061,86 +1078,183 @@ async function ensureStockGanaderaBackupTable(db: Db): Promise<void> {
     .run();
 }
 
-async function crearBackupStockGanadera(tx: Db): Promise<void> {
+async function loteIdsPorCuenta(db: Db, cuentaId: number): Promise<Set<number>> {
+  const rows = (await db
+    .prepare(`SELECT id FROM STOCK_GANADERO_LOTE WHERE cuenta_id = ?`)
+    .all(cuentaId)) as { id: number }[];
+  return new Set(rows.map((r) => r.id));
+}
+
+async function empresaCodigosSetPorCuenta(db: Db, cuentaId: number): Promise<Set<string>> {
+  const codigos = await getEmpresaCodigosActivosPorCuenta(db, cuentaId);
+  return new Set(codigos.map((c) => c.trim().toUpperCase()).filter(Boolean));
+}
+
+function dispositivoPerteneceCuenta(
+  d: { clave: string; empresa: string },
+  empresaSet: Set<string>,
+  clavesLecturas: Set<string>
+): boolean {
+  if (d.clave === "__meta__") return false;
+  const emp = String(d.empresa ?? "").trim().toUpperCase();
+  if (emp && empresaSet.has(emp)) return true;
+  return clavesLecturas.has(d.clave);
+}
+
+async function gatherBackupPayloadForCuenta(
+  db: Db,
+  cuentaId: number
+): Promise<StockGanaderaBackupPayload | null> {
+  const loteIds = await loteIdsPorCuenta(db, cuentaId);
+  const empresaSet = await empresaCodigosSetPorCuenta(db, cuentaId);
+
+  const allRegistros = (await db
+    .prepare(`SELECT lote_id, eid, vid, fecha, hora, condicion FROM STOCK_GANADERO_REGISTRO`)
+    .all()) as StockGanaderaBackupPayload["registros"];
+  const registros = allRegistros.filter((r) => loteIds.has(r.lote_id));
+
+  const clavesLecturas = new Set<string>();
+  for (const r of registros) {
+    const k = dispositivoClave(r.eid, r.vid);
+    if (k) clavesLecturas.add(k);
+  }
+
+  const allDispositivos = (await db
+    .prepare(
+      `SELECT clave, eid, sexo, empresa, grupo, grupo_libre, edad, nacimiento_mes, nacimiento_anio,
+              observaciones, estado, baja_mes, baja_anio, tipo_baja, numero_guia
+       FROM STOCK_GANADERO_DISPOSITIVO`
+    )
+    .all()) as StockGanaderaBackupPayload["dispositivos"];
+  const dispositivos = allDispositivos.filter((d) =>
+    dispositivoPerteneceCuenta(d, empresaSet, clavesLecturas)
+  );
+
+  const clavesScope = new Set(dispositivos.map((d) => d.clave));
+  for (const k of clavesLecturas) clavesScope.add(k);
+
+  const allHistorial = (await db
+    .prepare(
+      `SELECT clave, campo, etiqueta, valor_anterior, valor_nuevo, creado_en,
+              user_id, user_email, user_nombre, origen
+       FROM STOCK_GANADERO_DISPOSITIVO_HISTORIAL`
+    )
+    .all()) as StockGanaderaBackupPayload["historial"];
+  const historial = allHistorial.filter(
+    (h) => h.clave !== "__meta__" && clavesScope.has(h.clave)
+  );
+
+  const allSim = (await db
+    .prepare(
+      `SELECT simulacion_id, clave, eid, vid FROM SIMULADOR_VENTA_GANADO_DISPOSITIVO`
+    )
+    .all()) as StockGanaderaBackupPayload["sim_dispositivos"];
+  const sim_dispositivos = allSim.filter((s) => clavesScope.has(s.clave));
+
+  if (registros.length === 0 && dispositivos.length === 0) return null;
+
+  return {
+    v: 2,
+    cuenta_id: cuentaId,
+    registros,
+    dispositivos,
+    historial,
+    sim_dispositivos,
+  };
+}
+
+async function crearBackupStockGanadera(tx: Db, cuentaId: number): Promise<void> {
   await ensureStockGanaderaBackupTable(tx);
+  const payload = await gatherBackupPayloadForCuenta(tx, cuentaId);
+  if (!payload) return;
 
-  const tieneLecturas = (await tx
-    .prepare(`SELECT COUNT(*) AS n FROM STOCK_GANADERO_REGISTRO`)
-    .get()) as { n: number };
-  if (tieneLecturas.n === 0) return;
+  await tx
+    .prepare(
+      `INSERT INTO STOCK_GANADERO_BACKUP (cuenta_id, payload, creado_en)
+       VALUES (?, ?, NOW())
+       ON CONFLICT (cuenta_id) DO UPDATE SET
+         payload = excluded.payload,
+         creado_en = NOW()`
+    )
+    .run(cuentaId, JSON.stringify(payload));
+}
 
-  await tx.prepare(
-    `INSERT INTO STOCK_GANADERO_BACKUP (id, payload, creado_en)
-     VALUES (
-       1,
-       (
-         SELECT json_build_object(
-           'v', 1,
-           'registros', COALESCE((
-             SELECT json_agg(json_build_object(
-               'lote_id', r.lote_id,
-               'eid', r.eid,
-               'vid', r.vid,
-               'fecha', r.fecha,
-               'hora', r.hora,
-               'condicion', r.condicion
-             ) ORDER BY r.id)
-             FROM STOCK_GANADERO_REGISTRO r
-           ), '[]'::json),
-           'dispositivos', COALESCE((
-             SELECT json_agg(json_build_object(
-               'clave', d.clave,
-               'eid', d.eid,
-               'sexo', d.sexo,
-               'empresa', d.empresa,
-               'grupo', d.grupo,
-               'grupo_libre', d.grupo_libre,
-               'edad', d.edad,
-               'nacimiento_mes', d.nacimiento_mes,
-               'nacimiento_anio', d.nacimiento_anio,
-               'observaciones', d.observaciones,
-               'estado', d.estado,
-               'baja_mes', d.baja_mes,
-               'baja_anio', d.baja_anio,
-               'tipo_baja', d.tipo_baja,
-               'numero_guia', d.numero_guia
-             ) ORDER BY d.clave)
-             FROM STOCK_GANADERO_DISPOSITIVO d
-             WHERE d.clave <> '__meta__'
-           ), '[]'::json),
-           'historial', COALESCE((
-             SELECT json_agg(json_build_object(
-               'clave', h.clave,
-               'campo', h.campo,
-               'etiqueta', h.etiqueta,
-               'valor_anterior', h.valor_anterior,
-               'valor_nuevo', h.valor_nuevo,
-               'creado_en', h.creado_en,
-               'user_id', h.user_id,
-               'user_email', h.user_email,
-               'user_nombre', h.user_nombre,
-               'origen', h.origen
-             ) ORDER BY h.id)
-             FROM STOCK_GANADERO_DISPOSITIVO_HISTORIAL h
-             WHERE h.clave <> '__meta__'
-           ), '[]'::json),
-           'sim_dispositivos', COALESCE((
-             SELECT json_agg(json_build_object(
-               'simulacion_id', s.simulacion_id,
-               'clave', s.clave,
-               'eid', s.eid,
-               'vid', s.vid
-             ) ORDER BY s.id)
-             FROM SIMULADOR_VENTA_GANADO_DISPOSITIVO s
-           ), '[]'::json)
-         )::text
-       ),
-       NOW()
-     )
-     ON CONFLICT (id) DO UPDATE SET
-       payload = excluded.payload,
-       creado_en = NOW()`
-  ).run();
+async function countRegistrosEnCuenta(db: Db, cuentaId: number): Promise<number> {
+  const loteIds = await loteIdsPorCuenta(db, cuentaId);
+  if (loteIds.size === 0) return 0;
+  const rows = (await db
+    .prepare(`SELECT lote_id FROM STOCK_GANADERO_REGISTRO`)
+    .all()) as { lote_id: number }[];
+  return rows.filter((r) => loteIds.has(r.lote_id)).length;
+}
+
+async function countDispositivosEnCuenta(db: Db, cuentaId: number): Promise<number> {
+  const empresas = await getEmpresaCodigosActivosPorCuenta(db, cuentaId);
+  const filters: StockGanaderoFilters = {
+    empresas: empresas.length > 0 ? empresas : [SIN_EMPRESAS_SCOPE],
+  };
+  return countStockGanaderaDispositivos(db, filters);
+}
+
+async function vaciarStockGanaderaDeCuenta(
+  tx: Db,
+  cuentaId: number
+): Promise<VaciarStockGanaderaResult> {
+  const payload = await gatherBackupPayloadForCuenta(tx, cuentaId);
+  if (!payload) {
+    return {
+      dispositivos_eliminados: 0,
+      lecturas_eliminadas: 0,
+      vinculos_sim_venta: 0,
+    };
+  }
+
+  const clavesScope = new Set(payload.dispositivos.map((d) => d.clave));
+  for (const r of payload.registros) {
+    const k = dispositivoClave(r.eid, r.vid);
+    if (k) clavesScope.add(k);
+  }
+  const loteIds = await loteIdsPorCuenta(tx, cuentaId);
+
+  let lecturas_eliminadas = 0;
+  const regRows = (await tx
+    .prepare(`SELECT id, lote_id FROM STOCK_GANADERO_REGISTRO`)
+    .all()) as { id: number; lote_id: number }[];
+  for (const row of regRows) {
+    if (!loteIds.has(row.lote_id)) continue;
+    await tx.prepare(`DELETE FROM STOCK_GANADERO_REGISTRO WHERE id = ?`).run(row.id);
+    lecturas_eliminadas += 1;
+  }
+
+  let vinculos_sim_venta = 0;
+  for (const clave of clavesScope) {
+    const res = await tx
+      .prepare(`DELETE FROM SIMULADOR_VENTA_GANADO_DISPOSITIVO WHERE clave = ?`)
+      .run(clave);
+    vinculos_sim_venta += res.changes ?? 0;
+  }
+
+  let historial_eliminado = 0;
+  for (const clave of clavesScope) {
+    const res = await tx
+      .prepare(`DELETE FROM STOCK_GANADERO_DISPOSITIVO_HISTORIAL WHERE clave = ?`)
+      .run(clave);
+    historial_eliminado += res.changes ?? 0;
+  }
+
+  let dispositivos_eliminados = 0;
+  for (const clave of clavesScope) {
+    const res = await tx
+      .prepare(`DELETE FROM STOCK_GANADERO_DISPOSITIVO WHERE clave = ?`)
+      .run(clave);
+    dispositivos_eliminados += res.changes ?? 0;
+  }
+
+  return {
+    dispositivos_eliminados,
+    lecturas_eliminadas,
+    vinculos_sim_venta,
+  };
 }
 
 function infoDesdePayload(
@@ -1172,16 +1286,22 @@ function infoDesdePayload(
   };
 }
 
-export async function infoStockGanaderaBackup(db: Db): Promise<StockGanaderaBackupInfo> {
+export async function infoStockGanaderaBackup(
+  db: Db,
+  cuentaId: number
+): Promise<StockGanaderaBackupInfo> {
   await ensureStockGanaderaBackupTable(db);
   const row = (await db
-    .prepare(`SELECT payload, creado_en FROM STOCK_GANADERO_BACKUP WHERE id = 1`)
-    .get()) as { payload: string; creado_en: string } | undefined;
+    .prepare(`SELECT payload, creado_en FROM STOCK_GANADERO_BACKUP WHERE cuenta_id = ?`)
+    .get(cuentaId)) as { payload: string; creado_en: string } | undefined;
   if (!row?.payload) {
     return infoDesdePayload(null, null);
   }
   try {
     const payload = JSON.parse(row.payload) as StockGanaderaBackupPayload;
+    if (payload.cuenta_id != null && payload.cuenta_id !== cuentaId) {
+      return infoDesdePayload(null, null);
+    }
     return infoDesdePayload(payload, row.creado_en ?? null);
   } catch {
     return infoDesdePayload(null, null);
@@ -1189,28 +1309,31 @@ export async function infoStockGanaderaBackup(db: Db): Promise<StockGanaderaBack
 }
 
 export async function restaurarStockGanaderaDesdeBackup(
-  db: Db
+  db: Db,
+  cuentaId: number
 ): Promise<RestaurarStockGanaderaResult> {
   return db.transaction(async (tx) => {
     await ensureStockGanaderaBackupTable(tx);
     const row = (await tx
-      .prepare(`SELECT payload FROM STOCK_GANADERO_BACKUP WHERE id = 1`)
-      .get()) as { payload: string } | undefined;
+      .prepare(`SELECT payload FROM STOCK_GANADERO_BACKUP WHERE cuenta_id = ?`)
+      .get(cuentaId)) as { payload: string } | undefined;
     if (!row?.payload) {
       throw new Error("No hay respaldo disponible para restaurar.");
     }
 
     const payload = JSON.parse(row.payload) as StockGanaderaBackupPayload;
+    if (payload.cuenta_id != null && payload.cuenta_id !== cuentaId) {
+      throw new Error("El respaldo no corresponde a esta cuenta.");
+    }
     if (!payload.registros?.length) {
       throw new Error("El respaldo está vacío.");
     }
 
-    const existentes = (await tx
-      .prepare(`SELECT COUNT(*) AS n FROM STOCK_GANADERO_REGISTRO`)
-      .get()) as { n: number };
-    if (existentes.n > 0) {
+    const lecturasCuenta = await countRegistrosEnCuenta(tx, cuentaId);
+    const dispositivosCuenta = await countDispositivosEnCuenta(tx, cuentaId);
+    if (lecturasCuenta > 0 || dispositivosCuenta > 0) {
       throw new Error(
-        "La base ya tiene dispositivos. Solo se puede restaurar cuando está vacía."
+        "Esta cuenta ya tiene dispositivos. Solo se puede restaurar cuando la base de la cuenta está vacía."
       );
     }
 
@@ -1361,8 +1484,21 @@ export async function restaurarStockGanaderaDesdeBackup(
   });
 }
 
-/** Elimina todo el stock ganadero (lecturas, metadatos, historial y vínculos con ventas). */
-export async function vaciarStockGanaderaCompleto(db: Db): Promise<VaciarStockGanaderaResult> {
+/** Elimina todo el stock ganadero de una cuenta (o global si cuentaId es null). */
+export async function vaciarStockGanaderaCompleto(
+  db: Db,
+  cuentaId: number | null
+): Promise<VaciarStockGanaderaResult> {
+  if (cuentaId != null) {
+    return db.transaction(async (tx) => {
+      const payload = await gatherBackupPayloadForCuenta(tx, cuentaId);
+      if (payload) {
+        await crearBackupStockGanadera(tx, cuentaId);
+      }
+      return vaciarStockGanaderaDeCuenta(tx, cuentaId);
+    });
+  }
+
   return db.transaction(async (tx) => {
     const counts = (await tx.prepare(
       `SELECT
@@ -1370,10 +1506,6 @@ export async function vaciarStockGanaderaCompleto(db: Db): Promise<VaciarStockGa
          (SELECT COUNT(*)::int FROM STOCK_GANADERO_DISPOSITIVO WHERE clave <> '__meta__') AS dispositivos,
          (SELECT COUNT(*)::int FROM SIMULADOR_VENTA_GANADO_DISPOSITIVO) AS sim`
     ).get()) as { lecturas: number; dispositivos: number; sim: number };
-
-    if (counts.lecturas > 0) {
-      await crearBackupStockGanadera(tx);
-    }
 
     await tx.prepare(`TRUNCATE TABLE SIMULADOR_VENTA_GANADO_DISPOSITIVO`).run();
     await tx.prepare(`TRUNCATE TABLE STOCK_GANADERO_REGISTRO`).run();

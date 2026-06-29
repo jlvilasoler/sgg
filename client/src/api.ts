@@ -2664,20 +2664,28 @@ export function enviarPresencia(pantalla?: string): void {
   });
 }
 
+export interface UsuariosOnlineSnapshot {
+  online: UsuarioOnline[];
+  recently_offline: UsuarioOnline[];
+}
+
 export async function fetchUsuariosOnline(
   ambito?: ActividadAmbito,
   cuentaId?: number
-): Promise<UsuarioOnline[]> {
+): Promise<UsuariosOnlineSnapshot> {
   const params = new URLSearchParams();
   if (ambito) params.set("ambito", ambito);
   if (cuentaId != null && Number.isFinite(cuentaId)) {
     params.set("cuenta_id", String(cuentaId));
   }
   const q = params.toString();
-  const json = await request<{ data: UsuarioOnline[] }>(
-    `/auth/actividad/online${q ? `?${q}` : ""}`
-  );
-  return json.data;
+  const json = await request<{
+    data: UsuariosOnlineSnapshot;
+  }>(`/auth/actividad/online${q ? `?${q}` : ""}`);
+  return {
+    online: json.data?.online ?? [],
+    recently_offline: json.data?.recently_offline ?? [],
+  };
 }
 
 /** Registra navegación (fire-and-forget). */

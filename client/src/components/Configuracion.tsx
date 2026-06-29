@@ -267,6 +267,7 @@ export default function Configuracion({
     return (
       <AdministradorCuenta
         apiOnline={apiOnline}
+        currentUser={currentUser!}
         onError={onError}
         onSuccess={onSuccess}
         onVolver={backStep?.onBack ?? (() => setModulo("menu"))}

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import {
   actualizarEmpresaCuenta,
   actualizarEmpresaOperativa,
+  actualizarUsuario,
   asignarAdminCuenta,
   crearEmpresaOperativa,
   crearUsuarioEmpresa,
@@ -35,6 +36,7 @@ interface Props {
   cuenta: EmpresaCuenta;
   apiOnline: boolean;
   modo?: CuentaDetalleModo;
+  currentUser?: AuthUser | null;
   volverLabel?: string;
   onVolver: () => void;
   onCuentaUpdated: (cuenta: EmpresaCuenta) => void;
@@ -49,6 +51,7 @@ export default function ArquitecturaCuentaDetalle({
   cuenta,
   apiOnline,
   modo = "plataforma",
+  currentUser = null,
   volverLabel,
   onVolver,
   onCuentaUpdated,
@@ -81,6 +84,10 @@ export default function ArquitecturaCuentaDetalle({
     activo: true,
   });
   const [savingOperativaEdit, setSavingOperativaEdit] = useState(false);
+  const [editingUserId, setEditingUserId] = useState<number | null>(null);
+  const [userEditForm, setUserEditForm] = useState<UserForm>(emptyUserForm);
+  const [savingUserEdit, setSavingUserEdit] = useState(false);
+  const [showUserEditPassword, setShowUserEditPassword] = useState(false);
   const [showEmpresasSection, setShowEmpresasSection] = useState(
     initialPanel === "operativa" || modo === "cuentaPropia"
   );
@@ -251,6 +258,7 @@ export default function ArquitecturaCuentaDetalle({
     setEditingOperativaId(op.id);
     setOperativaEditForm({ nombre: op.nombre, activo: op.activo });
     setShowOperativaForm(false);
+    closeEditUser();
   };
 
   const closeEditOperativa = () => {
@@ -282,6 +290,77 @@ export default function ArquitecturaCuentaDetalle({
       onError(err instanceof Error ? err.message : "Error al actualizar empresa");
     } finally {
       setSavingOperativaEdit(false);
+    }
+  };
+
+  const openEditUser = (u: AuthUser) => {
+    setEditingUserId(u.id);
+    setUserEditForm({
+      email: u.email,
+      nombre: u.nombre,
+      rol: u.rol,
+      activo: u.activo,
+      password: "",
+    });
+    setShowUserForm(false);
+    setShowUserEditPassword(false);
+    closeEditOperativa();
+  };
+
+  const closeEditUser = () => {
+    setEditingUserId(null);
+    setUserEditForm(emptyUserForm());
+    setShowUserEditPassword(false);
+  };
+
+  const handleGuardarUsuarioEdit = async (e: React.FormEvent, userId: number) => {
+    e.preventDefault();
+    if (!userEditForm.email.trim() || !userEditForm.nombre.trim()) {
+      onError("Email y nombre son obligatorios");
+      return;
+    }
+    const patch: Partial<UserForm> = {
+      email: userEditForm.email.trim(),
+      nombre: userEditForm.nombre.trim(),
+      rol: userEditForm.rol,
+      activo: userEditForm.activo,
+    };
+    if (userEditForm.password?.trim()) {
+      const pwdErr = validatePasswordStrength(userEditForm.password);
+      if (pwdErr) {
+        onError(pwdErr);
+        return;
+      }
+      patch.password = userEditForm.password;
+    }
+    setSavingUserEdit(true);
+    try {
+      const updated = await actualizarUsuario(userId, patch);
+      setUsuarios((prev) =>
+        prev
+          .map((u) => (u.id === updated.id ? updated : u))
+          .sort((a, b) => a.nombre.localeCompare(b.nombre, "es"))
+      );
+      closeEditUser();
+      onSuccess(`Usuario actualizado: ${updated.email}`);
+    } catch (err) {
+      onError(err instanceof Error ? err.message : "Error al actualizar usuario");
+    } finally {
+      setSavingUserEdit(false);
+    }
+  };
+
+  const handleToggleUsuarioActivo = async (u: AuthUser) => {
+    if (currentUser?.id === u.id && u.activo) {
+      onError("No podés desactivar tu propia cuenta");
+      return;
+    }
+    try {
+      const updated = await actualizarUsuario(u.id, { activo: !u.activo });
+      setUsuarios((prev) => prev.map((row) => (row.id === updated.id ? updated : row)));
+      onSuccess(updated.activo ? `${updated.nombre} activado` : `${updated.nombre} desactivado`);
+    } catch (err) {
+      onError(err instanceof Error ? err.message : "Error al actualizar usuario");
     }
   };
 
@@ -770,32 +849,178 @@ export default function ArquitecturaCuentaDetalle({
                 ) : (
                   <ul className="arquitectura-sistema-usuarios-list cuenta-entity-list">
                     {usuarios.map((u) => (
-                      <li key={u.id} className="cuenta-entity-card">
-                        <UserAvatar nombre={u.nombre} avatar={u.avatar} variant="list" />
-                        <div className="arquitectura-sistema-usuario-info">
-                          <strong>{u.nombre}</strong>
-                          <span className="muted">{u.email}</span>
-                          <span className="usuarios-id-badge">
-                            ID_USUARIO {u.usuario_numero}
-                          </span>
-                          <span className="arquitectura-sistema-user-cuenta">
-                            Cuenta {u.empresa_cuenta_numero ?? cuentaActual.cuenta_numero}
-                          </span>
-                        </div>
-                        <span
-                          className={`arquitectura-sistema-rol-badge arquitectura-sistema-rol-badge--${u.rol}`}
-                        >
-                          {u.rol_label}
-                        </span>
-                        <span
-                          className={
-                            u.activo
-                              ? "arquitectura-sistema-estado arquitectura-sistema-estado--activo"
-                              : "arquitectura-sistema-estado"
-                          }
-                        >
-                          {u.activo ? "Activo" : "Inactivo"}
-                        </span>
+                      <li
+                        key={u.id}
+                        className={`cuenta-entity-card${
+                          editingUserId === u.id ? " cuenta-entity-card--editing" : ""
+                        }`}
+                      >
+                        {editingUserId === u.id ? (
+                          <form
+                            className="cuenta-entity-edit-form"
+                            onSubmit={(e) => void handleGuardarUsuarioEdit(e, u.id)}
+                          >
+                            <div className="cuenta-entity-edit-form-head">
+                              <strong>Editar usuario</strong>
+                              <span className="usuarios-id-badge">
+                                ID_USUARIO {u.usuario_numero}
+                              </span>
+                            </div>
+                            <div className="arquitectura-sistema-form-grid cuenta-entity-edit-form-grid">
+                              <label>
+                                <span>Email</span>
+                                <input
+                                  type="email"
+                                  value={userEditForm.email}
+                                  onChange={(e) =>
+                                    setUserEditForm((f) => ({ ...f, email: e.target.value }))
+                                  }
+                                  required
+                                  autoFocus
+                                />
+                              </label>
+                              <label>
+                                <span>Nombre</span>
+                                <input
+                                  type="text"
+                                  value={userEditForm.nombre}
+                                  onChange={(e) =>
+                                    setUserEditForm((f) => ({ ...f, nombre: e.target.value }))
+                                  }
+                                  required
+                                />
+                              </label>
+                              <label>
+                                <span>Rol</span>
+                                <select
+                                  value={userEditForm.rol}
+                                  onChange={(e) =>
+                                    setUserEditForm((f) => ({
+                                      ...f,
+                                      rol: e.target.value as Rol,
+                                    }))
+                                  }
+                                >
+                                  {ROLES_EMPRESA.map((r) => (
+                                    <option key={r} value={r}>
+                                      {ROL_LABELS_DETALLE[r]}
+                                    </option>
+                                  ))}
+                                </select>
+                              </label>
+                              <label>
+                                <span>Nueva contraseña (opcional)</span>
+                                <div className="arquitectura-sistema-password-wrap">
+                                  <input
+                                    type={showUserEditPassword ? "text" : "password"}
+                                    autoComplete="new-password"
+                                    data-sin-mayusculas="true"
+                                    value={userEditForm.password ?? ""}
+                                    onChange={(e) =>
+                                      setUserEditForm((f) => ({
+                                        ...f,
+                                        password: e.target.value,
+                                      }))
+                                    }
+                                    placeholder="Dejar vacío para no cambiar"
+                                  />
+                                  <button
+                                    type="button"
+                                    className="arquitectura-sistema-password-toggle"
+                                    onClick={() => setShowUserEditPassword((v) => !v)}
+                                    tabIndex={-1}
+                                    aria-label={
+                                      showUserEditPassword
+                                        ? "Ocultar contraseña"
+                                        : "Mostrar contraseña"
+                                    }
+                                  >
+                                    <IconoOjo visible={showUserEditPassword} />
+                                  </button>
+                                </div>
+                                <small className="muted">{PASSWORD_POLICY_HINT}</small>
+                              </label>
+                              <label className="cuenta-entity-edit-activo">
+                                <input
+                                  type="checkbox"
+                                  checked={userEditForm.activo ?? true}
+                                  onChange={(e) =>
+                                    setUserEditForm((f) => ({
+                                      ...f,
+                                      activo: e.target.checked,
+                                    }))
+                                  }
+                                  disabled={
+                                    currentUser?.id === u.id && userEditForm.activo === true
+                                  }
+                                />
+                                <span>Usuario activo</span>
+                              </label>
+                            </div>
+                            <div className="arquitectura-sistema-form-actions">
+                              <button
+                                type="button"
+                                className="btn btn-ghost btn-sm"
+                                disabled={savingUserEdit}
+                                onClick={closeEditUser}
+                              >
+                                Cancelar
+                              </button>
+                              <button
+                                type="submit"
+                                className="btn btn-primary btn-sm"
+                                disabled={savingUserEdit}
+                              >
+                                {savingUserEdit ? "Guardando…" : "Guardar cambios"}
+                              </button>
+                            </div>
+                          </form>
+                        ) : (
+                          <>
+                            <UserAvatar nombre={u.nombre} avatar={u.avatar} variant="list" />
+                            <div className="arquitectura-sistema-usuario-info">
+                              <strong>{u.nombre}</strong>
+                              <span className="muted">{u.email}</span>
+                              <span className="usuarios-id-badge">
+                                ID_USUARIO {u.usuario_numero}
+                              </span>
+                              <span className="arquitectura-sistema-user-cuenta">
+                                Cuenta {u.empresa_cuenta_numero ?? cuentaActual.cuenta_numero}
+                              </span>
+                            </div>
+                            <span
+                              className={`arquitectura-sistema-rol-badge arquitectura-sistema-rol-badge--${u.rol}`}
+                            >
+                              {u.rol_label}
+                            </span>
+                            <span
+                              className={
+                                u.activo
+                                  ? "arquitectura-sistema-estado arquitectura-sistema-estado--activo"
+                                  : "arquitectura-sistema-estado"
+                              }
+                            >
+                              {u.activo ? "Activo" : "Inactivo"}
+                            </span>
+                            <div className="cuenta-entity-actions">
+                              <button
+                                type="button"
+                                className="btn btn-ghost btn-sm"
+                                onClick={() => openEditUser(u)}
+                              >
+                                Editar
+                              </button>
+                              <button
+                                type="button"
+                                className="btn btn-ghost btn-sm"
+                                disabled={currentUser?.id === u.id && u.activo}
+                                onClick={() => void handleToggleUsuarioActivo(u)}
+                              >
+                                {u.activo ? "Desactivar" : "Activar"}
+                              </button>
+                            </div>
+                          </>
+                        )}
                       </li>
                     ))}
                   </ul>
@@ -903,6 +1128,8 @@ export default function ArquitecturaCuentaDetalle({
                       onClick={() => {
                         setShowUserForm(true);
                         setShowOperativaForm(false);
+                        closeEditUser();
+                        closeEditOperativa();
                         setUserForm(emptyUserForm());
                         setShowUserPassword(false);
                       }}

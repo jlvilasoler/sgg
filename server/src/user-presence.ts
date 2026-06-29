@@ -5,6 +5,8 @@ import type { UserAvatarDto } from "./user-avatar-db.js";
 
 /** Usuario con actividad reciente en la app (ms). */
 export const ONLINE_TIMEOUT_MS = 3 * 60 * 1000;
+/** Usuarios desconectados recientemente: visible en panel amarillo hasta 1 h. */
+export const RECENT_OFFLINE_RETENTION_MS = 60 * 60 * 1000;
 const TOUCH_THROTTLE_MS = 20 * 1000;
 
 export interface UsuarioOnline {
@@ -42,7 +44,7 @@ const presence = new Map<string, PresenceEntry>();
 
 function purgeStale(now = Date.now()): void {
   for (const [key, entry] of presence) {
-    if (now - entry.lastSeen > ONLINE_TIMEOUT_MS) presence.delete(key);
+    if (now - entry.lastSeen > RECENT_OFFLINE_RETENTION_MS) presence.delete(key);
   }
 }
 
@@ -101,6 +103,28 @@ export function listOnlineUsers(): Omit<UsuarioOnline, "avatar">[] {
     });
   }
   result.sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
+  return result;
+}
+
+export function listRecentlyOfflineUsers(): Omit<UsuarioOnline, "avatar">[] {
+  const now = Date.now();
+  purgeStale(now);
+  const result: Omit<UsuarioOnline, "avatar">[] = [];
+  for (const entry of presence.values()) {
+    const age = now - entry.lastSeen;
+    if (age <= ONLINE_TIMEOUT_MS || age > RECENT_OFFLINE_RETENTION_MS) continue;
+    result.push({
+      id: entry.id,
+      email: entry.email,
+      nombre: entry.nombre,
+      rol: entry.rol,
+      ip: entry.ip,
+      pantalla: entry.pantalla,
+      ultimo_visto: new Date(entry.lastSeen).toISOString(),
+      hace_segundos: Math.max(0, Math.floor(age / 1000)),
+    });
+  }
+  result.sort((a, b) => a.hace_segundos - b.hace_segundos);
   return result;
 }
 

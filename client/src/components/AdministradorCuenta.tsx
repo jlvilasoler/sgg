@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { fetchMiCuentaEmpresa } from "../api";
-import type { EmpresaCuenta } from "../types";
+import type { AuthUser, EmpresaCuenta } from "../types";
 import ArquitecturaCuentaDetalle from "./ArquitecturaCuentaDetalle";
 
 interface Props {
   apiOnline: boolean;
+  currentUser: AuthUser;
   onVolver: () => void;
   onError: (msg: string) => void;
   onSuccess: (msg: string) => void;
@@ -12,6 +13,7 @@ interface Props {
 
 export default function AdministradorCuenta({
   apiOnline,
+  currentUser,
   onVolver,
   onError,
   onSuccess,
@@ -78,6 +80,7 @@ export default function AdministradorCuenta({
       cuenta={cuenta}
       apiOnline={apiOnline}
       modo="cuentaPropia"
+      currentUser={currentUser}
       volverLabel="Volver a Configuración"
       onVolver={onVolver}
       onCuentaUpdated={setCuenta}

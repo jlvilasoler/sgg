@@ -425,9 +425,11 @@ export const stockGanadero = {
   ) => stock.bulkPatchStockGanaderaDispositivos(db, claves, patch, eids, autor),
   deleteDispositivos: (claves: string[]) =>
     stock.deleteStockGanaderaDispositivos(db, claves),
-  vaciarCompleto: () => stock.vaciarStockGanaderaCompleto(db),
-  backupInfo: () => stock.infoStockGanaderaBackup(db),
-  restaurarDesdeBackup: () => stock.restaurarStockGanaderaDesdeBackup(db),
+  vaciarCompleto: (cuentaId: number | null) =>
+    stock.vaciarStockGanaderaCompleto(db, cuentaId),
+  backupInfo: (cuentaId: number) => stock.infoStockGanaderaBackup(db, cuentaId),
+  restaurarDesdeBackup: (cuentaId: number) =>
+    stock.restaurarStockGanaderaDesdeBackup(db, cuentaId),
   listHistorialCambios: (clave: string) =>
     stock.listStockGanaderaDispositivoHistorial(db, clave),
 };

@@ -17,7 +17,7 @@ import {
   PANTALLA_LABELS,
   recordUserActivity,
 } from "./user-activity.js";
-import { listOnlineUsers, removeUserPresence, touchUserPresence } from "./user-presence.js";
+import { listOnlineUsers, listRecentlyOfflineUsers, removeUserPresence, touchUserPresence } from "./user-presence.js";
 import {
   artificialLoginDelay,
   clientIp,
@@ -338,9 +338,15 @@ async function assertAccesoCuentaPropia(
   res: Response,
   cuentaId: number
 ): Promise<boolean> {
-  if (req.user?.es_super_admin) return true;
+  const actor = req.user;
+  if (!actor) {
+    res.status(401).json({ ok: false, error: "No autenticado" });
+    return false;
+  }
+  if (actor.es_super_admin || actor.es_admin_plataforma) return true;
   const propia = await cuentaIdDelActor(req);
   if (propia === cuentaId) return true;
+  if (actor.es_admin_cuenta && actor.empresa_id === cuentaId) return true;
   res.status(403).json({ ok: false, error: "Sin permiso sobre esta cuenta" });
   return false;
 }
@@ -358,6 +364,7 @@ async function assertListUsersCuenta(
   if (actor.es_admin_plataforma || actor.es_super_admin) return cuenta;
   const propia = await empresasCuenta.getEmpresaCuentaByAdminUserId(getDb(), actor.id);
   if (propia?.id === cuentaId) return cuenta;
+  if (actor.es_admin_cuenta && actor.empresa_id === cuentaId) return cuenta;
   res.status(403).json({
     ok: false,
     error: "Sin permiso para listar usuarios de esta cuenta",
@@ -922,27 +929,43 @@ export function registerAuthRoutes(app: Express): void {
       parseActividadAmbito(req.query.ambito),
       parseActividadCuentaId(req.query.cuenta_id)
     );
-    const base = listOnlineUsers().filter(
-      (u) => allowedIds === null || allowedIds.includes(u.id)
-    );
-    const data = [];
-    for (const u of base) {
-      const row = (await db
-        .prepare(
-          `SELECT id, avatar_tipo, avatar_archivo, actualizado_en FROM USERS WHERE id = ?`
-        )
-        .get(u.id)) as {
-        id: number;
-        avatar_tipo?: string;
-        avatar_archivo?: string;
-        actualizado_en?: string;
-      } | undefined;
-      data.push({
-        ...u,
-        avatar: row ? avatarDtoFromRow(row.id, row) : { tipo: "iniciales" as const, url: null },
-      });
-    }
-    res.json({ ok: true, data });
+    const filterAllowed = (users: ReturnType<typeof listOnlineUsers>) =>
+      users.filter((u) => allowedIds === null || allowedIds.includes(u.id));
+
+    const enrichPresenceUsers = async (
+      base: ReturnType<typeof listOnlineUsers>
+    ) => {
+      const data = [];
+      for (const u of base) {
+        const row = (await db
+          .prepare(
+            `SELECT id, avatar_tipo, avatar_archivo, actualizado_en FROM USERS WHERE id = ?`
+          )
+          .get(u.id)) as {
+          id: number;
+          avatar_tipo?: string;
+          avatar_archivo?: string;
+          actualizado_en?: string;
+        } | undefined;
+        data.push({
+          ...u,
+          avatar: row
+            ? avatarDtoFromRow(row.id, row)
+            : { tipo: "iniciales" as const, url: null },
+        });
+      }
+      return data;
+    };
+
+    res.json({
+      ok: true,
+      data: {
+        online: await enrichPresenceUsers(filterAllowed(listOnlineUsers())),
+        recently_offline: await enrichPresenceUsers(
+          filterAllowed(listRecentlyOfflineUsers())
+        ),
+      },
+    });
   });
 
   app.post("/api/auth/presencia", async (req, res) => {

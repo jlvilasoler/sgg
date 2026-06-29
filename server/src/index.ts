@@ -1779,13 +1779,34 @@ app.post("/api/stock-ganadero/dispositivos/bulk-delete", async (req, res) => {
   }
 });
 
+async function stockAdminCuentaIdForUser(user: UserPublic): Promise<number | null> {
+  return empresasCuenta.resolveCuentaMadreIdForUser(db.getDb(), user);
+}
+
+async function requireStockAdminCuentaId(
+  req: Request,
+  res: Response
+): Promise<number | null> {
+  const user = req.user!;
+  const cuentaId = await stockAdminCuentaIdForUser(user);
+  if (cuentaId != null) return cuentaId;
+  if (user.es_super_admin) return null;
+  res.status(403).json({
+    ok: false,
+    error: "Sin cuenta asociada para administrar el stock ganadero",
+  });
+  return null;
+}
+
 app.post("/api/stock-ganadero/dispositivos/wipe-all", async (req, res) => {
   if (!req.user || req.user.rol !== "admin") {
     res.status(403).json({ ok: false, error: "Solo administradores" });
     return;
   }
+  const cuentaId = await requireStockAdminCuentaId(req, res);
+  if (cuentaId == null && !req.user!.es_super_admin) return;
   try {
-    const result = await db.stockGanadero.vaciarCompleto();
+    const result = await db.stockGanadero.vaciarCompleto(cuentaId);
     await auditStockMovimiento(req, "MODIFICACION", {
       resumen: "Vació todo el stock ganadero",
       detalle: { ...result },
@@ -1804,8 +1825,26 @@ app.get("/api/stock-ganadero/backup", async (req, res) => {
     res.status(403).json({ ok: false, error: "Solo administradores" });
     return;
   }
+  const cuentaId = await requireStockAdminCuentaId(req, res);
+  if (cuentaId == null) {
+    if (req.user.es_super_admin) {
+      res.json({
+        ok: true,
+        data: {
+          disponible: false,
+          creado_en: null,
+          dispositivos: 0,
+          lecturas: 0,
+          historial: 0,
+          vinculos_sim: 0,
+        },
+      });
+      return;
+    }
+    return;
+  }
   try {
-    res.json({ ok: true, data: await db.stockGanadero.backupInfo() });
+    res.json({ ok: true, data: await db.stockGanadero.backupInfo(cuentaId) });
   } catch (e) {
     res.status(400).json({
       ok: false,
@@ -1819,8 +1858,17 @@ app.post("/api/stock-ganadero/backup/restore", async (req, res) => {
     res.status(403).json({ ok: false, error: "Solo administradores" });
     return;
   }
+  const cuentaId = await requireStockAdminCuentaId(req, res);
+  if (cuentaId == null) {
+    if (!req.user.es_super_admin) return;
+    res.status(400).json({
+      ok: false,
+      error: "Recuperación de respaldo requiere una cuenta madre asociada",
+    });
+    return;
+  }
   try {
-    const result = await db.stockGanadero.restaurarDesdeBackup();
+    const result = await db.stockGanadero.restaurarDesdeBackup(cuentaId);
     await auditStockMovimiento(req, "MODIFICACION", {
       resumen: `Restauró stock ganadero desde respaldo (${result.dispositivos_restaurados} dispositivo(s))`,
       detalle: { ...result },
