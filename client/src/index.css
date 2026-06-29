@@ -21747,8 +21747,6 @@ button.sg-kpi-card:disabled {
   border-radius: 999px;
   font-size: 0.65rem;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
   color: #92400e;
   background: #fef9e7;
   border: 1px solid #fde68a;

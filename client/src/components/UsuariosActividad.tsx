@@ -83,6 +83,12 @@ function fmtHaceSegundos(seg: number): string {
   return `hace ${h} h`;
 }
 
+function fmtEtiquetaPresencia(texto: string): string {
+  const t = texto.trim();
+  if (!t) return t;
+  return t.charAt(0).toUpperCase() + t.slice(1).toLowerCase();
+}
+
 function fmtTiempoConectado(seg: number, enLinea: boolean): string {
   if (enLinea && seg < 15) return "Recién conectado";
   const prefijo = enLinea ? "Conectado" : "Estuvo";
@@ -138,9 +144,11 @@ function TarjetaUsuarioPresencia({
           {u.pantalla || tag ? (
             <div className="usuarios-online-estado-row">
               {u.pantalla ? (
-                <span className="usuarios-online-pantalla">{u.pantalla}</span>
+                <span className="usuarios-online-pantalla">{fmtEtiquetaPresencia(u.pantalla)}</span>
               ) : null}
-              {tag ? <span className="usuarios-online-offline-tag">{tag}</span> : null}
+              {tag ? (
+                <span className="usuarios-online-offline-tag">{fmtEtiquetaPresencia(tag)}</span>
+              ) : null}
             </div>
           ) : null}
           {mostrarIp && u.ip ? (
