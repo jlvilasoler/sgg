@@ -23,6 +23,7 @@ export interface UsuarioOnline {
   pantalla: string | null;
   ultimo_visto: string;
   hace_segundos: number;
+  conectado_segundos: number;
 }
 
 export interface UserPresenceStatus {
@@ -117,6 +118,7 @@ export function listOnlineUsers(): Omit<UsuarioOnline, "avatar">[] {
       pantalla: entry.pantalla,
       ultimo_visto: new Date(entry.lastSeen).toISOString(),
       hace_segundos: Math.max(0, Math.floor((now - entry.lastSeen) / 1000)),
+      conectado_segundos: Math.max(0, Math.floor((now - entry.onlineSince) / 1000)),
     });
   }
   result.sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
@@ -162,6 +164,7 @@ function entryToUsuarioOnline(
     pantalla: entry.pantalla,
     ultimo_visto: new Date(entry.lastSeen).toISOString(),
     hace_segundos: Math.max(0, Math.floor(ageMs / 1000)),
+    conectado_segundos: Math.max(0, Math.floor((entry.lastSeen - entry.onlineSince) / 1000)),
   };
 }
 

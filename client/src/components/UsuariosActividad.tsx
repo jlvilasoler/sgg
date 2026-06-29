@@ -83,6 +83,18 @@ function fmtHaceSegundos(seg: number): string {
   return `hace ${h} h`;
 }
 
+function fmtTiempoConectado(seg: number, enLinea: boolean): string {
+  if (enLinea && seg < 15) return "Recién conectado";
+  const prefijo = enLinea ? "Conectado" : "Estuvo";
+  if (seg < 60) return `${prefijo} ${seg} s`;
+  const min = Math.floor(seg / 60);
+  if (min < 60) return `${prefijo} ${min} min`;
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  if (m === 0) return `${prefijo} ${h} h`;
+  return `${prefijo} ${h} h ${m} min`;
+}
+
 function TarjetaUsuarioPresencia({
   u,
   estado = "online",
@@ -104,22 +116,33 @@ function TarjetaUsuarioPresencia({
       : estado === "reciente-offline"
         ? "Desconectado"
         : null;
+  const enLinea = estado === "online";
+  const conectadoSeg = u.conectado_segundos ?? 0;
   return (
     <li className={`usuarios-online-item${claseEstado}`}>
       <UserAvatar nombre={u.nombre} avatar={u.avatar} variant="list" />
       <div className="usuarios-online-body">
         <div className="usuarios-online-main">
           <strong>{u.nombre}</strong>
-          <span className="muted usuarios-act-email">{u.email}</span>
-        </div>
-        <div className="usuarios-online-meta">
-          {u.pantalla ? (
-            <span className="usuarios-online-pantalla">{u.pantalla}</span>
-          ) : null}
-          <div className="usuarios-online-meta-status">
-            <span className="usuarios-online-hace">{fmtHaceSegundos(u.hace_segundos)}</span>
-            {tag ? <span className="usuarios-online-offline-tag">{tag}</span> : null}
+          <div className="usuarios-online-status-row">
+            <span className="usuarios-online-conectado">
+              {fmtTiempoConectado(conectadoSeg, enLinea)}
+            </span>
+            {!enLinea ? (
+              <span className="usuarios-online-hace">{fmtHaceSegundos(u.hace_segundos)}</span>
+            ) : null}
           </div>
+          <span className="usuarios-act-email usuarios-online-email" title={u.email}>
+            {u.email}
+          </span>
+          {u.pantalla || tag ? (
+            <div className="usuarios-online-estado-row">
+              {u.pantalla ? (
+                <span className="usuarios-online-pantalla">{u.pantalla}</span>
+              ) : null}
+              {tag ? <span className="usuarios-online-offline-tag">{tag}</span> : null}
+            </div>
+          ) : null}
           {mostrarIp && u.ip ? (
             <span className="usuarios-online-ip muted">{u.ip}</span>
           ) : null}

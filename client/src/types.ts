@@ -378,6 +378,7 @@ export interface UsuarioOnline {
   pantalla: string | null;
   ultimo_visto: string;
   hace_segundos: number;
+  conectado_segundos: number;
 }
 
 export interface ResumenEmpresa {
