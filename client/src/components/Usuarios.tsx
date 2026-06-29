@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   actualizarUsuario,
   crearUsuario,
@@ -205,12 +206,12 @@ export default function Usuarios({
     setShowPassword(false);
   };
 
-  const closeForm = () => {
+  const closeForm = useCallback(() => {
     setEditing(null);
     setCreating(false);
     setForm(emptyForm());
     setShowPassword(false);
-  };
+  }, []);
 
   const save = async () => {
     if (!apiOnline) return;
@@ -277,6 +278,20 @@ export default function Usuarios({
 
   const showForm = creating || editing !== null;
 
+  useEffect(() => {
+    if (!showForm) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !saving) closeForm();
+    };
+    document.addEventListener("keydown", onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [showForm, saving, closeForm]);
+
   const subtitulo = loading
     ? "Actualizando listado…"
     : !apiOnline
@@ -301,7 +316,7 @@ export default function Usuarios({
             <button
               type="button"
               className="btn btn-primary"
-              disabled={!apiOnline || showForm}
+              disabled={!apiOnline}
               onClick={openCreate}
             >
               + Nuevo usuario
@@ -373,100 +388,6 @@ export default function Usuarios({
             </div>
           </div>
         </section>
-
-        {showForm && (
-          <section className="usuarios-form-card">
-            <h3>{creating ? "Nuevo usuario" : `Editar: ${editing?.nombre}`}</h3>
-            <div className="usuarios-form-grid">
-              <div className="field">
-                <label htmlFor="usr-nombre">Nombre</label>
-                <input
-                  id="usr-nombre"
-                  value={form.nombre}
-                  onChange={(e) => setForm((f) => ({ ...f, nombre: e.target.value }))}
-                />
-              </div>
-              <div className="field">
-                <label htmlFor="usr-email">Email</label>
-                <input
-                  id="usr-email"
-                  type="email"
-                  value={form.email}
-                  onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-                />
-              </div>
-              <div className="field">
-                <label htmlFor="usr-rol">Rol</label>
-                <select
-                  id="usr-rol"
-                  value={form.rol}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, rol: e.target.value as Rol }))
-                  }
-                >
-                  {ROLES.map((r) => (
-                    <option key={r} value={r}>
-                      {ROL_LABELS_DETALLE[r]}
-                    </option>
-                  ))}
-                </select>
-                <p className="usuarios-rol-hint">{ROL_DESCRIPCION[form.rol]}</p>
-              </div>
-              <div className="field">
-                <label htmlFor="usr-pass">
-                  Contraseña {creating ? "" : "(opcional)"}
-                </label>
-                <div className="usuarios-password-wrap">
-                  <input
-                    id="usr-pass"
-                    type={showPassword ? "text" : "password"}
-                    autoComplete="new-password"
-                    data-sin-mayusculas="true"
-                    value={form.password ?? ""}
-                    onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
-                    placeholder={creating ? "Contraseña segura" : "Dejar vacío para no cambiar"}
-                  />
-                  <button
-                    type="button"
-                    className="usuarios-password-toggle"
-                    onClick={() => setShowPassword((v) => !v)}
-                    tabIndex={-1}
-                    aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
-                    title={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
-                  >
-                    <IconoOjo visible={showPassword} />
-                  </button>
-                </div>
-                <p className="usuarios-rol-hint">{PASSWORD_POLICY_HINT}</p>
-              </div>
-              {!creating && (
-                <label className="inline-check usuarios-activo-check">
-                  <input
-                    type="checkbox"
-                    checked={form.activo !== false}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, activo: e.target.checked }))
-                    }
-                  />
-                  Usuario activo
-                </label>
-              )}
-            </div>
-            <div className="usuarios-form-actions">
-              <button type="button" className="btn btn-ghost" onClick={closeForm}>
-                Cancelar
-              </button>
-              <button
-                type="button"
-                className="btn btn-primary"
-                disabled={saving || !apiOnline}
-                onClick={save}
-              >
-                {saving ? "Guardando…" : "Guardar"}
-              </button>
-            </div>
-          </section>
-        )}
 
         <div className="filters listado-pro-filters usuarios-admin-filters">
           <div className="field usuarios-admin-search">
@@ -627,6 +548,148 @@ export default function Usuarios({
           </table>
         </div>
       </div>
+
+      {showForm &&
+        createPortal(
+          <div
+            className="pd-overlay usuarios-form-modal-overlay bn-ui"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="usuarios-form-modal-title"
+            onClick={() => {
+              if (!saving) closeForm();
+            }}
+          >
+            <div
+              className="pd-dialog usuarios-form-modal"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <header className="usuarios-form-modal-head">
+                <div className="usuarios-form-modal-head-main">
+                  <p className="usuarios-form-modal-kicker">Administración de usuarios</p>
+                  <h2 id="usuarios-form-modal-title" className="usuarios-form-modal-title">
+                    {creating ? "Nuevo usuario" : `Editar: ${editing?.nombre}`}
+                  </h2>
+                  <p className="usuarios-form-modal-sub">
+                    {creating
+                      ? "Complete los datos para dar de alta una cuenta en su equipo"
+                      : "Modifique rol, estado o contraseña del usuario"}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="usuarios-form-modal-close"
+                  disabled={saving}
+                  onClick={closeForm}
+                  aria-label="Cerrar"
+                >
+                  ×
+                </button>
+              </header>
+              <div className="usuarios-form-modal-body">
+                <div className="usuarios-form-modal-panel">
+                  <div className="usuarios-form-grid">
+                    <div className="field">
+                      <label htmlFor="usr-nombre">Nombre</label>
+                      <input
+                        id="usr-nombre"
+                        value={form.nombre}
+                        autoFocus
+                        placeholder="Nombre completo"
+                        onChange={(e) => setForm((f) => ({ ...f, nombre: e.target.value }))}
+                      />
+                    </div>
+                    <div className="field">
+                      <label htmlFor="usr-email">Email</label>
+                      <input
+                        id="usr-email"
+                        type="email"
+                        value={form.email}
+                        placeholder="usuario@empresa.com"
+                        onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+                      />
+                    </div>
+                    <div className="field">
+                      <label htmlFor="usr-rol">Rol</label>
+                      <select
+                        id="usr-rol"
+                        value={form.rol}
+                        onChange={(e) =>
+                          setForm((f) => ({ ...f, rol: e.target.value as Rol }))
+                        }
+                      >
+                        {ROLES.map((r) => (
+                          <option key={r} value={r}>
+                            {ROL_LABELS_DETALLE[r]}
+                          </option>
+                        ))}
+                      </select>
+                      <p className="usuarios-rol-hint">{ROL_DESCRIPCION[form.rol]}</p>
+                    </div>
+                    <div className="field">
+                      <label htmlFor="usr-pass">
+                        Contraseña {creating ? "" : "(opcional)"}
+                      </label>
+                      <div className="usuarios-password-wrap">
+                        <input
+                          id="usr-pass"
+                          type={showPassword ? "text" : "password"}
+                          autoComplete="new-password"
+                          data-sin-mayusculas="true"
+                          value={form.password ?? ""}
+                          onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
+                          placeholder={creating ? "Contraseña segura" : "Dejar vacío para no cambiar"}
+                        />
+                        <button
+                          type="button"
+                          className="usuarios-password-toggle"
+                          onClick={() => setShowPassword((v) => !v)}
+                          tabIndex={-1}
+                          aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                          title={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                        >
+                          <IconoOjo visible={showPassword} />
+                        </button>
+                      </div>
+                      <p className="usuarios-rol-hint">{PASSWORD_POLICY_HINT}</p>
+                    </div>
+                    {!creating && (
+                      <label className="inline-check usuarios-activo-check">
+                        <input
+                          type="checkbox"
+                          checked={form.activo !== false}
+                          onChange={(e) =>
+                            setForm((f) => ({ ...f, activo: e.target.checked }))
+                          }
+                        />
+                        Usuario activo
+                      </label>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <footer className="usuarios-form-modal-footer">
+                <button
+                  type="button"
+                  className="btn btn-ghost usuarios-form-modal-cancel"
+                  disabled={saving}
+                  onClick={closeForm}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  disabled={saving || !apiOnline}
+                  onClick={() => void save()}
+                >
+                  {saving ? "Guardando…" : "Guardar"}
+                </button>
+              </footer>
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   );
 }

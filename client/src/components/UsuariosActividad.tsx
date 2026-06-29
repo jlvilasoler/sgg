@@ -90,10 +90,13 @@ export default function UsuariosActividad({
   onVolver,
   volverLabel = "Volver al menú",
 }: Props) {
-  const accesoDenegado = modo === "total" && !canAccessActividadSagTotal(currentUser);
-  const puedeFiltrarCuenta = modo === "total" && canAccessActividadSagTotal(currentUser);
+  const esActividadTotalPlataforma =
+    modo === "total" && canAccessActividadSagTotal(currentUser);
+  const puedeFiltrarCuenta = esActividadTotalPlataforma;
   const puedeFiltrarUsuario = canFiltrarActividadPorUsuario(currentUser) && modo !== "propio";
-  const puedeVerOnline = canVerUsuariosOnlineActividad(currentUser) && modo !== "propio";
+  const puedeVerOnline =
+    esActividadTotalPlataforma ||
+    (canVerUsuariosOnlineActividad(currentUser) && modo === "cuenta");
   const ambitoApi: ActividadAmbito | undefined =
     modo === "propio" ? undefined : modo;
   const cuentaIdFiltro =
@@ -207,13 +210,21 @@ export default function UsuariosActividad({
       return;
     }
     try {
-      setOnline(await fetchUsuariosOnline(ambitoApi, filtroCuentaIdNum));
+      // En vista total de plataforma: siempre todos los usuarios online (todas las cuentas).
+      const cuentaIdOnline = esActividadTotalPlataforma ? undefined : filtroCuentaIdNum;
+      setOnline(await fetchUsuariosOnline(ambitoApi, cuentaIdOnline));
     } catch {
       /* no interrumpir la vista principal */
     } finally {
       setLoadingOnline(false);
     }
-  }, [apiOnline, puedeVerOnline, ambitoApi, filtroCuentaIdNum]);
+  }, [
+    apiOnline,
+    puedeVerOnline,
+    ambitoApi,
+    esActividadTotalPlataforma,
+    filtroCuentaIdNum,
+  ]);
 
   useEffect(() => {
     if (!puedeVerOnline) {
@@ -238,7 +249,57 @@ export default function UsuariosActividad({
         ? "Sin registros de actividad todavía"
         : `${total} registro${total === 1 ? "" : "s"} en el historial`;
 
-  if (accesoDenegado) {
+  const onlineHint = esActividadTotalPlataforma
+    ? "Todas las cuentas de la plataforma · actividad en los últimos 3 min · se actualiza cada 12 s"
+    : "Actividad en los últimos 3 min · se actualiza cada 12 s";
+
+  const seccionOnline = puedeVerOnline ? (
+    <section
+      className={`usuarios-actividad-online${esActividadTotalPlataforma ? " usuarios-actividad-online--plataforma" : ""}`}
+      aria-label="Usuarios en línea"
+    >
+      <div className="usuarios-actividad-online-head">
+        <h3 className="usuarios-actividad-online-title">
+          <span className="usuarios-online-pulse" aria-hidden />
+          En línea ahora
+          <span className="usuarios-actividad-online-count">
+            {loadingOnline || !apiOnline ? "—" : online.length}
+          </span>
+        </h3>
+        <span className="usuarios-actividad-online-hint">{onlineHint}</span>
+      </div>
+      {!apiOnline ? (
+        <p className="usuarios-actividad-online-empty muted">Sin conexión con la API</p>
+      ) : loadingOnline ? (
+        <p className="usuarios-actividad-online-empty muted">Consultando usuarios activos…</p>
+      ) : online.length === 0 ? (
+        <p className="usuarios-actividad-online-empty muted">
+          Nadie está usando la app en este momento
+        </p>
+      ) : (
+        <ul className="usuarios-online-list">
+          {online.map((u) => (
+            <li key={u.email} className="usuarios-online-item">
+              <UserAvatar nombre={u.nombre} avatar={u.avatar} variant="list" />
+              <div className="usuarios-online-main">
+                <strong>{u.nombre}</strong>
+                <span className="muted usuarios-act-email">{u.email}</span>
+              </div>
+              <div className="usuarios-online-meta">
+                {u.pantalla ? (
+                  <span className="usuarios-online-pantalla">{u.pantalla}</span>
+                ) : null}
+                <span className="usuarios-online-hace">{fmtHaceSegundos(u.hace_segundos)}</span>
+                {u.ip ? <span className="usuarios-online-ip muted">{u.ip}</span> : null}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  ) : null;
+
+  if (modo === "total" && !canAccessActividadSagTotal(currentUser)) {
     return (
       <div className="subseccion-panel">
         <div className="card">
@@ -275,6 +336,8 @@ export default function UsuariosActividad({
             </p>
           </div>
         </header>
+
+        {seccionOnline}
 
         <div className="filters listado-pro-filters usuarios-actividad-filters">
           <div className="listado-pro-filters-row listado-pro-filters-row--unica">
@@ -357,51 +420,6 @@ export default function UsuariosActividad({
             </div>
           </div>
         </div>
-
-        {puedeVerOnline ? (
-          <section className="usuarios-actividad-online" aria-label="Usuarios en línea">
-          <div className="usuarios-actividad-online-head">
-            <h3 className="usuarios-actividad-online-title">
-              <span className="usuarios-online-pulse" aria-hidden />
-              En línea ahora
-              <span className="usuarios-actividad-online-count">
-                {loadingOnline || !apiOnline ? "—" : online.length}
-              </span>
-            </h3>
-            <span className="usuarios-actividad-online-hint">
-              Actividad en los últimos 3 min · se actualiza cada 12 s
-            </span>
-          </div>
-          {!apiOnline ? (
-            <p className="usuarios-actividad-online-empty muted">Sin conexión con la API</p>
-          ) : loadingOnline ? (
-            <p className="usuarios-actividad-online-empty muted">Consultando usuarios activos…</p>
-          ) : online.length === 0 ? (
-            <p className="usuarios-actividad-online-empty muted">
-              Nadie está usando la app en este momento
-            </p>
-          ) : (
-            <ul className="usuarios-online-list">
-              {online.map((u) => (
-                <li key={u.email} className="usuarios-online-item">
-                  <UserAvatar nombre={u.nombre} avatar={u.avatar} variant="list" />
-                  <div className="usuarios-online-main">
-                    <strong>{u.nombre}</strong>
-                    <span className="muted usuarios-act-email">{u.email}</span>
-                  </div>
-                  <div className="usuarios-online-meta">
-                    {u.pantalla ? (
-                      <span className="usuarios-online-pantalla">{u.pantalla}</span>
-                    ) : null}
-                    <span className="usuarios-online-hace">{fmtHaceSegundos(u.hace_segundos)}</span>
-                    {u.ip ? <span className="usuarios-online-ip muted">{u.ip}</span> : null}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-        ) : null}
 
         <section className="usuarios-actividad-kpis" aria-label="Resumen">
           <div className="usuarios-actividad-kpi-grid">
