@@ -194,6 +194,8 @@ export async function initDb(): Promise<void> {
     await migratePresupuestoIngresadoPor(db);
     await prov.initProveedoresTable(db);
     await resp.initResponsablesTable(db);
+    await func.initFuncionariosTable(db);
+    await ventas.initVentasTable(db);
     await presDoc.initPresupuestoDocumentosTable(db);
   } finally {
     if (locked) await releaseAdvisoryLock();

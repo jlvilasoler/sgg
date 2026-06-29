@@ -60,28 +60,29 @@ export default function RecursosHumanos({
   }, []);
 
   const headerBack = useHeaderBackContext();
+  const setHeaderBackStep = headerBack?.setStep;
   useEffect(() => {
-    if (!headerBack) return;
+    if (!setHeaderBackStep) return;
     if (vista === "menu") {
-      headerBack.setStep(null);
+      setHeaderBackStep(null);
       return;
     }
     if (vista === "funcionario-form") {
-      headerBack.setStep({
+      setHeaderBackStep({
         onBack: () => {
           setEditFuncionario(null);
           setVista("funcionarios");
         },
         destinationLabel: "Funcionarios",
       });
-      return () => headerBack.setStep(null);
+      return () => setHeaderBackStep(null);
     }
-    headerBack.setStep({
+    setHeaderBackStep({
       onBack: volverMenu,
       destinationLabel: "Recursos Humanos",
     });
-    return () => headerBack.setStep(null);
-  }, [vista, volverMenu, headerBack]);
+    return () => setHeaderBackStep(null);
+  }, [vista, volverMenu, setHeaderBackStep]);
 
   if (vista === "funcionario-form") {
     return (
