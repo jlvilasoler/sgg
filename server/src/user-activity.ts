@@ -61,7 +61,7 @@ export function describeApiActivity(method: string, path: string): string | null
   }
   if (p.startsWith("/api/rubros") || p.startsWith("/api/sub-rubros")) {
     if (m === "POST") return "Cre? un rubro o sub-rubro";
-    if (m === "PUT" || m === "PATCH") return "Modific? configuraci?n de rubros";
+    if (m === "PUT" || m === "PATCH") return "Modific? configuración de rubros";
     if (m === "DELETE") return "Elimin? un rubro o sub-rubro";
   }
   if (p.startsWith("/api/divisas")) {
@@ -141,7 +141,7 @@ export const PANTALLA_LABELS: Record<string, string> = {
   registro: "Ingresar gasto",
   listado: "Presupuesto / listado de gastos",
   resumen: "Resumen",
-  configuracion: "Configuraci?n",
+  configuracion: "Configuración",
   divisas: "Divisas",
   precios_ganado: "Precios de Ganado",
   simulador_venta_ganado: "Simulador venta ganado",
