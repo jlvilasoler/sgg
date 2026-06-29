@@ -2667,6 +2667,7 @@ export function enviarPresencia(pantalla?: string): void {
 export interface UsuariosOnlineSnapshot {
   online: UsuarioOnline[];
   recently_offline: UsuarioOnline[];
+  stale_offline: UsuarioOnline[];
 }
 
 export async function fetchUsuariosOnline(
@@ -2685,6 +2686,7 @@ export async function fetchUsuariosOnline(
   return {
     online: json.data?.online ?? [],
     recently_offline: json.data?.recently_offline ?? [],
+    stale_offline: json.data?.stale_offline ?? [],
   };
 }
 

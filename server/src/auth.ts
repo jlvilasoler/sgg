@@ -17,7 +17,7 @@ import {
   PANTALLA_LABELS,
   recordUserActivity,
 } from "./user-activity.js";
-import { listOnlineUsers, listRecentlyOfflineUsers, removeUserPresence, touchUserPresence } from "./user-presence.js";
+import { listOnlineUsers, listRecentlyOfflineUsers, listStaleOfflineUsers, markUserPresenceDisconnected, touchUserPresence } from "./user-presence.js";
 import {
   artificialLoginDelay,
   clientIp,
@@ -459,7 +459,7 @@ export function registerAuthRoutes(app: Express): void {
       await authDb.deleteSession(getDb(), token);
     }
     if (user) {
-      removeUserPresence(user.email);
+      markUserPresenceDisconnected(user.email);
       await recordUserActivity(user, "logout", "Cierre de sesión", {
         ip: clientIp(req),
         userAgent: req.headers["user-agent"],
@@ -963,6 +963,9 @@ export function registerAuthRoutes(app: Express): void {
         online: await enrichPresenceUsers(filterAllowed(listOnlineUsers())),
         recently_offline: await enrichPresenceUsers(
           filterAllowed(listRecentlyOfflineUsers())
+        ),
+        stale_offline: await enrichPresenceUsers(
+          filterAllowed(listStaleOfflineUsers())
         ),
       },
     });

@@ -5,8 +5,12 @@ import type { UserAvatarDto } from "./user-avatar-db.js";
 
 /** Usuario con actividad reciente en la app (ms). */
 export const ONLINE_TIMEOUT_MS = 3 * 60 * 1000;
-/** Usuarios desconectados recientemente: visible en panel amarillo hasta 1 h. */
-export const RECENT_OFFLINE_RETENTION_MS = 60 * 60 * 1000;
+/** Amarillo: desconectado entre 3 y 10 min. */
+export const OFFLINE_YELLOW_UNTIL_MS = 10 * 60 * 1000;
+/** Rojo: desconectado entre 10 y 15 min; luego se elimina del panel. */
+export const PANEL_PRESENCE_RETENTION_MS = 15 * 60 * 1000;
+/** @deprecated Usar PANEL_PRESENCE_RETENTION_MS */
+export const RECENT_OFFLINE_RETENTION_MS = PANEL_PRESENCE_RETENTION_MS;
 const TOUCH_THROTTLE_MS = 20 * 1000;
 
 export interface UsuarioOnline {
@@ -44,7 +48,7 @@ const presence = new Map<string, PresenceEntry>();
 
 function purgeStale(now = Date.now()): void {
   for (const [key, entry] of presence) {
-    if (now - entry.lastSeen > RECENT_OFFLINE_RETENTION_MS) presence.delete(key);
+    if (now - entry.lastSeen > PANEL_PRESENCE_RETENTION_MS) presence.delete(key);
   }
 }
 
@@ -85,6 +89,19 @@ export function removeUserPresence(email: string): void {
   presence.delete(email.toLowerCase());
 }
 
+/** Marca desconexión conservando el registro para el panel (amarillo → rojo → salida). */
+export function markUserPresenceDisconnected(email: string): void {
+  const key = email.toLowerCase();
+  const existing = presence.get(key);
+  if (!existing) return;
+  const now = Date.now();
+  presence.set(key, {
+    ...existing,
+    lastSeen: now - ONLINE_TIMEOUT_MS - 1_000,
+    pantalla: null,
+  });
+}
+
 export function listOnlineUsers(): Omit<UsuarioOnline, "avatar">[] {
   const now = Date.now();
   purgeStale(now);
@@ -112,20 +129,40 @@ export function listRecentlyOfflineUsers(): Omit<UsuarioOnline, "avatar">[] {
   const result: Omit<UsuarioOnline, "avatar">[] = [];
   for (const entry of presence.values()) {
     const age = now - entry.lastSeen;
-    if (age <= ONLINE_TIMEOUT_MS || age > RECENT_OFFLINE_RETENTION_MS) continue;
-    result.push({
-      id: entry.id,
-      email: entry.email,
-      nombre: entry.nombre,
-      rol: entry.rol,
-      ip: entry.ip,
-      pantalla: entry.pantalla,
-      ultimo_visto: new Date(entry.lastSeen).toISOString(),
-      hace_segundos: Math.max(0, Math.floor(age / 1000)),
-    });
+    if (age <= ONLINE_TIMEOUT_MS || age > OFFLINE_YELLOW_UNTIL_MS) continue;
+    result.push(entryToUsuarioOnline(entry, age));
   }
   result.sort((a, b) => a.hace_segundos - b.hace_segundos);
   return result;
+}
+
+export function listStaleOfflineUsers(): Omit<UsuarioOnline, "avatar">[] {
+  const now = Date.now();
+  purgeStale(now);
+  const result: Omit<UsuarioOnline, "avatar">[] = [];
+  for (const entry of presence.values()) {
+    const age = now - entry.lastSeen;
+    if (age <= OFFLINE_YELLOW_UNTIL_MS || age > PANEL_PRESENCE_RETENTION_MS) continue;
+    result.push(entryToUsuarioOnline(entry, age));
+  }
+  result.sort((a, b) => a.hace_segundos - b.hace_segundos);
+  return result;
+}
+
+function entryToUsuarioOnline(
+  entry: PresenceEntry,
+  ageMs: number
+): Omit<UsuarioOnline, "avatar"> {
+  return {
+    id: entry.id,
+    email: entry.email,
+    nombre: entry.nombre,
+    rol: entry.rol,
+    ip: entry.ip,
+    pantalla: entry.pantalla,
+    ultimo_visto: new Date(entry.lastSeen).toISOString(),
+    hace_segundos: Math.max(0, Math.floor(ageMs / 1000)),
+  };
 }
 
 function presenceEntryByUserId(now = Date.now()): Map<number, PresenceEntry> {

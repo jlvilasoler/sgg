@@ -84,17 +84,25 @@ function fmtHaceSegundos(seg: number): string {
 
 function TarjetaUsuarioPresencia({
   u,
-  recienteOffline = false,
+  estado = "online",
 }: {
   u: UsuarioOnline;
-  recienteOffline?: boolean;
+  estado?: "online" | "reciente-offline" | "stale-offline";
 }) {
+  const claseEstado =
+    estado === "reciente-offline"
+      ? " usuarios-online-item--reciente-offline"
+      : estado === "stale-offline"
+        ? " usuarios-online-item--stale-offline"
+        : "";
+  const tag =
+    estado === "stale-offline"
+      ? "Inactivo"
+      : estado === "reciente-offline"
+        ? "Desconectado"
+        : null;
   return (
-    <li
-      className={`usuarios-online-item${
-        recienteOffline ? " usuarios-online-item--reciente-offline" : ""
-      }`}
-    >
+    <li className={`usuarios-online-item${claseEstado}`}>
       <UserAvatar nombre={u.nombre} avatar={u.avatar} variant="list" />
       <div className="usuarios-online-main">
         <strong>{u.nombre}</strong>
@@ -105,9 +113,7 @@ function TarjetaUsuarioPresencia({
           <span className="usuarios-online-pantalla">{u.pantalla}</span>
         ) : null}
         <span className="usuarios-online-hace">{fmtHaceSegundos(u.hace_segundos)}</span>
-        {recienteOffline ? (
-          <span className="usuarios-online-offline-tag">Desconectado</span>
-        ) : null}
+        {tag ? <span className="usuarios-online-offline-tag">{tag}</span> : null}
         {u.ip ? <span className="usuarios-online-ip muted">{u.ip}</span> : null}
       </div>
     </li>
@@ -147,6 +153,7 @@ export default function UsuariosActividad({
   });
   const [online, setOnline] = useState<UsuarioOnline[]>([]);
   const [recentlyOffline, setRecentlyOffline] = useState<UsuarioOnline[]>([]);
+  const [staleOffline, setStaleOffline] = useState<UsuarioOnline[]>([]);
   const [usuarios, setUsuarios] = useState<{ email: string; nombre: string }[]>([]);
   const [cuentas, setCuentas] = useState<EmpresaCuenta[]>([]);
   const [loading, setLoading] = useState(true);
@@ -242,6 +249,7 @@ export default function UsuariosActividad({
     if (!apiOnline || !puedeVerOnline) {
       setOnline([]);
       setRecentlyOffline([]);
+      setStaleOffline([]);
       setLoadingOnline(false);
       return;
     }
@@ -251,6 +259,7 @@ export default function UsuariosActividad({
       const snapshot = await fetchUsuariosOnline(ambitoApi, cuentaIdOnline);
       setOnline(snapshot.online);
       setRecentlyOffline(snapshot.recently_offline);
+      setStaleOffline(snapshot.stale_offline);
     } catch {
       /* no interrumpir la vista principal */
     } finally {
@@ -268,6 +277,8 @@ export default function UsuariosActividad({
     if (!puedeVerOnline) {
       setOnline([]);
       setRecentlyOffline([]);
+      setStaleOffline([]);
+      setStaleOffline([]);
       setLoadingOnline(false);
       return;
     }
@@ -288,11 +299,10 @@ export default function UsuariosActividad({
         ? "Sin registros de actividad todavía"
         : `${total} registro${total === 1 ? "" : "s"} en el historial`;
 
-  const onlineHint = esActividadTotalPlataforma
-    ? "En línea: últimos 3 min · Desconectados recientes (amarillo): hasta 1 h · se actualiza cada 12 s"
-    : "En línea: últimos 3 min · Desconectados recientes (amarillo): hasta 1 h · se actualiza cada 12 s";
+  const onlineHint =
+    "En línea: últimos 3 min · Amarillo (desconectado): 3–10 min · Rojo (inactivo): 10–15 min · se actualiza cada 12 s";
 
-  const totalPresencia = online.length + recentlyOffline.length;
+  const totalPresencia = online.length + recentlyOffline.length + staleOffline.length;
 
   const seccionOnline = puedeVerOnline ? (
     <section
@@ -312,10 +322,23 @@ export default function UsuariosActividad({
                 ·
               </span>
               <span className="usuarios-actividad-online-recientes-label">
-                Desconectados recientes
+                Desconectados
               </span>
               <span className="usuarios-actividad-online-count usuarios-actividad-online-count--reciente">
                 {recentlyOffline.length}
+              </span>
+            </>
+          ) : null}
+          {!loadingOnline && apiOnline && staleOffline.length > 0 ? (
+            <>
+              <span className="usuarios-actividad-online-sep" aria-hidden>
+                ·
+              </span>
+              <span className="usuarios-actividad-online-recientes-label usuarios-actividad-online-recientes-label--stale">
+                Inactivos
+              </span>
+              <span className="usuarios-actividad-online-count usuarios-actividad-online-count--stale">
+                {staleOffline.length}
               </span>
             </>
           ) : null}
@@ -336,7 +359,10 @@ export default function UsuariosActividad({
             <TarjetaUsuarioPresencia key={`on-${u.email}`} u={u} />
           ))}
           {recentlyOffline.map((u) => (
-            <TarjetaUsuarioPresencia key={`off-${u.email}`} u={u} recienteOffline />
+            <TarjetaUsuarioPresencia key={`off-${u.email}`} u={u} estado="reciente-offline" />
+          ))}
+          {staleOffline.map((u) => (
+            <TarjetaUsuarioPresencia key={`stale-${u.email}`} u={u} estado="stale-offline" />
           ))}
         </ul>
       )}
