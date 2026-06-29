@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   actualizarEmpresaCuenta,
   actualizarEmpresaOperativa,
@@ -60,6 +61,9 @@ export default function ArquitecturaCuentaDetalle({
   initialPanel = "none",
 }: Props) {
   const esCuentaPropia = modo === "cuentaPropia";
+  const puedeEditarDatosCuenta =
+    esCuentaPropia ||
+    Boolean(currentUser?.es_super_admin || currentUser?.es_admin_plataforma);
   const backLabel =
     volverLabel ?? (esCuentaPropia ? "Volver a Configuración" : "Volver a cuentas madre");
   const [cuentaActual, setCuentaActual] = useState(cuenta);
@@ -99,6 +103,7 @@ export default function ArquitecturaCuentaDetalle({
     nombre: cuenta.nombre,
   });
   const [savingCuenta, setSavingCuenta] = useState(false);
+  const [showEditarCuentaModal, setShowEditarCuentaModal] = useState(false);
 
   useEffect(() => {
     setCuentaForm({ nombre: cuenta.nombre });
@@ -377,11 +382,23 @@ export default function ArquitecturaCuentaDetalle({
       });
       syncCuenta(updated);
       onSuccess("Datos de la cuenta actualizados");
+      setShowEditarCuentaModal(false);
     } catch (err) {
       onError(err instanceof Error ? err.message : "Error al actualizar cuenta");
     } finally {
       setSavingCuenta(false);
     }
+  };
+
+  const openEditarCuentaModal = () => {
+    setCuentaForm({ nombre: cuentaActual.nombre });
+    setShowEditarCuentaModal(true);
+  };
+
+  const closeEditarCuentaModal = () => {
+    if (savingCuenta) return;
+    setShowEditarCuentaModal(false);
+    setCuentaForm({ nombre: cuentaActual.nombre });
   };
 
   return (
@@ -432,15 +449,26 @@ export default function ArquitecturaCuentaDetalle({
                 )}
               </div>
             </div>
-            {!esCuentaPropia && (
+            {(puedeEditarDatosCuenta || !esCuentaPropia) && (
               <div className="arquitectura-cuenta-detalle-actions">
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-sm"
-                  onClick={() => void handleToggleActiva()}
-                >
-                  {cuentaActual.activo ? "Desactivar" : "Activar"}
-                </button>
+                {puedeEditarDatosCuenta ? (
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    onClick={openEditarCuentaModal}
+                  >
+                    Editar
+                  </button>
+                ) : null}
+                {!esCuentaPropia ? (
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => void handleToggleActiva()}
+                  >
+                    {cuentaActual.activo ? "Desactivar" : "Activar"}
+                  </button>
+                ) : null}
               </div>
             )}
           </div>
@@ -469,62 +497,6 @@ export default function ArquitecturaCuentaDetalle({
         </header>
 
         <div className="arquitectura-cuenta-detalle-body">
-          {esCuentaPropia && (
-            <section className="cuenta-panel cuenta-panel--datos">
-              <div className="cuenta-panel-head">
-                <span className="cuenta-panel-icon cuenta-panel-icon--datos" aria-hidden="true">
-                  <svg viewBox="0 0 24 24" fill="none">
-                    <path
-                      d="M4 7.5V6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v1.5M4 7.5h16M4 7.5v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-10"
-                      stroke="currentColor"
-                      strokeWidth="1.65"
-                      strokeLinecap="round"
-                    />
-                  </svg>
-                </span>
-                <div>
-                  <h3>Datos de la cuenta</h3>
-                  <p className="muted">Nombre e identificador de su organización</p>
-                </div>
-              </div>
-              <form
-                className="cuenta-panel-form"
-                onSubmit={(e) => void handleGuardarCuenta(e)}
-              >
-                <div className="cuenta-panel-form-grid">
-                  <div className="field">
-                    <label htmlFor="cuenta-nombre">Nombre de la cuenta</label>
-                    <input
-                      id="cuenta-nombre"
-                      type="text"
-                      value={cuentaForm.nombre}
-                      onChange={(e) =>
-                        setCuentaForm((f) => ({ ...f, nombre: e.target.value }))
-                      }
-                      required
-                    />
-                  </div>
-                  <div className="field">
-                    <span className="field-label">Código</span>
-                    <p className="cuenta-panel-codigo-readonly">
-                      <span className="arquitectura-sistema-pill arquitectura-sistema-pill--codigo">
-                        {cuentaActual.codigo}
-                      </span>
-                    </p>
-                    <p className="muted usuarios-rol-hint">
-                      Asignado automáticamente al crear la cuenta (C00001, C00002…)
-                    </p>
-                  </div>
-                </div>
-                <div className="cuenta-panel-form-actions">
-                  <button type="submit" className="btn btn-primary" disabled={savingCuenta}>
-                    {savingCuenta ? "Guardando…" : "Guardar cambios"}
-                  </button>
-                </div>
-              </form>
-            </section>
-          )}
-
           <section className="cuenta-panel cuenta-panel--admin arquitectura-sistema-admin-box">
             <div className="cuenta-panel-head">
               <span className="cuenta-panel-icon cuenta-panel-icon--admin" aria-hidden="true">
@@ -1144,6 +1116,92 @@ export default function ArquitecturaCuentaDetalle({
           </section>
         </div>
       </div>
+
+      {showEditarCuentaModal &&
+        puedeEditarDatosCuenta &&
+        createPortal(
+          <div
+            className="pd-overlay usuarios-form-modal-overlay bn-ui"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="cuenta-editar-modal-title"
+            onClick={closeEditarCuentaModal}
+          >
+            <div
+              className="pd-dialog usuarios-form-modal usuarios-form-modal--compact"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <header className="usuarios-form-modal-head">
+                <div className="usuarios-form-modal-head-main">
+                  <p className="usuarios-form-modal-kicker">Administración de cuenta</p>
+                  <h2 id="cuenta-editar-modal-title" className="usuarios-form-modal-title">
+                    Datos de la cuenta
+                  </h2>
+                  <p className="usuarios-form-modal-sub">
+                    {esCuentaPropia
+                      ? "Nombre e identificador de su organización"
+                      : "Nombre de la cuenta madre (organización)"}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="usuarios-form-modal-close"
+                  disabled={savingCuenta}
+                  onClick={closeEditarCuentaModal}
+                  aria-label="Cerrar"
+                >
+                  ×
+                </button>
+              </header>
+              <form onSubmit={(e) => void handleGuardarCuenta(e)}>
+                <div className="usuarios-form-modal-body">
+                  <div className="usuarios-form-modal-panel">
+                    <div className="cuenta-panel-form-grid">
+                      <div className="field">
+                        <label htmlFor="cuenta-nombre-modal">Nombre de la cuenta</label>
+                        <input
+                          id="cuenta-nombre-modal"
+                          type="text"
+                          value={cuentaForm.nombre}
+                          autoFocus
+                          onChange={(e) =>
+                            setCuentaForm((f) => ({ ...f, nombre: e.target.value }))
+                          }
+                          required
+                        />
+                      </div>
+                      <div className="field">
+                        <span className="field-label">Código</span>
+                        <p className="cuenta-panel-codigo-readonly">
+                          <span className="arquitectura-sistema-pill arquitectura-sistema-pill--codigo">
+                            {cuentaActual.codigo}
+                          </span>
+                        </p>
+                        <p className="muted usuarios-rol-hint">
+                          Asignado automáticamente al crear la cuenta (C00001, C00002…)
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <footer className="usuarios-form-modal-footer">
+                  <button
+                    type="button"
+                    className="btn btn-ghost usuarios-form-modal-cancel"
+                    disabled={savingCuenta}
+                    onClick={closeEditarCuentaModal}
+                  >
+                    Cancelar
+                  </button>
+                  <button type="submit" className="btn btn-primary" disabled={savingCuenta}>
+                    {savingCuenta ? "Guardando…" : "Guardar cambios"}
+                  </button>
+                </footer>
+              </form>
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   );
 }

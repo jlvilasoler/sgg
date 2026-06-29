@@ -5,7 +5,7 @@ import {
   crearEmpresaCuenta,
   fetchEmpresasCuenta,
 } from "../api";
-import type { EmpresaCuenta, EmpresaCuentaForm } from "../types";
+import type { AuthUser, EmpresaCuenta, EmpresaCuentaForm } from "../types";
 import ArquitecturaCuentaDetalle, {
   type CuentaDetallePanel,
 } from "./ArquitecturaCuentaDetalle";
@@ -17,6 +17,7 @@ import {
 
 interface Props {
   apiOnline: boolean;
+  currentUser?: AuthUser | null;
   onVolver: () => void;
   volverLabel?: string;
   titulo?: string;
@@ -26,6 +27,7 @@ interface Props {
 
 export default function ArquitecturaSistema({
   apiOnline,
+  currentUser = null,
   onVolver,
   volverLabel = "Volver a Usuarios",
   titulo = "Arquitectura del sistema",
@@ -220,6 +222,7 @@ export default function ArquitecturaSistema({
       <ArquitecturaCuentaDetalle
         cuenta={selectedCuenta}
         apiOnline={apiOnline}
+        currentUser={currentUser}
         initialPanel={detallePanel}
         onVolver={() => {
           setSelectedCuentaId(null);
@@ -385,19 +388,22 @@ export default function ArquitecturaSistema({
                         </span>
                         <div className="usuarios-table-user-text">
                           <strong>{empresa.nombre}</strong>
-                          <span
-                            className={`arquitectura-sistema-admin-chip${empresa.admin ? "" : " is-empty"}`}
-                          >
-                            {empresa.admin ? (
-                              <>
+                          {empresa.admin ? (
+                            <div className="arquitectura-sistema-cuenta-propietario">
+                              <span className="arquitectura-sistema-admin-chip">
                                 <span className="arquitectura-sistema-admin-dot" />
                                 {empresa.admin.nombre}
                                 {empresa.admin.es_super_admin ? " · admin SAG" : ""}
-                              </>
-                            ) : (
-                              "Sin administrador asignado"
-                            )}
-                          </span>
+                              </span>
+                              <span className="arquitectura-sistema-admin-email">
+                                {empresa.admin.email}
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="arquitectura-sistema-admin-chip is-empty">
+                              Sin administrador asignado
+                            </span>
+                          )}
                         </div>
                       </div>
                     </td>

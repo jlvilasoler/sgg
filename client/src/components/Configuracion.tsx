@@ -296,6 +296,7 @@ export default function Configuracion({
     return (
       <ArquitecturaSistema
         apiOnline={apiOnline}
+        currentUser={currentUser}
         volverLabel="Volver a Configuración SAG"
         onVolver={backStep?.onBack ?? (() => setModulo("sag_hub"))}
         onError={onError}
