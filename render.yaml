@@ -10,9 +10,15 @@ services:
     buildCommand: npm run build:render
     startCommand: npm start
     healthCheckPath: /api/health
+    disk:
+      name: scg-data
+      mountPath: /var/data
+      sizeGB: 1
     envVars:
       - key: NODE_ENV
         value: production
+      - key: SCG_DATA_DIR
+        value: /var/data
       - key: SCG_TRUST_PROXY
         value: "1"
       - key: SCG_CLIENT_ORIGIN

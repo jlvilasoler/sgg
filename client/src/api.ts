@@ -920,6 +920,33 @@ export function stockFotoThumbUrl(
   return foto.url.includes("?") ? `${foto.url}&thumb=1` : `${foto.url}?thumb=1`;
 }
 
+/** Descarga binaria de foto con sesión (más fiable que img src directo en producción). */
+export async function fetchStockDispositivoFotoBlob(
+  urlPath: string,
+  signal?: AbortSignal
+): Promise<Blob> {
+  const url = urlPath.startsWith("/") ? urlPath : `/${urlPath}`;
+  let res: Response;
+  try {
+    res = await fetch(url, { credentials: "include", signal });
+  } catch (err) {
+    if (err instanceof Error && err.name === "AbortError") throw err;
+    throw new Error(apiConnectionError());
+  }
+  if (!res.ok) {
+    throw new Error(
+      res.status === 401
+        ? "Sesión expirada al cargar la foto"
+        : `No se pudo cargar la imagen (${res.status})`
+    );
+  }
+  const ct = res.headers.get("content-type") ?? "";
+  if (ct.includes("application/json")) {
+    throw new Error("Archivo de foto no disponible en el servidor");
+  }
+  return res.blob();
+}
+
 /** Vista previa inmediata desde el listado de stock (evita pantalla en blanco). */
 export function stockFotoMetaFromDispositivo(d: {
   tiene_foto?: boolean;

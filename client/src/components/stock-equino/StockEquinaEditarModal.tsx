@@ -7,14 +7,12 @@ import type {
   DispositivoSexo,
   StockEquinaDispositivo,
 } from "../../types";
-import { fmtDate } from "../../utils";
 import SubseccionInlinePanel from "../SubseccionInlinePanel";
-import IconoDispositivoWifi from "../stock/IconoDispositivoWifi";
+import StockEditarFichaStats from "../stock/StockEditarFichaStats";
+import StockEditarHeadPanel from "../stock/StockEditarHeadPanel";
 import SelectEmpresaDispositivo, {
   EMPRESA_PENDIENTE,
 } from "../stock/SelectEmpresaDispositivo";
-import SelectEstadoDispositivo from "../stock/SelectEstadoDispositivo";
-import SelectGrupoDispositivo from "../stock/SelectGrupoDispositivo";
 import SelectSexoDispositivo from "../stock/SelectSexoDispositivo";
 import StockEquinaEvolucionTimeline from "./StockEquinaEvolucionTimeline";
 import StockDispositivoFotoCard, {
@@ -215,39 +213,14 @@ export default function StockEquinaEditarPanel({
         soloLectura ? " stock-equina-editar-page--solo-lectura" : ""
       }`}
       headAside={
-        <div className="stock-editar-head-panel" aria-label="Caravana electrónica">
-          <div className="stock-editar-head-device">
-            <span className="stock-editar-head-icon" aria-hidden>
-              <IconoDispositivoWifi className="stock-equina-editar-icon" />
-            </span>
-            <div className="stock-editar-head-chips">
-              <span className="stock-editar-head-chip stock-editar-head-chip--eid">
-                <span className="stock-editar-head-chip-k">EID</span>
-                <span className="stock-editar-head-chip-v num">{dispositivo.eid || "—"}</span>
-              </span>
-              <span className="stock-editar-head-chip stock-editar-head-chip--vid">
-                <span className="stock-editar-head-chip-k">VID</span>
-                <span className="stock-editar-head-chip-v num">{dispositivo.vid || "—"}</span>
-              </span>
-            </div>
-          </div>
-          <span className="stock-editar-head-divider" aria-hidden />
-          <div className="stock-editar-head-stats">
-            <span className="stock-editar-head-stat">
-              <span className="stock-editar-head-stat-k">Lecturas</span>
-              <span className="stock-editar-head-stat-v">
-                {dispositivo.total_lecturas}
-              </span>
-            </span>
-            <span className="stock-editar-head-stat">
-              <span className="stock-editar-head-stat-k">Última</span>
-              <span className="stock-editar-head-stat-v">
-                {fmtDate(dispositivo.ultima_fecha)}
-                {dispositivo.ultima_hora ? ` ${dispositivo.ultima_hora}` : ""}
-              </span>
-            </span>
-          </div>
-        </div>
+        <StockEditarHeadPanel
+          eid={dispositivo.eid}
+          vid={dispositivo.vid}
+          totalLecturas={dispositivo.total_lecturas}
+          ultimaFecha={dispositivo.ultima_fecha}
+          ultimaHora={dispositivo.ultima_hora}
+          iconClassName="stock-equina-editar-icon stock-editar-head-signal"
+        />
       }
       footer={
         <div className="stock-equina-editar-page-foot">
@@ -319,147 +292,125 @@ export default function StockEquinaEditarPanel({
           aria-label={soloLectura ? "Ficha de la caravana" : "Datos editables"}
         >
             <div
-              className={`stock-edit-ficha-card${
+              className={`stock-edit-ficha-card stock-editar-ficha${
                 soloLectura ? " stock-edit-ficha-card--solo-lectura" : ""
               }`}
             >
-              <h3 className="stock-equina-editar-section-title">Ficha del animal</h3>
+              <h3 className="stock-editar-ficha-title">Ficha del animal</h3>
 
-              <div className="stock-equina-editar-grid">
-              <div className="stock-edit-row-4 stock-edit-field--full">
-                <div className="stock-edit-field stock-edit-field--empresa">
-                  <label htmlFor="edit-equina-empresa">Empresa</label>
-                  <SelectEmpresaDispositivo
-                    id="edit-equina-empresa"
-                    empresas={empresas}
-                    value={empresa}
-                    disabled={camposDeshabilitados}
-                    onChange={(e) =>
-                      setEmpresa(e === EMPRESA_PENDIENTE ? "" : (e as DispositivoEmpresa))
-                    }
-                  />
+              <div className="stock-editar-ficha-toolbar">
+                <div className="stock-editar-ficha-zone stock-editar-ficha-zone--ident">
+                  <div className="stock-editar-ficha-cell">
+                    <label className="stock-editar-ficha-label" htmlFor="edit-equina-empresa">
+                      Empresa
+                    </label>
+                    <SelectEmpresaDispositivo
+                      id="edit-equina-empresa"
+                      empresas={empresas}
+                      value={empresa}
+                      disabled={camposDeshabilitados}
+                      onChange={(e) =>
+                        setEmpresa(e === EMPRESA_PENDIENTE ? "" : (e as DispositivoEmpresa))
+                      }
+                    />
+                  </div>
                 </div>
 
-                <div className="stock-edit-field stock-edit-field--sexo">
-                  <label htmlFor="edit-equina-sexo">Sexo</label>
-                  <SelectSexoDispositivo
-                    id="edit-equina-sexo"
-                    value={sexo}
-                    disabled={camposDeshabilitados}
-                    onChange={setSexo}
-                  />
+                <div className="stock-editar-ficha-zone stock-editar-ficha-zone--sexo">
+                  <div className="stock-editar-ficha-cell">
+                    <label className="stock-editar-ficha-label" htmlFor="edit-equina-sexo">
+                      Sexo
+                    </label>
+                    <SelectSexoDispositivo
+                      id="edit-equina-sexo"
+                      value={sexo}
+                      disabled={camposDeshabilitados}
+                      onChange={setSexo}
+                    />
+                  </div>
                 </div>
 
-                <div className="stock-edit-field stock-edit-field--nacimiento">
-                  <label htmlFor="edit-equina-nac-mes">
-                    Fecha de nacimiento
-                    <span className="stock-edit-label-hint">mes</span>
-                  </label>
-                  <select
-                    id="edit-equina-nac-mes"
-                    className="stock-nacimiento-mes stock-edit-select"
-                    value={nacimientoMes ?? ""}
-                    disabled={camposDeshabilitados}
-                    onChange={(e) =>
-                      setNacimientoMes(
-                        e.target.value ? Number(e.target.value) : null
-                      )
-                    }
-                  >
-                    <option value="">Mes</option>
-                    {MESES_NACIMIENTO.map((m) => (
-                      <option key={m.value} value={m.value}>
-                        {m.label}
-                      </option>
-                    ))}
-                  </select>
+                <div className="stock-editar-ficha-zone stock-editar-ficha-zone--nac">
+                  <div className="stock-editar-ficha-cell">
+                    <label className="stock-editar-ficha-label" htmlFor="edit-equina-nac-mes">
+                      Nacimiento
+                    </label>
+                    <select
+                      id="edit-equina-nac-mes"
+                      className="stock-nacimiento-mes stock-edit-select"
+                      value={nacimientoMes ?? ""}
+                      disabled={camposDeshabilitados}
+                      onChange={(e) =>
+                        setNacimientoMes(
+                          e.target.value ? Number(e.target.value) : null
+                        )
+                      }
+                    >
+                      <option value="">Mes</option>
+                      {MESES_NACIMIENTO.map((m) => (
+                        <option key={m.value} value={m.value}>
+                          {m.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="stock-editar-ficha-cell stock-editar-ficha-cell--anio">
+                    <label className="stock-editar-ficha-label" htmlFor="edit-equina-nac-anio">
+                      Año
+                    </label>
+                    <select
+                      id="edit-equina-nac-anio"
+                      className="stock-nacimiento-anio stock-edit-select"
+                      value={nacimientoAnio ?? ""}
+                      disabled={camposDeshabilitados}
+                      onChange={(e) =>
+                        setNacimientoAnio(
+                          e.target.value ? Number(e.target.value) : null
+                        )
+                      }
+                    >
+                      <option value="">Año</option>
+                      {aniosNacimiento.map((y) => (
+                        <option key={y} value={y}>
+                          {y}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
 
-                <div className="stock-edit-field stock-edit-field--nacimiento-anio">
-                  <label htmlFor="edit-equina-nac-anio">Año</label>
-                  <select
-                    id="edit-equina-nac-anio"
-                    className="stock-nacimiento-anio stock-edit-select"
-                    value={nacimientoAnio ?? ""}
-                    disabled={camposDeshabilitados}
-                    onChange={(e) =>
-                      setNacimientoAnio(
-                        e.target.value ? Number(e.target.value) : null
-                      )
-                    }
-                  >
-                    <option value="">Año</option>
-                    {aniosNacimiento.map((y) => (
-                      <option key={y} value={y}>
-                        {y}
-                      </option>
-                    ))}
-                  </select>
+                <div className="stock-editar-ficha-zone stock-editar-ficha-zone--grupo">
+                  <div className="stock-editar-ficha-cell">
+                    <label className="stock-editar-ficha-label" htmlFor="edit-equina-grupo-libre">
+                      Grupo
+                    </label>
+                    <input
+                      id="edit-equina-grupo-libre"
+                      type="text"
+                      className="stock-observaciones-input mayusculas-auto"
+                      maxLength={48}
+                      placeholder="Texto libre (letras y números)…"
+                      value={grupoLibre}
+                      readOnly={soloLectura}
+                      disabled={!soloLectura && camposDeshabilitados}
+                      onChange={(e) => setGrupoLibre(normalizarGrupoLibre(e.target.value))}
+                    />
+                  </div>
                 </div>
               </div>
 
-              <div className="stock-edit-row-3 stock-edit-field--full">
-              <div className="stock-edit-field stock-edit-field--edad">
-                <label htmlFor="edit-equina-edad">Edad calculada</label>
-                <div
-                  id="edit-equina-edad"
-                  className={`stock-edit-edad-card${
-                    edadMeses === null ? " stock-edit-edad-card--empty" : ""
-                  }`}
-                >
-                  {edadMeses === null ? (
-                    <>
-                      <span className="stock-edit-edad-empty-title">
-                        Sin fecha de nacimiento
-                      </span>
-                      <span className="stock-edit-edad-empty-hint">
-                        Elegí mes y año para calcular
-                      </span>
-                    </>
-                  ) : (
-                    <>
-                      <span className="stock-edit-edad-num">{edadMeses}</span>
-                      <span className="stock-edit-edad-unit">meses</span>
-                    </>
-                  )}
-                </div>
-              </div>
-
-              <div className="stock-edit-field stock-edit-field--grupo">
-                <label htmlFor="edit-equina-grupo">Generación</label>
-                <SelectGrupoDispositivo
-                  id="edit-equina-grupo"
-                  anio={nacimientoAnio}
+              <div className="stock-editar-ficha-foot">
+                <StockEditarFichaStats
+                  edadMeses={edadMeses}
+                  edadId="edit-equina-edad"
+                  grupoId="edit-equina-grupo"
+                  estadoId="edit-equina-estado"
+                  nacimientoAnio={nacimientoAnio}
+                  estado={estado}
                   disabled={camposDeshabilitados}
+                  onEstadoChange={setEstado}
                 />
               </div>
-
-              <div className="stock-edit-field">
-                <label htmlFor="edit-equina-grupo-libre">Grupo</label>
-                <input
-                  id="edit-equina-grupo-libre"
-                  type="text"
-                  className="stock-observaciones-input mayusculas-auto"
-                  maxLength={48}
-                  placeholder="Texto libre (letras y números)…"
-                  value={grupoLibre}
-                  readOnly={soloLectura}
-                  disabled={!soloLectura && camposDeshabilitados}
-                  onChange={(e) => setGrupoLibre(normalizarGrupoLibre(e.target.value))}
-                />
-              </div>
-
-              <div className="stock-edit-field stock-edit-field--estado">
-                <label htmlFor="edit-equina-estado">Estado</label>
-                <SelectEstadoDispositivo
-                  id="edit-equina-estado"
-                  value={estado}
-                  disabled={camposDeshabilitados}
-                  onChange={setEstado}
-                />
-              </div>
-              </div>
-            </div>
             </div>
 
             <div className="stock-edit-evolucion-row">

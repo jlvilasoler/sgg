@@ -8,16 +8,13 @@ import type {
   DispositivoSexo,
   StockGanaderaDispositivo,
 } from "../../types";
-import { fmtDate } from "../../utils";
-import SubseccionInlinePanel from "../SubseccionInlinePanel";
-import IconoDispositivoWifi from "./IconoDispositivoWifi";
-import IconoSeleccionCabanaEstrella from "./IconoSeleccionCabanaEstrella";
 import IconoSeleccionCocarda from "./IconoSeleccionCocarda";
+import SubseccionInlinePanel from "../SubseccionInlinePanel";
+import StockEditarFichaStats from "./StockEditarFichaStats";
+import StockEditarHeadPanel from "./StockEditarHeadPanel";
 import SelectEmpresaDispositivo, {
   EMPRESA_PENDIENTE,
 } from "./SelectEmpresaDispositivo";
-import SelectEstadoDispositivo from "./SelectEstadoDispositivo";
-import SelectGrupoDispositivo from "./SelectGrupoDispositivo";
 import SelectRazaDispositivo from "./SelectRazaDispositivo";
 import SelectSexoDispositivo from "./SelectSexoDispositivo";
 import StockGanaderaEvolucionTimeline from "./StockGanaderaEvolucionTimeline";
@@ -283,54 +280,16 @@ export default function StockGanaderaEditarPanel({
         soloLectura ? " stock-ganadera-editar-page--solo-lectura" : ""
       }`}
       headAside={
-        <div className="stock-editar-head-panel" aria-label="Caravana electrónica">
-          <div className="stock-editar-head-device">
-            <span className="stock-editar-head-icon" aria-hidden>
-              <IconoDispositivoWifi className="stock-ganadera-editar-icon" />
-            </span>
-            <div className="stock-editar-head-chips">
-              <span className="stock-editar-head-chip stock-editar-head-chip--eid">
-                <span className="stock-editar-head-chip-k">EID</span>
-                <span className="stock-editar-head-chip-v num">{dispositivo.eid || "—"}</span>
-              </span>
-              <span className="stock-editar-head-chip stock-editar-head-chip--vid">
-                <span className="stock-editar-head-chip-k">VID</span>
-                <span className="stock-editar-head-chip-v num">{dispositivo.vid || "—"}</span>
-              </span>
-            </div>
-          </div>
-          <span className="stock-editar-head-divider" aria-hidden />
-          <div className="stock-editar-head-stats">
-            <span className="stock-editar-head-stat">
-              <span className="stock-editar-head-stat-k">Lecturas</span>
-              <span className="stock-editar-head-stat-v">
-                {dispositivo.total_lecturas}
-              </span>
-            </span>
-            <span className="stock-editar-head-stat">
-              <span className="stock-editar-head-stat-k">Última</span>
-              <span className="stock-editar-head-stat-v">
-                {fmtDate(dispositivo.ultima_fecha)}
-                {dispositivo.ultima_hora ? ` ${dispositivo.ultima_hora}` : ""}
-              </span>
-            </span>
-          </div>
-          {esCabanaPremium ? (
-            <div className="stock-editar-head-seleccion-mark">
-              <IconoSeleccionCabanaEstrella
-                activo
-                nombreCabana={nombreCabana}
-                soloLectura
-              />
-              {nombreCabana.trim() ? (
-                <span className="stock-edit-cabana-hero-tag stock-edit-cabana-hero-tag--gold stock-editar-head-pedigree">
-                  <IconoSeleccionCocarda />
-                  Selección · {nombreCabana.trim()}
-                </span>
-              ) : null}
-            </div>
-          ) : null}
-        </div>
+        <StockEditarHeadPanel
+          eid={dispositivo.eid}
+          vid={dispositivo.vid}
+          totalLecturas={dispositivo.total_lecturas}
+          ultimaFecha={dispositivo.ultima_fecha}
+          ultimaHora={dispositivo.ultima_hora}
+          esCabanaPremium={esCabanaPremium}
+          nombreCabana={nombreCabana}
+          iconClassName="stock-ganadera-editar-icon stock-editar-head-signal"
+        />
       }
       footer={
         <div className="stock-ganadera-editar-page-foot">
@@ -402,158 +361,143 @@ export default function StockGanaderaEditarPanel({
           aria-label={soloLectura ? "Ficha del dispositivo" : "Datos editables"}
         >
             <div
-              className={`stock-edit-ficha-card${
+              className={`stock-edit-ficha-card stock-editar-ficha${
                 soloLectura ? " stock-edit-ficha-card--solo-lectura" : ""
               }`}
             >
-              <h3 className="stock-ganadera-editar-section-title">Ficha del animal</h3>
+              <h3 className="stock-editar-ficha-title">Ficha del animal</h3>
 
-              <div className="stock-ganadera-editar-grid">
-              <div className="stock-edit-row-4 stock-edit-row-4--seis stock-edit-field--full">
-                <div className="stock-edit-field stock-edit-field--empresa">
-                  <label htmlFor="edit-ganadera-empresa">Empresa</label>
-                  <SelectEmpresaDispositivo
-                    id="edit-ganadera-empresa"
-                    empresas={empresas}
-                    value={empresa}
-                    disabled={camposDeshabilitados}
-                    onChange={(e) =>
-                      setEmpresa(e === EMPRESA_PENDIENTE ? "" : (e as DispositivoEmpresa))
-                    }
-                  />
+              <div className="stock-editar-ficha-toolbar">
+                <div className="stock-editar-ficha-zone stock-editar-ficha-zone--ident">
+                  <div className="stock-editar-ficha-cell">
+                    <label className="stock-editar-ficha-label" htmlFor="edit-ganadera-empresa">
+                      Empresa
+                    </label>
+                    <SelectEmpresaDispositivo
+                      id="edit-ganadera-empresa"
+                      empresas={empresas}
+                      value={empresa}
+                      disabled={camposDeshabilitados}
+                      onChange={(e) =>
+                        setEmpresa(e === EMPRESA_PENDIENTE ? "" : (e as DispositivoEmpresa))
+                      }
+                    />
+                  </div>
+                  <div className="stock-editar-ficha-cell">
+                    <label className="stock-editar-ficha-label" htmlFor="edit-ganadera-raza">
+                      Raza
+                    </label>
+                    <SelectRazaDispositivo
+                      id="edit-ganadera-raza"
+                      value={raza}
+                      disabled={camposDeshabilitados}
+                      apiOnline={apiOnline}
+                      onError={onError}
+                      onSuccess={onSuccess}
+                      puedeEliminarRaza={!soloLectura && Boolean(currentUser?.es_super_admin)}
+                      onChange={setRaza}
+                    />
+                  </div>
                 </div>
 
-                <div className="stock-edit-field stock-edit-field--raza">
-                  <label htmlFor="edit-ganadera-raza">Raza</label>
-                  <SelectRazaDispositivo
-                    id="edit-ganadera-raza"
-                    value={raza}
-                    disabled={camposDeshabilitados}
-                    apiOnline={apiOnline}
-                    onError={onError}
-                    onSuccess={onSuccess}
-                    puedeEliminarRaza={!soloLectura && Boolean(currentUser?.es_super_admin)}
-                    onChange={setRaza}
-                  />
+                <div className="stock-editar-ficha-zone stock-editar-ficha-zone--sexo">
+                  <div className="stock-editar-ficha-cell">
+                    <label className="stock-editar-ficha-label" htmlFor="edit-ganadera-sexo">
+                      Sexo
+                    </label>
+                    <SelectSexoDispositivo
+                      id="edit-ganadera-sexo"
+                      value={sexo}
+                      disabled={camposDeshabilitados}
+                      onChange={setSexo}
+                    />
+                  </div>
                 </div>
 
-                <div className="stock-edit-field stock-edit-field--sexo">
-                  <label htmlFor="edit-ganadera-sexo">Sexo</label>
-                  <SelectSexoDispositivo
-                    id="edit-ganadera-sexo"
-                    value={sexo}
-                    disabled={camposDeshabilitados}
-                    onChange={setSexo}
-                  />
+                <div className="stock-editar-ficha-zone stock-editar-ficha-zone--nac">
+                  <div className="stock-editar-ficha-cell">
+                    <label className="stock-editar-ficha-label" htmlFor="edit-ganadera-nac-mes">
+                      Nacimiento
+                    </label>
+                    <select
+                      id="edit-ganadera-nac-mes"
+                      className="stock-nacimiento-mes stock-edit-select"
+                      value={nacimientoMes ?? ""}
+                      disabled={camposDeshabilitados}
+                      onChange={(e) =>
+                        setNacimientoMes(
+                          e.target.value ? Number(e.target.value) : null
+                        )
+                      }
+                    >
+                      <option value="">Mes</option>
+                      {MESES_NACIMIENTO.map((m) => (
+                        <option key={m.value} value={m.value}>
+                          {m.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="stock-editar-ficha-cell stock-editar-ficha-cell--anio">
+                    <label className="stock-editar-ficha-label" htmlFor="edit-ganadera-nac-anio">
+                      Año
+                    </label>
+                    <select
+                      id="edit-ganadera-nac-anio"
+                      className="stock-nacimiento-anio stock-edit-select"
+                      value={nacimientoAnio ?? ""}
+                      disabled={camposDeshabilitados}
+                      onChange={(e) =>
+                        setNacimientoAnio(
+                          e.target.value ? Number(e.target.value) : null
+                        )
+                      }
+                    >
+                      <option value="">Año</option>
+                      {aniosNacimiento.map((y) => (
+                        <option key={y} value={y}>
+                          {y}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
 
-                <div className="stock-edit-field stock-edit-field--nacimiento">
-                  <label htmlFor="edit-ganadera-nac-mes">
-                    Fecha de nacimiento
-                    <span className="stock-edit-label-hint">mes</span>
-                  </label>
-                  <select
-                    id="edit-ganadera-nac-mes"
-                    className="stock-nacimiento-mes stock-edit-select"
-                    value={nacimientoMes ?? ""}
-                    disabled={camposDeshabilitados}
-                    onChange={(e) =>
-                      setNacimientoMes(
-                        e.target.value ? Number(e.target.value) : null
-                      )
-                    }
-                  >
-                    <option value="">Mes</option>
-                    {MESES_NACIMIENTO.map((m) => (
-                      <option key={m.value} value={m.value}>
-                        {m.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="stock-edit-field stock-edit-field--nacimiento-anio">
-                  <label htmlFor="edit-ganadera-nac-anio">Año</label>
-                  <select
-                    id="edit-ganadera-nac-anio"
-                    className="stock-nacimiento-anio stock-edit-select"
-                    value={nacimientoAnio ?? ""}
-                    disabled={camposDeshabilitados}
-                    onChange={(e) =>
-                      setNacimientoAnio(
-                        e.target.value ? Number(e.target.value) : null
-                      )
-                    }
-                  >
-                    <option value="">Año</option>
-                    {aniosNacimiento.map((y) => (
-                      <option key={y} value={y}>
-                        {y}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="stock-edit-field stock-edit-field--grupo-libre">
-                  <label htmlFor="edit-ganadera-grupo-libre">Grupo</label>
-                  <input
-                    id="edit-ganadera-grupo-libre"
-                    type="text"
-                    className="stock-observaciones-input mayusculas-auto"
-                    maxLength={48}
-                    placeholder="INGRESA GRUPO"
-                    value={grupoLibre}
-                    readOnly={soloLectura}
-                    disabled={!soloLectura && camposDeshabilitados}
-                    onChange={(e) => setGrupoLibre(normalizarGrupoLibre(e.target.value))}
-                  />
+                <div className="stock-editar-ficha-zone stock-editar-ficha-zone--grupo">
+                  <div className="stock-editar-ficha-cell">
+                    <label className="stock-editar-ficha-label" htmlFor="edit-ganadera-grupo-libre">
+                      Grupo
+                    </label>
+                    <input
+                      id="edit-ganadera-grupo-libre"
+                      type="text"
+                      className="stock-observaciones-input mayusculas-auto"
+                      maxLength={48}
+                      placeholder="INGRESA GRUPO"
+                      value={grupoLibre}
+                      readOnly={soloLectura}
+                      disabled={!soloLectura && camposDeshabilitados}
+                      onChange={(e) => setGrupoLibre(normalizarGrupoLibre(e.target.value))}
+                    />
+                  </div>
                 </div>
               </div>
 
-              <div className="stock-edit-ficha-meta stock-edit-field--full">
-                <div className="stock-edit-ficha-meta-core">
-                  <div className="stock-edit-field stock-edit-field--edad stock-edit-field--edad-featured">
-                    <label htmlFor="edit-ganadera-edad">Edad calculada</label>
-                    <div
-                      id="edit-ganadera-edad"
-                      className={`stock-edit-edad-card${
-                        edadMeses === null ? " stock-edit-edad-card--empty" : ""
-                      }`}
-                    >
-                      {edadMeses === null ? (
-                        <span className="stock-edit-edad-empty-title">Sin fecha</span>
-                      ) : (
-                        <>
-                          <span className="stock-edit-edad-num">{edadMeses}</span>
-                          <span className="stock-edit-edad-unit">meses</span>
-                        </>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="stock-edit-field stock-edit-field--grupo stock-edit-field--compact">
-                    <label htmlFor="edit-ganadera-grupo">Generación</label>
-                    <SelectGrupoDispositivo
-                      id="edit-ganadera-grupo"
-                      anio={nacimientoAnio}
-                      disabled={camposDeshabilitados}
-                    />
-                  </div>
-
-                  <div className="stock-edit-field stock-edit-field--estado stock-edit-field--compact">
-                    <label htmlFor="edit-ganadera-estado">Estado</label>
-                    <SelectEstadoDispositivo
-                      id="edit-ganadera-estado"
-                      value={estado}
-                      disabled={camposDeshabilitados}
-                      onChange={setEstado}
-                    />
-                  </div>
-                </div>
+              <div className="stock-editar-ficha-foot">
+                <StockEditarFichaStats
+                  edadMeses={edadMeses}
+                  edadId="edit-ganadera-edad"
+                  grupoId="edit-ganadera-grupo"
+                  estadoId="edit-ganadera-estado"
+                  nacimientoAnio={nacimientoAnio}
+                  estado={estado}
+                  disabled={camposDeshabilitados}
+                  onEstadoChange={setEstado}
+                />
 
                 {esCabanaPremium ? (
                   <div
-                    className="stock-edit-cabana-premium-box stock-edit-cabana-premium-box--gold"
+                    className="stock-edit-cabana-premium-box stock-edit-cabana-premium-box--gold stock-editar-ficha-sel"
                     aria-label="Datos de selección"
                   >
                     <span className="stock-edit-cabana-premium-tag">
@@ -595,8 +539,6 @@ export default function StockGanaderaEditarPanel({
                   </div>
                 ) : null}
               </div>
-
-            </div>
             </div>
 
             <div className="stock-edit-evolucion-row">

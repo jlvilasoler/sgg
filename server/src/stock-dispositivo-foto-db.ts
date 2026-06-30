@@ -148,6 +148,13 @@ function rowToItem(
   row: FotoGalleryRow
 ): StockDispositivoFotoItemDto | null {
   if (!row.archivo?.trim()) return null;
+  const full = path.join(moduloDir(modulo), row.archivo);
+  if (!fs.existsSync(full)) {
+    console.warn(
+      `[stock-foto] Archivo ausente en disco: ${full} (clave ${row.clave}, id ${row.id})`
+    );
+    return null;
+  }
   const version = row.creado_en || undefined;
   return {
     id: row.id,
@@ -432,8 +439,31 @@ export async function loadStockDispositivoFoto(
   const claveNorm = normalizeClave(clave);
   const rows = await listGalleryRows(db, modulo, claveNorm);
   const principal = rows.find((r) => r.es_principal) ?? rows[0];
-  if (!principal) return null;
+  if (!principal) {
+    return readLegacyDeviceFotoBuffer(db, modulo, claveNorm);
+  }
   return loadStockDispositivoFotoById(db, modulo, clave, principal.id);
+}
+
+async function readLegacyDeviceFotoBuffer(
+  db: Db,
+  modulo: StockDispositivoModulo,
+  claveNorm: string
+): Promise<{ buffer: Buffer; mime: string } | null> {
+  const table = TABLE[modulo];
+  const row = (await db
+    .prepare(
+      `SELECT foto_archivo, foto_mime FROM ${table}
+       WHERE clave = ? AND TRIM(foto_archivo) <> ''`
+    )
+    .get(claveNorm)) as { foto_archivo: string; foto_mime: string } | undefined;
+  if (!row?.foto_archivo?.trim()) return null;
+  const full = path.join(moduloDir(modulo), row.foto_archivo);
+  if (!fs.existsSync(full)) return null;
+  return {
+    buffer: fs.readFileSync(full),
+    mime: row.foto_mime?.trim() || "image/jpeg",
+  };
 }
 
 export async function loadStockDispositivoFotoById(
@@ -445,9 +475,16 @@ export async function loadStockDispositivoFotoById(
 ): Promise<{ buffer: Buffer; mime: string } | null> {
   const claveNorm = normalizeClave(clave);
   const row = await getGalleryRow(db, modulo, claveNorm, fotoId);
-  if (!row?.archivo) return null;
+  if (!row?.archivo) {
+    return readLegacyDeviceFotoBuffer(db, modulo, claveNorm);
+  }
   const full = path.join(moduloDir(modulo), row.archivo);
-  if (!fs.existsSync(full)) return null;
+  if (!fs.existsSync(full)) {
+    console.warn(
+      `[stock-foto] Galería sin archivo en disco: ${full} (id ${fotoId})`
+    );
+    return readLegacyDeviceFotoBuffer(db, modulo, claveNorm);
+  }
 
   if (opts?.thumb) {
     await writeThumbFile(modulo, row.archivo);

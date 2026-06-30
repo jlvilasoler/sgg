@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import {
+  fetchStockDispositivoFotoBlob,
   listStockEquinaDispositivoFotos,
   listStockGanaderaDispositivoFotos,
   marcarStockEquinaDispositivoFotoPrincipal,
@@ -37,6 +38,75 @@ interface Props {
 }
 
 export { stockFotoMetaFromDispositivo } from "../../api";
+
+function AuthFotoImg({
+  apiPath,
+  alt,
+  className,
+  loading = "lazy",
+  fetchPriority,
+}: {
+  apiPath: string;
+  alt: string;
+  className: string;
+  loading?: "eager" | "lazy";
+  fetchPriority?: "high" | "low" | "auto";
+}) {
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let objectUrl: string | null = null;
+    let cancel = false;
+    const controller = new AbortController();
+    setFailed(false);
+    setBlobUrl(null);
+
+    void fetchStockDispositivoFotoBlob(apiPath, controller.signal)
+      .then((blob) => {
+        if (cancel) return;
+        objectUrl = URL.createObjectURL(blob);
+        setBlobUrl(objectUrl);
+      })
+      .catch(() => {
+        if (!cancel) setFailed(true);
+      });
+
+    return () => {
+      cancel = true;
+      controller.abort();
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [apiPath]);
+
+  if (failed) {
+    return (
+      <span className="stock-edit-foto-placeholder-text" role="status">
+        No disponible
+      </span>
+    );
+  }
+
+  if (!blobUrl) {
+    return (
+      <span className="stock-edit-foto-placeholder-text" aria-hidden>
+        …
+      </span>
+    );
+  }
+
+  return (
+    <img
+      src={blobUrl}
+      alt={alt}
+      className={className}
+      decoding="async"
+      loading={loading}
+      fetchPriority={fetchPriority}
+    />
+  );
+}
+
 export default function StockDispositivoFotoCard({
   modulo,
   clave,
@@ -128,15 +198,6 @@ export default function StockDispositivoFotoCard({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- recargar solo al cambiar dispositivo
   }, [clave, modulo, initialMeta?.foto_url]);
-
-  useEffect(() => {
-    if (!meta.fotos.length) return;
-    for (const foto of meta.fotos) {
-      const preload = new Image();
-      preload.decoding = "async";
-      preload.src = foto.url;
-    }
-  }, [meta.fotos]);
 
   const applyMeta = (next: StockDispositivoFotoMeta) => {
     setMeta(next);
@@ -234,19 +295,23 @@ export default function StockDispositivoFotoCard({
             <span className="stock-edit-foto-placeholder-text">Cargando fotos…</span>
           </div>
         ) : fotoMostrada ? (
-          <img
+          <AuthFotoImg
             key={fotoMostrada.id}
-            src={fotoMostrada.url}
+            apiPath={fotoMostrada.url}
             alt="Foto del animal"
             className="stock-edit-foto-img"
-            decoding="async"
             loading="eager"
             fetchPriority="high"
           />
         ) : (
           <div className="stock-edit-foto-placeholder">
             <span className="stock-edit-foto-placeholder-icon" aria-hidden>
-              📷
+              <svg viewBox="0 0 24 24" focusable="false">
+                <path
+                  d="M9 3h6l1 2h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h4l1-2Zm3 16a5 5 0 1 0 0-10 5 5 0 0 0 0 10Z"
+                  fill="currentColor"
+                />
+              </svg>
             </span>
             <span className="stock-edit-foto-placeholder-text">
               Sin foto cargada
@@ -282,11 +347,10 @@ export default function StockDispositivoFotoCard({
                   }
                   aria-pressed={fotoMostrada?.id === foto.id}
                 >
-                  <img
-                    src={stockFotoThumbUrl(foto)}
+                  <AuthFotoImg
+                    apiPath={stockFotoThumbUrl(foto)}
                     alt=""
                     className="stock-edit-foto-thumb-img"
-                    decoding="async"
                     loading="eager"
                   />
                   {foto.es_principal ? (
@@ -314,11 +378,10 @@ export default function StockDispositivoFotoCard({
                     }
                     aria-pressed={foto.es_principal}
                   >
-                    <img
-                      src={stockFotoThumbUrl(foto)}
+                    <AuthFotoImg
+                      apiPath={stockFotoThumbUrl(foto)}
                       alt=""
                       className="stock-edit-foto-thumb-img"
-                      decoding="async"
                       loading="eager"
                     />
                     {foto.es_principal ? (
