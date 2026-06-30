@@ -47,10 +47,8 @@ import {
   grupoLibreFiltroKey,
   labelCategoriaFiltro,
   labelEdadFiltro,
-  labelGeneracionFiltro,
   labelGrupoLibreFiltro,
   labelRazaFiltro,
-  labelUltimaLecturaMesFiltro,
   razaFiltroKey,
   ultimaLecturaMesFiltroKey,
   SIN_FECHA_NAC_FILTRO_KEY,
@@ -902,22 +900,35 @@ export default function StockEquina({
               fechaHasta={fechaHasta}
               onFechaDesde={setFechaDesde}
               onFechaHasta={setFechaHasta}
+              filtroUltimaLecturaMes={filtroUltimaLecturaMes}
+              onToggleUltimaLecturaMes={(k) =>
+                setFiltroUltimaLecturaMes((p) => toggleSet(p, k))
+              }
+              onLimpiarUltimaLectura={() => {
+                setFechaDesde("");
+                setFechaHasta("");
+                setFiltroUltimaLecturaMes(new Set());
+              }}
+              ultimaLecturaMesOpciones={ultimaLecturaMesOpciones}
               filtroSexo={filtroSexo}
               filtroEmpresa={filtroEmpresa}
               filtroEstado={filtroEstado}
               filtroEdad={filtroEdad}
               filtroGrupoLibre={filtroGrupoLibre}
               filtroRaza={filtroRaza}
+              filtroGeneracion={filtroGeneracion}
               filtroCategoria={filtroCategoria}
               filtroSinFechaNac={filtroSinFechaNac}
               grupoLibreOpciones={grupoLibreOpciones}
               razaOpciones={razaOpciones}
+              generacionOpciones={generacionOpciones}
               onToggleSexo={(k) => setFiltroSexo((p) => toggleSet(p, k))}
               onToggleEmpresa={(k) => setFiltroEmpresa((p) => toggleSet(p, k))}
               onToggleEstado={(e) => setFiltroEstado((p) => toggleSet(p, e))}
               onToggleEdad={(k) => setFiltroEdad((p) => toggleSet(p, k))}
               onToggleGrupoLibre={(k) => setFiltroGrupoLibre((p) => toggleSet(p, k))}
               onToggleRaza={(k) => setFiltroRaza((p) => toggleSet(p, k))}
+              onToggleGeneracion={(k) => setFiltroGeneracion((p) => toggleSet(p, k))}
               onToggleCategoria={(k) => setFiltroCategoria((p) => toggleSet(p, k))}
               onToggleSinFechaNac={() =>
                 setFiltroSinFechaNac((p) => toggleSet(p, SIN_FECHA_NAC_FILTRO_KEY))
@@ -928,6 +939,7 @@ export default function StockEquina({
               onLimpiarEdad={() => setFiltroEdad(new Set())}
               onLimpiarGrupoLibre={() => setFiltroGrupoLibre(new Set())}
               onLimpiarRaza={() => setFiltroRaza(new Set())}
+              onLimpiarGeneracion={() => setFiltroGeneracion(new Set())}
               onLimpiarCategoria={() => setFiltroCategoria(new Set())}
               onLimpiarSinFechaNac={() => setFiltroSinFechaNac(new Set())}
               counts={facetCounts}
