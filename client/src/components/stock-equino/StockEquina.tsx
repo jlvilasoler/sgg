@@ -1231,8 +1231,8 @@ export default function StockEquina({
                   <tr
                     key={d.clave}
                     className={`stock-equina-row stock-table-pro-row${
-                      seleccion.has(d.clave) ? " stock-table-pro-row--selected" : ""
-                    }`}
+                      d.cabana_premium ? " stock-table-pro-row--seleccion-cabana" : ""
+                    }${seleccion.has(d.clave) ? " stock-table-pro-row--selected" : ""}`}
                   >
                     <td className="stock-td stock-td--sel">
                       <input
@@ -1244,9 +1244,11 @@ export default function StockEquina({
                       />
                     </td>
                     <td className="stock-td stock-td--cabana">
-                      {d.cabana_premium ? (
-                        <IconoSeleccionCabanaEstrella nombreCabana={d.nombre_cabana} />
-                      ) : null}
+                      <IconoSeleccionCabanaEstrella
+                        activo={d.cabana_premium}
+                        nombreCabana={d.nombre_cabana}
+                        soloLectura
+                      />
                     </td>
                     <td className="stock-td stock-td--num stock-td--eid">
                       {d.eid || "—"}

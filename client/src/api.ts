@@ -899,6 +899,7 @@ export async function fetchStockGanaderoRazas(): Promise<string[]> {
 export interface StockDispositivoFotoItem {
   id: number;
   url: string;
+  thumb_url?: string;
   es_principal: boolean;
   creado_en: string;
 }
@@ -909,6 +910,40 @@ export interface StockDispositivoFotoMeta {
   foto_actualizado_en: string;
   foto_principal_id: number | null;
   fotos: StockDispositivoFotoItem[];
+}
+
+/** URL liviana para miniaturas de la galería (~192px WebP). */
+export function stockFotoThumbUrl(
+  foto: Pick<StockDispositivoFotoItem, "url" | "thumb_url">
+): string {
+  if (foto.thumb_url) return foto.thumb_url;
+  return foto.url.includes("?") ? `${foto.url}&thumb=1` : `${foto.url}?thumb=1`;
+}
+
+/** Vista previa inmediata desde el listado de stock (evita pantalla en blanco). */
+export function stockFotoMetaFromDispositivo(d: {
+  tiene_foto?: boolean;
+  foto_url?: string | null;
+  foto_actualizado_en?: string;
+}): StockDispositivoFotoMeta | null {
+  if (!d.tiene_foto || !d.foto_url) return null;
+  const creado = d.foto_actualizado_en?.trim() ?? "";
+  const url = d.foto_url;
+  return {
+    tiene_foto: true,
+    foto_url: url,
+    foto_actualizado_en: creado,
+    foto_principal_id: null,
+    fotos: [
+      {
+        id: 0,
+        url,
+        thumb_url: stockFotoThumbUrl({ url }),
+        es_principal: true,
+        creado_en: creado,
+      },
+    ],
+  };
 }
 
 async function stockDispositivoFotoJson<T>(

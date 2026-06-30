@@ -17,7 +17,9 @@ import SelectEstadoDispositivo from "../stock/SelectEstadoDispositivo";
 import SelectGrupoDispositivo from "../stock/SelectGrupoDispositivo";
 import SelectSexoDispositivo from "../stock/SelectSexoDispositivo";
 import StockEquinaEvolucionTimeline from "./StockEquinaEvolucionTimeline";
-import StockDispositivoFotoCard from "../stock/StockDispositivoFotoCard";
+import StockDispositivoFotoCard, {
+  stockFotoMetaFromDispositivo,
+} from "../stock/StockDispositivoFotoCard";
 import StockEquinaHistorialCambiosPanel from "./StockEquinaHistorialCambiosPanel";
 import {
   buildGrupo,
@@ -464,6 +466,7 @@ export default function StockEquinaEditarPanel({
               <StockDispositivoFotoCard
                 modulo="equino"
                 clave={dispositivo.clave}
+                initialMeta={stockFotoMetaFromDispositivo(dispositivo)}
                 soloLectura={soloLectura}
                 disabled={!soloLectura && (guardando || !apiOnline)}
                 onChange={(meta) => {

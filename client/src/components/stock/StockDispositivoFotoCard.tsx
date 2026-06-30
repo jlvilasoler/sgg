@@ -6,6 +6,7 @@ import {
   marcarStockGanaderaDispositivoFotoPrincipal,
   quitarStockEquinaDispositivoFoto,
   quitarStockGanaderaDispositivoFoto,
+  stockFotoThumbUrl,
   subirStockEquinaDispositivoFoto,
   subirStockGanaderaDispositivoFoto,
   type StockDispositivoFotoMeta,
@@ -26,6 +27,8 @@ const emptyMeta = (): StockDispositivoFotoMeta => ({
 interface Props {
   modulo: "ganadero" | "equino";
   clave: string;
+  /** Metadatos ya conocidos (p. ej. desde la fila del stock). */
+  initialMeta?: StockDispositivoFotoMeta | null;
   disabled?: boolean;
   /** Solo muestra la galería, sin botones de edición. */
   soloLectura?: boolean;
@@ -33,9 +36,11 @@ interface Props {
   onError: (msg: string) => void;
 }
 
+export { stockFotoMetaFromDispositivo } from "../../api";
 export default function StockDispositivoFotoCard({
   modulo,
   clave,
+  initialMeta = null,
   disabled = false,
   soloLectura = false,
   onChange,
@@ -43,8 +48,10 @@ export default function StockDispositivoFotoCard({
 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [guardando, setGuardando] = useState(false);
-  const [cargando, setCargando] = useState(true);
-  const [meta, setMeta] = useState<StockDispositivoFotoMeta>(emptyMeta);
+  const [syncing, setSyncing] = useState(() => !initialMeta?.foto_url);
+  const [meta, setMeta] = useState<StockDispositivoFotoMeta>(
+    () => initialMeta ?? emptyMeta()
+  );
 
   const subir =
     modulo === "ganadero"
@@ -65,11 +72,27 @@ export default function StockDispositivoFotoCard({
     meta.fotos[0] ??
     null;
 
+  const [vistaFotoId, setVistaFotoId] = useState<number | null>(null);
+
+  const fotoMostrada =
+    meta.fotos.find((f) => f.id === vistaFotoId) ?? principal;
+
+  useEffect(() => {
+    setVistaFotoId(null);
+  }, [clave]);
+
+  useEffect(() => {
+    if (vistaFotoId !== null && !meta.fotos.some((f) => f.id === vistaFotoId)) {
+      setVistaFotoId(null);
+    }
+  }, [meta.fotos, vistaFotoId]);
+
   useEffect(() => {
     let cancel = false;
     const controller = new AbortController();
     const timeoutId = window.setTimeout(() => controller.abort(), 15000);
-    setCargando(true);
+    setMeta(initialMeta ?? emptyMeta());
+    setSyncing(!initialMeta?.foto_url);
     const load =
       modulo === "ganadero"
         ? listStockGanaderaDispositivoFotos
@@ -81,6 +104,10 @@ export default function StockDispositivoFotoCard({
       })
       .catch((err) => {
         if (cancel) return;
+        if (initialMeta?.foto_url) {
+          // Mantener vista previa del listado si falla la galería completa.
+          return;
+        }
         const msg =
           err instanceof Error && err.name === "AbortError"
             ? "Tiempo de espera agotado al cargar fotos"
@@ -92,7 +119,7 @@ export default function StockDispositivoFotoCard({
       })
       .finally(() => {
         window.clearTimeout(timeoutId);
-        if (!cancel) setCargando(false);
+        if (!cancel) setSyncing(false);
       });
     return () => {
       cancel = true;
@@ -100,7 +127,16 @@ export default function StockDispositivoFotoCard({
       controller.abort();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- recargar solo al cambiar dispositivo
-  }, [clave, modulo]);
+  }, [clave, modulo, initialMeta?.foto_url]);
+
+  useEffect(() => {
+    if (!meta.fotos.length) return;
+    for (const foto of meta.fotos) {
+      const preload = new Image();
+      preload.decoding = "async";
+      preload.src = foto.url;
+    }
+  }, [meta.fotos]);
 
   const applyMeta = (next: StockDispositivoFotoMeta) => {
     setMeta(next);
@@ -118,7 +154,7 @@ export default function StockDispositivoFotoCard({
   };
 
   const handlePick = () => {
-    if (disabled || guardando || cargando) return;
+    if (disabled || guardando || syncing) return;
     inputRef.current?.click();
   };
 
@@ -157,6 +193,7 @@ export default function StockDispositivoFotoCard({
     try {
       const next = await marcarPrincipal(clave, fotoId);
       applyMeta(next);
+      setVistaFotoId(null);
     } catch (err) {
       onError(err instanceof Error ? err.message : "Error al elegir foto principal");
     } finally {
@@ -177,6 +214,8 @@ export default function StockDispositivoFotoCard({
     }
   };
 
+  const showMainLoader = syncing && !fotoMostrada;
+
   return (
     <div
       className={`stock-edit-foto-card${
@@ -187,19 +226,22 @@ export default function StockDispositivoFotoCard({
       <h4 className="stock-edit-foto-title">Foto del animal</h4>
       <div
         className={`stock-edit-foto-frame${
-          principal ? " stock-edit-foto-frame--filled" : ""
+          fotoMostrada ? " stock-edit-foto-frame--filled" : ""
         }`}
       >
-        {cargando ? (
+        {showMainLoader ? (
           <div className="stock-edit-foto-placeholder">
             <span className="stock-edit-foto-placeholder-text">Cargando fotos…</span>
           </div>
-        ) : principal ? (
+        ) : fotoMostrada ? (
           <img
-            src={principal.url}
-            alt="Foto principal del animal"
+            key={fotoMostrada.id}
+            src={fotoMostrada.url}
+            alt="Foto del animal"
             className="stock-edit-foto-img"
             decoding="async"
+            loading="eager"
+            fetchPriority="high"
           />
         ) : (
           <div className="stock-edit-foto-placeholder">
@@ -222,17 +264,35 @@ export default function StockDispositivoFotoCard({
           {meta.fotos.map((foto) => (
             <div key={foto.id} className="stock-edit-foto-thumb-wrap" role="listitem">
               {soloLectura ? (
-                <div
-                  className={`stock-edit-foto-thumb stock-edit-foto-thumb--static${
+                <button
+                  type="button"
+                  className={`stock-edit-foto-thumb stock-edit-foto-thumb--preview${
                     foto.es_principal ? " stock-edit-foto-thumb--principal" : ""
-                  }`}
-                  title={foto.es_principal ? "Foto principal" : undefined}
+                  }${fotoMostrada?.id === foto.id ? " stock-edit-foto-thumb--activa" : ""}`}
+                  onClick={() => setVistaFotoId(foto.id)}
+                  title={
+                    foto.es_principal
+                      ? "Foto principal"
+                      : "Ver esta foto"
+                  }
+                  aria-label={
+                    foto.es_principal
+                      ? "Ver foto principal"
+                      : "Ver esta foto en grande"
+                  }
+                  aria-pressed={fotoMostrada?.id === foto.id}
                 >
-                  <img src={foto.url} alt="" className="stock-edit-foto-thumb-img" />
+                  <img
+                    src={stockFotoThumbUrl(foto)}
+                    alt=""
+                    className="stock-edit-foto-thumb-img"
+                    decoding="async"
+                    loading="eager"
+                  />
                   {foto.es_principal ? (
                     <span className="stock-edit-foto-thumb-badge">Principal</span>
                   ) : null}
-                </div>
+                </button>
               ) : (
                 <>
                   <button
@@ -254,7 +314,13 @@ export default function StockDispositivoFotoCard({
                     }
                     aria-pressed={foto.es_principal}
                   >
-                    <img src={foto.url} alt="" className="stock-edit-foto-thumb-img" />
+                    <img
+                      src={stockFotoThumbUrl(foto)}
+                      alt=""
+                      className="stock-edit-foto-thumb-img"
+                      decoding="async"
+                      loading="eager"
+                    />
                     {foto.es_principal ? (
                       <span className="stock-edit-foto-thumb-badge">Principal</span>
                     ) : null}
@@ -283,7 +349,7 @@ export default function StockDispositivoFotoCard({
               type="button"
               className="btn btn-primary btn-sm"
               onClick={handlePick}
-              disabled={disabled || guardando || cargando || meta.fotos.length >= MAX_FOTOS}
+              disabled={disabled || guardando || syncing || meta.fotos.length >= MAX_FOTOS}
             >
               {guardando
                 ? "Guardando…"

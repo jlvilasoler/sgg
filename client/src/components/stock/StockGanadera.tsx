@@ -5,6 +5,8 @@ import {
   fetchStockGanaderaDispositivos,
   fetchStockGanaderaSalidas,
   fetchStockGanaderaVentasDispositivos,
+  quitarCabanaSeleccion,
+  saveCabanaSeleccion,
 } from "../../api";
 import { useHeaderBackStep } from "../../header-back";
 import type { AuthUser, DispositivoEstado, StockGanaderaDispositivo } from "../../types";
@@ -195,6 +197,7 @@ export default function StockGanadera({
     () => new Set()
   );
   const [bulkOpen, setBulkOpen] = useState(false);
+  const [cabanaToggling, setCabanaToggling] = useState<Set<string>>(() => new Set());
   const [filtrosMobileOpen, setFiltrosMobileOpen] = useState(false);
   const [ventasClaves, setVentasClaves] = useState<Set<string>>(() =>
     ventasClavesDesdeCache(cacheInicial)
@@ -670,6 +673,52 @@ export default function StockGanadera({
       }
       return next;
     });
+    setEditarDispositivo((prev) =>
+      prev && prev.clave === actualizado.clave ? { ...prev, ...actualizado } : prev
+    );
+  };
+
+  const toggleSeleccionCabana = async (d: StockGanaderaDispositivo) => {
+    if (!apiOnline || cabanaToggling.has(d.clave)) return;
+
+    if (d.cabana_premium) {
+      const ok = await confirmAction({
+        title: "Quitar de selección",
+        message: `¿Quitar a ${d.nombre_cabana || d.vid || d.eid} de la selección de cabaña?`,
+        confirmText: "Quitar",
+        variant: "danger",
+      });
+      if (!ok) return;
+    }
+
+    setCabanaToggling((prev) => new Set(prev).add(d.clave));
+    try {
+      if (d.cabana_premium) {
+        await quitarCabanaSeleccion([d.clave]);
+        actualizarFila({ ...d, cabana_premium: false, nombre_cabana: "" });
+        onSuccess?.("Quitado de selección de cabaña");
+      } else {
+        const nombre = (d.vid || d.eid || d.clave).trim();
+        await saveCabanaSeleccion([
+          {
+            clave: d.clave,
+            nombre_cabana: nombre,
+            raza: d.raza ?? "",
+            observaciones: d.observaciones ?? "",
+          },
+        ]);
+        actualizarFila({ ...d, cabana_premium: true, nombre_cabana: nombre });
+        onSuccess?.("Agregado a selección de cabaña");
+      }
+    } catch (e) {
+      onError(e instanceof Error ? e.message : "Error al actualizar selección");
+    } finally {
+      setCabanaToggling((prev) => {
+        const next = new Set(prev);
+        next.delete(d.clave);
+        return next;
+      });
+    }
   };
 
   const sincronizarFotoDispositivo = (
@@ -1226,8 +1275,8 @@ export default function StockGanadera({
                 </th>
                 <th
                   className="stock-th stock-th--cabana"
-                  aria-label="Selección de cabaña"
-                  title="Selección de cabaña"
+                  aria-label="Seleccionado de cabaña"
+                  title="Seleccionado"
                 />
                 <th className="stock-th stock-th--num">EID</th>
                 <th className="stock-th">VID</th>
@@ -1265,8 +1314,8 @@ export default function StockGanadera({
                   <tr
                     key={d.clave}
                     className={`stock-ganadera-row stock-table-pro-row${
-                      seleccion.has(d.clave) ? " stock-table-pro-row--selected" : ""
-                    }`}
+                      d.cabana_premium ? " stock-table-pro-row--seleccion-cabana" : ""
+                    }${seleccion.has(d.clave) ? " stock-table-pro-row--selected" : ""}`}
                   >
                     <td className="stock-td stock-td--sel">
                       <input
@@ -1278,9 +1327,13 @@ export default function StockGanadera({
                       />
                     </td>
                     <td className="stock-td stock-td--cabana">
-                      {d.cabana_premium ? (
-                        <IconoSeleccionCabanaEstrella nombreCabana={d.nombre_cabana} />
-                      ) : null}
+                      <IconoSeleccionCabanaEstrella
+                        activo={d.cabana_premium}
+                        nombreCabana={d.nombre_cabana}
+                        onClick={() => toggleSeleccionCabana(d)}
+                        disabled={!apiOnline}
+                        cargando={cabanaToggling.has(d.clave)}
+                      />
                     </td>
                     <td className="stock-td stock-td--num stock-td--eid">
                       {d.eid || "—"}
@@ -1303,7 +1356,7 @@ export default function StockGanadera({
                     </td>
                     <td className="stock-td stock-td--muted">{fmtGrupo(d.grupo)}</td>
                     <td className="stock-td stock-td--muted">{fmtGrupoLibre(d.grupo_libre)}</td>
-                    <td className="stock-td stock-td--muted">{fmtRaza(d.raza)}</td>
+                    <td className="stock-td stock-td--muted stock-td--raza">{fmtRaza(d.raza)}</td>
                     <td className={`stock-td stock-td--sexo ${claseCeldaSexo(d.sexo)}`}>
                       {fmtSexo(d.sexo)}
                     </td>

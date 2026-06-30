@@ -11,6 +11,7 @@ import type {
 import { fmtDate } from "../../utils";
 import SubseccionInlinePanel from "../SubseccionInlinePanel";
 import IconoDispositivoWifi from "./IconoDispositivoWifi";
+import IconoSeleccionCabanaEstrella from "./IconoSeleccionCabanaEstrella";
 import IconoSeleccionCocarda from "./IconoSeleccionCocarda";
 import SelectEmpresaDispositivo, {
   EMPRESA_PENDIENTE,
@@ -20,7 +21,9 @@ import SelectGrupoDispositivo from "./SelectGrupoDispositivo";
 import SelectRazaDispositivo from "./SelectRazaDispositivo";
 import SelectSexoDispositivo from "./SelectSexoDispositivo";
 import StockGanaderaEvolucionTimeline from "./StockGanaderaEvolucionTimeline";
-import StockDispositivoFotoCard from "./StockDispositivoFotoCard";
+import StockDispositivoFotoCard, {
+  stockFotoMetaFromDispositivo,
+} from "./StockDispositivoFotoCard";
 import StockGanaderaHistorialCambiosPanel from "./StockGanaderaHistorialCambiosPanel";
 import {
   buildGrupo,
@@ -314,13 +317,11 @@ export default function StockGanaderaEditarPanel({
           </div>
           {esCabanaPremium ? (
             <div className="stock-editar-head-seleccion-mark">
-              <span
-                className="stock-editar-head-seleccion-star"
-                title="Animal de selección de cabaña"
-                aria-label="Animal de selección de cabaña"
-              >
-                <span aria-hidden>★</span>
-              </span>
+              <IconoSeleccionCabanaEstrella
+                activo
+                nombreCabana={nombreCabana}
+                soloLectura
+              />
               {nombreCabana.trim() ? (
                 <span className="stock-edit-cabana-hero-tag stock-edit-cabana-hero-tag--gold stock-editar-head-pedigree">
                   <IconoSeleccionCocarda />
@@ -602,6 +603,7 @@ export default function StockGanaderaEditarPanel({
               <StockDispositivoFotoCard
                 modulo="ganadero"
                 clave={dispositivo.clave}
+                initialMeta={stockFotoMetaFromDispositivo(dispositivo)}
                 soloLectura={soloLectura}
                 disabled={!soloLectura && (guardando || !apiOnline)}
                 onChange={(meta) => {

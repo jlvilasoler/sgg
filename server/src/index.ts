@@ -296,6 +296,20 @@ function paramString(value: string | string[]): string {
   return Array.isArray(value) ? (value[0] ?? "") : value;
 }
 
+function setStockDispositivoFotoCacheHeaders(req: Request, res: Response): void {
+  const v = req.query.v;
+  if (typeof v === "string" && v.length > 0) {
+    res.setHeader("Cache-Control", "private, max-age=31536000, immutable");
+  } else {
+    res.setHeader("Cache-Control", "private, max-age=3600");
+  }
+}
+
+function wantsFotoThumb(req: Request): boolean {
+  const raw = req.query.thumb;
+  return raw === "1" || raw === "true";
+}
+
 function parseNum(value: unknown, fallback = 0): number {
   if (value === null || value === undefined || value === "") return fallback;
   const n = Number(String(value).replace(",", "."));
@@ -1751,13 +1765,14 @@ app.get("/api/stock-ganadero/dispositivos/:clave/foto/:fotoId", async (req, res)
       db.getDb(),
       "ganadero",
       clave,
-      fotoId
+      fotoId,
+      { thumb: wantsFotoThumb(req) }
     );
     if (!image) {
       res.status(404).json({ ok: false, error: "Sin foto del animal" });
       return;
     }
-    res.setHeader("Cache-Control", "private, no-cache");
+    setStockDispositivoFotoCacheHeaders(req, res);
     res.type(image.mime).send(image.buffer);
   } catch (e) {
     res.status(400).json({
@@ -1828,7 +1843,7 @@ app.get("/api/stock-ganadero/dispositivos/:clave/foto", async (req, res) => {
       res.status(404).json({ ok: false, error: "Sin foto del animal" });
       return;
     }
-    res.setHeader("Cache-Control", "private, no-cache");
+    setStockDispositivoFotoCacheHeaders(req, res);
     res.type(image.mime).send(image.buffer);
   } catch (e) {
     res.status(400).json({
@@ -2841,13 +2856,14 @@ app.get("/api/stock-equino/dispositivos/:clave/foto/:fotoId", async (req, res) =
       db.getDb(),
       "equino",
       clave,
-      fotoId
+      fotoId,
+      { thumb: wantsFotoThumb(req) }
     );
     if (!image) {
       res.status(404).json({ ok: false, error: "Sin foto del animal" });
       return;
     }
-    res.setHeader("Cache-Control", "private, no-cache");
+    setStockDispositivoFotoCacheHeaders(req, res);
     res.type(image.mime).send(image.buffer);
   } catch (e) {
     res.status(400).json({
@@ -2918,7 +2934,7 @@ app.get("/api/stock-equino/dispositivos/:clave/foto", async (req, res) => {
       res.status(404).json({ ok: false, error: "Sin foto del animal" });
       return;
     }
-    res.setHeader("Cache-Control", "private, no-cache");
+    setStockDispositivoFotoCacheHeaders(req, res);
     res.type(image.mime).send(image.buffer);
   } catch (e) {
     res.status(400).json({

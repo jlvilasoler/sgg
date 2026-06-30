@@ -8,6 +8,7 @@ export type StockDispositivoModulo = "ganadero" | "equino";
 export const STOCK_DISPOSITIVO_FOTOS_DIR = scgDataPath("stock-dispositivo-fotos");
 export const STOCK_DISPOSITIVO_FOTO_MAX_BYTES = 4 * 1024 * 1024;
 export const STOCK_DISPOSITIVO_FOTOS_MAX = 20;
+const FOTO_THUMB_MAX_PX = 192;
 
 const TABLE: Record<StockDispositivoModulo, string> = {
   ganadero: "STOCK_GANADERO_DISPOSITIVO",
@@ -34,6 +35,7 @@ const MIME_EXT: Record<string, string> = {
 export interface StockDispositivoFotoItemDto {
   id: number;
   url: string;
+  thumb_url: string;
   es_principal: boolean;
   creado_en: string;
 }
@@ -84,6 +86,38 @@ function deleteFotoFile(modulo: StockDispositivoModulo, archivo: string): void {
   if (!archivo) return;
   const full = path.join(moduloDir(modulo), archivo);
   if (fs.existsSync(full)) fs.unlinkSync(full);
+  const thumb = thumbFilePath(modulo, archivo);
+  if (fs.existsSync(thumb)) fs.unlinkSync(thumb);
+}
+
+function thumbFilePath(modulo: StockDispositivoModulo, archivo: string): string {
+  const ext = path.extname(archivo);
+  const base = archivo.slice(0, -ext.length);
+  return path.join(moduloDir(modulo), `${base}_thumb.webp`);
+}
+
+async function writeThumbFile(
+  modulo: StockDispositivoModulo,
+  archivo: string
+): Promise<boolean> {
+  const full = path.join(moduloDir(modulo), archivo);
+  if (!fs.existsSync(full)) return false;
+  const thumbPath = thumbFilePath(modulo, archivo);
+  if (fs.existsSync(thumbPath)) return true;
+  try {
+    const sharp = (await import("sharp")).default;
+    await sharp(full)
+      .rotate()
+      .resize(FOTO_THUMB_MAX_PX, FOTO_THUMB_MAX_PX, {
+        fit: "inside",
+        withoutEnlargement: true,
+      })
+      .webp({ quality: 80 })
+      .toFile(thumbPath);
+    return fs.existsSync(thumbPath);
+  } catch {
+    return false;
+  }
 }
 
 export function publicStockDispositivoFotoUrl(
@@ -99,19 +133,35 @@ export function publicStockDispositivoFotoUrl(
   return version ? `${base}?v=${encodeURIComponent(version)}` : base;
 }
 
+export function publicStockDispositivoFotoThumbUrl(
+  modulo: StockDispositivoModulo,
+  clave: string,
+  fotoId: number,
+  version?: string
+): string {
+  const base = publicStockDispositivoFotoUrl(modulo, clave, fotoId, version);
+  return base.includes("?") ? `${base}&thumb=1` : `${base}?thumb=1`;
+}
+
 function rowToItem(
   modulo: StockDispositivoModulo,
   row: FotoGalleryRow
 ): StockDispositivoFotoItemDto | null {
-  const full = path.join(moduloDir(modulo), row.archivo);
-  if (!fs.existsSync(full)) return null;
+  if (!row.archivo?.trim()) return null;
+  const version = row.creado_en || undefined;
   return {
     id: row.id,
     url: publicStockDispositivoFotoUrl(
       modulo,
       row.clave,
       row.id,
-      row.creado_en || undefined
+      version
+    ),
+    thumb_url: publicStockDispositivoFotoThumbUrl(
+      modulo,
+      row.clave,
+      row.id,
+      version
     ),
     es_principal: Boolean(row.es_principal),
     creado_en: row.creado_en || "",
@@ -390,13 +440,23 @@ export async function loadStockDispositivoFotoById(
   db: Db,
   modulo: StockDispositivoModulo,
   clave: string,
-  fotoId: number
+  fotoId: number,
+  opts?: { thumb?: boolean }
 ): Promise<{ buffer: Buffer; mime: string } | null> {
   const claveNorm = normalizeClave(clave);
   const row = await getGalleryRow(db, modulo, claveNorm, fotoId);
   if (!row?.archivo) return null;
   const full = path.join(moduloDir(modulo), row.archivo);
   if (!fs.existsSync(full)) return null;
+
+  if (opts?.thumb) {
+    await writeThumbFile(modulo, row.archivo);
+    const thumbPath = thumbFilePath(modulo, row.archivo);
+    if (fs.existsSync(thumbPath)) {
+      return { buffer: fs.readFileSync(thumbPath), mime: "image/webp" };
+    }
+  }
+
   const mime = row.mime?.trim() || "image/jpeg";
   return { buffer: fs.readFileSync(full), mime };
 }
@@ -434,6 +494,7 @@ export async function saveStockDispositivoFoto(
   const fotoId = Number(ins.lastInsertRowid);
   const archivo = `${claveNorm}_${fotoId}.${ext}`;
   fs.writeFileSync(path.join(moduloDir(modulo), archivo), buffer);
+  void writeThumbFile(modulo, archivo);
 
   await db
     .prepare(`UPDATE ${fotosTable} SET archivo = ? WHERE id = ?`)
