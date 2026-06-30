@@ -55,6 +55,12 @@ interface FotoGalleryRow {
   mime: string;
   es_principal: number;
   creado_en: string;
+  datos_len?: number;
+}
+
+interface FotoGalleryRowBlob extends FotoGalleryRow {
+  datos?: unknown;
+  thumb_datos?: unknown;
 }
 
 interface LegacyFotoRow {
@@ -74,6 +80,64 @@ function extFromMime(mime: string): string {
   const ext = MIME_EXT[mime.toLowerCase()];
   if (!ext) throw new Error("Formato no permitido. Usá JPG, PNG, WebP o GIF.");
   return ext;
+}
+
+const FOTO_LIST_COLUMNS = `id, clave, archivo, mime, es_principal, creado_en,
+  COALESCE(octet_length(datos), 0) AS datos_len`;
+
+function bufferFromDbValue(value: unknown): Buffer | null {
+  if (!value) return null;
+  if (Buffer.isBuffer(value)) return value.length > 0 ? value : null;
+  if (value instanceof Uint8Array) {
+    const buf = Buffer.from(value);
+    return buf.length > 0 ? buf : null;
+  }
+  return null;
+}
+
+function fotoRowHasImage(
+  modulo: StockDispositivoModulo,
+  row: FotoGalleryRow
+): boolean {
+  if ((row.datos_len ?? 0) > 0) return true;
+  if (!row.archivo?.trim()) return false;
+  const full = path.join(moduloDir(modulo), row.archivo);
+  return fs.existsSync(full);
+}
+
+async function generateThumbBuffer(source: Buffer): Promise<Buffer | null> {
+  try {
+    const sharp = (await import("sharp")).default;
+    return await sharp(source)
+      .rotate()
+      .resize(FOTO_THUMB_MAX_PX, FOTO_THUMB_MAX_PX, {
+        fit: "inside",
+        withoutEnlargement: true,
+      })
+      .webp({ quality: 80 })
+      .toBuffer();
+  } catch {
+    return null;
+  }
+}
+
+async function backfillFotoDatosFromDisk(
+  db: Db,
+  modulo: StockDispositivoModulo,
+  fotoId: number,
+  archivo: string,
+  buffer: Buffer,
+  mime: string,
+  thumbBuffer: Buffer | null
+): Promise<void> {
+  const fotosTable = FOTOS_TABLE[modulo];
+  await db
+    .prepare(
+      `UPDATE ${fotosTable}
+       SET datos = ?, thumb_datos = COALESCE(thumb_datos, ?), mime = ?
+       WHERE id = ? AND (datos IS NULL OR octet_length(datos) = 0)`
+    )
+    .run(buffer, thumbBuffer, mime, fotoId);
 }
 
 function moduloDir(modulo: StockDispositivoModulo): string {
@@ -147,12 +211,13 @@ function rowToItem(
   modulo: StockDispositivoModulo,
   row: FotoGalleryRow
 ): StockDispositivoFotoItemDto | null {
-  if (!row.archivo?.trim()) return null;
-  const full = path.join(moduloDir(modulo), row.archivo);
-  if (!fs.existsSync(full)) {
-    console.warn(
-      `[stock-foto] Archivo ausente en disco: ${full} (clave ${row.clave}, id ${row.id})`
-    );
+  if (!fotoRowHasImage(modulo, row)) {
+    if (row.archivo?.trim()) {
+      const full = path.join(moduloDir(modulo), row.archivo);
+      console.warn(
+        `[stock-foto] Sin imagen en disco ni en base: ${full} (clave ${row.clave}, id ${row.id})`
+      );
+    }
     return null;
   }
   const version = row.creado_en || undefined;
@@ -350,6 +415,71 @@ export async function migrateStockDispositivoFotosGallery(
     .run();
 }
 
+export async function migrateStockDispositivoFotosBlobColumns(
+  db: Db,
+  modulo: StockDispositivoModulo
+): Promise<void> {
+  const fotosTable = FOTOS_TABLE[modulo];
+  const hist = HIST_TABLE[modulo];
+
+  for (const col of [
+    { name: "datos", ddl: `ALTER TABLE ${fotosTable} ADD COLUMN datos BYTEA` },
+    {
+      name: "thumb_datos",
+      ddl: `ALTER TABLE ${fotosTable} ADD COLUMN thumb_datos BYTEA`,
+    },
+  ]) {
+    const exists = await db
+      .prepare(
+        `SELECT 1 FROM information_schema.columns
+         WHERE table_schema = 'public' AND table_name = ? AND column_name = ?`
+      )
+      .get(fotosTable.toLowerCase(), col.name);
+    if (exists) continue;
+    await db.prepare(col.ddl).run();
+    console.info(`[stock-foto] Migración: ${fotosTable}.${col.name}`);
+  }
+
+  const done = (await db
+    .prepare(
+      `SELECT 1 AS ok FROM ${hist}
+       WHERE clave = '__meta__' AND campo = 'foto_blob_backfill_v1' LIMIT 1`
+    )
+    .get()) as { ok: number } | undefined;
+  if (done) return;
+
+  const rows = (await db
+    .prepare(
+      `SELECT id, archivo, mime FROM ${fotosTable}
+       WHERE TRIM(archivo) <> ''
+         AND (datos IS NULL OR octet_length(datos) = 0)`
+    )
+    .all()) as { id: number; archivo: string; mime: string }[];
+
+  for (const row of rows) {
+    const full = path.join(moduloDir(modulo), row.archivo);
+    if (!fs.existsSync(full)) continue;
+    try {
+      const buffer = fs.readFileSync(full);
+      const thumb = await generateThumbBuffer(buffer);
+      await db
+        .prepare(
+          `UPDATE ${fotosTable} SET datos = ?, thumb_datos = ? WHERE id = ?`
+        )
+        .run(buffer, thumb, row.id);
+    } catch (e) {
+      console.warn(`[stock-foto] Backfill id ${row.id}:`, e);
+    }
+  }
+
+  await db
+    .prepare(
+      `INSERT INTO ${hist} (clave, campo, etiqueta, valor_anterior, valor_nuevo)
+       VALUES ('__meta__', 'foto_blob_backfill_v1', '', '', '')`
+    )
+    .run();
+}
+
 async function listGalleryRows(
   db: Db,
   modulo: StockDispositivoModulo,
@@ -358,7 +488,7 @@ async function listGalleryRows(
   const fotosTable = FOTOS_TABLE[modulo];
   return (await db
     .prepare(
-      `SELECT id, clave, archivo, mime, es_principal, creado_en
+      `SELECT ${FOTO_LIST_COLUMNS}
        FROM ${fotosTable}
        WHERE clave = ?
        ORDER BY es_principal DESC, id ASC`
@@ -371,15 +501,15 @@ async function getGalleryRow(
   modulo: StockDispositivoModulo,
   claveNorm: string,
   fotoId: number
-): Promise<FotoGalleryRow | undefined> {
+): Promise<FotoGalleryRowBlob | undefined> {
   const fotosTable = FOTOS_TABLE[modulo];
   return (await db
     .prepare(
-      `SELECT id, clave, archivo, mime, es_principal, creado_en
+      `SELECT ${FOTO_LIST_COLUMNS}, datos, thumb_datos
        FROM ${fotosTable}
        WHERE clave = ? AND id = ?`
     )
-    .get(claveNorm, fotoId)) as FotoGalleryRow | undefined;
+    .get(claveNorm, fotoId)) as FotoGalleryRowBlob | undefined;
 }
 
 async function countGalleryRows(
@@ -401,7 +531,7 @@ export async function mapStockDispositivoFotos(
   const fotosTable = FOTOS_TABLE[modulo];
   const rows = (await db
     .prepare(
-      `SELECT id, clave, archivo, mime, es_principal, creado_en
+      `SELECT ${FOTO_LIST_COLUMNS}
        FROM ${fotosTable}
        ORDER BY clave ASC, es_principal DESC, id ASC`
     )
@@ -475,27 +605,67 @@ export async function loadStockDispositivoFotoById(
 ): Promise<{ buffer: Buffer; mime: string } | null> {
   const claveNorm = normalizeClave(clave);
   const row = await getGalleryRow(db, modulo, claveNorm, fotoId);
-  if (!row?.archivo) {
+  if (!row) {
     return readLegacyDeviceFotoBuffer(db, modulo, claveNorm);
   }
+
+  const mime = row.mime?.trim() || "image/jpeg";
+
+  if (opts?.thumb) {
+    const thumbDb = bufferFromDbValue(row.thumb_datos);
+    if (thumbDb) {
+      return { buffer: thumbDb, mime: "image/webp" };
+    }
+    const datos = bufferFromDbValue(row.datos);
+    if (datos) {
+      const generated = await generateThumbBuffer(datos);
+      if (generated) {
+        return { buffer: generated, mime: "image/webp" };
+      }
+    }
+    if (row.archivo?.trim()) {
+      await writeThumbFile(modulo, row.archivo);
+      const thumbPath = thumbFilePath(modulo, row.archivo);
+      if (fs.existsSync(thumbPath)) {
+        return { buffer: fs.readFileSync(thumbPath), mime: "image/webp" };
+      }
+    }
+  }
+
+  const dbBuffer = bufferFromDbValue(row.datos);
+  if (dbBuffer) {
+    return { buffer: dbBuffer, mime };
+  }
+
+  if (!row.archivo?.trim()) {
+    return readLegacyDeviceFotoBuffer(db, modulo, claveNorm);
+  }
+
   const full = path.join(moduloDir(modulo), row.archivo);
   if (!fs.existsSync(full)) {
     console.warn(
-      `[stock-foto] Galería sin archivo en disco: ${full} (id ${fotoId})`
+      `[stock-foto] Galería sin archivo en disco ni en base (id ${fotoId})`
     );
     return readLegacyDeviceFotoBuffer(db, modulo, claveNorm);
   }
 
-  if (opts?.thumb) {
-    await writeThumbFile(modulo, row.archivo);
-    const thumbPath = thumbFilePath(modulo, row.archivo);
-    if (fs.existsSync(thumbPath)) {
-      return { buffer: fs.readFileSync(thumbPath), mime: "image/webp" };
-    }
+  const buffer = fs.readFileSync(full);
+  try {
+    const thumb = await generateThumbBuffer(buffer);
+    await backfillFotoDatosFromDisk(
+      db,
+      modulo,
+      fotoId,
+      row.archivo,
+      buffer,
+      mime,
+      thumb
+    );
+  } catch (e) {
+    console.warn(`[stock-foto] Backfill id ${fotoId}:`, e);
   }
 
-  const mime = row.mime?.trim() || "image/jpeg";
-  return { buffer: fs.readFileSync(full), mime };
+  return { buffer, mime };
 }
 
 export async function saveStockDispositivoFoto(
@@ -520,18 +690,27 @@ export async function saveStockDispositivoFoto(
   const creado = new Date().toISOString();
   const fotosTable = FOTOS_TABLE[modulo];
   const esPrincipal = count === 0 ? 1 : 0;
+  const thumbBuffer = await generateThumbBuffer(buffer);
 
   const ins = await db
     .prepare(
-      `INSERT INTO ${fotosTable} (clave, archivo, mime, es_principal, creado_en)
-       VALUES (?, '', ?, ?, ?)`
+      `INSERT INTO ${fotosTable}
+         (clave, archivo, mime, es_principal, creado_en, datos, thumb_datos)
+       VALUES (?, '', ?, ?, ?, ?, ?)`
     )
-    .run(claveNorm, mime, esPrincipal, creado);
+    .run(claveNorm, mime, esPrincipal, creado, buffer, thumbBuffer);
 
   const fotoId = Number(ins.lastInsertRowid);
   const archivo = `${claveNorm}_${fotoId}.${ext}`;
-  fs.writeFileSync(path.join(moduloDir(modulo), archivo), buffer);
-  void writeThumbFile(modulo, archivo);
+  try {
+    fs.writeFileSync(path.join(moduloDir(modulo), archivo), buffer);
+    void writeThumbFile(modulo, archivo);
+  } catch (e) {
+    console.warn(
+      `[stock-foto] No se pudo guardar en disco (se usa base de datos):`,
+      e
+    );
+  }
 
   await db
     .prepare(`UPDATE ${fotosTable} SET archivo = ? WHERE id = ?`)

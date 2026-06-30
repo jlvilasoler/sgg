@@ -9,6 +9,7 @@ import type {
 } from "../../types";
 import SubseccionInlinePanel from "../SubseccionInlinePanel";
 import StockEditarFichaStats from "../stock/StockEditarFichaStats";
+import StockEditarSectionTitle from "../stock/StockEditarSectionTitle";
 import StockEditarHeadPanel from "../stock/StockEditarHeadPanel";
 import SelectEmpresaDispositivo, {
   EMPRESA_PENDIENTE,
@@ -296,7 +297,7 @@ export default function StockEquinaEditarPanel({
                 soloLectura ? " stock-edit-ficha-card--solo-lectura" : ""
               }`}
             >
-              <h3 className="stock-editar-ficha-title">Ficha del animal</h3>
+              <StockEditarSectionTitle icon="ficha">Ficha del animal</StockEditarSectionTitle>
 
               <div className="stock-editar-ficha-toolbar">
                 <div className="stock-editar-ficha-zone stock-editar-ficha-zone--ident">

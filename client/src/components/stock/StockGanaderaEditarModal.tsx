@@ -11,6 +11,7 @@ import type {
 import IconoSeleccionCocarda from "./IconoSeleccionCocarda";
 import SubseccionInlinePanel from "../SubseccionInlinePanel";
 import StockEditarFichaStats from "./StockEditarFichaStats";
+import StockEditarSectionTitle from "./StockEditarSectionTitle";
 import StockEditarHeadPanel from "./StockEditarHeadPanel";
 import SelectEmpresaDispositivo, {
   EMPRESA_PENDIENTE,
@@ -365,7 +366,7 @@ export default function StockGanaderaEditarPanel({
                 soloLectura ? " stock-edit-ficha-card--solo-lectura" : ""
               }`}
             >
-              <h3 className="stock-editar-ficha-title">Ficha del animal</h3>
+              <StockEditarSectionTitle icon="ficha">Ficha del animal</StockEditarSectionTitle>
 
               <div className="stock-editar-ficha-toolbar">
                 <div className="stock-editar-ficha-zone stock-editar-ficha-zone--ident">

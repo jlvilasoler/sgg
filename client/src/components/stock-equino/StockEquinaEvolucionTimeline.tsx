@@ -1,5 +1,6 @@
 ﻿import { useMemo } from "react";
 import type { DispositivoEstado, DispositivoSexo } from "../../types";
+import StockEditarSectionTitle from "../stock/StockEditarSectionTitle";
 import IconoAnimalEvolucion from "./IconoAnimalEvolucion";
 import {
   calcularMesesEntreFechas,
@@ -536,7 +537,9 @@ export default function StockEquinaEvolucionTimeline({
           className={`stock-evolucion ${claseSexo(sexo)} ${claseEstado(estado)}`}
           aria-label="Línea de tiempo de evolución"
         >
-        <h4 className="stock-evolucion-title">Evolución del animal</h4>
+        <StockEditarSectionTitle icon="evolucion" as="h4">
+          Evolución del animal
+        </StockEditarSectionTitle>
         <div className="stock-edit-evolucion-body">
         <div className="stock-evolucion-head">
           <div className="stock-evolucion-head-main">
@@ -600,7 +603,9 @@ export default function StockEquinaEvolucionTimeline({
         }`}
         aria-label="Línea de tiempo de evolución del animal"
       >
-      <h4 className="stock-evolucion-title">Evolución del animal</h4>
+      <StockEditarSectionTitle icon="evolucion" as="h4">
+        Evolución del animal
+      </StockEditarSectionTitle>
       <div className="stock-edit-evolucion-body">
       <div className="stock-evolucion-head">
         <div className="stock-evolucion-head-main">

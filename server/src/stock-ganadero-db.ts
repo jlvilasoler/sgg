@@ -129,6 +129,7 @@ export async function initStockGanaderoTables(db: Db): Promise<void> {
   await migrateRazaCatalogTable(db);
   await stockFoto.migrateStockDispositivoFotoColumns(db, "ganadero");
   await stockFoto.migrateStockDispositivoFotosGallery(db, "ganadero");
+  await stockFoto.migrateStockDispositivoFotosBlobColumns(db, "ganadero");
   await migrateFechasSlashLatam(db);
   await migrateStockGanaderoDispositivoHistorial(db);
   await migrateHistorialAutorColumns(db);

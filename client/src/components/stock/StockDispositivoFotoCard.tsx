@@ -12,6 +12,7 @@ import {
   subirStockGanaderaDispositivoFoto,
   type StockDispositivoFotoMeta,
 } from "../../api";
+import StockEditarSectionTitle from "./StockEditarSectionTitle";
 
 const FOTO_TIPOS = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 const MAX_FOTO_MB = 4;
@@ -284,7 +285,9 @@ export default function StockDispositivoFotoCard({
       }`}
       aria-label="Foto del animal"
     >
-      <h4 className="stock-edit-foto-title">Foto del animal</h4>
+      <StockEditarSectionTitle icon="foto" as="h4">
+        Foto del animal
+      </StockEditarSectionTitle>
       <div
         className={`stock-edit-foto-frame${
           fotoMostrada ? " stock-edit-foto-frame--filled" : ""
