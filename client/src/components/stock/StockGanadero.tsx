@@ -11,6 +11,7 @@ import StockGanaderoHistorial from "./StockGanaderoHistorial";
 import StockGanaderoImportar from "./StockGanaderoImportar";
 import StockGanaderoImportarBaja from "./StockGanaderoImportarBaja";
 import StockGanaderoListado from "./StockGanaderoListado";
+import StockGanaderoCabanaSeleccion from "./StockGanaderoCabanaSeleccion";
 
 type VistaStock =
   | "menu"
@@ -19,7 +20,8 @@ type VistaStock =
   | "listado"
   | "historial"
   | "ganadera"
-  | "salidas";
+  | "salidas"
+  | "cabana";
 
 interface Props {
   apiOnline: boolean;
@@ -64,6 +66,12 @@ const SUBMENU: {
     label: "Salidas del sistema",
     subtitle: "Muertes, ventas y frigorífico registradas",
     icon: "stock_salidas",
+  },
+  {
+    id: "cabana",
+    label: "Selección Animales de Cabaña",
+    subtitle: "Marcar animales del stock con nombre de selección",
+    icon: "stock_cabana",
   },
 ];
 
@@ -165,6 +173,18 @@ export default function StockGanadero({
         apiOnline={apiOnline}
         refreshKey={listRefresh}
         onError={onError}
+        onVolver={volverMenu}
+      />
+    );
+  }
+
+  if (vista === "cabana") {
+    return (
+      <StockGanaderoCabanaSeleccion
+        apiOnline={apiOnline}
+        currentUser={currentUser}
+        onError={onError}
+        onSuccess={onSuccess}
         onVolver={volverMenu}
       />
     );

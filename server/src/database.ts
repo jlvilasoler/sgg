@@ -438,6 +438,15 @@ export const stockGanadero = {
     stock.restaurarStockGanaderaDesdeBackup(db, cuentaId),
   listHistorialCambios: (clave: string) =>
     stock.listStockGanaderaDispositivoHistorial(db, clave),
+  saveCabanaSeleccion: (
+    items: stock.CabanaSeleccionInput[],
+    autor?: stock.HistorialAutor
+  ) => stock.saveCabanaSeleccionBulk(db, items, autor),
+  quitarCabanaSeleccion: (claves: string[], autor?: stock.HistorialAutor) =>
+    stock.quitarCabanaSeleccionBulk(db, claves, autor),
+  listRazas: () => stock.listStockGanaderoRazas(db),
+  createRaza: (nombre: string) => stock.createStockGanaderoRaza(db, nombre),
+  deleteRaza: (nombre: string) => stock.deleteStockGanaderoRaza(db, nombre),
 };
 
 export const stockEquino = {

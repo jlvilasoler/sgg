@@ -822,6 +822,7 @@ export async function saveStockGanaderaDispositivo(
     empresa: DispositivoEmpresa;
     grupo: string;
     grupo_libre: string;
+    raza: string;
     nacimiento_mes: number | null;
     nacimiento_anio: number | null;
     observaciones: string;
@@ -837,6 +838,7 @@ export async function saveStockGanaderaDispositivo(
   empresa: DispositivoEmpresa;
   grupo: string;
   grupo_libre: string;
+  raza: string;
   edad: number | null;
   nacimiento_mes: number | null;
   nacimiento_anio: number | null;
@@ -853,6 +855,7 @@ export async function saveStockGanaderaDispositivo(
       empresa: DispositivoEmpresa;
       grupo: string;
       grupo_libre: string;
+      raza: string;
       edad: number | null;
       nacimiento_mes: number | null;
       nacimiento_anio: number | null;
@@ -867,6 +870,213 @@ export async function saveStockGanaderaDispositivo(
     method: "PATCH",
     body: JSON.stringify({ ...data, eid }),
   });
+  return json.data;
+}
+
+export async function saveCabanaSeleccion(
+  items: { clave: string; nombre_cabana: string; raza?: string; observaciones?: string }[]
+): Promise<{
+  guardados: number;
+  errores: { clave: string; mensaje: string }[];
+}> {
+  const json = await request<{
+    data: {
+      guardados: number;
+      errores: { clave: string; mensaje: string }[];
+    };
+  }>("/stock-ganadero/cabana/seleccion", {
+    method: "PATCH",
+    body: JSON.stringify({ items }),
+  });
+  return json.data;
+}
+
+export async function fetchStockGanaderoRazas(): Promise<string[]> {
+  const json = await request<{ data: string[] }>("/stock-ganadero/razas");
+  return json.data;
+}
+
+export interface StockDispositivoFotoItem {
+  id: number;
+  url: string;
+  es_principal: boolean;
+  creado_en: string;
+}
+
+export interface StockDispositivoFotoMeta {
+  tiene_foto: boolean;
+  foto_url: string | null;
+  foto_actualizado_en: string;
+  foto_principal_id: number | null;
+  fotos: StockDispositivoFotoItem[];
+}
+
+async function stockDispositivoFotoJson<T>(
+  modulo: "ganadero" | "equino",
+  clave: string,
+  pathSuffix: string,
+  options: RequestInit = {}
+): Promise<T> {
+  let res: Response;
+  try {
+    res = await fetch(
+      `${API}/stock-${modulo}/dispositivos/${encodeURIComponent(clave)}${pathSuffix}`,
+      {
+        ...FETCH_INIT,
+        ...options,
+        credentials: "include",
+      }
+    );
+  } catch (err) {
+    if (err instanceof Error && err.name === "AbortError") {
+      throw err;
+    }
+    throw new Error(apiConnectionError());
+  }
+  const json = (await res.json()) as {
+    ok?: boolean;
+    data?: T;
+    error?: string;
+  };
+  if (!res.ok || !json.ok || json.data === undefined) {
+    throw new Error(json.error ?? "Error al actualizar foto del animal");
+  }
+  return json.data;
+}
+
+export async function listStockGanaderaDispositivoFotos(
+  clave: string,
+  signal?: AbortSignal
+): Promise<StockDispositivoFotoMeta> {
+  return stockDispositivoFotoJson<StockDispositivoFotoMeta>(
+    "ganadero",
+    clave,
+    "/fotos",
+    signal ? { signal } : {}
+  );
+}
+
+export async function listStockEquinaDispositivoFotos(
+  clave: string,
+  signal?: AbortSignal
+): Promise<StockDispositivoFotoMeta> {
+  return stockDispositivoFotoJson<StockDispositivoFotoMeta>(
+    "equino",
+    clave,
+    "/fotos",
+    signal ? { signal } : {}
+  );
+}
+
+async function stockDispositivoFotoMutation(
+  modulo: "ganadero" | "equino",
+  clave: string,
+  options: RequestInit
+): Promise<StockDispositivoFotoMeta> {
+  return stockDispositivoFotoJson<StockDispositivoFotoMeta>(
+    modulo,
+    clave,
+    "/foto",
+    options
+  );
+}
+
+export async function subirStockGanaderaDispositivoFoto(
+  clave: string,
+  file: File
+): Promise<StockDispositivoFotoMeta> {
+  const fd = new FormData();
+  fd.append("foto", file);
+  return stockDispositivoFotoMutation("ganadero", clave, {
+    method: "POST",
+    body: fd,
+  });
+}
+
+export async function quitarStockGanaderaDispositivoFoto(
+  clave: string,
+  fotoId: number
+): Promise<StockDispositivoFotoMeta> {
+  return stockDispositivoFotoJson<StockDispositivoFotoMeta>(
+    "ganadero",
+    clave,
+    `/foto/${fotoId}`,
+    { method: "DELETE" }
+  );
+}
+
+export async function marcarStockGanaderaDispositivoFotoPrincipal(
+  clave: string,
+  fotoId: number
+): Promise<StockDispositivoFotoMeta> {
+  return stockDispositivoFotoJson<StockDispositivoFotoMeta>(
+    "ganadero",
+    clave,
+    `/foto/${fotoId}/principal`,
+    { method: "PATCH" }
+  );
+}
+
+export async function subirStockEquinaDispositivoFoto(
+  clave: string,
+  file: File
+): Promise<StockDispositivoFotoMeta> {
+  const fd = new FormData();
+  fd.append("foto", file);
+  return stockDispositivoFotoMutation("equino", clave, {
+    method: "POST",
+    body: fd,
+  });
+}
+
+export async function quitarStockEquinaDispositivoFoto(
+  clave: string,
+  fotoId: number
+): Promise<StockDispositivoFotoMeta> {
+  return stockDispositivoFotoJson<StockDispositivoFotoMeta>(
+    "equino",
+    clave,
+    `/foto/${fotoId}`,
+    { method: "DELETE" }
+  );
+}
+
+export async function marcarStockEquinaDispositivoFotoPrincipal(
+  clave: string,
+  fotoId: number
+): Promise<StockDispositivoFotoMeta> {
+  return stockDispositivoFotoJson<StockDispositivoFotoMeta>(
+    "equino",
+    clave,
+    `/foto/${fotoId}/principal`,
+    { method: "PATCH" }
+  );
+}
+
+export async function createStockGanaderoRaza(nombre: string): Promise<string> {
+  const json = await request<{ data: { nombre: string } }>("/stock-ganadero/razas", {
+    method: "POST",
+    body: JSON.stringify({ nombre }),
+  });
+  return json.data.nombre;
+}
+
+export async function deleteStockGanaderoRaza(nombre: string): Promise<string> {
+  const json = await request<{ data: { nombre: string } }>("/stock-ganadero/razas", {
+    method: "DELETE",
+    body: JSON.stringify({ nombre }),
+  });
+  return json.data.nombre;
+}
+
+export async function quitarCabanaSeleccion(claves: string[]): Promise<{ quitados: number }> {
+  const json = await request<{ data: { quitados: number } }>(
+    "/stock-ganadero/cabana/quitar",
+    {
+      method: "POST",
+      body: JSON.stringify({ claves }),
+    }
+  );
   return json.data;
 }
 
@@ -1024,6 +1234,7 @@ export async function importStockGanaderoRows(
     hora?: string;
     condicion?: string;
     empresa?: string;
+    raza?: string;
   }>,
   nombreArchivo = "carga-manual"
 ): Promise<{ message: string; lote_id: number; insertados: number }> {

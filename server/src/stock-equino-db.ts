@@ -3,6 +3,7 @@ import type { StockGanaderoRowInput } from "./parse-stock-ganadero-txt.js";
 import { migrateAddCuentaIdColumn, getEmpresaCodigosActivosPorCuenta } from "./empresas-cuenta-db.js";
 import { labelCategoriaSalidaDispositivo } from "./stock-equina-categoria.js";
 import { dispositivoClave, eidClave, splitEidVid } from "./stock-ganadero-id.js";
+import * as stockFoto from "./stock-dispositivo-foto-db.js";
 
 export { dispositivoClave, eidClave, splitEidVid } from "./stock-ganadero-id.js";
 
@@ -123,6 +124,8 @@ export async function initStockEquinoTables(db: Db): Promise<void> {
   await migrateStockEquinoLoteCuenta(db);
   await migrateGrupoLibreColumn(db);
   await migrateBajaMetaColumns(db);
+  await stockFoto.migrateStockDispositivoFotoColumns(db, "equino");
+  await stockFoto.migrateStockDispositivoFotosGallery(db, "equino");
   await migrateFechasSlashLatam(db);
   await migrateStockEquinoDispositivoHistorial(db);
   await migrateHistorialAutorColumns(db);
@@ -683,6 +686,7 @@ async function enrichDispositivosWithMeta(
 ): Promise<StockEquinaDispositivo[]> {
   if (!dispositivos.length) return dispositivos;
   const meta = await mapMetaDispositivos(db);
+  const fotos = await stockFoto.mapStockDispositivoFotos(db, "equino");
   for (const d of dispositivos) {
     const info = meta.get(d.clave);
     d.sexo = info?.sexo ?? "";
@@ -698,6 +702,10 @@ async function enrichDispositivosWithMeta(
     d.numero_guia = info?.numero_guia ?? "";
     d.baja_mes = info?.baja_mes ?? null;
     d.baja_anio = info?.baja_anio ?? null;
+    const foto = fotos.get(d.clave);
+    d.tiene_foto = foto?.tiene_foto ?? false;
+    d.foto_url = foto?.foto_url ?? null;
+    d.foto_actualizado_en = foto?.foto_actualizado_en ?? "";
   }
   return dispositivos;
 }
@@ -2608,6 +2616,9 @@ export interface StockEquinaDispositivo {
   numero_guia: string;
   baja_mes: number | null;
   baja_anio: number | null;
+  tiene_foto: boolean;
+  foto_url: string | null;
+  foto_actualizado_en: string;
   primera_fecha: string;
   ultima_fecha: string;
   ultima_hora: string;
@@ -2774,6 +2785,9 @@ function buildDispositivosFromRegistros(
         numero_guia: "",
         baja_mes: null,
         baja_anio: null,
+        tiene_foto: false,
+        foto_url: null,
+        foto_actualizado_en: "",
         primera_fecha: r.fecha,
         ultima_fecha: r.fecha,
         ultima_hora: r.hora,

@@ -12,7 +12,8 @@ import SelectEmpresaDispositivo, {
   EMPRESA_PENDIENTE,
   type EmpresaSelectValue,
 } from "./SelectEmpresaDispositivo";
-import { EID_PREFIX_LEN, splitEidVid } from "./stock-ganadera-utils";
+import SelectRazaDispositivo from "./SelectRazaDispositivo";
+import { EID_PREFIX_LEN, normalizarRaza, splitEidVid } from "./stock-ganadera-utils";
 
 interface Props {
   apiOnline: boolean;
@@ -33,6 +34,7 @@ interface LecturaManual {
   fecha: string;
   hora: string;
   condicion: string;
+  raza: string;
 }
 
 interface FormLectura {
@@ -41,6 +43,7 @@ interface FormLectura {
   fecha: string;
   hora: string;
   condicion: string;
+  raza: string;
 }
 
 const COLUMNAS = ["EID", "VID", "Date", "Time", "Condición"] as const;
@@ -69,6 +72,7 @@ function formVacio(): FormLectura {
     fecha: fechaHoy(),
     hora: horaAhora(),
     condicion: "",
+    raza: "",
   };
 }
 
@@ -127,6 +131,7 @@ function lecturaDesdeForm(form: FormLectura): Omit<LecturaManual, "id"> | null {
     fecha: form.fecha,
     hora: form.hora.trim(),
     condicion: form.condicion.trim(),
+    raza: normalizarRaza(form.raza),
   };
 }
 
@@ -332,13 +337,14 @@ export default function StockGanaderoImportar({
 
   const importarPendientes = () => {
     void importarLecturas(
-      pendientes.map(({ empresa, eid, vid, fecha, hora, condicion }) => ({
+      pendientes.map(({ empresa, eid, vid, fecha, hora, condicion, raza }) => ({
         empresa,
         eid,
         vid,
         fecha,
         hora,
         condicion,
+        raza,
       }))
     );
   };
@@ -636,6 +642,21 @@ export default function StockGanaderoImportar({
                         disabled={!apiOnline || importing}
                       />
                     </div>
+                    <div className="field stock-import-field stock-import-field--raza">
+                      <label htmlFor={`${formId}-raza`}>Raza</label>
+                      <SelectRazaDispositivo
+                        id={`${formId}-raza`}
+                        value={form.raza}
+                        disabled={!apiOnline || importing}
+                        apiOnline={apiOnline}
+                        onError={onError}
+                        onSuccess={onSuccess}
+                        puedeEliminarRaza={Boolean(currentUser?.es_super_admin)}
+                        selectClassName="stock-import-raza-select"
+                        otraInputClassName="mayusculas-auto stock-import-raza-otra"
+                        onChange={(raza) => setForm((p) => ({ ...p, raza }))}
+                      />
+                    </div>
                   </div>
 
                   <div className="stock-import-form-actions">
@@ -681,6 +702,7 @@ export default function StockGanaderoImportar({
                             <th>Fecha</th>
                             <th>Hora</th>
                             <th>Condición</th>
+                            <th>Raza</th>
                             <th className="stock-th--sel" aria-label="Quitar" />
                           </tr>
                         </thead>
@@ -693,6 +715,7 @@ export default function StockGanaderoImportar({
                               <td>{row.fecha}</td>
                               <td>{row.hora || "—"}</td>
                               <td>{row.condicion || "—"}</td>
+                              <td>{row.raza || "—"}</td>
                               <td className="stock-td--sel">
                                 <button
                                   type="button"

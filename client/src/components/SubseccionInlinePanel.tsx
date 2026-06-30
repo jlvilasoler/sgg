@@ -5,6 +5,7 @@ interface Props {
   volverLabel?: string;
   title: string;
   description?: ReactNode;
+  headAside?: ReactNode;
   children: ReactNode;
   footer?: ReactNode;
   cardClassName?: string;
@@ -16,6 +17,7 @@ export default function SubseccionInlinePanel({
   volverLabel = "Volver",
   title,
   description,
+  headAside,
   children,
   footer,
   cardClassName = "",
@@ -28,11 +30,18 @@ export default function SubseccionInlinePanel({
       </button>
 
       <div className={`card subseccion-inline-card ${cardClassName}`.trim()}>
-        <div className="form-header subseccion-inline-head">
-          <div>
+        <div
+          className={`form-header subseccion-inline-head${
+            headAside ? " subseccion-inline-head--split" : ""
+          }`.trim()}
+        >
+          <div className="subseccion-inline-head-main">
             <h2>{title}</h2>
             {description ? <p className="muted">{description}</p> : null}
           </div>
+          {headAside ? (
+            <div className="subseccion-inline-head-aside">{headAside}</div>
+          ) : null}
         </div>
 
         {banner}

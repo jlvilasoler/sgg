@@ -288,6 +288,7 @@ export interface StockGanaderaDispositivo {
   empresa: DispositivoEmpresa;
   grupo: string;
   grupo_libre: string;
+  raza: string;
   edad: number | null;
   nacimiento_mes: number | null;
   nacimiento_anio: number | null;
@@ -303,6 +304,11 @@ export interface StockGanaderaDispositivo {
   ultima_condicion: string;
   total_lecturas: number;
   es_repetido: boolean;
+  cabana_premium: boolean;
+  nombre_cabana: string;
+  tiene_foto: boolean;
+  foto_url: string | null;
+  foto_actualizado_en?: string;
 }
 
 export interface StockGanaderaLecturaDetalle extends StockGanaderoRegistro {

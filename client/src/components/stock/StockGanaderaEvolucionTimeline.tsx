@@ -46,7 +46,6 @@ interface Props {
 interface FechasEvolucionProps {
   nacimientoMes: number | null;
   nacimientoAnio: number | null;
-  nacimientoLabel: string;
   estado?: DispositivoEstado;
   bajaMes?: number | null;
   bajaAnio?: number | null;
@@ -59,7 +58,6 @@ interface FechasEvolucionProps {
 function FechasEvolucion({
   nacimientoMes,
   nacimientoAnio,
-  nacimientoLabel,
   estado = "VIVO",
   bajaMes = null,
   bajaAnio = null,
@@ -69,74 +67,66 @@ function FechasEvolucion({
   bajaDisabled = false,
 }: FechasEvolucionProps) {
   const muestraBaja = requiereFechaBaja(estado);
-  const etiquetaBaja = etiquetaFechaBaja(estado);
   const mesBajaVida = useMemo(
     () => calcularMesesEntreFechas(nacimientoMes, nacimientoAnio, bajaMes, bajaAnio),
     [nacimientoMes, nacimientoAnio, bajaMes, bajaAnio]
   );
-  const bajaLabel = fmtNacimiento(bajaMes, bajaAnio);
   const aniosBaja = useMemo(() => listAniosNacimiento(), []);
+
+  if (!muestraBaja) return null;
+
+  const etiquetaBaja = etiquetaFechaBaja(estado);
+  const bajaLabel = fmtNacimiento(bajaMes, bajaAnio);
 
   return (
     <div className="stock-evolucion-fechas">
-      <div className="stock-evolucion-fechas-izq">
-        <p className="stock-evolucion-nacimiento">
-          Nacimiento: <strong>{nacimientoLabel}</strong>
-          <span className="stock-evolucion-nacimiento-sub"> · mes 0</span>
-        </p>
-      </div>
-
-      {muestraBaja && (
-        <div className="stock-evolucion-fechas-der">
-          {editandoBaja && onBajaMesChange && onBajaAnioChange ? (
-            <div className="stock-evolucion-baja-edit">
-              <span className="stock-evolucion-baja-label">{etiquetaBaja}:</span>
-              <select
-                className="stock-evolucion-baja-select"
-                value={bajaMes ?? ""}
-                disabled={bajaDisabled}
-                aria-label={`Mes de ${etiquetaBaja.toLowerCase()}`}
-                onChange={(e) =>
-                  onBajaMesChange(e.target.value ? Number(e.target.value) : null)
-                }
-              >
-                <option value="">Mes</option>
-                {MESES_NACIMIENTO.map((m) => (
-                  <option key={m.value} value={m.value}>
-                    {m.label}
-                  </option>
-                ))}
-              </select>
-              <select
-                className="stock-evolucion-baja-select stock-evolucion-baja-select--anio"
-                value={bajaAnio ?? ""}
-                disabled={bajaDisabled}
-                aria-label={`Año de ${etiquetaBaja.toLowerCase()}`}
-                onChange={(e) =>
-                  onBajaAnioChange(e.target.value ? Number(e.target.value) : null)
-                }
-              >
-                <option value="">Año</option>
-                {aniosBaja.map((y) => (
-                  <option key={y} value={y}>
-                    {y}
-                  </option>
-                ))}
-              </select>
-            </div>
-          ) : (
-            <p className="stock-evolucion-nacimiento stock-evolucion-baja-texto">
-              {etiquetaBaja}:{" "}
-              <strong>{bajaMes && bajaAnio ? bajaLabel : "—"}</strong>
-              {mesBajaVida !== null && (
-                <span className="stock-evolucion-nacimiento-sub">
-                  {" "}
-                  · mes {mesBajaVida}
-                </span>
-              )}
-            </p>
-          )}
+      {editandoBaja && onBajaMesChange && onBajaAnioChange ? (
+        <div className="stock-evolucion-baja-edit">
+          <span className="stock-evolucion-baja-label">{etiquetaBaja}:</span>
+          <select
+            className="stock-evolucion-baja-select"
+            value={bajaMes ?? ""}
+            disabled={bajaDisabled}
+            aria-label={`Mes de ${etiquetaBaja.toLowerCase()}`}
+            onChange={(e) =>
+              onBajaMesChange(e.target.value ? Number(e.target.value) : null)
+            }
+          >
+            <option value="">Mes</option>
+            {MESES_NACIMIENTO.map((m) => (
+              <option key={m.value} value={m.value}>
+                {m.label}
+              </option>
+            ))}
+          </select>
+          <select
+            className="stock-evolucion-baja-select stock-evolucion-baja-select--anio"
+            value={bajaAnio ?? ""}
+            disabled={bajaDisabled}
+            aria-label={`Año de ${etiquetaBaja.toLowerCase()}`}
+            onChange={(e) =>
+              onBajaAnioChange(e.target.value ? Number(e.target.value) : null)
+            }
+          >
+            <option value="">Año</option>
+            {aniosBaja.map((y) => (
+              <option key={y} value={y}>
+                {y}
+              </option>
+            ))}
+          </select>
         </div>
+      ) : (
+        <p className="stock-evolucion-nacimiento stock-evolucion-baja-texto">
+          {etiquetaBaja}:{" "}
+          <strong>{bajaMes && bajaAnio ? bajaLabel : "—"}</strong>
+          {mesBajaVida !== null && (
+            <span className="stock-evolucion-nacimiento-sub">
+              {" "}
+              · mes {mesBajaVida}
+            </span>
+          )}
+        </p>
       )}
     </div>
   );
@@ -283,7 +273,7 @@ function ChartEtapas({
                 <span className={`${pref}-card-titulo`}>{e.titulo}</span>
                 <span className={`${pref}-card-rango`}>{e.rango}</span>
                 {activa && (
-                  <span className={`${pref}-card-ahora`}>
+                  <span className={`${pref}-card-ahora stock-evo-card-ahora`}>
                     {enBaja ? etiquetaBaja : "Ahora"}
                   </span>
                 )}
@@ -312,8 +302,11 @@ function ChartEtapas({
                   : `${mesesPin} meses`
               }
             >
-              <span className={`${pref}-pin-dot`} />
-              <span className={`${pref}-pin-label`}>{mesesPin} m</span>
+              <span className={`${pref}-pin-dot stock-evo-pin-dot`} />
+              <span className={`${pref}-pin-label stock-evo-pin-label`} aria-live="polite">
+                <span className="stock-evo-pin-label-num">{mesesPin}</span>
+                <span className="stock-evo-pin-label-unit">m</span>
+              </span>
             </div>
           </div>
           <div className={`${pref}-campo`}>
@@ -463,10 +456,10 @@ function ChartGeneral({
                   : `${mesesPin} meses`
               }
             >
-              <span className="stock-evolucion-pointer-dot" />
-              <span className="stock-evolucion-pointer-tag">
-                {mesesPin}
-                <small>m</small>
+              <span className="stock-evolucion-pointer-dot stock-evo-pin-dot" />
+              <span className="stock-evolucion-pointer-tag stock-evo-pin-label" aria-live="polite">
+                <span className="stock-evo-pin-label-num">{mesesPin}</span>
+                <span className="stock-evo-pin-label-unit">m</span>
               </span>
             </div>
           </div>
@@ -507,7 +500,6 @@ export default function StockGanaderaEvolucionTimeline({
   const conEtapas = esMacho || esHembra;
   const sinFecha = !nacimientoMes || !nacimientoAnio || edadMeses === null;
 
-  const nacimientoLabel = fmtNacimiento(nacimientoMes, nacimientoAnio);
   const mesesPin = useMemo(
     () =>
       mesesReferenciaTimeline(
@@ -528,17 +520,18 @@ export default function StockGanaderaEvolucionTimeline({
 
   if (sinFecha) {
     return (
-      <section
-        className={`stock-evolucion ${claseSexo(sexo)} ${claseEstado(estado)}`}
-        aria-label="Línea de tiempo de evolución"
-      >
+      <div className="stock-edit-evolucion-card">
+        <section
+          className={`stock-evolucion ${claseSexo(sexo)} ${claseEstado(estado)}`}
+          aria-label="Línea de tiempo de evolución"
+        >
+        <h4 className="stock-evolucion-title">Evolución del animal</h4>
+        <div className="stock-edit-evolucion-body">
         <div className="stock-evolucion-head">
           <div className="stock-evolucion-head-main">
-            <h4 className="stock-evolucion-title">Evolución del animal</h4>
             <FechasEvolucion
               nacimientoMes={nacimientoMes}
               nacimientoAnio={nacimientoAnio}
-              nacimientoLabel={nacimientoLabel}
               estado={estado}
               bajaMes={bajaMes}
               bajaAnio={bajaAnio}
@@ -576,7 +569,9 @@ export default function StockGanaderaEvolucionTimeline({
             </>
           )}
         </div>
-      </section>
+        </div>
+        </section>
+      </div>
     );
   }
 
@@ -586,19 +581,20 @@ export default function StockGanaderaEvolucionTimeline({
     esHembra && mesesPin !== null ? etapaHembraDesdeMeses(mesesPin) : null;
 
   return (
-    <section
-      className={`stock-evolucion ${claseSexo(sexo)} ${claseEstado(estado)}${
-        conEtapas ? ` stock-evolucion--${esMacho ? "macho" : "hembra"}-etapas` : ""
-      }`}
-      aria-label="Línea de tiempo de evolución del animal"
-    >
+    <div className="stock-edit-evolucion-card">
+      <section
+        className={`stock-evolucion ${claseSexo(sexo)} ${claseEstado(estado)}${
+          conEtapas ? ` stock-evolucion--${esMacho ? "macho" : "hembra"}-etapas` : ""
+        }`}
+        aria-label="Línea de tiempo de evolución del animal"
+      >
+      <h4 className="stock-evolucion-title">Evolución del animal</h4>
+      <div className="stock-edit-evolucion-body">
       <div className="stock-evolucion-head">
         <div className="stock-evolucion-head-main">
-          <h4 className="stock-evolucion-title">Evolución del animal</h4>
           <FechasEvolucion
             nacimientoMes={nacimientoMes}
             nacimientoAnio={nacimientoAnio}
-            nacimientoLabel={nacimientoLabel}
             estado={estado}
             bajaMes={bajaMes}
             bajaAnio={bajaAnio}
@@ -634,6 +630,8 @@ export default function StockGanaderaEvolucionTimeline({
           />
         ) : null}
       </div>
-    </section>
+      </div>
+      </section>
+    </div>
   );
 }

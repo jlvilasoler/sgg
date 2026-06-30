@@ -9,6 +9,7 @@ export interface StockGanaderoRowInput {
   condicion: string;
   empresa?: string;
   sexo?: "MACHO" | "HEMBRA" | "";
+  raza?: string;
 }
 
 /** Convierte el sexo de exports (M/H) al formato interno. */

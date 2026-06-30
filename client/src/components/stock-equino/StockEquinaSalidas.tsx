@@ -7,6 +7,7 @@ import TablePagination, {
 } from "../TablePagination";
 import BadgeEstadoDispositivo from "../stock/BadgeEstadoDispositivo";
 import IconoDispositivoWifi from "../stock/IconoDispositivoWifi";
+import IconoSeleccionCabanaEstrella from "../stock/IconoSeleccionCabanaEstrella";
 import StockEquinaEdadMiniTimeline from "./StockEquinaEdadMiniTimeline";
 import StockEquinaEditarPanel from "./StockEquinaEditarModal";
 import {
@@ -18,15 +19,12 @@ import {
   listAniosNacimiento,
   MESES_NACIMIENTO,
 } from "./stock-equina-utils";
+import { fmtEmpresaOperativa } from "../stock/stock-empresa-utils";
 
 type FiltroEstado = "" | "MUERTO" | "VENDIDO" | "FRIGORIFICO" | "PERDIDO";
 
 function fmtSexo(sexo: StockEquinaDispositivo["sexo"]): string {
   return sexo || "—";
-}
-
-function fmtEmpresa(empresa: StockEquinaDispositivo["empresa"]): string {
-  return empresa || "—";
 }
 
 function claseCeldaSexo(sexo: StockEquinaDispositivo["sexo"]): string {
@@ -165,7 +163,25 @@ export default function StockEquinaSalidas({
         volverLabel="Volver a Salidas del sistema"
         onSaved={(actualizado) => {
           actualizarFila(actualizado);
-          setEditarDispositivo(null);
+          setEditarDispositivo(actualizado);
+        }}
+        onFotoMetaChange={(meta) => {
+          setEditarDispositivo((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  tiene_foto: meta.tiene_foto,
+                  foto_url: meta.foto_url,
+                  foto_actualizado_en: meta.foto_actualizado_en,
+                }
+              : prev
+          );
+          actualizarFila({
+            ...editarDispositivo,
+            tiene_foto: meta.tiene_foto,
+            foto_url: meta.foto_url,
+            foto_actualizado_en: meta.foto_actualizado_en,
+          });
         }}
         onVerHistorial={() => setEditarDispositivo(null)}
         onError={onError}
@@ -355,6 +371,11 @@ export default function StockEquinaSalidas({
           <table className="data-table stock-equina-table stock-table-pro stock-salidas-table">
             <thead>
               <tr>
+                <th
+                  className="stock-th stock-th--cabana"
+                  aria-label="Selección de cabaña"
+                  title="Selección de cabaña"
+                />
                 <th className="stock-th stock-th--num">EID</th>
                 <th className="stock-th">VID</th>
                 <th className="stock-th">Empresa</th>
@@ -369,19 +390,19 @@ export default function StockEquinaSalidas({
             <tbody>
               {mostrarCargaVacia ? (
                 <tr>
-                  <td colSpan={9} className="empty">
+                  <td colSpan={10} className="empty">
                     Cargando…
                   </td>
                 </tr>
               ) : !apiOnline ? (
                 <tr>
-                  <td colSpan={9} className="empty">
+                  <td colSpan={10} className="empty">
                     API no conectada
                   </td>
                 </tr>
               ) : rowsPagina.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="empty">
+                  <td colSpan={10} className="empty">
                     Sin salidas para los filtros aplicados.
                   </td>
                 </tr>
@@ -398,6 +419,11 @@ export default function StockEquinaSalidas({
                       key={d.clave}
                       className="stock-equina-row stock-table-pro-row stock-salidas-row"
                     >
+                      <td className="stock-td stock-td--cabana">
+                        {d.cabana_premium ? (
+                          <IconoSeleccionCabanaEstrella nombreCabana={d.nombre_cabana} />
+                        ) : null}
+                      </td>
                       <td className="stock-td stock-td--num stock-td--eid">
                         {d.eid || "—"}
                       </td>
@@ -415,7 +441,7 @@ export default function StockEquinaSalidas({
                         </span>
                       </td>
                       <td className="stock-td stock-td--muted">
-                        {fmtEmpresa(d.empresa)}
+                        {fmtEmpresaOperativa(d.empresa, empresas)}
                       </td>
                       <td className="stock-td stock-td--muted">
                         {fmtGrupo(d.grupo)}

@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
-import { saveStockGanaderaDispositivo, type EmpresaOperativaStock } from "../../api";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { saveCabanaSeleccion, saveStockGanaderaDispositivo, type EmpresaOperativaStock, type StockDispositivoFotoMeta } from "../../api";
 import { useHeaderBackStep } from "../../header-back";
 import type {
+  AuthUser,
   DispositivoEmpresa,
   DispositivoEstado,
   DispositivoSexo,
@@ -10,13 +11,16 @@ import type {
 import { fmtDate } from "../../utils";
 import SubseccionInlinePanel from "../SubseccionInlinePanel";
 import IconoDispositivoWifi from "./IconoDispositivoWifi";
+import IconoSeleccionCocarda from "./IconoSeleccionCocarda";
 import SelectEmpresaDispositivo, {
   EMPRESA_PENDIENTE,
 } from "./SelectEmpresaDispositivo";
 import SelectEstadoDispositivo from "./SelectEstadoDispositivo";
 import SelectGrupoDispositivo from "./SelectGrupoDispositivo";
+import SelectRazaDispositivo from "./SelectRazaDispositivo";
 import SelectSexoDispositivo from "./SelectSexoDispositivo";
 import StockGanaderaEvolucionTimeline from "./StockGanaderaEvolucionTimeline";
+import StockDispositivoFotoCard from "./StockDispositivoFotoCard";
 import StockGanaderaHistorialCambiosPanel from "./StockGanaderaHistorialCambiosPanel";
 import {
   buildGrupo,
@@ -25,6 +29,8 @@ import {
   MESES_NACIMIENTO,
   normalizarEstadoDispositivo,
   normalizarGrupoLibre,
+  normalizarRaza,
+  fmtRaza,
   requiereFechaBaja,
   resolverFechaBajaFormulario,
 } from "./stock-ganadera-utils";
@@ -33,22 +39,31 @@ interface Props {
   dispositivo: StockGanaderaDispositivo;
   empresas: EmpresaOperativaStock[];
   apiOnline: boolean;
+  currentUser?: AuthUser | null;
   onVolver: () => void;
   volverLabel?: string;
   onSaved: (actualizado: StockGanaderaDispositivo) => void;
+  onFotoMetaChange?: (meta: StockDispositivoFotoMeta) => void;
   onVerHistorial: () => void;
   onError: (msg: string) => void;
+  onSuccess?: (msg: string, title?: string) => void;
+  /** Al abrir desde VID: solo lectura hasta pulsar Editar. */
+  modoInicial?: "ver" | "editar";
 }
 
 export default function StockGanaderaEditarPanel({
   dispositivo,
   empresas,
   apiOnline,
+  currentUser,
   onVolver,
   volverLabel = "Volver a Stock Ganadero",
   onSaved,
+  onFotoMetaChange,
   onVerHistorial,
   onError,
+  onSuccess,
+  modoInicial = "ver",
 }: Props) {
   const [empresa, setEmpresa] = useState<DispositivoEmpresa>(
     dispositivo.empresa ?? ""
@@ -62,6 +77,9 @@ export default function StockGanaderaEditarPanel({
   );
   const [observaciones, setObservaciones] = useState(dispositivo.observaciones ?? "");
   const [grupoLibre, setGrupoLibre] = useState(dispositivo.grupo_libre ?? "");
+  const [raza, setRaza] = useState(dispositivo.raza ?? "");
+  const [nombreCabana, setNombreCabana] = useState(dispositivo.nombre_cabana ?? "");
+  const esCabanaPremium = Boolean(dispositivo.cabana_premium);
   const [estado, setEstado] = useState<DispositivoEstado>(
     normalizarEstadoDispositivo(dispositivo.estado)
   );
@@ -69,6 +87,39 @@ export default function StockGanaderaEditarPanel({
   const [bajaAnio, setBajaAnio] = useState<number | null>(dispositivo.baja_anio);
   const [guardando, setGuardando] = useState(false);
   const [verHistorialCambios, setVerHistorialCambios] = useState(false);
+  const [modoEdicion, setModoEdicion] = useState<"ver" | "editar">(modoInicial);
+  const soloLectura = modoEdicion === "ver";
+  const camposDeshabilitados = soloLectura || guardando || !apiOnline;
+
+  const restablecerDesdeDispositivo = useCallback((d: StockGanaderaDispositivo) => {
+    setEmpresa(d.empresa ?? "");
+    setSexo(d.sexo ?? "");
+    setNacimientoMes(d.nacimiento_mes);
+    setNacimientoAnio(d.nacimiento_anio);
+    setObservaciones(d.observaciones ?? "");
+    setGrupoLibre(d.grupo_libre ?? "");
+    setRaza(d.raza ?? "");
+    setNombreCabana(d.nombre_cabana ?? "");
+    setEstado(normalizarEstadoDispositivo(d.estado));
+    setBajaMes(d.baja_mes);
+    setBajaAnio(d.baja_anio);
+  }, []);
+
+  useEffect(() => {
+    setModoEdicion(modoInicial);
+    restablecerDesdeDispositivo(dispositivo);
+    // Solo al cambiar de dispositivo; no resetear por sync de foto u otros metadatos.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dispositivo.clave, modoInicial]);
+
+  const cancelarEdicion = () => {
+    if (modoEdicion === "editar" && modoInicial === "ver") {
+      restablecerDesdeDispositivo(dispositivo);
+      setModoEdicion("ver");
+      return;
+    }
+    onVolver();
+  };
 
   const backDestination =
     volverLabel.replace(/^Volver a /i, "").trim() || "Stock Ganadero";
@@ -102,42 +153,101 @@ export default function StockGanaderaEditarPanel({
     empresa !== (dispositivo.empresa ?? "") ||
     grupoActual !== (dispositivo.grupo ?? "").trim().toUpperCase() ||
     normalizarGrupoLibre(grupoLibre) !== normalizarGrupoLibre(dispositivo.grupo_libre ?? "") ||
+    normalizarRaza(raza) !== normalizarRaza(dispositivo.raza ?? "") ||
     sexo !== (dispositivo.sexo ?? "") ||
     nacimientoMes !== dispositivo.nacimiento_mes ||
     nacimientoAnio !== dispositivo.nacimiento_anio ||
     observaciones.trim() !== (dispositivo.observaciones ?? "").trim() ||
     estado !== normalizarEstadoDispositivo(dispositivo.estado) ||
     bajaMes !== dispositivo.baja_mes ||
-    bajaAnio !== dispositivo.baja_anio;
+    bajaAnio !== dispositivo.baja_anio ||
+    (esCabanaPremium &&
+      nombreCabana.trim() !== (dispositivo.nombre_cabana ?? "").trim());
+
+  const hayCambiosCabana =
+    esCabanaPremium &&
+    (nombreCabana.trim() !== (dispositivo.nombre_cabana ?? "").trim() ||
+      normalizarRaza(raza) !== normalizarRaza(dispositivo.raza ?? "") ||
+      observaciones.trim() !== (dispositivo.observaciones ?? "").trim());
 
   const guardar = async () => {
-    if (!apiOnline || guardando) return;
+    if (!apiOnline || guardando || soloLectura) return;
     if (!hayCambios) {
-      onVolver();
+      if (modoInicial === "ver") {
+        setModoEdicion("ver");
+      } else {
+        onVolver();
+      }
       return;
     }
 
     setGuardando(true);
     try {
-      const guardado = await saveStockGanaderaDispositivo(
-        dispositivo.clave,
-        {
-          sexo,
-          empresa,
-          grupo: grupoActual,
-          grupo_libre: normalizarGrupoLibre(grupoLibre),
-          nacimiento_mes: nacimientoMes,
-          nacimiento_anio: nacimientoAnio,
-          observaciones: observaciones.trim(),
-          estado,
-          baja_mes: requiereFechaBaja(estado) ? bajaMes : null,
-          baja_anio: requiereFechaBaja(estado) ? bajaAnio : null,
-        },
-        dispositivo.eid
-      );
+      if (esCabanaPremium && !nombreCabana.trim()) {
+        onError("Ingresá el nombre del animal de cabaña");
+        return;
+      }
 
-      onSaved({ ...dispositivo, ...guardado });
-      onVolver();
+      let guardado = dispositivo;
+      const cambiosFicha =
+        empresa !== (dispositivo.empresa ?? "") ||
+        grupoActual !== (dispositivo.grupo ?? "").trim().toUpperCase() ||
+        normalizarGrupoLibre(grupoLibre) !== normalizarGrupoLibre(dispositivo.grupo_libre ?? "") ||
+        normalizarRaza(raza) !== normalizarRaza(dispositivo.raza ?? "") ||
+        sexo !== (dispositivo.sexo ?? "") ||
+        nacimientoMes !== dispositivo.nacimiento_mes ||
+        nacimientoAnio !== dispositivo.nacimiento_anio ||
+        observaciones.trim() !== (dispositivo.observaciones ?? "").trim() ||
+        estado !== normalizarEstadoDispositivo(dispositivo.estado) ||
+        bajaMes !== dispositivo.baja_mes ||
+        bajaAnio !== dispositivo.baja_anio;
+
+      if (cambiosFicha) {
+        const data = await saveStockGanaderaDispositivo(
+          dispositivo.clave,
+          {
+            sexo,
+            empresa,
+            grupo: grupoActual,
+            grupo_libre: normalizarGrupoLibre(grupoLibre),
+            raza: normalizarRaza(raza),
+            nacimiento_mes: nacimientoMes,
+            nacimiento_anio: nacimientoAnio,
+            observaciones: observaciones.trim(),
+            estado,
+            baja_mes: requiereFechaBaja(estado) ? bajaMes : null,
+            baja_anio: requiereFechaBaja(estado) ? bajaAnio : null,
+          },
+          dispositivo.eid
+        );
+        guardado = { ...dispositivo, ...data };
+      }
+
+      if (hayCambiosCabana) {
+        await saveCabanaSeleccion([
+          {
+            clave: dispositivo.clave,
+            nombre_cabana: nombreCabana.trim(),
+            raza: normalizarRaza(raza),
+            observaciones: observaciones.trim(),
+          },
+        ]);
+        guardado = {
+          ...guardado,
+          cabana_premium: true,
+          nombre_cabana: nombreCabana.trim(),
+          raza: normalizarRaza(raza),
+          observaciones: observaciones.trim(),
+        };
+      }
+
+      onSaved(guardado);
+      restablecerDesdeDispositivo(guardado);
+      if (modoInicial === "ver") {
+        setModoEdicion("ver");
+      } else {
+        onVolver();
+      }
     } catch (e) {
       onError(e instanceof Error ? e.message : "Error al guardar");
     } finally {
@@ -153,7 +263,9 @@ export default function StockGanaderaEditarPanel({
         eid={dispositivo.eid}
         apiOnline={apiOnline}
         onVolver={() => setVerHistorialCambios(false)}
-        volverLabel="Volver a editar caravana"
+        volverLabel={
+          soloLectura ? "Volver al dispositivo" : "Volver a editar dispositivo"
+        }
         onError={onError}
       />
     );
@@ -163,18 +275,62 @@ export default function StockGanaderaEditarPanel({
     <SubseccionInlinePanel
       onVolver={onVolver}
       volverLabel={volverLabel}
-      title="Editar caravana"
-      description={
-        <>
-          EID <span className="num">{dispositivo.eid || "—"}</span>
-          {" · "}
-          VID <span className="num">{dispositivo.vid || "—"}</span>
-          {" · "}
-          Últ. lectura {fmtDate(dispositivo.ultima_fecha)}
-          {dispositivo.ultima_hora ? ` ${dispositivo.ultima_hora}` : ""}
-        </>
+      title={soloLectura ? "Dispositivo" : "Editar dispositivo"}
+      cardClassName={`subseccion-inline-card stock-ganadera-editar-page${
+        soloLectura ? " stock-ganadera-editar-page--solo-lectura" : ""
+      }`}
+      headAside={
+        <div className="stock-editar-head-panel" aria-label="Caravana electrónica">
+          <div className="stock-editar-head-device">
+            <span className="stock-editar-head-icon" aria-hidden>
+              <IconoDispositivoWifi className="stock-ganadera-editar-icon" />
+            </span>
+            <div className="stock-editar-head-chips">
+              <span className="stock-editar-head-chip stock-editar-head-chip--eid">
+                <span className="stock-editar-head-chip-k">EID</span>
+                <span className="stock-editar-head-chip-v num">{dispositivo.eid || "—"}</span>
+              </span>
+              <span className="stock-editar-head-chip stock-editar-head-chip--vid">
+                <span className="stock-editar-head-chip-k">VID</span>
+                <span className="stock-editar-head-chip-v num">{dispositivo.vid || "—"}</span>
+              </span>
+            </div>
+          </div>
+          <span className="stock-editar-head-divider" aria-hidden />
+          <div className="stock-editar-head-stats">
+            <span className="stock-editar-head-stat">
+              <span className="stock-editar-head-stat-k">Lecturas</span>
+              <span className="stock-editar-head-stat-v">
+                {dispositivo.total_lecturas}
+              </span>
+            </span>
+            <span className="stock-editar-head-stat">
+              <span className="stock-editar-head-stat-k">Última</span>
+              <span className="stock-editar-head-stat-v">
+                {fmtDate(dispositivo.ultima_fecha)}
+                {dispositivo.ultima_hora ? ` ${dispositivo.ultima_hora}` : ""}
+              </span>
+            </span>
+          </div>
+          {esCabanaPremium ? (
+            <div className="stock-editar-head-seleccion-mark">
+              <span
+                className="stock-editar-head-seleccion-star"
+                title="Animal de selección de cabaña"
+                aria-label="Animal de selección de cabaña"
+              >
+                <span aria-hidden>★</span>
+              </span>
+              {nombreCabana.trim() ? (
+                <span className="stock-edit-cabana-hero-tag stock-edit-cabana-hero-tag--gold stock-editar-head-pedigree">
+                  <IconoSeleccionCocarda />
+                  Selección · {nombreCabana.trim()}
+                </span>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
       }
-      cardClassName="subseccion-inline-card stock-ganadera-editar-page"
       footer={
         <div className="stock-ganadera-editar-page-foot">
           <div className="stock-ganadera-editar-footer-links">
@@ -196,66 +352,87 @@ export default function StockGanaderaEditarPanel({
             </button>
           </div>
           <div className="stock-ganadera-editar-footer-actions">
-            <button
-              type="button"
-              className="btn btn-ghost"
-              onClick={onVolver}
-              disabled={guardando}
-            >
-              Cancelar
-            </button>
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={() => void guardar()}
-              disabled={guardando || !apiOnline}
-            >
-              {guardando ? "Guardando…" : "Guardar cambios"}
-            </button>
+            {soloLectura ? (
+              <>
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  onClick={onVolver}
+                  disabled={guardando}
+                >
+                  Volver
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => setModoEdicion("editar")}
+                  disabled={guardando || !apiOnline}
+                >
+                  Editar
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  onClick={cancelarEdicion}
+                  disabled={guardando}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => void guardar()}
+                  disabled={guardando || !apiOnline}
+                >
+                  {guardando ? "Guardando…" : "Guardar cambios"}
+                </button>
+              </>
+            )}
           </div>
         </div>
       }
     >
-      <div className="stock-ganadera-editar-hero">
-        <div className="stock-ganadera-editar-hero-main">
-          <span className="stock-ganadera-editar-hero-icon" aria-hidden>
-            <IconoDispositivoWifi className="stock-ganadera-editar-icon" />
-          </span>
-          <div className="stock-ganadera-editar-hero-text">
-            <span className="stock-ganadera-editar-hero-kicker">Caravana electrónica</span>
-            <div className="stock-ganadera-editar-hero-ids">
-              <span className="stock-ganadera-editar-hero-badge num">
-                EID {dispositivo.eid || "—"}
-              </span>
-              <span className="stock-ganadera-editar-hero-badge stock-ganadera-editar-hero-badge--vid num">
-                {dispositivo.vid || "—"}
-              </span>
-            </div>
-            <p className="stock-ganadera-editar-hero-meta muted">
-              {dispositivo.total_lecturas} lectura
-              {dispositivo.total_lecturas === 1 ? "" : "s"} registrada
-              {dispositivo.total_lecturas === 1 ? "" : "s"}
-            </p>
-          </div>
-        </div>
-      </div>
-
       <div className="stock-ganadera-editar-page-body">
-        <section className="stock-ganadera-editar-panel" aria-label="Datos editables">
-            <h3 className="stock-ganadera-editar-section-title">Ficha del animal</h3>
+        <section
+          className="stock-ganadera-editar-panel"
+          aria-label={soloLectura ? "Ficha del dispositivo" : "Datos editables"}
+        >
+            <div
+              className={`stock-edit-ficha-card${
+                soloLectura ? " stock-edit-ficha-card--solo-lectura" : ""
+              }`}
+            >
+              <h3 className="stock-ganadera-editar-section-title">Ficha del animal</h3>
 
-            <div className="stock-ganadera-editar-grid">
-              <div className="stock-edit-row-4 stock-edit-field--full">
+              <div className="stock-ganadera-editar-grid">
+              <div className="stock-edit-row-4 stock-edit-row-4--seis stock-edit-field--full">
                 <div className="stock-edit-field stock-edit-field--empresa">
                   <label htmlFor="edit-ganadera-empresa">Empresa</label>
                   <SelectEmpresaDispositivo
                     id="edit-ganadera-empresa"
                     empresas={empresas}
                     value={empresa}
-                    disabled={guardando || !apiOnline}
+                    disabled={camposDeshabilitados}
                     onChange={(e) =>
                       setEmpresa(e === EMPRESA_PENDIENTE ? "" : (e as DispositivoEmpresa))
                     }
+                  />
+                </div>
+
+                <div className="stock-edit-field stock-edit-field--raza">
+                  <label htmlFor="edit-ganadera-raza">Raza</label>
+                  <SelectRazaDispositivo
+                    id="edit-ganadera-raza"
+                    value={raza}
+                    disabled={camposDeshabilitados}
+                    apiOnline={apiOnline}
+                    onError={onError}
+                    onSuccess={onSuccess}
+                    puedeEliminarRaza={!soloLectura && Boolean(currentUser?.es_super_admin)}
+                    onChange={setRaza}
                   />
                 </div>
 
@@ -264,7 +441,7 @@ export default function StockGanaderaEditarPanel({
                   <SelectSexoDispositivo
                     id="edit-ganadera-sexo"
                     value={sexo}
-                    disabled={guardando || !apiOnline}
+                    disabled={camposDeshabilitados}
                     onChange={setSexo}
                   />
                 </div>
@@ -278,7 +455,7 @@ export default function StockGanaderaEditarPanel({
                     id="edit-ganadera-nac-mes"
                     className="stock-nacimiento-mes stock-edit-select"
                     value={nacimientoMes ?? ""}
-                    disabled={guardando || !apiOnline}
+                    disabled={camposDeshabilitados}
                     onChange={(e) =>
                       setNacimientoMes(
                         e.target.value ? Number(e.target.value) : null
@@ -300,7 +477,7 @@ export default function StockGanaderaEditarPanel({
                     id="edit-ganadera-nac-anio"
                     className="stock-nacimiento-anio stock-edit-select"
                     value={nacimientoAnio ?? ""}
-                    disabled={guardando || !apiOnline}
+                    disabled={camposDeshabilitados}
                     onChange={(e) =>
                       setNacimientoAnio(
                         e.target.value ? Number(e.target.value) : null
@@ -315,83 +492,137 @@ export default function StockGanaderaEditarPanel({
                     ))}
                   </select>
                 </div>
-              </div>
 
-              <div className="stock-edit-row-3 stock-edit-field--full">
-              <div className="stock-edit-field stock-edit-field--edad">
-                <label htmlFor="edit-ganadera-edad">Edad calculada</label>
-                <div
-                  id="edit-ganadera-edad"
-                  className={`stock-edit-edad-card${
-                    edadMeses === null ? " stock-edit-edad-card--empty" : ""
-                  }`}
-                >
-                  {edadMeses === null ? (
-                    <>
-                      <span className="stock-edit-edad-empty-title">
-                        Sin fecha de nacimiento
-                      </span>
-                      <span className="stock-edit-edad-empty-hint">
-                        Elegí mes y año para calcular
-                      </span>
-                    </>
-                  ) : (
-                    <>
-                      <span className="stock-edit-edad-num">{edadMeses}</span>
-                      <span className="stock-edit-edad-unit">meses</span>
-                    </>
-                  )}
+                <div className="stock-edit-field stock-edit-field--grupo-libre">
+                  <label htmlFor="edit-ganadera-grupo-libre">Grupo</label>
+                  <input
+                    id="edit-ganadera-grupo-libre"
+                    type="text"
+                    className="stock-observaciones-input mayusculas-auto"
+                    maxLength={48}
+                    placeholder="INGRESA GRUPO"
+                    value={grupoLibre}
+                    readOnly={soloLectura}
+                    disabled={!soloLectura && camposDeshabilitados}
+                    onChange={(e) => setGrupoLibre(normalizarGrupoLibre(e.target.value))}
+                  />
                 </div>
               </div>
 
-              <div className="stock-edit-field stock-edit-field--grupo">
-                <label htmlFor="edit-ganadera-grupo">Generación</label>
-                <SelectGrupoDispositivo
-                  id="edit-ganadera-grupo"
-                  anio={nacimientoAnio}
-                  disabled={guardando || !apiOnline}
-                />
+              <div className="stock-edit-ficha-meta stock-edit-field--full">
+                <div className="stock-edit-ficha-meta-core">
+                  <div className="stock-edit-field stock-edit-field--edad stock-edit-field--edad-featured">
+                    <label htmlFor="edit-ganadera-edad">Edad calculada</label>
+                    <div
+                      id="edit-ganadera-edad"
+                      className={`stock-edit-edad-card${
+                        edadMeses === null ? " stock-edit-edad-card--empty" : ""
+                      }`}
+                    >
+                      {edadMeses === null ? (
+                        <span className="stock-edit-edad-empty-title">Sin fecha</span>
+                      ) : (
+                        <>
+                          <span className="stock-edit-edad-num">{edadMeses}</span>
+                          <span className="stock-edit-edad-unit">meses</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="stock-edit-field stock-edit-field--grupo stock-edit-field--compact">
+                    <label htmlFor="edit-ganadera-grupo">Generación</label>
+                    <SelectGrupoDispositivo
+                      id="edit-ganadera-grupo"
+                      anio={nacimientoAnio}
+                      disabled={camposDeshabilitados}
+                    />
+                  </div>
+
+                  <div className="stock-edit-field stock-edit-field--estado stock-edit-field--compact">
+                    <label htmlFor="edit-ganadera-estado">Estado</label>
+                    <SelectEstadoDispositivo
+                      id="edit-ganadera-estado"
+                      value={estado}
+                      disabled={camposDeshabilitados}
+                      onChange={setEstado}
+                    />
+                  </div>
+                </div>
+
+                {esCabanaPremium ? (
+                  <div
+                    className="stock-edit-cabana-premium-box stock-edit-cabana-premium-box--gold"
+                    aria-label="Datos de selección"
+                  >
+                    <span className="stock-edit-cabana-premium-tag">
+                      <IconoSeleccionCocarda />
+                      SELECCIÓN
+                    </span>
+                    <div className="stock-edit-cabana-premium-fields">
+                      <label className="stock-edit-cabana-inline-field stock-edit-cabana-inline-field--nombre">
+                        <span className="stock-edit-cabana-inline-label">Nombre</span>
+                        <input
+                          id="edit-ganadera-cabana-nombre"
+                          type="text"
+                          className="stock-edit-cabana-input mayusculas-auto"
+                          maxLength={64}
+                          placeholder="Selección, puro por cruza…"
+                          value={nombreCabana}
+                          readOnly={soloLectura}
+                          disabled={!soloLectura && camposDeshabilitados}
+                          onChange={(e) => setNombreCabana(e.target.value)}
+                        />
+                      </label>
+                      <span
+                        className="stock-edit-cabana-inline-field stock-edit-cabana-inline-field--ro"
+                        title="Editá en el selector Raza de la ficha"
+                      >
+                        <span className="stock-edit-cabana-inline-label">Raza</span>
+                        <span className="stock-edit-cabana-inline-val">{fmtRaza(raza)}</span>
+                      </span>
+                      <span
+                        className="stock-edit-cabana-inline-field stock-edit-cabana-inline-field--ro"
+                        title="Editá en Observaciones al final del formulario"
+                      >
+                        <span className="stock-edit-cabana-inline-label">Obs.</span>
+                        <span className="stock-edit-cabana-inline-val stock-edit-cabana-inline-val--obs">
+                          {observaciones.trim() || "—"}
+                        </span>
+                      </span>
+                    </div>
+                  </div>
+                ) : null}
               </div>
 
-              <div className="stock-edit-field">
-                <label htmlFor="edit-ganadera-grupo-libre">Grupo</label>
-                <input
-                  id="edit-ganadera-grupo-libre"
-                  type="text"
-                  className="stock-observaciones-input mayusculas-auto"
-                  maxLength={48}
-                  placeholder="Texto libre (letras y números)…"
-                  value={grupoLibre}
-                  disabled={guardando || !apiOnline}
-                  onChange={(e) => setGrupoLibre(normalizarGrupoLibre(e.target.value))}
-                />
-              </div>
-
-              <div className="stock-edit-field stock-edit-field--estado">
-                <label htmlFor="edit-ganadera-estado">Estado</label>
-                <SelectEstadoDispositivo
-                  id="edit-ganadera-estado"
-                  value={estado}
-                  disabled={guardando || !apiOnline}
-                  onChange={setEstado}
-                />
-              </div>
-              </div>
+            </div>
             </div>
 
-            <StockGanaderaEvolucionTimeline
-              nacimientoMes={nacimientoMes}
-              nacimientoAnio={nacimientoAnio}
-              edadMeses={edadMeses}
-              sexo={sexo}
-              estado={estado}
-              bajaMes={bajaMes}
-              bajaAnio={bajaAnio}
-              editandoBaja
-              bajaDisabled={guardando || !apiOnline}
-              onBajaMesChange={setBajaMes}
-              onBajaAnioChange={setBajaAnio}
-            />
+            <div className="stock-edit-evolucion-row">
+              <StockDispositivoFotoCard
+                modulo="ganadero"
+                clave={dispositivo.clave}
+                soloLectura={soloLectura}
+                disabled={!soloLectura && (guardando || !apiOnline)}
+                onChange={(meta) => {
+                  onFotoMetaChange?.(meta);
+                }}
+                onError={onError}
+              />
+              <StockGanaderaEvolucionTimeline
+                nacimientoMes={nacimientoMes}
+                nacimientoAnio={nacimientoAnio}
+                edadMeses={edadMeses}
+                sexo={sexo}
+                estado={estado}
+                bajaMes={bajaMes}
+                bajaAnio={bajaAnio}
+                editandoBaja={!soloLectura}
+                bajaDisabled={camposDeshabilitados}
+                onBajaMesChange={setBajaMes}
+                onBajaAnioChange={setBajaAnio}
+              />
+            </div>
 
             <div className="stock-edit-field stock-edit-field--observaciones">
               <label htmlFor="edit-ganadera-obs">
@@ -405,11 +636,12 @@ export default function StockGanaderaEditarPanel({
                 maxLength={2000}
                 placeholder="Notas manuales sobre la caravana…"
                 value={observaciones}
-                disabled={guardando || !apiOnline}
+                readOnly={soloLectura}
+                disabled={!soloLectura && camposDeshabilitados}
                 onChange={(e) => setObservaciones(e.target.value)}
               />
             </div>
-          </section>
+        </section>
       </div>
     </SubseccionInlinePanel>
   );

@@ -4,6 +4,7 @@ import { migrateAddCuentaIdColumn, getEmpresaCodigosActivosPorCuenta } from "./e
 import { listClavesDispositivosEnVentasCerradas } from "./simulador-venta-dispositivos-db.js";
 import { labelCategoriaSalidaDispositivo } from "./stock-ganadera-categoria.js";
 import { dispositivoClave, eidClave, splitEidVid } from "./stock-ganadero-id.js";
+import * as stockFoto from "./stock-dispositivo-foto-db.js";
 
 export { dispositivoClave, eidClave, splitEidVid } from "./stock-ganadero-id.js";
 
@@ -88,7 +89,7 @@ function appendRegistroFilters(
     params.busqueda = `%${filters.busqueda.trim()}%`;
   }
   if (filters?.cuenta_id != null) {
-    sql += ` AND ${p}lote_id IN (SELECT id FROM STOCK_GANADERO_LOTE WHERE cuenta_id = @cuenta_id)`;
+    sql += ` AND ${p}lote_id IN (SELECT id FROM STOCK_GANADERO_LOTE WHERE cuenta_id = @cuenta_id OR cuenta_id IS NULL)`;
     params.cuenta_id = filters.cuenta_id;
   }
   return sql;
@@ -123,6 +124,11 @@ export async function initStockGanaderoTables(db: Db): Promise<void> {
   await migrateStockGanaderoLoteCuenta(db);
   await migrateGrupoLibreColumn(db);
   await migrateBajaMetaColumns(db);
+  await migrateCabanaColumns(db);
+  await migrateRazaColumn(db);
+  await migrateRazaCatalogTable(db);
+  await stockFoto.migrateStockDispositivoFotoColumns(db, "ganadero");
+  await stockFoto.migrateStockDispositivoFotosGallery(db, "ganadero");
   await migrateFechasSlashLatam(db);
   await migrateStockGanaderoDispositivoHistorial(db);
   await migrateHistorialAutorColumns(db);
@@ -130,6 +136,146 @@ export async function initStockGanaderoTables(db: Db): Promise<void> {
 
 async function migrateStockGanaderoLoteCuenta(db: Db): Promise<void> {
   await migrateAddCuentaIdColumn(db, "STOCK_GANADERO_LOTE");
+}
+
+async function migrateBajaMetaColumns(db: Db): Promise<void> {
+  const done = (await db
+    .prepare(
+      `SELECT 1 AS ok FROM STOCK_GANADERO_DISPOSITIVO_HISTORIAL
+       WHERE clave = '__meta__' AND campo = 'baja_meta_cols' LIMIT 1`
+    )
+    .get()) as { ok: number } | undefined;
+  if (done) return;
+
+  for (const col of [
+    `ALTER TABLE STOCK_GANADERO_DISPOSITIVO ADD COLUMN tipo_baja TEXT NOT NULL DEFAULT ''`,
+    `ALTER TABLE STOCK_GANADERO_DISPOSITIVO ADD COLUMN numero_guia TEXT NOT NULL DEFAULT ''`,
+  ]) {
+    try {
+      await db.prepare(col).run();
+    } catch {
+      /* columna ya existe */
+    }
+  }
+
+  await db
+    .prepare(
+      `INSERT INTO STOCK_GANADERO_DISPOSITIVO_HISTORIAL
+         (clave, campo, etiqueta, valor_anterior, valor_nuevo)
+       VALUES ('__meta__', 'baja_meta_cols', '', '', '')`
+    )
+    .run();
+}
+
+async function migrateCabanaColumns(db: Db): Promise<void> {
+  const done = (await db
+    .prepare(
+      `SELECT 1 AS ok FROM STOCK_GANADERO_DISPOSITIVO_HISTORIAL
+       WHERE clave = '__meta__' AND campo = 'cabana_cols' LIMIT 1`
+    )
+    .get()) as { ok: number } | undefined;
+  if (done) return;
+
+  for (const col of [
+    `ALTER TABLE STOCK_GANADERO_DISPOSITIVO ADD COLUMN cabana_premium INTEGER NOT NULL DEFAULT 0`,
+    `ALTER TABLE STOCK_GANADERO_DISPOSITIVO ADD COLUMN nombre_cabana TEXT NOT NULL DEFAULT ''`,
+  ]) {
+    try {
+      await db.prepare(col).run();
+    } catch {
+      /* columna ya existe */
+    }
+  }
+
+  await db
+    .prepare(
+      `INSERT INTO STOCK_GANADERO_DISPOSITIVO_HISTORIAL
+         (clave, campo, etiqueta, valor_anterior, valor_nuevo)
+       VALUES ('__meta__', 'cabana_cols', '', '', '')`
+    )
+    .run();
+}
+
+async function migrateRazaColumn(db: Db): Promise<void> {
+  const done = (await db
+    .prepare(
+      `SELECT 1 AS ok FROM STOCK_GANADERO_DISPOSITIVO_HISTORIAL
+       WHERE clave = '__meta__' AND campo = 'raza_col' LIMIT 1`
+    )
+    .get()) as { ok: number } | undefined;
+  if (done) return;
+
+  try {
+    await db
+      .prepare(
+        `ALTER TABLE STOCK_GANADERO_DISPOSITIVO ADD COLUMN raza TEXT NOT NULL DEFAULT ''`
+      )
+      .run();
+  } catch {
+    /* columna ya existe */
+  }
+
+  await db
+    .prepare(
+      `INSERT INTO STOCK_GANADERO_DISPOSITIVO_HISTORIAL
+         (clave, campo, etiqueta, valor_anterior, valor_nuevo)
+       VALUES ('__meta__', 'raza_col', '', '', '')`
+    )
+    .run();
+}
+
+const RAZAS_CATALOGO_INICIALES = ["HEREFORD", "ANGUS", "CARETA", "CRUZA"] as const;
+
+async function migrateRazaCatalogTable(db: Db): Promise<void> {
+  const done = (await db
+    .prepare(
+      `SELECT 1 AS ok FROM STOCK_GANADERO_DISPOSITIVO_HISTORIAL
+       WHERE clave = '__meta__' AND campo = 'raza_catalog_v1' LIMIT 1`
+    )
+    .get()) as { ok: number } | undefined;
+
+  await db
+    .prepare(
+      `CREATE TABLE IF NOT EXISTS STOCK_GANADERO_RAZA (
+         nombre TEXT PRIMARY KEY,
+         creado_en TIMESTAMPTZ DEFAULT NOW()
+       )`
+    )
+    .run();
+
+  if (done) return;
+
+  for (const nombre of RAZAS_CATALOGO_INICIALES) {
+    await db
+      .prepare(
+        `INSERT INTO STOCK_GANADERO_RAZA (nombre) VALUES (?) ON CONFLICT(nombre) DO NOTHING`
+      )
+      .run(nombre);
+  }
+
+  const usadas = (await db
+    .prepare(
+      `SELECT DISTINCT raza FROM STOCK_GANADERO_DISPOSITIVO
+       WHERE raza IS NOT NULL AND TRIM(raza) <> ''`
+    )
+    .all()) as { raza: string }[];
+  for (const row of usadas) {
+    const nombre = normalizarRaza(row.raza);
+    if (!nombre) continue;
+    await db
+      .prepare(
+        `INSERT INTO STOCK_GANADERO_RAZA (nombre) VALUES (?) ON CONFLICT(nombre) DO NOTHING`
+      )
+      .run(nombre);
+  }
+
+  await db
+    .prepare(
+      `INSERT INTO STOCK_GANADERO_DISPOSITIVO_HISTORIAL
+         (clave, campo, etiqueta, valor_anterior, valor_nuevo)
+       VALUES ('__meta__', 'raza_catalog_v1', '', '', '')`
+    )
+    .run();
 }
 
 async function migrateHistorialAutorColumns(db: Db): Promise<void> {
@@ -159,35 +305,6 @@ async function migrateHistorialAutorColumns(db: Db): Promise<void> {
       `INSERT INTO STOCK_GANADERO_DISPOSITIVO_HISTORIAL
          (clave, campo, etiqueta, valor_anterior, valor_nuevo)
        VALUES ('__meta__', 'historial_autor_v1', '', '', '')`
-    )
-    .run();
-}
-
-async function migrateBajaMetaColumns(db: Db): Promise<void> {
-  const done = (await db
-    .prepare(
-      `SELECT 1 AS ok FROM STOCK_GANADERO_DISPOSITIVO_HISTORIAL
-       WHERE clave = '__meta__' AND campo = 'baja_meta_cols' LIMIT 1`
-    )
-    .get()) as { ok: number } | undefined;
-  if (done) return;
-
-  for (const col of [
-    `ALTER TABLE STOCK_GANADERO_DISPOSITIVO ADD COLUMN tipo_baja TEXT NOT NULL DEFAULT ''`,
-    `ALTER TABLE STOCK_GANADERO_DISPOSITIVO ADD COLUMN numero_guia TEXT NOT NULL DEFAULT ''`,
-  ]) {
-    try {
-      await db.prepare(col).run();
-    } catch {
-      /* columna ya existe */
-    }
-  }
-
-  await db
-    .prepare(
-      `INSERT INTO STOCK_GANADERO_DISPOSITIVO_HISTORIAL
-         (clave, campo, etiqueta, valor_anterior, valor_nuevo)
-       VALUES ('__meta__', 'baja_meta_cols', '', '', '')`
     )
     .run();
 }
@@ -466,11 +583,22 @@ function normalizarGrupoLibre(val: string | undefined | null): string {
     .slice(0, GRUPO_LIBRE_MAX);
 }
 
+const RAZA_MAX = 32;
+
+function normalizarRaza(val: string | undefined | null): string {
+  return String(val ?? "")
+    .trim()
+    .replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑüÜ\s]/g, "")
+    .slice(0, RAZA_MAX)
+    .toUpperCase();
+}
+
 export interface DispositivoMetaInput {
   sexo: DispositivoSexo;
   empresa: DispositivoEmpresa;
   grupo: string;
   grupo_libre: string;
+  raza: string;
   nacimiento_mes: number | null;
   nacimiento_anio: number | null;
   observaciones: string;
@@ -512,6 +640,7 @@ interface DispositivoMetaRow {
   empresa: string;
   grupo: string;
   grupo_libre: string;
+  raza: string;
   edad: number | null;
   nacimiento_mes: number | null;
   nacimiento_anio: number | null;
@@ -521,6 +650,38 @@ interface DispositivoMetaRow {
   numero_guia: string;
   baja_mes: number | null;
   baja_anio: number | null;
+  cabana_premium?: number | boolean | null;
+  nombre_cabana?: string | null;
+}
+
+const NOMBRE_CABANA_MAX = 64;
+
+function normalizarNombreCabana(val: string | undefined | null): string {
+  return String(val ?? "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .slice(0, NOMBRE_CABANA_MAX);
+}
+
+function cabanaPremiumFromRow(val: number | boolean | null | undefined): boolean {
+  if (val === true || val === 1) return true;
+  return false;
+}
+
+async function mapCabanaDispositivos(
+  db: Db
+): Promise<Map<string, { cabana_premium: boolean; nombre_cabana: string }>> {
+  const rows = (await db
+    .prepare(`SELECT clave, cabana_premium, nombre_cabana FROM STOCK_GANADERO_DISPOSITIVO`)
+    .all()) as Pick<DispositivoMetaRow, "clave" | "cabana_premium" | "nombre_cabana">[];
+  const map = new Map<string, { cabana_premium: boolean; nombre_cabana: string }>();
+  for (const row of rows) {
+    map.set(row.clave, {
+      cabana_premium: cabanaPremiumFromRow(row.cabana_premium),
+      nombre_cabana: normalizarNombreCabana(row.nombre_cabana),
+    });
+  }
+  return map;
 }
 
 async function mapMetaDispositivos(
@@ -528,7 +689,7 @@ async function mapMetaDispositivos(
 ): Promise<Map<string, DispositivoMetaGuardada>> {
   const rows = (await db
     .prepare(
-      `SELECT clave, sexo, empresa, grupo, grupo_libre, edad, nacimiento_mes, nacimiento_anio, observaciones, estado, tipo_baja, numero_guia, baja_mes, baja_anio
+      `SELECT clave, sexo, empresa, grupo, grupo_libre, raza, edad, nacimiento_mes, nacimiento_anio, observaciones, estado, tipo_baja, numero_guia, baja_mes, baja_anio
        FROM STOCK_GANADERO_DISPOSITIVO`
     )
     .all()) as DispositivoMetaRow[];
@@ -585,6 +746,7 @@ function normalizarMetaDispositivo(row: Partial<DispositivoMetaRow>): Dispositiv
     empresa,
     grupo,
     grupo_libre: normalizarGrupoLibre(row.grupo_libre),
+    raza: normalizarRaza(row.raza),
     nacimiento_mes: mes,
     nacimiento_anio: anio,
     observaciones: String(row.observaciones ?? "").trim(),
@@ -602,12 +764,15 @@ async function enrichDispositivosWithMeta(
 ): Promise<StockGanaderaDispositivo[]> {
   if (!dispositivos.length) return dispositivos;
   const meta = await mapMetaDispositivos(db);
+  const cabana = await mapCabanaDispositivos(db);
+  const fotos = await stockFoto.mapStockDispositivoFotos(db, "ganadero");
   for (const d of dispositivos) {
     const info = meta.get(d.clave);
     d.sexo = info?.sexo ?? "";
     d.empresa = info?.empresa ?? "";
     d.grupo = info?.grupo ?? "";
     d.grupo_libre = info?.grupo_libre ?? "";
+    d.raza = info?.raza ?? "";
     d.edad = info?.edad ?? null;
     d.nacimiento_mes = info?.nacimiento_mes ?? null;
     d.nacimiento_anio = info?.nacimiento_anio ?? null;
@@ -617,6 +782,13 @@ async function enrichDispositivosWithMeta(
     d.numero_guia = info?.numero_guia ?? "";
     d.baja_mes = info?.baja_mes ?? null;
     d.baja_anio = info?.baja_anio ?? null;
+    const cab = cabana.get(d.clave);
+    d.cabana_premium = cab?.cabana_premium ?? false;
+    d.nombre_cabana = cab?.nombre_cabana ?? "";
+    const foto = fotos.get(d.clave);
+    d.tiene_foto = foto?.tiene_foto ?? false;
+    d.foto_url = foto?.foto_url ?? null;
+    d.foto_actualizado_en = foto?.foto_actualizado_en ?? "";
   }
   return dispositivos;
 }
@@ -719,6 +891,7 @@ export async function saveStockGanaderaDispositivo(
   const edad = calcularEdadMeses(nacimiento.nacimiento_mes, nacimiento.nacimiento_anio);
   const observaciones = String(input.observaciones ?? "").trim().slice(0, 2000);
   const grupo_libre = normalizarGrupoLibre(input.grupo_libre);
+  const raza = normalizarRaza(input.raza);
   const estadoRaw = String(input.estado ?? "VIVO").toUpperCase();
   if (!ESTADOS_VALIDOS.has(estadoRaw as DispositivoEstado)) {
     throw new Error("Estado inválido. Use VIVO, MUERTO, VENDIDO, FRIGORIFICO o PERDIDO.");
@@ -749,7 +922,7 @@ export async function saveStockGanaderaDispositivo(
 
   const anteriorRow = (await db
     .prepare(
-      `SELECT sexo, empresa, grupo, grupo_libre, nacimiento_mes, nacimiento_anio, observaciones, estado, tipo_baja, numero_guia, baja_mes, baja_anio
+      `SELECT sexo, empresa, grupo, grupo_libre, raza, nacimiento_mes, nacimiento_anio, observaciones, estado, tipo_baja, numero_guia, baja_mes, baja_anio
        FROM STOCK_GANADERO_DISPOSITIVO WHERE clave = ?`
     )
     .get(claveNorm)) as Partial<DispositivoMetaRow> | undefined;
@@ -761,6 +934,7 @@ export async function saveStockGanaderaDispositivo(
     empresa,
     grupo,
     grupo_libre,
+    raza,
     nacimiento_mes: nacimiento.nacimiento_mes,
     nacimiento_anio: nacimiento.nacimiento_anio,
     observaciones,
@@ -774,9 +948,9 @@ export async function saveStockGanaderaDispositivo(
 
   await db.prepare(
     `INSERT INTO STOCK_GANADERO_DISPOSITIVO (
-       clave, eid, sexo, empresa, grupo, grupo_libre, edad, nacimiento_mes, nacimiento_anio, observaciones, estado, tipo_baja, numero_guia, baja_mes, baja_anio, actualizado_en
+       clave, eid, sexo, empresa, grupo, grupo_libre, raza, edad, nacimiento_mes, nacimiento_anio, observaciones, estado, tipo_baja, numero_guia, baja_mes, baja_anio, actualizado_en
      ) VALUES (
-       @clave, @eid, @sexo, @empresa, @grupo, @grupo_libre, @edad, @nacimiento_mes, @nacimiento_anio, @observaciones, @estado, @tipo_baja, @numero_guia, @baja_mes, @baja_anio,
+       @clave, @eid, @sexo, @empresa, @grupo, @grupo_libre, @raza, @edad, @nacimiento_mes, @nacimiento_anio, @observaciones, @estado, @tipo_baja, @numero_guia, @baja_mes, @baja_anio,
        datetime('now', 'localtime')
      )
      ON CONFLICT(clave) DO UPDATE SET
@@ -784,6 +958,7 @@ export async function saveStockGanaderaDispositivo(
        empresa = excluded.empresa,
        grupo = excluded.grupo,
        grupo_libre = excluded.grupo_libre,
+       raza = excluded.raza,
        edad = excluded.edad,
        nacimiento_mes = excluded.nacimiento_mes,
        nacimiento_anio = excluded.nacimiento_anio,
@@ -802,6 +977,7 @@ export async function saveStockGanaderaDispositivo(
     empresa,
     grupo,
     grupo_libre,
+    raza,
     edad,
     nacimiento_mes: nacimiento.nacimiento_mes,
     nacimiento_anio: nacimiento.nacimiento_anio,
@@ -820,6 +996,7 @@ export async function saveStockGanaderaDispositivo(
     empresa,
     grupo,
     grupo_libre,
+    raza,
     edad,
     nacimiento_mes: nacimiento.nacimiento_mes,
     nacimiento_anio: nacimiento.nacimiento_anio,
@@ -848,6 +1025,7 @@ function mergeMetaConPatch(
     empresa: prev?.empresa ?? "",
     grupo: prev?.grupo ?? "",
     grupo_libre: prev?.grupo_libre ?? "",
+    raza: prev?.raza ?? "",
     nacimiento_mes: prev?.nacimiento_mes ?? null,
     nacimiento_anio: prev?.nacimiento_anio ?? null,
     observaciones: prev?.observaciones ?? "",
@@ -860,6 +1038,7 @@ function mergeMetaConPatch(
   if (patch.sexo !== undefined) merged.sexo = patch.sexo;
   if (patch.empresa !== undefined) merged.empresa = patch.empresa;
   if (patch.grupo_libre !== undefined) merged.grupo_libre = patch.grupo_libre;
+  if (patch.raza !== undefined) merged.raza = patch.raza;
   if (patch.nacimiento_mes !== undefined) merged.nacimiento_mes = patch.nacimiento_mes;
   if (patch.nacimiento_anio !== undefined) merged.nacimiento_anio = patch.nacimiento_anio;
   if (patch.observaciones !== undefined) merged.observaciones = patch.observaciones;
@@ -1020,6 +1199,7 @@ interface StockGanaderaBackupPayload {
     empresa: string;
     grupo: string;
     grupo_libre: string;
+    raza: string;
     edad: number | null;
     nacimiento_mes: number | null;
     nacimiento_anio: number | null;
@@ -1121,7 +1301,7 @@ async function gatherBackupPayloadForCuenta(
 
   const allDispositivos = (await db
     .prepare(
-      `SELECT clave, eid, sexo, empresa, grupo, grupo_libre, edad, nacimiento_mes, nacimiento_anio,
+      `SELECT clave, eid, sexo, empresa, grupo, grupo_libre, raza, edad, nacimiento_mes, nacimiento_anio,
               observaciones, estado, baja_mes, baja_anio, tipo_baja, numero_guia
        FROM STOCK_GANADERO_DISPOSITIVO`
     )
@@ -1388,6 +1568,7 @@ export async function restaurarStockGanaderaDesdeBackup(
           d.empresa,
           d.grupo,
           d.grupo_libre,
+          d.raza ?? "",
           d.edad,
           d.nacimiento_mes,
           d.nacimiento_anio,
@@ -1398,12 +1579,12 @@ export async function restaurarStockGanaderaDesdeBackup(
           d.tipo_baja,
           d.numero_guia
         );
-        return "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
+        return "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
       });
       await tx
         .prepare(
           `INSERT INTO STOCK_GANADERO_DISPOSITIVO (
-             clave, eid, sexo, empresa, grupo, grupo_libre, edad, nacimiento_mes, nacimiento_anio,
+             clave, eid, sexo, empresa, grupo, grupo_libre, raza, edad, nacimiento_mes, nacimiento_anio,
              observaciones, estado, baja_mes, baja_anio, tipo_baja, numero_guia, actualizado_en
            ) VALUES ${filas.join(", ")}
            ON CONFLICT (clave) DO UPDATE SET
@@ -1412,6 +1593,7 @@ export async function restaurarStockGanaderaDesdeBackup(
              empresa = excluded.empresa,
              grupo = excluded.grupo,
              grupo_libre = excluded.grupo_libre,
+             raza = excluded.raza,
              edad = excluded.edad,
              nacimiento_mes = excluded.nacimiento_mes,
              nacimiento_anio = excluded.nacimiento_anio,
@@ -1683,7 +1865,7 @@ async function aplicarBajaDispositivo(
 ): Promise<BajaDispositivoSnapshot> {
   const anteriorRow = (await db
     .prepare(
-      `SELECT sexo, empresa, grupo, grupo_libre, nacimiento_mes, nacimiento_anio, observaciones, estado, tipo_baja, numero_guia, baja_mes, baja_anio
+      `SELECT sexo, empresa, grupo, grupo_libre, raza, nacimiento_mes, nacimiento_anio, observaciones, estado, tipo_baja, numero_guia, baja_mes, baja_anio
        FROM STOCK_GANADERO_DISPOSITIVO WHERE clave = ?`
     )
     .get(claveNorm)) as Partial<DispositivoMetaRow> | undefined;
@@ -1708,6 +1890,7 @@ async function aplicarBajaDispositivo(
     empresa: anterior?.empresa ?? "",
     grupo: anterior?.grupo ?? "",
     grupo_libre: anterior?.grupo_libre ?? "",
+    raza: anterior?.raza ?? "",
     nacimiento_mes,
     nacimiento_anio,
     observaciones,
@@ -1836,7 +2019,7 @@ export async function restaurarDispositivoVivoStock(
   await assertDispositivoExiste(db, claveNorm);
   const anteriorRow = (await db
     .prepare(
-      `SELECT sexo, empresa, grupo, grupo_libre, nacimiento_mes, nacimiento_anio, observaciones, estado, tipo_baja, numero_guia, baja_mes, baja_anio
+      `SELECT sexo, empresa, grupo, grupo_libre, raza, nacimiento_mes, nacimiento_anio, observaciones, estado, tipo_baja, numero_guia, baja_mes, baja_anio
        FROM STOCK_GANADERO_DISPOSITIVO WHERE clave = ?`
     )
     .get(claveNorm)) as Partial<DispositivoMetaRow> | undefined;
@@ -1874,12 +2057,12 @@ export async function restaurarDispositivoVivoStock(
   };
 
   await db.prepare(
-    `INSERT INTO STOCK_GANADERO_DISPOSITIVO (
-       clave, eid, sexo, empresa, grupo, grupo_libre, edad, nacimiento_mes, nacimiento_anio, observaciones, estado, tipo_baja, numero_guia, baja_mes, baja_anio, actualizado_en
-     ) VALUES (
-       @clave, @eid, @sexo, @empresa, @grupo, @grupo_libre, @edad, @nacimiento_mes, @nacimiento_anio, @observaciones, @estado, @tipo_baja, @numero_guia, @baja_mes, @baja_anio,
-       datetime('now', 'localtime')
-     )
+      `INSERT INTO STOCK_GANADERO_DISPOSITIVO (
+         clave, eid, sexo, empresa, grupo, grupo_libre, raza, edad, nacimiento_mes, nacimiento_anio, observaciones, estado, tipo_baja, numero_guia, baja_mes, baja_anio, actualizado_en
+       ) VALUES (
+         @clave, @eid, @sexo, @empresa, @grupo, @grupo_libre, @raza, @edad, @nacimiento_mes, @nacimiento_anio, @observaciones, @estado, @tipo_baja, @numero_guia, @baja_mes, @baja_anio,
+         datetime('now', 'localtime')
+       )
      ON CONFLICT(clave) DO UPDATE SET
        estado = excluded.estado,
        tipo_baja = excluded.tipo_baja,
@@ -1897,6 +2080,7 @@ export async function restaurarDispositivoVivoStock(
     empresa: nuevo.empresa,
     grupo: nuevo.grupo,
     grupo_libre: nuevo.grupo_libre,
+    raza: nuevo.raza,
     edad,
     nacimiento_mes,
     nacimiento_anio,
@@ -2238,6 +2422,7 @@ export async function updateStockGanaderaDispositivoSexo(
       empresa: anterior?.empresa ?? "",
       grupo: anterior?.grupo ?? "",
       grupo_libre: anterior?.grupo_libre ?? "",
+      raza: anterior?.raza ?? "",
       edad: anterior?.edad ?? null,
       nacimiento_mes: anterior?.nacimiento_mes ?? null,
       nacimiento_anio: anterior?.nacimiento_anio ?? null,
@@ -2286,6 +2471,224 @@ export async function updateStockGanaderaDispositivoEdad(
   ).run({ clave: claveNorm, eid: eidGuardar, edad: edadNorm });
 
   return edadNorm;
+}
+
+export interface CabanaSeleccionInput {
+  clave: string;
+  nombre_cabana: string;
+  raza?: string;
+  observaciones?: string;
+}
+
+export interface CabanaSeleccionResult {
+  guardados: number;
+  errores: { clave: string; mensaje: string }[];
+}
+
+export async function saveCabanaSeleccionBulk(
+  db: Db,
+  items: CabanaSeleccionInput[],
+  autor?: HistorialAutor
+): Promise<CabanaSeleccionResult> {
+  let guardados = 0;
+  const errores: { clave: string; mensaje: string }[] = [];
+
+  for (const item of items) {
+    try {
+      await saveCabanaSeleccionDispositivo(db, item, autor);
+      guardados += 1;
+    } catch (e) {
+      errores.push({
+        clave: item.clave,
+        mensaje: e instanceof Error ? e.message : "Error al guardar selección",
+      });
+    }
+  }
+
+  return { guardados, errores };
+}
+
+export async function saveCabanaSeleccionDispositivo(
+  db: Db,
+  input: CabanaSeleccionInput,
+  autor?: HistorialAutor
+): Promise<{ cabana_premium: boolean; nombre_cabana: string; raza: string; observaciones: string }> {
+  const claveNorm = normalizarClaveDispositivo(input.clave);
+  await assertDispositivoExiste(db, claveNorm);
+  const nombre_cabana = normalizarNombreCabana(input.nombre_cabana);
+  if (!nombre_cabana) {
+    throw new Error("Ingresá un nombre de identificación para el animal de cabaña.");
+  }
+  const raza = normalizarRaza(input.raza ?? "");
+  const observaciones = String(input.observaciones ?? "").trim().slice(0, 2000);
+
+  const anteriorRow = (await db
+    .prepare(
+      `SELECT cabana_premium, nombre_cabana, raza, observaciones FROM STOCK_GANADERO_DISPOSITIVO WHERE clave = ?`
+    )
+    .get(claveNorm)) as
+    | Pick<DispositivoMetaRow, "cabana_premium" | "nombre_cabana" | "raza" | "observaciones">
+    | undefined;
+  const prevNombre = normalizarNombreCabana(anteriorRow?.nombre_cabana);
+  const prevPremium = cabanaPremiumFromRow(anteriorRow?.cabana_premium);
+  const prevRaza = normalizarRaza(anteriorRow?.raza ?? "");
+  const prevObs = String(anteriorRow?.observaciones ?? "").trim();
+
+  const eidGuardar = claveNorm;
+  await db.prepare(
+    `INSERT INTO STOCK_GANADERO_DISPOSITIVO (clave, eid, cabana_premium, nombre_cabana, raza, observaciones, actualizado_en)
+     VALUES (@clave, @eid, 1, @nombre_cabana, @raza, @observaciones, datetime('now', 'localtime'))
+     ON CONFLICT(clave) DO UPDATE SET
+       cabana_premium = 1,
+       nombre_cabana = excluded.nombre_cabana,
+       raza = excluded.raza,
+       observaciones = excluded.observaciones,
+       eid = CASE WHEN excluded.eid != '' THEN excluded.eid ELSE STOCK_GANADERO_DISPOSITIVO.eid END,
+       actualizado_en = datetime('now', 'localtime')`
+  ).run({ clave: claveNorm, eid: eidGuardar, nombre_cabana, raza, observaciones });
+
+  if (!prevPremium || prevNombre !== nombre_cabana) {
+    await insertHistorialFila(
+      db,
+      claveNorm,
+      "nombre_cabana",
+      "Animal de cabaña",
+      prevPremium ? prevNombre || "—" : "—",
+      nombre_cabana,
+      undefined,
+      autor
+    );
+  }
+
+  if (prevRaza !== raza) {
+    await insertHistorialFila(
+      db,
+      claveNorm,
+      "raza",
+      "Raza",
+      fmtHistorialRaza(prevRaza),
+      fmtHistorialRaza(raza),
+      undefined,
+      autor
+    );
+  }
+
+  if (prevObs !== observaciones) {
+    await insertHistorialFila(
+      db,
+      claveNorm,
+      "observaciones",
+      "Observaciones",
+      fmtHistorialObs(prevObs),
+      fmtHistorialObs(observaciones),
+      undefined,
+      autor
+    );
+  }
+
+  return { cabana_premium: true, nombre_cabana, raza, observaciones };
+}
+
+export async function listStockGanaderoRazas(db: Db): Promise<string[]> {
+  const rows = (await db
+    .prepare(`SELECT nombre FROM STOCK_GANADERO_RAZA ORDER BY nombre ASC`)
+    .all()) as { nombre: string }[];
+  return rows.map((r) => normalizarRaza(r.nombre)).filter(Boolean);
+}
+
+export async function createStockGanaderoRaza(db: Db, raw: string): Promise<string> {
+  const nombre = normalizarRaza(raw);
+  if (!nombre) {
+    throw new Error("Ingresá un nombre de raza válido (letras y números).");
+  }
+  const existe = (await db
+    .prepare(`SELECT 1 AS ok FROM STOCK_GANADERO_RAZA WHERE nombre = ? LIMIT 1`)
+    .get(nombre)) as { ok: number } | undefined;
+  if (existe) {
+    return nombre;
+  }
+  await db.prepare(`INSERT INTO STOCK_GANADERO_RAZA (nombre) VALUES (?)`).run(nombre);
+  return nombre;
+}
+
+export async function deleteStockGanaderoRaza(db: Db, raw: string): Promise<string> {
+  const nombre = normalizarRaza(raw);
+  if (!nombre) {
+    throw new Error("Raza inválida");
+  }
+  const usos = (await db
+    .prepare(
+      `SELECT COUNT(*) AS n FROM STOCK_GANADERO_DISPOSITIVO WHERE raza = ?`
+    )
+    .get(nombre)) as { n: number | string };
+  const nUsos = Number(usos?.n ?? 0);
+  if (nUsos > 0) {
+    throw new Error(
+      `No se puede eliminar «${nombre}»: está asignada a ${nUsos} dispositivo(s).`
+    );
+  }
+  const result = await db
+    .prepare(`DELETE FROM STOCK_GANADERO_RAZA WHERE nombre = ?`)
+    .run(nombre);
+  if (!result.changes) {
+    throw new Error(`La raza «${nombre}» no está en el catálogo`);
+  }
+  return nombre;
+}
+
+export async function quitarCabanaSeleccionBulk(
+  db: Db,
+  claves: string[],
+  autor?: HistorialAutor
+): Promise<number> {
+  let quitados = 0;
+  for (const clave of claves) {
+    try {
+      const ok = await quitarCabanaSeleccionDispositivo(db, clave, autor);
+      if (ok) quitados += 1;
+    } catch {
+      /* omitir claves inválidas */
+    }
+  }
+  return quitados;
+}
+
+async function quitarCabanaSeleccionDispositivo(
+  db: Db,
+  clave: string,
+  autor?: HistorialAutor
+): Promise<boolean> {
+  const claveNorm = normalizarClaveDispositivo(clave);
+  const anteriorRow = (await db
+    .prepare(
+      `SELECT cabana_premium, nombre_cabana FROM STOCK_GANADERO_DISPOSITIVO WHERE clave = ?`
+    )
+    .get(claveNorm)) as
+    | Pick<DispositivoMetaRow, "cabana_premium" | "nombre_cabana">
+    | undefined;
+  if (!anteriorRow || !cabanaPremiumFromRow(anteriorRow.cabana_premium)) {
+    return false;
+  }
+
+  const prevNombre = normalizarNombreCabana(anteriorRow.nombre_cabana);
+  await db.prepare(
+    `UPDATE STOCK_GANADERO_DISPOSITIVO
+     SET cabana_premium = 0, nombre_cabana = '', actualizado_en = datetime('now', 'localtime')
+     WHERE clave = @clave`
+  ).run({ clave: claveNorm });
+
+  await insertHistorialFila(
+    db,
+    claveNorm,
+    "nombre_cabana",
+    "Animal de cabaña",
+    prevNombre || "Premium",
+    "—",
+    undefined,
+    autor
+  );
+
+  return true;
 }
 
 export async function listStockGanaderoLotes(
@@ -2425,14 +2828,16 @@ export async function importStockGanaderoRows(
        VALUES (@lote_id, @eid, @vid, @fecha, @hora, @condicion)`
     );
     const upsertEmpresaDispositivo = await tx.prepare(
-      `INSERT INTO STOCK_GANADERO_DISPOSITIVO (clave, eid, empresa, sexo, estado)
-       VALUES (@clave, @eid, @empresa, @sexo, 'VIVO')
+      `INSERT INTO STOCK_GANADERO_DISPOSITIVO (clave, eid, empresa, sexo, raza, estado)
+       VALUES (@clave, @eid, @empresa, @sexo, @raza, 'VIVO')
        ON CONFLICT (clave) DO UPDATE SET
          eid = excluded.eid,
          empresa = CASE WHEN excluded.empresa <> '' THEN excluded.empresa
                         ELSE STOCK_GANADERO_DISPOSITIVO.empresa END,
          sexo = CASE WHEN excluded.sexo <> '' THEN excluded.sexo
                      ELSE STOCK_GANADERO_DISPOSITIVO.sexo END,
+         raza = CASE WHEN excluded.raza <> '' THEN excluded.raza
+                     ELSE STOCK_GANADERO_DISPOSITIVO.raza END,
          actualizado_en = NOW()`
     );
     for (const r of rows) {
@@ -2450,12 +2855,14 @@ export async function importStockGanaderoRows(
 
       const empresaImport = normalizarEmpresaDispositivo(r.empresa);
       const sexoImport = r.sexo === "MACHO" || r.sexo === "HEMBRA" ? r.sexo : "";
-      if (clave && (empresaImport || sexoImport)) {
+      const razaImport = normalizarRaza(r.raza);
+      if (clave && (empresaImport || sexoImport || razaImport)) {
         await upsertEmpresaDispositivo.run({
           clave,
           eid: r.eid,
           empresa: empresaImport,
           sexo: sexoImport,
+          raza: razaImport,
         });
       }
 
@@ -2518,6 +2925,7 @@ export interface StockGanaderaDispositivo {
   empresa: DispositivoEmpresa;
   grupo: string;
   grupo_libre: string;
+  raza: string;
   edad: number | null;
   nacimiento_mes: number | null;
   nacimiento_anio: number | null;
@@ -2527,6 +2935,11 @@ export interface StockGanaderaDispositivo {
   numero_guia: string;
   baja_mes: number | null;
   baja_anio: number | null;
+  cabana_premium: boolean;
+  nombre_cabana: string;
+  tiene_foto: boolean;
+  foto_url: string | null;
+  foto_actualizado_en: string;
   primera_fecha: string;
   ultima_fecha: string;
   ultima_hora: string;
@@ -2684,6 +3097,7 @@ function buildDispositivosFromRegistros(
         empresa: "",
         grupo: "",
         grupo_libre: "",
+        raza: "",
         edad: null,
         nacimiento_mes: null,
         nacimiento_anio: null,
@@ -2693,6 +3107,11 @@ function buildDispositivosFromRegistros(
         numero_guia: "",
         baja_mes: null,
         baja_anio: null,
+        cabana_premium: false,
+        nombre_cabana: "",
+        tiene_foto: false,
+        foto_url: null,
+        foto_actualizado_en: "",
         primera_fecha: r.fecha,
         ultima_fecha: r.fecha,
         ultima_hora: r.hora,
@@ -3008,6 +3427,10 @@ function fmtHistorialGrupoLibre(v: string): string {
   return v.trim() || "—";
 }
 
+function fmtHistorialRaza(v: string): string {
+  return v.trim() || "—";
+}
+
 function fmtHistorialFechaBaja(
   estado: DispositivoEstado,
   mes: number | null,
@@ -3182,6 +3605,7 @@ async function registrarHistorialCambiosDispositivo(
   const prevEmpresa = fmtHistorialEmpresa(anterior?.empresa ?? "");
   const prevGrupo = fmtHistorialGrupo(anterior?.grupo ?? "");
   const prevGrupoLibre = fmtHistorialGrupoLibre(anterior?.grupo_libre ?? "");
+  const prevRaza = fmtHistorialRaza(anterior?.raza ?? "");
   const prevSexo = fmtHistorialSexo(anterior?.sexo ?? "");
   const prevNac = fmtHistorialNacimiento(
     anterior?.nacimiento_mes ?? null,
@@ -3202,6 +3626,7 @@ async function registrarHistorialCambiosDispositivo(
   const nextEmpresa = fmtHistorialEmpresa(nuevo.empresa);
   const nextGrupo = fmtHistorialGrupo(nuevo.grupo);
   const nextGrupoLibre = fmtHistorialGrupoLibre(nuevo.grupo_libre);
+  const nextRaza = fmtHistorialRaza(nuevo.raza);
   const nextSexo = fmtHistorialSexo(nuevo.sexo);
   const nextNac = fmtHistorialNacimiento(
     nuevo.nacimiento_mes,
@@ -3228,6 +3653,16 @@ async function registrarHistorialCambiosDispositivo(
     "Grupo",
     prevGrupoLibre,
     nextGrupoLibre,
+    undefined,
+    autor
+  );
+  await insertHistorialFila(
+    db,
+    clave,
+    "raza",
+    "Raza",
+    prevRaza,
+    nextRaza,
     undefined,
     autor
   );

@@ -65,6 +65,7 @@ import {
   parseSantanderEnElPais,
 } from "./parse-santander-comprobante.js";
 import * as presDoc from "./presupuesto-documentos-db.js";
+import * as stockDispositivoFoto from "./stock-dispositivo-foto-db.js";
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -1721,6 +1722,167 @@ app.get("/api/stock-ganadero/dispositivos/:clave/historial-cambios", async (req,
   }
 });
 
+app.get("/api/stock-ganadero/dispositivos/:clave/fotos", async (req, res) => {
+  try {
+    const clave = String(req.params.clave);
+    const data = await stockDispositivoFoto.getStockDispositivoFotoDto(
+      db.getDb(),
+      "ganadero",
+      clave
+    );
+    res.json({ ok: true, data });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al listar fotos",
+    });
+  }
+});
+
+app.get("/api/stock-ganadero/dispositivos/:clave/foto/:fotoId", async (req, res) => {
+  try {
+    const clave = String(req.params.clave);
+    const fotoId = Number(req.params.fotoId);
+    if (!Number.isFinite(fotoId) || fotoId < 1) {
+      res.status(400).json({ ok: false, error: "Foto inválida" });
+      return;
+    }
+    const image = await stockDispositivoFoto.loadStockDispositivoFotoById(
+      db.getDb(),
+      "ganadero",
+      clave,
+      fotoId
+    );
+    if (!image) {
+      res.status(404).json({ ok: false, error: "Sin foto del animal" });
+      return;
+    }
+    res.setHeader("Cache-Control", "private, no-cache");
+    res.type(image.mime).send(image.buffer);
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al cargar foto",
+    });
+  }
+});
+
+app.patch(
+  "/api/stock-ganadero/dispositivos/:clave/foto/:fotoId/principal",
+  async (req, res) => {
+    try {
+      const clave = String(req.params.clave);
+      const fotoId = Number(req.params.fotoId);
+      if (!Number.isFinite(fotoId) || fotoId < 1) {
+        res.status(400).json({ ok: false, error: "Foto inválida" });
+        return;
+      }
+      const data = await stockDispositivoFoto.setStockDispositivoFotoPrincipal(
+        db.getDb(),
+        "ganadero",
+        clave,
+        fotoId
+      );
+      res.json({ ok: true, data });
+    } catch (e) {
+      res.status(400).json({
+        ok: false,
+        error: e instanceof Error ? e.message : "Error al marcar foto principal",
+      });
+    }
+  }
+);
+
+app.delete("/api/stock-ganadero/dispositivos/:clave/foto/:fotoId", async (req, res) => {
+  try {
+    const clave = String(req.params.clave);
+    const fotoId = Number(req.params.fotoId);
+    if (!Number.isFinite(fotoId) || fotoId < 1) {
+      res.status(400).json({ ok: false, error: "Foto inválida" });
+      return;
+    }
+    const data = await stockDispositivoFoto.deleteStockDispositivoFotoById(
+      db.getDb(),
+      "ganadero",
+      clave,
+      fotoId
+    );
+    res.json({ ok: true, data });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al quitar foto",
+    });
+  }
+});
+
+app.get("/api/stock-ganadero/dispositivos/:clave/foto", async (req, res) => {
+  try {
+    const clave = String(req.params.clave);
+    const image = await stockDispositivoFoto.loadStockDispositivoFoto(
+      db.getDb(),
+      "ganadero",
+      clave
+    );
+    if (!image) {
+      res.status(404).json({ ok: false, error: "Sin foto del animal" });
+      return;
+    }
+    res.setHeader("Cache-Control", "private, no-cache");
+    res.type(image.mime).send(image.buffer);
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al cargar foto",
+    });
+  }
+});
+
+app.post(
+  "/api/stock-ganadero/dispositivos/:clave/foto",
+  iconUpload.single("foto"),
+  async (req, res) => {
+    try {
+      const clave = String(req.params.clave);
+      const file = req.file;
+      if (!file?.buffer?.length) {
+        res.status(400).json({ ok: false, error: "Seleccioná una imagen" });
+        return;
+      }
+      const data = await stockDispositivoFoto.saveStockDispositivoFoto(
+        db.getDb(),
+        "ganadero",
+        clave,
+        file.buffer,
+        file.mimetype
+      );
+      res.json({ ok: true, data });
+    } catch (e) {
+      res.status(400).json({
+        ok: false,
+        error: e instanceof Error ? e.message : "Error al subir foto",
+      });
+    }
+  }
+);
+
+app.delete("/api/stock-ganadero/dispositivos/:clave/foto", async (req, res) => {
+  try {
+    const clave = String(req.params.clave);
+    const data = await stockDispositivoFoto.clearStockDispositivoFoto(
+      db.getDb(),
+      "ganadero",
+      clave
+    );
+    res.json({ ok: true, data });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al quitar foto",
+    });
+  }
+});
+
 app.patch("/api/stock-ganadero/dispositivos/bulk", async (req, res) => {
   try {
     const body = req.body ?? {};
@@ -1972,6 +2134,7 @@ app.patch("/api/stock-ganadero/dispositivos/:clave", async (req, res) => {
       typeof body.observaciones === "string" ? body.observaciones : "";
     const grupo_libre =
       typeof body.grupo_libre === "string" ? body.grupo_libre : "";
+    const raza = typeof body.raza === "string" ? body.raza : "";
     const estado = String(body.estado ?? "VIVO").toUpperCase() as
       | "VIVO"
       | "MUERTO"
@@ -2000,6 +2163,7 @@ app.patch("/api/stock-ganadero/dispositivos/:clave", async (req, res) => {
         empresa,
         grupo: "",
         grupo_libre,
+        raza,
         nacimiento_mes,
         nacimiento_anio,
         observaciones,
@@ -2054,6 +2218,125 @@ app.patch("/api/stock-ganadero/dispositivos/:clave/edad", async (req, res) => {
     res.status(400).json({
       ok: false,
       error: e instanceof Error ? e.message : "Error al guardar edad",
+    });
+  }
+});
+
+app.patch("/api/stock-ganadero/cabana/seleccion", async (req, res) => {
+  try {
+    const body = req.body ?? {};
+    const rawItems = Array.isArray(body.items) ? body.items : [];
+    const items = rawItems
+      .map((item: { clave?: string; nombre_cabana?: string; raza?: string; observaciones?: string }) => ({
+        clave: String(item.clave ?? "").trim(),
+        nombre_cabana: String(item.nombre_cabana ?? "").trim(),
+        raza: typeof item.raza === "string" ? item.raza : "",
+        observaciones: typeof item.observaciones === "string" ? item.observaciones : "",
+      }))
+      .filter((item: { clave: string; nombre_cabana: string }) => item.clave);
+    if (!items.length) {
+      res.status(400).json({ ok: false, error: "Ingresá al menos un dispositivo" });
+      return;
+    }
+    const result = await db.stockGanadero.saveCabanaSeleccion(
+      items,
+      historialAutorFromRequest(req, "CABAÑA")
+    );
+    for (const item of items) {
+      if (!result.errores.some((e) => e.clave === item.clave)) {
+        await auditStockMovimiento(req, "MODIFICACION", {
+          clave: item.clave,
+          resumen: `Seleccionó animal de cabaña ${item.clave}`,
+          detalle: { nombre_cabana: item.nombre_cabana, raza: item.raza },
+        });
+      }
+    }
+    res.json({ ok: true, data: result });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al guardar selección de cabaña",
+    });
+  }
+});
+
+app.get("/api/stock-ganadero/razas", async (_req, res) => {
+  try {
+    const razas = await db.stockGanadero.listRazas();
+    res.json({ ok: true, data: razas });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al listar razas",
+    });
+  }
+});
+
+app.post("/api/stock-ganadero/razas", async (req, res) => {
+  try {
+    const nombre = typeof req.body?.nombre === "string" ? req.body.nombre : "";
+    const raza = await db.stockGanadero.createRaza(nombre);
+    await auditStockMovimiento(req, "MODIFICACION", {
+      resumen: `Agregó raza ${raza} al catálogo`,
+      detalle: { raza },
+    });
+    res.json({ ok: true, data: { nombre: raza } });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al agregar raza",
+    });
+  }
+});
+
+app.delete("/api/stock-ganadero/razas", async (req, res) => {
+  if (!req.user?.es_super_admin) {
+    res.status(403).json({
+      ok: false,
+      error: "Solo el superadministrador puede eliminar razas del catálogo",
+    });
+    return;
+  }
+  try {
+    const nombre = typeof req.body?.nombre === "string" ? req.body.nombre : "";
+    const eliminada = await db.stockGanadero.deleteRaza(nombre);
+    await auditStockMovimiento(req, "MODIFICACION", {
+      resumen: `Eliminó raza ${eliminada} del catálogo`,
+      detalle: { raza: eliminada },
+    });
+    res.json({ ok: true, data: { nombre: eliminada } });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al eliminar raza",
+    });
+  }
+});
+
+app.post("/api/stock-ganadero/cabana/quitar", async (req, res) => {
+  try {
+    const claves = Array.isArray(req.body?.claves)
+      ? req.body.claves.map((c: unknown) => String(c ?? "").trim()).filter(Boolean)
+      : [];
+    if (!claves.length) {
+      res.status(400).json({ ok: false, error: "Ingresá al menos un dispositivo" });
+      return;
+    }
+    const quitados = await db.stockGanadero.quitarCabanaSeleccion(
+      claves,
+      historialAutorFromRequest(req, "CABAÑA")
+    );
+    for (const clave of claves) {
+      await auditStockMovimiento(req, "MODIFICACION", {
+        clave,
+        resumen: `Quitó animal de cabaña ${clave}`,
+      });
+    }
+    res.json({ ok: true, data: { quitados } });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al quitar selección de cabaña",
     });
   }
 });
@@ -2525,6 +2808,167 @@ app.get("/api/stock-equino/dispositivos/:clave/historial-cambios", async (req, r
     res.status(400).json({
       ok: false,
       error: e instanceof Error ? e.message : "Error al cargar historial",
+    });
+  }
+});
+
+app.get("/api/stock-equino/dispositivos/:clave/fotos", async (req, res) => {
+  try {
+    const clave = String(req.params.clave);
+    const data = await stockDispositivoFoto.getStockDispositivoFotoDto(
+      db.getDb(),
+      "equino",
+      clave
+    );
+    res.json({ ok: true, data });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al listar fotos",
+    });
+  }
+});
+
+app.get("/api/stock-equino/dispositivos/:clave/foto/:fotoId", async (req, res) => {
+  try {
+    const clave = String(req.params.clave);
+    const fotoId = Number(req.params.fotoId);
+    if (!Number.isFinite(fotoId) || fotoId < 1) {
+      res.status(400).json({ ok: false, error: "Foto inválida" });
+      return;
+    }
+    const image = await stockDispositivoFoto.loadStockDispositivoFotoById(
+      db.getDb(),
+      "equino",
+      clave,
+      fotoId
+    );
+    if (!image) {
+      res.status(404).json({ ok: false, error: "Sin foto del animal" });
+      return;
+    }
+    res.setHeader("Cache-Control", "private, no-cache");
+    res.type(image.mime).send(image.buffer);
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al cargar foto",
+    });
+  }
+});
+
+app.patch(
+  "/api/stock-equino/dispositivos/:clave/foto/:fotoId/principal",
+  async (req, res) => {
+    try {
+      const clave = String(req.params.clave);
+      const fotoId = Number(req.params.fotoId);
+      if (!Number.isFinite(fotoId) || fotoId < 1) {
+        res.status(400).json({ ok: false, error: "Foto inválida" });
+        return;
+      }
+      const data = await stockDispositivoFoto.setStockDispositivoFotoPrincipal(
+        db.getDb(),
+        "equino",
+        clave,
+        fotoId
+      );
+      res.json({ ok: true, data });
+    } catch (e) {
+      res.status(400).json({
+        ok: false,
+        error: e instanceof Error ? e.message : "Error al marcar foto principal",
+      });
+    }
+  }
+);
+
+app.delete("/api/stock-equino/dispositivos/:clave/foto/:fotoId", async (req, res) => {
+  try {
+    const clave = String(req.params.clave);
+    const fotoId = Number(req.params.fotoId);
+    if (!Number.isFinite(fotoId) || fotoId < 1) {
+      res.status(400).json({ ok: false, error: "Foto inválida" });
+      return;
+    }
+    const data = await stockDispositivoFoto.deleteStockDispositivoFotoById(
+      db.getDb(),
+      "equino",
+      clave,
+      fotoId
+    );
+    res.json({ ok: true, data });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al quitar foto",
+    });
+  }
+});
+
+app.get("/api/stock-equino/dispositivos/:clave/foto", async (req, res) => {
+  try {
+    const clave = String(req.params.clave);
+    const image = await stockDispositivoFoto.loadStockDispositivoFoto(
+      db.getDb(),
+      "equino",
+      clave
+    );
+    if (!image) {
+      res.status(404).json({ ok: false, error: "Sin foto del animal" });
+      return;
+    }
+    res.setHeader("Cache-Control", "private, no-cache");
+    res.type(image.mime).send(image.buffer);
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al cargar foto",
+    });
+  }
+});
+
+app.post(
+  "/api/stock-equino/dispositivos/:clave/foto",
+  iconUpload.single("foto"),
+  async (req, res) => {
+    try {
+      const clave = String(req.params.clave);
+      const file = req.file;
+      if (!file?.buffer?.length) {
+        res.status(400).json({ ok: false, error: "Seleccioná una imagen" });
+        return;
+      }
+      const data = await stockDispositivoFoto.saveStockDispositivoFoto(
+        db.getDb(),
+        "equino",
+        clave,
+        file.buffer,
+        file.mimetype
+      );
+      res.json({ ok: true, data });
+    } catch (e) {
+      res.status(400).json({
+        ok: false,
+        error: e instanceof Error ? e.message : "Error al subir foto",
+      });
+    }
+  }
+);
+
+app.delete("/api/stock-equino/dispositivos/:clave/foto", async (req, res) => {
+  try {
+    const clave = String(req.params.clave);
+    const data = await stockDispositivoFoto.clearStockDispositivoFoto(
+      db.getDb(),
+      "equino",
+      clave
+    );
+    res.json({ ok: true, data });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al quitar foto",
     });
   }
 });

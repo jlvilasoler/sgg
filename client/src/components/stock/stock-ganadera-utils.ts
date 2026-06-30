@@ -397,9 +397,16 @@ export function dispositivoActivoEnStock(
   d: { estado: DispositivoEstado; clave: string },
   clavesVentasCerradas?: ReadonlySet<string>
 ): boolean {
-  if (d.estado !== "VIVO") return false;
+  if (normalizarEstadoDispositivo(d.estado) !== "VIVO") return false;
   if (clavesVentasCerradas?.has(d.clave)) return false;
   return true;
+}
+
+export function filtrarDispositivosActivosStock<T extends { estado: DispositivoEstado; clave: string }>(
+  rows: ReadonlyArray<T>,
+  clavesVentasCerradas?: ReadonlySet<string>
+): T[] {
+  return rows.filter((d) => dispositivoActivoEnStock(d, clavesVentasCerradas));
 }
 
 /** Estados que aparecen en Salidas del sistema (fuera del stock activo). */
@@ -671,6 +678,43 @@ export function fmtGrupoLibre(grupoLibre: string): string {
   return grupoLibre.trim() || "—";
 }
 
+export const RAZAS_PREDEFINIDAS = ["HEREFORD", "ANGUS", "CARETA", "CRUZA"] as const;
+export const RAZAS_PREDEFINIDAS_CABANA = ["HEREFORD", "ANGUS", "CRUZA"] as const;
+export const RAZA_OTRA_VALUE = "__OTRA__";
+const RAZA_MAX = 32;
+
+export function normalizarRaza(val: string | null | undefined): string {
+  return String(val ?? "")
+    .trim()
+    .replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑüÜ\s]/g, "")
+    .slice(0, RAZA_MAX)
+    .toUpperCase();
+}
+
+export function esRazaPredefinidaEn(
+  raza: string | null | undefined,
+  razas: readonly string[] = RAZAS_PREDEFINIDAS
+): boolean {
+  const norm = normalizarRaza(raza);
+  return norm !== "" && razas.includes(norm);
+}
+
+export function esRazaPredefinida(raza: string | null | undefined): boolean {
+  return esRazaPredefinidaEn(raza, RAZAS_PREDEFINIDAS);
+}
+
+export function fmtRaza(raza: string | null | undefined): string {
+  return String(raza ?? "").trim() || "—";
+}
+
+export function razaFiltroKey(raza: string | null | undefined): string {
+  return normalizarRaza(raza);
+}
+
+export function labelRazaFiltro(key: string): string {
+  return key.trim() || "Sin definir";
+}
+
 export type EdadFiltroKey = "0_12" | "13_24" | "25_36" | "37_mas";
 
 export const EDAD_FILTRO_OPCIONES: { key: EdadFiltroKey; label: string }[] = [
@@ -731,6 +775,43 @@ export function labelGrupoLibreFiltro(key: string): string {
   return key.trim() || "Sin definir";
 }
 
+export function generacionFiltroKey(grupo: string | null | undefined): string {
+  return String(grupo ?? "").trim().toUpperCase();
+}
+
+export function labelGeneracionFiltro(key: string): string {
+  return key.trim() || "Sin definir";
+}
+
+export function ultimaLecturaMesFiltroKey(fecha: string | null | undefined): string {
+  const f = String(fecha ?? "").trim().slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(f)) return "";
+  return f.slice(0, 7);
+}
+
+const MESES_ULTIMA_LECTURA = [
+  "Ene",
+  "Feb",
+  "Mar",
+  "Abr",
+  "May",
+  "Jun",
+  "Jul",
+  "Ago",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dic",
+] as const;
+
+export function labelUltimaLecturaMesFiltro(key: string): string {
+  if (!key.trim()) return "Sin lectura";
+  const [y, m] = key.split("-");
+  const mi = parseInt(m ?? "", 10) - 1;
+  if (!y || mi < 0 || mi > 11) return key;
+  return `${MESES_ULTIMA_LECTURA[mi]} ${y}`;
+}
+
 export type CategoriaFiltroKey =
   | "TERNERA"
   | "VAQUILLONA_1_2"
@@ -762,12 +843,14 @@ export const CATEGORIA_FILTRO_OTROS: { key: CategoriaFiltroKey; label: string }[
   { key: "SIN_SEXO", label: "Sin sexo definido" },
 ];
 
+export const CATEGORIA_FILTRO_OPCIONES = [
+  ...CATEGORIA_FILTRO_HEMBRA,
+  ...CATEGORIA_FILTRO_MACHO,
+  ...CATEGORIA_FILTRO_OTROS,
+];
+
 export function labelCategoriaFiltro(key: CategoriaFiltroKey): string {
-  const all = [
-    ...CATEGORIA_FILTRO_HEMBRA,
-    ...CATEGORIA_FILTRO_MACHO,
-    ...CATEGORIA_FILTRO_OTROS,
-  ];
+  const all = CATEGORIA_FILTRO_OPCIONES;
   return all.find((o) => o.key === key)?.label ?? key;
 }
 

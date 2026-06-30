@@ -731,6 +731,51 @@ export function labelGrupoLibreFiltro(key: string): string {
   return key.trim() || "Sin definir";
 }
 
+export function razaFiltroKey(raza: string | null | undefined): string {
+  return String(raza ?? "").trim().toUpperCase();
+}
+
+export function labelRazaFiltro(key: string): string {
+  return key.trim() || "Sin definir";
+}
+
+export function generacionFiltroKey(grupo: string | null | undefined): string {
+  return String(grupo ?? "").trim().toUpperCase();
+}
+
+export function labelGeneracionFiltro(key: string): string {
+  return key.trim() || "Sin definir";
+}
+
+export function ultimaLecturaMesFiltroKey(fecha: string | null | undefined): string {
+  const f = String(fecha ?? "").trim().slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(f)) return "";
+  return f.slice(0, 7);
+}
+
+const MESES_ULTIMA_LECTURA = [
+  "Ene",
+  "Feb",
+  "Mar",
+  "Abr",
+  "May",
+  "Jun",
+  "Jul",
+  "Ago",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dic",
+] as const;
+
+export function labelUltimaLecturaMesFiltro(key: string): string {
+  if (!key.trim()) return "Sin lectura";
+  const [y, m] = key.split("-");
+  const mi = parseInt(m ?? "", 10) - 1;
+  if (!y || mi < 0 || mi > 11) return key;
+  return `${MESES_ULTIMA_LECTURA[mi]} ${y}`;
+}
+
 export type CategoriaFiltroKey =
   | "TERNERA"
   | "VAQUILLONA_1_2"
@@ -762,12 +807,14 @@ export const CATEGORIA_FILTRO_OTROS: { key: CategoriaFiltroKey; label: string }[
   { key: "SIN_SEXO", label: "Sin sexo definido" },
 ];
 
+export const CATEGORIA_FILTRO_OPCIONES = [
+  ...CATEGORIA_FILTRO_HEMBRA,
+  ...CATEGORIA_FILTRO_MACHO,
+  ...CATEGORIA_FILTRO_OTROS,
+];
+
 export function labelCategoriaFiltro(key: CategoriaFiltroKey): string {
-  const all = [
-    ...CATEGORIA_FILTRO_HEMBRA,
-    ...CATEGORIA_FILTRO_MACHO,
-    ...CATEGORIA_FILTRO_OTROS,
-  ];
+  const all = CATEGORIA_FILTRO_OPCIONES;
   return all.find((o) => o.key === key)?.label ?? key;
 }
 

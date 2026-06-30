@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { fetchStockGanaderaDispositivos, fetchStockGanaderaVentasDispositivos } from "../../api";
 import type { StockGanaderaDispositivo } from "../../types";
-import { dispositivoActivoEnStock } from "./stock-ganadera-utils";
+import { normalizarEstadoDispositivo } from "./stock-ganadera-utils";
 import {
   categoriasDispositivo,
   coincideCategoriaFiltro,
   etiquetaCaravana,
+  filtrarDispositivosActivosStock,
   labelCategoriaFiltro,
 } from "./stock-ganadera-utils";
 
@@ -21,7 +22,7 @@ interface Props {
   id: string;
   apiOnline: boolean;
   disabled?: boolean;
-  variant?: "default" | "baja" | "dispositivos";
+  variant?: "default" | "baja" | "dispositivos" | "cabana";
   excludeClaves?: Set<string>;
   /** Si tiene claves, solo muestra dispositivos con esa categoría de evolución. */
   filtroCategoria?: Set<string>;
@@ -45,6 +46,23 @@ function coincideBusqueda(d: StockGanaderaDispositivo, q: string): boolean {
 }
 
 function textosBuscador(variant: Props["variant"]) {
+  if (variant === "cabana") {
+    return {
+      errorCargar: "Error al cargar dispositivos del stock",
+      placeholder: "Buscar dispositivo del stock por EID o VID…",
+      toggleAbierto: "Cerrar listado",
+      toggleCerrado: "Ver dispositivos del stock",
+      metaLoading: "Cargando dispositivos del stock…",
+      metaCount: (n: number, filtro?: string, busq?: number) =>
+        `${n} dispositivo(s) activo(s) en el stock${filtro ? ` · ${filtro}` : ""}${
+          busq != null ? ` · ${busq} coincidencia(s)` : ""
+        }`,
+      emptyBusqueda: "Sin coincidencias con la búsqueda.",
+      emptySinCoincidencias: "Sin coincidencias en el stock activo.",
+      emptyCategoria: (label: string) => `No hay dispositivos activos en ${label}.`,
+      emptyGeneral: "No hay dispositivos activos en el stock.",
+    };
+  }
   if (variant === "dispositivos") {
     return {
       errorCargar: "Error al cargar dispositivos activos",
@@ -79,6 +97,33 @@ function textosBuscador(variant: Props["variant"]) {
   };
 }
 
+async function dispositivosParaVariant(
+  variant: Props["variant"],
+  rows: StockGanaderaDispositivo[]
+): Promise<StockGanaderaDispositivo[]> {
+  let filtrados: StockGanaderaDispositivo[];
+  if (variant === "dispositivos" || variant === "cabana") {
+    try {
+      const ventas = await fetchStockGanaderaVentasDispositivos();
+      filtrados = filtrarDispositivosActivosStock(rows, new Set(ventas.claves));
+    } catch {
+      filtrados = rows.filter((d) => normalizarEstadoDispositivo(d.estado) === "VIVO");
+    }
+  } else {
+    filtrados = rows.filter((d) => normalizarEstadoDispositivo(d.estado) === "VIVO");
+  }
+
+  if (variant === "cabana") {
+    return [...filtrados].sort((a, b) => {
+      const fa = a.ultima_fecha || "";
+      const fb = b.ultima_fecha || "";
+      if (fa !== fb) return fb.localeCompare(fa);
+      return a.clave.localeCompare(b.clave, "es");
+    });
+  }
+  return filtrados;
+}
+
 export default function BuscadorCaravanaActiva({
   id,
   apiOnline,
@@ -99,6 +144,7 @@ export default function BuscadorCaravanaActiva({
   const rootRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const txt = textosBuscador(variant);
+  const esCabana = variant === "cabana";
 
   useEffect(() => {
     if (!apiOnline) {
@@ -110,18 +156,9 @@ export default function BuscadorCaravanaActiva({
     fetchStockGanaderaDispositivos({})
       .then(async (rows) => {
         if (cancel) return;
-        if (variant === "dispositivos") {
-          try {
-            const ventas = await fetchStockGanaderaVentasDispositivos();
-            if (cancel) return;
-            const ventasSet = new Set(ventas.claves);
-            setActivos(rows.filter((d) => dispositivoActivoEnStock(d, ventasSet)));
-          } catch {
-            setActivos(rows.filter((d) => d.estado === "VIVO"));
-          }
-        } else {
-          setActivos(rows.filter((d) => d.estado === "VIVO"));
-        }
+        const filtrados = await dispositivosParaVariant(variant, rows);
+        if (cancel) return;
+        setActivos(filtrados);
       })
       .catch((e) => {
         if (cancel) return;
@@ -134,7 +171,7 @@ export default function BuscadorCaravanaActiva({
     return () => {
       cancel = true;
     };
-  }, [apiOnline, refreshKey, onError, txt.errorCargar]);
+  }, [apiOnline, refreshKey, onError, txt.errorCargar, variant]);
 
   useEffect(() => {
     if (!abierto) return;
@@ -157,8 +194,9 @@ export default function BuscadorCaravanaActiva({
 
   const lista = useMemo(() => {
     const filtrada = disponibles.filter((d) => coincideBusqueda(d, busqueda));
-    return filtrada.slice(0, 80);
-  }, [disponibles, busqueda]);
+    const max = variant === "cabana" ? 150 : 80;
+    return filtrada.slice(0, max);
+  }, [disponibles, busqueda, variant]);
 
   const filtroActivo = Boolean(filtroCategoria?.size);
 
@@ -174,7 +212,11 @@ export default function BuscadorCaravanaActiva({
   };
 
   const variantClass =
-    variant === "baja" ? " stock-buscador-caravana--baja" : "";
+    variant === "baja"
+      ? " stock-buscador-caravana--baja"
+      : variant === "cabana"
+        ? " stock-buscador-caravana--cabana"
+        : "";
   const conCategoria = Boolean(categoriaSelect);
 
   return (
@@ -237,7 +279,10 @@ export default function BuscadorCaravanaActiva({
       </div>
 
       {abierto && apiOnline && (
-        <div className="stock-buscador-caravana-panel" role="listbox">
+        <div
+          className={`stock-buscador-caravana-panel${esCabana ? " stock-buscador-caravana-panel--fijo" : ""}`}
+          role="listbox"
+        >
           <p className="stock-buscador-caravana-meta">
             {loading
               ? txt.metaLoading
@@ -278,10 +323,16 @@ export default function BuscadorCaravanaActiva({
                         cats.length > 0
                           ? cats.map((k) => labelCategoriaFiltro(k)).join(" · ")
                           : "";
-                      const extra = [catTxt, d.sexo, d.empresa].filter(Boolean);
+                      const pedigree =
+                        d.cabana_premium && d.nombre_cabana
+                          ? `Selección · ${d.nombre_cabana}`
+                          : "";
+                      const extra = [pedigree, catTxt, d.sexo, d.empresa].filter(Boolean);
                       if (!extra.length) return null;
                       return (
-                        <span className="stock-buscador-caravana-opcion-sub">
+                        <span
+                          className={`stock-buscador-caravana-opcion-sub${pedigree ? " stock-buscador-caravana-opcion-sub--pedigree" : ""}`}
+                        >
                           {extra.join(" · ")}
                         </span>
                       );

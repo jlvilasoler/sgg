@@ -1,5 +1,5 @@
-﻿import { useEffect, useMemo, useState } from "react";
-import { saveStockEquinaDispositivo, type EmpresaOperativaStock } from "../../api";
+﻿import { useCallback, useEffect, useMemo, useState } from "react";
+import { saveStockEquinaDispositivo, type EmpresaOperativaStock, type StockDispositivoFotoMeta } from "../../api";
 import { useHeaderBackStep } from "../../header-back";
 import type {
   DispositivoEmpresa,
@@ -17,6 +17,7 @@ import SelectEstadoDispositivo from "../stock/SelectEstadoDispositivo";
 import SelectGrupoDispositivo from "../stock/SelectGrupoDispositivo";
 import SelectSexoDispositivo from "../stock/SelectSexoDispositivo";
 import StockEquinaEvolucionTimeline from "./StockEquinaEvolucionTimeline";
+import StockDispositivoFotoCard from "../stock/StockDispositivoFotoCard";
 import StockEquinaHistorialCambiosPanel from "./StockEquinaHistorialCambiosPanel";
 import {
   buildGrupo,
@@ -36,8 +37,11 @@ interface Props {
   onVolver: () => void;
   volverLabel?: string;
   onSaved: (actualizado: StockEquinaDispositivo) => void;
+  onFotoMetaChange?: (meta: StockDispositivoFotoMeta) => void;
   onVerHistorial: () => void;
   onError: (msg: string) => void;
+  /** Al abrir desde VID: solo lectura hasta pulsar Editar. */
+  modoInicial?: "ver" | "editar";
 }
 
 export default function StockEquinaEditarPanel({
@@ -47,8 +51,10 @@ export default function StockEquinaEditarPanel({
   onVolver,
   volverLabel = "Volver a Stock Equino",
   onSaved,
+  onFotoMetaChange,
   onVerHistorial,
   onError,
+  modoInicial = "ver",
 }: Props) {
   const [empresa, setEmpresa] = useState<DispositivoEmpresa>(
     dispositivo.empresa ?? ""
@@ -69,6 +75,36 @@ export default function StockEquinaEditarPanel({
   const [bajaAnio, setBajaAnio] = useState<number | null>(dispositivo.baja_anio);
   const [guardando, setGuardando] = useState(false);
   const [verHistorialCambios, setVerHistorialCambios] = useState(false);
+  const [modoEdicion, setModoEdicion] = useState<"ver" | "editar">(modoInicial);
+  const soloLectura = modoEdicion === "ver";
+  const camposDeshabilitados = soloLectura || guardando || !apiOnline;
+
+  const restablecerDesdeDispositivo = useCallback((d: StockEquinaDispositivo) => {
+    setEmpresa(d.empresa ?? "");
+    setSexo(d.sexo ?? "");
+    setNacimientoMes(d.nacimiento_mes);
+    setNacimientoAnio(d.nacimiento_anio);
+    setObservaciones(d.observaciones ?? "");
+    setGrupoLibre(d.grupo_libre ?? "");
+    setEstado(normalizarEstadoDispositivo(d.estado));
+    setBajaMes(d.baja_mes);
+    setBajaAnio(d.baja_anio);
+  }, []);
+
+  useEffect(() => {
+    setModoEdicion(modoInicial);
+    restablecerDesdeDispositivo(dispositivo);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dispositivo.clave, modoInicial]);
+
+  const cancelarEdicion = () => {
+    if (modoEdicion === "editar" && modoInicial === "ver") {
+      restablecerDesdeDispositivo(dispositivo);
+      setModoEdicion("ver");
+      return;
+    }
+    onVolver();
+  };
 
   const backDestination =
     volverLabel.replace(/^Volver a /i, "").trim() || "Stock Equino";
@@ -111,9 +147,13 @@ export default function StockEquinaEditarPanel({
     bajaAnio !== dispositivo.baja_anio;
 
   const guardar = async () => {
-    if (!apiOnline || guardando) return;
+    if (!apiOnline || guardando || soloLectura) return;
     if (!hayCambios) {
-      onVolver();
+      if (modoInicial === "ver") {
+        setModoEdicion("ver");
+      } else {
+        onVolver();
+      }
       return;
     }
 
@@ -137,7 +177,12 @@ export default function StockEquinaEditarPanel({
       );
 
       onSaved({ ...dispositivo, ...guardado });
-      onVolver();
+      restablecerDesdeDispositivo({ ...dispositivo, ...guardado });
+      if (modoInicial === "ver") {
+        setModoEdicion("ver");
+      } else {
+        onVolver();
+      }
     } catch (e) {
       onError(e instanceof Error ? e.message : "Error al guardar");
     } finally {
@@ -153,7 +198,7 @@ export default function StockEquinaEditarPanel({
         eid={dispositivo.eid}
         apiOnline={apiOnline}
         onVolver={() => setVerHistorialCambios(false)}
-        volverLabel="Volver a editar caravana"
+        volverLabel={soloLectura ? "Volver a la caravana" : "Volver a editar caravana"}
         onError={onError}
       />
     );
@@ -163,18 +208,45 @@ export default function StockEquinaEditarPanel({
     <SubseccionInlinePanel
       onVolver={onVolver}
       volverLabel={volverLabel}
-      title="Editar caravana"
-      description={
-        <>
-          EID <span className="num">{dispositivo.eid || "—"}</span>
-          {" · "}
-          VID <span className="num">{dispositivo.vid || "—"}</span>
-          {" · "}
-          Últ. lectura {fmtDate(dispositivo.ultima_fecha)}
-          {dispositivo.ultima_hora ? ` ${dispositivo.ultima_hora}` : ""}
-        </>
+      title={soloLectura ? "Caravana" : "Editar caravana"}
+      cardClassName={`subseccion-inline-card stock-equina-editar-page${
+        soloLectura ? " stock-equina-editar-page--solo-lectura" : ""
+      }`}
+      headAside={
+        <div className="stock-editar-head-panel" aria-label="Caravana electrónica">
+          <div className="stock-editar-head-device">
+            <span className="stock-editar-head-icon" aria-hidden>
+              <IconoDispositivoWifi className="stock-equina-editar-icon" />
+            </span>
+            <div className="stock-editar-head-chips">
+              <span className="stock-editar-head-chip stock-editar-head-chip--eid">
+                <span className="stock-editar-head-chip-k">EID</span>
+                <span className="stock-editar-head-chip-v num">{dispositivo.eid || "—"}</span>
+              </span>
+              <span className="stock-editar-head-chip stock-editar-head-chip--vid">
+                <span className="stock-editar-head-chip-k">VID</span>
+                <span className="stock-editar-head-chip-v num">{dispositivo.vid || "—"}</span>
+              </span>
+            </div>
+          </div>
+          <span className="stock-editar-head-divider" aria-hidden />
+          <div className="stock-editar-head-stats">
+            <span className="stock-editar-head-stat">
+              <span className="stock-editar-head-stat-k">Lecturas</span>
+              <span className="stock-editar-head-stat-v">
+                {dispositivo.total_lecturas}
+              </span>
+            </span>
+            <span className="stock-editar-head-stat">
+              <span className="stock-editar-head-stat-k">Última</span>
+              <span className="stock-editar-head-stat-v">
+                {fmtDate(dispositivo.ultima_fecha)}
+                {dispositivo.ultima_hora ? ` ${dispositivo.ultima_hora}` : ""}
+              </span>
+            </span>
+          </div>
+        </div>
       }
-      cardClassName="subseccion-inline-card stock-equina-editar-page"
       footer={
         <div className="stock-equina-editar-page-foot">
           <div className="stock-equina-editar-footer-links">
@@ -196,55 +268,62 @@ export default function StockEquinaEditarPanel({
             </button>
           </div>
           <div className="stock-equina-editar-footer-actions">
-            <button
-              type="button"
-              className="btn btn-ghost"
-              onClick={onVolver}
-              disabled={guardando}
-            >
-              Cancelar
-            </button>
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={() => void guardar()}
-              disabled={guardando || !apiOnline}
-            >
-              {guardando ? "Guardando…" : "Guardar cambios"}
-            </button>
+            {soloLectura ? (
+              <>
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  onClick={onVolver}
+                  disabled={guardando}
+                >
+                  Volver
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => setModoEdicion("editar")}
+                  disabled={guardando || !apiOnline}
+                >
+                  Editar
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  onClick={cancelarEdicion}
+                  disabled={guardando}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => void guardar()}
+                  disabled={guardando || !apiOnline}
+                >
+                  {guardando ? "Guardando…" : "Guardar cambios"}
+                </button>
+              </>
+            )}
           </div>
         </div>
       }
     >
-      <div className="stock-equina-editar-hero">
-        <div className="stock-equina-editar-hero-main">
-          <span className="stock-equina-editar-hero-icon" aria-hidden>
-            <IconoDispositivoWifi className="stock-equina-editar-icon" />
-          </span>
-          <div className="stock-equina-editar-hero-text">
-            <span className="stock-equina-editar-hero-kicker">Caravana electrónica</span>
-            <div className="stock-equina-editar-hero-ids">
-              <span className="stock-equina-editar-hero-badge num">
-                EID {dispositivo.eid || "—"}
-              </span>
-              <span className="stock-equina-editar-hero-badge stock-equina-editar-hero-badge--vid num">
-                {dispositivo.vid || "—"}
-              </span>
-            </div>
-            <p className="stock-equina-editar-hero-meta muted">
-              {dispositivo.total_lecturas} lectura
-              {dispositivo.total_lecturas === 1 ? "" : "s"} registrada
-              {dispositivo.total_lecturas === 1 ? "" : "s"}
-            </p>
-          </div>
-        </div>
-      </div>
-
       <div className="stock-equina-editar-page-body">
-        <section className="stock-equina-editar-panel" aria-label="Datos editables">
-            <h3 className="stock-equina-editar-section-title">Ficha del animal</h3>
+        <section
+          className="stock-equina-editar-panel"
+          aria-label={soloLectura ? "Ficha de la caravana" : "Datos editables"}
+        >
+            <div
+              className={`stock-edit-ficha-card${
+                soloLectura ? " stock-edit-ficha-card--solo-lectura" : ""
+              }`}
+            >
+              <h3 className="stock-equina-editar-section-title">Ficha del animal</h3>
 
-            <div className="stock-equina-editar-grid">
+              <div className="stock-equina-editar-grid">
               <div className="stock-edit-row-4 stock-edit-field--full">
                 <div className="stock-edit-field stock-edit-field--empresa">
                   <label htmlFor="edit-equina-empresa">Empresa</label>
@@ -252,7 +331,7 @@ export default function StockEquinaEditarPanel({
                     id="edit-equina-empresa"
                     empresas={empresas}
                     value={empresa}
-                    disabled={guardando || !apiOnline}
+                    disabled={camposDeshabilitados}
                     onChange={(e) =>
                       setEmpresa(e === EMPRESA_PENDIENTE ? "" : (e as DispositivoEmpresa))
                     }
@@ -264,7 +343,7 @@ export default function StockEquinaEditarPanel({
                   <SelectSexoDispositivo
                     id="edit-equina-sexo"
                     value={sexo}
-                    disabled={guardando || !apiOnline}
+                    disabled={camposDeshabilitados}
                     onChange={setSexo}
                   />
                 </div>
@@ -278,7 +357,7 @@ export default function StockEquinaEditarPanel({
                     id="edit-equina-nac-mes"
                     className="stock-nacimiento-mes stock-edit-select"
                     value={nacimientoMes ?? ""}
-                    disabled={guardando || !apiOnline}
+                    disabled={camposDeshabilitados}
                     onChange={(e) =>
                       setNacimientoMes(
                         e.target.value ? Number(e.target.value) : null
@@ -300,7 +379,7 @@ export default function StockEquinaEditarPanel({
                     id="edit-equina-nac-anio"
                     className="stock-nacimiento-anio stock-edit-select"
                     value={nacimientoAnio ?? ""}
-                    disabled={guardando || !apiOnline}
+                    disabled={camposDeshabilitados}
                     onChange={(e) =>
                       setNacimientoAnio(
                         e.target.value ? Number(e.target.value) : null
@@ -349,7 +428,7 @@ export default function StockEquinaEditarPanel({
                 <SelectGrupoDispositivo
                   id="edit-equina-grupo"
                   anio={nacimientoAnio}
-                  disabled={guardando || !apiOnline}
+                  disabled={camposDeshabilitados}
                 />
               </div>
 
@@ -362,7 +441,8 @@ export default function StockEquinaEditarPanel({
                   maxLength={48}
                   placeholder="Texto libre (letras y números)…"
                   value={grupoLibre}
-                  disabled={guardando || !apiOnline}
+                  readOnly={soloLectura}
+                  disabled={!soloLectura && camposDeshabilitados}
                   onChange={(e) => setGrupoLibre(normalizarGrupoLibre(e.target.value))}
                 />
               </div>
@@ -372,26 +452,39 @@ export default function StockEquinaEditarPanel({
                 <SelectEstadoDispositivo
                   id="edit-equina-estado"
                   value={estado}
-                  disabled={guardando || !apiOnline}
+                  disabled={camposDeshabilitados}
                   onChange={setEstado}
                 />
               </div>
               </div>
             </div>
+            </div>
 
-            <StockEquinaEvolucionTimeline
-              nacimientoMes={nacimientoMes}
-              nacimientoAnio={nacimientoAnio}
-              edadMeses={edadMeses}
-              sexo={sexo}
-              estado={estado}
-              bajaMes={bajaMes}
-              bajaAnio={bajaAnio}
-              editandoBaja
-              bajaDisabled={guardando || !apiOnline}
-              onBajaMesChange={setBajaMes}
-              onBajaAnioChange={setBajaAnio}
-            />
+            <div className="stock-edit-evolucion-row">
+              <StockDispositivoFotoCard
+                modulo="equino"
+                clave={dispositivo.clave}
+                soloLectura={soloLectura}
+                disabled={!soloLectura && (guardando || !apiOnline)}
+                onChange={(meta) => {
+                  onFotoMetaChange?.(meta);
+                }}
+                onError={onError}
+              />
+              <StockEquinaEvolucionTimeline
+                nacimientoMes={nacimientoMes}
+                nacimientoAnio={nacimientoAnio}
+                edadMeses={edadMeses}
+                sexo={sexo}
+                estado={estado}
+                bajaMes={bajaMes}
+                bajaAnio={bajaAnio}
+                editandoBaja={!soloLectura}
+                bajaDisabled={camposDeshabilitados}
+                onBajaMesChange={setBajaMes}
+                onBajaAnioChange={setBajaAnio}
+              />
+            </div>
 
             <div className="stock-edit-field stock-edit-field--observaciones">
               <label htmlFor="edit-equina-obs">
@@ -405,11 +498,12 @@ export default function StockEquinaEditarPanel({
                 maxLength={2000}
                 placeholder="Notas manuales sobre la caravana…"
                 value={observaciones}
-                disabled={guardando || !apiOnline}
+                readOnly={soloLectura}
+                disabled={!soloLectura && camposDeshabilitados}
                 onChange={(e) => setObservaciones(e.target.value)}
               />
             </div>
-          </section>
+        </section>
       </div>
     </SubseccionInlinePanel>
   );

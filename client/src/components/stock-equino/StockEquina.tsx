@@ -16,6 +16,7 @@ import TablePagination, {
 } from "../TablePagination";
 import BadgeEstadoDispositivo from "../stock/BadgeEstadoDispositivo";
 import IconoDispositivoWifi from "../stock/IconoDispositivoWifi";
+import IconoSeleccionCabanaEstrella from "../stock/IconoSeleccionCabanaEstrella";
 import StockEquinaDashKpi from "./StockEquinaDashKpi";
 import StockEquinaBulkPanel from "./StockEquinaBulkPanel";
 import StockEquinaDetalle from "./StockEquinaDetalle";
@@ -42,12 +43,19 @@ import {
   fmtEstadoDispositivo,
   fmtGrupo,
   fmtGrupoLibre,
+  generacionFiltroKey,
   grupoLibreFiltroKey,
   labelCategoriaFiltro,
   labelEdadFiltro,
+  labelGeneracionFiltro,
   labelGrupoLibreFiltro,
+  labelRazaFiltro,
+  labelUltimaLecturaMesFiltro,
+  razaFiltroKey,
+  ultimaLecturaMesFiltroKey,
   SIN_FECHA_NAC_FILTRO_KEY,
 } from "./stock-equina-utils";
+import { fmtEmpresaOperativa } from "../stock/stock-empresa-utils";
 import {
   clearStockEquinaPageCache,
   filtrosCacheKey,
@@ -72,6 +80,9 @@ function aplicaFacetas(
   filtroEstado: Set<DispositivoEstado>,
   filtroEdad: Set<string>,
   filtroGrupoLibre: Set<string>,
+  filtroRaza: Set<string>,
+  filtroGeneracion: Set<string>,
+  filtroUltimaLecturaMes: Set<string>,
   filtroCategoria: Set<string>,
   filtroSinFechaNac: Set<string>
 ): StockEquinaDispositivo[] {
@@ -89,6 +100,19 @@ function aplicaFacetas(
     ) {
       return false;
     }
+    if (filtroRaza.size > 0 && !filtroRaza.has(razaFiltroKey(d.raza))) return false;
+    if (
+      filtroGeneracion.size > 0 &&
+      !filtroGeneracion.has(generacionFiltroKey(d.grupo))
+    ) {
+      return false;
+    }
+    if (
+      filtroUltimaLecturaMes.size > 0 &&
+      !filtroUltimaLecturaMes.has(ultimaLecturaMesFiltroKey(d.ultima_fecha))
+    ) {
+      return false;
+    }
     if (!coincideCategoriaFiltro(d, filtroCategoria)) return false;
     if (!coincideSinFechaNacFiltro(d, filtroSinFechaNac)) return false;
     return true;
@@ -97,10 +121,6 @@ function aplicaFacetas(
 
 function fmtSexo(sexo: StockEquinaDispositivo["sexo"]): string {
   return sexo || "—";
-}
-
-function fmtEmpresa(empresa: StockEquinaDispositivo["empresa"]): string {
-  return empresa || "—";
 }
 
 function claseCeldaSexo(sexo: StockEquinaDispositivo["sexo"]): string {
@@ -160,6 +180,11 @@ export default function StockEquina({
   );
   const [filtroEdad, setFiltroEdad] = useState<Set<string>>(() => new Set());
   const [filtroGrupoLibre, setFiltroGrupoLibre] = useState<Set<string>>(
+    () => new Set()
+  );
+  const [filtroRaza, setFiltroRaza] = useState<Set<string>>(() => new Set());
+  const [filtroGeneracion, setFiltroGeneracion] = useState<Set<string>>(() => new Set());
+  const [filtroUltimaLecturaMes, setFiltroUltimaLecturaMes] = useState<Set<string>>(
     () => new Set()
   );
   const [filtroCategoria, setFiltroCategoria] = useState<Set<string>>(
@@ -292,7 +317,7 @@ export default function StockEquina({
   useEffect(() => {
     setPage(1);
     setSeleccion(new Set());
-  }, [busqueda, fechaDesde, fechaHasta, pageSize, filtroSexo, filtroEmpresa, filtroEstado, filtroEdad, filtroGrupoLibre, filtroCategoria, filtroSinFechaNac, filtroVentasCerradas, filtroSalidasSistema]);
+  }, [busqueda, fechaDesde, fechaHasta, pageSize, filtroSexo, filtroEmpresa, filtroEstado, filtroEdad, filtroGrupoLibre, filtroRaza, filtroGeneracion, filtroUltimaLecturaMes, filtroCategoria, filtroSinFechaNac, filtroVentasCerradas, filtroSalidasSistema]);
 
   const resumenKpis = useMemo(
     () => calcularResumenStockEquinaKpis(statsRows, ventasClaves),
@@ -334,6 +359,9 @@ export default function StockEquina({
       filtroEstado,
       filtroEdad,
       filtroGrupoLibre,
+      filtroRaza,
+      filtroGeneracion,
+      filtroUltimaLecturaMes,
       filtroCategoria,
       filtroSinFechaNac
     );
@@ -344,7 +372,7 @@ export default function StockEquina({
       result = result.filter((d) => esDispositivoFueraDeStock(d, ventasClaves));
     }
     return result;
-  }, [rowsBase, filtroSexo, filtroEmpresa, filtroEstado, filtroEdad, filtroGrupoLibre, filtroCategoria, filtroSinFechaNac, filtroVentasCerradas, filtroSalidasSistema, ventasClaves]);
+  }, [rowsBase, filtroSexo, filtroEmpresa, filtroEstado, filtroEdad, filtroGrupoLibre, filtroRaza, filtroGeneracion, filtroUltimaLecturaMes, filtroCategoria, filtroSinFechaNac, filtroVentasCerradas, filtroSalidasSistema, ventasClaves]);
 
   const sinDatosPrevios = statsRows.length === 0 && rows.length === 0;
   const kpisCargando = loading;
@@ -390,6 +418,9 @@ export default function StockEquina({
     const estado: Record<string, number> = {};
     const edad: Record<string, number> = {};
     const grupoLibre: Record<string, number> = {};
+    const raza: Record<string, number> = {};
+    const generacion: Record<string, number> = {};
+    const ultimaLecturaMes: Record<string, number> = {};
     const categoria: Record<string, number> = {};
     let sinFechaNac = 0;
     for (const o of EDAD_FILTRO_OPCIONES) edad[o.key] = 0;
@@ -409,11 +440,28 @@ export default function StockEquina({
       if (dispositivoSinFechaNacimiento(d)) sinFechaNac += 1;
       const grupoKey = grupoLibreFiltroKey(d.grupo_libre ?? "");
       grupoLibre[grupoKey] = (grupoLibre[grupoKey] ?? 0) + 1;
+      const razaKey = razaFiltroKey(d.raza);
+      raza[razaKey] = (raza[razaKey] ?? 0) + 1;
+      const generacionKey = generacionFiltroKey(d.grupo);
+      generacion[generacionKey] = (generacion[generacionKey] ?? 0) + 1;
+      const lecturaMesKey = ultimaLecturaMesFiltroKey(d.ultima_fecha);
+      ultimaLecturaMes[lecturaMesKey] = (ultimaLecturaMes[lecturaMesKey] ?? 0) + 1;
       for (const cat of categoriasDispositivo(d)) {
         categoria[cat] = (categoria[cat] ?? 0) + 1;
       }
     }
-    return { sexo, empresa, estado, edad, grupoLibre, categoria, sinFechaNac };
+    return {
+      sexo,
+      empresa,
+      estado,
+      edad,
+      grupoLibre,
+      raza,
+      generacion,
+      ultimaLecturaMes,
+      categoria,
+      sinFechaNac,
+    };
   }, [rows, empresasOperativas]);
 
   const grupoLibreOpciones = useMemo(() => {
@@ -428,12 +476,51 @@ export default function StockEquina({
     return keys;
   }, [facetCounts.grupoLibre]);
 
+  const razaOpciones = useMemo(() => {
+    const keys = Object.keys(facetCounts.raza).filter(
+      (k) => (facetCounts.raza[k] ?? 0) > 0
+    );
+    keys.sort((a, b) => {
+      if (a === "") return -1;
+      if (b === "") return 1;
+      return a.localeCompare(b, "es");
+    });
+    return keys;
+  }, [facetCounts.raza]);
+
+  const generacionOpciones = useMemo(() => {
+    const keys = Object.keys(facetCounts.generacion).filter(
+      (k) => (facetCounts.generacion[k] ?? 0) > 0
+    );
+    keys.sort((a, b) => {
+      if (a === "") return -1;
+      if (b === "") return 1;
+      return b.localeCompare(a, "es");
+    });
+    return keys;
+  }, [facetCounts.generacion]);
+
+  const ultimaLecturaMesOpciones = useMemo(() => {
+    const keys = Object.keys(facetCounts.ultimaLecturaMes).filter(
+      (k) => (facetCounts.ultimaLecturaMes[k] ?? 0) > 0
+    );
+    keys.sort((a, b) => {
+      if (a === "") return 1;
+      if (b === "") return -1;
+      return b.localeCompare(a);
+    });
+    return keys;
+  }, [facetCounts.ultimaLecturaMes]);
+
   const hayFacetasActivas =
     filtroSexo.size > 0 ||
     filtroEmpresa.size > 0 ||
     filtroEstado.size > 0 ||
     filtroEdad.size > 0 ||
     filtroGrupoLibre.size > 0 ||
+    filtroRaza.size > 0 ||
+    filtroGeneracion.size > 0 ||
+    filtroUltimaLecturaMes.size > 0 ||
     filtroCategoria.size > 0 ||
     filtroSinFechaNac.size > 0 ||
     filtroVentasCerradas ||
@@ -445,6 +532,9 @@ export default function StockEquina({
     setFiltroEstado(new Set());
     setFiltroEdad(new Set());
     setFiltroGrupoLibre(new Set());
+    setFiltroRaza(new Set());
+    setFiltroGeneracion(new Set());
+    setFiltroUltimaLecturaMes(new Set());
     setFiltroCategoria(new Set());
     setFiltroSinFechaNac(new Set());
     setFiltroVentasCerradas(false);
@@ -581,6 +671,34 @@ export default function StockEquina({
     });
   };
 
+  const sincronizarFotoDispositivo = (
+    clave: string,
+    meta: import("../../api").StockDispositivoFotoMeta
+  ) => {
+    setEditarDispositivo((prev) =>
+      prev && prev.clave === clave
+        ? {
+            ...prev,
+            tiene_foto: meta.tiene_foto,
+            foto_url: meta.foto_url,
+            foto_actualizado_en: meta.foto_actualizado_en,
+          }
+        : prev
+    );
+    setRows((prev) =>
+      prev.map((r) =>
+        r.clave === clave
+          ? {
+              ...r,
+              tiene_foto: meta.tiene_foto,
+              foto_url: meta.foto_url,
+              foto_actualizado_en: meta.foto_actualizado_en,
+            }
+          : r
+      )
+    );
+  };
+
   if (editarDispositivo) {
     return (
       <StockEquinaEditarPanel
@@ -590,8 +708,9 @@ export default function StockEquina({
         onVolver={() => setEditarDispositivo(null)}
         onSaved={(actualizado) => {
           actualizarFila(actualizado);
-          setEditarDispositivo(null);
+          setEditarDispositivo(actualizado);
         }}
+        onFotoMetaChange={(meta) => sincronizarFotoDispositivo(editarDispositivo.clave, meta)}
         onVerHistorial={() => {
           setDetalleClave(editarDispositivo.clave);
           setEditarDispositivo(null);
@@ -788,14 +907,17 @@ export default function StockEquina({
               filtroEstado={filtroEstado}
               filtroEdad={filtroEdad}
               filtroGrupoLibre={filtroGrupoLibre}
+              filtroRaza={filtroRaza}
               filtroCategoria={filtroCategoria}
               filtroSinFechaNac={filtroSinFechaNac}
               grupoLibreOpciones={grupoLibreOpciones}
+              razaOpciones={razaOpciones}
               onToggleSexo={(k) => setFiltroSexo((p) => toggleSet(p, k))}
               onToggleEmpresa={(k) => setFiltroEmpresa((p) => toggleSet(p, k))}
               onToggleEstado={(e) => setFiltroEstado((p) => toggleSet(p, e))}
               onToggleEdad={(k) => setFiltroEdad((p) => toggleSet(p, k))}
               onToggleGrupoLibre={(k) => setFiltroGrupoLibre((p) => toggleSet(p, k))}
+              onToggleRaza={(k) => setFiltroRaza((p) => toggleSet(p, k))}
               onToggleCategoria={(k) => setFiltroCategoria((p) => toggleSet(p, k))}
               onToggleSinFechaNac={() =>
                 setFiltroSinFechaNac((p) => toggleSet(p, SIN_FECHA_NAC_FILTRO_KEY))
@@ -805,6 +927,7 @@ export default function StockEquina({
               onLimpiarEstado={() => setFiltroEstado(new Set())}
               onLimpiarEdad={() => setFiltroEdad(new Set())}
               onLimpiarGrupoLibre={() => setFiltroGrupoLibre(new Set())}
+              onLimpiarRaza={() => setFiltroRaza(new Set())}
               onLimpiarCategoria={() => setFiltroCategoria(new Set())}
               onLimpiarSinFechaNac={() => setFiltroSinFechaNac(new Set())}
               counts={facetCounts}
@@ -898,11 +1021,23 @@ export default function StockEquina({
                 ))}
                 {[...filtroEmpresa].map((k) => (
                   <span key={`emp-${k}`} className="stock-equina-chip">
-                    Empresa: {k || "Sin definir"}
+                    Empresa: {empresaOpciones.find((o) => o.key === k)?.label ?? (k || "Sin definir")}
                     <button
                       type="button"
                       aria-label="Quitar filtro de empresa"
                       onClick={() => setFiltroEmpresa((p) => toggleSet(p, k))}
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+                {[...filtroRaza].map((k) => (
+                  <span key={`raza-${k}`} className="stock-equina-chip">
+                    Raza: {labelRazaFiltro(k)}
+                    <button
+                      type="button"
+                      aria-label="Quitar filtro de raza"
+                      onClick={() => setFiltroRaza((p) => toggleSet(p, k))}
                     >
                       ×
                     </button>
@@ -1044,6 +1179,11 @@ export default function StockEquina({
                     title="Seleccionar página"
                   />
                 </th>
+                <th
+                  className="stock-th stock-th--cabana"
+                  aria-label="Selección de cabaña"
+                  title="Selección de cabaña"
+                />
                 <th className="stock-th stock-th--num">EID</th>
                 <th className="stock-th">VID</th>
                 <th className="stock-th">Empresa</th>
@@ -1052,27 +1192,25 @@ export default function StockEquina({
                 <th className="stock-th">Sexo</th>
                 <th className="stock-th stock-th--edad">Edad</th>
                 <th className="stock-th stock-th--time">Última lectura</th>
-                <th className="stock-th">Condición</th>
-                <th className="stock-th stock-th--num">Lecturas</th>
                 <th className="stock-th stock-th--estado">Estado</th>
               </tr>
             </thead>
             <tbody>
               {mostrarCargaVacia ? (
                 <tr>
-                  <td colSpan={12} className="empty">
+                  <td colSpan={11} className="empty">
                     Cargando…
                   </td>
                 </tr>
               ) : !apiOnline ? (
                 <tr>
-                  <td colSpan={12} className="empty">
+                  <td colSpan={11} className="empty">
                     API no conectada
                   </td>
                 </tr>
               ) : filteredRows.length === 0 ? (
                 <tr>
-                  <td colSpan={12} className="empty">
+                  <td colSpan={11} className="empty">
                     Sin dispositivos para los filtros aplicados.
                   </td>
                 </tr>
@@ -1093,6 +1231,11 @@ export default function StockEquina({
                         aria-label={`Seleccionar ${d.vid || d.eid}`}
                       />
                     </td>
+                    <td className="stock-td stock-td--cabana">
+                      {d.cabana_premium ? (
+                        <IconoSeleccionCabanaEstrella nombreCabana={d.nombre_cabana} />
+                      ) : null}
+                    </td>
                     <td className="stock-td stock-td--num stock-td--eid">
                       {d.eid || "—"}
                     </td>
@@ -1110,7 +1253,7 @@ export default function StockEquina({
                       </span>
                     </td>
                     <td className="stock-td stock-td--muted">
-                      {fmtEmpresa(d.empresa)}
+                      {fmtEmpresaOperativa(d.empresa, empresasOperativas)}
                     </td>
                     <td className="stock-td stock-td--muted">{fmtGrupo(d.grupo)}</td>
                     <td className="stock-td stock-td--muted">{fmtGrupoLibre(d.grupo_libre)}</td>
@@ -1132,12 +1275,6 @@ export default function StockEquina({
                       {d.ultima_hora ? (
                         <span className="stock-td-time-hour">{d.ultima_hora}</span>
                       ) : null}
-                    </td>
-                    <td className="stock-td stock-td--muted">
-                      {d.ultima_condicion || "—"}
-                    </td>
-                    <td className="stock-td stock-td--num stock-td--lecturas">
-                      {d.total_lecturas}
                     </td>
                     <td className="stock-td stock-td--estado">
                       <BadgeEstadoDispositivo estado={d.estado} />

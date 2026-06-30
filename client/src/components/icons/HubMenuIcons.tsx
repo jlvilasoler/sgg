@@ -41,6 +41,7 @@ export type HubIconId =
   | "stock_lecturas"
   | "stock_dispositivos"
   | "stock_salidas"
+  | "stock_cabana"
   | "ventas_ingresar"
   | "ventas_listado"
   | "ventas_rubros"
@@ -185,6 +186,25 @@ function IconSalidas({ className }: IconProps) {
   );
 }
 
+function IconCabana({ className }: IconProps) {
+  return (
+    <IconShell className={className}>
+      <path d="M6.5 14.5c1-2.4 3-4 5.5-4s4.5 1.6 5.5 4" {...stroke} />
+      <path d="M4.5 14.5h15" {...stroke} />
+      <circle cx="9.25" cy="9.25" r=".75" fill="currentColor" />
+      <circle cx="14.75" cy="9.25" r=".75" fill="currentColor" />
+      <path
+        d="M12 4.5 13.8 8.2 17.8 8.6 14.8 11.2 15.7 15.1 12 13.1 8.3 15.1 9.2 11.2 6.2 8.6 10.2 8.2 12 4.5Z"
+        fill="currentColor"
+        fillOpacity="0.22"
+        stroke="currentColor"
+        strokeWidth="1.35"
+        strokeLinejoin="round"
+      />
+    </IconShell>
+  );
+}
+
 function IconInvoice({ className }: IconProps) {
   return (
     <IconShell className={className}>
@@ -295,6 +315,7 @@ const ICONS: Record<HubIconId, (props: IconProps) => ReactNode> = {
   stock_lecturas: IconClipboard,
   stock_dispositivos: IconCattle,
   stock_salidas: IconSalidas,
+  stock_cabana: IconCabana,
   ventas_ingresar: IconInvoice,
   ventas_listado: IconClipboard,
   ventas_rubros: IconTag,
@@ -398,6 +419,11 @@ export const HUB_ICON_THEMES: Record<HubIconId, MenuAppTheme> = {
     accent: "#be123c",
     accentSoft: "linear-gradient(145deg, #fff1f2 0%, #ffe4e6 52%, #fecdd3 100%)",
     accentGlow: "rgba(190, 18, 60, 0.26)",
+  },
+  stock_cabana: {
+    accent: "#7c3aed",
+    accentSoft: "linear-gradient(145deg, #f5f3ff 0%, #ede9fe 52%, #ddd6fe 100%)",
+    accentGlow: "rgba(124, 58, 237, 0.28)",
   },
   ventas_ingresar: {
     accent: "#059669",

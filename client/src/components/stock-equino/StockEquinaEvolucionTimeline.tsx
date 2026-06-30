@@ -283,7 +283,7 @@ function ChartEtapas({
                 <span className={`${pref}-card-titulo`}>{e.titulo}</span>
                 <span className={`${pref}-card-rango`}>{e.rango}</span>
                 {activa && (
-                  <span className={`${pref}-card-ahora`}>
+                  <span className={`${pref}-card-ahora stock-evo-card-ahora`}>
                     {enBaja ? etiquetaBaja : "Ahora"}
                   </span>
                 )}
@@ -312,8 +312,11 @@ function ChartEtapas({
                   : `${mesesPin} meses`
               }
             >
-              <span className={`${pref}-pin-dot`} />
-              <span className={`${pref}-pin-label`}>{mesesPin} m</span>
+              <span className={`${pref}-pin-dot stock-evo-pin-dot`} />
+              <span className={`${pref}-pin-label stock-evo-pin-label`} aria-live="polite">
+                <span className="stock-evo-pin-label-num">{mesesPin}</span>
+                <span className="stock-evo-pin-label-unit">m</span>
+              </span>
             </div>
           </div>
           <div className={`${pref}-campo`}>
@@ -463,10 +466,10 @@ function ChartGeneral({
                   : `${mesesPin} meses`
               }
             >
-              <span className="stock-evolucion-pointer-dot" />
-              <span className="stock-evolucion-pointer-tag">
-                {mesesPin}
-                <small>m</small>
+              <span className="stock-evolucion-pointer-dot stock-evo-pin-dot" />
+              <span className="stock-evolucion-pointer-tag stock-evo-pin-label" aria-live="polite">
+                <span className="stock-evo-pin-label-num">{mesesPin}</span>
+                <span className="stock-evo-pin-label-unit">m</span>
               </span>
             </div>
           </div>
@@ -528,13 +531,15 @@ export default function StockEquinaEvolucionTimeline({
 
   if (sinFecha) {
     return (
-      <section
-        className={`stock-evolucion ${claseSexo(sexo)} ${claseEstado(estado)}`}
-        aria-label="Línea de tiempo de evolución"
-      >
+      <div className="stock-edit-evolucion-card">
+        <section
+          className={`stock-evolucion ${claseSexo(sexo)} ${claseEstado(estado)}`}
+          aria-label="Línea de tiempo de evolución"
+        >
+        <h4 className="stock-evolucion-title">Evolución del animal</h4>
+        <div className="stock-edit-evolucion-body">
         <div className="stock-evolucion-head">
           <div className="stock-evolucion-head-main">
-            <h4 className="stock-evolucion-title">Evolución del animal</h4>
             <FechasEvolucion
               nacimientoMes={nacimientoMes}
               nacimientoAnio={nacimientoAnio}
@@ -576,7 +581,9 @@ export default function StockEquinaEvolucionTimeline({
             </>
           )}
         </div>
-      </section>
+        </div>
+        </section>
+      </div>
     );
   }
 
@@ -586,15 +593,17 @@ export default function StockEquinaEvolucionTimeline({
     esHembra && mesesPin !== null ? etapaHembraDesdeMeses(mesesPin) : null;
 
   return (
-    <section
-      className={`stock-evolucion ${claseSexo(sexo)} ${claseEstado(estado)}${
-        conEtapas ? ` stock-evolucion--${esMacho ? "macho" : "hembra"}-etapas` : ""
-      }`}
-      aria-label="Línea de tiempo de evolución del animal"
-    >
+    <div className="stock-edit-evolucion-card">
+      <section
+        className={`stock-evolucion ${claseSexo(sexo)} ${claseEstado(estado)}${
+          conEtapas ? ` stock-evolucion--${esMacho ? "macho" : "hembra"}-etapas` : ""
+        }`}
+        aria-label="Línea de tiempo de evolución del animal"
+      >
+      <h4 className="stock-evolucion-title">Evolución del animal</h4>
+      <div className="stock-edit-evolucion-body">
       <div className="stock-evolucion-head">
         <div className="stock-evolucion-head-main">
-          <h4 className="stock-evolucion-title">Evolución del animal</h4>
           <FechasEvolucion
             nacimientoMes={nacimientoMes}
             nacimientoAnio={nacimientoAnio}
@@ -634,6 +643,8 @@ export default function StockEquinaEvolucionTimeline({
           />
         ) : null}
       </div>
-    </section>
+      </div>
+      </section>
+    </div>
   );
 }

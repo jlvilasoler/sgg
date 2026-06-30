@@ -1,13 +1,14 @@
 import type { ReactNode } from "react";
 import type { DispositivoEstado } from "../../types";
 import {
-  CATEGORIA_FILTRO_HEMBRA,
-  CATEGORIA_FILTRO_MACHO,
-  CATEGORIA_FILTRO_OTROS,
+  CATEGORIA_FILTRO_OPCIONES,
   EDAD_FILTRO_OPCIONES,
   ESTADOS_DISPOSITIVO,
   SIN_FECHA_NAC_FILTRO_KEY,
+  labelGeneracionFiltro,
   labelGrupoLibreFiltro,
+  labelRazaFiltro,
+  labelUltimaLecturaMesFiltro,
 } from "./stock-ganadera-utils";
 
 export interface FacetCounts {
@@ -16,6 +17,9 @@ export interface FacetCounts {
   estado: Record<string, number>;
   edad: Record<string, number>;
   grupoLibre: Record<string, number>;
+  raza: Record<string, number>;
+  generacion: Record<string, number>;
+  ultimaLecturaMes: Record<string, number>;
   categoria: Record<string, number>;
   sinFechaNac: number;
 }
@@ -25,20 +29,30 @@ interface Props {
   fechaHasta: string;
   onFechaDesde: (v: string) => void;
   onFechaHasta: (v: string) => void;
+  filtroUltimaLecturaMes: Set<string>;
+  onToggleUltimaLecturaMes: (key: string) => void;
+  onLimpiarUltimaLectura: () => void;
+  ultimaLecturaMesOpciones: string[];
   empresaOpciones: Array<{ key: string; label: string }>;
   filtroSexo: Set<string>;
   filtroEmpresa: Set<string>;
   filtroEstado: Set<DispositivoEstado>;
   filtroEdad: Set<string>;
   filtroGrupoLibre: Set<string>;
+  filtroRaza: Set<string>;
+  filtroGeneracion: Set<string>;
   filtroCategoria: Set<string>;
   filtroSinFechaNac: Set<string>;
   grupoLibreOpciones: string[];
+  razaOpciones: string[];
+  generacionOpciones: string[];
   onToggleSexo: (key: string) => void;
   onToggleEmpresa: (key: string) => void;
   onToggleEstado: (estado: DispositivoEstado) => void;
   onToggleEdad: (key: string) => void;
   onToggleGrupoLibre: (key: string) => void;
+  onToggleRaza: (key: string) => void;
+  onToggleGeneracion: (key: string) => void;
   onToggleCategoria: (key: string) => void;
   onToggleSinFechaNac: () => void;
   onLimpiarSexo: () => void;
@@ -46,6 +60,8 @@ interface Props {
   onLimpiarEstado: () => void;
   onLimpiarEdad: () => void;
   onLimpiarGrupoLibre: () => void;
+  onLimpiarRaza: () => void;
+  onLimpiarGeneracion: () => void;
   onLimpiarCategoria: () => void;
   onLimpiarSinFechaNac: () => void;
   counts: FacetCounts;
@@ -118,20 +134,30 @@ export default function StockGanaderaFiltrosSidebar({
   fechaHasta,
   onFechaDesde,
   onFechaHasta,
+  filtroUltimaLecturaMes,
+  onToggleUltimaLecturaMes,
+  onLimpiarUltimaLectura,
+  ultimaLecturaMesOpciones,
   empresaOpciones,
   filtroSexo,
   filtroEmpresa,
   filtroEstado,
   filtroEdad,
   filtroGrupoLibre,
+  filtroRaza,
+  filtroGeneracion,
   filtroCategoria,
   filtroSinFechaNac,
   grupoLibreOpciones,
+  razaOpciones,
+  generacionOpciones,
   onToggleSexo,
   onToggleEmpresa,
   onToggleEstado,
   onToggleEdad,
   onToggleGrupoLibre,
+  onToggleRaza,
+  onToggleGeneracion,
   onToggleCategoria,
   onToggleSinFechaNac,
   onLimpiarSexo,
@@ -139,6 +165,8 @@ export default function StockGanaderaFiltrosSidebar({
   onLimpiarEstado,
   onLimpiarEdad,
   onLimpiarGrupoLibre,
+  onLimpiarRaza,
+  onLimpiarGeneracion,
   onLimpiarCategoria,
   onLimpiarSinFechaNac,
   counts,
@@ -182,7 +210,13 @@ export default function StockGanaderaFiltrosSidebar({
           </button>
         </div>
 
-        <FacetGroup title="Última lectura">
+        <FacetGroup
+          title="Última lectura"
+          showClear={
+            Boolean(fechaDesde || fechaHasta || filtroUltimaLecturaMes.size > 0)
+          }
+          onClear={onLimpiarUltimaLectura}
+        >
           <div className="stock-facet-dates">
             <label className="stock-facet-date">
               <span>Desde</span>
@@ -201,6 +235,20 @@ export default function StockGanaderaFiltrosSidebar({
               />
             </label>
           </div>
+          {ultimaLecturaMesOpciones.length > 0 ? (
+            <>
+              <p className="stock-facet-subtitle">Por mes</p>
+              {ultimaLecturaMesOpciones.map((key) => (
+                <FacetOption
+                  key={key || "sin"}
+                  checked={filtroUltimaLecturaMes.has(key)}
+                  label={labelUltimaLecturaMesFiltro(key)}
+                  count={counts.ultimaLecturaMes[key] ?? 0}
+                  onChange={() => onToggleUltimaLecturaMes(key)}
+                />
+              ))}
+            </>
+          ) : null}
         </FacetGroup>
 
         <FacetGroup
@@ -234,6 +282,44 @@ export default function StockGanaderaFiltrosSidebar({
             />
           ))}
         </FacetGroup>
+
+        {razaOpciones.length > 0 ? (
+          <FacetGroup
+            title="Raza"
+            showClear={filtroRaza.size > 0}
+            onClear={onLimpiarRaza}
+            scroll={razaOpciones.length > 8}
+          >
+            {razaOpciones.map((key) => (
+              <FacetOption
+                key={key || "sin"}
+                checked={filtroRaza.has(key)}
+                label={labelRazaFiltro(key)}
+                count={counts.raza[key] ?? 0}
+                onChange={() => onToggleRaza(key)}
+              />
+            ))}
+          </FacetGroup>
+        ) : null}
+
+        {generacionOpciones.length > 0 ? (
+          <FacetGroup
+            title="Generación"
+            showClear={filtroGeneracion.size > 0}
+            onClear={onLimpiarGeneracion}
+            scroll={generacionOpciones.length > 8}
+          >
+            {generacionOpciones.map((key) => (
+              <FacetOption
+                key={key || "sin"}
+                checked={filtroGeneracion.has(key)}
+                label={labelGeneracionFiltro(key)}
+                count={counts.generacion[key] ?? 0}
+                onChange={() => onToggleGeneracion(key)}
+              />
+            ))}
+          </FacetGroup>
+        ) : null}
 
         <FacetGroup
           title="Estado"
@@ -286,10 +372,11 @@ export default function StockGanaderaFiltrosSidebar({
           title="Categoría"
           showClear={filtroCategoria.size > 0}
           onClear={onLimpiarCategoria}
+          scroll
         >
-          <p className="stock-facet-subtitle">Hembras</p>
-          {CATEGORIA_FILTRO_HEMBRA.filter((o) => (counts.categoria[o.key] ?? 0) > 0).map(
-            (o) => (
+          {CATEGORIA_FILTRO_OPCIONES.filter((o) => (counts.categoria[o.key] ?? 0) > 0)
+            .sort((a, b) => a.label.localeCompare(b.label, "es"))
+            .map((o) => (
               <FacetOption
                 key={o.key}
                 checked={filtroCategoria.has(o.key)}
@@ -297,36 +384,7 @@ export default function StockGanaderaFiltrosSidebar({
                 count={counts.categoria[o.key] ?? 0}
                 onChange={() => onToggleCategoria(o.key)}
               />
-            )
-          )}
-          <p className="stock-facet-subtitle">Machos</p>
-          {CATEGORIA_FILTRO_MACHO.filter((o) => (counts.categoria[o.key] ?? 0) > 0).map(
-            (o) => (
-              <FacetOption
-                key={o.key}
-                checked={filtroCategoria.has(o.key)}
-                label={o.label}
-                count={counts.categoria[o.key] ?? 0}
-                onChange={() => onToggleCategoria(o.key)}
-              />
-            )
-          )}
-          {CATEGORIA_FILTRO_OTROS.some((o) => (counts.categoria[o.key] ?? 0) > 0) ? (
-            <>
-              <p className="stock-facet-subtitle">Otros</p>
-              {CATEGORIA_FILTRO_OTROS.filter(
-                (o) => (counts.categoria[o.key] ?? 0) > 0
-              ).map((o) => (
-                <FacetOption
-                  key={o.key}
-                  checked={filtroCategoria.has(o.key)}
-                  label={o.label}
-                  count={counts.categoria[o.key] ?? 0}
-                  onChange={() => onToggleCategoria(o.key)}
-                />
-              ))}
-            </>
-          ) : null}
+            ))}
         </FacetGroup>
 
         {grupoLibreOpciones.length > 0 ? (
