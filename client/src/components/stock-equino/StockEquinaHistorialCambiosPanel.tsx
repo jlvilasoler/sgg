@@ -88,6 +88,7 @@ export default function StockEquinaHistorialCambiosPanel({
     <SubseccionInlinePanel
       onVolver={onVolver}
       volverLabel={volverLabel}
+      icon={{ source: "hub", id: "stock_dispositivos" }}
       title="Historial de cambios"
       description={
         <>

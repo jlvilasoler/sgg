@@ -1,10 +1,19 @@
+import type { HubIconId } from "../icons/HubMenuIcons";
+import { PageModuleHeadRow } from "../PageModuleHead";
+
 interface Props {
   titulo: string;
   descripcion: string;
   onVolver: () => void;
+  hubIcon?: HubIconId;
 }
 
-export default function VentasIngresosSeccion({ titulo, descripcion, onVolver }: Props) {
+export default function VentasIngresosSeccion({
+  titulo,
+  descripcion,
+  onVolver,
+  hubIcon = "ventas_ingresar",
+}: Props) {
   return (
     <div className="subseccion-panel">
       <button type="button" className="subseccion-back" onClick={onVolver}>
@@ -12,8 +21,11 @@ export default function VentasIngresosSeccion({ titulo, descripcion, onVolver }:
       </button>
       <div className="card">
         <div className="form-header">
-          <h2>{titulo}</h2>
-          <p className="muted">{descripcion}</p>
+          <PageModuleHeadRow
+            icon={{ source: "hub", id: hubIcon }}
+            title={titulo}
+            subtitle={descripcion}
+          />
         </div>
       </div>
     </div>

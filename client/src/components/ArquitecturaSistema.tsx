@@ -6,6 +6,7 @@ import {
   fetchEmpresasCuenta,
 } from "../api";
 import type { AuthUser, EmpresaCuenta, EmpresaCuentaForm } from "../types";
+import { PageModuleHeadRow } from "./PageModuleHead";
 import ArquitecturaCuentaDetalle, {
   type CuentaDetallePanel,
 } from "./ArquitecturaCuentaDetalle";
@@ -254,8 +255,14 @@ export default function ArquitecturaSistema({
       <div className="card usuarios-panel listado-pro-shell">
         <header className="listado-pro-head usuarios-admin-head">
           <div className="listado-pro-head-main">
-            <h2 className="listado-pro-head-title">{titulo}</h2>
-            <p className="listado-pro-head-sub">{subtitulo}</p>
+            <PageModuleHeadRow
+              icon={{ source: "hub", id: "arquitectura_sistema" }}
+              title={titulo}
+              subtitle={subtitulo}
+              titleClassName="listado-pro-head-title"
+              subClassName="listado-pro-head-sub"
+              textClassName="listado-pro-head-text"
+            />
           </div>
           <div className="usuarios-head-actions">
             <button

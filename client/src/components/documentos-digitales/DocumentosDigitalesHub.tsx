@@ -4,6 +4,7 @@ import { useHeaderBackStep } from "../../header-back";
 import type { HubIconId } from "../icons/HubMenuIcons";
 import { HUB_ICON_THEMES, HubMenuIcon } from "../icons/HubMenuIcons";
 import TiposDocumentoGasto from "./TiposDocumentoGasto";
+import { PageModuleHeadRow } from "../PageModuleHead";
 
 type Vista = "menu" | "tipos_gasto";
 
@@ -50,12 +51,11 @@ export default function DocumentosDigitalesHub({
         ‹ Volver al menú
       </button>
       <div className="form-header subseccion-inline-head">
-        <div>
-          <h2>Documentos Digitales</h2>
-          <p className="muted">
-            Centro de configuración vinculado con Ingresar gasto y otros módulos.
-          </p>
-        </div>
+        <PageModuleHeadRow
+          icon={{ source: "app", id: "documentos_digitales" }}
+          title="Documentos Digitales"
+          subtitle="Centro de configuración vinculado con Ingresar gasto y otros módulos."
+        />
       </div>
       <nav className="app-grid" aria-label="Documentos digitales">
         {SUBMENU.map((item) => (

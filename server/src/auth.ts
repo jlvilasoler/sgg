@@ -760,6 +760,26 @@ export function registerAuthRoutes(app: Express): void {
       return;
     }
 
+    if (ambito === "mi_cuenta") {
+      const cuentaId =
+        actor.cuenta_actividad_id ??
+        (await empresasCuenta.resolveCuentaMadreIdForUser(getDb(), actor));
+      if (!cuentaId) {
+        res.json({ ok: true, data: [actor] });
+        return;
+      }
+      const cuenta = await empresasCuenta.getEmpresaCuentaById(getDb(), cuentaId);
+      const users = await authDb.listUsers(getDb(), {
+        empresa_id: cuentaId,
+        incluir_admin_id: cuenta?.admin_user_id ?? null,
+      });
+      res.json({
+        ok: true,
+        data: users.filter((u) => u.activo),
+      });
+      return;
+    }
+
     const empresaIdRaw = req.query.empresa_id ?? req.query.cuenta_id;
     const empresaId =
       empresaIdRaw != null && String(empresaIdRaw).trim() !== ""

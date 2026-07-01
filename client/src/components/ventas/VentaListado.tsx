@@ -7,6 +7,7 @@ import TablePagination, {
   paginateSlice,
   type PageSize,
 } from "../TablePagination";
+import { PageModuleHeadRow } from "../PageModuleHead";
 
 interface Props {
   apiOnline: boolean;
@@ -108,12 +109,15 @@ export default function VentaListado({
 
       <div className="card">
         <div className="form-header">
-          <h2>Listado de ingresos por ventas</h2>
-          <p className="muted">
-            {loading
-              ? "Cargando..."
-              : `${rows.length} documento(s) — Total USD: ${fmtNum(totales.totalUsd)}`}
-          </p>
+          <PageModuleHeadRow
+            icon={{ source: "hub", id: "ventas_listado" }}
+            title="Listado de ingresos por ventas"
+            subtitle={
+              loading
+                ? "Cargando..."
+                : `${rows.length} documento(s) — Total USD: ${fmtNum(totales.totalUsd)}`
+            }
+          />
         </div>
 
         <div className="filters mayusculas-auto">

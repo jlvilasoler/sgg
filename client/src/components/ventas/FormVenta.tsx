@@ -10,6 +10,7 @@ import { formatNumeroOperacion, todayIso, fmtNum } from "../../utils";
 import { aMayusculas } from "../../utils/formText";
 import { calcularTotalUsdVenta } from "../../utils/importeMoneda";
 import SelectorProveedor from "../SelectorProveedor";
+import { PageModuleHeadRow } from "../PageModuleHead";
 
 interface Props {
   editRow: IngresoVenta | null;
@@ -163,12 +164,15 @@ export default function FormVenta({
 
       <form className="card form-card" onSubmit={handleSubmit}>
         <div className="form-header">
-          <h2>
-            {editRow
-              ? `Editar documento — Operación N° ${formatNumeroOperacion(editRow.nro_registro)}`
-              : "Documentos a ingresar por ventas"}
-          </h2>
-          <p className="muted">Registro de ingresos por ventas — tabla INGRESOS_VENTAS</p>
+          <PageModuleHeadRow
+            icon={{ source: "hub", id: "ventas_ingresar" }}
+            title={
+              editRow
+                ? `Editar documento — Operación N° ${formatNumeroOperacion(editRow.nro_registro)}`
+                : "Documentos a ingresar por ventas"
+            }
+            subtitle="Registro de ingresos por ventas — tabla INGRESOS_VENTAS"
+          />
         </div>
 
         <div className="form-grid">

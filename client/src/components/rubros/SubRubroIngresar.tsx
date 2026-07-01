@@ -6,6 +6,7 @@ import {
 } from "../../api";
 import type { SubRubro, SubRubroForm } from "../../types";
 import { normalizarTituloRubro } from "../../utils/formText";
+import { PageModuleHeadRow } from "../PageModuleHead";
 
 interface Props {
   apiOnline: boolean;
@@ -101,11 +102,11 @@ export default function SubRubroIngresar({
 
       <div className="card">
         <div className="form-header">
-          <h2>{editId ? "Editar sub-rubro" : "Ingresar sub-rubro"}</h2>
-          <p className="muted">
-            Detalle dentro del rubro (ej. Sueldos, UTE, Fletes Ganado). Los activos
-            aparecen al registrar gastos.
-          </p>
+          <PageModuleHeadRow
+            icon={{ source: "hub", id: "config_rubros" }}
+            title={editId ? "Editar sub-rubro" : "Ingresar sub-rubro"}
+            subtitle="Detalle dentro del rubro (ej. Sueldos, UTE, Fletes Ganado). Los activos aparecen al registrar gastos."
+          />
         </div>
 
         <form className="form-grid" onSubmit={guardar}>

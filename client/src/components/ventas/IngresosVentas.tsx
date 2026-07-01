@@ -9,6 +9,7 @@ import VentaRubros from "./VentaRubros";
 import VentasGanadoCerradas from "./VentasGanadoCerradas";
 import VentasAgricultura from "./VentasAgricultura";
 import VentasArrendamientos from "./VentasArrendamientos";
+import { PageModuleHeadRow } from "../PageModuleHead";
 
 type VistaVentas =
   | "menu"
@@ -36,7 +37,7 @@ const SUBMENU: {
     id: "ventas_ganado",
     label: "Ventas de ganado cerradas",
     subtitle: "Ventas cerradas del simulador con totales",
-    icon: "ventas_ganado",
+    icon: "ventas_ganado_cerradas",
   },
   {
     id: "ventas_agricultura",
@@ -145,10 +146,11 @@ export default function IngresosVentas({
       </button>
       <div className="card configuracion-hub-card">
         <div className="form-header">
-          <h2>Ingresos por ventas</h2>
-          <p className="muted">
-            Ganado, agricultura, arrendamientos y catálogo de rubros de ingresos.
-          </p>
+          <PageModuleHeadRow
+            icon={{ source: "app", id: "ingresos_ventas" }}
+            title="Ingresos por ventas"
+            subtitle="Ganado, agricultura, arrendamientos y catálogo de rubros de ingresos."
+          />
         </div>
         <nav className="app-grid" aria-label="Ingresos por ventas">
           {SUBMENU.map((item) => (

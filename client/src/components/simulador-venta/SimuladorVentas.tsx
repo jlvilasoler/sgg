@@ -3,6 +3,7 @@ import { HubMenuCard } from "../HubMenuCard";
 import { useHeaderBackContext } from "../../header-back";
 import { HUB_ICON_THEMES, HubMenuIcon } from "../icons/HubMenuIcons";
 import { MENU_APP_THEMES, MenuAppIcon } from "../icons/MenuAppIcons";
+import { PageModuleHeadRow } from "../PageModuleHead";
 import SimuladorVentaPanel from "./SimuladorVentaPanel";
 import VentasAgricultura from "../ventas/VentasAgricultura";
 import VentasArrendamientos from "../ventas/VentasArrendamientos";
@@ -106,10 +107,13 @@ export default function SimuladorVentas({
   if (vista === "ventas_ganado") {
     return (
       <div className="proveedores-hub simulador-venta-hub">
-        <p className="simulador-venta-intro muted">
-          Calculá el ingreso estimado de una venta usando los últimos precios ACG registrados.
-          Guardá cada simulación para consultarla después.
-        </p>
+        <header className="module-hub-head">
+          <PageModuleHeadRow
+            icon={{ source: "app", id: "simulador_venta_ganado" }}
+            title="Simulador de Ventas"
+            subtitle="Calculá el ingreso estimado usando los últimos precios ACG registrados"
+          />
+        </header>
         <nav className="app-grid app-grid-2" aria-label="Tipos de simulación de venta de ganado">
           {SIMULADOR_VENTA_TIPOS.map((t) => (
             <HubMenuCard
@@ -158,10 +162,13 @@ export default function SimuladorVentas({
 
   return (
     <div className="proveedores-hub simulador-venta-hub">
-      <p className="simulador-venta-intro muted">
-        Simulá ingresos por ventas antes de concretar la operación. Elegí el tipo de venta
-        para calcular y guardar escenarios.
-      </p>
+      <header className="module-hub-head">
+        <PageModuleHeadRow
+          icon={{ source: "app", id: "simulador_venta_ganado" }}
+          title="Simulador de Ventas"
+          subtitle="Simulá ingresos por ventas antes de concretar la operación"
+        />
+      </header>
       <nav className="app-grid app-grid-2" aria-label="Secciones del simulador de ventas">
         {SIMULADOR_MENU.map((item) => (
           <HubMenuCard

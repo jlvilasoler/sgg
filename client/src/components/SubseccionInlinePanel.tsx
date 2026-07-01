@@ -1,10 +1,12 @@
 import type { ReactNode } from "react";
+import { PageModuleHeadRow, type PageIconRef } from "./PageModuleHead";
 
 interface Props {
   onVolver: () => void;
   volverLabel?: string;
   title: string;
   description?: ReactNode;
+  icon?: PageIconRef;
   headAside?: ReactNode;
   children: ReactNode;
   footer?: ReactNode;
@@ -17,6 +19,7 @@ export default function SubseccionInlinePanel({
   volverLabel = "Volver",
   title,
   description,
+  icon,
   headAside,
   children,
   footer,
@@ -36,8 +39,14 @@ export default function SubseccionInlinePanel({
           }`.trim()}
         >
           <div className="subseccion-inline-head-main">
-            <h2>{title}</h2>
-            {description ? <p className="muted">{description}</p> : null}
+            {icon ? (
+              <PageModuleHeadRow icon={icon} title={title} subtitle={description} />
+            ) : (
+              <>
+                <h2>{title}</h2>
+                {description ? <p className="muted">{description}</p> : null}
+              </>
+            )}
           </div>
           {headAside ? (
             <div className="subseccion-inline-head-aside">{headAside}</div>

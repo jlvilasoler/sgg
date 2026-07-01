@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { createRubro, updateRubro } from "../../api";
 import type { Rubro, RubroForm } from "../../types";
 import { normalizarTituloRubro } from "../../utils/formText";
+import { PageModuleHeadRow } from "../PageModuleHead";
 
 interface Props {
   apiOnline: boolean;
@@ -69,10 +70,11 @@ export default function RubroIngresar({
 
       <div className="card">
         <div className="form-header">
-          <h2>{editId ? "Editar rubro" : "Ingresar rubro"}</h2>
-          <p className="muted">
-            Los rubros activos aparecen al registrar gastos y en los filtros del sistema.
-          </p>
+          <PageModuleHeadRow
+            icon={{ source: "hub", id: "config_rubros" }}
+            title={editId ? "Editar rubro" : "Ingresar rubro"}
+            subtitle="Los rubros activos aparecen al registrar gastos y en los filtros del sistema."
+          />
         </div>
 
         <form className="form-grid" onSubmit={guardar}>

@@ -13,6 +13,7 @@ import {
   clasificarRubroEnResultado,
 } from "../../utils/clasificacion-resultado";
 import { grupoClaveOrden, grupoTituloCanon } from "../../utils/grupoRubro";
+import { PageModuleHeadRow } from "../PageModuleHead";
 import {
   buildRubrosCatalogoGasto,
   type RubrosCatalogoGasto,
@@ -252,11 +253,11 @@ export default function ClasificacionProveedores({
 
       <div className="card">
         <div className="form-header">
-          <h2>Clasificación proveedores</h2>
-          <p className="muted">
-            Asigná rubro y estado de resultados a cada proveedor. El sub-rubro es opcional. Al elegir
-            rubro, el estado de resultados se sugiere automáticamente y podés ajustarlo manualmente.
-          </p>
+          <PageModuleHeadRow
+            icon={{ source: "hub", id: "config_clasificacion_proveedores" }}
+            title="Clasificación proveedores"
+            subtitle="Asigná rubro y estado de resultados a cada proveedor. El sub-rubro es opcional. Al elegir rubro, el estado de resultados se sugiere automáticamente y podés ajustarlo manualmente."
+          />
         </div>
 
         {apiOnline ? (

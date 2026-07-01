@@ -9,6 +9,7 @@ import TablePagination, {
   paginateSlice,
   type PageSize,
 } from "../TablePagination";
+import { PageModuleHeadRow } from "../PageModuleHead";
 
 interface Props {
   apiOnline: boolean;
@@ -99,14 +100,17 @@ export default function StockEquinoHistorial({
 
       <div className="card">
         <div className="form-header">
-          <h2>Historial de importaciones</h2>
-          <p className="muted">
-            {loading
-              ? "Cargando…"
-              : lotes.length === 0
-                ? "Aún no hay archivos importados."
-                : `${lotes.length} archivo(s) — ${totalFilas} lectura(s) en total`}
-          </p>
+          <PageModuleHeadRow
+            icon={{ source: "hub", id: "stock_lecturas" }}
+            title="Historial de importaciones"
+            subtitle={
+              loading
+                ? "Cargando…"
+                : lotes.length === 0
+                  ? "Aún no hay archivos importados."
+                  : `${lotes.length} archivo(s) — ${totalFilas} lectura(s) en total`
+            }
+          />
         </div>
 
         <div className="table-wrap">

@@ -1,5 +1,8 @@
 import type { ReactNode } from "react";
+import { Beef, CircleDollarSign, Sprout, Syringe } from "lucide-react";
 import type { MenuAppTheme } from "./MenuAppIcons";
+import { StockGanaderoModuleIcon } from "../stock/StockControlSanitarioSectionTitle";
+import IconoCabanaEstrellaSvg from "../stock/IconoCabanaEstrellaSvg";
 
 type IconProps = { className?: string };
 
@@ -42,10 +45,12 @@ export type HubIconId =
   | "stock_dispositivos"
   | "stock_salidas"
   | "stock_cabana"
+  | "stock_sanidad"
   | "ventas_ingresar"
   | "ventas_listado"
   | "ventas_rubros"
   | "ventas_ganado"
+  | "ventas_ganado_cerradas"
   | "ventas_agricultura"
   | "ventas_arrendamientos"
   | "divisas_usd"
@@ -161,15 +166,30 @@ function IconClipboard({ className }: IconProps) {
   );
 }
 
+function IconStockDispositivos({ className }: IconProps) {
+  return <StockGanaderoModuleIcon className={className} size={24} strokeWidth={1.65} />;
+}
+
 function IconCattle({ className }: IconProps) {
+  return <Beef className={className} strokeWidth={1.65} />;
+}
+
+function IconVentasGanadoCerradas({ className }: IconProps) {
   return (
     <IconShell className={className}>
-      <path d="M6.5 14.5c1.2-2.8 3.4-4.5 5.5-4.5s4.3 1.7 5.5 4.5" {...stroke} />
-      <path d="M4.5 14.5h15" {...stroke} />
-      <path d="M8 10.5c.6-1.6 2-2.8 4-2.8s3.4 1.2 4 2.8" {...stroke} />
-      <circle cx="9.25" cy="8.75" r=".85" fill="currentColor" />
-      <circle cx="14.75" cy="8.75" r=".85" fill="currentColor" />
-      <path d="M17.75 6.25l1.5 1.1-1.5 1.1M16.25 7.35h3" {...stroke} strokeWidth="1.4" />
+      <path d="M7 4h10l2 2v14l-2 2H7l-2-2V6l2-2Z" {...stroke} />
+      <path d="M9 9h6M9 13h5.5M9 17h3.5" {...stroke} />
+      <path d="M15 4v3h3" {...stroke} />
+      <circle
+        cx="17.5"
+        cy="17.5"
+        r="3.2"
+        fill="currentColor"
+        fillOpacity="0.14"
+        {...stroke}
+        strokeWidth="1.45"
+      />
+      <path d="M16.15 17.5 17.25 18.6 19.55 16.3" {...stroke} strokeWidth="1.55" />
     </IconShell>
   );
 }
@@ -186,22 +206,13 @@ function IconSalidas({ className }: IconProps) {
   );
 }
 
+function IconSanidad({ className }: IconProps) {
+  return <Syringe className={className} strokeWidth={1.65} />;
+}
+
 function IconCabana({ className }: IconProps) {
   return (
-    <IconShell className={className}>
-      <path d="M6.5 14.5c1-2.4 3-4 5.5-4s4.5 1.6 5.5 4" {...stroke} />
-      <path d="M4.5 14.5h15" {...stroke} />
-      <circle cx="9.25" cy="9.25" r=".75" fill="currentColor" />
-      <circle cx="14.75" cy="9.25" r=".75" fill="currentColor" />
-      <path
-        d="M12 4.5 13.8 8.2 17.8 8.6 14.8 11.2 15.7 15.1 12 13.1 8.3 15.1 9.2 11.2 6.2 8.6 10.2 8.2 12 4.5Z"
-        fill="currentColor"
-        fillOpacity="0.22"
-        stroke="currentColor"
-        strokeWidth="1.35"
-        strokeLinejoin="round"
-      />
-    </IconShell>
+    <IconoCabanaEstrellaSvg className={className} size={24} strokeWidth={1.65} filled={false} />
   );
 }
 
@@ -216,16 +227,7 @@ function IconInvoice({ className }: IconProps) {
 }
 
 function IconDollar({ className }: IconProps) {
-  return (
-    <IconShell className={className}>
-      <circle cx="12" cy="12" r="8.25" {...stroke} />
-      <path
-        d="M12 6.75v10.5M9.75 9.25c0-1.1 1-2 2.25-2s2.25.75 2.25 1.75c0 1.15-1.35 1.55-2.25 1.75-1.35.25-2.25.95-2.25 2.05 0 1.05.95 1.85 2.25 1.85s2.25-.75 2.25-1.75"
-        {...stroke}
-        strokeWidth="1.5"
-      />
-    </IconShell>
-  );
+  return <CircleDollarSign className={className} strokeWidth={1.65} />;
 }
 
 function IconReal({ className }: IconProps) {
@@ -233,24 +235,17 @@ function IconReal({ className }: IconProps) {
     <IconShell className={className}>
       <circle cx="12" cy="12" r="8.25" {...stroke} />
       <path
-        d="M8.25 9.25h5.25c1.2 0 2.15.75 2.15 1.85S14.7 13 13.5 13H9.75"
+        d="M9.2 7.65v8.9M9.2 7.65h3.15c1.6 0 2.6 1 2.6 2.15s-1 2.1-2.6 2.1H9.2"
         {...stroke}
-        strokeWidth="1.5"
+        strokeWidth="1.55"
       />
-      <path d="M9.75 9.25V15.5M12.75 9.25V15.5" {...stroke} strokeWidth="1.5" />
+      <path d="M11.85 11.9 14.8 16.55" {...stroke} strokeWidth="1.55" />
     </IconShell>
   );
 }
 
 function IconWheat({ className }: IconProps) {
-  return (
-    <IconShell className={className}>
-      <path d="M12 20V7.5" {...stroke} />
-      <path d="M8.5 11.5C7 9 5 8.5 4 10s1 4 3.5 4.5M15.5 11.5c1.5-2.5 3.5-3 4.5-1.5s-1 4-3.5 4.5" {...stroke} />
-      <path d="M9 14.5c-1-2-2.5-2.5-4-1.5s0 3 2 3.5M15 14.5c1-2 2.5-2.5 4-1.5s0 3-2 3.5" {...stroke} />
-      <path d="M10 17.5c-.5-1.5-1.5-2-2.5-1.2s-.2 2 1.5 2.3M14 17.5c.5-1.5 1.5-2 2.5-1.2s.2 2-1.5 2.3" {...stroke} />
-    </IconShell>
-  );
+  return <Sprout className={className} strokeWidth={1.65} />;
 }
 
 function IconArrendamiento({ className }: IconProps) {
@@ -313,13 +308,15 @@ const ICONS: Record<HubIconId, (props: IconProps) => ReactNode> = {
   stock_alta: IconImport,
   stock_baja: IconExportBaja,
   stock_lecturas: IconClipboard,
-  stock_dispositivos: IconCattle,
+  stock_dispositivos: IconStockDispositivos,
   stock_salidas: IconSalidas,
   stock_cabana: IconCabana,
+  stock_sanidad: IconSanidad,
   ventas_ingresar: IconInvoice,
   ventas_listado: IconClipboard,
   ventas_rubros: IconTag,
   ventas_ganado: IconCattle,
+  ventas_ganado_cerradas: IconVentasGanadoCerradas,
   ventas_agricultura: IconWheat,
   ventas_arrendamientos: IconArrendamiento,
   divisas_usd: IconDollar,
@@ -425,6 +422,11 @@ export const HUB_ICON_THEMES: Record<HubIconId, MenuAppTheme> = {
     accentSoft: "linear-gradient(145deg, #f5f3ff 0%, #ede9fe 52%, #ddd6fe 100%)",
     accentGlow: "rgba(124, 58, 237, 0.28)",
   },
+  stock_sanidad: {
+    accent: "#0d9488",
+    accentSoft: "linear-gradient(145deg, #f0fdfa 0%, #ccfbf1 52%, #99f6e4 100%)",
+    accentGlow: "rgba(13, 148, 136, 0.32)",
+  },
   ventas_ingresar: {
     accent: "#059669",
     accentSoft: "linear-gradient(145deg, #ecfdf5 0%, #d1fae5 52%, #a7f3d0 100%)",
@@ -441,6 +443,11 @@ export const HUB_ICON_THEMES: Record<HubIconId, MenuAppTheme> = {
     accentGlow: "rgba(217, 119, 6, 0.28)",
   },
   ventas_ganado: {
+    accent: "#92400e",
+    accentSoft: "linear-gradient(145deg, #fffbeb 0%, #fde68a 40%, #fbbf24 100%)",
+    accentGlow: "rgba(146, 64, 14, 0.26)",
+  },
+  ventas_ganado_cerradas: {
     accent: "#92400e",
     accentSoft: "linear-gradient(145deg, #fffbeb 0%, #fde68a 40%, #fbbf24 100%)",
     accentGlow: "rgba(146, 64, 14, 0.26)",

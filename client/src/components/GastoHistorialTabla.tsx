@@ -4,6 +4,7 @@ import type { AuthUser, Presupuesto } from "../types";
 import { confirmAction } from "../utils/confirm";
 import { empresaClass, empresaCorta, fmtDate, fmtNum } from "../utils";
 import GastoAccionesMenu from "./GastoAccionesMenu";
+import { PageModuleHeadRow } from "./PageModuleHead";
 import { PresupuestoDetalleModalView } from "./PresupuestoDetalleModal";
 import PresupuestoDocumentoModal from "./PresupuestoDocumentoModal";
 import TablePagination, {
@@ -129,20 +130,26 @@ export default function GastoHistorialTabla({
       <div className="listado-pro-shell">
         <header className="listado-pro-head">
           <div className="listado-pro-head-main">
-            <h2 className="listado-pro-head-title">Documentos ingresados</h2>
-            <p className="listado-pro-head-sub">
-              {loading
-                ? "Actualizando…"
-                : !apiOnline
-                  ? "Sin conexión con la API"
-                  : rows.length === 0
-                    ? esAdmin
-                      ? "Sin documentos cargados todavía"
-                      : "No ingresaste documentos todavía"
-                    : esAdmin
-                      ? `${rows.length} documento${rows.length === 1 ? "" : "s"} de todos los usuarios`
-                      : `${rows.length} documento${rows.length === 1 ? "" : "s"} ingresados por vos`}
-            </p>
+            <PageModuleHeadRow
+              icon={{ source: "app", id: "registro" }}
+              title="Documentos ingresados"
+              subtitle={
+                loading
+                  ? "Actualizando…"
+                  : !apiOnline
+                    ? "Sin conexión con la API"
+                    : rows.length === 0
+                      ? esAdmin
+                        ? "Sin documentos cargados todavía"
+                        : "No ingresaste documentos todavía"
+                      : esAdmin
+                        ? `${rows.length} documento${rows.length === 1 ? "" : "s"} de todos los usuarios`
+                        : `${rows.length} documento${rows.length === 1 ? "" : "s"} ingresados por vos`
+              }
+              titleClassName="listado-pro-head-title"
+              subClassName="listado-pro-head-sub"
+              textClassName="listado-pro-head-text"
+            />
           </div>
         </header>
 

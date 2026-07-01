@@ -16,6 +16,7 @@ import {
   normalizarEstadoDispositivo,
   normalizarRaza,
 } from "./stock-ganadera-utils";
+import { PageModuleHeadRow } from "../PageModuleHead";
 
 interface Props {
   apiOnline: boolean;
@@ -242,16 +243,17 @@ export default function StockGanaderoCabanaSeleccion({
       </button>
 
       <div className="stock-import-hero card stock-import-hero--cabana">
-        <div className="stock-import-hero-icon stock-import-hero-icon--cabana" aria-hidden>
-          ★
-        </div>
-        <div className="stock-import-hero-text">
-          <h2>Selección Animales de Cabaña</h2>
-          <p>
-            Elegí dispositivos activos del stock y asignales un nombre de identificación para
-            marcarlos como <strong>animales de selección</strong> de cabaña.
-          </p>
-        </div>
+        <PageModuleHeadRow
+          icon={{ source: "hub", id: "stock_cabana" }}
+          title="Selección Animales de Cabaña"
+          subtitle={
+            <>
+              Elegí dispositivos activos del stock y asignales un nombre de identificación para
+              marcarlos como <strong>animales de selección</strong> de cabaña.
+            </>
+          }
+          className="stock-import-hero-head"
+        />
         <div className="stock-cabana-kpis" aria-label="Resumen">
           <div className="stock-cabana-kpi">
             <span className="stock-cabana-kpi-val">{loadingGuardados ? "—" : totalStock}</span>

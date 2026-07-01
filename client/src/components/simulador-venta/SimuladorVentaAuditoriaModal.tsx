@@ -322,6 +322,7 @@ export default function SimuladorVentaAuditoriaPanel({
     <SubseccionInlinePanel
       onVolver={onVolver}
       volverLabel="Volver al simulador"
+      icon={{ source: "app", id: "simulador_venta_ganado" }}
       title="Historial de cambios"
       description={
         <>

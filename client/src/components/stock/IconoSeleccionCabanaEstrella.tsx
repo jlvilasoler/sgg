@@ -1,3 +1,5 @@
+import IconoCabanaEstrellaSvg from "./IconoCabanaEstrellaSvg";
+
 interface Props {
   activo: boolean;
   nombreCabana?: string;
@@ -11,15 +13,7 @@ interface Props {
 
 function EstrellaSvg({ rellena }: { rellena: boolean }) {
   return (
-    <svg viewBox="0 0 24 24" aria-hidden focusable="false">
-      <path
-        d="M12 3.5 14.2 9l5.8.5-4.4 3.8 1.4 5.7L12 16.2 7 18.9l1.4-5.7L4 9.5l5.8-.5L12 3.5Z"
-        fill={rellena ? "currentColor" : "none"}
-        stroke="currentColor"
-        strokeWidth="1.75"
-        strokeLinejoin="round"
-      />
-    </svg>
+    <IconoCabanaEstrellaSvg filled={rellena} size={24} strokeWidth={1.75} />
   );
 }
 

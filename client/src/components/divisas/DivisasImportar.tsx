@@ -3,6 +3,7 @@ import { importDivisasFile, importDivisasText, insertDivisa } from "../../api";
 import type { TipoCambioForm } from "../../types";
 import { PAR_DIVISA_TC_LABEL } from "../../types";
 import type { DivisasMonedaConfig } from "./divisas-config";
+import { PageModuleHeadRow } from "../PageModuleHead";
 
 interface Props {
   config: DivisasMonedaConfig;
@@ -93,13 +94,18 @@ export default function DivisasImportar({
 
       <div className="card">
         <div className="form-header">
-          <h2>Importar — {config.titulo}</h2>
-          <p className="muted">
-            Columnas: <code>fecha</code>, <code>{config.columnaCsv}</code> (separador{" "}
-            <code>;</code> o <code>,</code>). También podés incluir la otra moneda (
-            <code>uyu_usd</code> / <code>brl_usd</code>). Las fechas existentes no se
-            modifican.
-          </p>
+          <PageModuleHeadRow
+            icon={{ source: "app", id: "divisas" }}
+            title={`Importar — ${config.titulo}`}
+            subtitle={
+              <>
+                Columnas: <code>fecha</code>, <code>{config.columnaCsv}</code> (separador{" "}
+                <code>;</code> o <code>,</code>). También podés incluir la otra moneda (
+                <code>uyu_usd</code> / <code>brl_usd</code>). Las fechas existentes no se
+                modifican.
+              </>
+            }
+          />
         </div>
 
         <div className="divisas-import-block">
@@ -147,7 +153,10 @@ export default function DivisasImportar({
 
       <div className="card">
         <div className="form-header">
-          <h2>Carga manual (un día)</h2>
+          <PageModuleHeadRow
+            icon={{ source: "app", id: "divisas" }}
+            title="Carga manual (un día)"
+          />
         </div>
         <form onSubmit={guardarManual}>
           <div className="form-grid">

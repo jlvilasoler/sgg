@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
+import { ArrowLeftRight, CircleDollarSign } from "lucide-react";
 import type { TabId } from "../Header";
+import { StockGanaderoModuleIcon, StockEquinoModuleIcon } from "../stock/StockControlSanitarioSectionTitle";
 
 type IconProps = { className?: string };
 
@@ -75,14 +77,7 @@ function IconConfiguracion({ className }: IconProps) {
 }
 
 function IconDivisas({ className }: IconProps) {
-  return (
-    <IconShell className={className}>
-      <circle cx="8" cy="8" r="4.25" {...stroke} />
-      <circle cx="16" cy="16" r="4.25" {...stroke} />
-      <path d="M10.2 13.8l3.6 3.6M13.8 10.2l3.6-3.6" {...stroke} />
-      <path d="M8 6.2v3.6M6.2 8h3.6M16 13.8v3.6M14.2 15.6h3.6" {...stroke} strokeWidth="1.4" />
-    </IconShell>
-  );
+  return <ArrowLeftRight className={className} strokeWidth={1.65} />;
 }
 
 function IconRecursosHumanos({ className }: IconProps) {
@@ -112,39 +107,11 @@ function IconIngresosVentas({ className }: IconProps) {
 }
 
 function IconStockGanadero({ className }: IconProps) {
-  return (
-    <IconShell className={className}>
-      <path
-        d="M6.5 14.5c1.2-2.8 3.4-4.5 5.5-4.5s4.3 1.7 5.5 4.5"
-        {...stroke}
-      />
-      <path d="M4.5 14.5h15" {...stroke} />
-      <path d="M8 10.5c.6-1.6 2-2.8 4-2.8s3.4 1.2 4 2.8" {...stroke} />
-      <circle cx="9.25" cy="8.75" r=".85" fill="currentColor" />
-      <circle cx="14.75" cy="8.75" r=".85" fill="currentColor" />
-      <path d="M10.5 12.25c.55.35 1.2.55 1.9.55s1.35-.2 1.9-.55" {...stroke} strokeWidth="1.4" />
-      <path
-        d="M17.75 6.25l1.5 1.1-1.5 1.1"
-        {...stroke}
-        strokeWidth="1.4"
-      />
-      <path d="M16.25 7.35h3" {...stroke} strokeWidth="1.4" />
-    </IconShell>
-  );
+  return <StockGanaderoModuleIcon className={className} size={24} strokeWidth={1.65} />;
 }
 
 function IconStockEquino({ className }: IconProps) {
-  return (
-    <IconShell className={className}>
-      <path d="M5.5 15.5c1.5-3 4-5 6.5-5s5 2 6.5 5" {...stroke} />
-      <path d="M4 15.5h16" {...stroke} />
-      <path d="M7.5 11c.8-2 2.5-3.5 4.5-3.5s3.7 1.5 4.5 3.5" {...stroke} />
-      <path d="M9 9.5c.4-.8 1.2-1.3 2.2-1.3" {...stroke} strokeWidth="1.4" />
-      <circle cx="10.5" cy="8.5" r=".75" fill="currentColor" />
-      <path d="M14.5 7.5c1.2-.3 2.3.2 3 1.2l1.2 2" {...stroke} strokeWidth="1.4" />
-      <path d="M17.5 6.5l2 1.5-1.2 1.8" {...stroke} strokeWidth="1.4" />
-    </IconShell>
-  );
+  return <StockEquinoModuleIcon className={className} size={24} strokeWidth={1.65} />;
 }
 
 function IconStockMovimientos({ className }: IconProps) {
@@ -188,14 +155,12 @@ function IconUsuarios({ className }: IconProps) {
 
 function IconPreciosGanado({ className }: IconProps) {
   return (
-    <IconShell className={className}>
-      <circle cx="9" cy="10" r="4.25" {...stroke} />
-      <circle cx="7.6" cy="9.1" r=".7" fill="currentColor" />
-      <circle cx="10.4" cy="9.1" r=".7" fill="currentColor" />
-      <path d="M8.2 11.4c.5.35 1.1.55 1.8.55s1.3-.2 1.8-.55" {...stroke} strokeWidth="1.4" />
-      <path d="M15.5 7.5h3.5M15.5 10h2.8M15.5 12.5h3.5" {...stroke} strokeWidth="1.5" />
-      <path d="M4 19h16" {...stroke} strokeOpacity="0.35" />
-    </IconShell>
+    <CircleDollarSign
+      className={className}
+      size={24}
+      strokeWidth={1.65}
+      aria-hidden
+    />
   );
 }
 

@@ -641,7 +641,24 @@ export function listAniosGrupo(): number[] {
 }
 
 export function parseGrupoAnio(grupo: string): number | null {
-  const m = grupo.trim().toUpperCase().match(/^GEN(\d{4})$/);
+  const t = grupo.trim().toUpperCase();
+  const rango = t.match(/^GEN(\d{4})-(\d{4})$/);
+  if (rango) {
+    const inicio = Number(rango[1]);
+    const fin = Number(rango[2]);
+    const max = new Date().getFullYear() + 1;
+    if (
+      !Number.isInteger(inicio) ||
+      !Number.isInteger(fin) ||
+      fin !== inicio + 1 ||
+      inicio < GRUPO_ANIO_MIN ||
+      fin > max
+    ) {
+      return null;
+    }
+    return inicio;
+  }
+  const m = t.match(/^GEN(\d{4})$/);
   if (!m) return null;
   const y = Number(m[1]);
   const max = new Date().getFullYear();
@@ -649,9 +666,38 @@ export function parseGrupoAnio(grupo: string): number | null {
   return y;
 }
 
-export function buildGrupo(anio: number | null): string {
-  if (!anio) return "";
-  return `${GRUPO_PREFIX}${anio}`;
+/** Período GEN: 1 julio año X → 30 junio año X+1. */
+export function aniosGeneracionDesdeNacimiento(
+  mes: number | null,
+  anio: number | null
+): { inicio: number; fin: number } | null {
+  if (
+    anio === null ||
+    !Number.isInteger(anio) ||
+    mes === null ||
+    !Number.isInteger(mes) ||
+    mes < 1 ||
+    mes > 12
+  ) {
+    return null;
+  }
+  if (mes >= 7) {
+    return { inicio: anio, fin: anio + 1 };
+  }
+  return { inicio: anio - 1, fin: anio };
+}
+
+export function fmtGeneracionRango(mes: number | null, anio: number | null): string {
+  const rango = aniosGeneracionDesdeNacimiento(mes, anio);
+  if (!rango) return "—";
+  return `${rango.inicio}-${rango.fin}`;
+}
+
+export function buildGrupo(mes: number | null, anio: number | null): string {
+  const rango = aniosGeneracionDesdeNacimiento(mes, anio);
+  if (rango) return `${GRUPO_PREFIX}${rango.inicio}-${rango.fin}`;
+  if (anio) return `${GRUPO_PREFIX}${anio}`;
+  return "";
 }
 
 export function fmtGrupo(grupo: string): string {

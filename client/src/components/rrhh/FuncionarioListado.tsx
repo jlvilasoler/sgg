@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { deleteFuncionario, fetchFuncionarios } from "../../api";
 import type { Funcionario } from "../../types";
 import { confirmAction } from "../../utils/confirm";
+import { PageModuleHeadRow } from "../PageModuleHead";
 
 interface Props {
   apiOnline: boolean;
@@ -103,16 +104,24 @@ export default function FuncionarioListado({
         <div className={`listado-pro-shell${refreshing && hasData ? " listado-pro-shell--refreshing" : ""}`}>
           <header className="rrhh-func-head">
             <div className="rrhh-func-head-main">
-              <h2 className="listado-pro-head-title">Funcionarios</h2>
-              <p className="listado-pro-head-sub">
-                {subtitulo}
-                {!initialLoading && apiOnline ? (
-                  <span className="rrhh-func-head-hint">
-                    {" "}
-                    · Solo quienes trabajan hoy aparecen al cargar sueldos.
-                  </span>
-                ) : null}
-              </p>
+              <PageModuleHeadRow
+                icon={{ source: "hub", id: "rrhh_funcionarios" }}
+                title="Funcionarios"
+                subtitle={
+                  <>
+                    {subtitulo}
+                    {!initialLoading && apiOnline ? (
+                      <span className="rrhh-func-head-hint">
+                        {" "}
+                        · Solo quienes trabajan hoy aparecen al cargar sueldos.
+                      </span>
+                    ) : null}
+                  </>
+                }
+                titleClassName="listado-pro-head-title"
+                subClassName="listado-pro-head-sub"
+                textClassName="listado-pro-head-text"
+              />
             </div>
             <div className="rrhh-func-head-actions">
               <button

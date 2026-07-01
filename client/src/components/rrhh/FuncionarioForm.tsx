@@ -4,6 +4,7 @@ import type { Funcionario, FuncionarioForm as FuncionarioFormData } from "../../
 import { formatCuentaOtrosBancos, getBancoInfo, isBancoSantander } from "../../constants/bancosUruguay";
 import { aMayusculas } from "../../utils/formText";
 import SelectorBanco from "./SelectorBanco";
+import { PageModuleHeadRow } from "../PageModuleHead";
 
 const TIPOS_CUENTA = [
   "",
@@ -139,10 +140,11 @@ export default function FuncionarioForm({
       </button>
       <div className="card">
         <div className="form-header">
-          <h2>{editId ? "Editar funcionario" : "Nuevo funcionario"}</h2>
-          <p className="muted">
-            Datos para transferencia de sueldo y vínculo con gastos por cédula.
-          </p>
+          <PageModuleHeadRow
+            icon={{ source: "hub", id: "rrhh_funcionarios" }}
+            title={editId ? "Editar funcionario" : "Nuevo funcionario"}
+            subtitle="Datos para transferencia de sueldo y vínculo con gastos por cédula."
+          />
         </div>
         <form className="form-grid rrhh-form" onSubmit={guardar}>
           <fieldset className="rrhh-fieldset">

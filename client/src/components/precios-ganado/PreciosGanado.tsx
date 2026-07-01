@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { HubMenuCard } from "../HubMenuCard";
 import { useHeaderBackContext } from "../../header-back";
 import { MENU_APP_THEMES, MenuAppIcon } from "../icons/MenuAppIcons";
+import { PageModuleHeadRow } from "../PageModuleHead";
 import PreciosGanadoPanel from "./PreciosGanadoPanel";
 import {
   PRECIOS_GANADO_SEGMENTOS,
@@ -55,6 +56,13 @@ export default function PreciosGanado({ apiOnline, onError, onSuccess }: Props) 
 
   return (
     <div className="proveedores-hub">
+      <header className="module-hub-head">
+        <PageModuleHeadRow
+          icon={{ source: "app", id: "precios_ganado" }}
+          title="Precios de Ganado"
+          subtitle="Cotizaciones de gordo y reposición en USD por kilogramo"
+        />
+      </header>
       <nav className="app-grid app-grid-2" aria-label="Tipos de precios de ganado">
         {PRECIOS_GANADO_SEGMENTOS.map((s) => (
           <HubMenuCard

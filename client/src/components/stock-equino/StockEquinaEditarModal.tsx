@@ -6,8 +6,10 @@ import type {
   DispositivoEstado,
   DispositivoSexo,
   StockEquinaDispositivo,
+  AuthUser,
 } from "../../types";
 import SubseccionInlinePanel from "../SubseccionInlinePanel";
+import StockEditarFichaLabel from "../stock/StockEditarFichaLabel";
 import StockEditarFichaStats from "../stock/StockEditarFichaStats";
 import StockEditarSectionTitle from "../stock/StockEditarSectionTitle";
 import StockEditarHeadPanel from "../stock/StockEditarHeadPanel";
@@ -20,6 +22,7 @@ import StockDispositivoFotoCard, {
   stockFotoMetaFromDispositivo,
 } from "../stock/StockDispositivoFotoCard";
 import StockEquinaHistorialCambiosPanel from "./StockEquinaHistorialCambiosPanel";
+import StockControlSanitarioModal from "../stock/StockControlSanitarioModal";
 import {
   buildGrupo,
   calcularEdadMeses,
@@ -35,6 +38,7 @@ interface Props {
   dispositivo: StockEquinaDispositivo;
   empresas: EmpresaOperativaStock[];
   apiOnline: boolean;
+  currentUser?: AuthUser | null;
   onVolver: () => void;
   volverLabel?: string;
   onSaved: (actualizado: StockEquinaDispositivo) => void;
@@ -49,6 +53,7 @@ export default function StockEquinaEditarPanel({
   dispositivo,
   empresas,
   apiOnline,
+  currentUser = null,
   onVolver,
   volverLabel = "Volver a Stock Equino",
   onSaved,
@@ -76,6 +81,7 @@ export default function StockEquinaEditarPanel({
   const [bajaAnio, setBajaAnio] = useState<number | null>(dispositivo.baja_anio);
   const [guardando, setGuardando] = useState(false);
   const [verHistorialCambios, setVerHistorialCambios] = useState(false);
+  const [controlSanitarioOpen, setControlSanitarioOpen] = useState(false);
   const [modoEdicion, setModoEdicion] = useState<"ver" | "editar">(modoInicial);
   const soloLectura = modoEdicion === "ver";
   const camposDeshabilitados = soloLectura || guardando || !apiOnline;
@@ -131,9 +137,19 @@ export default function StockEquinaEditarPanel({
   }, [estado, dispositivo.clave]);
 
   const grupoActual = useMemo(
-    () => buildGrupo(nacimientoAnio),
-    [nacimientoAnio]
+    () => buildGrupo(nacimientoMes, nacimientoAnio),
+    [nacimientoMes, nacimientoAnio]
   );
+
+  const animalIdDefault = useMemo(
+    () => dispositivo.vid.trim() || dispositivo.clave || dispositivo.eid.trim(),
+    [dispositivo.vid, dispositivo.clave, dispositivo.eid]
+  );
+
+  const animalCategoriaLoteDefault = useMemo(() => {
+    const parts = [grupoActual, grupoLibre.trim()].filter(Boolean);
+    return parts.join(" · ");
+  }, [grupoActual, grupoLibre]);
 
   const hayCambios =
     empresa !== (dispositivo.empresa ?? "") ||
@@ -206,9 +222,11 @@ export default function StockEquinaEditarPanel({
   }
 
   return (
+    <>
     <SubseccionInlinePanel
       onVolver={onVolver}
       volverLabel={volverLabel}
+      icon={{ source: "hub", id: "stock_dispositivos" }}
       title={soloLectura ? "Caravana" : "Editar caravana"}
       cardClassName={`subseccion-inline-card stock-equina-editar-page${
         soloLectura ? " stock-equina-editar-page--solo-lectura" : ""
@@ -302,9 +320,9 @@ export default function StockEquinaEditarPanel({
               <div className="stock-editar-ficha-toolbar">
                 <div className="stock-editar-ficha-zone stock-editar-ficha-zone--ident">
                   <div className="stock-editar-ficha-cell">
-                    <label className="stock-editar-ficha-label" htmlFor="edit-equina-empresa">
+                    <StockEditarFichaLabel icon="empresa" htmlFor="edit-equina-empresa">
                       Empresa
-                    </label>
+                    </StockEditarFichaLabel>
                     <SelectEmpresaDispositivo
                       id="edit-equina-empresa"
                       empresas={empresas}
@@ -319,9 +337,9 @@ export default function StockEquinaEditarPanel({
 
                 <div className="stock-editar-ficha-zone stock-editar-ficha-zone--sexo">
                   <div className="stock-editar-ficha-cell">
-                    <label className="stock-editar-ficha-label" htmlFor="edit-equina-sexo">
+                    <StockEditarFichaLabel icon="sexo" htmlFor="edit-equina-sexo">
                       Sexo
-                    </label>
+                    </StockEditarFichaLabel>
                     <SelectSexoDispositivo
                       id="edit-equina-sexo"
                       value={sexo}
@@ -333,9 +351,9 @@ export default function StockEquinaEditarPanel({
 
                 <div className="stock-editar-ficha-zone stock-editar-ficha-zone--nac">
                   <div className="stock-editar-ficha-cell">
-                    <label className="stock-editar-ficha-label" htmlFor="edit-equina-nac-mes">
+                    <StockEditarFichaLabel icon="nacimiento" htmlFor="edit-equina-nac-mes">
                       Nacimiento
-                    </label>
+                    </StockEditarFichaLabel>
                     <select
                       id="edit-equina-nac-mes"
                       className="stock-nacimiento-mes stock-edit-select"
@@ -356,9 +374,9 @@ export default function StockEquinaEditarPanel({
                     </select>
                   </div>
                   <div className="stock-editar-ficha-cell stock-editar-ficha-cell--anio">
-                    <label className="stock-editar-ficha-label" htmlFor="edit-equina-nac-anio">
+                    <StockEditarFichaLabel icon="anio" htmlFor="edit-equina-nac-anio">
                       Año
-                    </label>
+                    </StockEditarFichaLabel>
                     <select
                       id="edit-equina-nac-anio"
                       className="stock-nacimiento-anio stock-edit-select"
@@ -382,9 +400,9 @@ export default function StockEquinaEditarPanel({
 
                 <div className="stock-editar-ficha-zone stock-editar-ficha-zone--grupo">
                   <div className="stock-editar-ficha-cell">
-                    <label className="stock-editar-ficha-label" htmlFor="edit-equina-grupo-libre">
+                    <StockEditarFichaLabel icon="grupo" htmlFor="edit-equina-grupo-libre">
                       Grupo
-                    </label>
+                    </StockEditarFichaLabel>
                     <input
                       id="edit-equina-grupo-libre"
                       type="text"
@@ -406,6 +424,7 @@ export default function StockEquinaEditarPanel({
                   edadId="edit-equina-edad"
                   grupoId="edit-equina-grupo"
                   estadoId="edit-equina-estado"
+                  nacimientoMes={nacimientoMes}
                   nacimientoAnio={nacimientoAnio}
                   estado={estado}
                   disabled={camposDeshabilitados}
@@ -441,26 +460,53 @@ export default function StockEquinaEditarPanel({
               />
             </div>
 
-            <div className="stock-edit-field stock-edit-field--observaciones">
-              <label htmlFor="edit-equina-obs">
-                Observaciones
-                <span className="stock-edit-label-hint">opcional</span>
-              </label>
-              <input
-                id="edit-equina-obs"
-                type="text"
-                className="stock-observaciones-input"
-                maxLength={2000}
-                placeholder="Notas manuales sobre la caravana…"
-                value={observaciones}
-                readOnly={soloLectura}
-                disabled={!soloLectura && camposDeshabilitados}
-                onChange={(e) => setObservaciones(e.target.value)}
-              />
+            <div className="stock-edit-observaciones-row">
+              <button
+                type="button"
+                className="btn btn-ghost stock-control-sanitario-trigger"
+                onClick={() => setControlSanitarioOpen(true)}
+                disabled={guardando}
+                title="Registro de remedios y controles sanitarios"
+              >
+                Control Sanitario
+              </button>
+              <div className="stock-edit-field stock-edit-field--observaciones">
+                <label htmlFor="edit-equina-obs">
+                  Observaciones
+                  <span className="stock-edit-label-hint">opcional</span>
+                </label>
+                <input
+                  id="edit-equina-obs"
+                  type="text"
+                  className="stock-observaciones-input"
+                  maxLength={2000}
+                  placeholder="Notas manuales sobre la caravana…"
+                  value={observaciones}
+                  readOnly={soloLectura}
+                  disabled={!soloLectura && camposDeshabilitados}
+                  onChange={(e) => setObservaciones(e.target.value)}
+                />
+              </div>
             </div>
         </section>
       </div>
     </SubseccionInlinePanel>
+    <StockControlSanitarioModal
+      open={controlSanitarioOpen}
+      onClose={() => setControlSanitarioOpen(false)}
+      modulo="equino"
+      clave={dispositivo.clave}
+      vid={dispositivo.vid}
+      eid={dispositivo.eid}
+      animalCategoriaLoteDefault={animalCategoriaLoteDefault}
+      animalIdDefault={animalIdDefault}
+      desdeDispositivo
+      apiOnline={apiOnline}
+      soloLectura={soloLectura}
+      currentUser={currentUser}
+      onError={onError}
+    />
+    </>
   );
 }
 

@@ -4,6 +4,7 @@ import { formatCuentaOtrosBancos, isBancoSantander } from "../../constants/banco
 import BancoLogo from "./BancoLogo";
 import type { Catalogos, Funcionario, ResumenPagosFuncionario, VinculoPago } from "../../types";
 import { fmtDate, fmtNum } from "../../utils";
+import { PageModuleHeadRow } from "../PageModuleHead";
 
 interface Props {
   catalogos: Catalogos;
@@ -97,12 +98,17 @@ export default function SueldosJornales({
 
       <div className="card">
         <div className="form-header">
-          <h2>Sueldos y Jornales</h2>
-          <p className="muted">
-            Pagos detectados por <strong>cédula</strong>: vínculo en el gasto, número en el
-            concepto o nombre del funcionario. Relacionado con rubros de sueldos en{" "}
-            <strong>Gastos</strong>.
-          </p>
+          <PageModuleHeadRow
+            icon={{ source: "hub", id: "rrhh_sueldos" }}
+            title="Sueldos y Jornales"
+            subtitle={
+              <>
+                Pagos detectados por <strong>cédula</strong>: vínculo en el gasto, número en el
+                concepto o nombre del funcionario. Relacionado con rubros de sueldos en{" "}
+                <strong>Gastos</strong>.
+              </>
+            }
+          />
         </div>
 
         <div className="rrhh-search-panel">

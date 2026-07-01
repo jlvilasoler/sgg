@@ -7,6 +7,7 @@ import FuncionarioForm from "./rrhh/FuncionarioForm";
 import FuncionarioListado from "./rrhh/FuncionarioListado";
 import SueldosJornales from "./rrhh/SueldosJornales";
 import type { Catalogos, Funcionario } from "../types";
+import { PageModuleHeadRow } from "./PageModuleHead";
 
 type VistaRRHH = "menu" | "funcionarios" | "funcionario-form" | "sueldos";
 
@@ -157,11 +158,16 @@ export default function RecursosHumanos({
       </button>
       <div className="card rrhh-hub-card">
         <div className="form-header">
-          <h2>Recursos Humanos</h2>
-          <p className="muted">
-            Base de <strong>funcionarios y colaboradores</strong>, vinculada a los{" "}
-            <strong>gastos</strong> del sistema por cédula de identidad.
-          </p>
+          <PageModuleHeadRow
+            icon={{ source: "app", id: "recursos_humanos" }}
+            title="Recursos Humanos"
+            subtitle={
+              <>
+                Base de <strong>funcionarios y colaboradores</strong>, vinculada a los{" "}
+                <strong>gastos</strong> del sistema por cédula de identidad.
+              </>
+            }
+          />
         </div>
         <nav className="app-grid app-grid-2" aria-label="Recursos Humanos">
           {SUBMENU.map((item) => (

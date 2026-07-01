@@ -12,6 +12,7 @@ import {
   validatePasswordStrength,
 } from "../utils/password-policy";
 
+import { PageModuleHeadRow } from "./PageModuleHead";
 import UserAvatar from "./UserAvatar";
 
 interface Props {
@@ -309,8 +310,14 @@ export default function Usuarios({
       <div className="card usuarios-panel listado-pro-shell">
         <header className="listado-pro-head usuarios-admin-head">
           <div className="listado-pro-head-main">
-            <h2 className="listado-pro-head-title">Administración de Usuarios</h2>
-            <p className="listado-pro-head-sub">{subtitulo}</p>
+            <PageModuleHeadRow
+              icon={{ source: "app", id: "usuarios" }}
+              title="Administración de Usuarios"
+              subtitle={subtitulo}
+              titleClassName="listado-pro-head-title"
+              subClassName="listado-pro-head-sub"
+              textClassName="listado-pro-head-text"
+            />
           </div>
           <div className="usuarios-head-actions">
             <button

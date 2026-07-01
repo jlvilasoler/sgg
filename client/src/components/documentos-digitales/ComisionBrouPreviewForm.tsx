@@ -1,4 +1,5 @@
 import type { BrouImporte, PresupuestoForm } from "../../types";
+import { PageModuleHeadRow } from "../PageModuleHead";
 import ImporteMoneda from "../ImporteMoneda";
 import {
   importeDesdeRegistro,
@@ -104,20 +105,23 @@ export default function ComisionBrouPreviewForm({
     <div className="card form-card comision-brou-preview-card">
       <div className="form-header comision-brou-preview-header">
         <span className="comision-brou-preview-badge">Comisión bancaria</span>
-        <h2>Comisión bancaria (operación separada)</h2>
-        <p className="muted">
-          {manual ? (
-            <>
-              Complete los datos de la comisión que se registrará como un{" "}
-              <strong>segundo gasto</strong> al guardar.
-            </>
-          ) : (
-            <>
-              Vista previa de los datos que se registrarán como un{" "}
-              <strong>segundo gasto</strong> al guardar la transferencia.
-            </>
-          )}
-        </p>
+        <PageModuleHeadRow
+          icon={{ source: "app", id: "registro" }}
+          title="Comisión bancaria (operación separada)"
+          subtitle={
+            manual ? (
+              <>
+                Complete los datos de la comisión que se registrará como un{" "}
+                <strong>segundo gasto</strong> al guardar.
+              </>
+            ) : (
+              <>
+                Vista previa de los datos que se registrarán como un{" "}
+                <strong>segundo gasto</strong> al guardar la transferencia.
+              </>
+            )
+          }
+        />
       </div>
 
       <div className="form-grid">

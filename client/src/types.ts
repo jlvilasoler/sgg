@@ -334,6 +334,79 @@ export interface StockGanaderaDispositivoHistorial {
   origen: string;
 }
 
+/** Registro de medicación / control sanitario por dispositivo (ganadero o equino). */
+export interface StockControlSanitarioRecord {
+  id: number;
+  clave: string;
+  admin_fecha_inicio: string;
+  admin_fecha_fin: string;
+  admin_periodo_nota: string;
+  admin_observaciones: string;
+  producto_nombre: string;
+  producto_formula: string;
+  producto_cantidad: string;
+  producto_forma: string;
+  producto_espera: string;
+  animal_categoria_lote: string;
+  animal_id: string;
+  control_motivo: string;
+  control_funcionario: string;
+  creado_en: string;
+  creado_por: string;
+}
+
+export interface StockControlSanitarioInput {
+  admin_fecha_inicio?: string;
+  admin_fecha_fin?: string;
+  admin_periodo_nota?: string;
+  admin_observaciones?: string;
+  producto_nombre?: string;
+  producto_formula?: string;
+  producto_cantidad?: string;
+  producto_forma?: string;
+  producto_espera?: string;
+  animal_categoria_lote?: string;
+  animal_id?: string;
+  control_motivo?: string;
+  control_funcionario?: string;
+}
+
+export interface StockControlSanitarioCantidadOpcion {
+  id: number;
+  valor: string;
+  creado_en: string;
+  creado_por: string;
+}
+
+export interface StockControlSanitarioResumenItem {
+  id: number;
+  clave: string;
+  animal_id: string;
+  producto_nombre: string;
+  producto_formula: string;
+  control_motivo: string;
+  admin_fecha_inicio: string;
+  admin_fecha_fin: string;
+  admin_periodo_nota: string;
+  creado_en: string;
+  creado_por: string;
+}
+
+export interface StockControlSanitarioResumenFrecuencia {
+  etiqueta: string;
+  cantidad: number;
+}
+
+export interface StockControlSanitarioResumen {
+  total_registros: number;
+  dispositivos_consultados: number;
+  dispositivos_con_historial: number;
+  dispositivos_sin_historial: number;
+  productos_frecuentes: StockControlSanitarioResumenFrecuencia[];
+  motivos_frecuentes: StockControlSanitarioResumenFrecuencia[];
+  ultimos_registros: StockControlSanitarioResumenItem[];
+}
+
 export type StockEquinoLote = StockGanaderoLote;
 export type StockEquinoRegistro = StockGanaderoRegistro;
 export type StockEquinoEidRepetido = StockGanaderoEidRepetido;

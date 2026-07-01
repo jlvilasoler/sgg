@@ -31,6 +31,7 @@ export default function GrupoIconoPickerPanel({
     <SubseccionInlinePanel
       onVolver={onVolver}
       volverLabel="Volver a Rubros"
+      icon={{ source: "hub", id: "config_rubros" }}
       title={`Icono de «${grupo}»`}
       description="Elegí un emoji del banco, subí una imagen o restaurá el icono automático."
       cardClassName="icon-picker-inline"

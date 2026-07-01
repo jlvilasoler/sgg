@@ -19,6 +19,7 @@ import TablePagination, {
 import BadgeEstadoDispositivo from "./BadgeEstadoDispositivo";
 import IconoDispositivoWifi from "./IconoDispositivoWifi";
 import IconoSeleccionCabanaEstrella from "./IconoSeleccionCabanaEstrella";
+import { PageModuleHeadRow } from "../PageModuleHead";
 import StockGanaderaDashKpi from "./StockGanaderaDashKpi";
 import StockGanaderaBulkPanel from "./StockGanaderaBulkPanel";
 import StockGanaderaDetalle from "./StockGanaderaDetalle";
@@ -826,18 +827,21 @@ export default function StockGanadera({
 
       <div className="card">
         <div className="form-header">
-          <h2>Stock Ganadero</h2>
-          <p className="muted">
-            {mostrarCargaVacia
-              ? "Cargando…"
-              : loading
-                ? `${filteredRows.length} dispositivo(s) según los filtros aplicados · actualizando…`
-                : filteredRows.length === 0
-                  ? rows.length === 0
-                    ? "No hay dispositivos (EID) registrados. Importá lecturas para armar el stock."
-                    : "Ningún dispositivo coincide con los filtros."
-                  : `${filteredRows.length} dispositivo(s) según los filtros aplicados`}
-          </p>
+          <PageModuleHeadRow
+            icon={{ source: "app", id: "stock_ganadero" }}
+            title="Stock Ganadero"
+            subtitle={
+              mostrarCargaVacia
+                ? "Cargando…"
+                : loading
+                  ? `${filteredRows.length} dispositivo(s) según los filtros aplicados · actualizando…`
+                  : filteredRows.length === 0
+                    ? rows.length === 0
+                      ? "No hay dispositivos (EID) registrados. Importá lecturas para armar el stock."
+                      : "Ningún dispositivo coincide con los filtros."
+                    : `${filteredRows.length} dispositivo(s) según los filtros aplicados`
+            }
+          />
         </div>
 
         {apiOnline && (

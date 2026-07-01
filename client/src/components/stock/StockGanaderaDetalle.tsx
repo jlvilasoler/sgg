@@ -11,6 +11,7 @@ import BadgeEstadoDispositivo from "./BadgeEstadoDispositivo";
 import IconoDispositivoWifi from "./IconoDispositivoWifi";
 import StockGanaderaHistorialCambiosPanel from "./StockGanaderaHistorialCambiosPanel";
 import { fmtEdadMeses, fmtNacimiento } from "./stock-ganadera-utils";
+import { PageModuleHeadRow } from "../PageModuleHead";
 
 interface Props {
   clave: string;
@@ -132,16 +133,17 @@ export default function StockGanaderaDetalle({
 
       <div className="card stock-ganadera-detalle-page">
         <div className="form-header stock-ganadera-detalle-page-head">
-          <div>
-            <h2>Detalle del dispositivo</h2>
-            <p className="muted">
-              {loading
+          <PageModuleHeadRow
+            icon={{ source: "hub", id: "stock_dispositivos" }}
+            title="Detalle del dispositivo"
+            subtitle={
+              loading
                 ? "Cargando…"
                 : detalle
                   ? "Ficha completa, lecturas importadas e historial de cambios."
-                  : "Dispositivo no encontrado"}
-            </p>
-          </div>
+                  : "Dispositivo no encontrado"
+            }
+          />
         </div>
 
         {loading ? (

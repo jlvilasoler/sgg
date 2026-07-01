@@ -17,6 +17,7 @@ import {
   esEjercicioVigente,
   listarEjerciciosContables,
 } from "../utils/ejercicio-contable";
+import { PageModuleHeadRow } from "./PageModuleHead";
 
 interface Props {
   catalogos: Catalogos;
@@ -388,10 +389,13 @@ export default function Resumen({ catalogos, apiOnline, onError }: Props) {
     <div className="resumen-page">
       <div className="card resumen-filters-card">
         <header className="resumen-head">
-          <h2 className="resumen-head-title">Reporte de Control de Gestión</h2>
-          <p className="resumen-head-sub">
-            Totales acumulados por empresa y rubro según el período filtrado
-          </p>
+          <PageModuleHeadRow
+            icon={{ source: "app", id: "resumen" }}
+            title="Reporte de Control de Gestión"
+            subtitle="Totales acumulados por empresa y rubro según el período filtrado"
+            titleClassName="resumen-head-title"
+            subClassName="resumen-head-sub"
+          />
         </header>
         <div className="filters filters-presupuesto listado-pro-filters mayusculas-auto">
           <div className="listado-pro-filters-row listado-pro-filters-row--unica">

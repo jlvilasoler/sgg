@@ -15,6 +15,7 @@ import { captureScrollY, restoreScrollY, withScrollPreserve } from "../../utils/
 import GrupoIconoPickerPanel from "./GrupoIconoPickerModal";
 import SubRubroItemsCell from "./SubRubroItemsCell";
 import SubRubroNombre from "./SubRubroNombre";
+import { PageModuleHeadRow } from "../PageModuleHead";
 import {
   IconCancelar,
   IconEditar,
@@ -704,12 +705,13 @@ export default function SubRubroListado({
 
       <div className="card">
         <div className="form-header">
-          <h2>{copy.title}</h2>
-          <p className="muted">
-            {loading
-              ? copy.subtitleLoading
-              : copy.subtitleLoaded(filtrados.length, porGrupo.length)}
-          </p>
+          <PageModuleHeadRow
+            icon={{ source: "hub", id: "config_rubros" }}
+            title={copy.title}
+            subtitle={
+              loading ? copy.subtitleLoading : copy.subtitleLoaded(filtrados.length, porGrupo.length)
+            }
+          />
         </div>
 
         <div className="listado-toolbar">

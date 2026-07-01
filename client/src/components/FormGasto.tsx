@@ -35,6 +35,7 @@ import BrouImportador from "./documentos-digitales/BrouImportador";
 import ComisionBrouPreviewForm from "./documentos-digitales/ComisionBrouPreviewForm";
 import type { ComprobanteLeido } from "../types";
 import { applyBrouParsedToForm, buildComisionPayloadForGasto, tieneImporteComision } from "../utils/brou-gasto";
+import { PageModuleHeadRow } from "./PageModuleHead";
 
 /** Valores internos del select de concepto (no se guardan en PRESUPUESTO). */
 const CONCEPTO_OTRO = "__otro__";
@@ -918,16 +919,19 @@ export default function FormGasto({
         {!editRow ? (
           <span className="gasto-factura-badge">Factura</span>
         ) : null}
-        <h2>
-          {editRow
-            ? `Editar gasto — Operación N° ${formatNumeroOperacion(editRow.nro_registro)}`
-            : "Ingresar nuevo gasto"}
-        </h2>
-        <p className="muted">
-          {brouImportado
-            ? "Comprobante detectado — transferencia a otros bancos"
-            : presupuestoEmpresasHint}
-        </p>
+        <PageModuleHeadRow
+          icon={{ source: "app", id: "registro" }}
+          title={
+            editRow
+              ? `Editar gasto — Operación N° ${formatNumeroOperacion(editRow.nro_registro)}`
+              : "Ingresar nuevo gasto"
+          }
+          subtitle={
+            brouImportado
+              ? "Comprobante detectado — transferencia a otros bancos"
+              : presupuestoEmpresasHint
+          }
+        />
       </div>
 
       {!editRow && (

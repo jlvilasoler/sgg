@@ -6,6 +6,7 @@ import {
 } from "../../api";
 import type { StockGanaderaDispositivo } from "../../types";
 import BuscadorCaravanaActiva from "./BuscadorCaravanaActiva";
+import { PageModuleHeadRow } from "../PageModuleHead";
 import {
   etiquetaCaravana,
   fechaHoyIso,
@@ -296,13 +297,11 @@ export default function StockGanaderoImportarBaja({
 
       <div className="card stock-import-shell stock-import-shell--baja">
         <div className="form-header stock-import-head">
-          <div>
-            <h2>Importar bajas</h2>
-            <p className="muted">
-              Marcá caravanas como vendidas, frigorífico, muerte u otras salidas. Salen del
-              stock activo y quedan registradas en el dispositivo.
-            </p>
-          </div>
+          <PageModuleHeadRow
+            icon={{ source: "hub", id: "stock_baja" }}
+            title="Importar bajas"
+            subtitle="Marcá caravanas como vendidas, frigorífico, muerte u otras salidas. Salen del stock activo y quedan registradas en el dispositivo."
+          />
         </div>
 
         {!apiOnline && (

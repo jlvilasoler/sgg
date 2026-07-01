@@ -3,6 +3,7 @@ import { insertDivisa } from "../../api";
 import type { TipoCambioForm } from "../../types";
 import { PAR_DIVISA_LABELS, PAR_DIVISA_TC_LABEL } from "../../types";
 import type { DivisasMonedaConfig } from "./divisas-config";
+import { PageModuleHeadRow } from "../PageModuleHead";
 
 interface Props {
   config: DivisasMonedaConfig;
@@ -54,11 +55,11 @@ export default function DivisasIngresar({
 
       <div className="card">
         <div className="form-header">
-          <h2>Ingresar TC — {config.titulo}</h2>
-          <p className="muted">
-            {PAR_DIVISA_LABELS[config.par]}. Una vez guardado, el registro no se
-            puede editar ni borrar.
-          </p>
+          <PageModuleHeadRow
+            icon={{ source: "app", id: "divisas" }}
+            title={`Ingresar TC — ${config.titulo}`}
+            subtitle={`${PAR_DIVISA_LABELS[config.par]}. Una vez guardado, el registro no se puede editar ni borrar.`}
+          />
         </div>
 
         <form onSubmit={guardar}>

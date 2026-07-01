@@ -17,6 +17,7 @@ import Usuarios from "./Usuarios";
 import UsuariosActividad from "./UsuariosActividad";
 import UsuariosRolesPanel from "./UsuariosRolesModal";
 import StockMovimientosAuditoria from "./stock/StockMovimientosAuditoria";
+import { PageModuleHeadRow } from "./PageModuleHead";
 type VistaUsuarios =
   | "menu"
   | "usuarios_cuentas"
@@ -221,8 +222,11 @@ export default function UsuariosHub({
       </button>
       <div className="card configuracion-hub-card">
         <div className="form-header">
-          <h2>Usuarios</h2>
-          <p className="muted">Administración del sistema, cuentas y auditoría.</p>
+          <PageModuleHeadRow
+            icon={{ source: "app", id: "usuarios" }}
+            title="Usuarios"
+            subtitle="Administración del sistema, cuentas y auditoría."
+          />
         </div>
         <nav className="app-grid" aria-label="Usuarios">
           {itemsVisibles.map((item) => (

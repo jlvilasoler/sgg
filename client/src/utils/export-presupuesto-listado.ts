@@ -91,7 +91,7 @@ export async function exportPresupuestoListadoPdf(
 
   const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
   doc.setFontSize(14);
-  doc.text("Historial de operaciones", 14, 14);
+  doc.text("Presupuesto", 14, 14);
   if (subtitulo) {
     doc.setFontSize(9);
     doc.setTextColor(100);

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { deleteProveedor, fetchProveedores } from "../../api";
 import type { Proveedor } from "../../types";
 import { confirmAction } from "../../utils/confirm";
-import { HubMenuIcon } from "../icons/HubMenuIcons";
+import { PageModuleHeadRow } from "../PageModuleHead";
 import TablePagination, {
   paginateSlice,
   type PageSize,
@@ -86,20 +86,18 @@ export default function ProveedorListado({
 
       <div className="card responsable-module-shell">
         <header className="responsable-module-page-head">
-          <div className="responsable-module-page-head-main">
-            <div className="responsable-module-page-icon" aria-hidden>
-              <HubMenuIcon id="prov_listado" className="menu-app-icon-svg" />
-            </div>
-            <div>
-              <span className="responsable-module-kicker">Proveedores</span>
-              <h2 className="responsable-module-page-title">Listado de proveedores</h2>
-              <p className="responsable-module-page-sub">
-                {loading
-                  ? "Cargando catálogo…"
-                  : `${rows.length} proveedor${rows.length === 1 ? "" : "es"} en su cuenta`}
-              </p>
-            </div>
-          </div>
+          <PageModuleHeadRow
+            icon={{ source: "hub", id: "prov_listado" }}
+            kicker="Proveedores"
+            title="Listado de proveedores"
+            subtitle={
+              loading
+                ? "Cargando catálogo…"
+                : `${rows.length} proveedor${rows.length === 1 ? "" : "es"} en su cuenta`
+            }
+            titleClassName="responsable-module-page-title"
+            subClassName="responsable-module-page-sub"
+          />
           {!loading && apiOnline ? (
             <span className="responsable-module-stat-pill" aria-live="polite">
               {rows.length} total

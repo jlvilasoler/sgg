@@ -13,6 +13,7 @@ import StockEquinoImportarBaja from "./StockEquinoImportarBaja";
 import StockEquinoListado from "./StockEquinoListado";
 import { clearStockEquinaPageCache } from "./stock-equina-page-cache";
 import UnderConstructionModal from "../UnderConstructionModal";
+import { PageModuleHeadRow } from "../PageModuleHead";
 
 /** Desactivar cuando el módulo esté listo para producción. */
 const STOCK_EQUINO_EN_CONSTRUCCION = true;
@@ -208,18 +209,23 @@ function StockEquinoPanel({
       </button>
       <div className="card configuracion-hub-card">
         <div className="form-header">
-          <h2>Stock Equino</h2>
-          <p className="muted">
-            Importá lecturas electrónicas (EID) desde archivos .txt del lector.
-            {apiOnline && resumen.registros > 0 && (
+          <PageModuleHeadRow
+            icon={{ source: "app", id: "stock_equino" }}
+            title="Stock Equino"
+            subtitle={
               <>
-                {" "}
-                Actualmente: <strong>{resumen.dispositivos}</strong> dispositivo(s) activo(s),{" "}
-                <strong>{resumen.registros}</strong> lectura(s) en{" "}
-                <strong>{resumen.lotes}</strong> importación(es).
+                Importá lecturas electrónicas (EID) desde archivos .txt del lector.
+                {apiOnline && resumen.registros > 0 && (
+                  <>
+                    {" "}
+                    Actualmente: <strong>{resumen.dispositivos}</strong> dispositivo(s) activo(s),{" "}
+                    <strong>{resumen.registros}</strong> lectura(s) en{" "}
+                    <strong>{resumen.lotes}</strong> importación(es).
+                  </>
+                )}
               </>
-            )}
-          </p>
+            }
+          />
         </div>
         <nav className="app-grid" aria-label="Stock Equino">
           {SUBMENU.map((item) => (

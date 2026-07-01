@@ -211,6 +211,7 @@ export default function UsuariosRolesPanel({
     <SubseccionInlinePanel
       onVolver={onVolver}
       volverLabel={volverLabel}
+      icon={{ source: "hub", id: "usuarios_permisos_rol" }}
       title="Permisos por tipo de usuario"
       description="Solo el administrador define qué secciones ve cada rol y si puede editar."
       cardClassName="usuarios-roles-inline"

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { fetchStockMovimientosAuditoria } from "../../api";
+import { PageModuleHeadRow } from "../PageModuleHead";
 import type {
   StockMovimientoAuditoria,
   StockMovimientoBajaDispositivo,
@@ -223,8 +224,14 @@ export default function StockMovimientosAuditoria({
       <div className="listado-pro-shell">
         <header className="listado-pro-head">
           <div className="listado-pro-head-main">
-            <h2 className="listado-pro-head-title">Movimientos de Dispositivos</h2>
-            <p className="listado-pro-head-sub">{subtitulo}</p>
+            <PageModuleHeadRow
+              icon={{ source: "app", id: "stock_movimientos" }}
+              title="Movimientos de Dispositivos"
+              subtitle={subtitulo}
+              titleClassName="listado-pro-head-title"
+              subClassName="listado-pro-head-sub"
+              textClassName="listado-pro-head-text"
+            />
           </div>
         </header>
 

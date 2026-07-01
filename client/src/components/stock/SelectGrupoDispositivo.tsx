@@ -1,17 +1,22 @@
-import { GRUPO_PREFIX } from "./stock-ganadera-utils";
+import { fmtGeneracionRango, GRUPO_PREFIX } from "./stock-ganadera-utils";
 
 interface Props {
+  mes: number | null;
   anio: number | null;
   disabled?: boolean;
   id?: string;
 }
 
-/** Generación GEN + año, derivada automáticamente del año de nacimiento. */
+/** Generación GEN + rango jul–jun, derivada del nacimiento. */
 export default function SelectGrupoDispositivo({
+  mes,
   anio,
   disabled: _disabled = false,
   id,
 }: Props) {
+  const rango = fmtGeneracionRango(mes, anio);
+  const vacio = rango === "—";
+
   return (
     <div
       id={id}
@@ -22,10 +27,14 @@ export default function SelectGrupoDispositivo({
         {GRUPO_PREFIX}
       </span>
       <div
-        className={`stock-grupo-auto-valor${anio === null ? " stock-grupo-auto-valor--empty" : ""}`}
-        aria-label={anio ? `Generación ${GRUPO_PREFIX}${anio}` : "Generación sin definir"}
+        className={`stock-grupo-auto-valor${vacio ? " stock-grupo-auto-valor--empty" : ""}`}
+        aria-label={
+          vacio
+            ? "Generación sin definir"
+            : `Generación ${GRUPO_PREFIX}${rango}`
+        }
       >
-        {anio ?? "Sin año de nacimiento"}
+        {vacio ? "Sin fecha de nacimiento" : rango}
       </div>
     </div>
   );

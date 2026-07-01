@@ -9,6 +9,7 @@ import {
   canVerUsuariosOnlineActividad,
 } from "../utils/auth-permissions";
 import UserAvatar from "./UserAvatar";
+import { PageModuleHeadRow } from "./PageModuleHead";
 import TablePagination, { type PageSize } from "./TablePagination";
 
 const EVENTO_LABELS: Record<string, string> = {
@@ -425,11 +426,11 @@ export default function UsuariosActividad({
       <div className="subseccion-panel">
         <div className="card">
           <div className="form-header">
-            <h2>Acceso restringido</h2>
-            <p className="muted">
-              El registro de actividad global solo está disponible para el superadministrador de
-              plataforma.
-            </p>
+            <PageModuleHeadRow
+              icon={{ source: "app", id: "registro_actividad" }}
+              title="Acceso restringido"
+              subtitle="El registro de actividad global solo está disponible para el superadministrador de plataforma."
+            />
           </div>
           <div className="form-actions">
             <button type="button" className="btn btn-secondary" onClick={onVolver}>
@@ -450,11 +451,19 @@ export default function UsuariosActividad({
       <div className="card usuarios-panel listado-pro-shell">
         <header className="listado-pro-head usuarios-actividad-head">
           <div className="listado-pro-head-main">
-            <h2 className="listado-pro-head-title">{titulo}</h2>
-            <p className="listado-pro-head-sub">
-              {subtituloAmbito ? `${subtituloAmbito} · ` : ""}
-              {subtitulo}
-            </p>
+            <PageModuleHeadRow
+              icon={{ source: "app", id: "registro_actividad" }}
+              title={titulo}
+              subtitle={
+                <>
+                  {subtituloAmbito ? `${subtituloAmbito} · ` : ""}
+                  {subtitulo}
+                </>
+              }
+              titleClassName="listado-pro-head-title"
+              subClassName="listado-pro-head-sub"
+              textClassName="listado-pro-head-text"
+            />
           </div>
         </header>
 

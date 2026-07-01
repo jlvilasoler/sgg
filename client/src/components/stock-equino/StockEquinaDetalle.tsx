@@ -11,6 +11,7 @@ import BadgeEstadoDispositivo from "../stock/BadgeEstadoDispositivo";
 import IconoDispositivoWifi from "../stock/IconoDispositivoWifi";
 import StockEquinaHistorialCambiosPanel from "./StockEquinaHistorialCambiosPanel";
 import { fmtEdadMeses, fmtNacimiento } from "./stock-equina-utils";
+import { PageModuleHeadRow } from "../PageModuleHead";
 
 interface Props {
   clave: string;
@@ -132,16 +133,17 @@ export default function StockEquinaDetalle({
 
       <div className="card stock-equina-detalle-page">
         <div className="form-header stock-equina-detalle-page-head">
-          <div>
-            <h2>Detalle del dispositivo</h2>
-            <p className="muted">
-              {loading
+          <PageModuleHeadRow
+            icon={{ source: "hub", id: "stock_dispositivos" }}
+            title="Detalle del dispositivo"
+            subtitle={
+              loading
                 ? "Cargando…"
                 : detalle
                   ? "Ficha completa, lecturas importadas e historial de cambios."
-                  : "Dispositivo no encontrado"}
-            </p>
-          </div>
+                  : "Dispositivo no encontrado"
+            }
+          />
         </div>
 
         {loading ? (

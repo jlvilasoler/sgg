@@ -191,6 +191,7 @@ export default function TiposDocumentoGasto({
       <SubseccionInlinePanel
         onVolver={volverListado}
         volverLabel="Volver al listado"
+        icon={{ source: "app", id: "documentos_digitales" }}
         title={editId ? "Editar tipo de documento" : "Nuevo tipo de documento"}
         description="Definí de qué dato del comprobante se completa cada campo del gasto (ej. extracto BROU)."
       >
@@ -294,6 +295,7 @@ export default function TiposDocumentoGasto({
     <SubseccionInlinePanel
       onVolver={onVolver}
       volverLabel="Volver a Documentos Digitales"
+      icon={{ source: "app", id: "documentos_digitales" }}
       title="Tipos de documentos digitales"
       description="Operaciones que define pago automatico (ej. transferencias de Banco a proveedores)."
     >

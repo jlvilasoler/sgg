@@ -17,6 +17,7 @@ import {
   exportPresupuestoListadoPdf,
 } from "../utils/export-presupuesto-listado";
 import { IconCsv, IconExcel, IconPdf } from "./icons/ActionIcons";
+import { PageModuleHeadRow } from "./PageModuleHead";
 import GastoAccionesMenu from "./GastoAccionesMenu";
 import PresupuestoDocumentoModal from "./PresupuestoDocumentoModal";
 import PresupuestoDetallePanel from "./PresupuestoDetalleModal";
@@ -264,7 +265,7 @@ export default function Listado({ catalogos, apiOnline, onEdit, onDeleted, onErr
       <PresupuestoDetallePanel
         row={detalleRow}
         onVolver={() => setDetalleRow(null)}
-        volverLabel="Volver al historial"
+        volverLabel="Volver a Presupuesto"
       />
     );
   }
@@ -274,18 +275,24 @@ export default function Listado({ catalogos, apiOnline, onEdit, onDeleted, onErr
       <div className="listado-pro-shell">
         <header className="listado-pro-head">
           <div className="listado-pro-head-main">
-            <h2 className="listado-pro-head-title">Historial de operaciones</h2>
-            <p className="listado-pro-head-sub">
-              {loading
-                ? "Actualizando…"
-                : !apiOnline
-                  ? "Sin conexión con la API"
-                  : indicadores.cantidad === 0
-                    ? "Sin registros para los filtros aplicados"
-                    : `${indicadores.cantidad} operación${
-                        indicadores.cantidad === 1 ? "" : "es"
-                      } en el período filtrado`}
-            </p>
+            <PageModuleHeadRow
+              icon={{ source: "app", id: "listado" }}
+              title="Presupuesto"
+              subtitle={
+                loading
+                  ? "Actualizando…"
+                  : !apiOnline
+                    ? "Sin conexión con la API"
+                    : indicadores.cantidad === 0
+                      ? "Sin registros para los filtros aplicados"
+                      : `${indicadores.cantidad} operación${
+                          indicadores.cantidad === 1 ? "" : "es"
+                        } en el período filtrado`
+              }
+              titleClassName="listado-pro-head-title"
+              subClassName="listado-pro-head-sub"
+              textClassName="listado-pro-head-text"
+            />
           </div>
         </header>
 

@@ -12,6 +12,8 @@ import StockGanaderoImportar from "./StockGanaderoImportar";
 import StockGanaderoImportarBaja from "./StockGanaderoImportarBaja";
 import StockGanaderoListado from "./StockGanaderoListado";
 import StockGanaderoCabanaSeleccion from "./StockGanaderoCabanaSeleccion";
+import StockGanaderoSanidad from "./StockGanaderoSanidad";
+import { PageModuleHeadRow } from "../PageModuleHead";
 
 type VistaStock =
   | "menu"
@@ -21,7 +23,8 @@ type VistaStock =
   | "historial"
   | "ganadera"
   | "salidas"
-  | "cabana";
+  | "cabana"
+  | "sanidad";
 
 interface Props {
   apiOnline: boolean;
@@ -72,6 +75,12 @@ const SUBMENU: {
     label: "Selección Animales de Cabaña",
     subtitle: "Marcar animales del stock con nombre de selección",
     icon: "stock_cabana",
+  },
+  {
+    id: "sanidad",
+    label: "Sanidad",
+    subtitle: "Controles sanitarios por grupos, categorías o selección múltiple",
+    icon: "stock_sanidad",
   },
 ];
 
@@ -190,6 +199,18 @@ export default function StockGanadero({
     );
   }
 
+  if (vista === "sanidad") {
+    return (
+      <StockGanaderoSanidad
+        apiOnline={apiOnline}
+        currentUser={currentUser}
+        onError={onError}
+        onSuccess={onSuccess}
+        onVolver={volverMenu}
+      />
+    );
+  }
+
   if (vista === "listado") {
     return (
       <StockGanaderoListado
@@ -212,18 +233,23 @@ export default function StockGanadero({
       </button>
       <div className="card configuracion-hub-card">
         <div className="form-header">
-          <h2>Stock Ganadero</h2>
-          <p className="muted">
-            Importá lecturas electrónicas (EID) desde archivos .txt del lector.
-            {apiOnline && resumen.registros > 0 && (
+          <PageModuleHeadRow
+            icon={{ source: "app", id: "stock_ganadero" }}
+            title="Stock Ganadero"
+            subtitle={
               <>
-                {" "}
-                Actualmente: <strong>{resumen.dispositivos}</strong> dispositivo(s) activo(s),{" "}
-                <strong>{resumen.registros}</strong> lectura(s) en{" "}
-                <strong>{resumen.lotes}</strong> importación(es).
+                Importá lecturas electrónicas (EID) desde archivos .txt del lector.
+                {apiOnline && resumen.registros > 0 && (
+                  <>
+                    {" "}
+                    Actualmente: <strong>{resumen.dispositivos}</strong> dispositivo(s) activo(s),{" "}
+                    <strong>{resumen.registros}</strong> lectura(s) en{" "}
+                    <strong>{resumen.lotes}</strong> importación(es).
+                  </>
+                )}
               </>
-            )}
-          </p>
+            }
+          />
         </div>
         <nav className="app-grid" aria-label="Stock Ganadero">
           {SUBMENU.map((item) => (

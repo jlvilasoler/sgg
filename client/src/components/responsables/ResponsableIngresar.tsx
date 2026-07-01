@@ -3,6 +3,7 @@ import { createResponsable, fetchResponsables, updateResponsable } from "../../a
 import type { Responsable, ResponsableForm } from "../../types";
 import { aMayusculas } from "../../utils/formText";
 import { HubMenuIcon } from "../icons/HubMenuIcons";
+import { PageModuleHeadRow } from "../PageModuleHead";
 
 interface Props {
   apiOnline: boolean;
@@ -110,22 +111,18 @@ export default function ResponsableIngresar({
 
       <div className="card responsable-module-shell">
         <header className="responsable-module-page-head">
-          <div className="responsable-module-page-head-main">
-            <div className="responsable-module-page-icon" aria-hidden>
-              <HubMenuIcon id="resp_ingresar" className="menu-app-icon-svg" />
-            </div>
-            <div>
-              <span className="responsable-module-kicker">Asignación de presupuesto</span>
-              <h2 className="responsable-module-page-title">
-                {editId ? "Editar asignación" : "Nueva asignación"}
-              </h2>
-              <p className="responsable-module-page-sub">
-                {editId
-                  ? "Modificá los datos de la persona seleccionada."
-                  : "Completá el formulario para agregar una persona al catálogo de su cuenta."}
-              </p>
-            </div>
-          </div>
+          <PageModuleHeadRow
+            icon={{ source: "hub", id: "resp_ingresar" }}
+            kicker="Asignación de presupuesto"
+            title={editId ? "Editar asignación" : "Nueva asignación"}
+            subtitle={
+              editId
+                ? "Modificá los datos de la persona seleccionada."
+                : "Completá el formulario para agregar una persona al catálogo de su cuenta."
+            }
+            titleClassName="responsable-module-page-title"
+            subClassName="responsable-module-page-sub"
+          />
           {editId ? (
             <span className="responsable-module-mode-badge">Modo edición</span>
           ) : null}

@@ -1,3 +1,5 @@
+import { PageModuleHeadRow } from "../PageModuleHead";
+
 interface Props {
   titulo: string;
   descripcion: string;
@@ -18,8 +20,11 @@ export default function SimuladorVentasSeccion({
       </button>
       <div className="card">
         <div className="form-header">
-          <h2>{titulo}</h2>
-          <p className="muted">{descripcion}</p>
+          <PageModuleHeadRow
+            icon={{ source: "app", id: "simulador_venta_ganado" }}
+            title={titulo}
+            subtitle={descripcion}
+          />
         </div>
       </div>
     </div>

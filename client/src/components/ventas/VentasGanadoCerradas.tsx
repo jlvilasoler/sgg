@@ -8,6 +8,7 @@ import TablePagination, {
   paginateSlice,
   type PageSize,
 } from "../TablePagination";
+import { PageModuleHeadRow } from "../PageModuleHead";
 
 const DESTINO_SUGERENCIAS = [
   "Frigorífico",
@@ -154,12 +155,15 @@ export default function VentasGanadoCerradas({
 
       <div className="card">
         <div className="form-header">
-          <h2>Ventas de ganado cerradas</h2>
-          <p className="muted">
-            {loading
-              ? "Cargando..."
-              : `${rows.length} venta(s) cerrada(s) desde el simulador — Total USD: ${fmtUsd(totales.totalUsd)}`}
-          </p>
+          <PageModuleHeadRow
+            icon={{ source: "hub", id: "ventas_ganado_cerradas" }}
+            title="Ventas de ganado cerradas"
+            subtitle={
+              loading
+                ? "Cargando..."
+                : `${rows.length} venta(s) cerrada(s) desde el simulador — Total USD: ${fmtUsd(totales.totalUsd)}`
+            }
+          />
         </div>
 
         <div className="filters mayusculas-auto">

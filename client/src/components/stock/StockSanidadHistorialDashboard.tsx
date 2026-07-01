@@ -1,0 +1,277 @@
+import { useEffect, useMemo, useState } from "react";
+import { Activity, ClipboardList, PillBottle, Users } from "lucide-react";
+import { fetchStockControlSanitarioResumen } from "../../api";
+import type { StockControlSanitarioResumen } from "../../types";
+import { StockControlSanitarioIconSvg } from "./StockControlSanitarioSectionTitle";
+
+interface Props {
+  apiOnline: boolean;
+  claves: string[];
+  refreshKey?: number;
+  onError?: (msg: string) => void;
+}
+
+function fmtIsoDate(iso: string): string {
+  if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso;
+  const [y, m, d] = iso.split("-");
+  return `${d}/${m}/${y}`;
+}
+
+function fmtPeriodoRegistro(r: {
+  admin_fecha_inicio: string;
+  admin_fecha_fin: string;
+  admin_periodo_nota: string;
+}): string {
+  const nota = r.admin_periodo_nota.trim();
+  if (nota) return nota;
+  const ini = r.admin_fecha_inicio.trim();
+  const fin = r.admin_fecha_fin.trim();
+  if (ini && fin) return `${fmtIsoDate(ini)} – ${fmtIsoDate(fin)}`;
+  if (ini) return `Desde ${fmtIsoDate(ini)}`;
+  if (fin) return `Hasta ${fmtIsoDate(fin)}`;
+  return "";
+}
+
+function fmtCreadoEn(iso: string): string {
+  if (!iso) return "";
+  const d = new Date(iso.includes("T") ? iso : iso.replace(" ", "T"));
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString("es-UY", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+function maxFrecuencia(items: { cantidad: number }[]): number {
+  if (items.length === 0) return 1;
+  return Math.max(1, ...items.map((i) => i.cantidad));
+}
+
+export default function StockSanidadHistorialDashboard({
+  apiOnline,
+  claves,
+  refreshKey = 0,
+  onError,
+}: Props) {
+  const [resumen, setResumen] = useState<StockControlSanitarioResumen | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const clavesKey = useMemo(() => [...claves].sort().join(","), [claves]);
+
+  useEffect(() => {
+    if (!apiOnline || claves.length === 0) {
+      setResumen(null);
+      setLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setLoading(true);
+
+    const timer = window.setTimeout(() => {
+      void fetchStockControlSanitarioResumen("ganadero", claves)
+        .then((data) => {
+          if (!cancelled) setResumen(data);
+        })
+        .catch((e) => {
+          if (!cancelled) {
+            setResumen(null);
+            onError?.(e instanceof Error ? e.message : "Error al cargar historial sanitario");
+          }
+        })
+        .finally(() => {
+          if (!cancelled) setLoading(false);
+        });
+    }, 280);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [apiOnline, claves, clavesKey, refreshKey, onError]);
+
+  const maxProductos = maxFrecuencia(resumen?.productos_frecuentes ?? []);
+  const maxMotivos = maxFrecuencia(resumen?.motivos_frecuentes ?? []);
+  const promedio =
+    resumen && resumen.dispositivos_con_historial > 0
+      ? (resumen.total_registros / resumen.dispositivos_con_historial).toFixed(1)
+      : "0";
+
+  if (claves.length === 0) {
+    return (
+      <aside className="stock-sanidad-dash stock-sanidad-dash--band" aria-label="Resumen sanitario">
+        <div className="stock-sanidad-dash-empty">
+          <span className="stock-sanidad-dash-empty-icon" aria-hidden>
+            <StockControlSanitarioIconSvg icon="header" size={22} />
+          </span>
+          <div className="stock-sanidad-dash-empty-copy">
+            <p className="stock-sanidad-dash-empty-title">Historial sanitario</p>
+            <p className="muted stock-sanidad-dash-empty-text">
+              Seleccioná uno o más animales para ver cuántos controles tienen y un resumen de
+              productos aplicados.
+            </p>
+          </div>
+        </div>
+      </aside>
+    );
+  }
+
+  return (
+    <aside className="stock-sanidad-dash stock-sanidad-dash--band" aria-label="Resumen sanitario">
+      <header className="stock-sanidad-dash-head">
+        <span className="stock-sanidad-dash-head-icon" aria-hidden>
+          <StockControlSanitarioIconSvg icon="historial" size={18} />
+        </span>
+        <div className="stock-sanidad-dash-head-copy">
+          <h4 className="stock-sanidad-dash-title">Historial del grupo</h4>
+          <p className="stock-sanidad-dash-sub muted">
+            {claves.length} animal{claves.length === 1 ? "" : "es"} en la selección
+          </p>
+        </div>
+      </header>
+
+      {loading ? (
+        <p className="muted stock-sanidad-dash-loading">Cargando historial…</p>
+      ) : !resumen || resumen.total_registros === 0 ? (
+        <div className="stock-sanidad-dash-sin-historial">
+          <p>
+            <strong>Sin registros sanitarios</strong> en la selección actual.
+          </p>
+          <p className="muted">
+            {resumen?.dispositivos_consultados ?? claves.length} animal
+            {(resumen?.dispositivos_consultados ?? claves.length) === 1 ? "" : "es"} sin
+            movimientos cargados aún.
+          </p>
+        </div>
+      ) : (
+        <div className="stock-sanidad-dash-body">
+          <div className="stock-sanidad-dash-col stock-sanidad-dash-col--kpis">
+            <div className="stock-sanidad-dash-kpis">
+              <div className="stock-sanidad-dash-kpi">
+                <span className="stock-sanidad-dash-kpi-icon" aria-hidden>
+                  <ClipboardList size={17} />
+                </span>
+                <div className="stock-sanidad-dash-kpi-text">
+                  <strong>{resumen.total_registros}</strong>
+                  <span>movimientos</span>
+                </div>
+              </div>
+              <div className="stock-sanidad-dash-kpi">
+                <span className="stock-sanidad-dash-kpi-icon" aria-hidden>
+                  <Users size={17} />
+                </span>
+                <div className="stock-sanidad-dash-kpi-text">
+                  <strong>{resumen.dispositivos_con_historial}</strong>
+                  <span>con historial</span>
+                </div>
+              </div>
+              <div className="stock-sanidad-dash-kpi">
+                <span className="stock-sanidad-dash-kpi-icon" aria-hidden>
+                  <Activity size={17} />
+                </span>
+                <div className="stock-sanidad-dash-kpi-text">
+                  <strong>{promedio}</strong>
+                  <span>prom. / animal</span>
+                </div>
+              </div>
+              {resumen.dispositivos_sin_historial > 0 && (
+                <div className="stock-sanidad-dash-kpi stock-sanidad-dash-kpi--muted">
+                  <div className="stock-sanidad-dash-kpi-text">
+                    <strong>{resumen.dispositivos_sin_historial}</strong>
+                    <span>sin historial</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="stock-sanidad-dash-col stock-sanidad-dash-col--freq">
+            {resumen.productos_frecuentes.length > 0 && (
+              <section className="stock-sanidad-dash-block">
+                <h5 className="stock-sanidad-dash-block-title">
+                  <PillBottle size={14} aria-hidden />
+                  Productos más usados
+                </h5>
+                <ul className="stock-sanidad-dash-bars">
+                  {resumen.productos_frecuentes.map((p) => (
+                    <li key={p.etiqueta}>
+                      <div className="stock-sanidad-dash-bar-head">
+                        <span className="stock-sanidad-dash-bar-label" title={p.etiqueta}>
+                          {p.etiqueta}
+                        </span>
+                        <span className="stock-sanidad-dash-bar-count">{p.cantidad}</span>
+                      </div>
+                      <div className="stock-sanidad-dash-bar-track">
+                        <span
+                          className="stock-sanidad-dash-bar-fill stock-sanidad-dash-bar-fill--producto"
+                          style={{ width: `${Math.round((p.cantidad / maxProductos) * 100)}%` }}
+                        />
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+
+            {resumen.motivos_frecuentes.length > 0 && (
+              <section className="stock-sanidad-dash-block">
+                <h5 className="stock-sanidad-dash-block-title">Motivos frecuentes</h5>
+                <ul className="stock-sanidad-dash-bars">
+                  {resumen.motivos_frecuentes.map((m) => (
+                    <li key={m.etiqueta}>
+                      <div className="stock-sanidad-dash-bar-head">
+                        <span className="stock-sanidad-dash-bar-label" title={m.etiqueta}>
+                          {m.etiqueta}
+                        </span>
+                        <span className="stock-sanidad-dash-bar-count">{m.cantidad}</span>
+                      </div>
+                      <div className="stock-sanidad-dash-bar-track">
+                        <span
+                          className="stock-sanidad-dash-bar-fill stock-sanidad-dash-bar-fill--motivo"
+                          style={{ width: `${Math.round((m.cantidad / maxMotivos) * 100)}%` }}
+                        />
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+          </div>
+
+          {resumen.ultimos_registros.length > 0 && (
+            <div className="stock-sanidad-dash-col stock-sanidad-dash-col--timeline">
+              <section className="stock-sanidad-dash-block stock-sanidad-dash-block--timeline">
+                <h5 className="stock-sanidad-dash-block-title">Últimos movimientos</h5>
+                <ul className="stock-sanidad-dash-timeline">
+                  {resumen.ultimos_registros.map((r) => {
+                    const periodo = fmtPeriodoRegistro(r);
+                    return (
+                      <li key={`${r.id}-${r.clave}`} className="stock-sanidad-dash-timeline-item">
+                        <article className="stock-sanidad-dash-timeline-card">
+                          <div className="stock-sanidad-dash-timeline-top">
+                            <strong title={r.producto_nombre}>{r.producto_nombre || "Producto"}</strong>
+                            <time dateTime={r.creado_en}>{fmtCreadoEn(r.creado_en)}</time>
+                          </div>
+                          <p className="stock-sanidad-dash-timeline-id">
+                            {r.animal_id || r.clave}
+                          </p>
+                          {r.control_motivo.trim() && (
+                            <p className="stock-sanidad-dash-timeline-motivo">{r.control_motivo}</p>
+                          )}
+                          {periodo && (
+                            <p className="stock-sanidad-dash-timeline-periodo">{periodo}</p>
+                          )}
+                        </article>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
+            </div>
+          )}
+        </div>
+      )}
+    </aside>
+  );
+}

@@ -54,6 +54,10 @@
   StockGanaderaDispositivo,
   StockGanaderaDispositivoDetalle,
   StockGanaderaDispositivoHistorial,
+  StockControlSanitarioRecord,
+  StockControlSanitarioInput,
+  StockControlSanitarioCantidadOpcion,
+  StockControlSanitarioResumen,
   StockEquinoLote,
   StockEquinoRegistro,
   StockEquinoEstadisticas,
@@ -781,6 +785,98 @@ export async function fetchStockGanaderaDispositivoHistorial(
 ): Promise<StockGanaderaDispositivoHistorial[]> {
   const json = await request<{ data: StockGanaderaDispositivoHistorial[] }>(
     `/stock-ganadero/dispositivos/${encodeURIComponent(clave)}/historial-cambios`
+  );
+  return json.data;
+}
+
+export type StockDispositivoModulo = "ganadero" | "equino";
+
+export async function fetchStockControlSanitario(
+  modulo: StockDispositivoModulo,
+  clave: string
+): Promise<StockControlSanitarioRecord[]> {
+  const json = await request<{ data: StockControlSanitarioRecord[] }>(
+    `/stock-${modulo}/dispositivos/${encodeURIComponent(clave)}/control-sanitario`
+  );
+  return json.data;
+}
+
+export async function createStockControlSanitario(
+  modulo: StockDispositivoModulo,
+  clave: string,
+  input: StockControlSanitarioInput
+): Promise<StockControlSanitarioRecord> {
+  const json = await request<{ data: StockControlSanitarioRecord }>(
+    `/stock-${modulo}/dispositivos/${encodeURIComponent(clave)}/control-sanitario`,
+    { method: "POST", body: JSON.stringify(input) }
+  );
+  return json.data;
+}
+
+export async function createStockControlSanitarioBulk(
+  modulo: StockDispositivoModulo,
+  items: { clave: string; input: StockControlSanitarioInput }[]
+): Promise<{ ok: number; errores: { clave: string; mensaje: string }[] }> {
+  const errores: { clave: string; mensaje: string }[] = [];
+  let ok = 0;
+  const chunkSize = 8;
+  for (let i = 0; i < items.length; i += chunkSize) {
+    const chunk = items.slice(i, i + chunkSize);
+    await Promise.all(
+      chunk.map(async ({ clave, input }) => {
+        try {
+          await createStockControlSanitario(modulo, clave, input);
+          ok += 1;
+        } catch (e) {
+          errores.push({
+            clave,
+            mensaje: e instanceof Error ? e.message : "Error al guardar",
+          });
+        }
+      })
+    );
+  }
+  return { ok, errores };
+}
+
+export async function fetchStockControlSanitarioResumen(
+  modulo: StockDispositivoModulo,
+  claves: string[]
+): Promise<StockControlSanitarioResumen> {
+  const json = await request<{ data: StockControlSanitarioResumen }>(
+    `/stock-${modulo}/control-sanitario/resumen`,
+    { method: "POST", body: JSON.stringify({ claves }) }
+  );
+  return json.data;
+}
+
+export async function deleteStockControlSanitario(
+  modulo: StockDispositivoModulo,
+  clave: string,
+  id: number
+): Promise<void> {
+  await request<{ ok: true }>(
+    `/stock-${modulo}/dispositivos/${encodeURIComponent(clave)}/control-sanitario/${id}`,
+    { method: "DELETE" }
+  );
+}
+
+export async function fetchStockControlSanitarioCantidadOpciones(
+  modulo: StockDispositivoModulo
+): Promise<StockControlSanitarioCantidadOpcion[]> {
+  const json = await request<{ data: StockControlSanitarioCantidadOpcion[] }>(
+    `/stock-${modulo}/control-sanitario/cantidad-opciones`
+  );
+  return json.data;
+}
+
+export async function createStockControlSanitarioCantidadOpcion(
+  modulo: StockDispositivoModulo,
+  valor: string
+): Promise<StockControlSanitarioCantidadOpcion> {
+  const json = await request<{ data: StockControlSanitarioCantidadOpcion }>(
+    `/stock-${modulo}/control-sanitario/cantidad-opciones`,
+    { method: "POST", body: JSON.stringify({ valor }) }
   );
   return json.data;
 }
@@ -3326,6 +3422,12 @@ export async function fetchUsuarios(
     q = "?ambito=propio";
   }
   const json = await request<{ data: AuthUser[] }>(`/auth/users${q}`);
+  return json.data;
+}
+
+/** Usuarios activos de la cuenta del usuario conectado (p. ej. colaboradores de VILA DIAZ). */
+export async function fetchUsuariosMiCuenta(): Promise<AuthUser[]> {
+  const json = await request<{ data: AuthUser[] }>("/auth/users?ambito=mi_cuenta");
   return json.data;
 }
 

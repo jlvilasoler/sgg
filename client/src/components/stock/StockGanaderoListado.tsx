@@ -15,6 +15,7 @@ import TablePagination, {
   type PageSize,
 } from "../TablePagination";
 import { dispositivoClave } from "./stock-ganadera-utils";
+import { PageModuleHeadRow } from "../PageModuleHead";
 
 interface Props {
   apiOnline: boolean;
@@ -133,14 +134,17 @@ export default function StockGanaderoListado({
       <div className="card">
         <div className="listado-toolbar">
           <div className="form-header">
-            <h2>Lecturas importadas</h2>
-            <p className="muted">
-              {loading
-                ? "Cargando…"
-                : soloRepetidos
-                  ? `${rows.length} lectura(s) con EID repetido — ${lotes.length} importación(es)`
-                  : `${stats?.total_lecturas ?? rows.length} lectura(s) — ${lotes.length} importación(es)`}
-            </p>
+            <PageModuleHeadRow
+              icon={{ source: "hub", id: "stock_lecturas" }}
+              title="Lecturas importadas"
+              subtitle={
+                loading
+                  ? "Cargando…"
+                  : soloRepetidos
+                    ? `${rows.length} lectura(s) con EID repetido — ${lotes.length} importación(es)`
+                    : `${stats?.total_lecturas ?? rows.length} lectura(s) — ${lotes.length} importación(es)`
+              }
+            />
           </div>
           <div className="listado-toolbar-actions">
             <button

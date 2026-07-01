@@ -42,7 +42,7 @@ import { parseStockGanaderoBuffer, parseStockGanaderoFile, parseStockGanaderoTex
 import type { DispositivoMetaPatch, StockGanaderoFilters } from "./stock-ganadero-db.js";
 import type { StockEquinoFilters } from "./stock-equino-db.js";
 import { parseTipoBaja, tipoBajaDesdeEstadoImport, type TipoBaja } from "./stock-ganadero-db.js";
-import { auditBajasDispositivos, auditStockMovimiento, historialAutorFromRequest } from "./stock-audit.js";
+import { auditBajasDispositivos, auditStockMovimiento, historialAutorFromRequest, historialAutorLabelFromRequest } from "./stock-audit.js";
 import { type Empresa, type Presupuesto, type PresupuestoInput } from "./types.js";
 import { empresasCuenta } from "./database.js";
 import type { UserPublic } from "./auth-db.js";
@@ -66,6 +66,7 @@ import {
 } from "./parse-santander-comprobante.js";
 import * as presDoc from "./presupuesto-documentos-db.js";
 import * as stockDispositivoFoto from "./stock-dispositivo-foto-db.js";
+import * as stockControlSanitario from "./stock-control-sanitario-db.js";
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -1736,6 +1737,113 @@ app.get("/api/stock-ganadero/dispositivos/:clave/historial-cambios", async (req,
   }
 });
 
+app.get("/api/stock-ganadero/control-sanitario/cantidad-opciones", async (_req, res) => {
+  try {
+    const data = await stockControlSanitario.listStockControlSanitarioCantidadCatalog(
+      db.getDb()
+    );
+    res.json({ ok: true, data });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al cargar cantidades",
+    });
+  }
+});
+
+app.post("/api/stock-ganadero/control-sanitario/cantidad-opciones", async (req, res) => {
+  try {
+    const autor = historialAutorLabelFromRequest(req);
+    const valor = String(req.body?.valor ?? "");
+    const data = await stockControlSanitario.createStockControlSanitarioCantidadCatalog(
+      db.getDb(),
+      valor,
+      autor
+    );
+    res.json({ ok: true, data });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al guardar cantidad",
+    });
+  }
+});
+
+app.post("/api/stock-ganadero/control-sanitario/resumen", async (req, res) => {
+  try {
+    const claves = Array.isArray(req.body?.claves)
+      ? req.body.claves.map((c: unknown) => String(c))
+      : [];
+    const data = await stockControlSanitario.summarizeStockControlSanitarioByClaves(
+      db.getDb(),
+      "ganadero",
+      claves
+    );
+    res.json({ ok: true, data });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al cargar resumen sanitario",
+    });
+  }
+});
+
+app.get("/api/stock-ganadero/dispositivos/:clave/control-sanitario", async (req, res) => {
+  try {
+    const data = await stockControlSanitario.listStockControlSanitario(
+      db.getDb(),
+      "ganadero",
+      String(req.params.clave)
+    );
+    res.json({ ok: true, data });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al cargar control sanitario",
+    });
+  }
+});
+
+app.post("/api/stock-ganadero/dispositivos/:clave/control-sanitario", async (req, res) => {
+  try {
+    const autor = historialAutorLabelFromRequest(req);
+    const data = await stockControlSanitario.createStockControlSanitario(
+      db.getDb(),
+      "ganadero",
+      String(req.params.clave),
+      req.body ?? {},
+      autor
+    );
+    res.json({ ok: true, data });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al guardar control sanitario",
+    });
+  }
+});
+
+app.delete(
+  "/api/stock-ganadero/dispositivos/:clave/control-sanitario/:id",
+  async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      await stockControlSanitario.deleteStockControlSanitario(
+        db.getDb(),
+        "ganadero",
+        String(req.params.clave),
+        id
+      );
+      res.json({ ok: true });
+    } catch (e) {
+      res.status(400).json({
+        ok: false,
+        error: e instanceof Error ? e.message : "Error al eliminar registro",
+      });
+    }
+  }
+);
+
 app.get("/api/stock-ganadero/dispositivos/:clave/fotos", async (req, res) => {
   try {
     const clave = String(req.params.clave);
@@ -2826,6 +2934,94 @@ app.get("/api/stock-equino/dispositivos/:clave/historial-cambios", async (req, r
     });
   }
 });
+
+app.get("/api/stock-equino/control-sanitario/cantidad-opciones", async (_req, res) => {
+  try {
+    const data = await stockControlSanitario.listStockControlSanitarioCantidadCatalog(
+      db.getDb()
+    );
+    res.json({ ok: true, data });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al cargar cantidades",
+    });
+  }
+});
+
+app.post("/api/stock-equino/control-sanitario/cantidad-opciones", async (req, res) => {
+  try {
+    const autor = historialAutorLabelFromRequest(req);
+    const valor = String(req.body?.valor ?? "");
+    const data = await stockControlSanitario.createStockControlSanitarioCantidadCatalog(
+      db.getDb(),
+      valor,
+      autor
+    );
+    res.json({ ok: true, data });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al guardar cantidad",
+    });
+  }
+});
+
+app.get("/api/stock-equino/dispositivos/:clave/control-sanitario", async (req, res) => {
+  try {
+    const data = await stockControlSanitario.listStockControlSanitario(
+      db.getDb(),
+      "equino",
+      String(req.params.clave)
+    );
+    res.json({ ok: true, data });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al cargar control sanitario",
+    });
+  }
+});
+
+app.post("/api/stock-equino/dispositivos/:clave/control-sanitario", async (req, res) => {
+  try {
+    const autor = historialAutorLabelFromRequest(req);
+    const data = await stockControlSanitario.createStockControlSanitario(
+      db.getDb(),
+      "equino",
+      String(req.params.clave),
+      req.body ?? {},
+      autor
+    );
+    res.json({ ok: true, data });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al guardar control sanitario",
+    });
+  }
+});
+
+app.delete(
+  "/api/stock-equino/dispositivos/:clave/control-sanitario/:id",
+  async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      await stockControlSanitario.deleteStockControlSanitario(
+        db.getDb(),
+        "equino",
+        String(req.params.clave),
+        id
+      );
+      res.json({ ok: true });
+    } catch (e) {
+      res.status(400).json({
+        ok: false,
+        error: e instanceof Error ? e.message : "Error al eliminar registro",
+      });
+    }
+  }
+);
 
 app.get("/api/stock-equino/dispositivos/:clave/fotos", async (req, res) => {
   try {

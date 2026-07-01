@@ -1,6 +1,6 @@
 import IconoDispositivoWifi from "./IconoDispositivoWifi";
 import IconoSeleccionCabanaEstrella from "./IconoSeleccionCabanaEstrella";
-import IconoSeleccionCocarda from "./IconoSeleccionCocarda";
+import { FichaLabelIconSvg } from "./StockEditarFichaLabel";
 import { fmtDate } from "../../utils";
 
 interface Props {
@@ -63,14 +63,17 @@ export default function StockEditarHeadPanel({
             nombreCabana={nombreCabana}
             soloLectura
           />
-          {nombreCabana.trim() ? (
-            <span className="stock-editar-head-sel">
-              <IconoSeleccionCocarda />
-              <span className="stock-editar-head-sel-text">
-                {nombreCabana.trim()}
-              </span>
+          <span
+            className="stock-editar-head-sel"
+            aria-label={`Nombre: ${nombreCabana.trim() || "—"}`}
+          >
+            <span className="stock-editar-head-sel-icon" aria-hidden>
+              <FichaLabelIconSvg icon="nombre" />
             </span>
-          ) : null}
+            <span className="stock-editar-head-sel-text">
+              {nombreCabana.trim() || "—"}
+            </span>
+          </span>
         </div>
       ) : null}
     </div>

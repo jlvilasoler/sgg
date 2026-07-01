@@ -9,6 +9,7 @@ import {
 } from "../../api";
 import type { Rubro, RubroVinculoMapaItem, SubRubro } from "../../types";
 import RubroVinculosMapaDiagrama from "./RubroVinculosMapaDiagrama";
+import { PageModuleHeadRow } from "../PageModuleHead";
 
 interface Props {
   apiOnline: boolean;
@@ -175,12 +176,17 @@ export default function RubroVinculosConfig({
 
       <div className="card">
         <div className="form-header">
-          <h2>Configuración rubro ↔ sub-rubro</h2>
-          <p className="muted">
-            Elegí un <strong>rubro</strong> y marcá qué <strong>sub-rubros</strong> son válidos al
-            cargar gastos. Solo esas opciones aparecerán en el formulario cuando se seleccione ese
-            rubro.
-          </p>
+          <PageModuleHeadRow
+            icon={{ source: "hub", id: "config_rubros" }}
+            title="Configuración rubro ↔ sub-rubro"
+            subtitle={
+              <>
+                Elegí un <strong>rubro</strong> y marcá qué <strong>sub-rubros</strong> son válidos al
+                cargar gastos. Solo esas opciones aparecerán en el formulario cuando se seleccione ese
+                rubro.
+              </>
+            }
+          />
         </div>
 
         <div className="form-grid vinculos-config-grid">
@@ -290,10 +296,11 @@ export default function RubroVinculosConfig({
 
       <div className="card vinculos-mapa-card">
         <div className="form-header">
-          <h2>Mapa rubro → sub-rubros</h2>
-          <p className="muted">
-            Resumen de todos los vínculos configurados. Hacé clic en un rubro para editarlo arriba.
-          </p>
+          <PageModuleHeadRow
+            icon={{ source: "hub", id: "config_rubros" }}
+            title="Mapa rubro → sub-rubros"
+            subtitle="Resumen de todos los vínculos configurados. Hacé clic en un rubro para editarlo arriba."
+          />
           <p className="vinculos-mapa-leyenda muted">
             Todo parte del cuadro <strong>{APP_NAME}</strong>: líneas al <strong>rubro</strong> contable,
             luego al <strong>grupo</strong> y a cada <strong>sub-rubro</strong>. Clic en un rubro

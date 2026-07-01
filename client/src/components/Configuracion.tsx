@@ -18,6 +18,7 @@ import type { TabId } from "./Header";
 import type { HubIconId } from "./icons/HubMenuIcons";
 import { HUB_ICON_THEMES, HubMenuIcon } from "./icons/HubMenuIcons";
 import { MENU_APP_THEMES, MenuAppIcon } from "./icons/MenuAppIcons";
+import { PageModuleHeadRow } from "./PageModuleHead";
 
 type CatalogoModulo =
   | "responsables"
@@ -74,7 +75,7 @@ const CATALOGOS: {
   },
   {
     id: "clasificacion_proveedores",
-    label: "Clasificación proveedores",
+    label: "Clasificación Proveedores",
     subtitle: "Costos de producción, gastos admin. y comerciales",
     icon: "config_clasificacion_proveedores",
   },
@@ -412,11 +413,16 @@ export default function Configuracion({
         </button>
         <div className="card configuracion-hub-card">
           <div className="form-header">
-            <h2>Configuración cuenta {cuentaNombre}</h2>
-            <p className="muted">
-              Catálogos y ajustes operativos de <strong>{cuentaNombre}</strong>: presupuesto
-              asignado, proveedores, rubros y usuarios de la cuenta.
-            </p>
+            <PageModuleHeadRow
+              icon={{ source: "app", id: "configuracion" }}
+              title={`Configuración cuenta ${cuentaNombre}`}
+              subtitle={
+                <>
+                  Catálogos y ajustes operativos de <strong>{cuentaNombre}</strong>: presupuesto
+                  asignado, proveedores, rubros y usuarios de la cuenta.
+                </>
+              }
+            />
           </div>
           <nav className="app-grid" aria-label="Configuración de cuenta">
             {itemsCuenta.map((item) => (
@@ -444,11 +450,11 @@ export default function Configuracion({
         </button>
         <div className="card configuracion-hub-card">
           <div className="form-header">
-            <h2>Configuración SAG (Superadministrador)</h2>
-            <p className="muted">
-              Herramientas globales de la plataforma: cuentas madre, empresas y documentación
-              central.
-            </p>
+            <PageModuleHeadRow
+              icon={{ source: "app", id: "configuracion" }}
+              title="Configuración SAG (Superadministrador)"
+              subtitle="Herramientas globales de la plataforma: cuentas madre, empresas y documentación central."
+            />
           </div>
           <nav className="app-grid" aria-label="Configuración SAG">
             {itemsSag.map((item) => (
@@ -475,11 +481,16 @@ export default function Configuracion({
         </button>
         <div className="card configuracion-hub-card">
           <div className="form-header">
-            <h2>Configuración</h2>
-            <p className="muted">
-              Elegí si querés configurar su cuenta operativa ({cuentaNombre}) o la plataforma
-              completa como superadministrador.
-            </p>
+            <PageModuleHeadRow
+              icon={{ source: "app", id: "configuracion" }}
+              title="Configuración"
+              subtitle={
+                <>
+                  Elegí si querés configurar su cuenta operativa ({cuentaNombre}) o la plataforma
+                  completa como superadministrador.
+                </>
+              }
+            />
           </div>
           <nav className="app-grid" aria-label="Configuración">
             <HubMenuCard
@@ -511,12 +522,17 @@ export default function Configuracion({
       </button>
       <div className="card configuracion-hub-card">
         <div className="form-header">
-          <h2>Configuración</h2>
-          <p className="muted">
-            Catálogos de apoyo para registrar gastos:{" "}
-            <strong>presupuesto asignado</strong>, <strong>proveedores</strong> y{" "}
-            <strong>rubros</strong>.
-          </p>
+          <PageModuleHeadRow
+            icon={{ source: "app", id: "configuracion" }}
+            title="Configuración"
+            subtitle={
+              <>
+                Catálogos de apoyo para registrar gastos:{" "}
+                <strong>presupuesto asignado</strong>, <strong>proveedores</strong> y{" "}
+                <strong>rubros</strong>.
+              </>
+            }
+          />
         </div>
         <nav className="app-grid" aria-label="Configuración">
           {itemsCuenta.map((item) => (

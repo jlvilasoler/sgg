@@ -184,13 +184,15 @@ export class PgStatement {
 
   async run(...params: unknown[]): Promise<RunResult> {
     let sql = adaptSql(this.sql);
-    const isInsert = /^\s*INSERT\s+/i.test(sql) && !/\bRETURNING\b/i.test(sql);
+    const isInsert = /^\s*INSERT\s+/i.test(sql);
+    const hasReturning = /\bRETURNING\b/i.test(sql);
     const skipReturningId =
       isInsert &&
+      !hasReturning &&
       /INSERT\s+INTO\s+("?ROLE_ESCRITURA"?|"?ROLE_PERMISOS"?|"?RUBRO_SUB_RUBROS"?|"?USER_SESSIONS"?|"?STOCK_GANADERO_DISPOSITIVO"?|"?STOCK_GANADERO_RAZA"?|"?STOCK_EQUINO_DISPOSITIVO"?|"?CHAT_CHANNEL_MEMBERS"?|"?CHAT_READ_STATE"?|"?CHAT_WALLPAPER"?|"?SIMULADOR_VENTA_GANADO_OP_SEQ"?|"?PRESUPUESTO_DOCUMENTOS"?)\b/i.test(
         sql
       );
-    if (isInsert && !skipReturningId) {
+    if (isInsert && !hasReturning && !skipReturningId) {
       sql = sql.replace(/;\s*$/, "") + " RETURNING id";
     }
     const { text, values } = toPgParams(sql, normalizeParams(...params));

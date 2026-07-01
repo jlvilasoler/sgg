@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { deleteResponsable, fetchResponsables } from "../../api";
 import type { Responsable } from "../../types";
 import { confirmAction } from "../../utils/confirm";
-import { HubMenuIcon } from "../icons/HubMenuIcons";
+import { PageModuleHeadRow } from "../PageModuleHead";
 
 interface Props {
   apiOnline: boolean;
@@ -81,22 +81,18 @@ export default function ResponsableListado({
 
       <div className="card responsable-module-shell listado-pro-shell">
         <header className="responsable-module-page-head listado-pro-head">
-          <div className="responsable-module-page-head-main">
-            <div className="responsable-module-page-icon" aria-hidden>
-              <HubMenuIcon id="resp_listado" className="menu-app-icon-svg" />
-            </div>
-            <div>
-              <span className="responsable-module-kicker">Asignación de presupuesto</span>
-              <h2 className="responsable-module-page-title listado-pro-head-title">
-                Listado completo
-              </h2>
-              <p className="responsable-module-page-sub listado-pro-head-sub">
-                {loading
-                  ? "Cargando catálogo…"
-                  : `${rows.length} asignación${rows.length === 1 ? "" : "es"} · ${activos} activa${activos === 1 ? "" : "s"}`}
-              </p>
-            </div>
-          </div>
+          <PageModuleHeadRow
+            icon={{ source: "hub", id: "resp_listado" }}
+            kicker="Asignación de presupuesto"
+            title="Listado completo"
+            subtitle={
+              loading
+                ? "Cargando catálogo…"
+                : `${rows.length} asignación${rows.length === 1 ? "" : "es"} · ${activos} activa${activos === 1 ? "" : "s"}`
+            }
+            titleClassName="responsable-module-page-title listado-pro-head-title"
+            subClassName="responsable-module-page-sub listado-pro-head-sub"
+          />
         </header>
 
         <div className="responsable-listado-toolbar">

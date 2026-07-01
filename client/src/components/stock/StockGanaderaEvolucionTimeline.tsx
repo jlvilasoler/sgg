@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import type { DispositivoEstado, DispositivoSexo } from "../../types";
+import StockEditarFichaEdadDisplay from "./StockEditarFichaEdadDisplay";
 import StockEditarSectionTitle from "./StockEditarSectionTitle";
 import IconoAnimalEvolucion from "./IconoAnimalEvolucion";
 import {
@@ -13,7 +14,6 @@ import {
   etapaHembraDesdeMeses,
   etapaMachoDesdeMeses,
   etiquetaFechaBaja,
-  fmtEdadAniosDesdeMeses,
   fmtNacimiento,
   HEMBRA_ESCALA_MAX_MESES,
   listAniosNacimiento,
@@ -239,18 +239,17 @@ function ChartEtapas({
   return (
     <div className={pref}>
       <div className={`${pref}-resumen`}>
-        <div className={`${pref}-edad`}>
-          <strong>{mesesPin}</strong>
-          <span>meses</span>
-          <span className={`${pref}-edad-sep`}>·</span>
-          <strong>{fmtEdadAniosDesdeMeses(mesesPin)}</strong>
-          <span>años</span>
-          {enBaja && edadMeses !== mesesPin && (
-            <span className={`${pref}-edad-baja-ref`}>
-              · edad actual {edadMeses} m
-            </span>
-          )}
-        </div>
+        <StockEditarFichaEdadDisplay
+          meses={mesesPin}
+          className={`${pref}-edad`}
+          extra={
+            enBaja && edadMeses !== mesesPin ? (
+              <span className={`${pref}-edad-baja-ref`}>
+                · edad actual {edadMeses} m
+              </span>
+            ) : null
+          }
+        />
         <div
           className={`${pref}-cat ${pref}-cat--${etapa.id.toLowerCase()}`}
         >

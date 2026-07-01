@@ -13,6 +13,7 @@ import SelectEmpresaDispositivo, {
   type EmpresaSelectValue,
 } from "../stock/SelectEmpresaDispositivo";
 import { EID_PREFIX_LEN, splitEidVid } from "./stock-equina-utils";
+import { PageModuleHeadRow } from "../PageModuleHead";
 
 interface Props {
   apiOnline: boolean;
@@ -374,13 +375,11 @@ export default function StockEquinoImportar({
 
       <div className="card stock-import-shell">
         <div className="form-header stock-import-head">
-          <div>
-            <h2>Alta de Dispositivo</h2>
-            <p className="muted">
-              Cargá el export del bastón o lector RFID, o ingresá lecturas una a una.
-              Cada registro guarda fecha, hora y condición del animal.
-            </p>
-          </div>
+          <PageModuleHeadRow
+            icon={{ source: "hub", id: "stock_alta" }}
+            title="Alta de Dispositivo"
+            subtitle="Cargá el export del bastón o lector RFID, o ingresá lecturas una a una. Cada registro guarda fecha, hora y condición del animal."
+          />
         </div>
 
         {!apiOnline && (

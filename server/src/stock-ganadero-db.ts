@@ -5,6 +5,7 @@ import { listClavesDispositivosEnVentasCerradas } from "./simulador-venta-dispos
 import { labelCategoriaSalidaDispositivo } from "./stock-ganadera-categoria.js";
 import { dispositivoClave, eidClave, splitEidVid } from "./stock-ganadero-id.js";
 import * as stockFoto from "./stock-dispositivo-foto-db.js";
+import * as stockControlSanitario from "./stock-control-sanitario-db.js";
 
 export { dispositivoClave, eidClave, splitEidVid } from "./stock-ganadero-id.js";
 
@@ -130,6 +131,8 @@ export async function initStockGanaderoTables(db: Db): Promise<void> {
   await stockFoto.migrateStockDispositivoFotoColumns(db, "ganadero");
   await stockFoto.migrateStockDispositivoFotosGallery(db, "ganadero");
   await stockFoto.migrateStockDispositivoFotosBlobColumns(db, "ganadero");
+  await stockControlSanitario.migrateStockControlSanitarioTable(db, "ganadero");
+  await stockControlSanitario.migrateStockControlSanitarioCantidadCatalog(db);
   await migrateFechasSlashLatam(db);
   await migrateStockGanaderoDispositivoHistorial(db);
   await migrateHistorialAutorColumns(db);
@@ -451,19 +454,29 @@ async function migrateSplitEidVid(_db: Db): Promise<void> {}
 async function migrateStockGanaderoDispositivoMeta(_db: Db): Promise<void> {}
 
 const GRUPO_ANIO_MIN = 2000;
-const GRUPO_RE = /^GEN(\d{4})$/;
+const GRUPO_RE = /^GEN(\d{4})(?:-(\d{4}))?$/;
 
 function validarGrupo(grupo: string): string {
   const t = grupo.trim().toUpperCase();
   if (!t) return "";
   const m = t.match(GRUPO_RE);
-  if (!m) throw new Error("Grupo inválido. Use GEN y un año (2000–actual).");
-  const anio = Number(m[1]);
-  const maxAnio = new Date().getFullYear();
-  if (!Number.isInteger(anio) || anio < GRUPO_ANIO_MIN || anio > maxAnio) {
+  if (!m) throw new Error("Grupo inválido. Use GEN y un año o rango (ej. GEN2025-2026).");
+  const anioInicio = Number(m[1]);
+  const anioFin = m[2] ? Number(m[2]) : null;
+  const maxAnio = new Date().getFullYear() + 1;
+  if (!Number.isInteger(anioInicio) || anioInicio < GRUPO_ANIO_MIN || anioInicio > maxAnio) {
     throw new Error(`Año de grupo inválido (${GRUPO_ANIO_MIN}–${maxAnio}).`);
   }
-  return `GEN${anio}`;
+  if (anioFin !== null) {
+    if (!Number.isInteger(anioFin) || anioFin !== anioInicio + 1 || anioFin > maxAnio) {
+      throw new Error("Rango de generación inválido. Debe ser GENaaaa-(aaaa+1).");
+    }
+    return `GEN${anioInicio}-${anioFin}`;
+  }
+  if (anioInicio > new Date().getFullYear()) {
+    throw new Error(`Año de grupo inválido (${GRUPO_ANIO_MIN}–${new Date().getFullYear()}).`);
+  }
+  return `GEN${anioInicio}`;
 }
 
 function normalizarGrupoAlmacenado(grupo: string | undefined): string {
@@ -475,9 +488,13 @@ function normalizarGrupoAlmacenado(grupo: string | undefined): string {
   }
 }
 
-/** Grupo GEN + año de nacimiento (vacío si no hay año). */
-function grupoDesdeNacimiento(anio: number | null): string {
+/** Grupo GEN según nacimiento (1 jul → 30 jun del año siguiente). */
+function grupoDesdeNacimiento(mes: number | null, anio: number | null): string {
   if (anio === null) return "";
+  if (mes !== null && Number.isInteger(mes) && mes >= 1 && mes <= 12) {
+    if (mes >= 7) return validarGrupo(`GEN${anio}-${anio + 1}`);
+    return validarGrupo(`GEN${anio - 1}-${anio}`);
+  }
   return validarGrupo(`GEN${anio}`);
 }
 
@@ -720,7 +737,7 @@ function normalizarMetaDispositivo(row: Partial<DispositivoMetaRow>): Dispositiv
       : Number.isInteger(row.nacimiento_anio)
         ? row.nacimiento_anio
         : null;
-  const grupo = anio ? grupoDesdeNacimiento(anio) : "";
+  const grupo = anio ? grupoDesdeNacimiento(mes, anio) : "";
   const estadoRaw = String(row.estado ?? "VIVO").toUpperCase();
   const estado = ESTADOS_VALIDOS.has(estadoRaw as DispositivoEstado)
     ? (estadoRaw as DispositivoEstado)
@@ -888,7 +905,7 @@ export async function saveStockGanaderaDispositivo(
   }
 
   const nacimiento = validarNacimiento(input.nacimiento_mes, input.nacimiento_anio);
-  const grupo = grupoDesdeNacimiento(nacimiento.nacimiento_anio);
+  const grupo = grupoDesdeNacimiento(nacimiento.nacimiento_mes, nacimiento.nacimiento_anio);
   const edad = calcularEdadMeses(nacimiento.nacimiento_mes, nacimiento.nacimiento_anio);
   const observaciones = String(input.observaciones ?? "").trim().slice(0, 2000);
   const grupo_libre = normalizarGrupoLibre(input.grupo_libre);

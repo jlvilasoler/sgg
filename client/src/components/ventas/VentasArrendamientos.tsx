@@ -59,6 +59,7 @@ import {
   totalUsdEfectivoArrendamiento,
 } from "./ventas-arrendamientos-real-utils";
 import { canWriteSimuladorVentaGanado, canWriteIngresosVentas } from "../../utils/auth-permissions";
+import { PageModuleHeadRow } from "../PageModuleHead";
 
 interface Props {
   catalogos: Catalogos;
@@ -639,8 +640,11 @@ export default function VentasArrendamientos({
           )}
 
           <div className="form-header">
-            <h2>{copy.tituloForm}</h2>
-            <p className="muted">{copy.descripcionPagina}</p>
+            <PageModuleHeadRow
+              icon={{ source: "hub", id: "ventas_arrendamientos" }}
+              title={copy.tituloForm}
+              subtitle={copy.descripcionPagina}
+            />
           </div>
 
           <div className="form-grid">
@@ -1092,8 +1096,11 @@ export default function VentasArrendamientos({
           </header>
         ) : (
           <div className="form-header">
-            <h2>{copy.tituloPagina}</h2>
-            <p className="muted">{copy.descripcionPagina}</p>
+            <PageModuleHeadRow
+              icon={{ source: "hub", id: "ventas_arrendamientos" }}
+              title={copy.tituloPagina}
+              subtitle={copy.descripcionPagina}
+            />
             <p className="muted">{copy.subtituloListado}</p>
             <p className="muted">
               {loading

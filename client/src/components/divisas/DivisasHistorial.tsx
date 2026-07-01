@@ -21,6 +21,7 @@ import {
 import TcValorConTendencia from "./TcValorConTendencia";
 import DivisasChart from "./DivisasChart";
 import DivisasKpiCards from "./DivisasKpiCards";
+import { PageModuleHeadRow } from "../PageModuleHead";
 
 interface Props {
   config: DivisasMonedaConfig;
@@ -189,8 +190,11 @@ export default function DivisasHistorial({
 
       <div className="card">
         <div className="form-header">
-          <h2>Histórico — {config.titulo}</h2>
-          <p className="muted">{PAR_DIVISA_LABELS[par]}</p>
+          <PageModuleHeadRow
+            icon={{ source: "hub", id: config.icon }}
+            title={`Histórico — ${config.titulo}`}
+            subtitle={PAR_DIVISA_LABELS[par]}
+          />
         </div>
 
         <div className="filters">

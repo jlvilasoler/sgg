@@ -20,6 +20,7 @@ import {
   MESES_NACIMIENTO,
 } from "./stock-equina-utils";
 import { fmtEmpresaOperativa } from "../stock/stock-empresa-utils";
+import { PageModuleHeadRow } from "../PageModuleHead";
 
 type FiltroEstado = "" | "MUERTO" | "VENDIDO" | "FRIGORIFICO" | "PERDIDO";
 
@@ -197,20 +198,25 @@ export default function StockEquinaSalidas({
 
       <div className="card">
         <div className="form-header">
-          <h2>Salidas del sistema</h2>
-          <p className="muted">
-            Dispositivos dados de baja: muertes, ventas, frigorífico y extraviados.
-            {mostrarCargaVacia
-              ? " Cargando…"
-              : loading
-                ? ` ${rowsFiltradas.length} salida(s) según los filtros · actualizando…`
-                : rowsFiltradas.length === 0
-                  ? " No hay salidas registradas."
-                  : ` ${rowsFiltradas.length} salida(s) según los filtros.`}
-            {!mostrarCargaVacia && bajasReparadas > 0
-              ? ` Se sincronizaron ${bajasReparadas} baja(s) pendiente(s) desde ventas cerradas.`
-              : ""}
-          </p>
+          <PageModuleHeadRow
+            icon={{ source: "hub", id: "stock_salidas" }}
+            title="Salidas del sistema"
+            subtitle={
+              <>
+                Dispositivos dados de baja: muertes, ventas, frigorífico y extraviados.
+                {mostrarCargaVacia
+                  ? " Cargando…"
+                  : loading
+                    ? ` ${rowsFiltradas.length} salida(s) según los filtros · actualizando…`
+                    : rowsFiltradas.length === 0
+                      ? " No hay salidas registradas."
+                      : ` ${rowsFiltradas.length} salida(s) según los filtros.`}
+                {!mostrarCargaVacia && bajasReparadas > 0
+                  ? ` Se sincronizaron ${bajasReparadas} baja(s) pendiente(s) desde ventas cerradas.`
+                  : ""}
+              </>
+            }
+          />
         </div>
 
         {apiOnline && (

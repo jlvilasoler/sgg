@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { deleteRubro, fetchRubros } from "../../api";
 import type { Rubro } from "../../types";
 import { confirmAction } from "../../utils/confirm";
+import { PageModuleHeadRow } from "../PageModuleHead";
 
 interface Props {
   apiOnline: boolean;
@@ -69,12 +70,15 @@ export default function RubroListado({
 
       <div className="card">
         <div className="form-header">
-          <h2>Listado de rubros</h2>
-          <p className="muted">
-            {loading
-              ? "Cargando..."
-              : `${rows.length} rubro(s). Los inactivos no aparecen al cargar gastos nuevos.`}
-          </p>
+          <PageModuleHeadRow
+            icon={{ source: "hub", id: "config_rubros" }}
+            title="Listado de rubros"
+            subtitle={
+              loading
+                ? "Cargando..."
+                : `${rows.length} rubro(s). Los inactivos no aparecen al cargar gastos nuevos.`
+            }
+          />
         </div>
 
         <div className="listado-toolbar listado-toolbar--end">

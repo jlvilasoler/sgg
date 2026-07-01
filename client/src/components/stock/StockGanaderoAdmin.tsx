@@ -8,6 +8,7 @@ import {
 import type { AuthUser } from "../../types";
 import { confirmAction } from "../../utils/confirm";
 import { clearStockGanaderaPageCache } from "./stock-ganadera-page-cache";
+import { PageModuleHeadRow } from "../PageModuleHead";
 
 interface Props {
   apiOnline: boolean;
@@ -164,10 +165,11 @@ export default function StockGanaderoAdmin({
 
       <div className="card">
         <div className="form-header">
-          <h2>Administración de Stock Ganadero</h2>
-          <p className="muted">
-            Herramientas de administración para la base de dispositivos EID.
-          </p>
+          <PageModuleHeadRow
+            icon={{ source: "app", id: "stock_ganadero" }}
+            title="Administración de Stock Ganadero"
+            subtitle="Herramientas de administración para la base de dispositivos EID."
+          />
         </div>
 
         {!esAdmin ? (

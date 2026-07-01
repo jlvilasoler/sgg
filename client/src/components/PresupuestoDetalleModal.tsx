@@ -310,6 +310,7 @@ export default function PresupuestoDetallePanel({
     <SubseccionInlinePanel
       onVolver={onVolver}
       volverLabel={volverLabel}
+      icon={{ source: "app", id: "listado" }}
       title="Detalle de operación"
       description={`Operación del ${fmtDate(row.fecha)}${
         row.nro_factura?.trim() ? ` · Factura ${row.nro_factura.trim()}` : ""

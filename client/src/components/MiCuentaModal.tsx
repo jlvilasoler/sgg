@@ -150,6 +150,7 @@ export default function MiCuentaPanel({
       <SubseccionInlinePanel
         onVolver={handleVolver}
         volverLabel="Volver al menú"
+        icon={{ source: "hub", id: "config_admin_cuenta" }}
         title="Mi cuenta"
         cardClassName="mi-cuenta-page"
         footer={

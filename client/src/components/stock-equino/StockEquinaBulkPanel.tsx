@@ -129,6 +129,7 @@ export default function StockEquinaBulkPanel({
     <SubseccionInlinePanel
       onVolver={onVolver}
       volverLabel="Volver a Stock Equino"
+      icon={{ source: "hub", id: "stock_dispositivos" }}
       title={`Editar ${n} dispositivo${n === 1 ? "" : "s"}`}
       description="Marcá los campos que querés cambiar y aplicá."
       cardClassName="stock-bulk-inline"

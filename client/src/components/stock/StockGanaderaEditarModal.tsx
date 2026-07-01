@@ -10,6 +10,7 @@ import type {
 } from "../../types";
 import IconoSeleccionCocarda from "./IconoSeleccionCocarda";
 import SubseccionInlinePanel from "../SubseccionInlinePanel";
+import StockEditarFichaLabel from "./StockEditarFichaLabel";
 import StockEditarFichaStats from "./StockEditarFichaStats";
 import StockEditarSectionTitle from "./StockEditarSectionTitle";
 import StockEditarHeadPanel from "./StockEditarHeadPanel";
@@ -23,6 +24,7 @@ import StockDispositivoFotoCard, {
   stockFotoMetaFromDispositivo,
 } from "./StockDispositivoFotoCard";
 import StockGanaderaHistorialCambiosPanel from "./StockGanaderaHistorialCambiosPanel";
+import StockControlSanitarioModal from "./StockControlSanitarioModal";
 import {
   buildGrupo,
   calcularEdadMeses,
@@ -31,7 +33,6 @@ import {
   normalizarEstadoDispositivo,
   normalizarGrupoLibre,
   normalizarRaza,
-  fmtRaza,
   requiereFechaBaja,
   resolverFechaBajaFormulario,
 } from "./stock-ganadera-utils";
@@ -88,6 +89,7 @@ export default function StockGanaderaEditarPanel({
   const [bajaAnio, setBajaAnio] = useState<number | null>(dispositivo.baja_anio);
   const [guardando, setGuardando] = useState(false);
   const [verHistorialCambios, setVerHistorialCambios] = useState(false);
+  const [controlSanitarioOpen, setControlSanitarioOpen] = useState(false);
   const [modoEdicion, setModoEdicion] = useState<"ver" | "editar">(modoInicial);
   const soloLectura = modoEdicion === "ver";
   const camposDeshabilitados = soloLectura || guardando || !apiOnline;
@@ -146,9 +148,19 @@ export default function StockGanaderaEditarPanel({
   }, [estado, dispositivo.clave]);
 
   const grupoActual = useMemo(
-    () => buildGrupo(nacimientoAnio),
-    [nacimientoAnio]
+    () => buildGrupo(nacimientoMes, nacimientoAnio),
+    [nacimientoMes, nacimientoAnio]
   );
+
+  const animalIdDefault = useMemo(
+    () => dispositivo.vid.trim() || dispositivo.clave || dispositivo.eid.trim(),
+    [dispositivo.vid, dispositivo.clave, dispositivo.eid]
+  );
+
+  const animalCategoriaLoteDefault = useMemo(() => {
+    const parts = [grupoActual, grupoLibre.trim()].filter(Boolean);
+    return parts.join(" · ");
+  }, [grupoActual, grupoLibre]);
 
   const hayCambios =
     empresa !== (dispositivo.empresa ?? "") ||
@@ -273,9 +285,11 @@ export default function StockGanaderaEditarPanel({
   }
 
   return (
+    <>
     <SubseccionInlinePanel
       onVolver={onVolver}
       volverLabel={volverLabel}
+      icon={{ source: "hub", id: "stock_dispositivos" }}
       title={soloLectura ? "Dispositivo" : "Editar dispositivo"}
       cardClassName={`subseccion-inline-card stock-ganadera-editar-page${
         soloLectura ? " stock-ganadera-editar-page--solo-lectura" : ""
@@ -371,9 +385,9 @@ export default function StockGanaderaEditarPanel({
               <div className="stock-editar-ficha-toolbar">
                 <div className="stock-editar-ficha-zone stock-editar-ficha-zone--ident">
                   <div className="stock-editar-ficha-cell">
-                    <label className="stock-editar-ficha-label" htmlFor="edit-ganadera-empresa">
+                    <StockEditarFichaLabel icon="empresa" htmlFor="edit-ganadera-empresa">
                       Empresa
-                    </label>
+                    </StockEditarFichaLabel>
                     <SelectEmpresaDispositivo
                       id="edit-ganadera-empresa"
                       empresas={empresas}
@@ -385,9 +399,9 @@ export default function StockGanaderaEditarPanel({
                     />
                   </div>
                   <div className="stock-editar-ficha-cell">
-                    <label className="stock-editar-ficha-label" htmlFor="edit-ganadera-raza">
+                    <StockEditarFichaLabel icon="raza" htmlFor="edit-ganadera-raza">
                       Raza
-                    </label>
+                    </StockEditarFichaLabel>
                     <SelectRazaDispositivo
                       id="edit-ganadera-raza"
                       value={raza}
@@ -403,9 +417,9 @@ export default function StockGanaderaEditarPanel({
 
                 <div className="stock-editar-ficha-zone stock-editar-ficha-zone--sexo">
                   <div className="stock-editar-ficha-cell">
-                    <label className="stock-editar-ficha-label" htmlFor="edit-ganadera-sexo">
+                    <StockEditarFichaLabel icon="sexo" htmlFor="edit-ganadera-sexo">
                       Sexo
-                    </label>
+                    </StockEditarFichaLabel>
                     <SelectSexoDispositivo
                       id="edit-ganadera-sexo"
                       value={sexo}
@@ -417,9 +431,9 @@ export default function StockGanaderaEditarPanel({
 
                 <div className="stock-editar-ficha-zone stock-editar-ficha-zone--nac">
                   <div className="stock-editar-ficha-cell">
-                    <label className="stock-editar-ficha-label" htmlFor="edit-ganadera-nac-mes">
+                    <StockEditarFichaLabel icon="nacimiento" htmlFor="edit-ganadera-nac-mes">
                       Nacimiento
-                    </label>
+                    </StockEditarFichaLabel>
                     <select
                       id="edit-ganadera-nac-mes"
                       className="stock-nacimiento-mes stock-edit-select"
@@ -440,9 +454,9 @@ export default function StockGanaderaEditarPanel({
                     </select>
                   </div>
                   <div className="stock-editar-ficha-cell stock-editar-ficha-cell--anio">
-                    <label className="stock-editar-ficha-label" htmlFor="edit-ganadera-nac-anio">
+                    <StockEditarFichaLabel icon="anio" htmlFor="edit-ganadera-nac-anio">
                       Año
-                    </label>
+                    </StockEditarFichaLabel>
                     <select
                       id="edit-ganadera-nac-anio"
                       className="stock-nacimiento-anio stock-edit-select"
@@ -466,9 +480,9 @@ export default function StockGanaderaEditarPanel({
 
                 <div className="stock-editar-ficha-zone stock-editar-ficha-zone--grupo">
                   <div className="stock-editar-ficha-cell">
-                    <label className="stock-editar-ficha-label" htmlFor="edit-ganadera-grupo-libre">
+                    <StockEditarFichaLabel icon="grupo" htmlFor="edit-ganadera-grupo-libre">
                       Grupo
-                    </label>
+                    </StockEditarFichaLabel>
                     <input
                       id="edit-ganadera-grupo-libre"
                       type="text"
@@ -490,6 +504,7 @@ export default function StockGanaderaEditarPanel({
                   edadId="edit-ganadera-edad"
                   grupoId="edit-ganadera-grupo"
                   estadoId="edit-ganadera-estado"
+                  nacimientoMes={nacimientoMes}
                   nacimientoAnio={nacimientoAnio}
                   estado={estado}
                   disabled={camposDeshabilitados}
@@ -506,8 +521,14 @@ export default function StockGanaderaEditarPanel({
                       SELECCIÓN
                     </span>
                     <div className="stock-edit-cabana-premium-fields">
-                      <label className="stock-edit-cabana-inline-field stock-edit-cabana-inline-field--nombre">
-                        <span className="stock-edit-cabana-inline-label">Nombre</span>
+                      <div className="stock-edit-cabana-inline-field stock-edit-cabana-inline-field--nombre">
+                        <StockEditarFichaLabel
+                          icon="nombre"
+                          htmlFor="edit-ganadera-cabana-nombre"
+                          variant="cabana"
+                        >
+                          Nombre
+                        </StockEditarFichaLabel>
                         <input
                           id="edit-ganadera-cabana-nombre"
                           type="text"
@@ -519,19 +540,14 @@ export default function StockGanaderaEditarPanel({
                           disabled={!soloLectura && camposDeshabilitados}
                           onChange={(e) => setNombreCabana(e.target.value)}
                         />
-                      </label>
+                      </div>
                       <span
-                        className="stock-edit-cabana-inline-field stock-edit-cabana-inline-field--ro"
-                        title="Editá en el selector Raza de la ficha"
-                      >
-                        <span className="stock-edit-cabana-inline-label">Raza</span>
-                        <span className="stock-edit-cabana-inline-val">{fmtRaza(raza)}</span>
-                      </span>
-                      <span
-                        className="stock-edit-cabana-inline-field stock-edit-cabana-inline-field--ro"
+                        className="stock-edit-cabana-inline-field stock-edit-cabana-inline-field--ro stock-edit-cabana-inline-field--obs"
                         title="Editá en Observaciones al final del formulario"
                       >
-                        <span className="stock-edit-cabana-inline-label">Obs.</span>
+                        <StockEditarFichaLabel icon="observaciones" as="span" variant="cabana">
+                          Obs.
+                        </StockEditarFichaLabel>
                         <span className="stock-edit-cabana-inline-val stock-edit-cabana-inline-val--obs">
                           {observaciones.trim() || "—"}
                         </span>
@@ -569,26 +585,54 @@ export default function StockGanaderaEditarPanel({
               />
             </div>
 
-            <div className="stock-edit-field stock-edit-field--observaciones">
-              <label htmlFor="edit-ganadera-obs">
-                Observaciones
-                <span className="stock-edit-label-hint">opcional</span>
-              </label>
-              <input
-                id="edit-ganadera-obs"
-                type="text"
-                className="stock-observaciones-input"
-                maxLength={2000}
-                placeholder="Notas manuales sobre la caravana…"
-                value={observaciones}
-                readOnly={soloLectura}
-                disabled={!soloLectura && camposDeshabilitados}
-                onChange={(e) => setObservaciones(e.target.value)}
-              />
+            <div className="stock-edit-observaciones-row">
+              <button
+                type="button"
+                className="btn btn-ghost stock-control-sanitario-trigger"
+                onClick={() => setControlSanitarioOpen(true)}
+                disabled={guardando}
+                title="Registro de remedios y controles sanitarios"
+              >
+                Control Sanitario
+              </button>
+              <div className="stock-edit-field stock-edit-field--observaciones">
+                <label htmlFor="edit-ganadera-obs">
+                  Observaciones
+                  <span className="stock-edit-label-hint">opcional</span>
+                </label>
+                <input
+                  id="edit-ganadera-obs"
+                  type="text"
+                  className="stock-observaciones-input"
+                  maxLength={2000}
+                  placeholder="Notas manuales sobre la caravana…"
+                  value={observaciones}
+                  readOnly={soloLectura}
+                  disabled={!soloLectura && camposDeshabilitados}
+                  onChange={(e) => setObservaciones(e.target.value)}
+                />
+              </div>
             </div>
         </section>
       </div>
     </SubseccionInlinePanel>
+    <StockControlSanitarioModal
+      open={controlSanitarioOpen}
+      onClose={() => setControlSanitarioOpen(false)}
+      modulo="ganadero"
+      clave={dispositivo.clave}
+      vid={dispositivo.vid}
+      eid={dispositivo.eid}
+      animalCategoriaLoteDefault={animalCategoriaLoteDefault}
+      animalIdDefault={animalIdDefault}
+      desdeDispositivo
+      apiOnline={apiOnline}
+      soloLectura={soloLectura}
+      currentUser={currentUser}
+      onError={onError}
+      onSuccess={onSuccess}
+    />
+    </>
   );
 }
 

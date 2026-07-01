@@ -13,6 +13,7 @@ import {
 } from "./precios-ganado-cache";
 import PreciosGanadoChart from "./PreciosGanadoChart";
 import PreciosGanadoKpiCards from "./PreciosGanadoKpiCards";
+import { PageModuleHeadRow } from "../PageModuleHead";
 
 interface Props {
   config: PreciosGanadoSegmentoConfig;
@@ -183,8 +184,11 @@ export default function PreciosGanadoPanel({
 
       <div className="card">
         <div className="form-header">
-          <h3>Histórico semanal</h3>
-          <p className="muted">Promedios semanales registrados</p>
+          <PageModuleHeadRow
+            icon={{ source: "app", id: "precios_ganado" }}
+            title="Histórico semanal"
+            subtitle="Promedios semanales registrados"
+          />
         </div>
 
         <div className="filters">

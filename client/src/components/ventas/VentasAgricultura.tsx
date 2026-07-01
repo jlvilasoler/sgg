@@ -45,6 +45,7 @@ import {
   tonEfectivaAgricultura,
 } from "./ventas-agricultura-real-utils";
 import { canWriteSimuladorVentaGanado, canWriteIngresosVentas } from "../../utils/auth-permissions";
+import { PageModuleHeadRow } from "../PageModuleHead";
 
 interface Props {
   catalogos: Catalogos;
@@ -377,11 +378,16 @@ export default function VentasAgricultura({
           </div>
         )}
         <div className="form-header">
-          <h2>{copy.tituloForm}</h2>
-          <p className="muted">
-            Simulá la producción y el ingreso por cultivo. Total: <strong>Has × Rendimiento (kg/ha)</strong>.
-            Importe estimado: <strong>Total × Precio ÷ 1000</strong>.
-          </p>
+          <PageModuleHeadRow
+            icon={{ source: "hub", id: "ventas_agricultura" }}
+            title={copy.tituloForm}
+            subtitle={
+              <>
+                Simulá la producción y el ingreso por cultivo. Total: <strong>Has × Rendimiento (kg/ha)</strong>.
+                Importe estimado: <strong>Total × Precio ÷ 1000</strong>.
+              </>
+            }
+          />
         </div>
 
         <div className="form-grid">
@@ -574,10 +580,11 @@ export default function VentasAgricultura({
           </header>
         ) : (
           <div className="form-header">
-            <h2>{copy.tituloListado}</h2>
-            <p className="muted">
-              Ingresos registrados al cerrar ventas en el simulador de ventas agrícolas.
-            </p>
+            <PageModuleHeadRow
+              icon={{ source: "hub", id: "ventas_agricultura" }}
+              title={copy.tituloListado}
+              subtitle="Ingresos registrados al cerrar ventas en el simulador de ventas agrícolas."
+            />
             <p className="muted">
               {loading
                 ? "Cargando..."

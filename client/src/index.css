@@ -3281,6 +3281,48 @@ body {
   border-bottom: 1px solid var(--bn-border-soft);
 }
 
+.listado-pro-head-main,
+.page-module-head-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.listado-pro-head-icon.app-card-icon,
+.page-module-head-icon.app-card-icon {
+  width: 2.75rem;
+  height: 2.75rem;
+  min-width: 2.75rem;
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+
+.listado-pro-head-icon .menu-app-icon-svg,
+.page-module-head-icon .menu-app-icon-svg {
+  width: 1.35rem;
+  height: 1.35rem;
+}
+
+.listado-pro-head-text,
+.page-module-head-text {
+  min-width: 0;
+}
+
+.form-header .page-module-head-row h2 {
+  font-size: 1.25rem;
+  color: var(--primary);
+}
+
+.responsable-module-page-head-main .page-module-head-row {
+  flex: 1;
+  min-width: 0;
+}
+
+.responsable-module-page-head-main .page-module-head-text h2.responsable-module-page-title {
+  margin: 0;
+}
+
 .listado-pro-head-title {
   margin: 0;
   font-size: 1.35rem;
@@ -11788,7 +11830,7 @@ select optgroup {
   position: relative;
   flex-shrink: 0;
   width: 100%;
-  margin-top: calc(0.4rem - 0.2cm);
+  margin-top: calc(0.4rem - 0.4cm);
   padding-left: var(--evo-track-inset, 1.325rem);
   padding-right: var(--evo-track-inset, 1.325rem);
   box-sizing: border-box;
@@ -13040,7 +13082,7 @@ select optgroup {
   min-height: 6.5rem;
   margin-top: 0.35rem;
   padding-top: 1.75rem;
-  padding-bottom: 0.45rem;
+  padding-bottom: calc(0.45rem - 0.2cm);
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
@@ -13131,7 +13173,7 @@ select optgroup {
 :is(.stock-equina-editar-modal,
 .stock-ganadera-editar-page) .stock-evo-hembra-escala-wrap,
 .stock-equina-editar-page) .stock-evo-hembra-escala-wrap{
-  margin-top: calc(0.12rem - 0.2cm);
+  margin-top: calc(0.12rem - 0.4cm);
   margin-bottom: 0.05rem;
 }:is(.stock-ganadera-editar-modal,
 :is(.stock-equina-editar-modal,
@@ -16745,6 +16787,32 @@ button.sg-kpi-card:disabled {
   display: inline-block;
 }
 
+.bn-ui .card .form-header .stock-module-heading {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  vertical-align: top;
+}
+
+.bn-ui .card .form-header .stock-module-heading-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.35rem;
+  height: 1.35rem;
+  margin-bottom: 0.1rem;
+  border-radius: 7px;
+  color: #1e4d32;
+  background: linear-gradient(145deg, #f0f9f4 0%, #dcefe3 100%);
+  border: 1px solid rgba(45, 90, 61, 0.2);
+  box-shadow: 0 1px 2px rgba(45, 90, 61, 0.1);
+  flex-shrink: 0;
+}
+
+.bn-ui .card .form-header .stock-module-heading-icon svg {
+  display: block;
+}
+
 .bn-ui .resumen-grid .card > h3,
 .bn-ui .rrhh-section-title {
   margin: 0;
@@ -18331,6 +18399,30 @@ button.sg-kpi-card:disabled {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+}
+
+.module-hub-head {
+  margin-bottom: 1.15rem;
+  padding: 0 0.15rem;
+}
+
+.stock-import-hero--cabana .stock-import-hero-head {
+  flex: 1;
+  min-width: 0;
+}
+
+.stock-import-hero--cabana .page-module-head-text h2 {
+  margin: 0;
+  font-size: 1.28rem;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.stock-import-hero--cabana .page-module-head-text p {
+  margin: 0.35rem 0 0;
+  font-size: 0.9rem;
+  color: var(--muted);
+  line-height: 1.45;
 }
 
 .bn-ui .resumen-filters-card > .resumen-head {
@@ -27825,9 +27917,13 @@ button.sg-kpi-card:disabled {
 }
 
 .stock-editar-head-block--sel {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
   margin-left: auto;
   padding-left: 0.85rem;
   border-left: 1px solid rgba(15, 23, 42, 0.1);
+  min-width: 0;
 }
 
 .stock-editar-head-signal {
@@ -27913,7 +28009,7 @@ button.sg-kpi-card:disabled {
 .stock-editar-head-sel {
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.38rem;
   min-width: 0;
   font-size: 0.8125rem;
   font-weight: 500;
@@ -27921,18 +28017,29 @@ button.sg-kpi-card:disabled {
   letter-spacing: -0.01em;
 }
 
+.stock-editar-head-sel-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 0.88rem;
+  height: 0.88rem;
+  flex-shrink: 0;
+  color: #b8860b;
+}
+
+.stock-editar-head-sel-icon svg {
+  width: 0.78rem;
+  height: 0.78rem;
+  display: block;
+}
+
 .stock-editar-head-sel-text {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   max-width: 14rem;
-}
-
-.stock-editar-head-sel .stock-seleccion-cocarda {
-  width: 0.95rem;
-  height: 0.95rem;
-  flex-shrink: 0;
-  opacity: 0.88;
+  font-weight: 600;
+  color: #0f172a;
 }
 
 .stock-seleccion-cabana-btn {
@@ -27978,16 +28085,16 @@ button.sg-kpi-card:disabled {
 }
 
 .stock-editar-head-block--sel .stock-seleccion-cabana-btn {
-  width: 1.2rem;
-  height: 1.2rem;
+  width: 1.5rem;
+  height: 1.5rem;
   cursor: default;
   pointer-events: none;
   color: #d97706;
 }
 
 .stock-editar-head-block--sel .stock-seleccion-cabana-btn svg {
-  width: 0.95rem;
-  height: 0.95rem;
+  width: 1.2rem;
+  height: 1.2rem;
 }
 
 /* Header editar caravana — título + panel */
@@ -31636,6 +31743,11 @@ button.sg-kpi-card:disabled {
   color: #64748b;
 }
 
+.stock-edit-evolucion-card .stock-editar-ficha-edad-unit {
+  font-size: inherit;
+  color: inherit;
+}
+
 .stock-edit-evolucion-card .stock-evo-macho-edad strong,
 .stock-edit-evolucion-card .stock-evo-hembra-edad strong {
   font-size: 1.2rem;
@@ -31664,6 +31776,21 @@ button.sg-kpi-card:disabled {
 .stock-edit-evolucion-card .stock-evo-hembra-track {
   animation: none;
   box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.06);
+}
+
+.stock-edit-evolucion-card .stock-evo-macho-track-wrap,
+.stock-edit-evolucion-card .stock-evo-hembra-track-wrap {
+  padding-bottom: calc(0.35rem - 0.2cm);
+}
+
+.stock-edit-evolucion-card .stock-evo-macho-escala-wrap,
+.stock-edit-evolucion-card .stock-evo-hembra-escala-wrap {
+  margin-top: calc(0.12rem - 0.4cm);
+}
+
+.stock-edit-evolucion-card .stock-evo-macho-escala-leyenda,
+.stock-edit-evolucion-card .stock-evo-hembra-escala-leyenda {
+  margin-top: calc(0.28rem - 0.05cm);
 }
 
 .stock-ganadera-editar-page .subseccion-inline-foot,
@@ -31856,6 +31983,14 @@ button.sg-kpi-card:disabled {
   max-width: 5rem;
 }
 
+.stock-editar-ficha-label,
+.stock-editar-ficha-stat-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
 .stock-editar-ficha-label {
   font-size: 0.6875rem;
   font-weight: 600;
@@ -31863,6 +31998,40 @@ button.sg-kpi-card:disabled {
   text-transform: uppercase;
   color: #94a3b8;
   line-height: 1.2;
+}
+
+.stock-editar-ficha-label-icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 0.9rem;
+  height: 0.9rem;
+  color: #a8b4c4;
+}
+
+.stock-editar-ficha-label-icon svg {
+  width: 0.82rem;
+  height: 0.82rem;
+  display: block;
+}
+
+.stock-editar-ficha-label-text {
+  min-width: 0;
+}
+
+.stock-editar-ficha-label--generacion .stock-editar-ficha-label-icon,
+.stock-editar-ficha-label--anio .stock-editar-ficha-label-icon {
+  color: #a68b2a;
+}
+
+.stock-editar-ficha-label--estado .stock-editar-ficha-label-icon,
+.stock-editar-ficha-label--grupo .stock-editar-ficha-label-icon {
+  color: #1e3d2a;
+}
+
+.stock-editar-ficha-label--raza .stock-editar-ficha-label-icon {
+  color: #8b6914;
 }
 
 .stock-editar-ficha .stock-edit-select,
@@ -31915,28 +32084,28 @@ button.sg-kpi-card:disabled {
 
 .stock-editar-ficha-foot {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
-  gap: 0.75rem 1rem;
-  padding: 0.85rem 1.2rem 1.05rem;
+  gap: 0.75rem 0.85rem;
+  padding: 0.95rem 1.2rem 1.15rem;
 }
 
 .stock-editar-ficha-stats {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.45rem 0;
-  flex: 1 1 auto;
+  gap: 0.55rem 0;
+  flex: 0 1 auto;
   min-width: 0;
-  line-height: 1.3;
+  line-height: 1.35;
 }
 
 .stock-editar-ficha-stat {
   display: inline-flex;
   align-items: baseline;
   flex-wrap: wrap;
-  gap: 0.32rem;
-  padding: 0 1rem;
+  gap: 0.38rem;
+  padding: 0 1.15rem;
   min-width: 0;
 }
 
@@ -31949,14 +32118,34 @@ button.sg-kpi-card:disabled {
 }
 
 .stock-editar-ficha-stat-label {
-  font-size: 0.78rem;
+  font-size: 0.84rem;
   font-weight: 500;
   color: #94a3b8;
   white-space: nowrap;
 }
 
-.stock-editar-ficha-stat-label::after {
+.stock-editar-ficha-stat-label .stock-editar-ficha-label-icon {
+  width: 0.95rem;
+  height: 0.95rem;
+  color: #94a3b8;
+}
+
+.stock-editar-ficha-stat-label .stock-editar-ficha-label-icon svg {
+  width: 0.88rem;
+  height: 0.88rem;
+}
+
+.stock-editar-ficha-stat-label--edad .stock-editar-ficha-label-icon,
+.stock-editar-ficha-label--edad.stock-editar-ficha-stat-label .stock-editar-ficha-label-icon {
+  color: #64748b;
+}
+
+.stock-editar-ficha-stat-label .stock-editar-ficha-label-text::after {
   content: ":";
+}
+
+.stock-editar-ficha-stat-label::after {
+  content: none;
 }
 
 .stock-editar-ficha-stat-body {
@@ -31966,8 +32155,86 @@ button.sg-kpi-card:disabled {
   min-width: 0;
 }
 
+.stock-editar-ficha-edad-display {
+  display: inline-flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.35rem;
+  min-width: 0;
+}
+
+.stock-editar-ficha-edad-unit {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.22rem;
+  font-size: 0.84rem;
+  font-weight: 500;
+  color: #64748b;
+  line-height: 1.2;
+}
+
+.stock-editar-ficha-edad-unit-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 0.82rem;
+  height: 0.82rem;
+  flex-shrink: 0;
+}
+
+.stock-editar-ficha-edad-unit-icon svg {
+  width: 0.76rem;
+  height: 0.76rem;
+  display: block;
+}
+
+.stock-editar-ficha-edad-unit--meses .stock-editar-ficha-edad-unit-icon {
+  color: #64748b;
+}
+
+.stock-editar-ficha-edad-unit--anios .stock-editar-ficha-edad-unit-icon {
+  color: #a68b2a;
+}
+
+.stock-editar-ficha-edad-sep {
+  color: #cbd5e1;
+  font-weight: 600;
+  user-select: none;
+}
+
+.stock-editar-ficha-stat--edad .stock-editar-ficha-edad-display strong {
+  font-size: 1.28rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  color: #0f172a;
+}
+
+.stock-editar-ficha-stat-gen {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.28rem;
+}
+
+.stock-editar-ficha-stat-gen-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 0.9rem;
+  height: 0.9rem;
+  color: #a68b2a;
+  flex-shrink: 0;
+  align-self: center;
+}
+
+.stock-editar-ficha-stat-gen-icon svg {
+  width: 0.82rem;
+  height: 0.82rem;
+  display: block;
+}
+
 .stock-editar-ficha-stat-value {
-  font-size: 0.975rem;
+  font-size: 1.0625rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.02em;
@@ -31975,24 +32242,24 @@ button.sg-kpi-card:disabled {
 }
 
 .stock-editar-ficha-stat--edad .stock-editar-ficha-stat-value {
-  font-size: 1.15rem;
+  font-size: 1.28rem;
 }
 
 .stock-editar-ficha-stat-unit {
-  font-size: 0.78rem;
+  font-size: 0.84rem;
   font-weight: 500;
   color: #64748b;
 }
 
 .stock-editar-ficha-stat-gen-prefix {
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   font-weight: 700;
   letter-spacing: 0.06em;
   color: #a68b2a;
 }
 
 .stock-editar-ficha-stat-empty {
-  font-size: 0.875rem;
+  font-size: 0.9375rem;
   font-weight: 500;
   color: #94a3b8;
 }
@@ -32003,7 +32270,7 @@ button.sg-kpi-card:disabled {
 
 .stock-editar-ficha-stat-body--control .stock-estado-select {
   width: auto;
-  min-width: 5.75rem;
+  min-width: 6rem;
   min-height: auto;
   height: auto;
   max-height: none;
@@ -32012,7 +32279,7 @@ button.sg-kpi-card:disabled {
   border-radius: 0;
   background: transparent;
   box-shadow: none;
-  font-size: 0.9375rem;
+  font-size: 1.0625rem;
   font-weight: 600;
   color: #0f172a;
   cursor: pointer;
@@ -32024,18 +32291,112 @@ button.sg-kpi-card:disabled {
 }
 
 .stock-editar-ficha-sel {
-  flex: 1 1 14rem;
-  min-width: min(100%, 18rem);
+  flex: 1 1 calc(18rem + 8.9cm);
+  min-width: calc(16rem + 6.4cm);
+  width: auto;
+  max-width: calc(22rem + 8.9cm);
   margin: 0;
 }
 
-.stock-editar-ficha-sel .stock-edit-cabana-premium-tag {
-  font-size: 0.68rem;
-  padding: 0.32rem 0.62rem;
+.stock-editar-ficha-sel.stock-edit-cabana-premium-box--gold {
+  padding: 0.42rem 0.62rem 0.42rem 0.55rem;
+  gap: 0.38rem 0.55rem;
 }
 
-.stock-editar-ficha-sel .stock-edit-cabana-inline-label {
+.stock-editar-ficha-sel .stock-edit-cabana-premium-tag {
+  flex-shrink: 0;
+  font-size: 0.64rem;
+  padding: 0.26rem 0.5rem;
+}
+
+.stock-editar-ficha-sel .stock-edit-cabana-premium-fields {
+  flex: 1 1 0;
+  min-width: 0;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.55rem;
+}
+
+.stock-editar-ficha-sel .stock-edit-cabana-inline-field--nombre {
+  display: flex;
+  align-items: center;
+  gap: 0.32rem;
+  flex: 1 1 calc(8rem + 1.5cm);
+  min-width: 0;
+  max-width: 100%;
+}
+
+.stock-editar-ficha-sel .stock-edit-cabana-inline-field--nombre .stock-edit-cabana-input {
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.stock-editar-ficha-sel .stock-edit-cabana-inline-field--obs {
+  display: flex;
+  align-items: center;
+  gap: 0.32rem;
+  flex: 1 1 calc(6rem + 1.5cm);
+  min-width: 0;
+  max-width: 100%;
+}
+
+.stock-editar-ficha-sel .stock-edit-cabana-inline-field--obs .stock-edit-cabana-inline-val {
+  flex: 1;
+  min-width: 0;
+  max-width: none;
+}
+
+.stock-editar-ficha-sel .stock-edit-cabana-inline-field--ro {
+  max-width: 100%;
+}
+
+.stock-editar-ficha-sel .stock-edit-cabana-inline-val {
+  max-width: none;
+}
+
+.stock-edit-cabana-field-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  flex-shrink: 0;
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #9a8b72;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.stock-edit-cabana-field-label .stock-editar-ficha-label-icon {
+  width: 0.88rem;
+  height: 0.88rem;
+  color: #c9a227;
+}
+
+.stock-edit-cabana-field-label .stock-editar-ficha-label-icon svg {
+  width: 0.78rem;
+  height: 0.78rem;
+}
+
+.stock-edit-cabana-field-label.stock-editar-ficha-label--nombre .stock-editar-ficha-label-icon {
+  color: #b8860b;
+}
+
+.stock-edit-cabana-field-label.stock-editar-ficha-label--raza .stock-editar-ficha-label-icon {
+  color: #8b6914;
+}
+
+.stock-edit-cabana-field-label.stock-editar-ficha-label--observaciones .stock-editar-ficha-label-icon {
+  color: #7a8b94;
+}
+
+.stock-editar-ficha-sel .stock-edit-cabana-field-label {
   font-size: 0.68rem;
+  letter-spacing: 0.06em;
 }
 
 .stock-editar-ficha-sel .stock-edit-cabana-inline-val {
@@ -32043,10 +32404,10 @@ button.sg-kpi-card:disabled {
 }
 
 .stock-editar-ficha-sel .stock-edit-cabana-input {
-  min-height: 1.85rem;
-  height: 1.85rem;
-  font-size: 0.9rem;
-  padding: 0.2rem 0.45rem;
+  min-height: 1.72rem;
+  height: 1.72rem;
+  font-size: 0.84rem;
+  padding: 0.18rem 0.4rem;
 }
 
 .stock-editar-ficha-sel .stock-seleccion-cocarda {
@@ -32088,6 +32449,10 @@ button.sg-kpi-card:disabled {
     flex-direction: column;
     gap: 0.65rem;
     padding-bottom: 0.75rem;
+  }
+
+  .stock-editar-ficha-foot {
+    flex-wrap: wrap;
   }
 
   .stock-editar-ficha-zone {
@@ -32139,5 +32504,1677 @@ button.sg-kpi-card:disabled {
   .stock-editar-ficha-cell--anio {
     flex: 1 1 4.1rem;
     max-width: none;
+  }
+}
+
+/* —— Control Sanitario (ficha dispositivo) —— */
+:is(.stock-ganadera-editar-page, .stock-equina-editar-page) .stock-edit-observaciones-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.75rem;
+  flex-wrap: nowrap;
+}
+
+:is(.stock-ganadera-editar-page, .stock-equina-editar-page) .stock-control-sanitario-trigger {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 0.62rem 0.85rem;
+  border-radius: 12px;
+  border: 1px solid rgba(201, 162, 39, 0.35);
+  background: linear-gradient(180deg, #fffdf8 0%, #faf6ee 100%);
+  color: #5c4a12;
+  box-shadow:
+    0 0 0 1px rgba(15, 23, 42, 0.04) inset,
+    0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+:is(.stock-ganadera-editar-page, .stock-equina-editar-page) .stock-control-sanitario-trigger:hover:not(:disabled) {
+  border-color: rgba(201, 162, 39, 0.55);
+  background: #fffef9;
+}
+
+:is(.stock-ganadera-editar-page, .stock-equina-editar-page) .stock-edit-observaciones-row .stock-edit-field--observaciones {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.stock-control-sanitario-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10060;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem;
+  background: rgba(15, 35, 24, 0.38);
+  backdrop-filter: blur(6px);
+}
+
+.stock-control-sanitario-modal {
+  width: min(1080px, 98vw);
+  height: min(96vh, 920px);
+  max-height: 96vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: linear-gradient(180deg, #f6f8f6 0%, #eef2ef 100%);
+  border: 1px solid rgba(45, 90, 61, 0.12);
+  border-radius: 16px;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.75) inset,
+    0 24px 64px rgba(15, 35, 24, 0.2);
+}
+
+.stock-control-sanitario-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex: 0 0 auto;
+  padding: 1rem 1.4rem 0.9rem;
+  border-bottom: 1px solid rgba(45, 90, 61, 0.1);
+  background: linear-gradient(
+    135deg,
+    #ffffff 0%,
+    color-mix(in srgb, #2d5a3d 4%, #ffffff) 100%
+  );
+}
+
+.stock-control-sanitario-head-brand {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  min-width: 0;
+}
+
+.stock-control-sanitario-head-icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  border: 1px solid rgba(45, 90, 61, 0.14);
+  background: linear-gradient(145deg, #f4faf6 0%, #e8f2ec 100%);
+  color: #2d5a3d;
+  box-shadow:
+    0 1px 2px rgba(15, 35, 24, 0.06),
+    0 0 0 1px rgba(255, 255, 255, 0.65) inset;
+}
+
+.stock-control-sanitario-head-icon--main {
+  width: 3rem;
+  height: 3rem;
+  margin-top: 0.05rem;
+}
+
+.stock-control-sanitario-head-icon--main svg {
+  width: auto;
+  height: auto;
+  display: block;
+}
+
+.stock-control-sanitario-head-main {
+  min-width: 0;
+}
+
+.stock-control-sanitario-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0 0 0.3rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: #2d5a3d;
+}
+
+.stock-control-sanitario-kicker-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.35rem;
+  height: 1.35rem;
+  border-radius: 7px;
+  color: #1e4d32;
+  background: linear-gradient(145deg, #f0f9f4 0%, #dcefe3 100%);
+  border: 1px solid rgba(45, 90, 61, 0.2);
+  box-shadow: 0 1px 2px rgba(45, 90, 61, 0.1);
+}
+
+.stock-control-sanitario-kicker-icon svg {
+  display: block;
+  flex-shrink: 0;
+}
+
+.stock-control-sanitario-head h2 {
+  margin: 0;
+  font-size: 1.22rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #0f172a;
+}
+
+.stock-control-sanitario-sub {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0.45rem 0 0;
+  font-size: 0.76rem;
+  color: #475569;
+}
+
+.stock-control-sanitario-sub-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.38rem;
+  min-width: 0;
+  padding: 0.22rem 0.62rem 0.22rem 0.28rem;
+  border-radius: 999px;
+  background: #f8fafc;
+  border: 1px solid rgba(15, 23, 42, 0.07);
+  line-height: 1.2;
+}
+
+.stock-control-sanitario-sub-item-icon {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.35rem;
+  height: 1.35rem;
+  border-radius: 999px;
+}
+
+.stock-control-sanitario-sub-item--registro .stock-control-sanitario-sub-item-icon {
+  color: #0f766e;
+  background: #ecfdf5;
+}
+
+.stock-control-sanitario-sub-item--vid .stock-control-sanitario-sub-item-icon {
+  color: #1d4ed8;
+  background: #eff6ff;
+}
+
+.stock-control-sanitario-sub-item--eid .stock-control-sanitario-sub-item-icon {
+  color: #7c3aed;
+  background: #f5f3ff;
+}
+
+.stock-control-sanitario-sub-item--clave .stock-control-sanitario-sub-item-icon {
+  color: #b45309;
+  background: #fffbeb;
+}
+
+.stock-control-sanitario-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border: none;
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.04);
+  padding: 0;
+  font-size: 1.35rem;
+  line-height: 1;
+  color: #64748b;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.stock-control-sanitario-close:hover {
+  background: rgba(185, 28, 28, 0.08);
+  color: #b91c1c;
+}
+
+.stock-control-sanitario-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  padding: 0.75rem 1.35rem 0.35rem;
+}
+
+.stock-control-sanitario-form {
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.6rem 0.85rem;
+  margin-bottom: 0.65rem;
+}
+
+.stock-control-sanitario-form > .stock-control-sanitario-section {
+  margin-bottom: 0;
+}
+
+.stock-control-sanitario-form .stock-control-sanitario-grid--3 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.stock-control-sanitario-form .stock-control-sanitario-field-span-2 {
+  grid-column: 1 / -1;
+}
+
+.stock-control-sanitario-grid--producto {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.stock-control-sanitario-historial {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding-bottom: 0.25rem;
+}
+
+.stock-control-sanitario-historial .stock-control-sanitario-list,
+.stock-control-sanitario-historial .stock-control-sanitario-empty {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding-right: 0.15rem;
+}
+
+.stock-control-sanitario-historial .stock-control-sanitario-list {
+  scrollbar-gutter: stable;
+}
+
+.stock-control-sanitario-section {
+  margin-bottom: 0.75rem;
+  padding: 0.7rem 0.85rem;
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+}
+
+.stock-control-sanitario-section-title {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0 0 0.5rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #475569;
+}
+
+.stock-control-sanitario-section-title-icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.45rem;
+  height: 1.45rem;
+  border-radius: 7px;
+  background: #f8faf9;
+  border: 1px solid rgba(45, 90, 61, 0.1);
+  color: #64748b;
+  box-shadow: 0 1px 2px rgba(15, 35, 24, 0.03);
+}
+
+.stock-control-sanitario-section-title-icon svg {
+  display: block;
+}
+
+.stock-control-sanitario-section-title-text {
+  min-width: 0;
+}
+
+.stock-control-sanitario-section-title--admin .stock-control-sanitario-section-title-icon {
+  color: #1d4ed8;
+  background: linear-gradient(145deg, #eff6ff 0%, #dbeafe 100%);
+  border-color: rgba(29, 78, 216, 0.12);
+}
+
+.stock-control-sanitario-section-title--producto .stock-control-sanitario-section-title-icon {
+  color: #7c3aed;
+  background: linear-gradient(145deg, #f5f3ff 0%, #ede9fe 100%);
+  border-color: rgba(124, 58, 237, 0.12);
+}
+
+.stock-control-sanitario-section-title--animal .stock-control-sanitario-section-title-icon {
+  color: #b45309;
+  background: linear-gradient(145deg, #fffbeb 0%, #fef3c7 100%);
+  border-color: rgba(180, 83, 9, 0.12);
+}
+
+.stock-control-sanitario-section-title--controles .stock-control-sanitario-section-title-icon {
+  color: #0f766e;
+  background: linear-gradient(145deg, #f0fdfa 0%, #ccfbf1 100%);
+  border-color: rgba(15, 118, 110, 0.12);
+}
+
+.stock-control-sanitario-section-title--historial .stock-control-sanitario-section-title-icon {
+  color: #2d5a3d;
+  background: linear-gradient(145deg, #f4faf6 0%, #e8f2ec 100%);
+  border-color: rgba(45, 90, 61, 0.12);
+}
+
+.stock-control-sanitario-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.55rem;
+}
+
+.stock-control-sanitario-section-head .stock-control-sanitario-section-title {
+  margin: 0;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.stock-control-sanitario-admin-observaciones {
+  margin-top: 0.5rem;
+}
+
+.stock-control-sanitario-admin-observaciones textarea {
+  min-height: 3.25rem;
+}
+
+.stock-control-sanitario-modos {
+  display: inline-flex;
+  padding: 2px;
+  border-radius: 9px;
+  background: #eef2f7;
+  border: 1px solid rgba(15, 23, 42, 0.07);
+}
+
+.stock-control-sanitario-modo {
+  border: none;
+  background: transparent;
+  padding: 0.28rem 0.72rem;
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #64748b;
+  border-radius: 7px;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.stock-control-sanitario-modo:hover:not(:disabled):not(.is-active) {
+  color: #334155;
+  background: rgba(255, 255, 255, 0.65);
+}
+
+.stock-control-sanitario-modo.is-active {
+  color: #5c4a12;
+  background: linear-gradient(180deg, #fffdf8 0%, #faf6ee 100%);
+  box-shadow:
+    0 0 0 1px rgba(201, 162, 39, 0.35),
+    0 1px 2px rgba(15, 23, 42, 0.06);
+}
+
+.stock-control-sanitario-modo:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.stock-control-sanitario-section-hint {
+  margin-left: 0.45rem;
+  font-size: 0.65rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  color: #94a3b8;
+}
+
+.stock-control-sanitario-field--locked {
+  background: #f1f5f9 !important;
+  color: #334155;
+  cursor: default;
+  border-color: rgba(15, 23, 42, 0.08) !important;
+  box-shadow: none !important;
+}
+
+.stock-control-sanitario-field--locked:focus {
+  outline: none;
+  box-shadow: none !important;
+}
+
+.stock-control-sanitario-formula-select,
+.stock-control-sanitario-cantidad-select,
+.stock-control-sanitario-funcionario-select,
+.stock-control-sanitario-marca-select,
+.stock-control-sanitario-forma-select,
+.stock-control-sanitario-motivo-select {
+  position: relative;
+  width: 100%;
+}
+
+.stock-control-sanitario-funcionario-select .proveedor-dropdown button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+  width: 100%;
+}
+
+.stock-control-sanitario-funcionario-rol {
+  flex-shrink: 0;
+  font-size: 0.72rem;
+}
+
+.stock-control-sanitario-select-shell {
+  position: relative;
+  width: 100%;
+}
+
+.stock-control-sanitario-select-shell::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: 0.65rem;
+  width: 0.65rem;
+  height: 0.65rem;
+  transform: translateY(-50%);
+  pointer-events: none;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='none' stroke='%2364748b' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' d='M2.5 4.5 6 8l3.5-3.5'/%3E%3C/svg%3E")
+    center / contain no-repeat;
+}
+
+.stock-control-sanitario-section .field .stock-control-sanitario-field-trigger {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  text-align: left;
+  padding: 0.55rem 2rem 0.55rem 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #faf9f7;
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 400;
+  line-height: 1.25;
+  color: var(--text);
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  margin: 0;
+  box-shadow: none;
+}
+
+.stock-control-sanitario-select-shell:has(.stock-control-sanitario-field-clear)
+  .stock-control-sanitario-field-trigger {
+  padding-right: 2.85rem;
+}
+
+.stock-control-sanitario-section .field .stock-control-sanitario-field-trigger:hover:not(:disabled) {
+  border-color: var(--border);
+  background: #faf9f7;
+}
+
+.stock-control-sanitario-section .field .stock-control-sanitario-field-trigger:focus {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+  border-color: var(--primary);
+}
+
+.stock-control-sanitario-section .field .stock-control-sanitario-field-trigger:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.stock-control-sanitario-field-trigger-placeholder {
+  color: var(--muted);
+}
+
+.stock-control-sanitario-field-clear {
+  position: absolute;
+  top: 50%;
+  right: 1.85rem;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.15rem;
+  height: 1.15rem;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.95rem;
+  line-height: 1;
+  cursor: pointer;
+  transform: translateY(-50%);
+  border-radius: 4px;
+}
+
+.stock-control-sanitario-field-clear:hover {
+  color: var(--text);
+  background: rgba(26, 46, 31, 0.06);
+}
+
+.stock-control-sanitario-formula-panel {
+  z-index: 40;
+}
+
+.stock-control-sanitario-formula-panel .proveedor-dropdown {
+  max-height: min(240px, 38vh);
+}
+
+.stock-control-sanitario-formula-nuevo .field {
+  padding: 0 0.65rem;
+}
+
+.stock-control-sanitario-formula-nuevo .field label {
+  font-size: 0.72rem;
+  color: #64748b;
+}
+
+.stock-control-sanitario-required {
+  color: #b45309;
+  margin-left: 0.15rem;
+}
+
+.stock-control-sanitario-grid {
+  display: grid;
+  gap: 0.5rem 0.65rem;
+}
+
+.stock-control-sanitario-grid--2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.stock-control-sanitario-grid--3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.stock-control-sanitario-field-span-2 {
+  grid-column: span 2;
+}
+
+.stock-control-sanitario-section .field label {
+  font-size: 0.74rem;
+  color: #64748b;
+}
+
+.stock-control-sanitario-section .field input,
+.stock-control-sanitario-section .field select,
+.stock-control-sanitario-section .field textarea {
+  font-size: 0.86rem;
+  border-radius: 8px;
+}
+
+.stock-control-sanitario-form-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-bottom: 0;
+  padding-top: 0.15rem;
+}
+
+.stock-control-sanitario-readonly-note {
+  margin: 0 0 0.75rem;
+  flex: 0 0 auto;
+  padding: 0.7rem 0.95rem;
+  background: color-mix(in srgb, #2d5a3d 6%, #ffffff);
+  border: 1px solid color-mix(in srgb, #2d5a3d 18%, transparent);
+  border-radius: 10px;
+  font-size: 0.82rem;
+  color: #334155;
+}
+
+.stock-control-sanitario-historial-panel {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0.65rem 0.75rem 0.55rem;
+  background: linear-gradient(165deg, #ffffff 0%, #f6faf7 52%, #eef4f0 100%);
+  border: 1px solid rgba(45, 90, 61, 0.12);
+  border-radius: 14px;
+  box-shadow:
+    0 1px 2px rgba(15, 35, 24, 0.04),
+    0 8px 20px rgba(15, 35, 24, 0.04);
+}
+
+.stock-control-sanitario-historial-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+  flex: 0 0 auto;
+  margin-bottom: 0.55rem;
+  padding-bottom: 0.45rem;
+  border-bottom: 1px solid rgba(45, 90, 61, 0.1);
+}
+
+.stock-control-sanitario-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.18rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #1e4d32;
+  background: linear-gradient(180deg, #f0f9f4 0%, #e3f2e9 100%);
+  border: 1px solid rgba(45, 90, 61, 0.18);
+}
+
+.stock-control-sanitario-list {
+  list-style: none;
+  margin: 0;
+  padding: 0.05rem 0.05rem 0.2rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.stock-control-sanitario-item {
+  display: grid;
+  grid-template-columns: 1rem minmax(0, 1fr);
+  gap: 0.5rem;
+  align-items: stretch;
+  background: transparent;
+  border: none;
+  overflow: visible;
+}
+
+.stock-control-sanitario-item::before {
+  display: none;
+}
+
+.stock-control-sanitario-item-rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 0.85rem;
+  min-height: 100%;
+}
+
+.stock-control-sanitario-item-dot {
+  flex-shrink: 0;
+  width: 0.48rem;
+  height: 0.48rem;
+  border-radius: 50%;
+  background: #2d5a3d;
+  box-shadow: 0 0 0 2px color-mix(in srgb, #2d5a3d 14%, #ffffff);
+}
+
+.stock-control-sanitario-item-line {
+  flex: 1 1 auto;
+  width: 1.5px;
+  min-height: 0.65rem;
+  margin-top: 0.25rem;
+  margin-bottom: 0.25rem;
+  border-radius: 999px;
+  background: linear-gradient(
+    180deg,
+    rgba(45, 90, 61, 0.45) 0%,
+    rgba(45, 90, 61, 0.08) 100%
+  );
+}
+
+.stock-control-sanitario-item-card {
+  margin-bottom: 0.5rem;
+  padding: 0.55rem 0.65rem 0.5rem;
+  background: #ffffff;
+  border: 1px solid rgba(45, 90, 61, 0.1);
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(15, 35, 24, 0.04);
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.stock-control-sanitario-item-card:hover {
+  border-color: rgba(45, 90, 61, 0.18);
+  box-shadow: 0 3px 10px rgba(15, 35, 24, 0.06);
+}
+
+.stock-control-sanitario-item-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.4rem;
+}
+
+.stock-control-sanitario-item-brand {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.stock-control-sanitario-item-med-icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.65rem;
+  height: 1.65rem;
+  border-radius: 8px;
+  color: #5b21b6;
+  background: linear-gradient(145deg, #faf5ff 0%, #ede9fe 100%);
+  border: 1px solid rgba(91, 33, 182, 0.12);
+}
+
+.stock-control-sanitario-item-brand-text {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.stock-control-sanitario-item-title-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.5rem;
+  min-width: 0;
+}
+
+.stock-control-sanitario-item-producto {
+  margin: 0;
+  font-size: 0.86rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  color: #0f172a;
+}
+
+.stock-control-sanitario-item-formula {
+  margin: 0.12rem 0 0;
+  font-size: 0.68rem;
+  line-height: 1.3;
+  color: #64748b;
+}
+
+.stock-control-sanitario-item-when {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+
+.stock-control-sanitario-item-when-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.22rem;
+  padding: 0.1rem 0.38rem;
+  border-radius: 999px;
+  font-size: 0.64rem;
+  font-weight: 600;
+  color: #475569;
+  background: #f8fafc;
+  border: 1px solid rgba(15, 23, 42, 0.07);
+  white-space: nowrap;
+}
+
+.stock-control-sanitario-item-when-chip--autor {
+  color: #2d5a3d;
+  background: color-mix(in srgb, #2d5a3d 7%, #ffffff);
+  border-color: color-mix(in srgb, #2d5a3d 14%, transparent);
+}
+
+.stock-control-sanitario-item-tags {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin: 0;
+}
+
+.stock-control-sanitario-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.08rem 0.38rem;
+  border-radius: 999px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  line-height: 1.2;
+}
+
+.stock-control-sanitario-tag--forma {
+  color: #0f766e;
+  background: linear-gradient(180deg, #f0fdfa 0%, #ccfbf1 100%);
+  border: 1px solid rgba(15, 118, 110, 0.16);
+}
+
+.stock-control-sanitario-tag--dosis {
+  color: #1d4ed8;
+  background: linear-gradient(180deg, #eff6ff 0%, #dbeafe 100%);
+  border: 1px solid rgba(29, 78, 216, 0.14);
+}
+
+.stock-control-sanitario-tag--espera {
+  color: #b45309;
+  background: linear-gradient(180deg, #fffbeb 0%, #fef3c7 100%);
+  border: 1px solid rgba(180, 83, 9, 0.16);
+}
+
+.stock-control-sanitario-empty {
+  margin: 0;
+  padding: 1.5rem 1rem;
+  text-align: center;
+  font-size: 0.82rem;
+  color: #64748b;
+  background: rgba(255, 255, 255, 0.72);
+  border-radius: 10px;
+  border: 1px dashed rgba(45, 90, 61, 0.16);
+}
+
+.stock-control-sanitario-item-facts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.2rem 0.55rem;
+  margin: 0;
+  padding: 0.35rem 0.45rem;
+  list-style: none;
+  border-radius: 7px;
+  background: #f8faf9;
+  border: 1px solid rgba(45, 90, 61, 0.07);
+}
+
+.stock-control-sanitario-item-facts li {
+  display: inline;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  color: #334155;
+}
+
+.stock-control-sanitario-item-facts li:not(:last-child)::after {
+  content: "·";
+  margin-left: 0.55rem;
+  color: #cbd5e1;
+  font-weight: 700;
+}
+
+.stock-control-sanitario-item-facts li span {
+  margin-right: 0.22rem;
+  font-size: 0.58rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #94a3b8;
+}
+
+.stock-control-sanitario-item-facts--obs {
+  flex: 1 1 100%;
+  display: block;
+}
+
+.stock-control-sanitario-item-facts--obs::after {
+  display: none !important;
+}
+
+.stock-control-sanitario-item-delete {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  padding: 0.28rem 0.55rem;
+  border-radius: 7px;
+  border: 1px solid rgba(185, 28, 28, 0.18);
+  background: #fff;
+  font: inherit;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: #b91c1c;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.stock-control-sanitario-item-delete--icon {
+  width: 1.55rem;
+  height: 1.55rem;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.stock-control-sanitario-item-delete:hover:not(:disabled) {
+  background: #fef2f2;
+  border-color: rgba(185, 28, 28, 0.32);
+}
+
+.stock-control-sanitario-item-delete:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.stock-control-sanitario-foot {
+  display: flex;
+  justify-content: flex-end;
+  flex: 0 0 auto;
+  padding: 0.75rem 1.35rem;
+  border-top: 1px solid rgba(45, 90, 61, 0.08);
+  background: rgba(255, 255, 255, 0.85);
+}
+
+@media (max-width: 900px) {
+  .stock-control-sanitario-modal {
+    width: min(98vw, 760px);
+    height: min(96vh, 920px);
+  }
+
+  .stock-control-sanitario-form {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  :is(.stock-ganadera-editar-page, .stock-equina-editar-page) .stock-edit-observaciones-row {
+    flex-wrap: wrap;
+    align-items: stretch;
+  }
+
+  :is(.stock-ganadera-editar-page, .stock-equina-editar-page) .stock-control-sanitario-trigger {
+    width: 100%;
+  }
+
+  .stock-control-sanitario-grid--2,
+  .stock-control-sanitario-grid--3 {
+    grid-template-columns: 1fr;
+  }
+
+  .stock-control-sanitario-field-span-2 {
+    grid-column: auto;
+  }
+
+  .stock-control-sanitario-item-top {
+    flex-direction: column;
+  }
+
+  .stock-control-sanitario-item-when {
+    justify-content: flex-start;
+    width: 100%;
+  }
+}
+
+/* —— Stock Ganadero · Sanidad masiva —— */
+.stock-sanidad-page .stock-sanidad-card {
+  overflow: visible;
+}
+
+.stock-sanidad-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+  padding: 0 1.25rem 1.25rem;
+}
+
+.stock-sanidad-seleccion {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.stock-sanidad-dash {
+  min-width: 0;
+  padding: 0.9rem 1.1rem;
+  border: 1px solid #99f6e4;
+  border-radius: 12px;
+  background: linear-gradient(165deg, #fff 0%, #f0fdfa 55%, #ecfdf5 100%);
+  box-shadow: 0 4px 18px rgba(13, 148, 136, 0.07);
+}
+
+.stock-sanidad-dash--band {
+  width: 100%;
+}
+
+.stock-sanidad-dash-head {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin-bottom: 0.85rem;
+  padding-bottom: 0.7rem;
+  border-bottom: 1px solid #ccfbf1;
+}
+
+.stock-sanidad-dash-head-copy {
+  min-width: 0;
+}
+
+.stock-sanidad-dash-head-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 9px;
+  background: #ccfbf1;
+  color: #0f766e;
+  flex-shrink: 0;
+}
+
+.stock-sanidad-dash-title {
+  margin: 0;
+  font-size: 0.95rem;
+  color: #0f766e;
+}
+
+.stock-sanidad-dash-sub {
+  margin: 0.12rem 0 0;
+  font-size: 0.78rem;
+}
+
+.stock-sanidad-dash-body {
+  display: grid;
+  grid-template-columns: minmax(150px, 0.75fr) minmax(220px, 1fr) minmax(280px, 1.35fr);
+  gap: 1rem 1.25rem;
+  align-items: start;
+}
+
+.stock-sanidad-dash-col {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.stock-sanidad-dash-col--freq {
+  padding-right: 0.25rem;
+  border-right: 1px solid #e2e8f0;
+}
+
+.stock-sanidad-dash-col--timeline {
+  min-width: 0;
+}
+
+.stock-sanidad-dash-loading,
+.stock-sanidad-dash-sin-historial {
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+.stock-sanidad-dash-sin-historial p {
+  margin: 0 0 0.35rem;
+}
+
+.stock-sanidad-dash-empty {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  text-align: left;
+  padding: 0.15rem 0;
+}
+
+.stock-sanidad-dash-empty-copy {
+  min-width: 0;
+}
+
+.stock-sanidad-dash-empty-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  flex-shrink: 0;
+  border-radius: 10px;
+  background: #ccfbf1;
+  color: #0f766e;
+}
+
+.stock-sanidad-dash-empty-title {
+  margin: 0 0 0.25rem;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: #0f766e;
+}
+
+.stock-sanidad-dash-empty-text {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.stock-sanidad-dash-kpis {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.stock-sanidad-dash-kpi {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.5rem 0.65rem;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid #ccfbf1;
+}
+
+.stock-sanidad-dash-kpi-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.05rem;
+  font-size: 0.72rem;
+  color: var(--muted);
+  min-width: 0;
+}
+
+.stock-sanidad-dash-kpi strong {
+  font-size: 1.12rem;
+  line-height: 1.1;
+  color: #0f766e;
+}
+
+.stock-sanidad-dash-kpi-icon {
+  color: #14b8a6;
+  flex-shrink: 0;
+}
+
+.stock-sanidad-dash-kpi--muted strong {
+  color: #64748b;
+}
+
+.stock-sanidad-dash-block {
+  margin: 0;
+}
+
+.stock-sanidad-dash-block--timeline {
+  height: 100%;
+}
+
+.stock-sanidad-dash-block-title {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0 0 0.5rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #0f766e;
+}
+
+.stock-sanidad-dash-bars {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.stock-sanidad-dash-bar-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-size: 0.78rem;
+  margin-bottom: 0.18rem;
+}
+
+.stock-sanidad-dash-bar-label {
+  min-width: 0;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.stock-sanidad-dash-bar-count {
+  font-weight: 700;
+  color: #0f766e;
+  flex-shrink: 0;
+}
+
+.stock-sanidad-dash-bar-track {
+  height: 6px;
+  border-radius: 999px;
+  background: #e2e8f0;
+  overflow: hidden;
+}
+
+.stock-sanidad-dash-bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  min-width: 6px;
+}
+
+.stock-sanidad-dash-bar-fill--producto {
+  background: linear-gradient(90deg, #2dd4bf, #0d9488);
+}
+
+.stock-sanidad-dash-bar-fill--motivo {
+  background: linear-gradient(90deg, #67e8f9, #0891b2);
+}
+
+.stock-sanidad-dash-timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 0.5rem;
+}
+
+.stock-sanidad-dash-timeline-item {
+  min-width: 0;
+}
+
+.stock-sanidad-dash-timeline-card {
+  height: 100%;
+  padding: 0.55rem 0.65rem;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid #e2e8f0;
+}
+
+.stock-sanidad-dash-timeline-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.stock-sanidad-dash-timeline-top strong {
+  min-width: 0;
+  font-size: 0.82rem;
+  line-height: 1.3;
+  color: #134e4a;
+  word-break: break-word;
+}
+
+.stock-sanidad-dash-timeline-top time {
+  font-size: 0.7rem;
+  color: var(--muted);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.stock-sanidad-dash-timeline-id {
+  margin: 0;
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: #334155;
+  font-variant-numeric: tabular-nums;
+}
+
+.stock-sanidad-dash-timeline-motivo {
+  margin: 0.2rem 0 0;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  color: #475569;
+}
+
+.stock-sanidad-dash-timeline-periodo {
+  margin: 0.25rem 0 0;
+  font-size: 0.7rem;
+  color: #0f766e;
+}
+
+.stock-sanidad-listado {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.stock-sanidad-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.stock-sanidad-busqueda {
+  flex: 1 1 200px;
+  min-width: 0;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 0.9rem;
+}
+
+.stock-sanidad-toolbar-actions {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.stock-sanidad-seleccion-bar {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: linear-gradient(145deg, #f0fdfa 0%, #ecfdf5 100%);
+  border: 1px solid #99f6e4;
+  border-radius: 10px;
+  font-size: 0.9rem;
+}
+
+.stock-sanidad-seleccion-bar strong {
+  font-size: 1.15rem;
+  color: #0f766e;
+}
+
+.stock-sanidad-grupos-rapidos {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.65rem 0.75rem;
+  background: var(--surface-2, #f8faf9);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.stock-sanidad-grupos-hint {
+  margin: 0;
+  font-size: 0.78rem;
+}
+
+.stock-sanidad-grupo-block {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.5rem;
+}
+
+.stock-sanidad-grupo-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  min-width: 4.5rem;
+}
+
+.stock-sanidad-grupo-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  flex: 1;
+}
+
+.stock-sanidad-grupo-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.55rem;
+  font-size: 0.78rem;
+  border: 1px solid #99f6e4;
+  border-radius: 999px;
+  background: #fff;
+  color: #0f766e;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.stock-sanidad-grupo-chip:hover:not(:disabled) {
+  background: #ccfbf1;
+  border-color: #2dd4bf;
+}
+
+.stock-sanidad-grupo-chip-count {
+  font-weight: 700;
+  font-size: 0.72rem;
+  opacity: 0.85;
+}
+
+.stock-sanidad-filtros {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.stock-sanidad-filtros-label {
+  font-size: 0.78rem;
+}
+
+.stock-sanidad-filtros-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.stock-sanidad-filtro-chip {
+  padding: 0.15rem 0.5rem;
+  font-size: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.stock-sanidad-filtro-chip.is-active {
+  border-color: #0d9488;
+  background: #f0fdfa;
+  color: #0f766e;
+  font-weight: 600;
+}
+
+.stock-sanidad-table-wrap {
+  overflow: auto;
+  max-height: min(52vh, 520px);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.stock-sanidad-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+
+.stock-sanidad-table th,
+.stock-sanidad-table td {
+  padding: 0.45rem 0.55rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+
+.stock-sanidad-table thead th {
+  position: sticky;
+  top: 0;
+  background: #f8faf9;
+  z-index: 1;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.stock-sanidad-table tbody tr {
+  cursor: pointer;
+}
+
+.stock-sanidad-table tbody tr:hover {
+  background: #f8faf9;
+}
+
+.stock-sanidad-table tbody tr.is-selected {
+  background: #ecfdf5;
+}
+
+.stock-sanidad-th-check,
+.stock-sanidad-td-check {
+  width: 2rem;
+  text-align: center;
+}
+
+.stock-sanidad-id-vid {
+  display: block;
+  font-weight: 600;
+}
+
+.stock-sanidad-id-eid {
+  display: block;
+  font-size: 0.75rem;
+}
+
+.stock-sanidad-empty {
+  padding: 1.5rem;
+  text-align: center;
+}
+
+.stock-sanidad-registro {
+  width: 100%;
+  padding: 1rem 1.15rem;
+  border: 1px solid #99f6e4;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #fff 0%, #f8fffe 100%);
+  box-shadow: 0 4px 20px rgba(13, 148, 136, 0.08);
+}
+
+.stock-sanidad-form-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem 1.25rem;
+  margin-bottom: 0.85rem;
+  padding-bottom: 0.85rem;
+  border-bottom: 1px solid #ccfbf1;
+}
+
+.stock-sanidad-form-title {
+  margin: 0 0 0.2rem;
+  font-size: 1.05rem;
+  color: #0f766e;
+}
+
+.stock-sanidad-form-hint {
+  margin: 0;
+  font-size: 0.82rem;
+  max-width: 42rem;
+}
+
+.stock-sanidad-form-actions--head {
+  margin: 0;
+  padding: 0;
+  border: none;
+  flex-shrink: 0;
+}
+
+.stock-sanidad-form-body {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.85rem 1.1rem;
+  align-items: start;
+}
+
+.stock-sanidad-form .stock-control-sanitario-section {
+  margin-bottom: 0;
+  height: 100%;
+}
+
+.stock-sanidad-form .stock-control-sanitario-section-head {
+  flex-wrap: wrap;
+}
+
+.stock-sanidad-form .stock-control-sanitario-grid--2,
+.stock-sanidad-form .stock-control-sanitario-grid--producto {
+  grid-template-columns: 1fr;
+  gap: 0.55rem;
+}
+
+.stock-sanidad-form .stock-control-sanitario-section .field label {
+  font-size: 0.72rem;
+}
+
+.stock-sanidad-form .stock-control-sanitario-section .field input,
+.stock-sanidad-form .stock-control-sanitario-section .field select,
+.stock-sanidad-form .stock-control-sanitario-section .field textarea,
+.stock-sanidad-form .stock-control-sanitario-field-trigger {
+  font-size: 0.85rem;
+}
+
+.stock-sanidad-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.stock-sanidad-progreso {
+  margin-top: 0.75rem;
+  padding: 0.5rem 0.65rem;
+  background: #f0fdfa;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  color: #0f766e;
+}
+
+.stock-sanidad-progreso-bar {
+  height: 4px;
+  background: #14b8a6;
+  border-radius: 2px;
+  margin-bottom: 0.35rem;
+  transition: width 0.2s;
+}
+
+@media (max-width: 1100px) {
+  .stock-sanidad-dash-body {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .stock-sanidad-dash-col--freq {
+    border-right: none;
+    padding-right: 0;
+  }
+
+  .stock-sanidad-dash-col--timeline {
+    grid-column: 1 / -1;
+  }
+
+  .stock-sanidad-form-body {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .stock-sanidad-dash-body {
+    grid-template-columns: 1fr;
+  }
+
+  .stock-sanidad-dash-kpis {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .stock-sanidad-dash-empty {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .stock-sanidad-form-head {
+    flex-direction: column;
+  }
+
+  .stock-sanidad-form-actions--head {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .stock-sanidad-form-actions--head .btn-primary {
+    flex: 1;
+  }
+
+  .stock-sanidad-form-body {
+    grid-template-columns: 1fr;
   }
 }

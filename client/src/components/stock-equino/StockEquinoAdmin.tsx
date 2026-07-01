@@ -8,6 +8,7 @@ import {
 import type { AuthUser } from "../../types";
 import { confirmAction } from "../../utils/confirm";
 import { clearStockEquinaPageCache } from "./stock-equina-page-cache";
+import { PageModuleHeadRow } from "../PageModuleHead";
 
 interface Props {
   apiOnline: boolean;
@@ -164,10 +165,11 @@ export default function StockEquinoAdmin({
 
       <div className="card">
         <div className="form-header">
-          <h2>Administración de Stock Equino</h2>
-          <p className="muted">
-            Herramientas de administración para la base de dispositivos EID.
-          </p>
+          <PageModuleHeadRow
+            icon={{ source: "app", id: "stock_equino" }}
+            title="Administración de Stock Equino"
+            subtitle="Herramientas de administración para la base de dispositivos EID."
+          />
         </div>
 
         {!esAdmin ? (

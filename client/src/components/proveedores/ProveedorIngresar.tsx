@@ -8,6 +8,7 @@ import {
 import type { Proveedor, ProveedorForm } from "../../types";
 import { aMayusculas } from "../../utils/formText";
 import { HubMenuIcon } from "../icons/HubMenuIcons";
+import { PageModuleHeadRow } from "../PageModuleHead";
 
 interface Props {
   apiOnline: boolean;
@@ -140,31 +141,24 @@ export default function ProveedorIngresar({
 
       <div className="card responsable-module-shell">
         <header className="responsable-module-page-head">
-          <div className="responsable-module-page-head-main">
-            <div className="responsable-module-page-icon" aria-hidden>
-              <HubMenuIcon id="prov_ingresar" className="menu-app-icon-svg" />
-            </div>
-            <div>
-              <span className="responsable-module-kicker">Proveedores</span>
-              <h2 className="responsable-module-page-title">
-                {editId ? `Editar proveedor #${form.cod}` : "Ingresar proveedor"}
-              </h2>
-              <p className="responsable-module-page-sub">
-                Cada cuenta administra su propia base. Los cádigos se asignan autom?ticamente de
-                forma correlativa.
-              </p>
-            </div>
-          </div>
+          <PageModuleHeadRow
+            icon={{ source: "hub", id: "prov_ingresar" }}
+            kicker="Proveedores"
+            title={editId ? `Editar proveedor #${form.cod}` : "Ingresar proveedor"}
+            subtitle="Cada cuenta administra su propia base. Los c?digos se asignan autom?ticamente de forma correlativa."
+            titleClassName="responsable-module-page-title"
+            subClassName="responsable-module-page-sub"
+          />
           {editId ? (
-            <span className="responsable-module-mode-badge">Modo edición</span>
+            <span className="responsable-module-mode-badge">Modo edici?n</span>
           ) : null}
         </header>
 
         <section className="responsable-activos-panel" aria-label="Proveedores recientes">
           <div className="responsable-activos-panel-head">
             <div>
-              <h3>En su catálogo</h3>
-              <p>Acceso rápido a proveedores ya registrados en la cuenta.</p>
+              <h3>En su cat?logo</h3>
+              <p>Acceso r?pido a proveedores ya registrados en la cuenta.</p>
             </div>
             <span className="responsable-module-stat-pill" aria-live="polite">
               {cargandoRecientes
@@ -202,7 +196,7 @@ export default function ProveedorIngresar({
                       <button
                         type="button"
                         className={`responsable-ingresar-chip${seleccionado ? " is-selected" : ""}`}
-                        title={`Código ${p.cod} ? ${p.razon_social}`}
+                        title={`C?digo ${p.cod} ? ${p.razon_social}`}
                         onClick={() => onEditarExistente?.(p)}
                       >
                         <span className="responsable-ingresar-chip-name">
@@ -222,10 +216,10 @@ export default function ProveedorIngresar({
           <div className="responsable-ingresar-grid">
             <section className="responsable-form-block" aria-labelledby="prov-seccion-id">
               <h3 id="prov-seccion-id" className="responsable-form-block-title">
-                Identificación
+                Identificaci?n
               </h3>
               <div className="field">
-                <label htmlFor="prov-cod">Código proveedor</label>
+                <label htmlFor="prov-cod">C?digo proveedor</label>
                 <input
                   id="prov-cod"
                   type="number"
@@ -241,7 +235,7 @@ export default function ProveedorIngresar({
                 <p className="field-hint">Correlativo autom?tico de su cuenta.</p>
               </div>
               <div className="field">
-                <label htmlFor="prov-razon">Razón Social *</label>
+                <label htmlFor="prov-razon">Raz?n Social *</label>
                 <input
                   id="prov-razon"
                   required
@@ -261,10 +255,10 @@ export default function ProveedorIngresar({
 
             <section className="responsable-form-block" aria-labelledby="prov-seccion-ubic">
               <h3 id="prov-seccion-ubic" className="responsable-form-block-title">
-                Ubicación
+                Ubicaci?n
               </h3>
               <div className="field">
-                <label htmlFor="prov-dir">Dirección</label>
+                <label htmlFor="prov-dir">Direcci?n</label>
                 <input
                   id="prov-dir"
                   value={form.direccion}
