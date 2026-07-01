@@ -38,13 +38,33 @@ interface MarcaOpcion {
   usosCuenta: number;
 }
 
+function txt(val: string | null | undefined): string {
+  return String(val ?? "").trim();
+}
+
 function esFichaStubCatalogo(meta: StockControlSanitarioProductoNombreGlobal): boolean {
   return (
     meta.en_ficha &&
     !meta.tiene_foto &&
-    !meta.laboratorio.trim() &&
-    !meta.principio_activo.trim()
+    !txt(meta.laboratorio) &&
+    !txt(meta.principio_activo)
   );
+}
+
+function normalizarMarcaGlobal(
+  meta: StockControlSanitarioProductoNombreGlobal
+): StockControlSanitarioProductoNombreGlobal {
+  return {
+    nombre: txt(meta.nombre),
+    creado_en: txt(meta.creado_en),
+    creado_por: txt(meta.creado_por),
+    en_ficha: Boolean(meta.en_ficha),
+    laboratorio: txt(meta.laboratorio),
+    principio_activo: txt(meta.principio_activo),
+    tiene_foto: Boolean(meta.tiene_foto),
+    usos: Number(meta.usos ?? 0),
+    usos_cuenta: Number(meta.usos_cuenta ?? 0),
+  };
 }
 
 function autorLabelFromUser(user: AuthUser | null | undefined): string {
@@ -60,14 +80,15 @@ function puedeEliminarMarcaUsuario(
   if (!user) return false;
   if (user.es_super_admin) return true;
   const autor = autorLabelFromUser(user);
-  const creador = meta.creado_por.trim();
+  const creador = txt(meta.creado_por);
   if (!autor || !creador) return false;
   return creador.toLocaleLowerCase("es") === autor.toLocaleLowerCase("es");
 }
 
-function agregadaEnMesActual(creadoEn: string): boolean {
-  if (!creadoEn.trim()) return false;
-  const d = new Date(creadoEn);
+function agregadaEnMesActual(creadoEn: string | null | undefined): boolean {
+  const raw = txt(creadoEn);
+  if (!raw) return false;
+  const d = new Date(raw);
   if (Number.isNaN(d.getTime())) return false;
   const now = new Date();
   return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
@@ -264,7 +285,9 @@ export default function StockControlSanitarioMarcaSelect({
     }
     try {
       const list = await fetchStockControlSanitarioProductoNombresGlobales();
-      setMarcasGlobales(list.filter((m) => m.nombre.trim()));
+      setMarcasGlobales(
+        list.map(normalizarMarcaGlobal).filter((m) => m.nombre)
+      );
     } catch {
       setMarcasGlobales([]);
     }

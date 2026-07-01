@@ -1052,12 +1052,12 @@ export async function listStockControlSanitarioProductoNombresGlobales(
     const key = f.nombre.toLocaleLowerCase("es-UY");
     map.set(key, {
       nombre: f.nombre,
-      creado_en: f.creado_en || f.actualizado_en,
-      creado_por: f.creado_por || f.actualizado_por,
+      creado_en: String(f.creado_en || f.actualizado_en || "").trim(),
+      creado_por: String(f.creado_por || f.actualizado_por || "").trim(),
       en_ficha: true,
-      laboratorio: f.laboratorio,
-      principio_activo: f.principio_activo,
-      tiene_foto: f.tiene_foto,
+      laboratorio: String(f.laboratorio ?? "").trim(),
+      principio_activo: String(f.principio_activo ?? "").trim(),
+      tiene_foto: Boolean(f.tiene_foto),
       usos: 0,
       usos_cuenta: usosCuentaMap.get(key) ?? 0,
     });

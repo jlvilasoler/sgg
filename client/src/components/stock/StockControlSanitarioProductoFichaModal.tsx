@@ -293,8 +293,8 @@ export default function StockControlSanitarioProductoFichaModal({
               <p className="stock-producto-ficha-kicker">Ficha del producto</p>
               <h2 id="stock-producto-ficha-title">{titulo}</h2>
               <div className="stock-producto-ficha-head-meta">
-                {form.especie.trim() ? (
-                  <span className="stock-producto-ficha-badge">{form.especie.trim()}</span>
+                {String(form.especie ?? "").trim() ? (
+                  <span className="stock-producto-ficha-badge">{String(form.especie ?? "").trim()}</span>
                 ) : null}
                 {metaActualizacion ? (
                   <span className="stock-producto-ficha-meta muted">
@@ -485,7 +485,7 @@ export default function StockControlSanitarioProductoFichaModal({
                   />
                 ) : (
                   <p className="stock-producto-ficha-texto">
-                    {form.caracteristicas.trim() || "—"}
+                    {String(form.caracteristicas ?? "").trim() || "—"}
                   </p>
                 )}
               </div>
@@ -509,7 +509,7 @@ export default function StockControlSanitarioProductoFichaModal({
                   />
                 ) : (
                   <p className="stock-producto-ficha-texto">
-                    {form.detalles_tecnicos.trim() || "—"}
+                    {String(form.detalles_tecnicos ?? "").trim() || "—"}
                   </p>
                 )}
               </div>
@@ -554,7 +554,7 @@ function Campo({
             onChange={(e) => onChange(e.target.value)}
           />
         ) : (
-          <span>{value.trim() || "—"}</span>
+          <span>{String(value ?? "").trim() || "—"}</span>
         )}
       </div>
     </div>
@@ -590,7 +590,7 @@ function CampoEspera({
           onChange={(e) => onChange(e.target.value)}
         />
       ) : (
-        <p className="stock-producto-ficha-espera-valor">{value.trim() || "—"}</p>
+        <p className="stock-producto-ficha-espera-valor">{String(value ?? "").trim() || "—"}</p>
       )}
     </div>
   );
