@@ -573,7 +573,7 @@ export default function StockControlSanitarioModal({
                       modulo={modulo}
                       onError={onError}
                       onFichaSaved={onSuccess}
-                      puedeEliminarMarca={Boolean(currentUser?.es_super_admin)}
+                      currentUser={currentUser}
                     />
                   </div>
                   <div className="field">

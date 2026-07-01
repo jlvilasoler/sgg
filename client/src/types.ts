@@ -402,6 +402,7 @@ export interface StockControlSanitarioProductoFicha {
   creado_en: string;
   actualizado_en: string;
   actualizado_por: string;
+  creado_por: string;
 }
 
 export interface StockControlSanitarioProductoFichaInput {
@@ -425,6 +426,8 @@ export interface StockControlSanitarioProductoFichaResumen {
   principio_activo: string;
   via_administracion: string;
   especie: string;
+  creado_en: string;
+  creado_por: string;
   actualizado_en: string;
   actualizado_por: string;
   tiene_foto: boolean;
@@ -434,10 +437,13 @@ export interface StockControlSanitarioProductoFichaResumen {
 export interface StockControlSanitarioProductoNombreGlobal {
   nombre: string;
   creado_en: string;
+  creado_por: string;
   en_ficha: boolean;
   laboratorio: string;
   principio_activo: string;
   tiene_foto: boolean;
+  usos: number;
+  usos_cuenta: number;
 }
 
 export interface StockControlSanitarioResumenItem {

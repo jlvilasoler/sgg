@@ -745,7 +745,7 @@ export default function StockGanaderoSanidad({
                   onPatch={patchForm}
                   onError={onError}
                   onFichaSaved={(msg) => onSuccess(msg)}
-                  puedeEliminarMarca={Boolean(currentUser?.es_super_admin)}
+                  currentUser={currentUser}
                 />
               </div>
 

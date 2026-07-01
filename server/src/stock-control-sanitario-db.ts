@@ -688,6 +688,7 @@ export interface StockControlSanitarioProductoFicha {
   creado_en: string;
   actualizado_en: string;
   actualizado_por: string;
+  creado_por: string;
 }
 
 export interface StockControlSanitarioProductoFichaInput {
@@ -732,7 +733,8 @@ export async function migrateStockControlSanitarioProductoFicha(db: Db): Promise
          foto_data TEXT NOT NULL DEFAULT '',
          creado_en TEXT NOT NULL,
          actualizado_en TEXT NOT NULL,
-         actualizado_por TEXT NOT NULL DEFAULT ''
+         actualizado_por TEXT NOT NULL DEFAULT '',
+         creado_por TEXT NOT NULL DEFAULT ''
        )`
     )
     .run();
@@ -746,6 +748,32 @@ export async function migrateStockControlSanitarioProductoFicha(db: Db): Promise
       .run();
   } catch {
     /* índice ya existe */
+  }
+
+  try {
+    await db
+      .prepare(
+        `ALTER TABLE ${PRODUCTO_FICHA_TABLE} ADD COLUMN creado_por TEXT NOT NULL DEFAULT ''`
+      )
+      .run();
+  } catch {
+    /* columna ya existe */
+  }
+
+  try {
+    await db
+      .prepare(
+        `UPDATE ${PRODUCTO_FICHA_TABLE}
+         SET creado_por = actualizado_por
+         WHERE TRIM(creado_por) = ''
+           AND TRIM(actualizado_por) <> ''
+           AND TRIM(laboratorio) = ''
+           AND TRIM(principio_activo) = ''
+           AND TRIM(foto_data) = ''`
+      )
+      .run();
+  } catch {
+    /* backfill opcional */
   }
 
   await seedStockControlSanitarioProductoFichasIfMissing(db);
@@ -770,6 +798,13 @@ export async function seedStockControlSanitarioProductoFichasIfMissing(db: Db): 
     const existente = await getStockControlSanitarioProductoFicha(db, seed.nombre);
     if (existente?.detalles_tecnicos?.trim()) continue;
 
+    const fotoExistente = existente?.foto_data?.trim() ?? "";
+    const fotoSeed = seed.foto ?? "";
+    const foto_data =
+      fotoExistente && esFotoProductoAceptable(fotoExistente)
+        ? fotoExistente
+        : fotoSeed || fotoExistente;
+
     await upsertStockControlSanitarioProductoFicha(
       db,
       {
@@ -783,7 +818,7 @@ export async function seedStockControlSanitarioProductoFichasIfMissing(db: Db): 
         tiempo_espera_leche: seed.tiempo_espera_leche,
         detalles_tecnicos: seed.detalles_tecnicos,
         caracteristicas: seed.caracteristicas,
-        foto_data: seed.foto ?? "",
+        foto_data,
       },
       "sistema"
     );
@@ -800,7 +835,7 @@ export async function getStockControlSanitarioProductoFicha(
     .prepare(
       `SELECT id, nombre, laboratorio, principio_activo, presentacion, via_administracion,
               especie, tiempo_espera_carne, tiempo_espera_leche, detalles_tecnicos,
-              caracteristicas, foto_data, creado_en, actualizado_en, actualizado_por
+              caracteristicas, foto_data, creado_en, actualizado_en, actualizado_por, creado_por
        FROM ${PRODUCTO_FICHA_TABLE}
        WHERE LOWER(nombre) = LOWER(@nombre)
        LIMIT 1`
@@ -873,11 +908,11 @@ export async function upsertStockControlSanitarioProductoFicha(
         `INSERT INTO ${PRODUCTO_FICHA_TABLE} (
            nombre, laboratorio, principio_activo, presentacion, via_administracion,
            especie, tiempo_espera_carne, tiempo_espera_leche, detalles_tecnicos,
-           caracteristicas, foto_data, creado_en, actualizado_en, actualizado_por
+           caracteristicas, foto_data, creado_en, actualizado_en, actualizado_por, creado_por
          ) VALUES (
            @nombre, @laboratorio, @principio_activo, @presentacion, @via_administracion,
            @especie, @tiempo_espera_carne, @tiempo_espera_leche, @detalles_tecnicos,
-           @caracteristicas, @foto_data, @creado_en, @actualizado_en, @actualizado_por
+           @caracteristicas, @foto_data, @creado_en, @actualizado_en, @actualizado_por, @creado_por
          )`
       )
       .run({
@@ -885,6 +920,7 @@ export async function upsertStockControlSanitarioProductoFicha(
         creado_en: ahora,
         actualizado_en: ahora,
         actualizado_por: autor,
+        creado_por: autor,
       });
   }
 
@@ -900,6 +936,8 @@ export interface StockControlSanitarioProductoFichaResumen {
   principio_activo: string;
   via_administracion: string;
   especie: string;
+  creado_en: string;
+  creado_por: string;
   actualizado_en: string;
   actualizado_por: string;
   tiene_foto: boolean;
@@ -911,7 +949,7 @@ export async function listStockControlSanitarioProductoFichas(
   const rows = (await db
     .prepare(
       `SELECT id, nombre, laboratorio, principio_activo, via_administracion, especie,
-              actualizado_en, actualizado_por,
+              actualizado_en, actualizado_por, creado_en, creado_por,
               CASE WHEN TRIM(foto_data) <> '' THEN 1 ELSE 0 END AS tiene_foto
        FROM ${PRODUCTO_FICHA_TABLE}
        ORDER BY LOWER(nombre), id`
@@ -929,34 +967,138 @@ export async function listStockControlSanitarioProductoFichas(
     especie: String(row.especie ?? "").trim(),
     actualizado_en: String(row.actualizado_en ?? "").trim(),
     actualizado_por: String(row.actualizado_por ?? "").trim(),
+    creado_en: String(row.creado_en ?? "").trim(),
+    creado_por: String(row.creado_por ?? "").trim(),
     tiene_foto: Boolean(row.tiene_foto),
   }));
+}
+
+function esFichaStubProducto(row: {
+  laboratorio: string;
+  principio_activo: string;
+  foto_data?: string;
+  tiene_foto?: boolean;
+}): boolean {
+  const tieneFoto = Boolean(row.tiene_foto) || Boolean(String(row.foto_data ?? "").trim());
+  return !tieneFoto && !row.laboratorio.trim() && !row.principio_activo.trim();
+}
+
+function autorEtiquetaCoincide(a: string, b: string): boolean {
+  const na = a.trim().toLocaleLowerCase("es");
+  const nb = b.trim().toLocaleLowerCase("es");
+  return Boolean(na && nb && na === nb);
 }
 
 export interface StockControlSanitarioProductoNombreGlobal {
   nombre: string;
   creado_en: string;
+  creado_por: string;
   en_ficha: boolean;
   laboratorio: string;
   principio_activo: string;
   tiene_foto: boolean;
+  usos: number;
+  usos_cuenta: number;
 }
 
 export async function listStockControlSanitarioProductoNombresGlobales(
-  db: Db
+  db: Db,
+  autoresCuenta: string[] = []
 ): Promise<StockControlSanitarioProductoNombreGlobal[]> {
   const map = new Map<string, StockControlSanitarioProductoNombreGlobal>();
+
+  const autoresNorm = [
+    ...new Set(
+      autoresCuenta
+        .map((a) => a.trim().toLocaleLowerCase("es"))
+        .filter(Boolean)
+    ),
+  ];
+
+  const usosCuentaMap = new Map<string, number>();
+  if (autoresNorm.length > 0) {
+    const autoresPlaceholders = autoresNorm.map((_, i) => `@a${i}`).join(", ");
+    const autoresParams: Record<string, unknown> = {};
+    autoresNorm.forEach((a, i) => {
+      autoresParams[`a${i}`] = a;
+    });
+
+    const usosCuentaRows = (await db
+      .prepare(
+        `SELECT TRIM(producto_nombre) AS nombre, COUNT(*) AS usos
+         FROM (
+           SELECT producto_nombre, creado_por
+           FROM ${TABLE.ganadero}
+           WHERE TRIM(producto_nombre) <> ''
+           UNION ALL
+           SELECT producto_nombre, creado_por
+           FROM ${TABLE.equino}
+           WHERE TRIM(producto_nombre) <> ''
+         ) AS registros
+         WHERE LOWER(TRIM(creado_por)) IN (${autoresPlaceholders})
+         GROUP BY LOWER(TRIM(producto_nombre)), TRIM(producto_nombre)`
+      )
+      .all(autoresParams)) as { nombre: string; usos: number }[];
+
+    for (const row of usosCuentaRows) {
+      const nombre = String(row.nombre ?? "").trim();
+      if (!nombre) continue;
+      usosCuentaMap.set(nombre.toLocaleLowerCase("es-UY"), Number(row.usos ?? 0));
+    }
+  }
 
   const fichas = await listStockControlSanitarioProductoFichas(db);
   for (const f of fichas) {
     const key = f.nombre.toLocaleLowerCase("es-UY");
     map.set(key, {
       nombre: f.nombre,
-      creado_en: f.actualizado_en,
+      creado_en: f.creado_en || f.actualizado_en,
+      creado_por: f.creado_por || f.actualizado_por,
       en_ficha: true,
       laboratorio: f.laboratorio,
       principio_activo: f.principio_activo,
       tiene_foto: f.tiene_foto,
+      usos: 0,
+      usos_cuenta: usosCuentaMap.get(key) ?? 0,
+    });
+  }
+
+  const usosRows = (await db
+    .prepare(
+      `SELECT TRIM(producto_nombre) AS nombre, COUNT(*) AS usos
+       FROM (
+         SELECT producto_nombre
+         FROM ${TABLE.ganadero}
+         WHERE TRIM(producto_nombre) <> ''
+         UNION ALL
+         SELECT producto_nombre
+         FROM ${TABLE.equino}
+         WHERE TRIM(producto_nombre) <> ''
+       ) AS usos
+       GROUP BY LOWER(TRIM(producto_nombre)), TRIM(producto_nombre)`
+    )
+    .all()) as { nombre: string; usos: number }[];
+
+  for (const row of usosRows) {
+    const nombre = String(row.nombre ?? "").trim();
+    if (!nombre) continue;
+    const key = nombre.toLocaleLowerCase("es-UY");
+    const usos = Number(row.usos ?? 0);
+    const existente = map.get(key);
+    if (existente) {
+      existente.usos = usos;
+      continue;
+    }
+    map.set(key, {
+      nombre,
+      creado_en: "",
+      creado_por: "",
+      en_ficha: false,
+      laboratorio: "",
+      principio_activo: "",
+      tiene_foto: false,
+      usos,
+      usos_cuenta: usosCuentaMap.get(key) ?? 0,
     });
   }
 
@@ -983,7 +1125,7 @@ export async function listStockControlSanitarioProductoNombresGlobales(
     const creadoEn = String(row.creado_en ?? "").trim();
     const existente = map.get(key);
     if (existente) {
-      if (creadoEn && (!existente.creado_en || creadoEn > existente.creado_en)) {
+      if (!existente.en_ficha && creadoEn && !existente.creado_en) {
         existente.creado_en = creadoEn;
       }
       continue;
@@ -991,16 +1133,26 @@ export async function listStockControlSanitarioProductoNombresGlobales(
     map.set(key, {
       nombre,
       creado_en: creadoEn,
+      creado_por: "",
       en_ficha: false,
       laboratorio: "",
       principio_activo: "",
       tiene_foto: false,
+      usos: 0,
+      usos_cuenta: usosCuentaMap.get(key) ?? 0,
     });
   }
 
-  return [...map.values()].sort((a, b) =>
-    a.nombre.localeCompare(b.nombre, "es", { sensitivity: "base" })
-  );
+  for (const [key, entry] of map) {
+    if (entry.usos_cuenta === 0 && usosCuentaMap.has(key)) {
+      entry.usos_cuenta = usosCuentaMap.get(key) ?? 0;
+    }
+  }
+
+  return [...map.values()].sort((a, b) => {
+    if (b.usos !== a.usos) return b.usos - a.usos;
+    return a.nombre.localeCompare(b.nombre, "es", { sensitivity: "base" });
+  });
 }
 
 export async function deleteStockControlSanitarioProductoFicha(
@@ -1017,4 +1169,34 @@ export async function deleteStockControlSanitarioProductoFicha(
   const changes = Number((result as { changes?: number }).changes ?? 0);
   if (changes < 1) throw new Error("Producto no encontrado en el catálogo.");
   return nombre;
+}
+
+export async function deleteStockControlSanitarioProductoFichaForUser(
+  db: Db,
+  nombreInput: string,
+  opts: { esSuperAdmin: boolean; autorLabel: string }
+): Promise<string> {
+  const nombre = normalizeFichaNombre(nombreInput);
+  if (!nombre) throw new Error("Indicá el nombre del producto.");
+
+  const ficha = await getStockControlSanitarioProductoFicha(db, nombre);
+  if (!ficha) throw new Error("Producto no encontrado en el catálogo.");
+
+  const stub = esFichaStubProducto(ficha);
+  if (stub) {
+    if (!opts.esSuperAdmin) {
+      const creador = (ficha.creado_por || ficha.actualizado_por).trim();
+      if (!creador || !autorEtiquetaCoincide(creador, opts.autorLabel)) {
+        throw new Error(
+          "Solo quien agregó esta marca o el superadministrador de SAG puede eliminarla."
+        );
+      }
+    }
+  } else if (!opts.esSuperAdmin) {
+    throw new Error(
+      "Solo el superadministrador de SAG puede eliminar productos del catálogo central."
+    );
+  }
+
+  return deleteStockControlSanitarioProductoFicha(db, nombre);
 }

@@ -1,4 +1,4 @@
-import type { StockControlSanitarioInput } from "../../types";
+import type { AuthUser, StockControlSanitarioInput } from "../../types";
 import type { StockDispositivoModulo } from "../../api";
 import { useCallback, useState } from "react";
 import StockControlSanitarioCantidadSelect from "./StockControlSanitarioCantidadSelect";
@@ -102,8 +102,7 @@ interface Props {
   historialEsperas?: string[];
   historialMotivos?: string[];
   bandLayout?: boolean;
-  /** Solo superadministrador: puede eliminar marcas agregadas manualmente. */
-  puedeEliminarMarca?: boolean;
+  currentUser?: AuthUser | null;
 }
 
 export default function StockControlSanitarioRegistroForm({
@@ -124,7 +123,7 @@ export default function StockControlSanitarioRegistroForm({
   historialEsperas = [],
   historialMotivos = [],
   bandLayout = false,
-  puedeEliminarMarca = false,
+  currentUser = null,
 }: Props) {
   const [sugeridoFicha, setSugeridoFicha] = useState<ProductoSugeridoFlags>({
     formula: false,
@@ -310,7 +309,7 @@ export default function StockControlSanitarioRegistroForm({
             modulo={modulo}
             onError={onError}
             onFichaSaved={onFichaSaved}
-            puedeEliminarMarca={puedeEliminarMarca}
+            currentUser={currentUser}
           />
         </div>
         <div className="field">

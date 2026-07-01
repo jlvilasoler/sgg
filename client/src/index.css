@@ -33198,6 +33198,34 @@ button.sg-kpi-card:disabled {
   color: #7c5c12;
 }
 
+.stock-control-sanitario-marca-seccion-label--ultimas {
+  margin-top: 0.55rem;
+  color: #0d6e7a;
+}
+
+.stock-control-sanitario-marca-seccion-label--cuenta {
+  margin-top: 0.55rem;
+  color: #1a5f8a;
+}
+
+.stock-control-sanitario-marca-usos-badge {
+  flex-shrink: 0;
+  min-width: 1.35rem;
+  padding: 0.08rem 0.35rem;
+  border-radius: 999px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+  color: #7c5c12;
+  background: rgba(124, 92, 18, 0.12);
+}
+
+.stock-control-sanitario-marca-usos-badge--cuenta {
+  color: #1a5f8a;
+  background: rgba(26, 95, 138, 0.12);
+}
+
 .stock-control-sanitario-marca-row {
   display: flex;
   align-items: stretch;

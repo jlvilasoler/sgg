@@ -46,6 +46,7 @@ import { auditBajasDispositivos, auditStockMovimiento, historialAutorFromRequest
 import { type Empresa, type Presupuesto, type PresupuestoInput } from "./types.js";
 import { empresasCuenta } from "./database.js";
 import type { UserPublic } from "./auth-db.js";
+import * as authDb from "./auth-db.js";
 import {
   BROU_MAPEO_DEFAULT,
   normalizeComisionConfig,
@@ -528,6 +529,29 @@ async function cuentaIdForScopedRead(user: UserPublic): Promise<number | null> {
 /** cuenta_id para INSERTAR: su cuenta, o VILA DIAZ como fallback para super admin. */
 async function cuentaIdParaInsert(user: UserPublic): Promise<number | null> {
   return await empresasCuenta.cuentaIdParaInsert(db.getDb(), user);
+}
+
+/** Etiquetas creado_por de todos los usuarios de la cuenta (para marcas más usadas). */
+async function autoresLabelsForMarcaScope(user: UserPublic): Promise<string[]> {
+  const labels = new Set<string>();
+  const self = (user.nombre ?? "").trim() || (user.email ?? "").trim();
+  if (self) labels.add(self);
+
+  const cuentaId = await cuentaIdForUser(user);
+  if (cuentaId != null) {
+    const users = await authDb.listUsers(db.getDb(), {
+      empresa_id: cuentaId,
+      incluir_admin_id: user.id,
+    });
+    for (const u of users) {
+      const nombre = (u.nombre ?? "").trim();
+      const email = (u.email ?? "").trim();
+      if (nombre) labels.add(nombre);
+      if (email) labels.add(email);
+    }
+  }
+
+  return [...labels];
 }
 
 async function stockGanaderoFiltersFromRequest(
@@ -1811,10 +1835,12 @@ app.get("/api/stock-ganadero/control-sanitario/producto-fichas", async (_req, re
   }
 });
 
-app.get("/api/stock-ganadero/control-sanitario/producto-nombres", async (_req, res) => {
+app.get("/api/stock-ganadero/control-sanitario/producto-nombres", async (req, res) => {
   try {
+    const autoresCuenta = req.user ? await autoresLabelsForMarcaScope(req.user) : [];
     const data = await stockControlSanitario.listStockControlSanitarioProductoNombresGlobales(
-      db.getDb()
+      db.getDb(),
+      autoresCuenta
     );
     res.json({ ok: true, data });
   } catch (e) {
@@ -1858,24 +1884,21 @@ app.put("/api/stock-ganadero/control-sanitario/producto-ficha", async (req, res)
 });
 
 app.delete("/api/stock-ganadero/control-sanitario/producto-ficha/:nombre", async (req, res) => {
-  if (!req.user?.es_super_admin) {
-    res.status(403).json({
-      ok: false,
-      error: "Solo el superadministrador puede eliminar productos del catálogo sanitario",
-    });
-    return;
-  }
   try {
-    const nombre = await stockControlSanitario.deleteStockControlSanitarioProductoFicha(
+    const autor = historialAutorLabelFromRequest(req);
+    const nombre = await stockControlSanitario.deleteStockControlSanitarioProductoFichaForUser(
       db.getDb(),
-      String(req.params.nombre ?? "")
+      String(req.params.nombre ?? ""),
+      {
+        esSuperAdmin: Boolean(req.user?.es_super_admin),
+        autorLabel: autor,
+      }
     );
     res.json({ ok: true, data: { nombre } });
   } catch (e) {
-    res.status(400).json({
-      ok: false,
-      error: e instanceof Error ? e.message : "Error al eliminar producto sanitario",
-    });
+    const msg = e instanceof Error ? e.message : "Error al eliminar producto sanitario";
+    const status = /solo quien agregó|solo el superadministrador/i.test(msg) ? 403 : 400;
+    res.status(status).json({ ok: false, error: msg });
   }
 });
 

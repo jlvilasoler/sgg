@@ -11,27 +11,31 @@ import {
   fetchStockControlSanitarioProductoNombresGlobales,
   saveStockControlSanitarioProductoFicha,
 } from "../../api";
-import type { StockControlSanitarioProductoNombreGlobal } from "../../types";
+import type { AuthUser, StockControlSanitarioProductoNombreGlobal } from "../../types";
 import { confirmAction } from "../../utils/confirm";
 import { IconEliminar } from "../icons/ActionIcons";
 import StockControlSanitarioProductoFichaModal from "./StockControlSanitarioProductoFichaModal";
 
 const STORAGE_KEY = "scg-marcas-remedio-extras";
 const MAX_MARCA_LEN = 120;
-const DESTACADO_MS = 30 * 24 * 60 * 60 * 1000;
+const TOP_MARCAS_DESTACADAS = 10;
+const TOP_MARCAS_CUENTA = 8;
 
 interface MarcaExtra {
   nombre: string;
   creada_en: string;
 }
 
+type MarcaSeccion = "destacada" | "mas-usada" | "ultima-agregada" | "resto";
+
 interface MarcaOpcion {
   nombre: string;
   paises: readonly MarcaRemedioPais[];
   esPersonalizada: boolean;
-  /** Ficha mínima en catálogo central (solo nombre): superadmin puede quitarla del listado. */
-  esEliminableCatalogo: boolean;
-  destacada: boolean;
+  puedeEliminar: boolean;
+  seccion: MarcaSeccion;
+  usos: number;
+  usosCuenta: number;
 }
 
 function esFichaStubCatalogo(meta: StockControlSanitarioProductoNombreGlobal): boolean {
@@ -43,11 +47,142 @@ function esFichaStubCatalogo(meta: StockControlSanitarioProductoNombreGlobal): b
   );
 }
 
-function esMarcaDestacada(creadaEn: string): boolean {
-  if (!creadaEn) return false;
-  const t = Date.parse(creadaEn);
-  if (Number.isNaN(t)) return false;
-  return Date.now() - t < DESTACADO_MS;
+function autorLabelFromUser(user: AuthUser | null | undefined): string {
+  if (!user) return "";
+  return user.nombre.trim() || user.email.trim();
+}
+
+function puedeEliminarMarcaUsuario(
+  meta: StockControlSanitarioProductoNombreGlobal | undefined,
+  user: AuthUser | null | undefined
+): boolean {
+  if (!meta?.en_ficha || !esFichaStubCatalogo(meta)) return false;
+  if (!user) return false;
+  if (user.es_super_admin) return true;
+  const autor = autorLabelFromUser(user);
+  const creador = meta.creado_por.trim();
+  if (!autor || !creador) return false;
+  return creador.toLocaleLowerCase("es") === autor.toLocaleLowerCase("es");
+}
+
+function agregadaEnMesActual(creadoEn: string): boolean {
+  if (!creadoEn.trim()) return false;
+  const d = new Date(creadoEn);
+  if (Number.isNaN(d.getTime())) return false;
+  const now = new Date();
+  return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+}
+
+function marcaKey(nombre: string): string {
+  return nombre.toLocaleLowerCase("es-UY");
+}
+
+function ordenarMarcasPorSeccion(
+  items: MarcaOpcion[],
+  marcasGlobalesPorNombre: Map<string, StockControlSanitarioProductoNombreGlobal>
+): MarcaOpcion[] {
+  const withUsos = items.map((m) => {
+    const meta = marcasGlobalesPorNombre.get(marcaKey(m.nombre));
+    return {
+      item: m,
+      meta,
+      usos: meta?.usos ?? 0,
+      usosCuenta: meta?.usos_cuenta ?? 0,
+    };
+  });
+
+  const keysDestacadas = new Set(
+    withUsos
+      .filter((x) => x.usos > 0)
+      .sort((a, b) => b.usos - a.usos || a.item.nombre.localeCompare(b.item.nombre, "es"))
+      .slice(0, TOP_MARCAS_DESTACADAS)
+      .map((x) => marcaKey(x.item.nombre))
+  );
+
+  const keysMasUsadas = new Set(
+    withUsos
+      .filter((x) => x.usosCuenta > 0 && !keysDestacadas.has(marcaKey(x.item.nombre)))
+      .sort(
+        (a, b) =>
+          b.usosCuenta - a.usosCuenta || a.item.nombre.localeCompare(b.item.nombre, "es")
+      )
+      .slice(0, TOP_MARCAS_CUENTA)
+      .map((x) => marcaKey(x.item.nombre))
+  );
+
+  const ultimasCandidatas = withUsos
+    .filter(({ item, meta }) => {
+      const key = marcaKey(item.nombre);
+      if (keysDestacadas.has(key) || keysMasUsadas.has(key)) return false;
+      if (!meta?.en_ficha || !esFichaStubCatalogo(meta)) return false;
+      return agregadaEnMesActual(meta.creado_en);
+    })
+    .sort((a, b) => {
+      const ta = a.meta?.creado_en ?? "";
+      const tb = b.meta?.creado_en ?? "";
+      return tb.localeCompare(ta) || a.item.nombre.localeCompare(b.item.nombre, "es");
+    });
+
+  const keysUltimas = new Set(ultimasCandidatas.map((x) => marcaKey(x.item.nombre)));
+
+  const destacadas = withUsos
+    .filter((x) => keysDestacadas.has(marcaKey(x.item.nombre)))
+    .sort((a, b) => b.usos - a.usos || a.item.nombre.localeCompare(b.item.nombre, "es"))
+    .map(({ item, usos, usosCuenta }) => ({
+      ...item,
+      seccion: "destacada" as const,
+      usos,
+      usosCuenta,
+    }));
+
+  const masUsadas = withUsos
+    .filter((x) => keysMasUsadas.has(marcaKey(x.item.nombre)))
+    .sort(
+      (a, b) =>
+        b.usosCuenta - a.usosCuenta || a.item.nombre.localeCompare(b.item.nombre, "es")
+    )
+    .map(({ item, usos, usosCuenta }) => ({
+      ...item,
+      seccion: "mas-usada" as const,
+      usos,
+      usosCuenta,
+    }));
+
+  const ultimas = ultimasCandidatas.map(({ item, meta, usos, usosCuenta }) => ({
+    ...item,
+    seccion: "ultima-agregada" as const,
+    usos: meta?.usos ?? usos,
+    usosCuenta: meta?.usos_cuenta ?? usosCuenta,
+  }));
+
+  const resto = withUsos
+    .filter((x) => {
+      const key = marcaKey(x.item.nombre);
+      return (
+        !keysDestacadas.has(key) && !keysMasUsadas.has(key) && !keysUltimas.has(key)
+      );
+    })
+    .sort((a, b) => a.item.nombre.localeCompare(b.item.nombre, "es", { sensitivity: "base" }))
+    .map(({ item, usos, usosCuenta }) => ({
+      ...item,
+      seccion: "resto" as const,
+      usos,
+      usosCuenta,
+    }));
+
+  return [...destacadas, ...masUsadas, ...ultimas, ...resto];
+}
+
+function etiquetaSeccionMarca(
+  seccion: MarcaSeccion,
+  prev: MarcaSeccion | null,
+  busqueda: string
+): string | null {
+  if (busqueda.trim()) return null;
+  if (seccion === "destacada" && prev !== "destacada") return "Destacadas";
+  if (seccion === "mas-usada" && prev !== "mas-usada") return "Más usadas";
+  if (seccion === "ultima-agregada" && prev !== "ultima-agregada") return "Últimas agregadas";
+  return null;
 }
 
 function loadMarcaExtras(): MarcaExtra[] {
@@ -94,8 +229,7 @@ interface Props {
   modulo?: StockDispositivoModulo;
   onError?: (msg: string) => void;
   onFichaSaved?: (msg: string) => void;
-  /** Solo superadministrador: puede eliminar fichas mínimas del catálogo central. */
-  puedeEliminarMarca?: boolean;
+  currentUser?: AuthUser | null;
 }
 
 export default function StockControlSanitarioMarcaSelect({
@@ -107,7 +241,7 @@ export default function StockControlSanitarioMarcaSelect({
   modulo = "ganadero",
   onError = () => {},
   onFichaSaved,
-  puedeEliminarMarca = false,
+  currentUser = null,
 }: Props) {
   const rootRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -178,7 +312,7 @@ export default function StockControlSanitarioMarcaSelect({
     const list: MarcaOpcion[] = [];
     const push = (
       nombre: string,
-      opts?: { esPersonalizada?: boolean; esEliminableCatalogo?: boolean; creadaEn?: string }
+      opts?: { esPersonalizada?: boolean; puedeEliminar?: boolean }
     ) => {
       const t = nombre.trim();
       if (!t) return;
@@ -187,54 +321,55 @@ export default function StockControlSanitarioMarcaSelect({
       seen.add(key);
       const catalogo = catalogoPorNombre.get(key);
       const global = marcasGlobalesPorNombre.get(key);
-      const creadaEn = opts?.creadaEn ?? global?.creado_en ?? "";
       list.push({
         nombre: catalogo?.nombre ?? t,
         paises: catalogo?.paises ?? [],
         esPersonalizada: opts?.esPersonalizada ?? !catalogo,
-        esEliminableCatalogo:
-          opts?.esEliminableCatalogo ??
-          Boolean(global && esFichaStubCatalogo(global)),
-        destacada: esMarcaDestacada(creadaEn),
+        puedeEliminar:
+          opts?.puedeEliminar ?? puedeEliminarMarcaUsuario(global, currentUser),
+        seccion: "resto",
+        usos: global?.usos ?? 0,
+        usosCuenta: global?.usos_cuenta ?? 0,
       });
     };
     for (const m of MARCAS_REMEDIO_GANADO) push(m.nombre);
     for (const meta of marcasGlobales) {
       push(meta.nombre, {
         esPersonalizada: !catalogoPorNombre.has(meta.nombre.toLocaleLowerCase("es-UY")),
-        esEliminableCatalogo: esFichaStubCatalogo(meta),
-        creadaEn: meta.creado_en,
+        puedeEliminar: puedeEliminarMarcaUsuario(meta, currentUser),
       });
     }
     for (const m of historialMarcas) push(m);
     if (value.trim()) push(value);
 
-    return list.sort((a, b) => {
-      if (a.destacada !== b.destacada) return a.destacada ? -1 : 1;
-      if (a.destacada && b.destacada) {
-        const ta = marcasGlobalesPorNombre.get(a.nombre.toLocaleLowerCase("es-UY"))?.creado_en ?? "";
-        const tb = marcasGlobalesPorNombre.get(b.nombre.toLocaleLowerCase("es-UY"))?.creado_en ?? "";
-        return tb.localeCompare(ta);
-      }
-      return a.nombre.localeCompare(b.nombre, "es", { sensitivity: "base" });
-    });
-  }, [catalogoPorNombre, historialMarcas, marcasGlobales, marcasGlobalesPorNombre, value]);
+    return ordenarMarcasPorSeccion(list, marcasGlobalesPorNombre);
+  }, [catalogoPorNombre, currentUser, historialMarcas, marcasGlobales, marcasGlobalesPorNombre, value]);
 
   const destacadasCount = useMemo(
-    () => todasLasMarcas.filter((m) => m.destacada).length,
+    () => todasLasMarcas.filter((m) => m.seccion === "destacada").length,
+    [todasLasMarcas]
+  );
+
+  const masUsadasCount = useMemo(
+    () => todasLasMarcas.filter((m) => m.seccion === "mas-usada").length,
+    [todasLasMarcas]
+  );
+
+  const ultimasAgregadasCount = useMemo(
+    () => todasLasMarcas.filter((m) => m.seccion === "ultima-agregada").length,
     [todasLasMarcas]
   );
 
   const listaFiltrada = useMemo(() => {
     const t = busqueda.trim();
     if (!t) return todasLasMarcas;
-    return todasLasMarcas.filter((m) =>
+    const filtradas = todasLasMarcas.filter((m) =>
       m.esPersonalizada
         ? m.nombre.toLowerCase().includes(t.toLowerCase())
-        : marcaCoincideBusqueda(
-            { nombre: m.nombre, paises: m.paises },
-            t
-          )
+        : marcaCoincideBusqueda({ nombre: m.nombre, paises: m.paises }, t)
+    );
+    return filtradas.sort((a, b) =>
+      a.nombre.localeCompare(b.nombre, "es", { sensitivity: "base" })
     );
   }, [busqueda, todasLasMarcas]);
 
@@ -268,10 +403,10 @@ export default function StockControlSanitarioMarcaSelect({
   };
 
   const eliminarMarcaExtra = async (nombre: string) => {
-    if (!puedeEliminarMarca || !apiOnline) return;
+    if (!apiOnline) return;
 
     const meta = marcasGlobalesPorNombre.get(nombre.toLocaleLowerCase("es-UY"));
-    if (!meta?.en_ficha || !esFichaStubCatalogo(meta)) return;
+    if (!puedeEliminarMarcaUsuario(meta, currentUser)) return;
 
     const ok = await confirmAction({
       title: "Eliminar marca comercial",
@@ -421,10 +556,16 @@ export default function StockControlSanitarioMarcaSelect({
             {busqueda.trim()
               ? `${listaFiltrada.length} coincidencia(s) de ${todasLasMarcas.length}`
               : marcasGlobales.length > 0
-                ? `${marcasGlobales.length} nombre(s) compartido(s) · ${destacadasCount} destacada(s) este mes`
-                : destacadasCount > 0
-                  ? `${MARCAS_REMEDIO_GANADO.length} marcas · ${destacadasCount} destacada(s) este mes`
-                  : `${MARCAS_REMEDIO_GANADO.length} marcas — buscá o agregá una nueva`}
+                ? `${marcasGlobales.length} nombre(s) compartido(s)${
+                    destacadasCount > 0 ? ` · ${destacadasCount} destacada(s)` : ""
+                  }${
+                    masUsadasCount > 0 ? ` · ${masUsadasCount} más usada(s) en tu cuenta` : ""
+                  }${
+                    ultimasAgregadasCount > 0
+                      ? ` · ${ultimasAgregadasCount} agregada(s) este mes`
+                      : ""
+                  }`
+                : `${MARCAS_REMEDIO_GANADO.length} marcas — buscá o agregá una nueva`}
           </p>
 
           {modoNuevo ? (
@@ -504,20 +645,28 @@ export default function StockControlSanitarioMarcaSelect({
 
             {!modoNuevo
               ? listaFiltrada.map((m, index) => {
-                  const mostrarSeparador =
-                    !busqueda.trim() &&
-                    m.destacada &&
-                    (index === 0 || !listaFiltrada[index - 1]?.destacada);
+                  const prevSeccion = index > 0 ? listaFiltrada[index - 1]?.seccion ?? null : null;
+                  const etiqueta = etiquetaSeccionMarca(m.seccion, prevSeccion, busqueda);
                   return (
                     <li key={m.nombre}>
-                      {mostrarSeparador ? (
-                        <p className="stock-control-sanitario-marca-destacadas-label">
-                          Destacadas (último mes)
+                      {etiqueta ? (
+                        <p
+                          className={`stock-control-sanitario-marca-destacadas-label${
+                            m.seccion === "ultima-agregada"
+                              ? " stock-control-sanitario-marca-seccion-label--ultimas"
+                              : m.seccion === "mas-usada"
+                                ? " stock-control-sanitario-marca-seccion-label--cuenta"
+                                : ""
+                          }`}
+                        >
+                          {etiqueta}
                         </p>
                       ) : null}
                       <div
                         className={`stock-control-sanitario-marca-row${
-                          m.destacada ? " stock-control-sanitario-marca-row--destacada" : ""
+                          m.seccion !== "resto"
+                            ? " stock-control-sanitario-marca-row--destacada"
+                            : ""
                         }`}
                       >
                         <button
@@ -528,13 +677,23 @@ export default function StockControlSanitarioMarcaSelect({
                           onClick={() => elegir(m.nombre)}
                         >
                           <span className="stock-control-sanitario-marca-row-label">{m.nombre}</span>
-                          {m.destacada ? (
+                          {m.seccion === "destacada" && m.usos > 0 ? (
+                            <span className="stock-control-sanitario-marca-usos-badge">
+                              {m.usos}
+                            </span>
+                          ) : null}
+                          {m.seccion === "mas-usada" && m.usosCuenta > 0 ? (
+                            <span className="stock-control-sanitario-marca-usos-badge stock-control-sanitario-marca-usos-badge--cuenta">
+                              {m.usosCuenta}
+                            </span>
+                          ) : null}
+                          {m.seccion === "ultima-agregada" ? (
                             <span className="stock-control-sanitario-marca-destacada-badge">
                               Nuevo
                             </span>
                           ) : null}
                         </button>
-                        {puedeEliminarMarca && m.esEliminableCatalogo ? (
+                        {m.puedeEliminar ? (
                           <button
                             type="button"
                             className="stock-control-sanitario-marca-row-delete"

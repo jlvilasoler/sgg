@@ -281,6 +281,7 @@ async function requireCuentaAdmin(req: Request, res: Response): Promise<boolean>
     res.status(401).json({ ok: false, error: "No autenticado" });
     return false;
   }
+  if (req.user.es_super_admin || req.user.es_admin_plataforma) return true;
   if (req.user.es_admin_cuenta) return true;
   const cuenta = await empresasCuenta.getEmpresaCuentaByAdminUserId(
     getDb(),
@@ -299,6 +300,7 @@ async function assertUserInCuentaScope(
   target: UserPublic,
   res: Response
 ): Promise<boolean> {
+  if (actor.es_super_admin || actor.es_admin_plataforma) return true;
   const cuenta = await empresasCuenta.getEmpresaCuentaByAdminUserId(getDb(), actor.id);
   if (!cuenta) {
     res.status(403).json({ ok: false, error: "Sin permiso sobre este usuario" });
