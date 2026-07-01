@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, ListPlus, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import {
   createStockControlSanitarioBulk,
   fetchEmpresasOperativasStock,
@@ -575,17 +575,6 @@ export default function StockGanaderoSanidad({
 
             <section className="stock-sanidad-grupos-filtros" aria-label="Sumar por grupo">
               <div className="stock-sanidad-grupos-rapidos stock-sanidad-panel stock-sanidad-panel--grupos">
-                  <header className="stock-sanidad-panel-head">
-                    <span className="stock-sanidad-panel-head-icon" aria-hidden>
-                      <ListPlus size={16} strokeWidth={2.25} />
-                    </span>
-                    <div className="stock-sanidad-panel-head-copy">
-                      <h4 className="stock-sanidad-panel-title">Sumar por grupo</h4>
-                      <p className="stock-sanidad-panel-sub muted">
-                        Clic para sumar o quitar un grupo de la selección
-                      </p>
-                    </div>
-                  </header>
                   <StockSanidadGrupoCarousel
                     categorias={grupoCategorias}
                     disabled={!apiOnline || guardando}
@@ -627,6 +616,7 @@ export default function StockGanaderoSanidad({
             apiOnline={apiOnline}
             claves={clavesSeleccionadas}
             refreshKey={historialRefreshKey}
+            empresasOperativas={empresasOperativas}
             onError={onError}
           />
 

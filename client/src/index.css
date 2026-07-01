@@ -34520,10 +34520,80 @@ button.sg-kpi-card:disabled {
 }
 
 .stock-sanidad-dash-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.stock-sanidad-dash-alert {
+  margin: 0;
+  padding: 0.45rem 0.65rem;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  border-radius: 8px;
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.22);
+  color: #92400e;
+}
+
+.stock-sanidad-dash-main {
   display: grid;
-  grid-template-columns: minmax(150px, 0.75fr) minmax(220px, 1fr) minmax(280px, 1.35fr);
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 1.15fr);
   gap: 1rem 1.25rem;
   align-items: start;
+}
+
+.stock-sanidad-dash-main--solo-timeline {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.stock-sanidad-dash-freq-col {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.stock-sanidad-dash-timeline-col {
+  min-width: 0;
+}
+
+.stock-sanidad-dash-loading-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.5rem 0 0.25rem;
+}
+
+.stock-sanidad-dash-loading-skeleton {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.45rem;
+}
+
+.stock-sanidad-dash-loading-skeleton span {
+  display: block;
+  height: 3.1rem;
+  border-radius: 9px;
+  background: linear-gradient(
+    90deg,
+    rgba(13, 148, 136, 0.06) 0%,
+    rgba(13, 148, 136, 0.14) 50%,
+    rgba(13, 148, 136, 0.06) 100%
+  );
+  background-size: 200% 100%;
+  animation: stock-sanidad-dash-shimmer 1.2s ease-in-out infinite;
+}
+
+@keyframes stock-sanidad-dash-shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
 }
 
 .stock-sanidad-dash-col {
@@ -34534,8 +34604,8 @@ button.sg-kpi-card:disabled {
 }
 
 .stock-sanidad-dash-col--freq {
-  padding-right: 0.25rem;
-  border-right: 1px solid #e2e8f0;
+  padding-right: 0;
+  border-right: none;
 }
 
 .stock-sanidad-dash-col--timeline {
@@ -34590,8 +34660,8 @@ button.sg-kpi-card:disabled {
 }
 
 .stock-sanidad-dash-kpis {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.45rem;
 }
 
@@ -34599,10 +34669,11 @@ button.sg-kpi-card:disabled {
   display: flex;
   align-items: center;
   gap: 0.55rem;
-  padding: 0.5rem 0.65rem;
-  border-radius: 9px;
+  padding: 0.55rem 0.65rem;
+  border-radius: 10px;
   background: rgba(255, 255, 255, 0.92);
   border: 1px solid #ccfbf1;
+  min-width: 0;
 }
 
 .stock-sanidad-dash-kpi-text {
@@ -34761,6 +34832,26 @@ button.sg-kpi-card:disabled {
   background: linear-gradient(180deg, rgba(240, 253, 250, 0.45) 0%, rgba(255, 255, 255, 0) 100%);
 }
 
+.stock-sanidad-dash-timeline-viewport--compact {
+  height: auto;
+  min-height: 0;
+  overflow: visible;
+}
+
+.stock-sanidad-dash-timeline-viewport--compact .stock-sanidad-dash-timeline-track {
+  transform: none !important;
+}
+
+.stock-sanidad-dash-timeline-viewport--compact .stock-sanidad-dash-timeline-page {
+  flex: none;
+  height: auto;
+  min-height: 0;
+}
+
+.stock-sanidad-dash-timeline-viewport--compact .stock-sanidad-dash-timeline--carousel {
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+}
+
 .stock-sanidad-dash-timeline-track {
   --timeline-page: 0;
   --timeline-page-height: 11.75rem;
@@ -34798,6 +34889,10 @@ button.sg-kpi-card:disabled {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .stock-sanidad-dash-loading-skeleton span {
+    animation: none;
+  }
+
   .stock-sanidad-dash-timeline-track {
     transition: none;
   }
@@ -34857,6 +34952,584 @@ button.sg-kpi-card:disabled {
   margin: 0.25rem 0 0;
   font-size: 0.7rem;
   color: #0f766e;
+}
+
+.stock-sanidad-dash-timeline-card-btn {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 9px;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.stock-sanidad-dash-timeline-card-btn:hover .stock-sanidad-dash-timeline-card,
+.stock-sanidad-dash-timeline-card-btn:focus-visible .stock-sanidad-dash-timeline-card {
+  border-color: rgba(13, 148, 136, 0.45);
+  box-shadow:
+    0 0 0 1px rgba(13, 148, 136, 0.12),
+    0 6px 16px rgba(13, 148, 136, 0.12);
+}
+
+.stock-sanidad-dash-timeline-card-btn:focus-visible {
+  outline: 2px solid rgba(13, 148, 136, 0.55);
+  outline-offset: 2px;
+}
+
+.stock-sanidad-dash-timeline-card-btn:active .stock-sanidad-dash-timeline-card {
+  transform: scale(0.99);
+}
+
+.stock-sanidad-movimiento-overlay {
+  z-index: 10070;
+}
+
+.stock-sanidad-movimiento-modal {
+  position: relative;
+  width: min(960px, 96vw);
+  max-height: min(90vh, 860px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: linear-gradient(165deg, #f8fbfb 0%, #eef6f5 48%, #f4f8f7 100%);
+  border: 1px solid rgba(13, 148, 136, 0.16);
+  border-radius: 20px;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.9) inset,
+    0 32px 80px rgba(15, 35, 24, 0.24);
+}
+
+.stock-sanidad-movimiento-accent {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 5px;
+  background: linear-gradient(90deg, #0d9488 0%, #14b8a6 40%, #2dd4bf 70%, #5eead4 100%);
+  border-radius: 20px 20px 0 0;
+}
+
+.stock-sanidad-movimiento-hero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-shrink: 0;
+  padding: 1.25rem 1.45rem 1.15rem;
+  border-bottom: 1px solid rgba(13, 148, 136, 0.1);
+  background:
+    radial-gradient(ellipse 80% 120% at 0% 0%, rgba(20, 184, 166, 0.1) 0%, transparent 55%),
+    linear-gradient(135deg, #ffffff 0%, color-mix(in srgb, #0d9488 4%, #ffffff) 100%);
+}
+
+.stock-sanidad-movimiento-hero-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.stock-sanidad-movimiento-hero-copy {
+  min-width: 0;
+}
+
+.stock-sanidad-movimiento-hero-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 3.35rem;
+  height: 3.35rem;
+  border-radius: 15px;
+  border: 1px solid rgba(13, 148, 136, 0.22);
+  background: linear-gradient(145deg, #ecfdf5 0%, #99f6e4 120%);
+  color: #0f766e;
+  flex-shrink: 0;
+  box-shadow:
+    0 4px 14px rgba(13, 148, 136, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.stock-sanidad-movimiento-kicker {
+  margin: 0;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.stock-sanidad-movimiento-hero h2 {
+  margin: 0.18rem 0 0;
+  font-size: clamp(1.2rem, 2.4vw, 1.5rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  color: #0f3d3a;
+  word-break: break-word;
+}
+
+.stock-sanidad-movimiento-formula {
+  margin: 0.4rem 0 0;
+  font-size: 0.86rem;
+  line-height: 1.45;
+  color: #475569;
+  font-style: italic;
+}
+
+.stock-sanidad-movimiento-hero-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.65rem;
+}
+
+.stock-sanidad-movimiento-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  padding: 0.22rem 0.58rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.2;
+  border: 1px solid transparent;
+}
+
+.stock-sanidad-movimiento-chip--forma {
+  color: #0f766e;
+  background: rgba(20, 184, 166, 0.12);
+  border-color: rgba(13, 148, 136, 0.22);
+}
+
+.stock-sanidad-movimiento-chip--dosis {
+  color: #1e40af;
+  background: rgba(59, 130, 246, 0.1);
+  border-color: rgba(59, 130, 246, 0.2);
+}
+
+.stock-sanidad-movimiento-chip--espera {
+  color: #b45309;
+  background: rgba(245, 158, 11, 0.12);
+  border-color: rgba(245, 158, 11, 0.25);
+}
+
+.stock-sanidad-movimiento-chip--motivo {
+  color: #334155;
+  background: rgba(148, 163, 184, 0.14);
+  border-color: rgba(100, 116, 139, 0.22);
+  max-width: 100%;
+  word-break: break-word;
+}
+
+.stock-sanidad-movimiento-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0.55rem 0 0;
+  font-size: 0.74rem;
+  color: #64748b;
+}
+
+.stock-sanidad-movimiento-meta svg {
+  flex-shrink: 0;
+  opacity: 0.75;
+}
+
+.stock-sanidad-movimiento-meta-sep {
+  opacity: 0.5;
+}
+
+.stock-sanidad-movimiento-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.35rem;
+  height: 2.35rem;
+  border: 1px solid rgba(13, 148, 136, 0.2);
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #475569;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease,
+    transform 0.15s ease;
+}
+
+.stock-sanidad-movimiento-close:hover {
+  background: #f0fdfa;
+  border-color: #14b8a6;
+  color: #0f766e;
+  transform: scale(1.04);
+}
+
+.stock-sanidad-movimiento-loading {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.85rem;
+  padding: 2.5rem 1.5rem;
+}
+
+.stock-sanidad-movimiento-skeleton {
+  width: min(320px, 80%);
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.stock-sanidad-movimiento-skeleton-bar {
+  display: block;
+  height: 0.55rem;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    rgba(13, 148, 136, 0.08) 0%,
+    rgba(13, 148, 136, 0.18) 50%,
+    rgba(13, 148, 136, 0.08) 100%
+  );
+  background-size: 200% 100%;
+  animation: stock-sanidad-movimiento-shimmer 1.2s ease-in-out infinite;
+}
+
+.stock-sanidad-movimiento-skeleton-bar--lg {
+  width: 85%;
+  height: 0.75rem;
+}
+
+.stock-sanidad-movimiento-skeleton-bar--sm {
+  width: 55%;
+}
+
+@keyframes stock-sanidad-movimiento-shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}
+
+.stock-sanidad-movimiento-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 1rem 1.35rem 1.1rem;
+  display: grid;
+  grid-template-columns: minmax(240px, 0.95fr) minmax(0, 1.35fr);
+  gap: 0.85rem;
+  align-items: start;
+}
+
+.stock-sanidad-movimiento-animal-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  min-width: 0;
+}
+
+.stock-sanidad-movimiento-animal-card {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.95rem 1rem;
+  border-radius: 14px;
+  background: linear-gradient(145deg, #ffffff 0%, #ecfdf5 100%);
+  border: 1px solid rgba(13, 148, 136, 0.18);
+  box-shadow:
+    0 2px 10px rgba(13, 148, 136, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+
+.stock-sanidad-movimiento-animal-wifi {
+  flex-shrink: 0;
+  width: 1.35rem;
+  height: 1.35rem;
+  color: #0f766e;
+}
+
+.stock-sanidad-movimiento-animal-ids {
+  min-width: 0;
+}
+
+.stock-sanidad-movimiento-animal-primary {
+  display: block;
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #134e4a;
+  font-variant-numeric: tabular-nums;
+  word-break: break-all;
+  line-height: 1.2;
+}
+
+.stock-sanidad-movimiento-animal-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.45rem;
+}
+
+.stock-sanidad-movimiento-id-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.18rem 0.45rem;
+  border-radius: 7px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: #334155;
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+}
+
+.stock-sanidad-movimiento-id-pill-k {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.stock-sanidad-movimiento-spec-list {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.stock-sanidad-movimiento-spec-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.65rem;
+  padding: 0.48rem 0.6rem;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(13, 148, 136, 0.08);
+}
+
+.stock-sanidad-movimiento-spec-row dt {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin: 0;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #64748b;
+  flex-shrink: 0;
+}
+
+.stock-sanidad-movimiento-spec-row dt svg {
+  opacity: 0.7;
+}
+
+.stock-sanidad-movimiento-spec-row dd {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #1e293b;
+  text-align: right;
+  word-break: break-word;
+}
+
+.stock-sanidad-movimiento-spec-empty {
+  margin: 0;
+  padding: 0.65rem 0.75rem;
+  font-size: 0.78rem;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px dashed rgba(148, 163, 184, 0.35);
+}
+
+.stock-sanidad-movimiento-detail-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  min-width: 0;
+}
+
+.stock-sanidad-movimiento-card-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.stock-sanidad-movimiento-card {
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(13, 148, 136, 0.1);
+  box-shadow: 0 2px 8px rgba(15, 35, 24, 0.04);
+  overflow: hidden;
+}
+
+.stock-sanidad-movimiento-card--trace {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, #f8fafc 100%);
+}
+
+.stock-sanidad-movimiento-card-head {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.55rem 0.85rem;
+  border-bottom: 1px solid rgba(13, 148, 136, 0.08);
+  background: rgba(236, 253, 245, 0.55);
+  color: #0f766e;
+}
+
+.stock-sanidad-movimiento-card-head h3 {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #134e4a;
+}
+
+.stock-sanidad-movimiento-card-body {
+  padding: 0.75rem 0.85rem 0.85rem;
+}
+
+.stock-sanidad-movimiento-card-body--stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.stock-sanidad-movimiento-highlight {
+  padding: 0.65rem 0.75rem;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #ecfdf5 0%, #f0fdfa 100%);
+  border: 1px solid rgba(13, 148, 136, 0.16);
+}
+
+.stock-sanidad-movimiento-highlight-label,
+.stock-sanidad-movimiento-info-label {
+  display: block;
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #64748b;
+  margin-bottom: 0.2rem;
+}
+
+.stock-sanidad-movimiento-highlight p,
+.stock-sanidad-movimiento-note p {
+  margin: 0;
+  font-size: 0.86rem;
+  line-height: 1.45;
+  color: #0f766e;
+  font-weight: 600;
+}
+
+.stock-sanidad-movimiento-note {
+  margin-top: 0.55rem;
+  padding-top: 0.55rem;
+  border-top: 1px dashed rgba(148, 163, 184, 0.35);
+}
+
+.stock-sanidad-movimiento-note p {
+  color: #334155;
+  font-weight: 500;
+}
+
+.stock-sanidad-movimiento-info-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+}
+
+.stock-sanidad-movimiento-info-value {
+  font-size: 0.84rem;
+  line-height: 1.4;
+  color: #1e293b;
+  word-break: break-word;
+}
+
+.stock-sanidad-movimiento-info-value--mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.78rem;
+  color: #475569;
+}
+
+.stock-sanidad-movimiento-info-value--emph {
+  font-weight: 700;
+  color: #134e4a;
+}
+
+.stock-sanidad-movimiento-info-value--empty {
+  color: #94a3b8;
+  font-style: italic;
+  font-weight: 400;
+}
+
+.stock-sanidad-movimiento-foot {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 1.35rem 0.95rem;
+  border-top: 1px solid rgba(13, 148, 136, 0.1);
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.stock-sanidad-movimiento-foot-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.stock-sanidad-movimiento-btn-close {
+  min-width: 6.5rem;
+  border-radius: 10px;
+  box-shadow: 0 4px 14px rgba(45, 90, 61, 0.2);
+}
+
+@media (max-width: 780px) {
+  .stock-sanidad-movimiento-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .stock-sanidad-movimiento-card-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .stock-sanidad-movimiento-hero {
+    padding: 1rem 1.1rem;
+  }
+
+  .stock-sanidad-movimiento-foot-hint {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stock-sanidad-movimiento-skeleton-bar {
+    animation: none;
+  }
+
+  .stock-sanidad-movimiento-close:hover {
+    transform: none;
+  }
 }
 
 .stock-sanidad-listado {
@@ -35098,6 +35771,8 @@ button.sg-kpi-card:disabled {
 
 .stock-sanidad-panel--grupos {
   width: 100%;
+  padding-top: 0.65rem;
+  padding-bottom: 0.65rem;
 }
 
 .stock-sanidad-filtros-wrap {
@@ -35351,7 +36026,7 @@ button.sg-kpi-card:disabled {
 
 .stock-sanidad-listado .table-wrap-stock-pro.stock-sanidad-table-wrap {
   margin-top: 0;
-  max-height: min(52vh, 520px);
+  max-height: min(70vh, 720px);
   border-color: #ccfbf1;
   box-shadow:
     0 1px 2px rgba(15, 118, 110, 0.05),
@@ -35634,17 +36309,12 @@ button.sg-kpi-card:disabled {
 }
 
 @media (max-width: 1100px) {
-  .stock-sanidad-dash-body {
-    grid-template-columns: 1fr 1fr;
+  .stock-sanidad-dash-main {
+    grid-template-columns: minmax(0, 1fr);
   }
 
-  .stock-sanidad-dash-col--freq {
-    border-right: none;
-    padding-right: 0;
-  }
-
-  .stock-sanidad-dash-col--timeline {
-    grid-column: 1 / -1;
+  .stock-sanidad-dash-loading-skeleton {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .stock-sanidad-form-band-row {
@@ -35657,12 +36327,11 @@ button.sg-kpi-card:disabled {
 }
 
 @media (max-width: 720px) {
-  .stock-sanidad-dash-body {
-    grid-template-columns: 1fr;
+  .stock-sanidad-dash-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .stock-sanidad-dash-kpis {
-    display: grid;
+  .stock-sanidad-dash-loading-skeleton {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
