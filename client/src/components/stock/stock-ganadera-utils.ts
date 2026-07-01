@@ -713,8 +713,8 @@ export function fmtGrupo(grupo: string): string {
 
 const GRUPO_LIBRE_MAX = 48;
 
-export function normalizarGrupoLibre(val: string): string {
-  return val
+export function normalizarGrupoLibre(val: string | null | undefined): string {
+  return String(val ?? "")
     .trim()
     .replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑüÜ\s]/g, "")
     .slice(0, GRUPO_LIBRE_MAX);
@@ -722,6 +722,39 @@ export function normalizarGrupoLibre(val: string): string {
 
 export function fmtGrupoLibre(grupoLibre: string): string {
   return grupoLibre.trim() || "—";
+}
+
+export const GRUPO_LIBRE_OTRA_VALUE = "__OTRO_GRUPO__";
+
+export function esGrupoLibreEnCatalogo(
+  grupo: string | null | undefined,
+  grupos: readonly string[]
+): boolean {
+  const norm = normalizarGrupoLibre(grupo);
+  return norm !== "" && grupos.includes(norm);
+}
+
+export const POTRERO_OTRA_VALUE = "__OTRO_POTRERO__";
+export const POTRERO_MAX = 48;
+
+export function normalizarPotrero(val: string | null | undefined): string {
+  return String(val ?? "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑüÜ\s.\-]/g, "")
+    .slice(0, POTRERO_MAX);
+}
+
+export function esPotreroEnCatalogo(
+  potrero: string | null | undefined,
+  potreros: readonly string[]
+): boolean {
+  const norm = normalizarPotrero(potrero);
+  return norm !== "" && potreros.includes(norm);
+}
+
+export function fmtPotrero(potrero: string | null | undefined): string {
+  return normalizarPotrero(potrero) || "—";
 }
 
 export const RAZAS_PREDEFINIDAS = ["HEREFORD", "ANGUS", "CARETA", "CRUZA"] as const;
@@ -818,6 +851,14 @@ export function grupoLibreFiltroKey(grupoLibre: string): string {
 }
 
 export function labelGrupoLibreFiltro(key: string): string {
+  return key.trim() || "Sin definir";
+}
+
+export function potreroFiltroKey(potrero: string | null | undefined): string {
+  return normalizarPotrero(potrero);
+}
+
+export function labelPotreroFiltro(key: string): string {
   return key.trim() || "Sin definir";
 }
 

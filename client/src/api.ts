@@ -75,6 +75,7 @@
   EmpresaCuenta,
   EmpresaCuentaForm,
   EmpresaCuentaCreateResult,
+  CuentasControlPlataformaResumen,
   EmpresaOperativa,
   EmpresaOperativaForm,
   UserForm,
@@ -918,6 +919,7 @@ export async function saveStockGanaderaDispositivo(
     empresa: DispositivoEmpresa;
     grupo: string;
     grupo_libre: string;
+    potrero: string;
     raza: string;
     nacimiento_mes: number | null;
     nacimiento_anio: number | null;
@@ -934,6 +936,7 @@ export async function saveStockGanaderaDispositivo(
   empresa: DispositivoEmpresa;
   grupo: string;
   grupo_libre: string;
+  potrero: string;
   raza: string;
   edad: number | null;
   nacimiento_mes: number | null;
@@ -951,6 +954,7 @@ export async function saveStockGanaderaDispositivo(
       empresa: DispositivoEmpresa;
       grupo: string;
       grupo_libre: string;
+      potrero: string;
       raza: string;
       edad: number | null;
       nacimiento_mes: number | null;
@@ -990,6 +994,32 @@ export async function saveCabanaSeleccion(
 export async function fetchStockGanaderoRazas(): Promise<string[]> {
   const json = await request<{ data: string[] }>("/stock-ganadero/razas");
   return json.data;
+}
+
+export async function fetchStockGanaderoPotreros(): Promise<string[]> {
+  const json = await request<{ data: string[] }>("/stock-ganadero/potreros");
+  return json.data;
+}
+
+export async function createStockGanaderoPotrero(nombre: string): Promise<string> {
+  const json = await request<{ data: { nombre: string } }>("/stock-ganadero/potreros", {
+    method: "POST",
+    body: JSON.stringify({ nombre }),
+  });
+  return json.data.nombre;
+}
+
+export async function fetchStockGanaderoGrupos(): Promise<string[]> {
+  const json = await request<{ data: string[] }>("/stock-ganadero/grupos");
+  return json.data;
+}
+
+export async function createStockGanaderoGrupo(nombre: string): Promise<string> {
+  const json = await request<{ data: { nombre: string } }>("/stock-ganadero/grupos", {
+    method: "POST",
+    body: JSON.stringify({ nombre }),
+  });
+  return json.data.nombre;
 }
 
 export interface StockDispositivoFotoItem {
@@ -3433,6 +3463,13 @@ export async function fetchUsuariosMiCuenta(): Promise<AuthUser[]> {
 
 export async function fetchEmpresasCuenta(): Promise<EmpresaCuenta[]> {
   const json = await request<{ data: EmpresaCuenta[] }>("/empresas-cuenta");
+  return json.data;
+}
+
+export async function fetchCuentasControlResumen(): Promise<CuentasControlPlataformaResumen> {
+  const json = await request<{ data: CuentasControlPlataformaResumen }>(
+    "/empresas-cuenta/resumen-control"
+  );
   return json.data;
 }
 

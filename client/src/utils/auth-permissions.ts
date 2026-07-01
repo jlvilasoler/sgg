@@ -140,6 +140,11 @@ export function canAccessPermisosPorRol(user: AuthUser | null): boolean {
   return Boolean(user?.es_super_admin);
 }
 
+/** Control global de cuentas (animales y gastos): solo superadministrador de plataforma. */
+export function canAccessControlGlobalCuentas(user: AuthUser | null): boolean {
+  return Boolean(user?.es_super_admin);
+}
+
 /** Documentos Digitales (configuración): solo super-administrador de plataforma. */
 export function canAccessDocumentosDigitales(user: AuthUser | null): boolean {
   return Boolean(user?.es_super_admin);

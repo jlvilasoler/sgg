@@ -48,7 +48,7 @@ export function buildStockControlSanitarioInput(
 ): StockControlSanitarioInput {
   return {
     admin_fecha_inicio: adminModo === "fechas" ? form.admin_fecha_inicio.trim() : "",
-    admin_fecha_fin: adminModo === "fechas" ? form.admin_fecha_fin.trim() : "",
+    admin_fecha_fin: "",
     admin_periodo_nota: adminModo === "periodo" ? form.admin_periodo_nota.trim() : "",
     admin_observaciones: form.admin_observaciones.trim(),
     producto_nombre: form.producto_nombre.trim(),
@@ -68,8 +68,8 @@ export function validateStockControlSanitarioForm(
   adminModo: AdminModo
 ): string | null {
   if (adminModo === "fechas") {
-    if (!form.admin_fecha_inicio.trim() && !form.admin_fecha_fin.trim()) {
-      return "Indicá al menos fecha inicio o fecha fin.";
+    if (!form.admin_fecha_inicio.trim()) {
+      return "Indicá la fecha de aplicación.";
     }
   } else if (!form.admin_periodo_nota.trim()) {
     return "Indicá el período de administración.";
@@ -97,6 +97,7 @@ interface Props {
   historialCantidades?: string[];
   historialMotivos?: string[];
   historialFuncionarios?: string[];
+  bandLayout?: boolean;
 }
 
 export default function StockControlSanitarioRegistroForm({
@@ -116,6 +117,7 @@ export default function StockControlSanitarioRegistroForm({
   historialCantidades = [],
   historialMotivos = [],
   historialFuncionarios = [],
+  bandLayout = false,
 }: Props) {
   const setAdminModo = (modo: AdminModo) => {
     onAdminModo(modo);
@@ -126,181 +128,199 @@ export default function StockControlSanitarioRegistroForm({
     }
   };
 
+  const adminSection = (
+    <section className="stock-control-sanitario-section stock-sanidad-form-section--admin">
+      <div className="stock-control-sanitario-section-head">
+        <StockControlSanitarioSectionTitle icon="admin">
+          Fecha o período de administración
+        </StockControlSanitarioSectionTitle>
+        <div
+          className="stock-control-sanitario-modos"
+          role="tablist"
+          aria-label="Tipo de administración"
+        >
+          <button
+            type="button"
+            role="tab"
+            aria-selected={adminModo === "fechas"}
+            className={`stock-control-sanitario-modo${adminModo === "fechas" ? " is-active" : ""}`}
+            disabled={guardando}
+            onClick={() => setAdminModo("fechas")}
+          >
+            Fechas
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={adminModo === "periodo"}
+            className={`stock-control-sanitario-modo${adminModo === "periodo" ? " is-active" : ""}`}
+            disabled={guardando}
+            onClick={() => setAdminModo("periodo")}
+          >
+            Período
+          </button>
+        </div>
+      </div>
+      {adminModo === "fechas" ? (
+        <div className={bandLayout ? "stock-sanidad-admin-campos" : undefined}>
+          <div className="field">
+            <label htmlFor={`${idPrefix}-admin-inicio`}>Fecha aplicación</label>
+            <input
+              id={`${idPrefix}-admin-inicio`}
+              type="date"
+              value={form.admin_fecha_inicio}
+              disabled={guardando}
+              onChange={(e) => onPatch({ admin_fecha_inicio: e.target.value })}
+            />
+          </div>
+          <div className="field stock-control-sanitario-admin-observaciones">
+            <label htmlFor={`${idPrefix}-admin-observaciones`}>Observaciones</label>
+            <textarea
+              id={`${idPrefix}-admin-observaciones`}
+              rows={bandLayout ? 3 : 2}
+              maxLength={500}
+              placeholder="Notas..."
+              value={form.admin_observaciones}
+              disabled={guardando}
+              onChange={(e) => onPatch({ admin_observaciones: e.target.value })}
+            />
+          </div>
+        </div>
+      ) : (
+        <div className="field">
+          <label htmlFor={`${idPrefix}-admin-periodo`}>Período / nota</label>
+          <input
+            id={`${idPrefix}-admin-periodo`}
+            type="text"
+            maxLength={200}
+            placeholder="Ej. 3 días consecutivos, semana 12/2025…"
+            value={form.admin_periodo_nota}
+            disabled={guardando}
+            onChange={(e) => onPatch({ admin_periodo_nota: e.target.value })}
+          />
+        </div>
+      )}
+    </section>
+  );
+
+  const productoSection = (
+    <section className="stock-control-sanitario-section stock-sanidad-form-section--producto">
+      <StockControlSanitarioSectionTitle icon="producto">Producto</StockControlSanitarioSectionTitle>
+      <div
+        className={`stock-control-sanitario-grid stock-control-sanitario-grid--2 stock-control-sanitario-grid--producto${
+          bandLayout ? " stock-control-sanitario-grid--producto-band" : ""
+        }`}
+      >
+        <div className="field">
+          <label htmlFor={`${idPrefix}-producto-nombre-trigger`}>
+            Nombre comercial
+            <span className="stock-control-sanitario-required">*</span>
+          </label>
+          <StockControlSanitarioMarcaSelect
+            value={form.producto_nombre}
+            onChange={(v) => onPatch({ producto_nombre: v })}
+            disabled={guardando}
+            historialMarcas={historialMarcas}
+          />
+        </div>
+        <div className="field">
+          <label htmlFor={`${idPrefix}-producto-formula-trigger`}>Fórmula</label>
+          <StockControlSanitarioFormulaSelect
+            value={form.producto_formula}
+            onChange={(v) => onPatch({ producto_formula: v })}
+            disabled={guardando}
+            historialFormulas={historialFormulas}
+          />
+        </div>
+        <div className="field">
+          <label htmlFor={`${idPrefix}-producto-forma-trigger`}>Forma de administración</label>
+          <StockControlSanitarioFormaSelect
+            value={form.producto_forma}
+            onChange={(v) => onPatch({ producto_forma: v })}
+            disabled={guardando}
+            historialFormas={historialFormas}
+          />
+        </div>
+        <div className="field">
+          <label htmlFor={`${idPrefix}-producto-cantidad-trigger`}>Cantidad</label>
+          <StockControlSanitarioCantidadSelect
+            value={form.producto_cantidad}
+            onChange={(v) => onPatch({ producto_cantidad: v })}
+            disabled={guardando}
+            apiOnline={apiOnline}
+            modulo={modulo}
+            historialCantidades={historialCantidades}
+            onError={onError}
+          />
+        </div>
+        <div className="field">
+          <label htmlFor={`${idPrefix}-producto-espera`}>Tiempo de espera</label>
+          <input
+            id={`${idPrefix}-producto-espera`}
+            type="text"
+            maxLength={80}
+            placeholder="Ej. 28 días carne / 7 días leche"
+            value={form.producto_espera}
+            disabled={guardando}
+            onChange={(e) => onPatch({ producto_espera: e.target.value })}
+          />
+        </div>
+      </div>
+    </section>
+  );
+
+  const controlesSection = (
+    <section className="stock-control-sanitario-section stock-sanidad-form-section--controles">
+      <StockControlSanitarioSectionTitle icon="controles">Controles</StockControlSanitarioSectionTitle>
+      <div
+        className={`stock-control-sanitario-grid stock-control-sanitario-grid--2${
+          bandLayout ? " stock-control-sanitario-grid--controles-band" : ""
+        }`}
+      >
+        <div className="field">
+          <label htmlFor={`${idPrefix}-control-motivo-trigger`}>Motivo</label>
+          <StockControlSanitarioMotivoSelect
+            value={form.control_motivo}
+            onChange={(v) => onPatch({ control_motivo: v })}
+            disabled={guardando}
+            historialMotivos={historialMotivos}
+          />
+        </div>
+        <div className="field">
+          <label htmlFor={`${idPrefix}-control-funcionario-trigger`}>
+            Nombre funcionario que autorizó
+          </label>
+          <StockControlSanitarioFuncionarioSelect
+            value={form.control_funcionario}
+            onChange={(v) => onPatch({ control_funcionario: v })}
+            disabled={guardando}
+            apiOnline={apiOnline}
+            currentUser={currentUser}
+            historialNombres={historialFuncionarios}
+            onError={onError}
+          />
+        </div>
+      </div>
+    </section>
+  );
+
+  if (bandLayout) {
+    return (
+      <div className="stock-sanidad-form-band">
+        {adminSection}
+        <div className="stock-sanidad-form-band-row">
+          {productoSection}
+          {controlesSection}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
-      <section className="stock-control-sanitario-section">
-        <div className="stock-control-sanitario-section-head">
-          <StockControlSanitarioSectionTitle icon="admin">
-            Fecha o período de administración
-          </StockControlSanitarioSectionTitle>
-          <div
-            className="stock-control-sanitario-modos"
-            role="tablist"
-            aria-label="Tipo de administración"
-          >
-            <button
-              type="button"
-              role="tab"
-              aria-selected={adminModo === "fechas"}
-              className={`stock-control-sanitario-modo${adminModo === "fechas" ? " is-active" : ""}`}
-              disabled={guardando}
-              onClick={() => setAdminModo("fechas")}
-            >
-              Fechas
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={adminModo === "periodo"}
-              className={`stock-control-sanitario-modo${adminModo === "periodo" ? " is-active" : ""}`}
-              disabled={guardando}
-              onClick={() => setAdminModo("periodo")}
-            >
-              Período
-            </button>
-          </div>
-        </div>
-        {adminModo === "fechas" ? (
-          <>
-            <div className="stock-control-sanitario-grid stock-control-sanitario-grid--2">
-              <div className="field">
-                <label htmlFor={`${idPrefix}-admin-inicio`}>Fecha inicio</label>
-                <input
-                  id={`${idPrefix}-admin-inicio`}
-                  type="date"
-                  value={form.admin_fecha_inicio}
-                  disabled={guardando}
-                  onChange={(e) => onPatch({ admin_fecha_inicio: e.target.value })}
-                />
-              </div>
-              <div className="field">
-                <label htmlFor={`${idPrefix}-admin-fin`}>Fecha fin</label>
-                <input
-                  id={`${idPrefix}-admin-fin`}
-                  type="date"
-                  value={form.admin_fecha_fin}
-                  disabled={guardando}
-                  onChange={(e) => onPatch({ admin_fecha_fin: e.target.value })}
-                />
-              </div>
-            </div>
-            <div className="field stock-control-sanitario-admin-observaciones">
-              <label htmlFor={`${idPrefix}-admin-observaciones`}>Observaciones</label>
-              <textarea
-                id={`${idPrefix}-admin-observaciones`}
-                rows={2}
-                maxLength={500}
-                placeholder="Notas..."
-                value={form.admin_observaciones}
-                disabled={guardando}
-                onChange={(e) => onPatch({ admin_observaciones: e.target.value })}
-              />
-            </div>
-          </>
-        ) : (
-          <div className="field">
-            <label htmlFor={`${idPrefix}-admin-periodo`}>Período / nota</label>
-            <input
-              id={`${idPrefix}-admin-periodo`}
-              type="text"
-              maxLength={200}
-              placeholder="Ej. 3 días consecutivos, semana 12/2025…"
-              value={form.admin_periodo_nota}
-              disabled={guardando}
-              onChange={(e) => onPatch({ admin_periodo_nota: e.target.value })}
-            />
-          </div>
-        )}
-      </section>
-
-      <section className="stock-control-sanitario-section">
-        <StockControlSanitarioSectionTitle icon="producto">Producto</StockControlSanitarioSectionTitle>
-        <div className="stock-control-sanitario-grid stock-control-sanitario-grid--2 stock-control-sanitario-grid--producto">
-          <div className="field">
-            <label htmlFor={`${idPrefix}-producto-nombre-trigger`}>
-              Nombre comercial
-              <span className="stock-control-sanitario-required">*</span>
-            </label>
-            <StockControlSanitarioMarcaSelect
-              value={form.producto_nombre}
-              onChange={(v) => onPatch({ producto_nombre: v })}
-              disabled={guardando}
-              historialMarcas={historialMarcas}
-            />
-          </div>
-          <div className="field">
-            <label htmlFor={`${idPrefix}-producto-formula-trigger`}>Fórmula</label>
-            <StockControlSanitarioFormulaSelect
-              value={form.producto_formula}
-              onChange={(v) => onPatch({ producto_formula: v })}
-              disabled={guardando}
-              historialFormulas={historialFormulas}
-            />
-          </div>
-          <div className="field">
-            <label htmlFor={`${idPrefix}-producto-forma-trigger`}>Forma de administración</label>
-            <StockControlSanitarioFormaSelect
-              value={form.producto_forma}
-              onChange={(v) => onPatch({ producto_forma: v })}
-              disabled={guardando}
-              historialFormas={historialFormas}
-            />
-          </div>
-          <div className="field">
-            <label htmlFor={`${idPrefix}-producto-cantidad-trigger`}>Cantidad</label>
-            <StockControlSanitarioCantidadSelect
-              value={form.producto_cantidad}
-              onChange={(v) => onPatch({ producto_cantidad: v })}
-              disabled={guardando}
-              apiOnline={apiOnline}
-              modulo={modulo}
-              historialCantidades={historialCantidades}
-              onError={onError}
-            />
-          </div>
-          <div className="field">
-            <label htmlFor={`${idPrefix}-producto-espera`}>Tiempo de espera</label>
-            <input
-              id={`${idPrefix}-producto-espera`}
-              type="text"
-              maxLength={80}
-              placeholder="Ej. 28 días carne / 7 días leche"
-              value={form.producto_espera}
-              disabled={guardando}
-              onChange={(e) => onPatch({ producto_espera: e.target.value })}
-            />
-          </div>
-        </div>
-      </section>
-
-      <section className="stock-control-sanitario-section">
-        <StockControlSanitarioSectionTitle icon="controles">Controles</StockControlSanitarioSectionTitle>
-        <div className="stock-control-sanitario-grid stock-control-sanitario-grid--2">
-          <div className="field">
-            <label htmlFor={`${idPrefix}-control-motivo-trigger`}>Motivo</label>
-            <StockControlSanitarioMotivoSelect
-              value={form.control_motivo}
-              onChange={(v) => onPatch({ control_motivo: v })}
-              disabled={guardando}
-              historialMotivos={historialMotivos}
-            />
-          </div>
-          <div className="field">
-            <label htmlFor={`${idPrefix}-control-funcionario-trigger`}>
-              Nombre funcionario que autorizó
-            </label>
-            <StockControlSanitarioFuncionarioSelect
-              value={form.control_funcionario}
-              onChange={(v) => onPatch({ control_funcionario: v })}
-              disabled={guardando}
-              apiOnline={apiOnline}
-              currentUser={currentUser}
-              historialNombres={historialFuncionarios}
-              onError={onError}
-            />
-          </div>
-        </div>
-      </section>
+      {adminSection}
+      {productoSection}
+      {controlesSection}
     </>
   );
 }

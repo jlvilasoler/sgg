@@ -155,6 +155,7 @@ export default function StockGanaderoBajaManual({
             dispositivo.grupo ||
             "",
           grupo_libre: dispositivo.grupo_libre ?? "",
+          potrero: dispositivo.potrero ?? "",
           raza: dispositivo.raza ?? "",
           nacimiento_mes: dispositivo.nacimiento_mes,
           nacimiento_anio: dispositivo.nacimiento_anio,

@@ -291,8 +291,8 @@ export default function StockControlSanitarioModal({
     if (!puedeEditar || guardando) return;
 
     if (adminModo === "fechas") {
-      if (!form.admin_fecha_inicio.trim() && !form.admin_fecha_fin.trim()) {
-        onError("Indicá al menos fecha inicio o fecha fin.");
+      if (!form.admin_fecha_inicio.trim()) {
+        onError("Indicá la fecha de aplicación.");
         return;
       }
     } else if (!form.admin_periodo_nota.trim()) {
@@ -308,7 +308,7 @@ export default function StockControlSanitarioModal({
     const input: StockControlSanitarioInput = {
       admin_fecha_inicio:
         adminModo === "fechas" ? form.admin_fecha_inicio.trim() : "",
-      admin_fecha_fin: adminModo === "fechas" ? form.admin_fecha_fin.trim() : "",
+      admin_fecha_fin: "",
       admin_periodo_nota:
         adminModo === "periodo" ? form.admin_periodo_nota.trim() : "",
       admin_observaciones: form.admin_observaciones.trim(),
@@ -469,29 +469,17 @@ export default function StockControlSanitarioModal({
                 </div>
                 {adminModo === "fechas" ? (
                   <>
-                    <div className="stock-control-sanitario-grid stock-control-sanitario-grid--2">
-                      <div className="field">
-                        <label htmlFor="cs-admin-inicio">Fecha inicio</label>
-                        <input
-                          id="cs-admin-inicio"
-                          type="date"
-                          value={form.admin_fecha_inicio}
-                          disabled={guardando}
-                          onChange={(e) =>
-                            patchForm({ admin_fecha_inicio: e.target.value })
-                          }
-                        />
-                      </div>
-                      <div className="field">
-                        <label htmlFor="cs-admin-fin">Fecha fin</label>
-                        <input
-                          id="cs-admin-fin"
-                          type="date"
-                          value={form.admin_fecha_fin}
-                          disabled={guardando}
-                          onChange={(e) => patchForm({ admin_fecha_fin: e.target.value })}
-                        />
-                      </div>
+                    <div className="field">
+                      <label htmlFor="cs-admin-inicio">Fecha aplicación</label>
+                      <input
+                        id="cs-admin-inicio"
+                        type="date"
+                        value={form.admin_fecha_inicio}
+                        disabled={guardando}
+                        onChange={(e) =>
+                          patchForm({ admin_fecha_inicio: e.target.value })
+                        }
+                      />
                     </div>
                     <div className="field stock-control-sanitario-admin-observaciones">
                       <label htmlFor="cs-admin-observaciones">Observaciones</label>

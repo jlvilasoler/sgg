@@ -7,6 +7,7 @@ import {
   SIN_FECHA_NAC_FILTRO_KEY,
   labelGeneracionFiltro,
   labelGrupoLibreFiltro,
+  labelPotreroFiltro,
   labelRazaFiltro,
   labelUltimaLecturaMesFiltro,
 } from "./stock-ganadera-utils";
@@ -17,6 +18,7 @@ export interface FacetCounts {
   estado: Record<string, number>;
   edad: Record<string, number>;
   grupoLibre: Record<string, number>;
+  potrero: Record<string, number>;
   raza: Record<string, number>;
   generacion: Record<string, number>;
   ultimaLecturaMes: Record<string, number>;
@@ -39,11 +41,13 @@ interface Props {
   filtroEstado: Set<DispositivoEstado>;
   filtroEdad: Set<string>;
   filtroGrupoLibre: Set<string>;
+  filtroPotrero: Set<string>;
   filtroRaza: Set<string>;
   filtroGeneracion: Set<string>;
   filtroCategoria: Set<string>;
   filtroSinFechaNac: Set<string>;
   grupoLibreOpciones: string[];
+  potreroOpciones: string[];
   razaOpciones: string[];
   generacionOpciones: string[];
   onToggleSexo: (key: string) => void;
@@ -51,6 +55,7 @@ interface Props {
   onToggleEstado: (estado: DispositivoEstado) => void;
   onToggleEdad: (key: string) => void;
   onToggleGrupoLibre: (key: string) => void;
+  onTogglePotrero: (key: string) => void;
   onToggleRaza: (key: string) => void;
   onToggleGeneracion: (key: string) => void;
   onToggleCategoria: (key: string) => void;
@@ -60,6 +65,7 @@ interface Props {
   onLimpiarEstado: () => void;
   onLimpiarEdad: () => void;
   onLimpiarGrupoLibre: () => void;
+  onLimpiarPotrero: () => void;
   onLimpiarRaza: () => void;
   onLimpiarGeneracion: () => void;
   onLimpiarCategoria: () => void;
@@ -144,11 +150,13 @@ export default function StockGanaderaFiltrosSidebar({
   filtroEstado,
   filtroEdad,
   filtroGrupoLibre,
+  filtroPotrero,
   filtroRaza,
   filtroGeneracion,
   filtroCategoria,
   filtroSinFechaNac,
   grupoLibreOpciones,
+  potreroOpciones,
   razaOpciones,
   generacionOpciones,
   onToggleSexo,
@@ -156,6 +164,7 @@ export default function StockGanaderaFiltrosSidebar({
   onToggleEstado,
   onToggleEdad,
   onToggleGrupoLibre,
+  onTogglePotrero,
   onToggleRaza,
   onToggleGeneracion,
   onToggleCategoria,
@@ -165,6 +174,7 @@ export default function StockGanaderaFiltrosSidebar({
   onLimpiarEstado,
   onLimpiarEdad,
   onLimpiarGrupoLibre,
+  onLimpiarPotrero,
   onLimpiarRaza,
   onLimpiarGeneracion,
   onLimpiarCategoria,
@@ -400,6 +410,25 @@ export default function StockGanaderaFiltrosSidebar({
                 label={labelGrupoLibreFiltro(key)}
                 count={counts.grupoLibre[key] ?? 0}
                 onChange={() => onToggleGrupoLibre(key)}
+              />
+            ))}
+          </FacetGroup>
+        ) : null}
+
+        {potreroOpciones.length > 0 ? (
+          <FacetGroup
+            title="Potrero"
+            showClear={filtroPotrero.size > 0}
+            onClear={onLimpiarPotrero}
+            scroll={potreroOpciones.length > 8}
+          >
+            {potreroOpciones.map((key) => (
+              <FacetOption
+                key={key || "sin"}
+                checked={filtroPotrero.has(key)}
+                label={labelPotreroFiltro(key)}
+                count={counts.potrero[key] ?? 0}
+                onChange={() => onTogglePotrero(key)}
               />
             ))}
           </FacetGroup>

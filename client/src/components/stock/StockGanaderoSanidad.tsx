@@ -531,7 +531,7 @@ export default function StockGanaderoSanidad({
 
           <section className="stock-sanidad-registro" aria-label="Registro sanitario">
             <form
-              className="stock-control-sanitario-form stock-sanidad-form"
+              className="stock-sanidad-form"
               onSubmit={(e) => {
                 e.preventDefault();
                 void guardarMasivo();
@@ -567,9 +567,10 @@ export default function StockGanaderoSanidad({
                 </div>
               </div>
 
-              <div className="stock-sanidad-form-body">
+              <div className="stock-sanidad-form-body stock-sanidad-form-body--band">
                 <StockControlSanitarioRegistroForm
                   idPrefix="sanidad"
+                  bandLayout
                   form={form}
                   adminModo={adminModo}
                   guardando={guardando}

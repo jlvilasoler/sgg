@@ -6,6 +6,8 @@ import { labelCategoriaSalidaDispositivo } from "./stock-ganadera-categoria.js";
 import { dispositivoClave, eidClave, splitEidVid } from "./stock-ganadero-id.js";
 import * as stockFoto from "./stock-dispositivo-foto-db.js";
 import * as stockControlSanitario from "./stock-control-sanitario-db.js";
+import * as potreroDb from "./stock-ganadero-potrero-db.js";
+import * as grupoDb from "./stock-ganadero-grupo-db.js";
 
 export { dispositivoClave, eidClave, splitEidVid } from "./stock-ganadero-id.js";
 
@@ -121,6 +123,9 @@ async function clavesEidRepetidas(
   return repetidas;
 }
 
+export { normalizarPotrero, POTRERO_MAX } from "./stock-ganadero-potrero-db.js";
+export { normalizarGrupoCatalogo, GRUPO_LIBRE_MAX } from "./stock-ganadero-grupo-db.js";
+
 export async function initStockGanaderoTables(db: Db): Promise<void> {
   await migrateStockGanaderoLoteCuenta(db);
   await migrateGrupoLibreColumn(db);
@@ -128,6 +133,9 @@ export async function initStockGanaderoTables(db: Db): Promise<void> {
   await migrateCabanaColumns(db);
   await migrateRazaColumn(db);
   await migrateRazaCatalogTable(db);
+  await potreroDb.migratePotreroColumn(db);
+  await potreroDb.migratePotreroCatalogTable(db);
+  await grupoDb.migrateGrupoCatalogTable(db);
   await stockFoto.migrateStockDispositivoFotoColumns(db, "ganadero");
   await stockFoto.migrateStockDispositivoFotosGallery(db, "ganadero");
   await stockFoto.migrateStockDispositivoFotosBlobColumns(db, "ganadero");
@@ -616,6 +624,7 @@ export interface DispositivoMetaInput {
   empresa: DispositivoEmpresa;
   grupo: string;
   grupo_libre: string;
+  potrero: string;
   raza: string;
   nacimiento_mes: number | null;
   nacimiento_anio: number | null;
@@ -658,6 +667,7 @@ interface DispositivoMetaRow {
   empresa: string;
   grupo: string;
   grupo_libre: string;
+  potrero: string;
   raza: string;
   edad: number | null;
   nacimiento_mes: number | null;
@@ -707,7 +717,7 @@ async function mapMetaDispositivos(
 ): Promise<Map<string, DispositivoMetaGuardada>> {
   const rows = (await db
     .prepare(
-      `SELECT clave, sexo, empresa, grupo, grupo_libre, raza, edad, nacimiento_mes, nacimiento_anio, observaciones, estado, tipo_baja, numero_guia, baja_mes, baja_anio
+      `SELECT clave, sexo, empresa, grupo, grupo_libre, potrero, raza, edad, nacimiento_mes, nacimiento_anio, observaciones, estado, tipo_baja, numero_guia, baja_mes, baja_anio
        FROM STOCK_GANADERO_DISPOSITIVO`
     )
     .all()) as DispositivoMetaRow[];
@@ -764,6 +774,7 @@ function normalizarMetaDispositivo(row: Partial<DispositivoMetaRow>): Dispositiv
     empresa,
     grupo,
     grupo_libre: normalizarGrupoLibre(row.grupo_libre),
+    potrero: potreroDb.normalizarPotrero(row.potrero),
     raza: normalizarRaza(row.raza),
     nacimiento_mes: mes,
     nacimiento_anio: anio,
@@ -790,6 +801,7 @@ async function enrichDispositivosWithMeta(
     d.empresa = info?.empresa ?? "";
     d.grupo = info?.grupo ?? "";
     d.grupo_libre = info?.grupo_libre ?? "";
+    d.potrero = info?.potrero ?? "";
     d.raza = info?.raza ?? "";
     d.edad = info?.edad ?? null;
     d.nacimiento_mes = info?.nacimiento_mes ?? null;
@@ -909,6 +921,7 @@ export async function saveStockGanaderaDispositivo(
   const edad = calcularEdadMeses(nacimiento.nacimiento_mes, nacimiento.nacimiento_anio);
   const observaciones = String(input.observaciones ?? "").trim().slice(0, 2000);
   const grupo_libre = normalizarGrupoLibre(input.grupo_libre);
+  const potrero = potreroDb.normalizarPotrero(input.potrero);
   const raza = normalizarRaza(input.raza);
   const estadoRaw = String(input.estado ?? "VIVO").toUpperCase();
   if (!ESTADOS_VALIDOS.has(estadoRaw as DispositivoEstado)) {
@@ -940,7 +953,7 @@ export async function saveStockGanaderaDispositivo(
 
   const anteriorRow = (await db
     .prepare(
-      `SELECT sexo, empresa, grupo, grupo_libre, raza, nacimiento_mes, nacimiento_anio, observaciones, estado, tipo_baja, numero_guia, baja_mes, baja_anio
+      `SELECT sexo, empresa, grupo, grupo_libre, potrero, raza, nacimiento_mes, nacimiento_anio, observaciones, estado, tipo_baja, numero_guia, baja_mes, baja_anio
        FROM STOCK_GANADERO_DISPOSITIVO WHERE clave = ?`
     )
     .get(claveNorm)) as Partial<DispositivoMetaRow> | undefined;
@@ -952,6 +965,7 @@ export async function saveStockGanaderaDispositivo(
     empresa,
     grupo,
     grupo_libre,
+    potrero,
     raza,
     nacimiento_mes: nacimiento.nacimiento_mes,
     nacimiento_anio: nacimiento.nacimiento_anio,
@@ -966,9 +980,9 @@ export async function saveStockGanaderaDispositivo(
 
   await db.prepare(
     `INSERT INTO STOCK_GANADERO_DISPOSITIVO (
-       clave, eid, sexo, empresa, grupo, grupo_libre, raza, edad, nacimiento_mes, nacimiento_anio, observaciones, estado, tipo_baja, numero_guia, baja_mes, baja_anio, actualizado_en
+       clave, eid, sexo, empresa, grupo, grupo_libre, potrero, raza, edad, nacimiento_mes, nacimiento_anio, observaciones, estado, tipo_baja, numero_guia, baja_mes, baja_anio, actualizado_en
      ) VALUES (
-       @clave, @eid, @sexo, @empresa, @grupo, @grupo_libre, @raza, @edad, @nacimiento_mes, @nacimiento_anio, @observaciones, @estado, @tipo_baja, @numero_guia, @baja_mes, @baja_anio,
+       @clave, @eid, @sexo, @empresa, @grupo, @grupo_libre, @potrero, @raza, @edad, @nacimiento_mes, @nacimiento_anio, @observaciones, @estado, @tipo_baja, @numero_guia, @baja_mes, @baja_anio,
        datetime('now', 'localtime')
      )
      ON CONFLICT(clave) DO UPDATE SET
@@ -976,6 +990,7 @@ export async function saveStockGanaderaDispositivo(
        empresa = excluded.empresa,
        grupo = excluded.grupo,
        grupo_libre = excluded.grupo_libre,
+       potrero = excluded.potrero,
        raza = excluded.raza,
        edad = excluded.edad,
        nacimiento_mes = excluded.nacimiento_mes,
@@ -995,6 +1010,7 @@ export async function saveStockGanaderaDispositivo(
     empresa,
     grupo,
     grupo_libre,
+    potrero,
     raza,
     edad,
     nacimiento_mes: nacimiento.nacimiento_mes,
@@ -1007,6 +1023,10 @@ export async function saveStockGanaderaDispositivo(
     baja_anio: baja.baja_anio,
   });
 
+  const cuentaId = await potreroDb.getCuentaIdPorEmpresaCodigo(db, empresa);
+  await potreroDb.ensurePotreroEnCatalogo(db, cuentaId, potrero);
+  await grupoDb.ensureGrupoEnCatalogo(db, cuentaId, grupo_libre);
+
   await registrarHistorialCambiosDispositivo(db, claveNorm, anterior, nuevo, autor);
 
   return {
@@ -1014,6 +1034,7 @@ export async function saveStockGanaderaDispositivo(
     empresa,
     grupo,
     grupo_libre,
+    potrero,
     raza,
     edad,
     nacimiento_mes: nacimiento.nacimiento_mes,
@@ -1043,6 +1064,7 @@ function mergeMetaConPatch(
     empresa: prev?.empresa ?? "",
     grupo: prev?.grupo ?? "",
     grupo_libre: prev?.grupo_libre ?? "",
+    potrero: prev?.potrero ?? "",
     raza: prev?.raza ?? "",
     nacimiento_mes: prev?.nacimiento_mes ?? null,
     nacimiento_anio: prev?.nacimiento_anio ?? null,
@@ -1056,6 +1078,7 @@ function mergeMetaConPatch(
   if (patch.sexo !== undefined) merged.sexo = patch.sexo;
   if (patch.empresa !== undefined) merged.empresa = patch.empresa;
   if (patch.grupo_libre !== undefined) merged.grupo_libre = patch.grupo_libre;
+  if (patch.potrero !== undefined) merged.potrero = patch.potrero;
   if (patch.raza !== undefined) merged.raza = patch.raza;
   if (patch.nacimiento_mes !== undefined) merged.nacimiento_mes = patch.nacimiento_mes;
   if (patch.nacimiento_anio !== undefined) merged.nacimiento_anio = patch.nacimiento_anio;
@@ -1217,6 +1240,7 @@ interface StockGanaderaBackupPayload {
     empresa: string;
     grupo: string;
     grupo_libre: string;
+    potrero: string;
     raza: string;
     edad: number | null;
     nacimiento_mes: number | null;
@@ -1319,7 +1343,7 @@ async function gatherBackupPayloadForCuenta(
 
   const allDispositivos = (await db
     .prepare(
-      `SELECT clave, eid, sexo, empresa, grupo, grupo_libre, raza, edad, nacimiento_mes, nacimiento_anio,
+      `SELECT clave, eid, sexo, empresa, grupo, grupo_libre, potrero, raza, edad, nacimiento_mes, nacimiento_anio,
               observaciones, estado, baja_mes, baja_anio, tipo_baja, numero_guia
        FROM STOCK_GANADERO_DISPOSITIVO`
     )
@@ -1586,6 +1610,7 @@ export async function restaurarStockGanaderaDesdeBackup(
           d.empresa,
           d.grupo,
           d.grupo_libre,
+          d.potrero ?? "",
           d.raza ?? "",
           d.edad,
           d.nacimiento_mes,
@@ -1597,12 +1622,12 @@ export async function restaurarStockGanaderaDesdeBackup(
           d.tipo_baja,
           d.numero_guia
         );
-        return "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
+        return "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())";
       });
       await tx
         .prepare(
           `INSERT INTO STOCK_GANADERO_DISPOSITIVO (
-             clave, eid, sexo, empresa, grupo, grupo_libre, raza, edad, nacimiento_mes, nacimiento_anio,
+             clave, eid, sexo, empresa, grupo, grupo_libre, potrero, raza, edad, nacimiento_mes, nacimiento_anio,
              observaciones, estado, baja_mes, baja_anio, tipo_baja, numero_guia, actualizado_en
            ) VALUES ${filas.join(", ")}
            ON CONFLICT (clave) DO UPDATE SET
@@ -1611,6 +1636,7 @@ export async function restaurarStockGanaderaDesdeBackup(
              empresa = excluded.empresa,
              grupo = excluded.grupo,
              grupo_libre = excluded.grupo_libre,
+             potrero = excluded.potrero,
              raza = excluded.raza,
              edad = excluded.edad,
              nacimiento_mes = excluded.nacimiento_mes,
@@ -1883,7 +1909,7 @@ async function aplicarBajaDispositivo(
 ): Promise<BajaDispositivoSnapshot> {
   const anteriorRow = (await db
     .prepare(
-      `SELECT sexo, empresa, grupo, grupo_libre, raza, nacimiento_mes, nacimiento_anio, observaciones, estado, tipo_baja, numero_guia, baja_mes, baja_anio
+      `SELECT sexo, empresa, grupo, grupo_libre, potrero, raza, nacimiento_mes, nacimiento_anio, observaciones, estado, tipo_baja, numero_guia, baja_mes, baja_anio
        FROM STOCK_GANADERO_DISPOSITIVO WHERE clave = ?`
     )
     .get(claveNorm)) as Partial<DispositivoMetaRow> | undefined;
@@ -1908,6 +1934,7 @@ async function aplicarBajaDispositivo(
     empresa: anterior?.empresa ?? "",
     grupo: anterior?.grupo ?? "",
     grupo_libre: anterior?.grupo_libre ?? "",
+    potrero: anterior?.potrero ?? "",
     raza: anterior?.raza ?? "",
     nacimiento_mes,
     nacimiento_anio,
@@ -2037,7 +2064,7 @@ export async function restaurarDispositivoVivoStock(
   await assertDispositivoExiste(db, claveNorm);
   const anteriorRow = (await db
     .prepare(
-      `SELECT sexo, empresa, grupo, grupo_libre, raza, nacimiento_mes, nacimiento_anio, observaciones, estado, tipo_baja, numero_guia, baja_mes, baja_anio
+      `SELECT sexo, empresa, grupo, grupo_libre, potrero, raza, nacimiento_mes, nacimiento_anio, observaciones, estado, tipo_baja, numero_guia, baja_mes, baja_anio
        FROM STOCK_GANADERO_DISPOSITIVO WHERE clave = ?`
     )
     .get(claveNorm)) as Partial<DispositivoMetaRow> | undefined;
@@ -2076,9 +2103,9 @@ export async function restaurarDispositivoVivoStock(
 
   await db.prepare(
       `INSERT INTO STOCK_GANADERO_DISPOSITIVO (
-         clave, eid, sexo, empresa, grupo, grupo_libre, raza, edad, nacimiento_mes, nacimiento_anio, observaciones, estado, tipo_baja, numero_guia, baja_mes, baja_anio, actualizado_en
+         clave, eid, sexo, empresa, grupo, grupo_libre, potrero, raza, edad, nacimiento_mes, nacimiento_anio, observaciones, estado, tipo_baja, numero_guia, baja_mes, baja_anio, actualizado_en
        ) VALUES (
-         @clave, @eid, @sexo, @empresa, @grupo, @grupo_libre, @raza, @edad, @nacimiento_mes, @nacimiento_anio, @observaciones, @estado, @tipo_baja, @numero_guia, @baja_mes, @baja_anio,
+         @clave, @eid, @sexo, @empresa, @grupo, @grupo_libre, @potrero, @raza, @edad, @nacimiento_mes, @nacimiento_anio, @observaciones, @estado, @tipo_baja, @numero_guia, @baja_mes, @baja_anio,
          datetime('now', 'localtime')
        )
      ON CONFLICT(clave) DO UPDATE SET
@@ -2098,6 +2125,7 @@ export async function restaurarDispositivoVivoStock(
     empresa: nuevo.empresa,
     grupo: nuevo.grupo,
     grupo_libre: nuevo.grupo_libre,
+    potrero: nuevo.potrero,
     raza: nuevo.raza,
     edad,
     nacimiento_mes,
@@ -2440,6 +2468,7 @@ export async function updateStockGanaderaDispositivoSexo(
       empresa: anterior?.empresa ?? "",
       grupo: anterior?.grupo ?? "",
       grupo_libre: anterior?.grupo_libre ?? "",
+      potrero: anterior?.potrero ?? "",
       raza: anterior?.raza ?? "",
       edad: anterior?.edad ?? null,
       nacimiento_mes: anterior?.nacimiento_mes ?? null,
@@ -2943,6 +2972,7 @@ export interface StockGanaderaDispositivo {
   empresa: DispositivoEmpresa;
   grupo: string;
   grupo_libre: string;
+  potrero: string;
   raza: string;
   edad: number | null;
   nacimiento_mes: number | null;
@@ -3115,6 +3145,7 @@ function buildDispositivosFromRegistros(
         empresa: "",
         grupo: "",
         grupo_libre: "",
+        potrero: "",
         raza: "",
         edad: null,
         nacimiento_mes: null,
@@ -3445,6 +3476,10 @@ function fmtHistorialGrupoLibre(v: string): string {
   return v.trim() || "—";
 }
 
+function fmtHistorialPotrero(v: string): string {
+  return v.trim() || "—";
+}
+
 function fmtHistorialRaza(v: string): string {
   return v.trim() || "—";
 }
@@ -3623,6 +3658,7 @@ async function registrarHistorialCambiosDispositivo(
   const prevEmpresa = fmtHistorialEmpresa(anterior?.empresa ?? "");
   const prevGrupo = fmtHistorialGrupo(anterior?.grupo ?? "");
   const prevGrupoLibre = fmtHistorialGrupoLibre(anterior?.grupo_libre ?? "");
+  const prevPotrero = fmtHistorialPotrero(anterior?.potrero ?? "");
   const prevRaza = fmtHistorialRaza(anterior?.raza ?? "");
   const prevSexo = fmtHistorialSexo(anterior?.sexo ?? "");
   const prevNac = fmtHistorialNacimiento(
@@ -3644,6 +3680,7 @@ async function registrarHistorialCambiosDispositivo(
   const nextEmpresa = fmtHistorialEmpresa(nuevo.empresa);
   const nextGrupo = fmtHistorialGrupo(nuevo.grupo);
   const nextGrupoLibre = fmtHistorialGrupoLibre(nuevo.grupo_libre);
+  const nextPotrero = fmtHistorialPotrero(nuevo.potrero);
   const nextRaza = fmtHistorialRaza(nuevo.raza);
   const nextSexo = fmtHistorialSexo(nuevo.sexo);
   const nextNac = fmtHistorialNacimiento(
@@ -3671,6 +3708,16 @@ async function registrarHistorialCambiosDispositivo(
     "Grupo",
     prevGrupoLibre,
     nextGrupoLibre,
+    undefined,
+    autor
+  );
+  await insertHistorialFila(
+    db,
+    clave,
+    "potrero",
+    "Potrero",
+    prevPotrero,
+    nextPotrero,
     undefined,
     autor
   );
@@ -3746,4 +3793,34 @@ export async function listStockGanaderaDispositivoHistorial(
        ORDER BY creado_en DESC, id DESC`
     )
     .all(claveNorm)) as StockGanaderaDispositivoHistorial[];
+}
+
+export async function listStockGanaderoPotreros(
+  db: Db,
+  cuentaId: number
+): Promise<string[]> {
+  return potreroDb.listStockGanaderoPotreros(db, cuentaId);
+}
+
+export async function createStockGanaderoPotrero(
+  db: Db,
+  cuentaId: number,
+  nombre: string
+): Promise<string> {
+  return potreroDb.createStockGanaderoPotrero(db, cuentaId, nombre);
+}
+
+export async function listStockGanaderoGrupos(
+  db: Db,
+  cuentaId: number
+): Promise<string[]> {
+  return grupoDb.listStockGanaderoGrupos(db, cuentaId);
+}
+
+export async function createStockGanaderoGrupo(
+  db: Db,
+  cuentaId: number,
+  nombre: string
+): Promise<string> {
+  return grupoDb.createStockGanaderoGrupo(db, cuentaId, nombre);
 }

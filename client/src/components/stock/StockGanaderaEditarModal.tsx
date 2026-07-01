@@ -18,6 +18,8 @@ import SelectEmpresaDispositivo, {
   EMPRESA_PENDIENTE,
 } from "./SelectEmpresaDispositivo";
 import SelectRazaDispositivo from "./SelectRazaDispositivo";
+import SelectGrupoDispositivo from "./SelectGrupoDispositivo";
+import SelectPotreroDispositivo from "./SelectPotreroDispositivo";
 import SelectSexoDispositivo from "./SelectSexoDispositivo";
 import StockGanaderaEvolucionTimeline from "./StockGanaderaEvolucionTimeline";
 import StockDispositivoFotoCard, {
@@ -32,6 +34,7 @@ import {
   MESES_NACIMIENTO,
   normalizarEstadoDispositivo,
   normalizarGrupoLibre,
+  normalizarPotrero,
   normalizarRaza,
   requiereFechaBaja,
   resolverFechaBajaFormulario,
@@ -79,6 +82,7 @@ export default function StockGanaderaEditarPanel({
   );
   const [observaciones, setObservaciones] = useState(dispositivo.observaciones ?? "");
   const [grupoLibre, setGrupoLibre] = useState(dispositivo.grupo_libre ?? "");
+  const [potrero, setPotrero] = useState(dispositivo.potrero ?? "");
   const [raza, setRaza] = useState(dispositivo.raza ?? "");
   const [nombreCabana, setNombreCabana] = useState(dispositivo.nombre_cabana ?? "");
   const esCabanaPremium = Boolean(dispositivo.cabana_premium);
@@ -101,6 +105,7 @@ export default function StockGanaderaEditarPanel({
     setNacimientoAnio(d.nacimiento_anio);
     setObservaciones(d.observaciones ?? "");
     setGrupoLibre(d.grupo_libre ?? "");
+    setPotrero(d.potrero ?? "");
     setRaza(d.raza ?? "");
     setNombreCabana(d.nombre_cabana ?? "");
     setEstado(normalizarEstadoDispositivo(d.estado));
@@ -166,6 +171,7 @@ export default function StockGanaderaEditarPanel({
     empresa !== (dispositivo.empresa ?? "") ||
     grupoActual !== (dispositivo.grupo ?? "").trim().toUpperCase() ||
     normalizarGrupoLibre(grupoLibre) !== normalizarGrupoLibre(dispositivo.grupo_libre ?? "") ||
+    normalizarPotrero(potrero) !== normalizarPotrero(dispositivo.potrero ?? "") ||
     normalizarRaza(raza) !== normalizarRaza(dispositivo.raza ?? "") ||
     sexo !== (dispositivo.sexo ?? "") ||
     nacimientoMes !== dispositivo.nacimiento_mes ||
@@ -206,6 +212,7 @@ export default function StockGanaderaEditarPanel({
         empresa !== (dispositivo.empresa ?? "") ||
         grupoActual !== (dispositivo.grupo ?? "").trim().toUpperCase() ||
         normalizarGrupoLibre(grupoLibre) !== normalizarGrupoLibre(dispositivo.grupo_libre ?? "") ||
+        normalizarPotrero(potrero) !== normalizarPotrero(dispositivo.potrero ?? "") ||
         normalizarRaza(raza) !== normalizarRaza(dispositivo.raza ?? "") ||
         sexo !== (dispositivo.sexo ?? "") ||
         nacimientoMes !== dispositivo.nacimiento_mes ||
@@ -223,6 +230,7 @@ export default function StockGanaderaEditarPanel({
             empresa,
             grupo: grupoActual,
             grupo_libre: normalizarGrupoLibre(grupoLibre),
+            potrero: normalizarPotrero(potrero),
             raza: normalizarRaza(raza),
             nacimiento_mes: nacimientoMes,
             nacimiento_anio: nacimientoAnio,
@@ -483,16 +491,31 @@ export default function StockGanaderaEditarPanel({
                     <StockEditarFichaLabel icon="grupo" htmlFor="edit-ganadera-grupo-libre">
                       Grupo
                     </StockEditarFichaLabel>
-                    <input
+                    <SelectGrupoDispositivo
                       id="edit-ganadera-grupo-libre"
-                      type="text"
-                      className="stock-observaciones-input mayusculas-auto"
-                      maxLength={48}
-                      placeholder="INGRESA GRUPO"
                       value={grupoLibre}
-                      readOnly={soloLectura}
-                      disabled={!soloLectura && camposDeshabilitados}
-                      onChange={(e) => setGrupoLibre(normalizarGrupoLibre(e.target.value))}
+                      onChange={setGrupoLibre}
+                      disabled={camposDeshabilitados}
+                      apiOnline={apiOnline}
+                      onError={onError}
+                      onSuccess={onSuccess}
+                    />
+                  </div>
+                </div>
+
+                <div className="stock-editar-ficha-zone stock-editar-ficha-zone--potrero">
+                  <div className="stock-editar-ficha-cell">
+                    <StockEditarFichaLabel icon="potrero" htmlFor="edit-ganadera-potrero">
+                      Potrero
+                    </StockEditarFichaLabel>
+                    <SelectPotreroDispositivo
+                      id="edit-ganadera-potrero"
+                      value={potrero}
+                      onChange={setPotrero}
+                      disabled={camposDeshabilitados}
+                      apiOnline={apiOnline}
+                      onError={onError}
+                      onSuccess={onSuccess}
                     />
                   </div>
                 </div>

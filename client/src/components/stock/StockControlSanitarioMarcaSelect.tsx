@@ -8,29 +8,59 @@ import {
 
 const STORAGE_KEY = "scg-marcas-remedio-extras";
 const MAX_MARCA_LEN = 120;
+const DESTACADO_MS = 30 * 24 * 60 * 60 * 1000;
+
+interface MarcaExtra {
+  nombre: string;
+  creada_en: string;
+}
 
 interface MarcaOpcion {
   nombre: string;
   paises: readonly MarcaRemedioPais[];
   esPersonalizada: boolean;
+  destacada: boolean;
 }
 
-function loadMarcaExtras(): string[] {
+function esMarcaDestacada(creadaEn: string): boolean {
+  if (!creadaEn) return false;
+  const t = Date.parse(creadaEn);
+  if (Number.isNaN(t)) return false;
+  return Date.now() - t < DESTACADO_MS;
+}
+
+function loadMarcaExtras(): MarcaExtra[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw) as unknown;
     if (!Array.isArray(parsed)) return [];
+
+    if (parsed.every((x) => typeof x === "string")) {
+      return (parsed as string[])
+        .map((x) => x.trim())
+        .filter(Boolean)
+        .map((nombre) => ({ nombre, creada_en: "" }));
+    }
+
     return parsed
-      .filter((x): x is string => typeof x === "string")
-      .map((x) => x.trim())
-      .filter(Boolean);
+      .filter(
+        (x): x is MarcaExtra =>
+          typeof x === "object" &&
+          x != null &&
+          typeof (x as MarcaExtra).nombre === "string"
+      )
+      .map((x) => ({
+        nombre: x.nombre.trim(),
+        creada_en: typeof x.creada_en === "string" ? x.creada_en : "",
+      }))
+      .filter((x) => x.nombre);
   } catch {
     return [];
   }
 }
 
-function saveMarcaExtras(list: string[]): void {
+function saveMarcaExtras(list: MarcaExtra[]): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
 }
 
@@ -55,7 +85,15 @@ export default function StockControlSanitarioMarcaSelect({
   const [busqueda, setBusqueda] = useState("");
   const [modoNuevo, setModoNuevo] = useState(false);
   const [nuevaMarca, setNuevaMarca] = useState("");
-  const [extras, setExtras] = useState<string[]>(() => loadMarcaExtras());
+  const [extras, setExtras] = useState<MarcaExtra[]>(() => loadMarcaExtras());
+
+  const extrasPorNombre = useMemo(() => {
+    const map = new Map<string, MarcaExtra>();
+    for (const extra of extras) {
+      map.set(extra.nombre.toLocaleLowerCase("es-UY"), extra);
+    }
+    return map;
+  }, [extras]);
 
   const catalogoPorNombre = useMemo(() => {
     const map = new Map<string, MarcaRemedioCatalogo>();
@@ -68,27 +106,47 @@ export default function StockControlSanitarioMarcaSelect({
   const todasLasMarcas = useMemo(() => {
     const seen = new Set<string>();
     const list: MarcaOpcion[] = [];
-    const push = (nombre: string, esPersonalizada = false) => {
+    const push = (
+      nombre: string,
+      opts?: { esPersonalizada?: boolean; creadaEn?: string }
+    ) => {
       const t = nombre.trim();
       if (!t) return;
       const key = t.toLocaleLowerCase("es-UY");
       if (seen.has(key)) return;
       seen.add(key);
       const catalogo = catalogoPorNombre.get(key);
+      const extra = extrasPorNombre.get(key);
+      const creadaEn = opts?.creadaEn ?? extra?.creada_en ?? "";
       list.push({
         nombre: catalogo?.nombre ?? t,
         paises: catalogo?.paises ?? [],
-        esPersonalizada: esPersonalizada || !catalogo,
+        esPersonalizada: opts?.esPersonalizada ?? !catalogo,
+        destacada: esMarcaDestacada(creadaEn),
       });
     };
     for (const m of MARCAS_REMEDIO_GANADO) push(m.nombre);
-    for (const m of extras) push(m, true);
+    for (const m of extras) push(m.nombre, { esPersonalizada: true, creadaEn: m.creada_en });
     for (const m of historialMarcas) push(m);
     if (value.trim()) push(value);
-    return list.sort((a, b) =>
-      a.nombre.localeCompare(b.nombre, "es", { sensitivity: "base" })
-    );
-  }, [catalogoPorNombre, extras, historialMarcas, value]);
+
+    return list.sort((a, b) => {
+      if (a.destacada !== b.destacada) return a.destacada ? -1 : 1;
+      if (a.destacada && b.destacada) {
+        const ta =
+          extrasPorNombre.get(a.nombre.toLocaleLowerCase("es-UY"))?.creada_en ?? "";
+        const tb =
+          extrasPorNombre.get(b.nombre.toLocaleLowerCase("es-UY"))?.creada_en ?? "";
+        return tb.localeCompare(ta);
+      }
+      return a.nombre.localeCompare(b.nombre, "es", { sensitivity: "base" });
+    });
+  }, [catalogoPorNombre, extras, extrasPorNombre, historialMarcas, value]);
+
+  const destacadasCount = useMemo(
+    () => todasLasMarcas.filter((m) => m.destacada).length,
+    [todasLasMarcas]
+  );
 
   const listaFiltrada = useMemo(() => {
     const t = busqueda.trim();
@@ -135,13 +193,15 @@ export default function StockControlSanitarioMarcaSelect({
     const nombre = nuevaMarca.trim().slice(0, MAX_MARCA_LEN);
     if (!nombre) return;
 
+    const ahora = new Date().toISOString();
+    const key = nombre.toLocaleLowerCase("es-UY");
+
     setExtras((prev) => {
-      if (prev.some((x) => x.localeCompare(nombre, "es", { sensitivity: "base" }) === 0)) {
-        return prev;
-      }
-      const next = [...prev, nombre].sort((a, b) =>
-        a.localeCompare(b, "es", { sensitivity: "base" })
-      );
+      const idx = prev.findIndex((x) => x.nombre.toLocaleLowerCase("es-UY") === key);
+      const next =
+        idx >= 0
+          ? prev.map((x, i) => (i === idx ? { ...x, creada_en: ahora } : x))
+          : [...prev, { nombre, creada_en: ahora }];
       saveMarcaExtras(next);
       return next;
     });
@@ -232,7 +292,9 @@ export default function StockControlSanitarioMarcaSelect({
           <p className="proveedor-panel-meta">
             {busqueda.trim()
               ? `${listaFiltrada.length} coincidencia(s) de ${todasLasMarcas.length}`
-              : `${MARCAS_REMEDIO_GANADO.length} marcas — buscá o agregá una nueva`}
+              : destacadasCount > 0
+                ? `${MARCAS_REMEDIO_GANADO.length} marcas · ${destacadasCount} destacada(s) este mes`
+                : `${MARCAS_REMEDIO_GANADO.length} marcas — buscá o agregá una nueva`}
           </p>
 
           {modoNuevo ? (
@@ -311,18 +373,37 @@ export default function StockControlSanitarioMarcaSelect({
             ) : null}
 
             {!modoNuevo
-              ? listaFiltrada.map((m) => (
-                  <li key={m.nombre}>
-                    <button
-                      type="button"
-                      role="option"
-                      aria-selected={value === m.nombre}
-                      onClick={() => elegir(m.nombre)}
-                    >
-                      {m.nombre}
-                    </button>
-                  </li>
-                ))
+              ? listaFiltrada.map((m, index) => {
+                  const mostrarSeparador =
+                    !busqueda.trim() &&
+                    m.destacada &&
+                    (index === 0 || !listaFiltrada[index - 1]?.destacada);
+                  return (
+                    <li key={m.nombre}>
+                      {mostrarSeparador ? (
+                        <p className="stock-control-sanitario-marca-destacadas-label">
+                          Destacadas (último mes)
+                        </p>
+                      ) : null}
+                      <button
+                        type="button"
+                        role="option"
+                        aria-selected={value === m.nombre}
+                        className={
+                          m.destacada ? "stock-control-sanitario-marca-destacada" : undefined
+                        }
+                        onClick={() => elegir(m.nombre)}
+                      >
+                        <span>{m.nombre}</span>
+                        {m.destacada ? (
+                          <span className="stock-control-sanitario-marca-destacada-badge">
+                            Nuevo
+                          </span>
+                        ) : null}
+                      </button>
+                    </li>
+                  );
+                })
               : null}
           </ul>
         </div>

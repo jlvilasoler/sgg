@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { HubMenuCard } from "./HubMenuCard";
 import { useHeaderBackStep } from "../header-back";
 import type { AuthUser } from "../types";
-import { canAccessAdministradorCuentas, canAccessActividadSagTotal, canAccessArquitecturaSistema, canAccessClasificacionProveedores, canAccessDocumentosDigitales, canAccessStockGanaderoAdmin, canManageUsuariosCuenta } from "../utils/auth-permissions";
+import { canAccessAdministradorCuentas, canAccessActividadSagTotal, canAccessArquitecturaSistema, canAccessClasificacionProveedores, canAccessControlGlobalCuentas, canAccessDocumentosDigitales, canAccessStockGanaderoAdmin, canManageUsuariosCuenta } from "../utils/auth-permissions";
 import Proveedores from "./Proveedores";
 import ClasificacionProveedores from "./proveedores/ClasificacionProveedores";
 import Responsables from "./Responsables";
@@ -12,6 +12,7 @@ import StockEquinoAdmin from "./stock-equino/StockEquinoAdmin";
 import AdministradorCuenta from "./AdministradorCuenta";
 import ArquitecturaSistema from "./ArquitecturaSistema";
 import DocumentosDigitales from "./DocumentosDigitales";
+import ControlGlobalCuentas from "./ControlGlobalCuentas";
 import Usuarios from "./Usuarios";
 import UsuariosActividad from "./UsuariosActividad";
 import type { TabId } from "./Header";
@@ -33,6 +34,7 @@ type CatalogoModulo =
 type SagModulo =
   | "sag_arquitectura"
   | "registro_actividad_total"
+  | "control_global_cuentas"
   | "documentos_digitales";
 
 type SagModuloIcon =
@@ -118,6 +120,12 @@ const SAG_MODULOS: {
     icon: { type: "tab", id: "registro_actividad" },
   },
   {
+    id: "control_global_cuentas",
+    label: "Control global de cuentas",
+    subtitle: "Solo superadministrador · animales y gastos por cuenta",
+    icon: { type: "tab", id: "resumen" },
+  },
+  {
     id: "documentos_digitales",
     label: "Documentos Digitales",
     subtitle: "Archivo y gestión documental global",
@@ -175,7 +183,7 @@ export default function Configuracion({
     if (modulo === "cuenta_hub" || modulo === "sag_hub") {
       return { onBack: () => setModulo("menu"), label: "Configuración" };
     }
-    if (modulo === "sag_arquitectura" || modulo === "documentos_digitales" || modulo === "registro_actividad_total") {
+    if (modulo === "sag_arquitectura" || modulo === "documentos_digitales" || modulo === "registro_actividad_total" || modulo === "control_global_cuentas") {
       return { onBack: () => setModulo("sag_hub"), label: "Configuración SAG" };
     }
     if (esSuperAdmin && isCatalogoModulo(modulo)) {
@@ -206,6 +214,12 @@ export default function Configuracion({
     if (
       modulo === "registro_actividad_total" &&
       !canAccessActividadSagTotal(currentUser ?? null)
+    ) {
+      setModulo("sag_hub");
+    }
+    if (
+      modulo === "control_global_cuentas" &&
+      !canAccessControlGlobalCuentas(currentUser ?? null)
     ) {
       setModulo("sag_hub");
     }
@@ -346,6 +360,21 @@ export default function Configuracion({
     );
   }
 
+  if (
+    modulo === "control_global_cuentas" &&
+    currentUser &&
+    canAccessControlGlobalCuentas(currentUser)
+  ) {
+    return (
+      <ControlGlobalCuentas
+        apiOnline={apiOnline}
+        volverLabel="Volver a Configuración SAG"
+        onError={onError}
+        onVolver={backStep?.onBack ?? (() => setModulo("sag_hub"))}
+      />
+    );
+  }
+
   if (modulo === "documentos_digitales") {
     return (
       <DocumentosDigitales
@@ -398,6 +427,9 @@ export default function Configuracion({
     }
     if (item.id === "registro_actividad_total") {
       return canAccessActividadSagTotal(currentUser ?? null);
+    }
+    if (item.id === "control_global_cuentas") {
+      return canAccessControlGlobalCuentas(currentUser ?? null);
     }
     if (item.id === "sag_arquitectura") {
       return canAccessArquitecturaSistema(currentUser ?? null);

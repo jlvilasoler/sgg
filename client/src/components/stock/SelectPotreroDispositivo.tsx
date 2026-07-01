@@ -1,20 +1,20 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  createStockGanaderoGrupo,
-  fetchStockGanaderoGrupos,
+  createStockGanaderoPotrero,
+  fetchStockGanaderoPotreros,
 } from "../../api";
 import { IconCancelar, IconConfirmar } from "../icons/ActionIcons";
 import {
-  esGrupoLibreEnCatalogo,
-  GRUPO_LIBRE_OTRA_VALUE,
-  normalizarGrupoLibre,
+  esPotreroEnCatalogo,
+  normalizarPotrero,
+  POTRERO_OTRA_VALUE,
 } from "./stock-ganadera-utils";
 
-const GRUPO_AGREGAR_LABEL = "Agregar otro grupo ->";
+const POTRERO_AGREGAR_LABEL = "Agregar otro potrero ->";
 
 interface Props {
   value: string;
-  onChange: (grupo: string) => void;
+  onChange: (potrero: string) => void;
   disabled?: boolean;
   id?: string;
   apiOnline?: boolean;
@@ -23,13 +23,13 @@ interface Props {
   selectClassName?: string;
 }
 
-function ordenarGrupos(grupos: Iterable<string>): string[] {
-  return [...new Set([...grupos].map(normalizarGrupoLibre).filter(Boolean))].sort((a, b) =>
+function ordenarPotreros(potreros: Iterable<string>): string[] {
+  return [...new Set([...potreros].map(normalizarPotrero).filter(Boolean))].sort((a, b) =>
     a.localeCompare(b, "es")
   );
 }
 
-export default function SelectGrupoDispositivo({
+export default function SelectPotreroDispositivo({
   value,
   onChange,
   disabled = false,
@@ -41,8 +41,8 @@ export default function SelectGrupoDispositivo({
 }: Props) {
   const [catalogo, setCatalogo] = useState<string[]>([]);
   const [cargandoCatalogo, setCargandoCatalogo] = useState(false);
-  const [grupoNuevoNombre, setGrupoNuevoNombre] = useState("");
-  const [guardandoGrupo, setGuardandoGrupo] = useState(false);
+  const [potreroNuevoNombre, setPotreroNuevoNombre] = useState("");
+  const [guardandoPotrero, setGuardandoPotrero] = useState(false);
   const [modoAgregar, setModoAgregar] = useState(false);
 
   const cargarCatalogo = useCallback(async () => {
@@ -52,11 +52,11 @@ export default function SelectGrupoDispositivo({
     }
     setCargandoCatalogo(true);
     try {
-      const grupos = await fetchStockGanaderoGrupos();
-      setCatalogo(ordenarGrupos(grupos));
+      const potreros = await fetchStockGanaderoPotreros();
+      setCatalogo(ordenarPotreros(potreros));
     } catch (e) {
       setCatalogo([]);
-      onError?.(e instanceof Error ? e.message : "Error al cargar grupos");
+      onError?.(e instanceof Error ? e.message : "Error al cargar potreros");
     } finally {
       setCargandoCatalogo(false);
     }
@@ -66,61 +66,61 @@ export default function SelectGrupoDispositivo({
     void cargarCatalogo();
   }, [cargarCatalogo]);
 
-  const norm = normalizarGrupoLibre(value);
+  const norm = normalizarPotrero(value);
 
   const normPrev = useRef(norm);
   useEffect(() => {
     if (normPrev.current && !norm) {
       setModoAgregar(false);
-      setGrupoNuevoNombre("");
+      setPotreroNuevoNombre("");
     }
     normPrev.current = norm;
   }, [norm]);
 
   const opciones = useMemo(() => {
     const list = [...catalogo];
-    if (norm && !esGrupoLibreEnCatalogo(norm, list)) list.push(norm);
-    return ordenarGrupos(list);
+    if (norm && !esPotreroEnCatalogo(norm, list)) list.push(norm);
+    return ordenarPotreros(list);
   }, [catalogo, norm]);
 
-  const cancelarGrupoNuevo = () => {
+  const cancelarPotreroNuevo = () => {
     setModoAgregar(false);
-    setGrupoNuevoNombre("");
+    setPotreroNuevoNombre("");
   };
 
-  const handleGrupoSelect = (v: string) => {
-    if (v === GRUPO_LIBRE_OTRA_VALUE) {
+  const handlePotreroSelect = (v: string) => {
+    if (v === POTRERO_OTRA_VALUE) {
       setModoAgregar(true);
-      setGrupoNuevoNombre("");
+      setPotreroNuevoNombre("");
       return;
     }
     setModoAgregar(false);
-    setGrupoNuevoNombre("");
+    setPotreroNuevoNombre("");
     onChange(v);
   };
 
-  const guardarGrupoNuevo = async () => {
-    const nombre = normalizarGrupoLibre(grupoNuevoNombre);
+  const guardarPotreroNuevo = async () => {
+    const nombre = normalizarPotrero(potreroNuevoNombre);
     if (!nombre) {
-      onError?.("Ingresá un nombre de grupo");
+      onError?.("Ingresá un nombre de potrero");
       return;
     }
     if (!apiOnline) {
-      onError?.("Conectá la API para agregar grupos al catálogo");
+      onError?.("Conectá la API para agregar potreros al catálogo");
       return;
     }
-    setGuardandoGrupo(true);
+    setGuardandoPotrero(true);
     try {
-      const guardado = await createStockGanaderoGrupo(nombre);
-      setCatalogo((prev) => ordenarGrupos([...prev, guardado]));
+      const guardado = await createStockGanaderoPotrero(nombre);
+      setCatalogo((prev) => ordenarPotreros([...prev, guardado]));
       setModoAgregar(false);
-      setGrupoNuevoNombre("");
+      setPotreroNuevoNombre("");
       onChange(guardado);
-      onSuccess?.(`Grupo «${guardado}» agregado al catálogo`, "Catálogo");
+      onSuccess?.(`Potrero «${guardado}» agregado al catálogo`, "Catálogo");
     } catch (e) {
-      onError?.(e instanceof Error ? e.message : "Error al agregar grupo");
+      onError?.(e instanceof Error ? e.message : "Error al agregar potrero");
     } finally {
-      setGuardandoGrupo(false);
+      setGuardandoPotrero(false);
     }
   };
 
@@ -133,31 +133,31 @@ export default function SelectGrupoDispositivo({
             type="text"
             className="concepto-unificado mayusculas-auto"
             maxLength={48}
-            disabled={disabled || guardandoGrupo}
-            placeholder="Nombre del nuevo grupo…"
-            value={grupoNuevoNombre}
+            disabled={disabled || guardandoPotrero}
+            placeholder="Nombre del nuevo potrero…"
+            value={potreroNuevoNombre}
             autoComplete="off"
             autoFocus
-            onChange={(e) => setGrupoNuevoNombre(normalizarGrupoLibre(e.target.value))}
+            onChange={(e) => setPotreroNuevoNombre(normalizarPotrero(e.target.value))}
             onKeyDown={(e) => {
               if (e.key === "Enter") {
                 e.preventDefault();
                 e.stopPropagation();
-                void guardarGrupoNuevo();
+                void guardarPotreroNuevo();
               }
             }}
-            aria-label="Nombre del nuevo grupo"
+            aria-label="Nombre del nuevo potrero"
           />
           <div className="concepto-acciones">
             <button
               type="button"
               className="concepto-btn concepto-btn--guardar"
-              disabled={disabled || guardandoGrupo || !grupoNuevoNombre.trim() || !apiOnline}
-              onClick={() => void guardarGrupoNuevo()}
-              title="Agregar grupo al catálogo"
-              aria-label="Agregar grupo"
+              disabled={disabled || guardandoPotrero || !potreroNuevoNombre.trim() || !apiOnline}
+              onClick={() => void guardarPotreroNuevo()}
+              title="Agregar potrero al catálogo"
+              aria-label="Agregar potrero"
             >
-              {guardandoGrupo ? (
+              {guardandoPotrero ? (
                 <span className="concepto-btn-spinner" aria-hidden />
               ) : (
                 <IconConfirmar size={18} />
@@ -166,8 +166,8 @@ export default function SelectGrupoDispositivo({
             <button
               type="button"
               className="concepto-btn concepto-btn--cancelar"
-              disabled={disabled || guardandoGrupo}
-              onClick={cancelarGrupoNuevo}
+              disabled={disabled || guardandoPotrero}
+              onClick={cancelarPotreroNuevo}
               title="Cancelar"
               aria-label="Cancelar"
             >
@@ -187,15 +187,15 @@ export default function SelectGrupoDispositivo({
           className={selectClassName}
           value={norm}
           disabled={disabled || cargandoCatalogo}
-          onChange={(e) => handleGrupoSelect(e.target.value)}
+          onChange={(e) => handlePotreroSelect(e.target.value)}
         >
           <option value="">—</option>
-          {opciones.map((g) => (
-            <option key={g} value={g}>
-              {g}
+          {opciones.map((p) => (
+            <option key={p} value={p}>
+              {p}
             </option>
           ))}
-          <option value={GRUPO_LIBRE_OTRA_VALUE}>{GRUPO_AGREGAR_LABEL}</option>
+          <option value={POTRERO_OTRA_VALUE}>{POTRERO_AGREGAR_LABEL}</option>
         </select>
       </div>
     </div>

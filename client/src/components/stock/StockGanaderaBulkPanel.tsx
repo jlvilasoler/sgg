@@ -12,12 +12,17 @@ import SelectEmpresaDispositivo, {
   EMPRESA_PENDIENTE,
 } from "./SelectEmpresaDispositivo";
 import SelectEstadoDispositivo from "./SelectEstadoDispositivo";
+import SelectGrupoDispositivo from "./SelectGrupoDispositivo";
+import SelectPotreroDispositivo from "./SelectPotreroDispositivo";
+import SelectRazaDispositivo from "./SelectRazaDispositivo";
 import SelectSexoDispositivo from "./SelectSexoDispositivo";
 import {
   listAniosNacimiento,
   MESES_NACIMIENTO,
   normalizarEstadoDispositivo,
   normalizarGrupoLibre,
+  normalizarPotrero,
+  normalizarRaza,
   requiereFechaBaja,
 } from "./stock-ganadera-utils";
 
@@ -50,6 +55,8 @@ export default function StockGanaderaBulkPanel({
   const [aplicarSexo, setAplicarSexo] = useState(false);
   const [aplicarNacimiento, setAplicarNacimiento] = useState(false);
   const [aplicarEstado, setAplicarEstado] = useState(false);
+  const [aplicarRaza, setAplicarRaza] = useState(false);
+  const [aplicarPotrero, setAplicarPotrero] = useState(false);
   const [aplicarGrupoLibre, setAplicarGrupoLibre] = useState(false);
   const [aplicarObservaciones, setAplicarObservaciones] = useState(false);
 
@@ -62,6 +69,8 @@ export default function StockGanaderaBulkPanel({
   const [bajaAnio, setBajaAnio] = useState<number | "">("");
   const [observaciones, setObservaciones] = useState("");
   const [grupoLibre, setGrupoLibre] = useState("");
+  const [raza, setRaza] = useState("");
+  const [potrero, setPotrero] = useState("");
   const [obsModoReemplazar, setObsModoReemplazar] = useState(true);
   const [guardando, setGuardando] = useState(false);
 
@@ -76,6 +85,8 @@ export default function StockGanaderaBulkPanel({
       aplicarSexo ||
       aplicarNacimiento ||
       aplicarEstado ||
+      aplicarRaza ||
+      aplicarPotrero ||
       aplicarGrupoLibre ||
       aplicarObservaciones);
 
@@ -98,7 +109,9 @@ export default function StockGanaderaBulkPanel({
         patch.baja_anio = bajaAnio === "" ? null : bajaAnio;
       }
     }
-    if (aplicarGrupoLibre) patch.grupo_libre = grupoLibre;
+    if (aplicarGrupoLibre) patch.grupo_libre = normalizarGrupoLibre(grupoLibre);
+    if (aplicarRaza) patch.raza = normalizarRaza(raza);
+    if (aplicarPotrero) patch.potrero = normalizarPotrero(potrero);
     if (aplicarObservaciones) {
       patch.observaciones = observaciones;
       patch.observaciones_modo = obsModoReemplazar ? "reemplazar" : "agregar";
@@ -198,6 +211,44 @@ export default function StockGanaderaBulkPanel({
             value={sexo}
             onChange={setSexo}
             disabled={!aplicarSexo || camposDeshabilitados}
+          />
+        </label>
+
+        <label className={`stock-bulk-modal-field${aplicarRaza ? " is-active" : ""}`}>
+          <span className="stock-bulk-modal-field-head">
+            <input
+              type="checkbox"
+              checked={aplicarRaza}
+              disabled={camposDeshabilitados}
+              onChange={(e) => setAplicarRaza(e.target.checked)}
+            />
+            Raza
+          </span>
+          <SelectRazaDispositivo
+            value={raza}
+            onChange={setRaza}
+            disabled={!aplicarRaza || camposDeshabilitados}
+            apiOnline={apiOnline}
+            onError={onError}
+          />
+        </label>
+
+        <label className={`stock-bulk-modal-field${aplicarPotrero ? " is-active" : ""}`}>
+          <span className="stock-bulk-modal-field-head">
+            <input
+              type="checkbox"
+              checked={aplicarPotrero}
+              disabled={camposDeshabilitados}
+              onChange={(e) => setAplicarPotrero(e.target.checked)}
+            />
+            Potrero
+          </span>
+          <SelectPotreroDispositivo
+            value={potrero}
+            onChange={setPotrero}
+            disabled={!aplicarPotrero || camposDeshabilitados}
+            apiOnline={apiOnline}
+            onError={onError}
           />
         </label>
 
@@ -302,14 +353,12 @@ export default function StockGanaderaBulkPanel({
             />
             Grupo
           </span>
-          <input
-            type="text"
-            className="stock-observaciones-input mayusculas-auto"
-            maxLength={48}
-            placeholder="Texto libre (letras y números)…"
+          <SelectGrupoDispositivo
             value={grupoLibre}
+            onChange={setGrupoLibre}
             disabled={!aplicarGrupoLibre || camposDeshabilitados}
-            onChange={(e) => setGrupoLibre(normalizarGrupoLibre(e.target.value))}
+            apiOnline={apiOnline}
+            onError={onError}
           />
         </label>
 

@@ -288,6 +288,7 @@ export interface StockGanaderaDispositivo {
   empresa: DispositivoEmpresa;
   grupo: string;
   grupo_libre: string;
+  potrero: string;
   raza: string;
   edad: number | null;
   nacimiento_mes: number | null;
@@ -1157,6 +1158,30 @@ export interface EmpresaCuentaForm {
 export interface EmpresaCuentaCreateResult {
   cuenta: EmpresaCuenta;
   admin_password_temporal?: string;
+}
+
+export interface CuentaControlResumen {
+  cuenta_id: number;
+  cuenta_numero: string;
+  nombre: string;
+  codigo: string;
+  activo: boolean;
+  animales_ganadero: number;
+  animales_equino: number;
+  animales_total: number;
+  gastos_registros: number;
+  gastos_pesos: number;
+}
+
+export interface CuentasControlPlataformaResumen {
+  cuentas: CuentaControlResumen[];
+  totales: {
+    animales_ganadero: number;
+    animales_equino: number;
+    animales_total: number;
+    gastos_registros: number;
+    gastos_pesos: number;
+  };
 }
 
 export interface EmpresaOperativaForm {

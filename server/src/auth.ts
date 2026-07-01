@@ -12,6 +12,7 @@ import {
 import { dbCapacityHint, isDbCapacityError } from "./db/pg-client.js";
 import type { StockMovimientoTipo } from "./stock-auditoria-db.js";
 import { getDb, empresasCuenta, stockAuditoria } from "./database.js";
+import { summarizeCuentasControlPlataforma } from "./plataforma-cuentas-control-db.js";
 import {
   attachApiActivityLogger,
   PANTALLA_LABELS,
@@ -1208,6 +1209,19 @@ export function registerAuthRoutes(app: Express): void {
       return;
     }
     res.json({ ok: true, data: cuenta });
+  });
+
+  app.get("/api/empresas-cuenta/resumen-control", async (req, res) => {
+    if (!requireSuperAdmin(req, res)) return;
+    try {
+      res.json({ ok: true, data: await summarizeCuentasControlPlataforma(getDb()) });
+    } catch (err) {
+      console.error("[SGG] resumen-control cuentas:", err);
+      res.status(500).json({
+        ok: false,
+        error: err instanceof Error ? err.message : "Error al cargar resumen de cuentas",
+      });
+    }
   });
 
   app.get("/api/empresas-cuenta", async (req, res) => {

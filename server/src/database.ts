@@ -447,6 +447,12 @@ export const stockGanadero = {
   listRazas: () => stock.listStockGanaderoRazas(db),
   createRaza: (nombre: string) => stock.createStockGanaderoRaza(db, nombre),
   deleteRaza: (nombre: string) => stock.deleteStockGanaderoRaza(db, nombre),
+  listPotreros: (cuentaId: number) => stock.listStockGanaderoPotreros(db, cuentaId),
+  createPotrero: (cuentaId: number, nombre: string) =>
+    stock.createStockGanaderoPotrero(db, cuentaId, nombre),
+  listGrupos: (cuentaId: number) => stock.listStockGanaderoGrupos(db, cuentaId),
+  createGrupo: (cuentaId: number, nombre: string) =>
+    stock.createStockGanaderoGrupo(db, cuentaId, nombre),
 };
 
 export const stockEquino = {

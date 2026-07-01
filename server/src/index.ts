@@ -2040,6 +2040,15 @@ app.patch("/api/stock-ganadero/dispositivos/bulk", async (req, res) => {
     if (patch.observaciones !== undefined) {
       metaPatch.observaciones = String(patch.observaciones);
     }
+    if (patch.grupo_libre !== undefined) {
+      metaPatch.grupo_libre = String(patch.grupo_libre);
+    }
+    if (patch.potrero !== undefined) {
+      metaPatch.potrero = String(patch.potrero);
+    }
+    if (patch.raza !== undefined) {
+      metaPatch.raza = String(patch.raza);
+    }
     if (patch.estado !== undefined) {
       metaPatch.estado = String(patch.estado).toUpperCase() as
         | "VIVO"
@@ -2257,6 +2266,7 @@ app.patch("/api/stock-ganadero/dispositivos/:clave", async (req, res) => {
       typeof body.observaciones === "string" ? body.observaciones : "";
     const grupo_libre =
       typeof body.grupo_libre === "string" ? body.grupo_libre : "";
+    const potrero = typeof body.potrero === "string" ? body.potrero : "";
     const raza = typeof body.raza === "string" ? body.raza : "";
     const estado = String(body.estado ?? "VIVO").toUpperCase() as
       | "VIVO"
@@ -2286,6 +2296,7 @@ app.patch("/api/stock-ganadero/dispositivos/:clave", async (req, res) => {
         empresa,
         grupo: "",
         grupo_libre,
+        potrero,
         raza,
         nacimiento_mes,
         nacimiento_anio,
@@ -2307,6 +2318,7 @@ app.patch("/api/stock-ganadero/dispositivos/:clave", async (req, res) => {
         tipo_baja: data.tipo_baja,
         sexo: data.sexo,
         empresa: data.empresa,
+        potrero: data.potrero,
       },
     });
     res.json({ ok: true, data });
@@ -2432,6 +2444,96 @@ app.delete("/api/stock-ganadero/razas", async (req, res) => {
     res.status(400).json({
       ok: false,
       error: e instanceof Error ? e.message : "Error al eliminar raza",
+    });
+  }
+});
+
+app.get("/api/stock-ganadero/potreros", async (req, res) => {
+  try {
+    const cuentaId = await cuentaIdParaInsert(req.user!);
+    if (!cuentaId) {
+      res.status(400).json({
+        ok: false,
+        error: "No se pudo determinar la cuenta para listar potreros",
+      });
+      return;
+    }
+    const potreros = await db.stockGanadero.listPotreros(cuentaId);
+    res.json({ ok: true, data: potreros });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al listar potreros",
+    });
+  }
+});
+
+app.post("/api/stock-ganadero/potreros", async (req, res) => {
+  try {
+    const cuentaId = await cuentaIdParaInsert(req.user!);
+    if (!cuentaId) {
+      res.status(400).json({
+        ok: false,
+        error: "No se pudo determinar la cuenta para registrar el potrero",
+      });
+      return;
+    }
+    const nombre = typeof req.body?.nombre === "string" ? req.body.nombre : "";
+    const potrero = await db.stockGanadero.createPotrero(cuentaId, nombre);
+    await auditStockMovimiento(req, "MODIFICACION", {
+      resumen: `Agregó potrero ${potrero} al catálogo`,
+      detalle: { potrero, cuenta_id: cuentaId },
+    });
+    res.json({ ok: true, data: { nombre: potrero } });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al agregar potrero",
+    });
+  }
+});
+
+app.get("/api/stock-ganadero/grupos", async (req, res) => {
+  try {
+    const cuentaId = await cuentaIdParaInsert(req.user!);
+    if (!cuentaId) {
+      res.status(400).json({
+        ok: false,
+        error: "No se pudo determinar la cuenta para listar grupos",
+      });
+      return;
+    }
+    const grupos = await db.stockGanadero.listGrupos(cuentaId);
+    res.json({ ok: true, data: grupos });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al listar grupos",
+    });
+  }
+});
+
+app.post("/api/stock-ganadero/grupos", async (req, res) => {
+  try {
+    const cuentaId = await cuentaIdParaInsert(req.user!);
+    if (!cuentaId) {
+      res.status(400).json({
+        ok: false,
+        error: "No se pudo determinar la cuenta para registrar el grupo",
+      });
+      return;
+    }
+    const nombre = typeof req.body?.nombre === "string" ? req.body.nombre : "";
+    const grupo = await db.stockGanadero.createGrupo(cuentaId, nombre);
+    await auditStockMovimiento(req, "MODIFICACION", {
+      resumen: `Agregó grupo ${grupo} al catálogo`,
+      detalle: { grupo, cuenta_id: cuentaId },
+    });
+    res.json({ ok: true, data: { nombre: grupo } });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al agregar grupo",
     });
   }
 });

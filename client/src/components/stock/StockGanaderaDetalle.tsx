@@ -212,6 +212,7 @@ export default function StockGanaderaDetalle({
                   <Campo label="Empresa" value={detalle.empresa} />
                   <Campo label="Generación" value={detalle.grupo} />
                   <Campo label="Grupo" value={detalle.grupo_libre} />
+                  <Campo label="Potrero" value={detalle.potrero} />
                   <Campo label="Sexo" value={fmtSexo(detalle.sexo)} />
                   <Campo
                     label="Edad"

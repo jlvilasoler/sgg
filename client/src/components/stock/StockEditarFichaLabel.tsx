@@ -5,6 +5,7 @@ export type FichaLabelIcon =
   | "nacimiento"
   | "anio"
   | "grupo"
+  | "potrero"
   | "edad"
   | "generacion"
   | "estado"
@@ -72,6 +73,15 @@ export function FichaLabelIconSvg({ icon }: { icon: FichaLabelIcon }) {
         <svg viewBox="0 0 24 24" aria-hidden focusable="false">
           <path
             d="M4 6a2 2 0 0 1 2-2h3v14H6a2 2 0 0 1-2-2V6Zm7-2h3a2 2 0 0 1 2 2v12h-5V4Zm7 0h3a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-3V4Z"
+            fill="currentColor"
+          />
+        </svg>
+      );
+    case "potrero":
+      return (
+        <svg viewBox="0 0 24 24" aria-hidden focusable="false">
+          <path
+            d="M3 10.5 12 4l9 6.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1v-9.5Zm2 1.2V19h3v-6h8v6h3v-7.3L12 6.6 5 11.7Z"
             fill="currentColor"
           />
         </svg>

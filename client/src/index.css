@@ -8221,6 +8221,154 @@ select optgroup {
   font-weight: 500;
 }
 
+.stock-table-pro .stock-th--device-ids,
+.stock-table-pro .stock-td--device-ids {
+  min-width: 7.5rem;
+  max-width: 10.5rem;
+  width: 9rem;
+  padding-left: 0.4rem;
+  padding-right: 0.4rem;
+  vertical-align: middle;
+}
+
+.stock-device-ids {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  line-height: 1.2;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.stock-device-ids__stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 0.1rem;
+  min-width: 0;
+  font-family: ui-monospace, "Cascadia Mono", "Segoe UI Mono", Consolas, monospace;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+  letter-spacing: 0.02em;
+  line-height: 1.15;
+}
+
+.stock-device-ids__eid {
+  display: block;
+  max-width: 100%;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #848e9c;
+}
+
+.stock-device-ids__icon-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 1.35rem;
+  height: 1.35rem;
+  color: #3d5a4c;
+}
+
+.stock-device-ids__icon-wrap::before,
+.stock-device-ids__icon-wrap::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 58%;
+  width: 0.3rem;
+  height: 0.3rem;
+  margin: -0.15rem 0 0 -0.15rem;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px color-mix(in srgb, currentColor 50%, transparent);
+  opacity: 0;
+  pointer-events: none;
+  animation: stock-wifi-signal-ring 4s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+
+.stock-device-ids__icon-wrap::after {
+  animation-delay: 2s;
+}
+
+@keyframes stock-wifi-signal-ring {
+  0% {
+    transform: scale(0.55);
+    opacity: 0.6;
+  }
+  75%,
+  100% {
+    transform: scale(2.6);
+    opacity: 0;
+  }
+}
+
+@keyframes stock-wifi-arc-glow {
+  0%,
+  100% {
+    opacity: 0.38;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.stock-wifi-icon--live .stock-wifi-arc--pulse.stock-wifi-arc--1 {
+  animation: stock-wifi-arc-glow 2.8s ease-in-out infinite;
+  animation-delay: 0s;
+}
+
+.stock-wifi-icon--live .stock-wifi-arc--pulse.stock-wifi-arc--2 {
+  animation: stock-wifi-arc-glow 2.8s ease-in-out infinite;
+  animation-delay: 0.38s;
+}
+
+.stock-wifi-icon--live .stock-wifi-arc--pulse.stock-wifi-arc--3 {
+  animation: stock-wifi-arc-glow 2.8s ease-in-out infinite;
+  animation-delay: 0.76s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stock-device-ids__icon-wrap::before,
+  .stock-device-ids__icon-wrap::after,
+  .stock-wifi-icon--live .stock-wifi-arc--pulse {
+    animation: none;
+    opacity: 1;
+  }
+}
+
+.stock-device-ids__icon {
+  width: 1.2rem;
+  height: 1.2rem;
+  flex-shrink: 0;
+  opacity: 0.95;
+  align-self: center;
+  position: relative;
+  z-index: 1;
+}
+
+.stock-device-ids__vid {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 7.75rem;
+}
+
+.stock-device-ids__vid.stock-table-pro-link {
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: 600;
+  letter-spacing: inherit;
+  font-variant-numeric: inherit;
+}
+
 .stock-table-pro .stock-td--vid {
   text-align: center;
 }.stock-table-pro .stock-td--vid .stock-ganadera-row-eid,
@@ -9045,7 +9193,6 @@ select optgroup {
 
 .stock-table-pro .stock-td--sexo {
   font-weight: 600;
-  font-size: 0.75rem;
 }
 
 .stock-table-pro .stock-td--sexo-macho {
@@ -9066,6 +9213,53 @@ select optgroup {
   min-width: 10.5rem;
   width: 11rem;
   text-align: center;
+}
+
+.stock-table-pro .stock-th--empresa,
+.stock-table-pro .stock-td--empresa {
+  max-width: 5.75rem;
+  min-width: 4.5rem;
+  width: 5.5rem;
+  padding-left: 0.35rem;
+  padding-right: 0.35rem;
+  white-space: normal;
+  vertical-align: middle;
+}
+
+.stock-table-pro .stock-th--empresa {
+  line-height: 1.2;
+}
+
+/* Mismo tamaño de texto que Empresa (0.72rem) en columnas de datos compactas */
+.stock-td-empresa-name,
+.stock-table-pro .stock-td--generacion,
+.stock-table-pro .stock-td--grupo,
+.stock-table-pro .stock-td--potrero,
+.stock-table-pro .stock-td--raza,
+.stock-table-pro .stock-td--sexo,
+.stock-table-pro .stock-td--time .stock-td-time-date,
+.stock-table-pro .stock-td--time .stock-td-time-hour {
+  font-size: 0.72rem;
+  line-height: 1.25;
+}
+
+.stock-td-empresa-name {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  hyphens: auto;
+}
+
+.stock-table-pro .stock-th--potrero,
+.stock-table-pro .stock-td--potrero {
+  max-width: 7.25rem;
+  min-width: 4.75rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .stock-table-pro .stock-td--edad {
@@ -9303,7 +9497,6 @@ select optgroup {
 .stock-table-pro .stock-td-time-hour {
   display: block;
   margin-top: 0.1rem;
-  font-size: 0.72rem;
   color: #848e9c;
   text-align: center;
 }
@@ -9317,6 +9510,15 @@ select optgroup {
 .stock-table-pro .stock-td--estado {
   text-align: center;
   white-space: nowrap;
+}
+
+.stock-table-pro tbody tr.stock-table-pro-row--clickable {
+  cursor: pointer;
+}
+
+.stock-table-pro tbody tr.stock-table-pro-row--clickable .stock-td--sel,
+.stock-table-pro tbody tr.stock-table-pro-row--clickable .stock-td--cabana {
+  cursor: default;
 }
 
 .stock-table-pro-row:hover .stock-td {
@@ -31969,6 +32171,10 @@ button.sg-kpi-card:disabled {
   flex: 0.85 1 7.5rem;
 }
 
+.stock-editar-ficha-zone--potrero {
+  flex: 0.9 1 8rem;
+}
+
 .stock-editar-ficha-cell {
   display: flex;
   flex-direction: column;
@@ -32026,7 +32232,8 @@ button.sg-kpi-card:disabled {
 }
 
 .stock-editar-ficha-label--estado .stock-editar-ficha-label-icon,
-.stock-editar-ficha-label--grupo .stock-editar-ficha-label-icon {
+.stock-editar-ficha-label--grupo .stock-editar-ficha-label-icon,
+.stock-editar-ficha-label--potrero .stock-editar-ficha-label-icon {
   color: #1e3d2a;
 }
 
@@ -32958,6 +33165,41 @@ button.sg-kpi-card:disabled {
   width: 100%;
 }
 
+.stock-control-sanitario-marca-destacadas-label {
+  margin: 0.35rem 0.75rem 0.2rem;
+  padding: 0;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #7c5c12;
+}
+
+.stock-control-sanitario-marca-destacada {
+  display: flex !important;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  background: linear-gradient(90deg, rgba(234, 179, 8, 0.14), rgba(234, 179, 8, 0.04));
+  border-left: 3px solid #ca8a04;
+}
+
+.stock-control-sanitario-marca-destacada:hover {
+  background: linear-gradient(90deg, rgba(234, 179, 8, 0.22), rgba(234, 179, 8, 0.08));
+}
+
+.stock-control-sanitario-marca-destacada-badge {
+  flex-shrink: 0;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: #854d0e;
+  background: rgba(234, 179, 8, 0.28);
+}
+
 .stock-control-sanitario-funcionario-select .proveedor-dropdown button {
   display: flex;
   align-items: center;
@@ -33477,7 +33719,7 @@ button.sg-kpi-card:disabled {
     height: min(96vh, 920px);
   }
 
-  .stock-control-sanitario-form {
+  .stock-control-sanitario-form:not(.stock-sanidad-form) {
     grid-template-columns: 1fr;
   }
 }
@@ -34039,6 +34281,14 @@ button.sg-kpi-card:disabled {
   box-shadow: 0 4px 20px rgba(13, 148, 136, 0.08);
 }
 
+.stock-sanidad-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin-bottom: 0;
+  width: 100%;
+}
+
 .stock-sanidad-form-head {
   display: flex;
   flex-wrap: wrap;
@@ -34069,11 +34319,113 @@ button.sg-kpi-card:disabled {
   flex-shrink: 0;
 }
 
+.stock-sanidad-form.stock-control-sanitario-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin-bottom: 0;
+  width: 100%;
+  grid-template-columns: unset;
+}
+
 .stock-sanidad-form-body {
+  display: block;
+  width: 100%;
+}
+
+.stock-sanidad-form-band {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  width: 100%;
+}
+
+.stock-sanidad-form-band-row {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.85rem 1.1rem;
+  grid-template-columns: minmax(0, 1.55fr) minmax(240px, 0.9fr);
+  gap: 0.85rem 1rem;
+  align-items: stretch;
+  min-width: 0;
+}
+
+.stock-sanidad-form-band-row > * {
+  min-width: 0;
+}
+
+.stock-sanidad-form-body--band .stock-sanidad-form-section--admin {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid #ccfbf1;
+  border-radius: 10px;
+  background: rgba(240, 253, 250, 0.55);
+}
+
+.stock-sanidad-form-body--band .stock-sanidad-form-section--admin .stock-control-sanitario-section-head {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 0.75rem;
+  margin-bottom: 0;
+}
+
+.stock-sanidad-form-body--band .stock-sanidad-form-section--admin .stock-sanidad-admin-campos {
+  display: grid;
+  grid-template-columns: minmax(150px, 200px) minmax(0, 1fr);
+  gap: 0.65rem 1rem;
   align-items: start;
+  width: 100%;
+  min-width: 0;
+}
+
+.stock-sanidad-form-body--band .stock-sanidad-form-section--admin .stock-sanidad-admin-campos .field,
+.stock-sanidad-form-body--band .stock-sanidad-form-section--admin > .field {
+  min-width: 0;
+}
+
+.stock-sanidad-form-body--band .stock-sanidad-form-section--admin .stock-control-sanitario-admin-observaciones {
+  margin-top: 0;
+}
+
+.stock-sanidad-form-body--band .stock-sanidad-form-section--admin .stock-control-sanitario-admin-observaciones textarea {
+  min-height: 2.75rem;
+  width: 100%;
+  resize: vertical;
+}
+
+.stock-sanidad-form-body--band .stock-sanidad-form-section--producto,
+.stock-sanidad-form-body--band .stock-sanidad-form-section--controles {
+  padding: 0.75rem 0.9rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #fff;
+  height: 100%;
+  min-width: 0;
+}
+
+.stock-sanidad-form-body--band .stock-control-sanitario-grid--producto-band {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem 0.85rem;
+}
+
+.stock-sanidad-form-body--band .stock-control-sanitario-grid--producto-band .field {
+  min-width: 0;
+}
+
+.stock-sanidad-form-body--band .stock-control-sanitario-grid--producto-band .field:nth-child(1),
+.stock-sanidad-form-body--band .stock-control-sanitario-grid--producto-band .field:last-child {
+  grid-column: 1 / -1;
+}
+
+.stock-sanidad-form-body--band .stock-control-sanitario-grid--controles-band {
+  grid-template-columns: 1fr;
+  gap: 0.65rem;
+}
+
+.stock-sanidad-form-body--band .stock-control-sanitario-modos {
+  width: 100%;
 }
 
 .stock-sanidad-form .stock-control-sanitario-section {
@@ -34085,8 +34437,8 @@ button.sg-kpi-card:disabled {
   flex-wrap: wrap;
 }
 
-.stock-sanidad-form .stock-control-sanitario-grid--2,
-.stock-sanidad-form .stock-control-sanitario-grid--producto {
+.stock-sanidad-form-body:not(.stock-sanidad-form-body--band) .stock-control-sanitario-grid--2,
+.stock-sanidad-form-body:not(.stock-sanidad-form-body--band) .stock-control-sanitario-grid--producto {
   grid-template-columns: 1fr;
   gap: 0.55rem;
 }
@@ -34100,6 +34452,19 @@ button.sg-kpi-card:disabled {
 .stock-sanidad-form .stock-control-sanitario-section .field textarea,
 .stock-sanidad-form .stock-control-sanitario-field-trigger {
   font-size: 0.85rem;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.stock-sanidad-form .stock-control-sanitario-marca-select,
+.stock-sanidad-form .stock-control-sanitario-formula-select,
+.stock-sanidad-form .stock-control-sanitario-forma-select,
+.stock-sanidad-form .stock-control-sanitario-cantidad-select,
+.stock-sanidad-form .stock-control-sanitario-motivo-select,
+.stock-sanidad-form .stock-control-sanitario-funcionario-select {
+  width: 100%;
+  min-width: 0;
 }
 
 .stock-sanidad-form-actions {
@@ -34127,6 +34492,12 @@ button.sg-kpi-card:disabled {
   transition: width 0.2s;
 }
 
+@media (max-width: 1280px) {
+  .stock-sanidad-form-body--band .stock-sanidad-form-section--admin .stock-sanidad-admin-campos {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
 @media (max-width: 1100px) {
   .stock-sanidad-dash-body {
     grid-template-columns: 1fr 1fr;
@@ -34141,7 +34512,11 @@ button.sg-kpi-card:disabled {
     grid-column: 1 / -1;
   }
 
-  .stock-sanidad-form-body {
+  .stock-sanidad-form-band-row {
+    grid-template-columns: 1fr;
+  }
+
+  .stock-sanidad-form-body--band .stock-control-sanitario-grid--producto-band {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -34174,7 +34549,44 @@ button.sg-kpi-card:disabled {
     flex: 1;
   }
 
-  .stock-sanidad-form-body {
+  .stock-sanidad-form-body--band .stock-sanidad-form-section--admin {
     grid-template-columns: 1fr;
   }
+
+  .stock-sanidad-admin-campos {
+    grid-template-columns: 1fr !important;
+  }
+
+  .stock-sanidad-form-body--band .stock-control-sanitario-grid--producto-band,
+  .stock-sanidad-form-body--band .stock-control-sanitario-grid--controles-band {
+    grid-template-columns: 1fr;
+  }
+}
+
+.control-global-cuentas-table th.num,
+.control-global-cuentas-table td.num {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.control-global-cuentas-nombre {
+  font-weight: 600;
+}
+
+.control-global-cuentas-codigo {
+  font-size: 0.82rem;
+  color: var(--text-muted, #6b7280);
+}
+
+.control-global-cuentas-kpi-monto {
+  font-size: clamp(1.1rem, 2.2vw, 1.45rem);
+}
+
+.control-global-cuentas-total-row td {
+  background: rgba(15, 81, 50, 0.06);
+  border-top: 2px solid rgba(15, 81, 50, 0.15);
+}
+
+.control-global-cuentas-filtros {
+  margin-bottom: 0.75rem;
 }
