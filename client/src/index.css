@@ -33198,17 +33198,85 @@ button.sg-kpi-card:disabled {
   color: #7c5c12;
 }
 
-.stock-control-sanitario-marca-destacada {
-  display: flex !important;
+.stock-control-sanitario-marca-row {
+  display: flex;
+  align-items: stretch;
+  min-width: 0;
+  width: 100%;
+}
+
+.proveedor-dropdown li .stock-control-sanitario-marca-row-btn {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: auto;
+  max-width: none;
+  display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
-  background: linear-gradient(90deg, rgba(234, 179, 8, 0.14), rgba(234, 179, 8, 0.04));
-  border-left: 3px solid #ca8a04;
+  text-align: left;
+  padding: 0.5rem 0.65rem;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-family: inherit;
 }
 
-.stock-control-sanitario-marca-destacada:hover {
+.proveedor-dropdown li .stock-control-sanitario-marca-row-btn:hover {
+  background: #eef3ef;
+}
+
+.stock-control-sanitario-marca-row-label {
+  min-width: 0;
+  flex: 1 1 auto;
+  word-break: break-word;
+  text-align: left;
+}
+
+.stock-control-sanitario-marca-row--destacada {
+  background: linear-gradient(90deg, rgba(234, 179, 8, 0.14), rgba(234, 179, 8, 0.04));
+  box-shadow: inset 3px 0 0 #ca8a04;
+}
+
+.stock-control-sanitario-marca-row--destacada .stock-control-sanitario-marca-row-btn:hover {
   background: linear-gradient(90deg, rgba(234, 179, 8, 0.22), rgba(234, 179, 8, 0.08));
+}
+
+.proveedor-dropdown li .stock-control-sanitario-marca-row-delete {
+  flex: 0 0 2.25rem;
+  width: 2.25rem;
+  min-width: 2.25rem;
+  max-width: 2.25rem;
+  align-self: stretch;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  border-left: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 0;
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+  transition:
+    color 0.15s ease,
+    background 0.15s ease;
+}
+
+.proveedor-dropdown li .stock-control-sanitario-marca-row-delete:hover {
+  color: #dc2626;
+  background: rgba(239, 68, 68, 0.08);
+}
+
+.proveedor-dropdown li .stock-control-sanitario-marca-row-delete:focus-visible {
+  outline: 2px solid #ef4444;
+  outline-offset: -2px;
+}
+
+.stock-control-sanitario-marca-row--destacada .stock-control-sanitario-marca-row-delete {
+  border-left-color: rgba(202, 138, 4, 0.35);
 }
 
 .stock-control-sanitario-marca-destacada-badge {

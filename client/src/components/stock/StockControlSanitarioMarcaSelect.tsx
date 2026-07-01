@@ -6,6 +6,8 @@ import {
   type MarcaRemedioPais,
 } from "./stock-control-sanitario-marcas";
 import type { StockDispositivoModulo } from "../../api";
+import { confirmAction } from "../../utils/confirm";
+import { IconEliminar } from "../icons/ActionIcons";
 import StockControlSanitarioProductoFichaModal from "./StockControlSanitarioProductoFichaModal";
 
 const STORAGE_KEY = "scg-marcas-remedio-extras";
@@ -21,6 +23,8 @@ interface MarcaOpcion {
   nombre: string;
   paises: readonly MarcaRemedioPais[];
   esPersonalizada: boolean;
+  /** Marca agregada manualmente en este navegador (localStorage). */
+  esExtraManual: boolean;
   destacada: boolean;
 }
 
@@ -75,6 +79,8 @@ interface Props {
   modulo?: StockDispositivoModulo;
   onError?: (msg: string) => void;
   onFichaSaved?: (msg: string) => void;
+  /** Solo superadministrador: puede eliminar marcas agregadas manualmente. */
+  puedeEliminarMarca?: boolean;
 }
 
 export default function StockControlSanitarioMarcaSelect({
@@ -86,6 +92,7 @@ export default function StockControlSanitarioMarcaSelect({
   modulo = "ganadero",
   onError = () => {},
   onFichaSaved,
+  puedeEliminarMarca = false,
 }: Props) {
   const rootRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -119,7 +126,7 @@ export default function StockControlSanitarioMarcaSelect({
     const list: MarcaOpcion[] = [];
     const push = (
       nombre: string,
-      opts?: { esPersonalizada?: boolean; creadaEn?: string }
+      opts?: { esPersonalizada?: boolean; esExtraManual?: boolean; creadaEn?: string }
     ) => {
       const t = nombre.trim();
       if (!t) return;
@@ -133,11 +140,14 @@ export default function StockControlSanitarioMarcaSelect({
         nombre: catalogo?.nombre ?? t,
         paises: catalogo?.paises ?? [],
         esPersonalizada: opts?.esPersonalizada ?? !catalogo,
+        esExtraManual: opts?.esExtraManual ?? Boolean(extra),
         destacada: esMarcaDestacada(creadaEn),
       });
     };
     for (const m of MARCAS_REMEDIO_GANADO) push(m.nombre);
-    for (const m of extras) push(m.nombre, { esPersonalizada: true, creadaEn: m.creada_en });
+    for (const m of extras) {
+      push(m.nombre, { esPersonalizada: true, esExtraManual: true, creadaEn: m.creada_en });
+    }
     for (const m of historialMarcas) push(m);
     if (value.trim()) push(value);
 
@@ -198,6 +208,28 @@ export default function StockControlSanitarioMarcaSelect({
   const abrirNuevo = (sugerida = "") => {
     setNuevaMarca(sugerida.trim().slice(0, MAX_MARCA_LEN));
     setModoNuevo(true);
+  };
+
+  const eliminarMarcaExtra = async (nombre: string) => {
+    if (!puedeEliminarMarca) return;
+
+    const ok = await confirmAction({
+      title: "Eliminar marca comercial",
+      message: `¿Eliminar «${nombre}» de las marcas agregadas manualmente?\n\nNo borra registros sanitarios ya cargados; solo la quita del listado de sugerencias.`,
+      confirmText: "Eliminar",
+      variant: "danger",
+    });
+    if (!ok) return;
+
+    const key = nombre.toLocaleLowerCase("es-UY");
+    setExtras((prev) => {
+      const next = prev.filter((x) => x.nombre.toLocaleLowerCase("es-UY") !== key);
+      saveMarcaExtras(next);
+      return next;
+    });
+    if (value.toLocaleLowerCase("es-UY") === key) {
+      onChange("");
+    }
   };
 
   const guardarNueva = () => {
@@ -419,22 +451,41 @@ export default function StockControlSanitarioMarcaSelect({
                           Destacadas (último mes)
                         </p>
                       ) : null}
-                      <button
-                        type="button"
-                        role="option"
-                        aria-selected={value === m.nombre}
-                        className={
-                          m.destacada ? "stock-control-sanitario-marca-destacada" : undefined
-                        }
-                        onClick={() => elegir(m.nombre)}
+                      <div
+                        className={`stock-control-sanitario-marca-row${
+                          m.destacada ? " stock-control-sanitario-marca-row--destacada" : ""
+                        }`}
                       >
-                        <span>{m.nombre}</span>
-                        {m.destacada ? (
-                          <span className="stock-control-sanitario-marca-destacada-badge">
-                            Nuevo
-                          </span>
+                        <button
+                          type="button"
+                          role="option"
+                          aria-selected={value === m.nombre}
+                          className="stock-control-sanitario-marca-row-btn"
+                          onClick={() => elegir(m.nombre)}
+                        >
+                          <span className="stock-control-sanitario-marca-row-label">{m.nombre}</span>
+                          {m.destacada ? (
+                            <span className="stock-control-sanitario-marca-destacada-badge">
+                              Nuevo
+                            </span>
+                          ) : null}
+                        </button>
+                        {puedeEliminarMarca && m.esExtraManual ? (
+                          <button
+                            type="button"
+                            className="stock-control-sanitario-marca-row-delete"
+                            title={`Eliminar «${m.nombre}»`}
+                            aria-label={`Eliminar marca ${m.nombre}`}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              void eliminarMarcaExtra(m.nombre);
+                            }}
+                          >
+                            <IconEliminar size={15} />
+                          </button>
                         ) : null}
-                      </button>
+                      </div>
                     </li>
                   );
                 })

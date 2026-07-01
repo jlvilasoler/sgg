@@ -102,6 +102,8 @@ interface Props {
   historialEsperas?: string[];
   historialMotivos?: string[];
   bandLayout?: boolean;
+  /** Solo superadministrador: puede eliminar marcas agregadas manualmente. */
+  puedeEliminarMarca?: boolean;
 }
 
 export default function StockControlSanitarioRegistroForm({
@@ -122,6 +124,7 @@ export default function StockControlSanitarioRegistroForm({
   historialEsperas = [],
   historialMotivos = [],
   bandLayout = false,
+  puedeEliminarMarca = false,
 }: Props) {
   const [sugeridoFicha, setSugeridoFicha] = useState<ProductoSugeridoFlags>({
     formula: false,
@@ -307,6 +310,7 @@ export default function StockControlSanitarioRegistroForm({
             modulo={modulo}
             onError={onError}
             onFichaSaved={onFichaSaved}
+            puedeEliminarMarca={puedeEliminarMarca}
           />
         </div>
         <div className="field">

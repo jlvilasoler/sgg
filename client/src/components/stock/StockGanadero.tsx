@@ -203,6 +203,7 @@ export default function StockGanadero({
     return (
       <StockGanaderoSanidad
         apiOnline={apiOnline}
+        currentUser={currentUser}
         onError={onError}
         onSuccess={onSuccess}
         onVolver={volverMenu}

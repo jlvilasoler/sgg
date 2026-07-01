@@ -7,7 +7,7 @@ import {
   fetchStockGanaderaVentasDispositivos,
 } from "../../api";
 import { useHeaderBackStep } from "../../header-back";
-import type { StockGanaderaDispositivo } from "../../types";
+import type { AuthUser, StockGanaderaDispositivo } from "../../types";
 import { PageModuleHeadRow } from "../PageModuleHead";
 import TablePagination, {
   paginateSlice,
@@ -63,6 +63,7 @@ function claseCeldaSexo(sexo: StockGanaderaDispositivo["sexo"]): string {
 
 interface Props {
   apiOnline: boolean;
+  currentUser?: AuthUser | null;
   onError: (msg: string) => void;
   onSuccess: (msg: string, title?: string) => void;
   onVolver: () => void;
@@ -284,6 +285,7 @@ function StockSanidadGrupoCarousel({
 
 export default function StockGanaderoSanidad({
   apiOnline,
+  currentUser = null,
   onError,
   onSuccess,
   onVolver,
@@ -669,6 +671,7 @@ export default function StockGanaderoSanidad({
                   onPatch={patchForm}
                   onError={onError}
                   onFichaSaved={(msg) => onSuccess(msg)}
+                  puedeEliminarMarca={Boolean(currentUser?.es_super_admin)}
                 />
               </div>
 
