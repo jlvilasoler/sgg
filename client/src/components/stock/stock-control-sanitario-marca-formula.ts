@@ -227,10 +227,12 @@ export async function patchProductoDesdeMarcaAsync(
     if (!ficha) return base;
 
     const fromFicha = sugerenciasDesdeFicha(ficha);
+    const producto_formula = fromFicha.producto_formula ?? base.producto_formula;
+    const producto_forma = fromFicha.producto_forma ?? base.producto_forma;
     return {
       producto_nombre,
-      producto_formula: fromFicha.producto_formula ?? base.producto_formula,
-      producto_forma: fromFicha.producto_forma ?? base.producto_forma,
+      ...(producto_formula ? { producto_formula } : {}),
+      ...(producto_forma ? { producto_forma } : {}),
     };
   } catch {
     return base;

@@ -169,11 +169,11 @@ export default function StockControlSanitarioProductoFichaModal({
   const [actualizadoEn, setActualizadoEn] = useState("");
   const [fotoCargada, setFotoCargada] = useState(true);
 
-  const titulo = nombre.trim() || "Producto";
+  const titulo = String(nombre ?? "").trim() || "Producto";
   const fotoMostrar = useMemo(() => sanitizeProductoFichaFoto(form.foto_data), [form.foto_data]);
 
   const load = useCallback(async () => {
-    if (!open || !nombre.trim()) return;
+    if (!open || !String(nombre ?? "").trim()) return;
     if (!apiOnline) {
       setForm(formFromApi(null, nombre));
       setActualizadoEn("");
@@ -270,7 +270,7 @@ export default function StockControlSanitarioProductoFichaModal({
     });
   }, [actualizadoEn]);
 
-  if (!open || !nombre.trim()) return null;
+  if (!open || !String(nombre ?? "").trim()) return null;
 
   return createPortal(
     <div

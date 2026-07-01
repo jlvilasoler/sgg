@@ -62,7 +62,7 @@ export default function StockControlSanitarioFormaSelect({
     for (const f of FORMAS_ADMIN_REMEDIO) push(f);
     for (const f of extras) push(f);
     for (const f of historialFormas) push(f);
-    if (value.trim()) push(value);
+    if (String(value ?? "").trim()) push(String(value ?? ""));
     return list.sort((a, b) => a.localeCompare(b, "es", { sensitivity: "base" }));
   }, [extras, historialFormas, value]);
 

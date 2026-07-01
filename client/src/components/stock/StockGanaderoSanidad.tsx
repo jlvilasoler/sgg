@@ -537,7 +537,10 @@ export default function StockGanaderoSanidad({
   const limpiarSeleccion = () => setSeleccion(new Set());
 
   const patchForm = (patch: Partial<StockControlSanitarioFormState>) => {
-    setForm((prev) => ({ ...prev, ...patch }));
+    const clean = Object.fromEntries(
+      Object.entries(patch).filter(([, v]) => v !== undefined)
+    ) as Partial<StockControlSanitarioFormState>;
+    setForm((prev) => ({ ...prev, ...clean }));
   };
 
   const limpiarFormulario = () => {

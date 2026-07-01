@@ -58,7 +58,7 @@ export default function StockControlSanitarioFormulaSelect({
     for (const f of FORMULAS_REMEDIO_GANADO) push(f);
     for (const f of extras) push(f);
     for (const f of historialFormulas) push(f);
-    if (value.trim()) push(value);
+    if (String(value ?? "").trim()) push(String(value ?? ""));
     return list.sort((a, b) => a.localeCompare(b, "es", { sensitivity: "base" }));
   }, [extras, historialFormulas, value]);
 

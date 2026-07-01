@@ -364,7 +364,7 @@ export default function StockControlSanitarioMarcaSelect({
       });
     }
     for (const m of historialMarcas) push(m);
-    if (value.trim()) push(value);
+    if (String(value ?? "").trim()) push(String(value ?? ""));
 
     return ordenarMarcasPorSeccion(list, marcasGlobalesPorNombre);
   }, [catalogoPorNombre, currentUser, historialMarcas, marcasGlobales, marcasGlobalesPorNombre, value]);
@@ -514,8 +514,8 @@ export default function StockControlSanitarioMarcaSelect({
     return () => document.removeEventListener("mousedown", onDocClick);
   }, [abierto, cerrar]);
 
-  const textoSeleccion = value.trim() || "— Seleccionar —";
-  const tieneValor = Boolean(value.trim());
+  const textoSeleccion = String(value ?? "").trim() || "— Seleccionar —";
+  const tieneValor = Boolean(String(value ?? "").trim());
 
   const abrirFicha = (e: React.MouseEvent | React.KeyboardEvent) => {
     e.preventDefault();
@@ -555,7 +555,7 @@ export default function StockControlSanitarioMarcaSelect({
             </span>
           )}
         </button>
-        {value.trim() && !disabled ? (
+        {String(value ?? "").trim() && !disabled ? (
           <button
             type="button"
             className="stock-control-sanitario-field-clear"

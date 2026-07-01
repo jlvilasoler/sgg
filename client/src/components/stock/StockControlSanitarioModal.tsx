@@ -229,7 +229,7 @@ export default function StockControlSanitarioModal({
   const historialFormulas = useMemo(
     () =>
       registros
-        .map((r) => r.producto_formula.trim())
+        .map((r) => String(r.producto_formula ?? "").trim())
         .filter(Boolean),
     [registros]
   );
@@ -237,7 +237,7 @@ export default function StockControlSanitarioModal({
   const historialMarcas = useMemo(
     () =>
       registros
-        .map((r) => r.producto_nombre.trim())
+        .map((r) => String(r.producto_nombre ?? "").trim())
         .filter(Boolean),
     [registros]
   );
@@ -245,7 +245,7 @@ export default function StockControlSanitarioModal({
   const historialFormasAdmin = useMemo(
     () =>
       registros
-        .map((r) => r.producto_forma.trim())
+        .map((r) => String(r.producto_forma ?? "").trim())
         .filter(Boolean)
         .filter((f) => f.localeCompare("Otra", "es", { sensitivity: "base" }) !== 0),
     [registros]
@@ -254,7 +254,7 @@ export default function StockControlSanitarioModal({
   const historialCantidades = useMemo(
     () =>
       registros
-        .map((r) => r.producto_cantidad.trim())
+        .map((r) => String(r.producto_cantidad ?? "").trim())
         .filter(Boolean),
     [registros]
   );
@@ -262,7 +262,7 @@ export default function StockControlSanitarioModal({
   const historialEsperas = useMemo(
     () =>
       registros
-        .map((r) => r.producto_espera.trim())
+        .map((r) => String(r.producto_espera ?? "").trim())
         .filter(Boolean),
     [registros]
   );
@@ -270,7 +270,7 @@ export default function StockControlSanitarioModal({
   const historialFuncionarios = useMemo(
     () =>
       registros
-        .map((r) => r.control_funcionario.trim())
+        .map((r) => String(r.control_funcionario ?? "").trim())
         .filter(Boolean),
     [registros]
   );
@@ -278,7 +278,7 @@ export default function StockControlSanitarioModal({
   const historialMotivos = useMemo(
     () =>
       registros
-        .map((r) => r.control_motivo.trim())
+        .map((r) => String(r.control_motivo ?? "").trim())
         .filter(Boolean),
     [registros]
   );
@@ -289,7 +289,10 @@ export default function StockControlSanitarioModal({
   );
 
   const patchForm = (patch: Partial<FormState>) => {
-    setForm((prev) => ({ ...prev, ...patch }));
+    const clean = Object.fromEntries(
+      Object.entries(patch).filter(([, v]) => v !== undefined)
+    ) as Partial<FormState>;
+    setForm((prev) => ({ ...prev, ...clean }));
   };
 
   const onMarcaChange = useCallback(
