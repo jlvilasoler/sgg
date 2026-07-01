@@ -404,6 +404,54 @@ export async function summarizeStockControlSanitarioByClaves(
   };
 }
 
+const FECHAS_APLICACION_MAX_CLAVES = 300;
+
+function isoDateOrEmpty(val: string): string {
+  const t = val.trim();
+  return /^\d{4}-\d{2}-\d{2}$/.test(t) ? t : "";
+}
+
+function resolveFechaAplicacion(admin_fecha_inicio: string, creado_en: string): string {
+  return isoDateOrEmpty(admin_fecha_inicio) || isoDateOrEmpty(String(creado_en).slice(0, 10));
+}
+
+export async function getUltimaFechaAplicacionPorClaves(
+  db: Db,
+  modulo: StockDispositivoModulo,
+  clavesInput: string[]
+): Promise<Record<string, string>> {
+  const claves = normalizeClavesResumen(clavesInput);
+  if (claves.length === 0) return {};
+  if (claves.length > FECHAS_APLICACION_MAX_CLAVES) {
+    throw new Error(
+      `Máximo ${FECHAS_APLICACION_MAX_CLAVES} dispositivos por consulta de fechas de aplicación.`
+    );
+  }
+
+  const table = TABLE[modulo];
+  const placeholders = claves.map((_, i) => `@c${i}`).join(", ");
+  const params: Record<string, unknown> = {};
+  claves.forEach((c, i) => {
+    params[`c${i}`] = c;
+  });
+
+  const rows = (await db
+    .prepare(
+      `SELECT DISTINCT ON (clave) clave, admin_fecha_inicio, creado_en
+       FROM ${table}
+       WHERE clave IN (${placeholders})
+       ORDER BY clave, creado_en DESC, id DESC`
+    )
+    .all(params)) as { clave: string; admin_fecha_inicio: string; creado_en: string }[];
+
+  const out: Record<string, string> = {};
+  for (const row of rows) {
+    const fecha = resolveFechaAplicacion(row.admin_fecha_inicio, row.creado_en);
+    if (fecha) out[row.clave] = fecha;
+  }
+  return out;
+}
+
 const CANTIDAD_CATALOGO_TABLE = "STOCK_CONTROL_SANITARIO_CANTIDAD_OPCION";
 
 export interface StockControlSanitarioCantidadOpcion {
@@ -883,6 +931,76 @@ export async function listStockControlSanitarioProductoFichas(
     actualizado_por: String(row.actualizado_por ?? "").trim(),
     tiene_foto: Boolean(row.tiene_foto),
   }));
+}
+
+export interface StockControlSanitarioProductoNombreGlobal {
+  nombre: string;
+  creado_en: string;
+  en_ficha: boolean;
+  laboratorio: string;
+  principio_activo: string;
+  tiene_foto: boolean;
+}
+
+export async function listStockControlSanitarioProductoNombresGlobales(
+  db: Db
+): Promise<StockControlSanitarioProductoNombreGlobal[]> {
+  const map = new Map<string, StockControlSanitarioProductoNombreGlobal>();
+
+  const fichas = await listStockControlSanitarioProductoFichas(db);
+  for (const f of fichas) {
+    const key = f.nombre.toLocaleLowerCase("es-UY");
+    map.set(key, {
+      nombre: f.nombre,
+      creado_en: f.actualizado_en,
+      en_ficha: true,
+      laboratorio: f.laboratorio,
+      principio_activo: f.principio_activo,
+      tiene_foto: f.tiene_foto,
+    });
+  }
+
+  const rows = (await db
+    .prepare(
+      `SELECT TRIM(producto_nombre) AS nombre, MAX(creado_en) AS creado_en
+       FROM (
+         SELECT producto_nombre, creado_en
+         FROM ${TABLE.ganadero}
+         WHERE TRIM(producto_nombre) <> ''
+         UNION ALL
+         SELECT producto_nombre, creado_en
+         FROM ${TABLE.equino}
+         WHERE TRIM(producto_nombre) <> ''
+       ) AS usos
+       GROUP BY LOWER(TRIM(producto_nombre)), TRIM(producto_nombre)`
+    )
+    .all()) as { nombre: string; creado_en: string }[];
+
+  for (const row of rows) {
+    const nombre = String(row.nombre ?? "").trim();
+    if (!nombre) continue;
+    const key = nombre.toLocaleLowerCase("es-UY");
+    const creadoEn = String(row.creado_en ?? "").trim();
+    const existente = map.get(key);
+    if (existente) {
+      if (creadoEn && (!existente.creado_en || creadoEn > existente.creado_en)) {
+        existente.creado_en = creadoEn;
+      }
+      continue;
+    }
+    map.set(key, {
+      nombre,
+      creado_en: creadoEn,
+      en_ficha: false,
+      laboratorio: "",
+      principio_activo: "",
+      tiene_foto: false,
+    });
+  }
+
+  return [...map.values()].sort((a, b) =>
+    a.nombre.localeCompare(b.nombre, "es", { sensitivity: "base" })
+  );
 }
 
 export async function deleteStockControlSanitarioProductoFicha(

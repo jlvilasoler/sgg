@@ -61,6 +61,7 @@
   StockControlSanitarioProductoFicha,
   StockControlSanitarioProductoFichaInput,
   StockControlSanitarioProductoFichaResumen,
+  StockControlSanitarioProductoNombreGlobal,
   StockControlSanitarioResumen,
   StockEquinoLote,
   StockEquinoRegistro,
@@ -855,6 +856,24 @@ export async function fetchStockControlSanitarioResumen(
   return json.data;
 }
 
+const FECHAS_APLICACION_CHUNK = 300;
+
+export async function fetchStockControlSanitarioFechasAplicacion(
+  modulo: StockDispositivoModulo,
+  claves: string[]
+): Promise<Record<string, string>> {
+  const out: Record<string, string> = {};
+  for (let i = 0; i < claves.length; i += FECHAS_APLICACION_CHUNK) {
+    const slice = claves.slice(i, i + FECHAS_APLICACION_CHUNK);
+    const json = await request<{ data: Record<string, string> }>(
+      `/stock-${modulo}/control-sanitario/fechas-aplicacion`,
+      { method: "POST", body: JSON.stringify({ claves: slice }) }
+    );
+    Object.assign(out, json.data);
+  }
+  return out;
+}
+
 export async function deleteStockControlSanitario(
   modulo: StockDispositivoModulo,
   clave: string,
@@ -911,6 +930,15 @@ export async function fetchStockControlSanitarioProductoFichas(): Promise<
 > {
   const json = await request<{ data: StockControlSanitarioProductoFichaResumen[] }>(
     `/stock-ganadero/control-sanitario/producto-fichas`
+  );
+  return json.data;
+}
+
+export async function fetchStockControlSanitarioProductoNombresGlobales(): Promise<
+  StockControlSanitarioProductoNombreGlobal[]
+> {
+  const json = await request<{ data: StockControlSanitarioProductoNombreGlobal[] }>(
+    `/stock-ganadero/control-sanitario/producto-nombres`
   );
   return json.data;
 }

@@ -6,7 +6,12 @@ import {
   type MarcaRemedioPais,
 } from "./stock-control-sanitario-marcas";
 import type { StockDispositivoModulo } from "../../api";
-import { fetchStockControlSanitarioProductoFichas } from "../../api";
+import {
+  deleteStockControlSanitarioProductoFicha,
+  fetchStockControlSanitarioProductoNombresGlobales,
+  saveStockControlSanitarioProductoFicha,
+} from "../../api";
+import type { StockControlSanitarioProductoNombreGlobal } from "../../types";
 import { confirmAction } from "../../utils/confirm";
 import { IconEliminar } from "../icons/ActionIcons";
 import StockControlSanitarioProductoFichaModal from "./StockControlSanitarioProductoFichaModal";
@@ -24,9 +29,18 @@ interface MarcaOpcion {
   nombre: string;
   paises: readonly MarcaRemedioPais[];
   esPersonalizada: boolean;
-  /** Marca agregada manualmente en este navegador (localStorage). */
-  esExtraManual: boolean;
+  /** Ficha mínima en catálogo central (solo nombre): superadmin puede quitarla del listado. */
+  esEliminableCatalogo: boolean;
   destacada: boolean;
+}
+
+function esFichaStubCatalogo(meta: StockControlSanitarioProductoNombreGlobal): boolean {
+  return (
+    meta.en_ficha &&
+    !meta.tiene_foto &&
+    !meta.laboratorio.trim() &&
+    !meta.principio_activo.trim()
+  );
 }
 
 function esMarcaDestacada(creadaEn: string): boolean {
@@ -80,7 +94,7 @@ interface Props {
   modulo?: StockDispositivoModulo;
   onError?: (msg: string) => void;
   onFichaSaved?: (msg: string) => void;
-  /** Solo superadministrador: puede eliminar marcas agregadas manualmente. */
+  /** Solo superadministrador: puede eliminar fichas mínimas del catálogo central. */
   puedeEliminarMarca?: boolean;
 }
 
@@ -103,37 +117,53 @@ export default function StockControlSanitarioMarcaSelect({
   const [busqueda, setBusqueda] = useState("");
   const [modoNuevo, setModoNuevo] = useState(false);
   const [nuevaMarca, setNuevaMarca] = useState("");
-  const [extras, setExtras] = useState<MarcaExtra[]>(() => loadMarcaExtras());
+  const [guardandoMarca, setGuardandoMarca] = useState(false);
   const [fichaAbierta, setFichaAbierta] = useState(false);
-  const [marcasApi, setMarcasApi] = useState<string[]>([]);
+  const [marcasGlobales, setMarcasGlobales] = useState<
+    StockControlSanitarioProductoNombreGlobal[]
+  >([]);
 
-  useEffect(() => {
+  const reloadMarcas = useCallback(async () => {
     if (!apiOnline) {
-      setMarcasApi([]);
+      setMarcasGlobales([]);
       return;
     }
-    let cancelled = false;
-    void fetchStockControlSanitarioProductoFichas()
-      .then((list) => {
-        if (!cancelled) {
-          setMarcasApi(list.map((p) => p.nombre).filter(Boolean));
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setMarcasApi([]);
-      });
-    return () => {
-      cancelled = true;
-    };
+    try {
+      const list = await fetchStockControlSanitarioProductoNombresGlobales();
+      setMarcasGlobales(list.filter((m) => m.nombre.trim()));
+    } catch {
+      setMarcasGlobales([]);
+    }
   }, [apiOnline]);
 
-  const extrasPorNombre = useMemo(() => {
-    const map = new Map<string, MarcaExtra>();
-    for (const extra of extras) {
-      map.set(extra.nombre.toLocaleLowerCase("es-UY"), extra);
+  useEffect(() => {
+    void reloadMarcas();
+  }, [reloadMarcas]);
+
+  useEffect(() => {
+    if (!apiOnline) return;
+    const legacy = loadMarcaExtras();
+    if (legacy.length === 0) return;
+    void (async () => {
+      for (const extra of legacy) {
+        try {
+          await saveStockControlSanitarioProductoFicha(modulo, { nombre: extra.nombre });
+        } catch {
+          /* omitir duplicados o errores puntuales */
+        }
+      }
+      saveMarcaExtras([]);
+      await reloadMarcas();
+    })();
+  }, [apiOnline, modulo, reloadMarcas]);
+
+  const marcasGlobalesPorNombre = useMemo(() => {
+    const map = new Map<string, StockControlSanitarioProductoNombreGlobal>();
+    for (const meta of marcasGlobales) {
+      map.set(meta.nombre.toLocaleLowerCase("es-UY"), meta);
     }
     return map;
-  }, [extras]);
+  }, [marcasGlobales]);
 
   const catalogoPorNombre = useMemo(() => {
     const map = new Map<string, MarcaRemedioCatalogo>();
@@ -148,7 +178,7 @@ export default function StockControlSanitarioMarcaSelect({
     const list: MarcaOpcion[] = [];
     const push = (
       nombre: string,
-      opts?: { esPersonalizada?: boolean; esExtraManual?: boolean; creadaEn?: string }
+      opts?: { esPersonalizada?: boolean; esEliminableCatalogo?: boolean; creadaEn?: string }
     ) => {
       const t = nombre.trim();
       if (!t) return;
@@ -156,20 +186,25 @@ export default function StockControlSanitarioMarcaSelect({
       if (seen.has(key)) return;
       seen.add(key);
       const catalogo = catalogoPorNombre.get(key);
-      const extra = extrasPorNombre.get(key);
-      const creadaEn = opts?.creadaEn ?? extra?.creada_en ?? "";
+      const global = marcasGlobalesPorNombre.get(key);
+      const creadaEn = opts?.creadaEn ?? global?.creado_en ?? "";
       list.push({
         nombre: catalogo?.nombre ?? t,
         paises: catalogo?.paises ?? [],
         esPersonalizada: opts?.esPersonalizada ?? !catalogo,
-        esExtraManual: opts?.esExtraManual ?? Boolean(extra),
+        esEliminableCatalogo:
+          opts?.esEliminableCatalogo ??
+          Boolean(global && esFichaStubCatalogo(global)),
         destacada: esMarcaDestacada(creadaEn),
       });
     };
     for (const m of MARCAS_REMEDIO_GANADO) push(m.nombre);
-    for (const nombre of marcasApi) push(nombre);
-    for (const m of extras) {
-      push(m.nombre, { esPersonalizada: true, esExtraManual: true, creadaEn: m.creada_en });
+    for (const meta of marcasGlobales) {
+      push(meta.nombre, {
+        esPersonalizada: !catalogoPorNombre.has(meta.nombre.toLocaleLowerCase("es-UY")),
+        esEliminableCatalogo: esFichaStubCatalogo(meta),
+        creadaEn: meta.creado_en,
+      });
     }
     for (const m of historialMarcas) push(m);
     if (value.trim()) push(value);
@@ -177,15 +212,13 @@ export default function StockControlSanitarioMarcaSelect({
     return list.sort((a, b) => {
       if (a.destacada !== b.destacada) return a.destacada ? -1 : 1;
       if (a.destacada && b.destacada) {
-        const ta =
-          extrasPorNombre.get(a.nombre.toLocaleLowerCase("es-UY"))?.creada_en ?? "";
-        const tb =
-          extrasPorNombre.get(b.nombre.toLocaleLowerCase("es-UY"))?.creada_en ?? "";
+        const ta = marcasGlobalesPorNombre.get(a.nombre.toLocaleLowerCase("es-UY"))?.creado_en ?? "";
+        const tb = marcasGlobalesPorNombre.get(b.nombre.toLocaleLowerCase("es-UY"))?.creado_en ?? "";
         return tb.localeCompare(ta);
       }
       return a.nombre.localeCompare(b.nombre, "es", { sensitivity: "base" });
     });
-  }, [catalogoPorNombre, extras, extrasPorNombre, historialMarcas, marcasApi, value]);
+  }, [catalogoPorNombre, historialMarcas, marcasGlobales, marcasGlobalesPorNombre, value]);
 
   const destacadasCount = useMemo(
     () => todasLasMarcas.filter((m) => m.destacada).length,
@@ -226,11 +259,7 @@ export default function StockControlSanitarioMarcaSelect({
     setBusqueda("");
     setModoNuevo(false);
     setNuevaMarca("");
-    if (apiOnline) {
-      void fetchStockControlSanitarioProductoFichas()
-        .then((list) => setMarcasApi(list.map((p) => p.nombre).filter(Boolean)))
-        .catch(() => {});
-    }
+    void reloadMarcas();
   };
 
   const abrirNuevo = (sugerida = "") => {
@@ -239,45 +268,50 @@ export default function StockControlSanitarioMarcaSelect({
   };
 
   const eliminarMarcaExtra = async (nombre: string) => {
-    if (!puedeEliminarMarca) return;
+    if (!puedeEliminarMarca || !apiOnline) return;
+
+    const meta = marcasGlobalesPorNombre.get(nombre.toLocaleLowerCase("es-UY"));
+    if (!meta?.en_ficha || !esFichaStubCatalogo(meta)) return;
 
     const ok = await confirmAction({
       title: "Eliminar marca comercial",
-      message: `¿Eliminar «${nombre}» de las marcas agregadas manualmente?\n\nNo borra registros sanitarios ya cargados; solo la quita del listado de sugerencias.`,
+      message: `¿Eliminar «${nombre}» del catálogo compartido?\n\nNo borra registros sanitarios ya cargados; solo la quita del listado de sugerencias.`,
       confirmText: "Eliminar",
       variant: "danger",
     });
     if (!ok) return;
 
-    const key = nombre.toLocaleLowerCase("es-UY");
-    setExtras((prev) => {
-      const next = prev.filter((x) => x.nombre.toLocaleLowerCase("es-UY") !== key);
-      saveMarcaExtras(next);
-      return next;
-    });
-    if (value.toLocaleLowerCase("es-UY") === key) {
-      onChange("");
+    try {
+      await deleteStockControlSanitarioProductoFicha(nombre);
+      await reloadMarcas();
+      if (value.toLocaleLowerCase("es-UY") === nombre.toLocaleLowerCase("es-UY")) {
+        onChange("");
+      }
+    } catch (e) {
+      onError(e instanceof Error ? e.message : "Error al eliminar la marca");
     }
   };
 
-  const guardarNueva = () => {
+  const guardarNueva = async () => {
     const nombre = nuevaMarca.trim().slice(0, MAX_MARCA_LEN);
     if (!nombre) return;
 
-    const ahora = new Date().toISOString();
-    const key = nombre.toLocaleLowerCase("es-UY");
+    if (!apiOnline) {
+      onError("Sin conexión: no se puede compartir la marca con otras cuentas.");
+      return;
+    }
 
-    setExtras((prev) => {
-      const idx = prev.findIndex((x) => x.nombre.toLocaleLowerCase("es-UY") === key);
-      const next =
-        idx >= 0
-          ? prev.map((x, i) => (i === idx ? { ...x, creada_en: ahora } : x))
-          : [...prev, { nombre, creada_en: ahora }];
-      saveMarcaExtras(next);
-      return next;
-    });
-    onChange(nombre);
-    cerrar();
+    setGuardandoMarca(true);
+    try {
+      await saveStockControlSanitarioProductoFicha(modulo, { nombre });
+      await reloadMarcas();
+      onChange(nombre);
+      cerrar();
+    } catch (e) {
+      onError(e instanceof Error ? e.message : "Error al guardar la marca");
+    } finally {
+      setGuardandoMarca(false);
+    }
   };
 
   useEffect(() => {
@@ -386,8 +420,8 @@ export default function StockControlSanitarioMarcaSelect({
           <p className="proveedor-panel-meta">
             {busqueda.trim()
               ? `${listaFiltrada.length} coincidencia(s) de ${todasLasMarcas.length}`
-              : marcasApi.length > 0
-                ? `${marcasApi.length} en catálogo central · ${destacadasCount} destacada(s) este mes`
+              : marcasGlobales.length > 0
+                ? `${marcasGlobales.length} nombre(s) compartido(s) · ${destacadasCount} destacada(s) este mes`
                 : destacadasCount > 0
                   ? `${MARCAS_REMEDIO_GANADO.length} marcas · ${destacadasCount} destacada(s) este mes`
                   : `${MARCAS_REMEDIO_GANADO.length} marcas — buscá o agregá una nueva`}
@@ -401,7 +435,7 @@ export default function StockControlSanitarioMarcaSelect({
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault();
-                  guardarNueva();
+                  void guardarNueva();
                 }
               }}
             >
@@ -425,10 +459,10 @@ export default function StockControlSanitarioMarcaSelect({
                 <button
                   type="button"
                   className="btn btn-primary btn-sm"
-                  disabled={!nuevaMarca.trim()}
-                  onClick={guardarNueva}
+                  disabled={!nuevaMarca.trim() || guardandoMarca}
+                  onClick={() => void guardarNueva()}
                 >
-                  Guardar y usar
+                  {guardandoMarca ? "Guardando…" : "Guardar y usar"}
                 </button>
                 <button
                   type="button"
@@ -500,7 +534,7 @@ export default function StockControlSanitarioMarcaSelect({
                             </span>
                           ) : null}
                         </button>
-                        {puedeEliminarMarca && m.esExtraManual ? (
+                        {puedeEliminarMarca && m.esEliminableCatalogo ? (
                           <button
                             type="button"
                             className="stock-control-sanitario-marca-row-delete"
@@ -531,7 +565,10 @@ export default function StockControlSanitarioMarcaSelect({
         apiOnline={apiOnline}
         onClose={() => setFichaAbierta(false)}
         onError={onError}
-        onSaved={onFichaSaved}
+        onSaved={(msg) => {
+          onFichaSaved?.(msg);
+          void reloadMarcas();
+        }}
       />
     </div>
   );

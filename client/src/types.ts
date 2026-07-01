@@ -430,6 +430,16 @@ export interface StockControlSanitarioProductoFichaResumen {
   tiene_foto: boolean;
 }
 
+/** Nombre comercial visible para todas las cuentas (catálogo + usos en registros). */
+export interface StockControlSanitarioProductoNombreGlobal {
+  nombre: string;
+  creado_en: string;
+  en_ficha: boolean;
+  laboratorio: string;
+  principio_activo: string;
+  tiene_foto: boolean;
+}
+
 export interface StockControlSanitarioResumenItem {
   id: number;
   clave: string;

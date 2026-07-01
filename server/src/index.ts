@@ -1811,6 +1811,20 @@ app.get("/api/stock-ganadero/control-sanitario/producto-fichas", async (_req, re
   }
 });
 
+app.get("/api/stock-ganadero/control-sanitario/producto-nombres", async (_req, res) => {
+  try {
+    const data = await stockControlSanitario.listStockControlSanitarioProductoNombresGlobales(
+      db.getDb()
+    );
+    res.json({ ok: true, data });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al listar nombres comerciales",
+    });
+  }
+});
+
 app.get("/api/stock-ganadero/control-sanitario/producto-ficha/:nombre", async (req, res) => {
   try {
     const data = await stockControlSanitario.getStockControlSanitarioProductoFicha(
@@ -1880,6 +1894,25 @@ app.post("/api/stock-ganadero/control-sanitario/resumen", async (req, res) => {
     res.status(400).json({
       ok: false,
       error: e instanceof Error ? e.message : "Error al cargar resumen sanitario",
+    });
+  }
+});
+
+app.post("/api/stock-ganadero/control-sanitario/fechas-aplicacion", async (req, res) => {
+  try {
+    const claves = Array.isArray(req.body?.claves)
+      ? req.body.claves.map((c: unknown) => String(c))
+      : [];
+    const data = await stockControlSanitario.getUltimaFechaAplicacionPorClaves(
+      db.getDb(),
+      "ganadero",
+      claves
+    );
+    res.json({ ok: true, data });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al cargar fechas de aplicación",
     });
   }
 });

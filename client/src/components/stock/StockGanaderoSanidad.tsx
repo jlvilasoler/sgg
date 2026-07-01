@@ -3,10 +3,12 @@ import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import {
   createStockControlSanitarioBulk,
   fetchEmpresasOperativasStock,
+  fetchStockControlSanitarioFechasAplicacion,
   fetchStockGanaderaDispositivos,
   fetchStockGanaderaVentasDispositivos,
 } from "../../api";
 import { useHeaderBackStep } from "../../header-back";
+import { fmtDate } from "../../utils";
 import type { AuthUser, StockGanaderaDispositivo } from "../../types";
 import { PageModuleHeadRow } from "../PageModuleHead";
 import TablePagination, {
@@ -51,7 +53,7 @@ import IconoDispositivoWifi from "./IconoDispositivoWifi";
 import StockGanaderaEdadMiniTimeline from "./StockGanaderaEdadMiniTimeline";
 import StockSanidadHistorialDashboard from "./StockSanidadHistorialDashboard";
 
-const SANIDAD_TABLE_COLS = 10;
+const SANIDAD_TABLE_COLS = 11;
 
 function fmtSexo(sexo: StockGanaderaDispositivo["sexo"]): string {
   return sexo || "—";
@@ -106,9 +108,32 @@ function grupoChipActivo(grupo: GrupoRapido, seleccion: Set<string>): boolean {
   return grupo.claves.length > 0 && grupo.claves.every((c) => seleccion.has(c));
 }
 
+function buildFechaAplicacionGrupos(
+  base: StockGanaderaDispositivo[],
+  fechasPorClave: Record<string, string>
+): GrupoRapido[] {
+  const map = new Map<string, { label: string; claves: string[] }>();
+  for (const d of base) {
+    const mesKey = ultimaLecturaMesFiltroKey(fechasPorClave[d.clave]);
+    const key = mesKey ? `aplic:${mesKey}` : "aplic:sin";
+    const label = mesKey ? labelUltimaLecturaMesFiltro(mesKey) : "Sin aplicación";
+    const entry = map.get(key) ?? { label, claves: [] };
+    entry.claves.push(d.clave);
+    map.set(key, entry);
+  }
+  return [...map.entries()]
+    .map(([key, v]) => ({ key, label: v.label, claves: v.claves }))
+    .sort((a, b) => {
+      if (a.key === "aplic:sin") return 1;
+      if (b.key === "aplic:sin") return -1;
+      return b.key.localeCompare(a.key);
+    });
+}
+
 function buildGruposRapidos(
   base: StockGanaderaDispositivo[],
-  empresasOperativas: Parameters<typeof fmtEmpresaOperativa>[1]
+  empresasOperativas: Parameters<typeof fmtEmpresaOperativa>[1],
+  fechasAplicacion: Record<string, string>
 ) {
   const categoriasMap = new Map<string, string[]>();
   for (const d of base) {
@@ -160,6 +185,7 @@ function buildGruposRapidos(
       k ? fmtEmpresaOperativa(k, empresasOperativas) : "Sin empresa"
     ).filter((g) => g.key),
     ultimaLecturas: buildUltimaLecturaGrupos(base),
+    fechasAplicacion: buildFechaAplicacionGrupos(base, fechasAplicacion),
   };
 }
 
@@ -185,6 +211,7 @@ function buildUltimaLecturaGrupos(base: StockGanaderaDispositivo[]): GrupoRapido
 function buildGrupoCategorias(grupos: ReturnType<typeof buildGruposRapidos>): GrupoCategoria[] {
   const defs: GrupoCategoria[] = [
     { titulo: "Categoría", grupos: grupos.categorias },
+    { titulo: "Fecha aplicación", grupos: grupos.fechasAplicacion },
     { titulo: "Grupo personalizado", grupos: grupos.gruposLibres },
     { titulo: "Potrero", grupos: grupos.potreros },
     { titulo: "Raza", grupos: grupos.razas },
@@ -329,6 +356,7 @@ export default function StockGanaderoSanidad({
     Awaited<ReturnType<typeof fetchEmpresasOperativasStock>>
   >([]);
   const [historialRefreshKey, setHistorialRefreshKey] = useState(0);
+  const [fechasAplicacion, setFechasAplicacion] = useState<Record<string, string>>({});
 
   useHeaderBackStep(true, onVolver, "Stock Ganadero");
 
@@ -396,6 +424,29 @@ export default function StockGanaderoSanidad({
     });
   }, [rows, busqueda]);
 
+  const clavesFiltradas = useMemo(
+    () => filteredRows.map((r) => r.clave),
+    [filteredRows]
+  );
+
+  useEffect(() => {
+    if (!apiOnline || clavesFiltradas.length === 0) {
+      setFechasAplicacion({});
+      return;
+    }
+    let cancelled = false;
+    void fetchStockControlSanitarioFechasAplicacion("ganadero", clavesFiltradas)
+      .then((data) => {
+        if (!cancelled) setFechasAplicacion(data);
+      })
+      .catch(() => {
+        if (!cancelled) setFechasAplicacion({});
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [apiOnline, clavesFiltradas, historialRefreshKey]);
+
   const seleccionados = useMemo(
     () => filteredRows.filter((r) => seleccion.has(r.clave)),
     [filteredRows, seleccion]
@@ -407,8 +458,8 @@ export default function StockGanaderoSanidad({
   );
 
   const gruposRapidos = useMemo(
-    () => buildGruposRapidos(filteredRows, empresasOperativas),
-    [filteredRows, empresasOperativas]
+    () => buildGruposRapidos(filteredRows, empresasOperativas, fechasAplicacion),
+    [filteredRows, empresasOperativas, fechasAplicacion]
   );
 
   const grupoCategorias = useMemo(
@@ -741,6 +792,7 @@ export default function StockGanaderoSanidad({
                     <th className="stock-th">Raza</th>
                     <th className="stock-th">Sexo</th>
                     <th className="stock-th stock-th--edad">Edad</th>
+                    <th className="stock-th stock-th--time">Última lectura</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -854,6 +906,14 @@ export default function StockGanaderoSanidad({
                               bajaMes={d.baja_mes}
                               bajaAnio={d.baja_anio}
                             />
+                          </td>
+                          <td className="stock-td stock-td--time">
+                            <span className="stock-td-time-date">
+                              {fmtDate(d.ultima_fecha) || "—"}
+                            </span>
+                            {d.ultima_hora ? (
+                              <span className="stock-td-time-hour">{d.ultima_hora}</span>
+                            ) : null}
                           </td>
                         </tr>
                       );
