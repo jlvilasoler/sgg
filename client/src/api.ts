@@ -60,6 +60,7 @@
   StockControlSanitarioEsperaOpcion,
   StockControlSanitarioProductoFicha,
   StockControlSanitarioProductoFichaInput,
+  StockControlSanitarioProductoFichaResumen,
   StockControlSanitarioResumen,
   StockEquinoLote,
   StockEquinoRegistro,
@@ -903,6 +904,25 @@ export async function createStockControlSanitarioEsperaOpcion(
     { method: "POST", body: JSON.stringify({ valor }) }
   );
   return json.data;
+}
+
+export async function fetchStockControlSanitarioProductoFichas(): Promise<
+  StockControlSanitarioProductoFichaResumen[]
+> {
+  const json = await request<{ data: StockControlSanitarioProductoFichaResumen[] }>(
+    `/stock-ganadero/control-sanitario/producto-fichas`
+  );
+  return json.data;
+}
+
+export async function deleteStockControlSanitarioProductoFicha(
+  nombre: string
+): Promise<string> {
+  const json = await request<{ data: { nombre: string } }>(
+    `/stock-ganadero/control-sanitario/producto-ficha/${encodeURIComponent(nombre)}`,
+    { method: "DELETE" }
+  );
+  return json.data.nombre;
 }
 
 export async function fetchStockControlSanitarioProductoFicha(

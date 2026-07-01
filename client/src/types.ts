@@ -418,6 +418,18 @@ export interface StockControlSanitarioProductoFichaInput {
   foto_data?: string;
 }
 
+export interface StockControlSanitarioProductoFichaResumen {
+  id: number;
+  nombre: string;
+  laboratorio: string;
+  principio_activo: string;
+  via_administracion: string;
+  especie: string;
+  actualizado_en: string;
+  actualizado_por: string;
+  tiene_foto: boolean;
+}
+
 export interface StockControlSanitarioResumenItem {
   id: number;
   clave: string;

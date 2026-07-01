@@ -1799,6 +1799,18 @@ app.post("/api/stock-ganadero/control-sanitario/espera-opciones", async (req, re
   }
 });
 
+app.get("/api/stock-ganadero/control-sanitario/producto-fichas", async (_req, res) => {
+  try {
+    const data = await stockControlSanitario.listStockControlSanitarioProductoFichas(db.getDb());
+    res.json({ ok: true, data });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al listar productos sanitarios",
+    });
+  }
+});
+
 app.get("/api/stock-ganadero/control-sanitario/producto-ficha/:nombre", async (req, res) => {
   try {
     const data = await stockControlSanitario.getStockControlSanitarioProductoFicha(
@@ -1827,6 +1839,28 @@ app.put("/api/stock-ganadero/control-sanitario/producto-ficha", async (req, res)
     res.status(400).json({
       ok: false,
       error: e instanceof Error ? e.message : "Error al guardar ficha del producto",
+    });
+  }
+});
+
+app.delete("/api/stock-ganadero/control-sanitario/producto-ficha/:nombre", async (req, res) => {
+  if (!req.user?.es_super_admin) {
+    res.status(403).json({
+      ok: false,
+      error: "Solo el superadministrador puede eliminar productos del catálogo sanitario",
+    });
+    return;
+  }
+  try {
+    const nombre = await stockControlSanitario.deleteStockControlSanitarioProductoFicha(
+      db.getDb(),
+      String(req.params.nombre ?? "")
+    );
+    res.json({ ok: true, data: { nombre } });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al eliminar producto sanitario",
     });
   }
 });

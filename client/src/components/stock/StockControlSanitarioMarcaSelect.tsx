@@ -6,6 +6,7 @@ import {
   type MarcaRemedioPais,
 } from "./stock-control-sanitario-marcas";
 import type { StockDispositivoModulo } from "../../api";
+import { fetchStockControlSanitarioProductoFichas } from "../../api";
 import { confirmAction } from "../../utils/confirm";
 import { IconEliminar } from "../icons/ActionIcons";
 import StockControlSanitarioProductoFichaModal from "./StockControlSanitarioProductoFichaModal";
@@ -104,6 +105,27 @@ export default function StockControlSanitarioMarcaSelect({
   const [nuevaMarca, setNuevaMarca] = useState("");
   const [extras, setExtras] = useState<MarcaExtra[]>(() => loadMarcaExtras());
   const [fichaAbierta, setFichaAbierta] = useState(false);
+  const [marcasApi, setMarcasApi] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (!apiOnline) {
+      setMarcasApi([]);
+      return;
+    }
+    let cancelled = false;
+    void fetchStockControlSanitarioProductoFichas()
+      .then((list) => {
+        if (!cancelled) {
+          setMarcasApi(list.map((p) => p.nombre).filter(Boolean));
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setMarcasApi([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [apiOnline]);
 
   const extrasPorNombre = useMemo(() => {
     const map = new Map<string, MarcaExtra>();
@@ -145,6 +167,7 @@ export default function StockControlSanitarioMarcaSelect({
       });
     };
     for (const m of MARCAS_REMEDIO_GANADO) push(m.nombre);
+    for (const nombre of marcasApi) push(nombre);
     for (const m of extras) {
       push(m.nombre, { esPersonalizada: true, esExtraManual: true, creadaEn: m.creada_en });
     }
@@ -162,7 +185,7 @@ export default function StockControlSanitarioMarcaSelect({
       }
       return a.nombre.localeCompare(b.nombre, "es", { sensitivity: "base" });
     });
-  }, [catalogoPorNombre, extras, extrasPorNombre, historialMarcas, value]);
+  }, [catalogoPorNombre, extras, extrasPorNombre, historialMarcas, marcasApi, value]);
 
   const destacadasCount = useMemo(
     () => todasLasMarcas.filter((m) => m.destacada).length,
@@ -203,6 +226,11 @@ export default function StockControlSanitarioMarcaSelect({
     setBusqueda("");
     setModoNuevo(false);
     setNuevaMarca("");
+    if (apiOnline) {
+      void fetchStockControlSanitarioProductoFichas()
+        .then((list) => setMarcasApi(list.map((p) => p.nombre).filter(Boolean)))
+        .catch(() => {});
+    }
   };
 
   const abrirNuevo = (sugerida = "") => {
@@ -358,9 +386,11 @@ export default function StockControlSanitarioMarcaSelect({
           <p className="proveedor-panel-meta">
             {busqueda.trim()
               ? `${listaFiltrada.length} coincidencia(s) de ${todasLasMarcas.length}`
-              : destacadasCount > 0
-                ? `${MARCAS_REMEDIO_GANADO.length} marcas · ${destacadasCount} destacada(s) este mes`
-                : `${MARCAS_REMEDIO_GANADO.length} marcas — buscá o agregá una nueva`}
+              : marcasApi.length > 0
+                ? `${marcasApi.length} en catálogo central · ${destacadasCount} destacada(s) este mes`
+                : destacadasCount > 0
+                  ? `${MARCAS_REMEDIO_GANADO.length} marcas · ${destacadasCount} destacada(s) este mes`
+                  : `${MARCAS_REMEDIO_GANADO.length} marcas — buscá o agregá una nueva`}
           </p>
 
           {modoNuevo ? (

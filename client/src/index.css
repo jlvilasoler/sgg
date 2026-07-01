@@ -36466,3 +36466,198 @@ button.sg-kpi-card:disabled {
 .control-global-cuentas-filtros {
   margin-bottom: 0.75rem;
 }
+
+.config-sanitario-productos-card {
+  overflow: visible;
+}
+
+.config-sanitario-productos-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  align-items: center;
+  margin: 0 0 0.85rem;
+}
+
+.config-sanitario-productos-search {
+  flex: 1 1 220px;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.45rem 0.65rem;
+  border: 1px solid rgba(13, 148, 136, 0.22);
+  border-radius: 10px;
+  background: #fff;
+}
+
+.config-sanitario-productos-search svg {
+  color: #64748b;
+  flex-shrink: 0;
+}
+
+.config-sanitario-productos-search input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  font: inherit;
+  font-size: 0.88rem;
+  outline: none;
+}
+
+.config-sanitario-productos-btn-nuevo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.config-sanitario-productos-nuevo {
+  margin-bottom: 0.85rem;
+  padding: 0.85rem 1rem;
+  border-radius: 12px;
+  border: 1px solid rgba(13, 148, 136, 0.18);
+  background: linear-gradient(135deg, #f0fdfa 0%, #ecfdf5 100%);
+}
+
+.config-sanitario-productos-nuevo-title {
+  margin: 0 0 0.55rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #0f766e;
+}
+
+.config-sanitario-productos-nuevo-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  align-items: center;
+}
+
+.config-sanitario-productos-nuevo-input {
+  flex: 1 1 220px;
+  min-width: 0;
+  padding: 0.5rem 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font: inherit;
+}
+
+.config-sanitario-productos-meta {
+  margin: 0 0 0.65rem;
+  font-size: 0.78rem;
+}
+
+.config-sanitario-productos-offline,
+.config-sanitario-productos-empty {
+  margin: 0.5rem 0 0;
+  font-size: 0.86rem;
+}
+
+.config-sanitario-productos-loading {
+  padding: 1.5rem 0;
+}
+
+.config-sanitario-productos-loading-bar {
+  display: block;
+  height: 0.45rem;
+  width: min(280px, 70%);
+  margin: 0 auto;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    rgba(13, 148, 136, 0.08) 0%,
+    rgba(13, 148, 136, 0.2) 50%,
+    rgba(13, 148, 136, 0.08) 100%
+  );
+  background-size: 200% 100%;
+  animation: stock-sanidad-dash-shimmer 1.2s ease-in-out infinite;
+}
+
+.config-sanitario-productos-table-wrap {
+  overflow: auto;
+  border: 1px solid rgba(13, 148, 136, 0.12);
+  border-radius: 12px;
+  background: #fff;
+}
+
+.config-sanitario-productos-table {
+  min-width: 720px;
+}
+
+.config-sanitario-productos-table th,
+.config-sanitario-productos-table td {
+  vertical-align: middle;
+}
+
+.config-sanitario-productos-th-actions {
+  width: 8.5rem;
+  text-align: right;
+}
+
+.config-sanitario-productos-nombre-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.config-sanitario-productos-nombre-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 7px;
+  background: rgba(13, 148, 136, 0.1);
+  color: #0f766e;
+  flex-shrink: 0;
+}
+
+.config-sanitario-productos-fecha {
+  font-size: 0.82rem;
+}
+
+.config-sanitario-productos-autor {
+  display: block;
+  font-size: 0.72rem;
+}
+
+.config-sanitario-productos-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.config-sanitario-productos-btn-edit {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: #0f766e;
+}
+
+.config-sanitario-productos-btn-delete {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2rem;
+  padding: 0.35rem;
+  color: #94a3b8;
+}
+
+.config-sanitario-productos-btn-delete:hover {
+  color: #dc2626;
+  background: rgba(239, 68, 68, 0.08);
+}
+
+@media (max-width: 720px) {
+  .config-sanitario-productos-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .config-sanitario-productos-btn-nuevo {
+    justify-content: center;
+  }
+}

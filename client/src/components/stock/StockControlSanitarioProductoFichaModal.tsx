@@ -147,6 +147,8 @@ interface Props {
   onClose: () => void;
   onError: (msg: string) => void;
   onSaved?: (msg: string) => void;
+  /** Abre directamente en modo edición (p. ej. panel de configuración). */
+  initialEdit?: boolean;
 }
 
 export default function StockControlSanitarioProductoFichaModal({
@@ -157,6 +159,7 @@ export default function StockControlSanitarioProductoFichaModal({
   onClose,
   onError,
   onSaved,
+  initialEdit = false,
 }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(false);
@@ -192,9 +195,9 @@ export default function StockControlSanitarioProductoFichaModal({
 
   useEffect(() => {
     if (!open) return;
-    setEditando(false);
+    setEditando(initialEdit);
     void load();
-  }, [open, load]);
+  }, [open, load, initialEdit]);
 
   useEffect(() => {
     setFotoCargada(true);

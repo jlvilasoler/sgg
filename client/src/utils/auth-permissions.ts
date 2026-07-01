@@ -150,6 +150,11 @@ export function canAccessDocumentosDigitales(user: AuthUser | null): boolean {
   return Boolean(user?.es_super_admin);
 }
 
+/** Catálogo central de productos sanitarios (Sanidad): solo superadministrador. */
+export function canAccessCatalogoSanitarioProductos(user: AuthUser | null): boolean {
+  return Boolean(user?.es_super_admin);
+}
+
 /** Clasificación proveedores (estado de resultados): solo super-admin, en prueba. */
 export function canAccessClasificacionProveedores(user: AuthUser | null): boolean {
   return Boolean(user?.es_super_admin);

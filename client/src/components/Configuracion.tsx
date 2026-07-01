@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { HubMenuCard } from "./HubMenuCard";
 import { useHeaderBackStep } from "../header-back";
 import type { AuthUser } from "../types";
-import { canAccessAdministradorCuentas, canAccessActividadSagTotal, canAccessArquitecturaSistema, canAccessClasificacionProveedores, canAccessControlGlobalCuentas, canAccessDocumentosDigitales, canAccessStockGanaderoAdmin, canManageUsuariosCuenta } from "../utils/auth-permissions";
+import { canAccessAdministradorCuentas, canAccessActividadSagTotal, canAccessArquitecturaSistema, canAccessCatalogoSanitarioProductos, canAccessClasificacionProveedores, canAccessControlGlobalCuentas, canAccessDocumentosDigitales, canAccessStockGanaderoAdmin, canManageUsuariosCuenta } from "../utils/auth-permissions";
 import Proveedores from "./Proveedores";
 import ClasificacionProveedores from "./proveedores/ClasificacionProveedores";
 import Responsables from "./Responsables";
@@ -13,6 +13,7 @@ import AdministradorCuenta from "./AdministradorCuenta";
 import ArquitecturaSistema from "./ArquitecturaSistema";
 import DocumentosDigitales from "./DocumentosDigitales";
 import ControlGlobalCuentas from "./ControlGlobalCuentas";
+import ConfigSanitarioProductos from "./stock/ConfigSanitarioProductos";
 import Usuarios from "./Usuarios";
 import UsuariosActividad from "./UsuariosActividad";
 import type { TabId } from "./Header";
@@ -35,7 +36,8 @@ type SagModulo =
   | "sag_arquitectura"
   | "registro_actividad_total"
   | "control_global_cuentas"
-  | "documentos_digitales";
+  | "documentos_digitales"
+  | "catalogo_sanitario_productos";
 
 type SagModuloIcon =
   | { type: "tab"; id: TabId }
@@ -126,6 +128,12 @@ const SAG_MODULOS: {
     icon: { type: "tab", id: "resumen" },
   },
   {
+    id: "catalogo_sanitario_productos",
+    label: "Catálogo sanitario",
+    subtitle: "Remedios y fichas técnicas · Nombre comercial en Sanidad",
+    icon: { type: "hub", id: "stock_sanidad" },
+  },
+  {
     id: "documentos_digitales",
     label: "Documentos Digitales",
     subtitle: "Archivo y gestión documental global",
@@ -183,7 +191,7 @@ export default function Configuracion({
     if (modulo === "cuenta_hub" || modulo === "sag_hub") {
       return { onBack: () => setModulo("menu"), label: "Configuración" };
     }
-    if (modulo === "sag_arquitectura" || modulo === "documentos_digitales" || modulo === "registro_actividad_total" || modulo === "control_global_cuentas") {
+    if (modulo === "sag_arquitectura" || modulo === "documentos_digitales" || modulo === "registro_actividad_total" || modulo === "control_global_cuentas" || modulo === "catalogo_sanitario_productos") {
       return { onBack: () => setModulo("sag_hub"), label: "Configuración SAG" };
     }
     if (esSuperAdmin && isCatalogoModulo(modulo)) {
@@ -220,6 +228,12 @@ export default function Configuracion({
     if (
       modulo === "control_global_cuentas" &&
       !canAccessControlGlobalCuentas(currentUser ?? null)
+    ) {
+      setModulo("sag_hub");
+    }
+    if (
+      modulo === "catalogo_sanitario_productos" &&
+      !canAccessCatalogoSanitarioProductos(currentUser ?? null)
     ) {
       setModulo("sag_hub");
     }
@@ -386,6 +400,22 @@ export default function Configuracion({
     );
   }
 
+  if (
+    modulo === "catalogo_sanitario_productos" &&
+    currentUser &&
+    canAccessCatalogoSanitarioProductos(currentUser)
+  ) {
+    return (
+      <ConfigSanitarioProductos
+        apiOnline={apiOnline}
+        onError={onError}
+        onSuccess={onSuccess}
+        volverLabel="Volver a Configuración SAG"
+        onVolver={backStep?.onBack ?? (() => setModulo("sag_hub"))}
+      />
+    );
+  }
+
   const adminCuentaItem = canAccessAdministradorCuentas(currentUser ?? null)
     ? [
         {
@@ -433,6 +463,9 @@ export default function Configuracion({
     }
     if (item.id === "sag_arquitectura") {
       return canAccessArquitecturaSistema(currentUser ?? null);
+    }
+    if (item.id === "catalogo_sanitario_productos") {
+      return canAccessCatalogoSanitarioProductos(currentUser ?? null);
     }
     return true;
   });

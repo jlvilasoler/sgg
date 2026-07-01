@@ -40,9 +40,11 @@ import {
   labelGrupoLibreFiltro,
   labelPotreroFiltro,
   labelRazaFiltro,
+  labelUltimaLecturaMesFiltro,
   normalizarEstadoDispositivo,
   potreroFiltroKey,
   razaFiltroKey,
+  ultimaLecturaMesFiltroKey,
 } from "./stock-ganadera-utils";
 import { fmtEmpresaOperativa } from "./stock-empresa-utils";
 import IconoDispositivoWifi from "./IconoDispositivoWifi";
@@ -157,7 +159,27 @@ function buildGruposRapidos(
     empresas: agruparPor(base, (d) => d.empresa || "", (k) =>
       k ? fmtEmpresaOperativa(k, empresasOperativas) : "Sin empresa"
     ).filter((g) => g.key),
+    ultimaLecturas: buildUltimaLecturaGrupos(base),
   };
+}
+
+function buildUltimaLecturaGrupos(base: StockGanaderaDispositivo[]): GrupoRapido[] {
+  const map = new Map<string, { label: string; claves: string[] }>();
+  for (const d of base) {
+    const mesKey = ultimaLecturaMesFiltroKey(d.ultima_fecha);
+    const key = mesKey ? `lectura:${mesKey}` : "lectura:sin";
+    const label = mesKey ? labelUltimaLecturaMesFiltro(mesKey) : "Sin lectura";
+    const entry = map.get(key) ?? { label, claves: [] };
+    entry.claves.push(d.clave);
+    map.set(key, entry);
+  }
+  return [...map.entries()]
+    .map(([key, v]) => ({ key, label: v.label, claves: v.claves }))
+    .sort((a, b) => {
+      if (a.key === "lectura:sin") return 1;
+      if (b.key === "lectura:sin") return -1;
+      return b.key.localeCompare(a.key);
+    });
 }
 
 function buildGrupoCategorias(grupos: ReturnType<typeof buildGruposRapidos>): GrupoCategoria[] {
@@ -168,6 +190,7 @@ function buildGrupoCategorias(grupos: ReturnType<typeof buildGruposRapidos>): Gr
     { titulo: "Raza", grupos: grupos.razas },
     { titulo: "Edad", grupos: grupos.edades },
     { titulo: "Generación", grupos: grupos.generaciones },
+    { titulo: "Última lectura", grupos: grupos.ultimaLecturas },
     { titulo: "Sexo", grupos: grupos.sexos },
     { titulo: "Empresa", grupos: grupos.empresas },
   ];

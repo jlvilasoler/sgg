@@ -844,3 +844,59 @@ export async function upsertStockControlSanitarioProductoFicha(
   if (!row) throw new Error("No se pudo guardar la ficha del producto.");
   return row;
 }
+
+export interface StockControlSanitarioProductoFichaResumen {
+  id: number;
+  nombre: string;
+  laboratorio: string;
+  principio_activo: string;
+  via_administracion: string;
+  especie: string;
+  actualizado_en: string;
+  actualizado_por: string;
+  tiene_foto: boolean;
+}
+
+export async function listStockControlSanitarioProductoFichas(
+  db: Db
+): Promise<StockControlSanitarioProductoFichaResumen[]> {
+  const rows = (await db
+    .prepare(
+      `SELECT id, nombre, laboratorio, principio_activo, via_administracion, especie,
+              actualizado_en, actualizado_por,
+              CASE WHEN TRIM(foto_data) <> '' THEN 1 ELSE 0 END AS tiene_foto
+       FROM ${PRODUCTO_FICHA_TABLE}
+       ORDER BY LOWER(nombre), id`
+    )
+    .all()) as (Omit<StockControlSanitarioProductoFichaResumen, "tiene_foto"> & {
+    tiene_foto: number | boolean;
+  })[];
+
+  return rows.map((row) => ({
+    id: Number(row.id),
+    nombre: String(row.nombre ?? "").trim(),
+    laboratorio: String(row.laboratorio ?? "").trim(),
+    principio_activo: String(row.principio_activo ?? "").trim(),
+    via_administracion: String(row.via_administracion ?? "").trim(),
+    especie: String(row.especie ?? "").trim(),
+    actualizado_en: String(row.actualizado_en ?? "").trim(),
+    actualizado_por: String(row.actualizado_por ?? "").trim(),
+    tiene_foto: Boolean(row.tiene_foto),
+  }));
+}
+
+export async function deleteStockControlSanitarioProductoFicha(
+  db: Db,
+  nombreInput: string
+): Promise<string> {
+  const nombre = normalizeFichaNombre(nombreInput);
+  if (!nombre) throw new Error("Indicá el nombre del producto.");
+
+  const result = await db
+    .prepare(`DELETE FROM ${PRODUCTO_FICHA_TABLE} WHERE LOWER(nombre) = LOWER(@nombre)`)
+    .run({ nombre });
+
+  const changes = Number((result as { changes?: number }).changes ?? 0);
+  if (changes < 1) throw new Error("Producto no encontrado en el catálogo.");
+  return nombre;
+}
