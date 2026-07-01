@@ -114,26 +114,28 @@ export default function StockEquinaDashKpi({
   const content = (
     <>
       <span className="sg-kpi-card-accent" aria-hidden />
-      <div className="sg-kpi-card-main">
-        <header className="sg-kpi-card-head">
-          <span className="sg-kpi-card-icon">
-            <KpiIcon variant={variant} />
-          </span>
-          <span className="sg-kpi-card-label">{label}</span>
-          {onClick && (
-            <span className="sg-kpi-card-action" aria-hidden>
-              {active ? "Filtrando" : "Filtrar"}
+      <div className="sg-kpi-card-body">
+        <div className="sg-kpi-card-main">
+          <header className="sg-kpi-card-head">
+            <span className="sg-kpi-card-icon">
+              <KpiIcon variant={variant} />
             </span>
-          )}
-        </header>
-        <div className="sg-kpi-card-value">{loading ? "—" : value}</div>
-        {hint ? (
-          <p className="sg-kpi-card-hint" title={hint}>
-            {hint}
+            <span className="sg-kpi-card-label">{label}</span>
+            {onClick ? (
+              <span className="sg-kpi-card-action" aria-hidden>
+                {active ? "Filtrando" : "Filtrar"}
+              </span>
+            ) : (
+              <span className="sg-kpi-card-action sg-kpi-card-action--placeholder" aria-hidden />
+            )}
+          </header>
+          <div className="sg-kpi-card-value">{loading ? "—" : value}</div>
+          <p className="sg-kpi-card-hint" title={hint || undefined}>
+            {hint || "\u00a0"}
           </p>
-        ) : null}
+        </div>
+        <StockDashSexoBreakdown stats={sexoStats} loading={loading} variant="compact" />
       </div>
-      <StockDashSexoBreakdown stats={sexoStats} loading={loading} variant="compact" />
     </>
   );
 

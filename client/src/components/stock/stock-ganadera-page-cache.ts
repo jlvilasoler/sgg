@@ -82,8 +82,8 @@ export function rowsDesdeCache(
   filtrosKey: string
 ): StockGanaderaDispositivo[] {
   if (!cache) return [];
-  if (cache.filtrosKey === filtrosKey && cache.rows.length > 0) return cache.rows;
-  return cache.statsRows;
+  if (cache.filtrosKey === filtrosKey) return cache.rows;
+  return [];
 }
 
 export function ventasClavesDesdeCache(cache: StockGanaderaPageCache | null): Set<string> {

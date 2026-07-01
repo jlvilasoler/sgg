@@ -34,6 +34,7 @@ import {
   CATEGORIA_FILTRO_OTROS,
   EDAD_FILTRO_OPCIONES,
   categoriasDispositivo,
+  coincideBusquedaDispositivo,
   coincideCategoriaFiltro,
   coincideSinFechaNacFiltro,
   dispositivoSinFechaNacimiento,
@@ -255,11 +256,10 @@ export default function StockGanadera({
 
   const filtros = useMemo(
     () => ({
-      busqueda: busqueda.trim() || undefined,
       fecha_desde: fechaDesde || undefined,
       fecha_hasta: fechaHasta || undefined,
     }),
-    [busqueda, fechaDesde, fechaHasta]
+    [fechaDesde, fechaHasta]
   );
 
   useEffect(() => {
@@ -344,7 +344,8 @@ export default function StockGanadera({
     filtroVentasCerradas || filtroSalidasSistema || filtroEstado.size > 0;
 
   const rowsBase = useMemo(() => {
-    const base = usaStatsComoBase ? statsRows : rows;
+    const buscaActiva = busqueda.trim().length > 0;
+    const base = usaStatsComoBase || buscaActiva ? statsRows : rows;
     if (filtroSalidasSistema) {
       return base.filter((d) => esDispositivoFueraDeStock(d, ventasClaves));
     }
@@ -354,13 +355,14 @@ export default function StockGanadera({
     if (filtroEstado.size > 0) {
       return base;
     }
-    return usaStatsComoBase
+    return usaStatsComoBase || buscaActiva
       ? statsRows.filter((d) => dispositivoActivoEnStock(d, ventasClaves))
       : rows.filter((d) => dispositivoActivoEnStock(d, ventasClaves));
   }, [
     rows,
     statsRows,
     usaStatsComoBase,
+    busqueda,
     filtroSalidasSistema,
     filtroVentasCerradas,
     filtroEstado.size,
@@ -388,8 +390,11 @@ export default function StockGanadera({
     if (filtroSalidasSistema) {
       result = result.filter((d) => esDispositivoFueraDeStock(d, ventasClaves));
     }
+    if (busqueda.trim()) {
+      result = result.filter((d) => coincideBusquedaDispositivo(d, busqueda));
+    }
     return result;
-  }, [rowsBase, filtroSexo, filtroEmpresa, filtroEstado, filtroEdad, filtroGrupoLibre, filtroPotrero, filtroRaza, filtroGeneracion, filtroUltimaLecturaMes, filtroCategoria, filtroSinFechaNac, filtroVentasCerradas, filtroSalidasSistema, ventasClaves]);
+  }, [rowsBase, filtroSexo, filtroEmpresa, filtroEstado, filtroEdad, filtroGrupoLibre, filtroPotrero, filtroRaza, filtroGeneracion, filtroUltimaLecturaMes, filtroCategoria, filtroSinFechaNac, filtroVentasCerradas, filtroSalidasSistema, ventasClaves, busqueda]);
 
   const sinDatosPrevios = statsRows.length === 0 && rows.length === 0;
   const kpisCargando = loading;
@@ -1065,10 +1070,9 @@ export default function StockGanadera({
                   placeholder="Buscar por EID o caravana visual…"
                   value={busqueda}
                   onChange={(e) => setBusqueda(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && load()}
                 />
               </div>
-              <button type="button" className="btn btn-primary" onClick={load}>
+              <button type="button" className="btn btn-primary" onClick={() => void load()}>
                 Buscar
               </button>
             </div>

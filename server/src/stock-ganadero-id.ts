@@ -40,3 +40,25 @@ export function dispositivoClave(eid: string, vid = ""): string {
 export function eidClave(eid: string): string {
   return dispositivoClave(eid, "");
 }
+
+/** Coincide búsqueda por EID, VID o sufijo numérico de la caravana. */
+export function coincideBusquedaDispositivo(
+  d: { eid: string; vid: string; clave: string },
+  q: string
+): boolean {
+  const t = q.trim().toLowerCase();
+  if (!t) return true;
+  const digits = t.replace(/\D/g, "");
+  const eid = (d.eid ?? "").toLowerCase();
+  const vid = (d.vid ?? "").toLowerCase();
+  const clave = dispositivoClave(d.eid, d.vid);
+  const vidDigits = vid.replace(/\D/g, "");
+  const eidDigits = eid.replace(/\D/g, "");
+  if (eid.includes(t) || vid.includes(t)) return true;
+  if (digits) {
+    if (clave.includes(digits)) return true;
+    if (vidDigits.includes(digits)) return true;
+    if (eidDigits.includes(digits)) return true;
+  }
+  return false;
+}

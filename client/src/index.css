@@ -14229,8 +14229,7 @@ select optgroup {
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 0.55rem;
-  min-height: 0;
+  min-height: 10.75rem;
   padding: 0.85rem 0.9rem 0.75rem;
   border-radius: 10px;
   border: 1px solid var(--bn-border, #eaecef);
@@ -14283,10 +14282,19 @@ button.sg-kpi-card:disabled {
   opacity: 1;
 }
 
-.sg-kpi-card-main {
+.sg-kpi-card-body {
   position: relative;
   z-index: 1;
   display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+}
+
+.sg-kpi-card-main {
+  display: flex;
+  flex: 1;
   flex-direction: column;
   gap: 0.2rem;
   padding-left: 0.35rem;
@@ -14298,6 +14306,9 @@ button.sg-kpi-card:disabled {
   align-items: center;
   gap: 0.4rem;
   min-width: 0;
+  min-height: 1.55rem;
+  padding-right: 3.25rem;
+  position: relative;
 }
 
 .sg-kpi-card-icon {
@@ -14328,6 +14339,10 @@ button.sg-kpi-card:disabled {
 }
 
 .sg-kpi-card-action {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  transform: translateY(-50%);
   flex-shrink: 0;
   font-size: 0.62rem;
   font-weight: 600;
@@ -14336,6 +14351,12 @@ button.sg-kpi-card:disabled {
   color: var(--bn-muted-light, #b7bdc6);
   opacity: 0;
   transition: opacity 0.16s ease;
+  pointer-events: none;
+}
+
+.sg-kpi-card-action--placeholder {
+  visibility: hidden;
+  opacity: 0;
 }
 
 .sg-kpi-card--clickable:hover:not(:disabled) .sg-kpi-card-action,
@@ -14362,6 +14383,7 @@ button.sg-kpi-card:disabled {
 .sg-kpi-card-hint {
   margin: 0;
   padding-left: 0.35rem;
+  min-height: 1.84rem;
   font-size: 0.68rem;
   font-weight: 500;
   color: var(--bn-muted-light, #b7bdc6);
@@ -14404,22 +14426,20 @@ button.sg-kpi-card:disabled {
 
 /* Compact sexo breakdown */
 .sg-kpi-sexo-compact {
-  position: relative;
-  z-index: 1;
   display: flex;
   flex-direction: column;
+  justify-content: flex-end;
   gap: 0.35rem;
-  margin-top: 0.15rem;
+  flex-shrink: 0;
+  min-height: 2.35rem;
+  margin-top: 0.45rem;
   padding: 0.45rem 0.35rem 0 0.55rem;
+  border-top: 1px solid var(--bn-border-soft, #f0f1f3);
 }
 
-.sg-kpi-sexo-compact--empty {
-  padding-top: 0.25rem;
-}
-
-.sg-kpi-sexo-compact-empty {
-  font-size: 0.65rem;
-  color: var(--bn-muted-light, #b7bdc6);
+.sg-kpi-sexo-bar-seg--empty {
+  flex: 1 1 100%;
+  background: var(--bn-border-soft, #f0f1f3);
 }
 
 .sg-kpi-sexo-bar {
@@ -14451,7 +14471,9 @@ button.sg-kpi-card:disabled {
 .sg-kpi-sexo-legend {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 0.35rem 0.65rem;
+  min-height: 0.95rem;
 }
 
 .sg-kpi-sexo-legend-item {

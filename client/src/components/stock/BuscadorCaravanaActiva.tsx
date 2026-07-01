@@ -4,6 +4,7 @@ import type { StockGanaderaDispositivo } from "../../types";
 import { normalizarEstadoDispositivo } from "./stock-ganadera-utils";
 import {
   categoriasDispositivo,
+  coincideBusquedaDispositivo,
   coincideCategoriaFiltro,
   etiquetaCaravana,
   filtrarDispositivosActivosStock,
@@ -32,17 +33,6 @@ interface Props {
   refreshKey?: number;
   onError?: (msg: string) => void;
   onSelect: (dispositivo: StockGanaderaDispositivo) => void;
-}
-
-function coincideBusqueda(d: StockGanaderaDispositivo, q: string): boolean {
-  const t = q.trim().toLowerCase();
-  if (!t) return true;
-  const digits = t.replace(/\D/g, "");
-  const eid = d.eid?.toLowerCase() ?? "";
-  const vid = d.vid?.toLowerCase() ?? "";
-  if (eid.includes(t) || vid.includes(t)) return true;
-  if (digits && (d.clave.includes(digits) || vid.includes(digits))) return true;
-  return etiquetaCaravana(d).toLowerCase().includes(t);
 }
 
 function textosBuscador(variant: Props["variant"]) {
@@ -193,7 +183,7 @@ export default function BuscadorCaravanaActiva({
   }, [activos, excludeClaves, filtroCategoria]);
 
   const lista = useMemo(() => {
-    const filtrada = disponibles.filter((d) => coincideBusqueda(d, busqueda));
+    const filtrada = disponibles.filter((d) => coincideBusquedaDispositivo(d, busqueda));
     const max = variant === "cabana" ? 150 : 80;
     return filtrada.slice(0, max);
   }, [disponibles, busqueda, variant]);

@@ -3,7 +3,7 @@ import type { StockGanaderoRowInput } from "./parse-stock-ganadero-txt.js";
 import { migrateAddCuentaIdColumn, getEmpresaCodigosActivosPorCuenta } from "./empresas-cuenta-db.js";
 import { listClavesDispositivosEnVentasCerradas } from "./simulador-venta-dispositivos-db.js";
 import { labelCategoriaSalidaDispositivo } from "./stock-ganadera-categoria.js";
-import { dispositivoClave, eidClave, splitEidVid } from "./stock-ganadero-id.js";
+import { dispositivoClave, eidClave, splitEidVid, coincideBusquedaDispositivo } from "./stock-ganadero-id.js";
 import * as stockFoto from "./stock-dispositivo-foto-db.js";
 import * as stockControlSanitario from "./stock-control-sanitario-db.js";
 import * as potreroDb from "./stock-ganadero-potrero-db.js";
@@ -3309,7 +3309,13 @@ export async function listStockGanaderaDispositivos(
 
   dispositivos = await enrichDispositivosWithMeta(db, dispositivos);
   dispositivos = filtrarDispositivosPorEmpresas(dispositivos, filters?.empresas);
-  return filtrarYOrdenarBajas(dispositivos, filters);
+  dispositivos = filtrarYOrdenarBajas(dispositivos, filters);
+  if (filters?.busqueda?.trim()) {
+    dispositivos = dispositivos.filter((d) =>
+      coincideBusquedaDispositivo(d, filters.busqueda!)
+    );
+  }
+  return dispositivos;
 }
 
 export async function getStockGanaderaDispositivoDetalle(
