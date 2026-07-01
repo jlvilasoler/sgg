@@ -274,6 +274,7 @@ export default function StockControlSanitarioMarcaSelect({
   const [nuevaMarca, setNuevaMarca] = useState("");
   const [guardandoMarca, setGuardandoMarca] = useState(false);
   const [fichaAbierta, setFichaAbierta] = useState(false);
+  const [fichaNombre, setFichaNombre] = useState("");
   const [marcasGlobales, setMarcasGlobales] = useState<
     StockControlSanitarioProductoNombreGlobal[]
   >([]);
@@ -404,11 +405,29 @@ export default function StockControlSanitarioMarcaSelect({
   }, []);
 
   const elegir = useCallback(
-    (marca: string) => {
+    (marca: string, opts?: { abrirFicha?: boolean }) => {
       onChange(marca);
+      if (opts?.abrirFicha) {
+        setFichaNombre(marca.trim());
+        setFichaAbierta(true);
+      }
       cerrar();
     },
     [onChange, cerrar]
+  );
+
+  const abrirFichaProducto = useCallback(
+    (nombre: string) => {
+      const n = nombre.trim();
+      if (!n || disabled) return;
+      setFichaNombre(n);
+      setFichaAbierta(true);
+      setAbierto(false);
+      setBusqueda("");
+      setModoNuevo(false);
+      setNuevaMarca("");
+    },
+    [disabled]
   );
 
   const abrir = () => {
@@ -502,7 +521,7 @@ export default function StockControlSanitarioMarcaSelect({
     e.preventDefault();
     e.stopPropagation();
     if (disabled || !tieneValor) return;
-    setFichaAbierta(true);
+    abrirFichaProducto(value);
   };
 
   return (
@@ -697,7 +716,13 @@ export default function StockControlSanitarioMarcaSelect({
                           role="option"
                           aria-selected={value === m.nombre}
                           className="stock-control-sanitario-marca-row-btn"
-                          onClick={() => elegir(m.nombre)}
+                          onClick={() =>
+                            elegir(m.nombre, {
+                              abrirFicha:
+                                m.seccion === "destacada" ||
+                                m.seccion === "ultima-agregada",
+                            })
+                          }
                         >
                           <span className="stock-control-sanitario-marca-row-label">{m.nombre}</span>
                           {m.seccion === "destacada" && m.usos > 0 ? (
@@ -742,10 +767,13 @@ export default function StockControlSanitarioMarcaSelect({
 
       <StockControlSanitarioProductoFichaModal
         open={fichaAbierta}
-        nombre={value}
+        nombre={fichaNombre || value}
         modulo={modulo}
         apiOnline={apiOnline}
-        onClose={() => setFichaAbierta(false)}
+        onClose={() => {
+          setFichaAbierta(false);
+          setFichaNombre("");
+        }}
         onError={onError}
         onSaved={(msg) => {
           onFichaSaved?.(msg);
