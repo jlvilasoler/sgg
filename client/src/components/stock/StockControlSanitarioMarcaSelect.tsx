@@ -405,12 +405,8 @@ export default function StockControlSanitarioMarcaSelect({
   }, []);
 
   const elegir = useCallback(
-    (marca: string, opts?: { abrirFicha?: boolean }) => {
+    (marca: string) => {
       onChange(marca);
-      if (opts?.abrirFicha) {
-        setFichaNombre(marca.trim());
-        setFichaAbierta(true);
-      }
       cerrar();
     },
     [onChange, cerrar]
@@ -716,13 +712,7 @@ export default function StockControlSanitarioMarcaSelect({
                           role="option"
                           aria-selected={value === m.nombre}
                           className="stock-control-sanitario-marca-row-btn"
-                          onClick={() =>
-                            elegir(m.nombre, {
-                              abrirFicha:
-                                m.seccion === "destacada" ||
-                                m.seccion === "ultima-agregada",
-                            })
-                          }
+                          onClick={() => elegir(m.nombre)}
                         >
                           <span className="stock-control-sanitario-marca-row-label">{m.nombre}</span>
                           {m.seccion === "destacada" && m.usos > 0 ? (
