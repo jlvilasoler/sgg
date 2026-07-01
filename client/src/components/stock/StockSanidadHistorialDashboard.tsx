@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Activity, ClipboardList, PillBottle, Users } from "lucide-react";
+import { Activity, ChevronDown, ChevronUp, ClipboardList, PillBottle, Users } from "lucide-react";
 import { fetchStockControlSanitarioResumen } from "../../api";
 import type { StockControlSanitarioResumen } from "../../types";
 import { StockControlSanitarioIconSvg } from "./StockControlSanitarioSectionTitle";
@@ -48,6 +48,8 @@ function maxFrecuencia(items: { cantidad: number }[]): number {
   return Math.max(1, ...items.map((i) => i.cantidad));
 }
 
+const TIMELINE_PAGE_SIZE = 4;
+
 export default function StockSanidadHistorialDashboard({
   apiOnline,
   claves,
@@ -56,8 +58,13 @@ export default function StockSanidadHistorialDashboard({
 }: Props) {
   const [resumen, setResumen] = useState<StockControlSanitarioResumen | null>(null);
   const [loading, setLoading] = useState(false);
+  const [timelinePage, setTimelinePage] = useState(0);
 
   const clavesKey = useMemo(() => [...claves].sort().join(","), [claves]);
+
+  useEffect(() => {
+    setTimelinePage(0);
+  }, [clavesKey, refreshKey]);
 
   useEffect(() => {
     if (!apiOnline || claves.length === 0) {
@@ -97,6 +104,16 @@ export default function StockSanidadHistorialDashboard({
     resumen && resumen.dispositivos_con_historial > 0
       ? (resumen.total_registros / resumen.dispositivos_con_historial).toFixed(1)
       : "0";
+
+  const ultimosRegistros = resumen?.ultimos_registros ?? [];
+  const timelineTotalPages = Math.max(1, Math.ceil(ultimosRegistros.length / TIMELINE_PAGE_SIZE));
+  const timelinePageSafe = Math.min(timelinePage, timelineTotalPages - 1);
+  const timelineCanScroll = ultimosRegistros.length > TIMELINE_PAGE_SIZE;
+  const timelineRangeStart = ultimosRegistros.length === 0 ? 0 : timelinePageSafe * TIMELINE_PAGE_SIZE + 1;
+  const timelineRangeEnd = Math.min(
+    ultimosRegistros.length,
+    (timelinePageSafe + 1) * TIMELINE_PAGE_SIZE
+  );
 
   if (claves.length === 0) {
     return (
@@ -239,34 +256,95 @@ export default function StockSanidadHistorialDashboard({
             )}
           </div>
 
-          {resumen.ultimos_registros.length > 0 && (
+          {ultimosRegistros.length > 0 && (
             <div className="stock-sanidad-dash-col stock-sanidad-dash-col--timeline">
               <section className="stock-sanidad-dash-block stock-sanidad-dash-block--timeline">
-                <h5 className="stock-sanidad-dash-block-title">Últimos movimientos</h5>
-                <ul className="stock-sanidad-dash-timeline">
-                  {resumen.ultimos_registros.map((r) => {
-                    const periodo = fmtPeriodoRegistro(r);
-                    return (
-                      <li key={`${r.id}-${r.clave}`} className="stock-sanidad-dash-timeline-item">
-                        <article className="stock-sanidad-dash-timeline-card">
-                          <div className="stock-sanidad-dash-timeline-top">
-                            <strong title={r.producto_nombre}>{r.producto_nombre || "Producto"}</strong>
-                            <time dateTime={r.creado_en}>{fmtCreadoEn(r.creado_en)}</time>
-                          </div>
-                          <p className="stock-sanidad-dash-timeline-id">
-                            {r.animal_id || r.clave}
-                          </p>
-                          {r.control_motivo.trim() && (
-                            <p className="stock-sanidad-dash-timeline-motivo">{r.control_motivo}</p>
-                          )}
-                          {periodo && (
-                            <p className="stock-sanidad-dash-timeline-periodo">{periodo}</p>
-                          )}
-                        </article>
-                      </li>
-                    );
-                  })}
-                </ul>
+                <div className="stock-sanidad-dash-timeline-head">
+                  <h5 className="stock-sanidad-dash-block-title">Últimos movimientos</h5>
+                  {timelineCanScroll ? (
+                    <span className="stock-sanidad-dash-timeline-range muted">
+                      {timelineRangeStart}–{timelineRangeEnd} de {ultimosRegistros.length}
+                    </span>
+                  ) : null}
+                </div>
+                <div className="stock-sanidad-dash-timeline-carousel">
+                  {timelineCanScroll ? (
+                    <button
+                      type="button"
+                      className="stock-sanidad-dash-timeline-nav-btn"
+                      disabled={timelinePageSafe <= 0}
+                      aria-label="Movimientos anteriores"
+                      onClick={() => setTimelinePage((p) => Math.max(0, p - 1))}
+                    >
+                      <ChevronUp size={18} aria-hidden />
+                    </button>
+                  ) : null}
+                  <div className="stock-sanidad-dash-timeline-viewport">
+                    <div
+                      className="stock-sanidad-dash-timeline-track"
+                      style={{ ["--timeline-page" as string]: timelinePageSafe }}
+                      aria-live="polite"
+                      aria-atomic="true"
+                    >
+                      {Array.from({ length: timelineTotalPages }, (_, pageIdx) => {
+                        const pageItems = ultimosRegistros.slice(
+                          pageIdx * TIMELINE_PAGE_SIZE,
+                          pageIdx * TIMELINE_PAGE_SIZE + TIMELINE_PAGE_SIZE
+                        );
+                        return (
+                          <ul
+                            key={pageIdx}
+                            className="stock-sanidad-dash-timeline stock-sanidad-dash-timeline--carousel stock-sanidad-dash-timeline-page"
+                            aria-hidden={pageIdx !== timelinePageSafe}
+                          >
+                            {pageItems.map((r) => {
+                              const periodo = fmtPeriodoRegistro(r);
+                              return (
+                                <li
+                                  key={`${r.id}-${r.clave}`}
+                                  className="stock-sanidad-dash-timeline-item"
+                                >
+                                  <article className="stock-sanidad-dash-timeline-card">
+                                    <div className="stock-sanidad-dash-timeline-top">
+                                      <strong title={r.producto_nombre}>
+                                        {r.producto_nombre || "Producto"}
+                                      </strong>
+                                      <time dateTime={r.creado_en}>{fmtCreadoEn(r.creado_en)}</time>
+                                    </div>
+                                    <p className="stock-sanidad-dash-timeline-id">
+                                      {r.animal_id || r.clave}
+                                    </p>
+                                    {r.control_motivo.trim() && (
+                                      <p className="stock-sanidad-dash-timeline-motivo">
+                                        {r.control_motivo}
+                                      </p>
+                                    )}
+                                    {periodo && (
+                                      <p className="stock-sanidad-dash-timeline-periodo">{periodo}</p>
+                                    )}
+                                  </article>
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  {timelineCanScroll ? (
+                    <button
+                      type="button"
+                      className="stock-sanidad-dash-timeline-nav-btn"
+                      disabled={timelinePageSafe >= timelineTotalPages - 1}
+                      aria-label="Movimientos siguientes"
+                      onClick={() =>
+                        setTimelinePage((p) => Math.min(timelineTotalPages - 1, p + 1))
+                      }
+                    >
+                      <ChevronDown size={18} aria-hidden />
+                    </button>
+                  ) : null}
+                </div>
               </section>
             </div>
           )}

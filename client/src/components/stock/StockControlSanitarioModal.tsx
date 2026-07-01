@@ -17,6 +17,7 @@ import {
 import type { StockControlSanitarioInput, StockControlSanitarioRecord, AuthUser } from "../../types";
 import StockControlSanitarioFormulaSelect from "./StockControlSanitarioFormulaSelect";
 import StockControlSanitarioCantidadSelect from "./StockControlSanitarioCantidadSelect";
+import StockControlSanitarioEsperaSelect from "./StockControlSanitarioEsperaSelect";
 import StockControlSanitarioFuncionarioSelect from "./StockControlSanitarioFuncionarioSelect";
 import StockControlSanitarioMarcaSelect from "./StockControlSanitarioMarcaSelect";
 import StockControlSanitarioFormaSelect from "./StockControlSanitarioFormaSelect";
@@ -24,6 +25,12 @@ import StockControlSanitarioMotivoSelect from "./StockControlSanitarioMotivoSele
 import StockControlSanitarioSectionTitle, {
   StockControlSanitarioIconSvg,
 } from "./StockControlSanitarioSectionTitle";
+import {
+  flagsDesdePatch,
+  patchProductoDesdeMarca,
+  patchProductoDesdeMarcaAsync,
+  type ProductoSugeridoFlags,
+} from "./stock-control-sanitario-marca-formula";
 
 type AdminModo = "fechas" | "periodo";
 
@@ -162,6 +169,10 @@ export default function StockControlSanitarioModal({
     emptyForm(animalCategoriaLoteDefault, animalIdDefault, funcionarioDefault)
   );
   const [adminModo, setAdminModoState] = useState<AdminModo>("fechas");
+  const [sugeridoFicha, setSugeridoFicha] = useState<ProductoSugeridoFlags>({
+    formula: false,
+    forma: false,
+  });
 
   const puedeEditar = apiOnline && !soloLectura;
 
@@ -248,6 +259,14 @@ export default function StockControlSanitarioModal({
     [registros]
   );
 
+  const historialEsperas = useMemo(
+    () =>
+      registros
+        .map((r) => r.producto_espera.trim())
+        .filter(Boolean),
+    [registros]
+  );
+
   const historialFuncionarios = useMemo(
     () =>
       registros
@@ -273,9 +292,32 @@ export default function StockControlSanitarioModal({
     setForm((prev) => ({ ...prev, ...patch }));
   };
 
+  const onMarcaChange = useCallback(
+    (nombre: string) => {
+      setSugeridoFicha({ formula: false, forma: false });
+      const sync = patchProductoDesdeMarca(nombre);
+      patchForm(sync);
+      setSugeridoFicha(flagsDesdePatch(sync));
+
+      if (apiOnline && nombre.trim()) {
+        void patchProductoDesdeMarcaAsync(nombre, modulo, apiOnline).then((patch) => {
+          patchForm(patch);
+          setSugeridoFicha(flagsDesdePatch(patch));
+        });
+      }
+    },
+    [apiOnline, modulo]
+  );
+
+  const sugerenciaHint = (activo: boolean) =>
+    activo ? (
+      <span className="stock-control-sanitario-sugerencia-hint"> · sugerido según ficha</span>
+    ) : null;
+
   const limpiarFormulario = () => {
     setForm(crearFormularioVacio());
     setAdminModoState("fechas");
+    setSugeridoFicha({ formula: false, forma: false });
   };
 
   const setAdminModo = (modo: AdminModo) => {
@@ -524,25 +566,41 @@ export default function StockControlSanitarioModal({
                     </label>
                     <StockControlSanitarioMarcaSelect
                       value={form.producto_nombre}
-                      onChange={(v) => patchForm({ producto_nombre: v })}
+                      onChange={onMarcaChange}
                       disabled={guardando}
                       historialMarcas={historialMarcas}
+                      apiOnline={apiOnline}
+                      modulo={modulo}
+                      onError={onError}
+                      onFichaSaved={onSuccess}
                     />
                   </div>
                   <div className="field">
-                    <label htmlFor="cs-producto-formula-trigger">Fórmula</label>
+                    <label htmlFor="cs-producto-formula-trigger">
+                      Fórmula
+                      {sugerenciaHint(sugeridoFicha.formula)}
+                    </label>
                     <StockControlSanitarioFormulaSelect
                       value={form.producto_formula}
-                      onChange={(v) => patchForm({ producto_formula: v })}
+                      onChange={(v) => {
+                        patchForm({ producto_formula: v });
+                        setSugeridoFicha((prev) => ({ ...prev, formula: false }));
+                      }}
                       disabled={guardando}
                       historialFormulas={historialFormulas}
                     />
                   </div>
                   <div className="field">
-                    <label htmlFor="cs-producto-forma-trigger">Forma de administración</label>
+                    <label htmlFor="cs-producto-forma-trigger">
+                      Forma de administración
+                      {sugerenciaHint(sugeridoFicha.forma)}
+                    </label>
                     <StockControlSanitarioFormaSelect
                       value={form.producto_forma}
-                      onChange={(v) => patchForm({ producto_forma: v })}
+                      onChange={(v) => {
+                        patchForm({ producto_forma: v });
+                        setSugeridoFicha((prev) => ({ ...prev, forma: false }));
+                      }}
                       disabled={guardando}
                       historialFormas={historialFormasAdmin}
                     />
@@ -560,15 +618,15 @@ export default function StockControlSanitarioModal({
                     />
                   </div>
                   <div className="field">
-                    <label htmlFor="cs-producto-espera">Tiempo de espera</label>
-                    <input
-                      id="cs-producto-espera"
-                      type="text"
-                      maxLength={80}
-                      placeholder="Ej. 28 días carne / 7 días leche"
+                    <label htmlFor="cs-producto-espera-trigger">Tiempo de espera</label>
+                    <StockControlSanitarioEsperaSelect
                       value={form.producto_espera}
+                      onChange={(v) => patchForm({ producto_espera: v })}
                       disabled={guardando}
-                      onChange={(e) => patchForm({ producto_espera: e.target.value })}
+                      apiOnline={apiOnline}
+                      modulo={modulo}
+                      historialEsperas={historialEsperas}
+                      onError={onError}
                     />
                   </div>
                 </div>

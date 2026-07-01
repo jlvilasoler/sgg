@@ -1,4 +1,9 @@
 import type { Db } from "./db/pg-client.js";
+import { PRODUCTO_FICHAS_SEED } from "./stock-control-sanitario-producto-fichas-seed.js";
+import {
+  esFotoProductoAceptable,
+  sanitizeProductoFichaFoto,
+} from "./stock-producto-ficha-foto.js";
 
 export type StockDispositivoModulo = "ganadero" | "equino";
 
@@ -219,7 +224,8 @@ export async function createStockControlSanitario(
       animal_categoria_lote: trimField(input.animal_categoria_lote, 80),
       animal_id: trimField(input.animal_id, 64),
       control_motivo: trimField(input.control_motivo, 500),
-      control_funcionario: trimField(input.control_funcionario, 120),
+      control_funcionario:
+        trimField(creadoPor, 120) || trimField(input.control_funcionario, 120),
       creado_en: creadoEn,
       creado_por: trimField(creadoPor, 120),
     });
@@ -287,7 +293,7 @@ export interface StockControlSanitarioResumen {
 
 const RESUMEN_MAX_CLAVES = 300;
 const RESUMEN_TOP_FRECUENCIAS = 6;
-const RESUMEN_ULTIMOS = 8;
+const RESUMEN_ULTIMOS = 24;
 
 function normalizeClavesResumen(clavesInput: string[]): string[] {
   const out = new Set<string>();
@@ -491,5 +497,350 @@ export async function createStockControlSanitarioCantidadCatalog(
     .get({ id })) as StockControlSanitarioCantidadOpcion | undefined;
 
   if (!row) throw new Error("No se pudo guardar la cantidad.");
+  return row;
+}
+
+const ESPERA_CATALOGO_TABLE = "STOCK_CONTROL_SANITARIO_ESPERA_OPCION";
+
+const ESPERAS_CATALOGO_SEED: readonly string[] = [
+  "30 DIAS",
+  "40 DIAS",
+  "50 DIAS",
+  "60 DIAS",
+];
+
+export interface StockControlSanitarioEsperaOpcion {
+  id: number;
+  valor: string;
+  creado_en: string;
+  creado_por: string;
+}
+
+function normalizeEsperaValor(val: unknown): string {
+  return String(val ?? "")
+    .trim()
+    .slice(0, 80);
+}
+
+export async function migrateStockControlSanitarioEsperaCatalog(db: Db): Promise<void> {
+  await db
+    .prepare(
+      `CREATE TABLE IF NOT EXISTS ${ESPERA_CATALOGO_TABLE} (
+         id SERIAL PRIMARY KEY,
+         valor TEXT NOT NULL,
+         creado_en TEXT NOT NULL,
+         creado_por TEXT NOT NULL DEFAULT ''
+       )`
+    )
+    .run();
+
+  try {
+    await db
+      .prepare(
+        `CREATE UNIQUE INDEX IF NOT EXISTS idx_${ESPERA_CATALOGO_TABLE.toLowerCase()}_valor
+         ON ${ESPERA_CATALOGO_TABLE} (LOWER(valor))`
+      )
+      .run();
+  } catch {
+    /* índice ya existe */
+  }
+
+  const creadoEn = new Date().toISOString();
+  for (const valor of ESPERAS_CATALOGO_SEED) {
+    const existente = (await db
+      .prepare(
+        `SELECT id FROM ${ESPERA_CATALOGO_TABLE}
+         WHERE LOWER(valor) = LOWER(@valor)
+         LIMIT 1`
+      )
+      .get({ valor })) as { id: number } | undefined;
+    if (existente) continue;
+    await db
+      .prepare(
+        `INSERT INTO ${ESPERA_CATALOGO_TABLE} (valor, creado_en, creado_por)
+         VALUES (@valor, @creado_en, @creado_por)`
+      )
+      .run({ valor, creado_en: creadoEn, creado_por: "sistema" });
+  }
+}
+
+export async function listStockControlSanitarioEsperaCatalog(
+  db: Db
+): Promise<StockControlSanitarioEsperaOpcion[]> {
+  const rows = (await db
+    .prepare(
+      `SELECT id, valor, creado_en, creado_por
+       FROM ${ESPERA_CATALOGO_TABLE}
+       ORDER BY LOWER(valor), id`
+    )
+    .all()) as StockControlSanitarioEsperaOpcion[];
+  return rows;
+}
+
+export async function createStockControlSanitarioEsperaCatalog(
+  db: Db,
+  valorInput: string,
+  creadoPor = ""
+): Promise<StockControlSanitarioEsperaOpcion> {
+  const valor = normalizeEsperaValor(valorInput);
+  if (!valor) throw new Error("Indicá el tiempo de espera.");
+
+  const existente = (await db
+    .prepare(
+      `SELECT id, valor, creado_en, creado_por
+       FROM ${ESPERA_CATALOGO_TABLE}
+       WHERE LOWER(valor) = LOWER(@valor)
+       LIMIT 1`
+    )
+    .get({ valor })) as StockControlSanitarioEsperaOpcion | undefined;
+
+  if (existente) return existente;
+
+  const creadoEn = new Date().toISOString();
+  const result = await db
+    .prepare(
+      `INSERT INTO ${ESPERA_CATALOGO_TABLE} (valor, creado_en, creado_por)
+       VALUES (@valor, @creado_en, @creado_por)
+       RETURNING id`
+    )
+    .run({
+      valor,
+      creado_en: creadoEn,
+      creado_por: trimField(creadoPor, 120),
+    });
+
+  const id = result.lastInsertRowid;
+  const row = (await db
+    .prepare(
+      `SELECT id, valor, creado_en, creado_por
+       FROM ${ESPERA_CATALOGO_TABLE} WHERE id = @id`
+    )
+    .get({ id })) as StockControlSanitarioEsperaOpcion | undefined;
+
+  if (!row) throw new Error("No se pudo guardar el tiempo de espera.");
+  return row;
+}
+
+const PRODUCTO_FICHA_TABLE = "STOCK_CONTROL_SANITARIO_PRODUCTO_FICHA";
+const MAX_FICHA_FOTO_LEN = 900_000;
+
+export interface StockControlSanitarioProductoFicha {
+  id: number;
+  nombre: string;
+  laboratorio: string;
+  principio_activo: string;
+  presentacion: string;
+  via_administracion: string;
+  especie: string;
+  tiempo_espera_carne: string;
+  tiempo_espera_leche: string;
+  detalles_tecnicos: string;
+  caracteristicas: string;
+  foto_data: string;
+  creado_en: string;
+  actualizado_en: string;
+  actualizado_por: string;
+}
+
+export interface StockControlSanitarioProductoFichaInput {
+  nombre: string;
+  laboratorio?: string;
+  principio_activo?: string;
+  presentacion?: string;
+  via_administracion?: string;
+  especie?: string;
+  tiempo_espera_carne?: string;
+  tiempo_espera_leche?: string;
+  detalles_tecnicos?: string;
+  caracteristicas?: string;
+  foto_data?: string;
+}
+
+function trimFichaField(val: unknown, max: number): string {
+  return String(val ?? "")
+    .trim()
+    .slice(0, max);
+}
+
+function normalizeFichaNombre(val: unknown): string {
+  return trimFichaField(val, 120);
+}
+
+export async function migrateStockControlSanitarioProductoFicha(db: Db): Promise<void> {
+  await db
+    .prepare(
+      `CREATE TABLE IF NOT EXISTS ${PRODUCTO_FICHA_TABLE} (
+         id SERIAL PRIMARY KEY,
+         nombre TEXT NOT NULL,
+         laboratorio TEXT NOT NULL DEFAULT '',
+         principio_activo TEXT NOT NULL DEFAULT '',
+         presentacion TEXT NOT NULL DEFAULT '',
+         via_administracion TEXT NOT NULL DEFAULT '',
+         especie TEXT NOT NULL DEFAULT '',
+         tiempo_espera_carne TEXT NOT NULL DEFAULT '',
+         tiempo_espera_leche TEXT NOT NULL DEFAULT '',
+         detalles_tecnicos TEXT NOT NULL DEFAULT '',
+         caracteristicas TEXT NOT NULL DEFAULT '',
+         foto_data TEXT NOT NULL DEFAULT '',
+         creado_en TEXT NOT NULL,
+         actualizado_en TEXT NOT NULL,
+         actualizado_por TEXT NOT NULL DEFAULT ''
+       )`
+    )
+    .run();
+
+  try {
+    await db
+      .prepare(
+        `CREATE UNIQUE INDEX IF NOT EXISTS idx_${PRODUCTO_FICHA_TABLE.toLowerCase()}_nombre
+         ON ${PRODUCTO_FICHA_TABLE} (LOWER(nombre))`
+      )
+      .run();
+  } catch {
+    /* índice ya existe */
+  }
+
+  await seedStockControlSanitarioProductoFichasIfMissing(db);
+  await repairProductoFichasFotosInvalidas(db);
+}
+
+export async function repairProductoFichasFotosInvalidas(db: Db): Promise<void> {
+  const rows = (await db
+    .prepare(`SELECT id, foto_data FROM ${PRODUCTO_FICHA_TABLE} WHERE TRIM(foto_data) <> ''`)
+    .all()) as { id: number; foto_data: string }[];
+
+  for (const row of rows) {
+    if (esFotoProductoAceptable(row.foto_data)) continue;
+    await db
+      .prepare(`UPDATE ${PRODUCTO_FICHA_TABLE} SET foto_data = '' WHERE id = @id`)
+      .run({ id: row.id });
+  }
+}
+
+export async function seedStockControlSanitarioProductoFichasIfMissing(db: Db): Promise<void> {
+  for (const seed of PRODUCTO_FICHAS_SEED) {
+    const existente = await getStockControlSanitarioProductoFicha(db, seed.nombre);
+    if (existente?.detalles_tecnicos?.trim()) continue;
+
+    await upsertStockControlSanitarioProductoFicha(
+      db,
+      {
+        nombre: seed.nombre,
+        laboratorio: seed.laboratorio,
+        principio_activo: seed.principio_activo,
+        presentacion: seed.presentacion,
+        via_administracion: seed.via_administracion,
+        especie: seed.especie,
+        tiempo_espera_carne: seed.tiempo_espera_carne,
+        tiempo_espera_leche: seed.tiempo_espera_leche,
+        detalles_tecnicos: seed.detalles_tecnicos,
+        caracteristicas: seed.caracteristicas,
+        foto_data: seed.foto ?? "",
+      },
+      "sistema"
+    );
+  }
+}
+
+export async function getStockControlSanitarioProductoFicha(
+  db: Db,
+  nombreInput: string
+): Promise<StockControlSanitarioProductoFicha | null> {
+  const nombre = normalizeFichaNombre(nombreInput);
+  if (!nombre) return null;
+  const row = (await db
+    .prepare(
+      `SELECT id, nombre, laboratorio, principio_activo, presentacion, via_administracion,
+              especie, tiempo_espera_carne, tiempo_espera_leche, detalles_tecnicos,
+              caracteristicas, foto_data, creado_en, actualizado_en, actualizado_por
+       FROM ${PRODUCTO_FICHA_TABLE}
+       WHERE LOWER(nombre) = LOWER(@nombre)
+       LIMIT 1`
+    )
+    .get({ nombre })) as StockControlSanitarioProductoFicha | undefined;
+  if (!row) return null;
+  return { ...row, foto_data: sanitizeProductoFichaFoto(row.foto_data) };
+}
+
+export async function upsertStockControlSanitarioProductoFicha(
+  db: Db,
+  input: StockControlSanitarioProductoFichaInput,
+  actualizadoPor = ""
+): Promise<StockControlSanitarioProductoFicha> {
+  const nombre = normalizeFichaNombre(input.nombre);
+  if (!nombre) throw new Error("Indicá el nombre del producto.");
+
+  const fotoRaw = String(input.foto_data ?? "");
+  const fotoSanitized = sanitizeProductoFichaFoto(fotoRaw);
+  const foto_data =
+    fotoSanitized.length > MAX_FICHA_FOTO_LEN
+      ? fotoSanitized.slice(0, MAX_FICHA_FOTO_LEN)
+      : fotoSanitized;
+
+  const payload = {
+    nombre,
+    laboratorio: trimFichaField(input.laboratorio, 120),
+    principio_activo: trimFichaField(input.principio_activo, 200),
+    presentacion: trimFichaField(input.presentacion, 200),
+    via_administracion: trimFichaField(input.via_administracion, 120),
+    especie: trimFichaField(input.especie, 120),
+    tiempo_espera_carne: trimFichaField(input.tiempo_espera_carne, 80),
+    tiempo_espera_leche: trimFichaField(input.tiempo_espera_leche, 80),
+    detalles_tecnicos: trimFichaField(input.detalles_tecnicos, 4000),
+    caracteristicas: trimFichaField(input.caracteristicas, 4000),
+    foto_data,
+  };
+
+  const existente = await getStockControlSanitarioProductoFicha(db, nombre);
+  const ahora = new Date().toISOString();
+  const autor = trimField(actualizadoPor, 120);
+
+  if (existente) {
+    await db
+      .prepare(
+        `UPDATE ${PRODUCTO_FICHA_TABLE}
+         SET laboratorio = @laboratorio,
+             principio_activo = @principio_activo,
+             presentacion = @presentacion,
+             via_administracion = @via_administracion,
+             especie = @especie,
+             tiempo_espera_carne = @tiempo_espera_carne,
+             tiempo_espera_leche = @tiempo_espera_leche,
+             detalles_tecnicos = @detalles_tecnicos,
+             caracteristicas = @caracteristicas,
+             foto_data = @foto_data,
+             actualizado_en = @actualizado_en,
+             actualizado_por = @actualizado_por
+         WHERE id = @id`
+      )
+      .run({
+        id: existente.id,
+        ...payload,
+        actualizado_en: ahora,
+        actualizado_por: autor,
+      });
+  } else {
+    await db
+      .prepare(
+        `INSERT INTO ${PRODUCTO_FICHA_TABLE} (
+           nombre, laboratorio, principio_activo, presentacion, via_administracion,
+           especie, tiempo_espera_carne, tiempo_espera_leche, detalles_tecnicos,
+           caracteristicas, foto_data, creado_en, actualizado_en, actualizado_por
+         ) VALUES (
+           @nombre, @laboratorio, @principio_activo, @presentacion, @via_administracion,
+           @especie, @tiempo_espera_carne, @tiempo_espera_leche, @detalles_tecnicos,
+           @caracteristicas, @foto_data, @creado_en, @actualizado_en, @actualizado_por
+         )`
+      )
+      .run({
+        ...payload,
+        creado_en: ahora,
+        actualizado_en: ahora,
+        actualizado_por: autor,
+      });
+  }
+
+  const row = await getStockControlSanitarioProductoFicha(db, nombre);
+  if (!row) throw new Error("No se pudo guardar la ficha del producto.");
   return row;
 }

@@ -1769,6 +1769,68 @@ app.post("/api/stock-ganadero/control-sanitario/cantidad-opciones", async (req, 
   }
 });
 
+app.get("/api/stock-ganadero/control-sanitario/espera-opciones", async (_req, res) => {
+  try {
+    const data = await stockControlSanitario.listStockControlSanitarioEsperaCatalog(db.getDb());
+    res.json({ ok: true, data });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al cargar tiempos de espera",
+    });
+  }
+});
+
+app.post("/api/stock-ganadero/control-sanitario/espera-opciones", async (req, res) => {
+  try {
+    const autor = historialAutorLabelFromRequest(req);
+    const valor = String(req.body?.valor ?? "");
+    const data = await stockControlSanitario.createStockControlSanitarioEsperaCatalog(
+      db.getDb(),
+      valor,
+      autor
+    );
+    res.json({ ok: true, data });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al guardar tiempo de espera",
+    });
+  }
+});
+
+app.get("/api/stock-ganadero/control-sanitario/producto-ficha/:nombre", async (req, res) => {
+  try {
+    const data = await stockControlSanitario.getStockControlSanitarioProductoFicha(
+      db.getDb(),
+      String(req.params.nombre ?? "")
+    );
+    res.json({ ok: true, data });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al cargar ficha del producto",
+    });
+  }
+});
+
+app.put("/api/stock-ganadero/control-sanitario/producto-ficha", async (req, res) => {
+  try {
+    const autor = historialAutorLabelFromRequest(req);
+    const data = await stockControlSanitario.upsertStockControlSanitarioProductoFicha(
+      db.getDb(),
+      req.body ?? {},
+      autor
+    );
+    res.json({ ok: true, data });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al guardar ficha del producto",
+    });
+  }
+});
+
 app.post("/api/stock-ganadero/control-sanitario/resumen", async (req, res) => {
   try {
     const claves = Array.isArray(req.body?.claves)
@@ -3065,6 +3127,68 @@ app.post("/api/stock-equino/control-sanitario/cantidad-opciones", async (req, re
     res.status(400).json({
       ok: false,
       error: e instanceof Error ? e.message : "Error al guardar cantidad",
+    });
+  }
+});
+
+app.get("/api/stock-equino/control-sanitario/espera-opciones", async (_req, res) => {
+  try {
+    const data = await stockControlSanitario.listStockControlSanitarioEsperaCatalog(db.getDb());
+    res.json({ ok: true, data });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al cargar tiempos de espera",
+    });
+  }
+});
+
+app.post("/api/stock-equino/control-sanitario/espera-opciones", async (req, res) => {
+  try {
+    const autor = historialAutorLabelFromRequest(req);
+    const valor = String(req.body?.valor ?? "");
+    const data = await stockControlSanitario.createStockControlSanitarioEsperaCatalog(
+      db.getDb(),
+      valor,
+      autor
+    );
+    res.json({ ok: true, data });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al guardar tiempo de espera",
+    });
+  }
+});
+
+app.get("/api/stock-equino/control-sanitario/producto-ficha/:nombre", async (req, res) => {
+  try {
+    const data = await stockControlSanitario.getStockControlSanitarioProductoFicha(
+      db.getDb(),
+      String(req.params.nombre ?? "")
+    );
+    res.json({ ok: true, data });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al cargar ficha del producto",
+    });
+  }
+});
+
+app.put("/api/stock-equino/control-sanitario/producto-ficha", async (req, res) => {
+  try {
+    const autor = historialAutorLabelFromRequest(req);
+    const data = await stockControlSanitario.upsertStockControlSanitarioProductoFicha(
+      db.getDb(),
+      req.body ?? {},
+      autor
+    );
+    res.json({ ok: true, data });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al guardar ficha del producto",
     });
   }
 });

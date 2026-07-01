@@ -5,6 +5,8 @@ import {
   type MarcaRemedioCatalogo,
   type MarcaRemedioPais,
 } from "./stock-control-sanitario-marcas";
+import type { StockDispositivoModulo } from "../../api";
+import StockControlSanitarioProductoFichaModal from "./StockControlSanitarioProductoFichaModal";
 
 const STORAGE_KEY = "scg-marcas-remedio-extras";
 const MAX_MARCA_LEN = 120;
@@ -69,6 +71,10 @@ interface Props {
   onChange: (value: string) => void;
   disabled?: boolean;
   historialMarcas?: string[];
+  apiOnline?: boolean;
+  modulo?: StockDispositivoModulo;
+  onError?: (msg: string) => void;
+  onFichaSaved?: (msg: string) => void;
 }
 
 export default function StockControlSanitarioMarcaSelect({
@@ -76,6 +82,10 @@ export default function StockControlSanitarioMarcaSelect({
   onChange,
   disabled = false,
   historialMarcas = [],
+  apiOnline = true,
+  modulo = "ganadero",
+  onError = () => {},
+  onFichaSaved,
 }: Props) {
   const rootRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -86,6 +96,7 @@ export default function StockControlSanitarioMarcaSelect({
   const [modoNuevo, setModoNuevo] = useState(false);
   const [nuevaMarca, setNuevaMarca] = useState("");
   const [extras, setExtras] = useState<MarcaExtra[]>(() => loadMarcaExtras());
+  const [fichaAbierta, setFichaAbierta] = useState(false);
 
   const extrasPorNombre = useMemo(() => {
     const map = new Map<string, MarcaExtra>();
@@ -233,6 +244,14 @@ export default function StockControlSanitarioMarcaSelect({
   }, [abierto, cerrar]);
 
   const textoSeleccion = value.trim() || "— Seleccionar —";
+  const tieneValor = Boolean(value.trim());
+
+  const abrirFicha = (e: React.MouseEvent | React.KeyboardEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (disabled || !tieneValor) return;
+    setFichaAbierta(true);
+  };
 
   return (
     <div className="stock-control-sanitario-marca-select" ref={rootRef}>
@@ -246,9 +265,24 @@ export default function StockControlSanitarioMarcaSelect({
           onClick={() => (abierto ? cerrar() : abrir())}
           disabled={disabled}
         >
-          <span className={value.trim() ? "" : "stock-control-sanitario-field-trigger-placeholder"}>
-            {textoSeleccion}
-          </span>
+          {tieneValor ? (
+            <span
+              role="link"
+              tabIndex={0}
+              className="stock-control-sanitario-marca-ficha-link"
+              title="Ver ficha del producto"
+              onClick={abrirFicha}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") abrirFicha(e);
+              }}
+            >
+              {value}
+            </span>
+          ) : (
+            <span className="stock-control-sanitario-field-trigger-placeholder">
+              {textoSeleccion}
+            </span>
+          )}
         </button>
         {value.trim() && !disabled ? (
           <button
@@ -408,6 +442,16 @@ export default function StockControlSanitarioMarcaSelect({
           </ul>
         </div>
       ) : null}
+
+      <StockControlSanitarioProductoFichaModal
+        open={fichaAbierta}
+        nombre={value}
+        modulo={modulo}
+        apiOnline={apiOnline}
+        onClose={() => setFichaAbierta(false)}
+        onError={onError}
+        onSaved={onFichaSaved}
+      />
     </div>
   );
 }

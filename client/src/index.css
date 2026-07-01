@@ -33179,6 +33179,7 @@ button.sg-kpi-card:disabled {
 
 .stock-control-sanitario-formula-select,
 .stock-control-sanitario-cantidad-select,
+.stock-control-sanitario-espera-select,
 .stock-control-sanitario-funcionario-select,
 .stock-control-sanitario-marca-select,
 .stock-control-sanitario-forma-select,
@@ -33220,6 +33221,673 @@ button.sg-kpi-card:disabled {
   text-transform: uppercase;
   color: #854d0e;
   background: rgba(234, 179, 8, 0.28);
+}
+
+.stock-control-sanitario-marca-ficha-link {
+  color: #0f766e;
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: rgba(15, 118, 110, 0.35);
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.stock-control-sanitario-marca-ficha-link:hover {
+  color: #0d9488;
+  text-decoration-color: rgba(13, 148, 136, 0.65);
+}
+
+.stock-control-sanitario-marca-ficha-link:focus-visible {
+  outline: 2px solid #14b8a6;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.stock-producto-ficha-overlay {
+  z-index: 12050;
+  overflow-y: auto;
+  padding: 1.25rem 0.75rem;
+  background: rgba(15, 35, 28, 0.42);
+  backdrop-filter: blur(8px);
+}
+
+.stock-producto-ficha-modal {
+  position: relative;
+  width: min(1100px, 95vw);
+  max-height: none;
+  display: flex;
+  flex-direction: column;
+  overflow: visible;
+  margin: 0 auto;
+  background: linear-gradient(180deg, #f8fbfb 0%, #f1f5f4 100%);
+  border: 1px solid rgba(45, 90, 61, 0.12);
+  border-radius: 20px;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.85) inset,
+    0 28px 72px rgba(15, 35, 24, 0.22);
+}
+
+.stock-producto-ficha-accent {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #0d9488 0%, #14b8a6 45%, #5eead4 100%);
+  border-radius: 20px 20px 0 0;
+}
+
+.stock-producto-ficha-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.25rem 1.5rem 1.1rem;
+  border-bottom: 1px solid rgba(45, 90, 61, 0.08);
+  background: linear-gradient(
+    135deg,
+    #ffffff 0%,
+    color-mix(in srgb, #0d9488 5%, #ffffff) 100%
+  );
+}
+
+.stock-producto-ficha-head-brand {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.stock-producto-ficha-head-copy {
+  min-width: 0;
+}
+
+.stock-producto-ficha-head-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 3.25rem;
+  height: 3.25rem;
+  border-radius: 14px;
+  border: 1px solid rgba(13, 148, 136, 0.18);
+  background: linear-gradient(145deg, #ecfdf5 0%, #ccfbf1 100%);
+  color: #0f766e;
+  flex-shrink: 0;
+  box-shadow:
+    0 2px 8px rgba(13, 148, 136, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.75);
+}
+
+.stock-producto-ficha-kicker {
+  margin: 0;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.stock-producto-ficha-head h2 {
+  margin: 0.2rem 0 0;
+  font-size: clamp(1.35rem, 2.2vw, 1.65rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  color: #134e4a;
+}
+
+.stock-producto-ficha-head-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+  margin-top: 0.55rem;
+}
+
+.stock-producto-ficha-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.18rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: #0f766e;
+  background: rgba(20, 184, 166, 0.12);
+  border: 1px solid rgba(13, 148, 136, 0.22);
+}
+
+.stock-producto-ficha-meta {
+  font-size: 0.72rem;
+}
+
+.stock-producto-ficha-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-shrink: 0;
+}
+
+.stock-producto-ficha-btn-edit {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.42rem 0.85rem;
+  border: 1px solid rgba(13, 148, 136, 0.35);
+  border-radius: 10px;
+  background: linear-gradient(145deg, #fff 0%, #f0fdfa 100%);
+  color: #0f766e;
+  font-size: 0.8rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+  box-shadow: 0 1px 2px rgba(13, 148, 136, 0.08);
+}
+
+.stock-producto-ficha-btn-edit:hover:not(:disabled) {
+  background: #f0fdfa;
+  border-color: #14b8a6;
+  box-shadow: 0 4px 12px rgba(13, 148, 136, 0.14);
+}
+
+.stock-producto-ficha-btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.42rem 0.85rem;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 10px;
+  background: #fff;
+  color: #475569;
+  font-size: 0.8rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.stock-producto-ficha-btn-ghost:hover:not(:disabled) {
+  background: #f8fafc;
+  border-color: rgba(100, 116, 139, 0.45);
+}
+
+.stock-producto-ficha-btn-save {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.42rem 0.9rem;
+  border: 1px solid rgba(13, 148, 136, 0.45);
+  border-radius: 10px;
+  background: linear-gradient(145deg, #0d9488 0%, #14b8a6 100%);
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(13, 148, 136, 0.25);
+  transition: filter 0.15s ease, box-shadow 0.15s ease;
+}
+
+.stock-producto-ficha-btn-save:hover:not(:disabled) {
+  filter: brightness(1.05);
+  box-shadow: 0 3px 10px rgba(13, 148, 136, 0.32);
+}
+
+.stock-producto-ficha-btn-save:disabled,
+.stock-producto-ficha-btn-ghost:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.stock-producto-ficha-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #fff;
+  color: #64748b;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.stock-producto-ficha-close:hover:not(:disabled) {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  color: #0f766e;
+}
+
+.stock-producto-ficha-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 3.5rem 1.5rem;
+}
+
+.stock-producto-ficha-loading-pulse {
+  width: 3rem;
+  height: 3rem;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #ccfbf1, #99f6e4);
+  animation: stock-producto-ficha-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes stock-producto-ficha-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(0.92);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.stock-producto-ficha-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  flex: 0 0 auto;
+  overflow: visible;
+}
+
+.stock-producto-ficha-body-top {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  align-items: start;
+}
+
+.stock-producto-ficha-detalles-panel {
+  padding: 0 1.25rem 1.15rem;
+  border-top: 1px solid rgba(148, 163, 184, 0.22);
+  background: #fff;
+}
+
+.stock-producto-ficha-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  padding: 1rem 1.25rem 1.1rem;
+  min-width: 0;
+}
+
+.stock-producto-ficha-col--tecnico {
+  border-right: 1px solid rgba(148, 163, 184, 0.22);
+  background: #fff;
+}
+
+.stock-producto-ficha-col--caracteristicas {
+  background: linear-gradient(180deg, #f8fffe 0%, #f4f8f7 100%);
+}
+
+.stock-producto-ficha-section-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.15rem;
+}
+
+.stock-producto-ficha-section-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 8px;
+  background: linear-gradient(145deg, #ccfbf1, #99f6e4);
+  color: #0f766e;
+  flex-shrink: 0;
+}
+
+.stock-producto-ficha-section-icon--alt {
+  background: linear-gradient(145deg, #fef3c7, #fde68a);
+  color: #b45309;
+}
+
+.stock-producto-ficha-col-title {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #475569;
+}
+
+.stock-producto-ficha-foto-card {
+  padding: 0.65rem;
+  border-radius: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.stock-producto-ficha-foto-frame {
+  position: relative;
+  min-height: 9rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: #eef2f6;
+  overflow: hidden;
+}
+
+.stock-producto-ficha-foto {
+  display: block;
+  width: 100%;
+  max-height: 200px;
+  object-fit: contain;
+  padding: 0.35rem;
+}
+
+.stock-producto-ficha-foto-placeholder {
+  width: 100%;
+  min-height: 9rem;
+}
+
+.stock-producto-ficha-foto-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.stock-producto-ficha-foto-actions--overlay {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  justify-content: center;
+  padding: 0.4rem 0.5rem;
+  background: linear-gradient(180deg, transparent 0%, rgba(15, 23, 42, 0.62) 100%);
+}
+
+.stock-producto-ficha-btn-soft {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.32rem 0.65rem;
+  border: 1px solid rgba(13, 148, 136, 0.25);
+  border-radius: 8px;
+  background: #fff;
+  color: #0f766e;
+  font-size: 0.76rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.stock-producto-ficha-btn-soft:hover {
+  background: #f0fdfa;
+}
+
+.stock-producto-ficha-btn-soft--muted {
+  color: #64748b;
+  border-color: #e2e8f0;
+}
+
+.stock-producto-ficha-spec-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+
+.stock-producto-ficha-campo {
+  padding: 0.65rem 0.75rem;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: #fafbfc;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.stock-producto-ficha-campo:hover {
+  border-color: rgba(13, 148, 136, 0.28);
+}
+
+.stock-producto-ficha-campo:focus-within {
+  border-color: rgba(13, 148, 136, 0.38);
+  box-shadow: 0 0 0 2px rgba(20, 184, 166, 0.12);
+}
+
+.stock-producto-ficha-campo--wide {
+  grid-column: 1 / -1;
+}
+
+.stock-producto-ficha-campo-label {
+  margin: 0;
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.stock-producto-ficha-campo-value {
+  margin: 0.28rem 0 0;
+  font-size: 0.88rem;
+  font-weight: 500;
+  line-height: 1.4;
+  color: #1e293b;
+}
+
+.stock-producto-ficha-espera-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.stock-producto-ficha-espera-card {
+  padding: 0.85rem 0.95rem;
+  border-radius: 14px;
+  border: 1px solid rgba(245, 158, 11, 0.28);
+  background: linear-gradient(145deg, #fffbeb 0%, #fef3c7 100%);
+  box-shadow: 0 2px 10px rgba(245, 158, 11, 0.08);
+}
+
+.stock-producto-ficha-espera-card:focus-within {
+  border-color: rgba(245, 158, 11, 0.45);
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.15);
+}
+
+.stock-producto-ficha-espera-kicker {
+  margin: 0;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #92400e;
+  opacity: 0.85;
+}
+
+.stock-producto-ficha-espera-tipo {
+  margin: 0.2rem 0 0;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #78350f;
+}
+
+.stock-producto-ficha-espera-valor {
+  margin: 0.35rem 0 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: #92400e;
+  line-height: 1.25;
+}
+
+.stock-producto-ficha-prose-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 0.7rem 0.85rem;
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+}
+
+.stock-producto-ficha-detalles-panel .stock-producto-ficha-prose-card {
+  margin-top: 0.85rem;
+}
+
+.stock-producto-ficha-prose-card--compact {
+  align-self: stretch;
+}
+
+.stock-producto-ficha-prose-card:focus-within {
+  border-color: rgba(13, 148, 136, 0.38);
+  box-shadow: 0 0 0 2px rgba(20, 184, 166, 0.12);
+}
+
+.stock-producto-ficha-prose-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.stock-producto-ficha-input,
+.stock-producto-ficha-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 0.45rem 0.55rem;
+  font-size: 0.86rem;
+  font-family: inherit;
+  background: #fff;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.stock-producto-ficha-input--embed {
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: inherit;
+  color: inherit;
+}
+
+.stock-producto-ficha-input--embed:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+.stock-producto-ficha-espera-card .stock-producto-ficha-input--embed {
+  margin-top: 0.35rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: #92400e;
+  line-height: 1.25;
+}
+
+.stock-producto-ficha-input:focus,
+.stock-producto-ficha-textarea:focus {
+  outline: none;
+  border-color: #14b8a6;
+  box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.15);
+}
+
+.stock-producto-ficha-input--espera {
+  margin-top: 0.35rem;
+  font-weight: 600;
+}
+
+.stock-producto-ficha-textarea {
+  min-height: 0;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  resize: none;
+  overflow: hidden;
+  line-height: 1.55;
+  color: #334155;
+  box-shadow: none;
+}
+
+.stock-producto-ficha-textarea:focus {
+  box-shadow: none;
+}
+
+.stock-producto-ficha-texto {
+  margin: 0;
+  font-size: 0.86rem;
+  line-height: 1.55;
+  color: #334155;
+  white-space: pre-wrap;
+}
+
+.stock-producto-ficha-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.55rem;
+  padding: 0.85rem 1.35rem;
+  border-top: 1px solid rgba(148, 163, 184, 0.22);
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(6px);
+}
+
+@media (max-width: 860px) {
+  .stock-producto-ficha-body-top {
+    grid-template-columns: 1fr;
+  }
+
+  .stock-producto-ficha-col--tecnico {
+    border-right: none;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.22);
+  }
+
+  .stock-producto-ficha-spec-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .stock-producto-ficha-campo--wide {
+    grid-column: auto;
+  }
+
+  .stock-producto-ficha-detalles-panel {
+    padding-inline: 1rem;
+  }
+}
+
+@media (max-width: 520px) {
+  .stock-producto-ficha-head {
+    flex-direction: column;
+    padding: 1rem;
+  }
+
+  .stock-producto-ficha-head-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .stock-producto-ficha-espera-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .stock-producto-ficha-col {
+    padding: 1rem;
+  }
 }
 
 .stock-control-sanitario-funcionario-select .proveedor-dropdown button {
@@ -33346,6 +34014,14 @@ button.sg-kpi-card:disabled {
 .stock-control-sanitario-required {
   color: #b45309;
   margin-left: 0.15rem;
+}
+
+.stock-control-sanitario-sugerencia-hint {
+  font-size: 0.68rem;
+  font-weight: 500;
+  color: #0f766e;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
 }
 
 .stock-control-sanitario-grid {
@@ -33959,6 +34635,7 @@ button.sg-kpi-card:disabled {
 
 .stock-sanidad-dash-block--timeline {
   height: 100%;
+  min-width: 0;
 }
 
 .stock-sanidad-dash-block-title {
@@ -34025,6 +34702,83 @@ button.sg-kpi-card:disabled {
   background: linear-gradient(90deg, #67e8f9, #0891b2);
 }
 
+.stock-sanidad-dash-timeline-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+}
+
+.stock-sanidad-dash-timeline-head .stock-sanidad-dash-block-title {
+  margin-bottom: 0;
+}
+
+.stock-sanidad-dash-timeline-range {
+  font-size: 0.7rem;
+  white-space: nowrap;
+}
+
+.stock-sanidad-dash-timeline-carousel {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.stock-sanidad-dash-timeline-nav-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 1.65rem;
+  padding: 0.1rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #fff;
+  color: #0f766e;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, opacity 0.15s;
+}
+
+.stock-sanidad-dash-timeline-nav-btn:hover:not(:disabled) {
+  background: #f0fdfa;
+  border-color: #99f6e4;
+}
+
+.stock-sanidad-dash-timeline-nav-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.stock-sanidad-dash-timeline-viewport {
+  min-width: 0;
+  height: 11.75rem;
+  overflow: hidden;
+  position: relative;
+  border-radius: 10px;
+  background: linear-gradient(180deg, rgba(240, 253, 250, 0.45) 0%, rgba(255, 255, 255, 0) 100%);
+}
+
+.stock-sanidad-dash-timeline-track {
+  --timeline-page: 0;
+  --timeline-page-height: 11.75rem;
+  display: flex;
+  flex-direction: column;
+  transform: translateY(calc(var(--timeline-page) * var(--timeline-page-height) * -1));
+  transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+}
+
+.stock-sanidad-dash-timeline-page {
+  flex: 0 0 var(--timeline-page-height);
+  height: var(--timeline-page-height);
+  min-height: var(--timeline-page-height);
+  box-sizing: border-box;
+  padding: 0.1rem 0;
+}
+
 .stock-sanidad-dash-timeline {
   list-style: none;
   margin: 0;
@@ -34032,6 +34786,21 @@ button.sg-kpi-card:disabled {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 0.5rem;
+}
+
+.stock-sanidad-dash-timeline--carousel {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-content: start;
+}
+
+.stock-sanidad-dash-timeline-page.stock-sanidad-dash-timeline--carousel {
+  min-height: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stock-sanidad-dash-timeline-track {
+    transition: none;
+  }
 }
 
 .stock-sanidad-dash-timeline-item {
@@ -34135,158 +34904,470 @@ button.sg-kpi-card:disabled {
   color: #0f766e;
 }
 
-.stock-sanidad-grupos-rapidos {
+.stock-sanidad-grupos-filtros {
+  width: 100%;
+  min-width: 0;
+}
+
+.stock-sanidad-filtros-wrap {
+  min-width: 0;
+}
+
+.stock-sanidad-panel {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  padding: 0.65rem 0.75rem;
-  background: var(--surface-2, #f8faf9);
-  border: 1px solid var(--border);
-  border-radius: 10px;
+  gap: 0.75rem;
+  padding: 0.85rem 0.95rem;
+  background: linear-gradient(165deg, #fff 0%, #f8fffe 48%, #f0fdfa 100%);
+  border: 1px solid #ccfbf1;
+  border-radius: 14px;
+  height: 100%;
+  box-sizing: border-box;
+  box-shadow:
+    0 1px 2px rgba(15, 118, 110, 0.05),
+    0 8px 24px rgba(15, 118, 110, 0.06);
 }
 
-.stock-sanidad-grupos-hint {
-  margin: 0;
-  font-size: 0.78rem;
+.stock-sanidad-panel--filtros {
+  background: linear-gradient(165deg, #fff 0%, #f8fafc 55%, #f1f5f9 100%);
+  border-color: #e2e8f0;
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    0 8px 24px rgba(15, 23, 42, 0.05);
 }
 
-.stock-sanidad-grupo-block {
+.stock-sanidad-panel-head {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.35rem 0.5rem;
+  align-items: flex-start;
+  gap: 0.65rem;
+  padding-bottom: 0.65rem;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.22);
 }
 
-.stock-sanidad-grupo-label {
-  font-size: 0.72rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--muted);
-  min-width: 4.5rem;
+.stock-sanidad-panel-head-copy {
+  min-width: 0;
 }
 
-.stock-sanidad-grupo-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
-  flex: 1;
-}
-
-.stock-sanidad-grupo-chip {
+.stock-sanidad-panel-head-icon {
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
-  padding: 0.2rem 0.55rem;
-  font-size: 0.78rem;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  flex-shrink: 0;
+  border-radius: 10px;
+  background: linear-gradient(145deg, #ccfbf1, #99f6e4);
+  color: #0f766e;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65);
+}
+
+.stock-sanidad-panel-head-icon--filtros {
+  background: linear-gradient(145deg, #e2e8f0, #cbd5e1);
+  color: #334155;
+}
+
+.stock-sanidad-panel-title {
+  margin: 0;
+  font-size: 0.88rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: #134e4a;
+  line-height: 1.25;
+}
+
+.stock-sanidad-panel--filtros .stock-sanidad-panel-title {
+  color: #1e293b;
+}
+
+.stock-sanidad-panel-sub {
+  margin: 0.18rem 0 0;
+  font-size: 0.74rem;
+  line-height: 1.35;
+}
+
+.stock-sanidad-grupos-carousel {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.stock-sanidad-grupos-carousel-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  padding-top: 0.1rem;
+}
+
+.stock-sanidad-grupos-carousel-viewport {
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-behavior: smooth;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.stock-sanidad-grupos-carousel-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.85rem;
+  height: 1.85rem;
+  flex-shrink: 0;
+  padding: 0;
   border: 1px solid #99f6e4;
   border-radius: 999px;
   background: #fff;
   color: #0f766e;
   cursor: pointer;
-  transition: background 0.15s, border-color 0.15s;
+  transition:
+    background 0.16s ease,
+    border-color 0.16s ease,
+    opacity 0.16s ease,
+    box-shadow 0.16s ease;
+}
+
+.stock-sanidad-grupos-carousel-btn:hover:not(:disabled) {
+  background: #ecfdf5;
+  border-color: #2dd4bf;
+  box-shadow: 0 2px 8px rgba(13, 148, 136, 0.12);
+}
+
+.stock-sanidad-grupos-carousel-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.stock-sanidad-grupos-carousel-btn:focus-visible {
+  outline: 2px solid #14b8a6;
+  outline-offset: 2px;
+}
+
+.stock-sanidad-grupos-carousel-viewport::-webkit-scrollbar {
+  display: none;
+}
+
+.stock-sanidad-grupos-carousel-track {
+  display: flex;
+  align-items: stretch;
+  gap: 0.55rem;
+  min-width: min-content;
+  padding: 0.1rem 0.15rem;
+}
+
+.stock-sanidad-grupo-column {
+  flex: 0 0 min(11.5rem, 42vw);
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 0.55rem 0.6rem;
+  border: 1px solid rgba(153, 246, 228, 0.85);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75);
+}
+
+.stock-sanidad-grupo-column-title {
+  margin: 0;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #64748b;
+  line-height: 1.3;
+}
+
+.stock-sanidad-grupo-column-chips {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.38rem;
+  min-width: 0;
+}
+
+.stock-sanidad-grupos-empty {
+  margin: 0;
+  font-size: 0.78rem;
+  padding: 0.35rem 0.15rem;
+}
+
+.stock-sanidad-panel--grupos {
+  width: 100%;
+}
+
+.stock-sanidad-filtros-wrap {
+  min-width: 0;
+}
+
+.stock-sanidad-filtros {
+  min-width: 0;
+}
+
+.stock-sanidad-grupos-activos {
+  margin-top: auto;
+  padding-top: 0.7rem;
+  border-top: 1px solid rgba(153, 246, 228, 0.65);
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.stock-sanidad-grupos-activos-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #0f766e;
+}
+
+.stock-sanidad-grupos-activos-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.stock-sanidad-grupos-activos-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  max-width: 100%;
+  padding: 0.28rem 0.4rem 0.28rem 0.55rem;
+  border-radius: 999px;
+  border: none;
+  background: linear-gradient(145deg, #14b8a6, #0d9488);
+  color: #fff;
+  font-size: 0.76rem;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(13, 148, 136, 0.22);
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease;
+}
+
+.stock-sanidad-grupos-activos-chip:hover {
+  background: linear-gradient(145deg, #0d9488, #0f766e);
+  box-shadow: 0 3px 10px rgba(13, 148, 136, 0.3);
+}
+
+.stock-sanidad-grupos-activos-chip:focus-visible {
+  outline: 2px solid #5eead4;
+  outline-offset: 2px;
+}
+
+.stock-sanidad-grupos-activos-chip-remove {
+  flex-shrink: 0;
+  opacity: 0.9;
+}
+
+.stock-sanidad-grupos-activos-chip-cat {
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  opacity: 0.85;
+}
+
+.stock-sanidad-grupos-activos-chip-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stock-sanidad-grupos-activos-chip .stock-sanidad-grupo-chip-count {
+  background: rgba(255, 255, 255, 0.22);
+  color: #fff;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+}
+
+.stock-sanidad-grupo-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.45rem;
+  width: 100%;
+  max-width: 100%;
+  padding: 0.28rem 0.35rem 0.28rem 0.65rem;
+  font-size: 0.78rem;
+  font-weight: 500;
+  line-height: 1.25;
+  border: 1px solid #99f6e4;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #115e59;
+  cursor: pointer;
+  transition:
+    background 0.16s ease,
+    border-color 0.16s ease,
+    box-shadow 0.16s ease,
+    transform 0.12s ease;
+}
+
+.stock-sanidad-grupo-chip-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .stock-sanidad-grupo-chip:hover:not(:disabled) {
-  background: #ccfbf1;
+  background: #ecfdf5;
   border-color: #2dd4bf;
+  box-shadow: 0 2px 8px rgba(13, 148, 136, 0.12);
+  transform: translateY(-1px);
+}
+
+.stock-sanidad-grupo-chip:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.stock-sanidad-grupo-chip:focus-visible {
+  outline: 2px solid #14b8a6;
+  outline-offset: 2px;
+}
+
+.stock-sanidad-grupo-chip:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.stock-sanidad-grupo-chip.is-active {
+  border-color: transparent;
+  background: linear-gradient(145deg, #14b8a6, #0d9488);
+  color: #fff;
+  font-weight: 600;
+  box-shadow: 0 3px 10px rgba(13, 148, 136, 0.28);
+}
+
+.stock-sanidad-grupo-chip.is-active:hover:not(:disabled) {
+  background: linear-gradient(145deg, #0d9488, #0f766e);
+  border-color: transparent;
+  transform: translateY(-1px);
+}
+
+.stock-sanidad-grupo-chip.is-active .stock-sanidad-grupo-chip-count {
+  background: rgba(255, 255, 255, 0.22);
+  color: #fff;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
 }
 
 .stock-sanidad-grupo-chip-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.35rem;
+  height: 1.35rem;
+  padding: 0 0.35rem;
   font-weight: 700;
-  font-size: 0.72rem;
-  opacity: 0.85;
+  font-size: 0.68rem;
+  line-height: 1;
+  border-radius: 999px;
+  background: linear-gradient(145deg, #14b8a6, #0d9488);
+  color: #fff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+
+.stock-sanidad-filtros--resumen {
+  padding: 0.65rem 0.8rem;
+  gap: 0.45rem;
+}
+
+.stock-sanidad-filtros--resumen .stock-sanidad-panel-head {
+  padding-bottom: 0.45rem;
+  margin-bottom: 0;
+  border-bottom-color: rgba(148, 163, 184, 0.18);
+}
+
+.stock-sanidad-filtros-resumen {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-content: flex-start;
+  max-height: 9rem;
+  overflow-y: auto;
+  padding-right: 0.1rem;
+}
+
+.stock-sanidad-filtros-resumen .stock-sanidad-filtro-chip {
+  padding: 0.26rem 0.62rem;
+  font-size: 0.74rem;
 }
 
 .stock-sanidad-filtros {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.35rem;
-}
-
-.stock-sanidad-filtros-label {
-  font-size: 0.78rem;
+  flex-direction: column;
+  gap: 0.75rem;
 }
 
 .stock-sanidad-filtros-chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.3rem;
+  gap: 0.4rem;
+  align-content: flex-start;
 }
 
 .stock-sanidad-filtro-chip {
-  padding: 0.15rem 0.5rem;
-  font-size: 0.75rem;
-  border: 1px solid var(--border);
+  padding: 0.32rem 0.72rem;
+  font-size: 0.76rem;
+  font-weight: 500;
+  line-height: 1.25;
+  border: 1px solid #e2e8f0;
   border-radius: 999px;
-  background: #fff;
+  background: rgba(255, 255, 255, 0.95);
+  color: #334155;
   cursor: pointer;
+  transition:
+    background 0.16s ease,
+    border-color 0.16s ease,
+    color 0.16s ease,
+    box-shadow 0.16s ease,
+    transform 0.12s ease;
+}
+
+.stock-sanidad-filtro-chip:hover:not(.is-active) {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.06);
+  transform: translateY(-1px);
+}
+
+.stock-sanidad-filtro-chip:focus-visible {
+  outline: 2px solid #64748b;
+  outline-offset: 2px;
 }
 
 .stock-sanidad-filtro-chip.is-active {
-  border-color: #0d9488;
-  background: #f0fdfa;
-  color: #0f766e;
+  border-color: transparent;
+  background: linear-gradient(145deg, #14b8a6, #0d9488);
+  color: #fff;
   font-weight: 600;
+  box-shadow: 0 3px 10px rgba(13, 148, 136, 0.28);
 }
 
-.stock-sanidad-table-wrap {
-  overflow: auto;
+.stock-sanidad-listado .table-wrap-stock-pro.stock-sanidad-table-wrap {
+  margin-top: 0;
   max-height: min(52vh, 520px);
-  border: 1px solid var(--border);
-  border-radius: 10px;
+  border-color: #ccfbf1;
+  box-shadow:
+    0 1px 2px rgba(15, 118, 110, 0.05),
+    0 6px 18px rgba(15, 118, 110, 0.06);
 }
 
-.stock-sanidad-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.82rem;
+.stock-sanidad-listado .stock-sanidad-table-pro {
+  min-width: 1040px;
 }
 
-.stock-sanidad-table th,
-.stock-sanidad-table td {
-  padding: 0.45rem 0.55rem;
-  text-align: left;
-  border-bottom: 1px solid var(--border);
-}
-
-.stock-sanidad-table thead th {
-  position: sticky;
-  top: 0;
-  background: #f8faf9;
-  z-index: 1;
-  font-size: 0.72rem;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-}
-
-.stock-sanidad-table tbody tr {
-  cursor: pointer;
-}
-
-.stock-sanidad-table tbody tr:hover {
-  background: #f8faf9;
-}
-
-.stock-sanidad-table tbody tr.is-selected {
+.stock-sanidad-listado .stock-table-pro-row--selected td {
   background: #ecfdf5;
 }
 
-.stock-sanidad-th-check,
-.stock-sanidad-td-check {
-  width: 2rem;
-  text-align: center;
-}
-
-.stock-sanidad-id-vid {
-  display: block;
-  font-weight: 600;
-}
-
-.stock-sanidad-id-eid {
-  display: block;
-  font-size: 0.75rem;
+.stock-sanidad-listado .stock-table-pro-row--selected:hover td {
+  background: #d1fae5;
 }
 
 .stock-sanidad-empty {
@@ -34393,6 +35474,12 @@ button.sg-kpi-card:disabled {
   margin-bottom: 0;
 }
 
+.stock-sanidad-form-body--band
+  .stock-sanidad-form-section--admin
+  .stock-control-sanitario-section-head--solo-titulo {
+  margin-bottom: 0.15rem;
+}
+
 .stock-sanidad-form-body--band .stock-sanidad-form-section--admin .stock-sanidad-admin-campos {
   display: grid;
   grid-template-columns: minmax(150px, 200px) minmax(0, 1fr);
@@ -34407,14 +35494,49 @@ button.sg-kpi-card:disabled {
   min-width: 0;
 }
 
+.stock-sanidad-form-body--band .stock-sanidad-form-section--admin .stock-sanidad-admin-row-detalles {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(140px, 200px) minmax(140px, 220px);
+  gap: 0.65rem 1rem;
+  align-items: start;
+  min-width: 0;
+}
+
+.stock-sanidad-form-body--band
+  .stock-sanidad-form-section--admin
+  .stock-sanidad-admin-row-detalles
+  .field {
+  min-width: 0;
+}
+
 .stock-sanidad-form-body--band .stock-sanidad-form-section--admin .stock-control-sanitario-admin-observaciones {
   margin-top: 0;
 }
 
-.stock-sanidad-form-body--band .stock-sanidad-form-section--admin .stock-control-sanitario-admin-observaciones textarea {
-  min-height: 2.75rem;
+.stock-sanidad-form-body--band
+  .stock-sanidad-form-section--admin
+  .stock-control-sanitario-admin-observaciones-input {
   width: 100%;
-  resize: vertical;
+  min-height: 2.5rem;
+  box-sizing: border-box;
+}
+
+.stock-sanidad-form-body--band
+  .stock-sanidad-form-section--admin
+  .stock-control-sanitario-admin-espera
+  .stock-control-sanitario-field-trigger {
+  width: 100%;
+  min-height: 2.5rem;
+  box-sizing: border-box;
+}
+
+.stock-sanidad-form-body--band
+  .stock-sanidad-form-section--admin
+  .stock-control-sanitario-admin-motivo
+  .stock-control-sanitario-field-trigger {
+  width: 100%;
+  min-height: 2.5rem;
+  box-sizing: border-box;
 }
 
 .stock-sanidad-form-body--band .stock-sanidad-form-section--producto,
@@ -34434,16 +35556,6 @@ button.sg-kpi-card:disabled {
 
 .stock-sanidad-form-body--band .stock-control-sanitario-grid--producto-band .field {
   min-width: 0;
-}
-
-.stock-sanidad-form-body--band .stock-control-sanitario-grid--producto-band .field:nth-child(1),
-.stock-sanidad-form-body--band .stock-control-sanitario-grid--producto-band .field:last-child {
-  grid-column: 1 / -1;
-}
-
-.stock-sanidad-form-body--band .stock-control-sanitario-grid--controles-band {
-  grid-template-columns: 1fr;
-  gap: 0.65rem;
 }
 
 .stock-sanidad-form-body--band .stock-control-sanitario-modos {
@@ -34483,6 +35595,7 @@ button.sg-kpi-card:disabled {
 .stock-sanidad-form .stock-control-sanitario-formula-select,
 .stock-sanidad-form .stock-control-sanitario-forma-select,
 .stock-sanidad-form .stock-control-sanitario-cantidad-select,
+.stock-sanidad-form .stock-control-sanitario-espera-select,
 .stock-sanidad-form .stock-control-sanitario-motivo-select,
 .stock-sanidad-form .stock-control-sanitario-funcionario-select {
   width: 100%;
@@ -34577,6 +35690,10 @@ button.sg-kpi-card:disabled {
 
   .stock-sanidad-admin-campos {
     grid-template-columns: 1fr !important;
+  }
+
+  .stock-sanidad-form-body--band .stock-sanidad-form-section--admin .stock-sanidad-admin-row-detalles {
+    grid-template-columns: 1fr;
   }
 
   .stock-sanidad-form-body--band .stock-control-sanitario-grid--producto-band,

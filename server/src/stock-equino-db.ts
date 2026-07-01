@@ -130,6 +130,8 @@ export async function initStockEquinoTables(db: Db): Promise<void> {
   await stockFoto.migrateStockDispositivoFotosBlobColumns(db, "equino");
   await stockControlSanitario.migrateStockControlSanitarioTable(db, "equino");
   await stockControlSanitario.migrateStockControlSanitarioCantidadCatalog(db);
+  await stockControlSanitario.migrateStockControlSanitarioEsperaCatalog(db);
+  await stockControlSanitario.migrateStockControlSanitarioProductoFicha(db);
   await migrateFechasSlashLatam(db);
   await migrateStockEquinoDispositivoHistorial(db);
   await migrateHistorialAutorColumns(db);

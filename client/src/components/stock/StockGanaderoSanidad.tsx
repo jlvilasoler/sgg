@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ChevronLeft, ChevronRight, ListPlus, X } from "lucide-react";
 import {
   createStockControlSanitarioBulk,
   fetchEmpresasOperativasStock,
@@ -6,7 +7,7 @@ import {
   fetchStockGanaderaVentasDispositivos,
 } from "../../api";
 import { useHeaderBackStep } from "../../header-back";
-import type { AuthUser, StockGanaderaDispositivo } from "../../types";
+import type { StockGanaderaDispositivo } from "../../types";
 import { PageModuleHeadRow } from "../PageModuleHead";
 import TablePagination, {
   paginateSlice,
@@ -16,7 +17,6 @@ import StockControlSanitarioRegistroForm, {
   buildStockControlSanitarioInput,
   emptyStockControlSanitarioForm,
   validateStockControlSanitarioForm,
-  type AdminModo,
   type StockControlSanitarioFormState,
 } from "./StockControlSanitarioRegistroForm";
 import {
@@ -25,24 +25,44 @@ import {
 } from "./stock-sanidad-dispositivo-utils";
 import {
   categoriasDispositivo,
-  coincideCategoriaFiltro,
   dispositivoActivoEnStock,
+  EDAD_FILTRO_OPCIONES,
+  edadFiltroKey,
   filtrarDispositivosActivosStock,
   fmtGrupo,
   fmtGrupoLibre,
+  fmtPotrero,
+  fmtRaza,
   generacionFiltroKey,
   grupoLibreFiltroKey,
   labelCategoriaFiltro,
   labelGeneracionFiltro,
   labelGrupoLibreFiltro,
+  labelPotreroFiltro,
+  labelRazaFiltro,
   normalizarEstadoDispositivo,
+  potreroFiltroKey,
+  razaFiltroKey,
 } from "./stock-ganadera-utils";
 import { fmtEmpresaOperativa } from "./stock-empresa-utils";
+import IconoDispositivoWifi from "./IconoDispositivoWifi";
+import StockGanaderaEdadMiniTimeline from "./StockGanaderaEdadMiniTimeline";
 import StockSanidadHistorialDashboard from "./StockSanidadHistorialDashboard";
+
+const SANIDAD_TABLE_COLS = 10;
+
+function fmtSexo(sexo: StockGanaderaDispositivo["sexo"]): string {
+  return sexo || "—";
+}
+
+function claseCeldaSexo(sexo: StockGanaderaDispositivo["sexo"]): string {
+  if (sexo === "MACHO") return "stock-td--sexo-macho";
+  if (sexo === "HEMBRA") return "stock-td--sexo-hembra";
+  return "stock-td--sexo-na";
+}
 
 interface Props {
   apiOnline: boolean;
-  currentUser?: AuthUser | null;
   onError: (msg: string) => void;
   onSuccess: (msg: string, title?: string) => void;
   onVolver: () => void;
@@ -52,18 +72,6 @@ interface GrupoRapido {
   key: string;
   label: string;
   claves: string[];
-}
-
-function toggleSet<T>(prev: Set<T>, value: T): Set<T> {
-  const next = new Set(prev);
-  if (next.has(value)) next.delete(value);
-  else next.add(value);
-  return next;
-}
-
-function funcionarioDefaultDesdeUsuario(user?: AuthUser | null): string {
-  if (!user) return "";
-  return user.nombre.trim() || user.email.trim();
 }
 
 function agruparPor<T>(
@@ -86,34 +94,210 @@ function agruparPor<T>(
     .sort((a, b) => b.claves.length - a.claves.length || a.label.localeCompare(b.label, "es"));
 }
 
+interface GrupoCategoria {
+  titulo: string;
+  grupos: GrupoRapido[];
+}
+
+function grupoChipActivo(grupo: GrupoRapido, seleccion: Set<string>): boolean {
+  return grupo.claves.length > 0 && grupo.claves.every((c) => seleccion.has(c));
+}
+
+function buildGruposRapidos(
+  base: StockGanaderaDispositivo[],
+  empresasOperativas: Parameters<typeof fmtEmpresaOperativa>[1]
+) {
+  const categoriasMap = new Map<string, string[]>();
+  for (const d of base) {
+    for (const cat of categoriasDispositivo(d)) {
+      const list = categoriasMap.get(cat) ?? [];
+      list.push(d.clave);
+      categoriasMap.set(cat, list);
+    }
+  }
+  const categorias: GrupoRapido[] = [...categoriasMap.entries()]
+    .map(([key, claves]) => ({
+      key: `cat:${key}`,
+      label: labelCategoriaFiltro(key as Parameters<typeof labelCategoriaFiltro>[0]),
+      claves,
+    }))
+    .sort((a, b) => b.claves.length - a.claves.length);
+
+  return {
+    categorias,
+    gruposLibres: agruparPor(
+      base,
+      (d) => grupoLibreFiltroKey(d.grupo_libre ?? ""),
+      (k) => labelGrupoLibreFiltro(k)
+    ).filter((g) => g.key),
+    potreros: agruparPor(
+      base,
+      (d) => potreroFiltroKey(d.potrero ?? ""),
+      (k) => labelPotreroFiltro(k)
+    ).filter((g) => g.key),
+    razas: agruparPor(
+      base,
+      (d) => razaFiltroKey(d.raza),
+      (k) => labelRazaFiltro(k)
+    ).filter((g) => g.key),
+    edades: agruparPor(
+      base,
+      (d) => edadFiltroKey(d) ?? "",
+      (k) => EDAD_FILTRO_OPCIONES.find((o) => o.key === k)?.label ?? k
+    ).filter((g) => g.key),
+    generaciones: agruparPor(base, (d) => generacionFiltroKey(d.grupo), (k) =>
+      labelGeneracionFiltro(k)
+    ).filter((g) => g.key),
+    sexos: agruparPor(
+      base,
+      (d) => d.sexo || "",
+      (k) => (k === "MACHO" ? "Machos" : k === "HEMBRA" ? "Hembras" : "Sin sexo")
+    ).filter((g) => g.key === "MACHO" || g.key === "HEMBRA"),
+    empresas: agruparPor(base, (d) => d.empresa || "", (k) =>
+      k ? fmtEmpresaOperativa(k, empresasOperativas) : "Sin empresa"
+    ).filter((g) => g.key),
+  };
+}
+
+function buildGrupoCategorias(grupos: ReturnType<typeof buildGruposRapidos>): GrupoCategoria[] {
+  const defs: GrupoCategoria[] = [
+    { titulo: "Categoría", grupos: grupos.categorias },
+    { titulo: "Grupo personalizado", grupos: grupos.gruposLibres },
+    { titulo: "Potrero", grupos: grupos.potreros },
+    { titulo: "Raza", grupos: grupos.razas },
+    { titulo: "Edad", grupos: grupos.edades },
+    { titulo: "Generación", grupos: grupos.generaciones },
+    { titulo: "Sexo", grupos: grupos.sexos },
+    { titulo: "Empresa", grupos: grupos.empresas },
+  ];
+  return defs.filter((d) => d.grupos.length > 0);
+}
+
+function StockSanidadGrupoCarousel({
+  categorias,
+  disabled,
+  isChipActive,
+  onChipClick,
+  getChipTitle,
+  emptyMessage = "No hay grupos disponibles.",
+}: {
+  categorias: GrupoCategoria[];
+  disabled: boolean;
+  isChipActive: (cat: GrupoCategoria, grupo: GrupoRapido) => boolean;
+  onChipClick: (cat: GrupoCategoria, grupo: GrupoRapido) => void;
+  getChipTitle?: (cat: GrupoCategoria, grupo: GrupoRapido) => string;
+  emptyMessage?: string;
+}) {
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  const updateArrows = useCallback(() => {
+    const el = viewportRef.current;
+    if (!el) return;
+    const maxScroll = el.scrollWidth - el.clientWidth;
+    setCanScrollLeft(el.scrollLeft > 4);
+    setCanScrollRight(maxScroll > 4 && el.scrollLeft < maxScroll - 4);
+  }, []);
+
+  useEffect(() => {
+    const el = viewportRef.current;
+    if (!el) return;
+    updateArrows();
+    el.addEventListener("scroll", updateArrows, { passive: true });
+    const ro = new ResizeObserver(updateArrows);
+    ro.observe(el);
+    return () => {
+      el.removeEventListener("scroll", updateArrows);
+      ro.disconnect();
+    };
+  }, [categorias, updateArrows]);
+
+  const scrollCarousel = (direction: -1 | 1) => {
+    const el = viewportRef.current;
+    if (!el) return;
+    const step = Math.max(160, Math.round(el.clientWidth * 0.72));
+    el.scrollBy({ left: direction * step, behavior: "smooth" });
+  };
+
+  if (categorias.length === 0) {
+    return <p className="muted stock-sanidad-grupos-empty">{emptyMessage}</p>;
+  }
+
+  const showArrows = canScrollLeft || canScrollRight;
+
+  return (
+    <div className="stock-sanidad-grupos-carousel">
+      <div ref={viewportRef} className="stock-sanidad-grupos-carousel-viewport">
+        <div className="stock-sanidad-grupos-carousel-track">
+          {categorias.map((cat) => (
+            <section key={cat.titulo} className="stock-sanidad-grupo-column">
+              <h5 className="stock-sanidad-grupo-column-title">{cat.titulo}</h5>
+              <div className="stock-sanidad-grupo-column-chips">
+                {cat.grupos.slice(0, 12).map((g) => {
+                  const activo = isChipActive(cat, g);
+                  return (
+                    <button
+                      key={g.key}
+                      type="button"
+                      className={`stock-sanidad-grupo-chip${activo ? " is-active" : ""}`}
+                      disabled={disabled}
+                      aria-pressed={activo}
+                      onClick={() => onChipClick(cat, g)}
+                      title={getChipTitle?.(cat, g)}
+                    >
+                      <span className="stock-sanidad-grupo-chip-label">{g.label}</span>
+                      <span className="stock-sanidad-grupo-chip-count">{g.claves.length}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+          ))}
+        </div>
+      </div>
+      {showArrows ? (
+        <div className="stock-sanidad-grupos-carousel-nav">
+          <button
+            type="button"
+            className="stock-sanidad-grupos-carousel-btn"
+            disabled={disabled || !canScrollLeft}
+            aria-label="Grupos anteriores"
+            onClick={() => scrollCarousel(-1)}
+          >
+            <ChevronLeft size={18} aria-hidden />
+          </button>
+          <button
+            type="button"
+            className="stock-sanidad-grupos-carousel-btn"
+            disabled={disabled || !canScrollRight}
+            aria-label="Grupos siguientes"
+            onClick={() => scrollCarousel(1)}
+          >
+            <ChevronRight size={18} aria-hidden />
+          </button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export default function StockGanaderoSanidad({
   apiOnline,
-  currentUser,
   onError,
   onSuccess,
   onVolver,
 }: Props) {
-  const funcionarioDefault = useMemo(
-    () => funcionarioDefaultDesdeUsuario(currentUser),
-    [currentUser]
-  );
-
   const [rows, setRows] = useState<StockGanaderaDispositivo[]>([]);
   const [loading, setLoading] = useState(true);
   const [busqueda, setBusqueda] = useState("");
-  const [filtroSexo, setFiltroSexo] = useState<Set<string>>(() => new Set());
-  const [filtroEmpresa, setFiltroEmpresa] = useState<Set<string>>(() => new Set());
-  const [filtroCategoria, setFiltroCategoria] = useState<Set<string>>(() => new Set());
-  const [filtroGrupoLibre, setFiltroGrupoLibre] = useState<Set<string>>(() => new Set());
-  const [filtroGeneracion, setFiltroGeneracion] = useState<Set<string>>(() => new Set());
   const [seleccion, setSeleccion] = useState<Set<string>>(() => new Set());
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<PageSize>(50);
 
   const [form, setForm] = useState<StockControlSanitarioFormState>(() =>
-    emptyStockControlSanitarioForm(funcionarioDefault)
+    emptyStockControlSanitarioForm()
   );
-  const [adminModo, setAdminModo] = useState<AdminModo>("fechas");
   const [guardando, setGuardando] = useState(false);
   const [progreso, setProgreso] = useState<{ done: number; total: number } | null>(null);
   const [empresasOperativas, setEmpresasOperativas] = useState<
@@ -164,30 +348,20 @@ export default function StockGanaderoSanidad({
 
   useEffect(() => {
     setPage(1);
-  }, [busqueda, filtroSexo, filtroEmpresa, filtroCategoria, filtroGrupoLibre, filtroGeneracion]);
+  }, [busqueda]);
 
   const filteredRows = useMemo(() => {
     const q = busqueda.trim().toLowerCase();
+    if (!q) return rows;
     return rows.filter((d) => {
-      if (filtroSexo.size > 0 && !filtroSexo.has(d.sexo || "")) return false;
-      if (filtroEmpresa.size > 0 && !filtroEmpresa.has(d.empresa || "")) return false;
-      if (filtroGeneracion.size > 0 && !filtroGeneracion.has(generacionFiltroKey(d.grupo))) {
-        return false;
-      }
-      if (
-        filtroGrupoLibre.size > 0 &&
-        !filtroGrupoLibre.has(grupoLibreFiltroKey(d.grupo_libre ?? ""))
-      ) {
-        return false;
-      }
-      if (!coincideCategoriaFiltro(d, filtroCategoria)) return false;
-      if (!q) return true;
       const haystack = [
         d.eid,
         d.vid,
         d.clave,
         d.grupo_libre,
         d.grupo,
+        d.potrero,
+        d.raza,
         d.nombre_cabana,
         d.observaciones,
       ]
@@ -195,15 +369,7 @@ export default function StockGanaderoSanidad({
         .toLowerCase();
       return haystack.includes(q);
     });
-  }, [
-    rows,
-    busqueda,
-    filtroSexo,
-    filtroEmpresa,
-    filtroCategoria,
-    filtroGrupoLibre,
-    filtroGeneracion,
-  ]);
+  }, [rows, busqueda]);
 
   const seleccionados = useMemo(
     () => filteredRows.filter((r) => seleccion.has(r.clave)),
@@ -215,44 +381,23 @@ export default function StockGanaderoSanidad({
     [seleccionados]
   );
 
-  const gruposRapidos = useMemo(() => {
-    const base = filteredRows;
-    const categoriasMap = new Map<string, string[]>();
-    for (const d of base) {
-      for (const cat of categoriasDispositivo(d)) {
-        const list = categoriasMap.get(cat) ?? [];
-        list.push(d.clave);
-        categoriasMap.set(cat, list);
-      }
-    }
-    const categorias: GrupoRapido[] = [...categoriasMap.entries()]
-      .map(([key, claves]) => ({
-        key: `cat:${key}`,
-        label: labelCategoriaFiltro(key as Parameters<typeof labelCategoriaFiltro>[0]),
-        claves,
-      }))
-      .sort((a, b) => b.claves.length - a.claves.length);
+  const gruposRapidos = useMemo(
+    () => buildGruposRapidos(filteredRows, empresasOperativas),
+    [filteredRows, empresasOperativas]
+  );
 
-    return {
-      categorias,
-      gruposLibres: agruparPor(
-        base,
-        (d) => grupoLibreFiltroKey(d.grupo_libre ?? ""),
-        (k) => labelGrupoLibreFiltro(k)
-      ).filter((g) => g.key),
-      generaciones: agruparPor(base, (d) => generacionFiltroKey(d.grupo), (k) =>
-        labelGeneracionFiltro(k)
-      ).filter((g) => g.key),
-      sexos: agruparPor(
-        base,
-        (d) => d.sexo || "",
-        (k) => (k === "MACHO" ? "Machos" : k === "HEMBRA" ? "Hembras" : "Sin sexo")
-      ).filter((g) => g.key),
-      empresas: agruparPor(base, (d) => d.empresa || "", (k) =>
-        k ? fmtEmpresaOperativa(k, empresasOperativas) : "Sin empresa"
-      ).filter((g) => g.key),
-    };
-  }, [filteredRows, empresasOperativas]);
+  const grupoCategorias = useMemo(
+    () => buildGrupoCategorias(gruposRapidos),
+    [gruposRapidos]
+  );
+
+  const gruposSeleccionados = useMemo(() => {
+    return grupoCategorias.flatMap((cat) =>
+      cat.grupos
+        .filter((g) => grupoChipActivo(g, seleccion))
+        .map((g) => ({ ...g, categoria: cat.titulo }))
+    );
+  }, [grupoCategorias, seleccion]);
 
   const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
   const pageSafe = Math.min(page, totalPages);
@@ -288,13 +433,26 @@ export default function StockGanaderoSanidad({
     });
   };
 
-  const agregarClaves = (claves: string[]) => {
+  const quitarClaves = (claves: string[]) => {
     setSeleccion((prev) => {
       const next = new Set(prev);
-      for (const c of claves) next.add(c);
+      for (const c of claves) next.delete(c);
       return next;
     });
   };
+
+  const toggleGrupoClaves = useCallback((g: GrupoRapido) => {
+    setSeleccion((prev) => {
+      const activo = grupoChipActivo(g, prev);
+      const next = new Set(prev);
+      if (activo) {
+        for (const c of g.claves) next.delete(c);
+      } else {
+        for (const c of g.claves) next.add(c);
+      }
+      return next;
+    });
+  }, []);
 
   const seleccionarTodosFiltrados = () => {
     setSeleccion(new Set(filteredRows.map((r) => r.clave)));
@@ -307,14 +465,13 @@ export default function StockGanaderoSanidad({
   };
 
   const limpiarFormulario = () => {
-    setForm(emptyStockControlSanitarioForm(funcionarioDefault));
-    setAdminModo("fechas");
+    setForm(emptyStockControlSanitarioForm());
   };
 
   const guardarMasivo = async () => {
     if (!apiOnline || guardando || seleccionados.length === 0) return;
 
-    const err = validateStockControlSanitarioForm(form, adminModo);
+    const err = validateStockControlSanitarioForm(form, "fechas");
     if (err) {
       onError(err);
       return;
@@ -324,7 +481,7 @@ export default function StockGanaderoSanidad({
       clave: d.clave,
       input: buildStockControlSanitarioInput(
         form,
-        adminModo,
+        "fechas",
         animalCategoriaLoteFromDispositivo(d),
         animalIdFromDispositivo(d)
       ),
@@ -360,30 +517,6 @@ export default function StockGanaderoSanidad({
     }
   };
 
-  const renderGrupoChips = (titulo: string, grupos: GrupoRapido[]) => {
-    if (grupos.length === 0) return null;
-    return (
-      <div className="stock-sanidad-grupo-block">
-        <span className="stock-sanidad-grupo-label">{titulo}</span>
-        <div className="stock-sanidad-grupo-chips">
-          {grupos.slice(0, 12).map((g) => (
-            <button
-              key={g.key}
-              type="button"
-              className="stock-sanidad-grupo-chip"
-              disabled={!apiOnline || guardando}
-              onClick={() => agregarClaves(g.claves)}
-              title={`Agregar ${g.claves.length} a la selección`}
-            >
-              {g.label}
-              <span className="stock-sanidad-grupo-chip-count">{g.claves.length}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-    );
-  };
-
   return (
     <div className="subseccion-panel stock-sanidad-page">
       <button type="button" className="subseccion-back" onClick={onVolver}>
@@ -395,7 +528,7 @@ export default function StockGanaderoSanidad({
           <PageModuleHeadRow
             icon={{ source: "hub", id: "stock_sanidad" }}
             title="Sanidad"
-            subtitle="Seleccioná animales por grupo, categoría o filtro y registrá el mismo control sanitario en todos a la vez."
+            subtitle="Seleccioná animales por grupo y registrá el mismo control sanitario en todos a la vez."
           />
         </div>
 
@@ -435,91 +568,59 @@ export default function StockGanaderoSanidad({
               <span className="muted">
                 seleccionado{seleccionados.length === 1 ? "" : "s"}
                 {filteredRows.length !== rows.length
-                  ? ` · ${filteredRows.length} en filtro`
+                  ? ` · ${filteredRows.length} en búsqueda`
                   : ` · ${rows.length} activos`}
               </span>
             </div>
 
-            <div className="stock-sanidad-grupos-rapidos">
-              <p className="stock-sanidad-grupos-hint muted">
-                Clic en un grupo para sumar esos animales a la selección (sin quitar los ya elegidos).
-              </p>
-              {renderGrupoChips("Categoría", gruposRapidos.categorias)}
-              {renderGrupoChips("Grupo libre", gruposRapidos.gruposLibres)}
-              {renderGrupoChips("Generación", gruposRapidos.generaciones)}
-              {renderGrupoChips("Sexo", gruposRapidos.sexos)}
-              {renderGrupoChips("Empresa", gruposRapidos.empresas)}
-            </div>
-
-            <div className="stock-sanidad-filtros">
-              <span className="stock-sanidad-filtros-label muted">Refinar lista:</span>
-              <div className="stock-sanidad-filtros-chips">
-                {(["MACHO", "HEMBRA"] as const).map((s) => (
-                  <button
-                    key={s}
-                    type="button"
-                    className={`stock-sanidad-filtro-chip${
-                      filtroSexo.has(s) ? " is-active" : ""
-                    }`}
-                    onClick={() => setFiltroSexo((p) => toggleSet(p, s))}
-                  >
-                    {s === "MACHO" ? "Machos" : "Hembras"}
-                  </button>
-                ))}
-                {gruposRapidos.categorias.slice(0, 6).map((g) => (
-                  <button
-                    key={`f-${g.key}`}
-                    type="button"
-                    className={`stock-sanidad-filtro-chip${
-                      filtroCategoria.has(g.key.replace("cat:", "")) ? " is-active" : ""
-                    }`}
-                    onClick={() =>
-                      setFiltroCategoria((p) =>
-                        toggleSet(p, g.key.replace("cat:", ""))
-                      )
-                    }
-                  >
-                    {g.label}
-                  </button>
-                ))}
-                {gruposRapidos.gruposLibres.slice(0, 4).map((g) => (
-                  <button
-                    key={`fgl-${g.key}`}
-                    type="button"
-                    className={`stock-sanidad-filtro-chip${
-                      filtroGrupoLibre.has(g.key) ? " is-active" : ""
-                    }`}
-                    onClick={() => setFiltroGrupoLibre((p) => toggleSet(p, g.key))}
-                  >
-                    {g.label}
-                  </button>
-                ))}
-                {gruposRapidos.empresas.slice(0, 3).map((g) => (
-                  <button
-                    key={`femp-${g.key}`}
-                    type="button"
-                    className={`stock-sanidad-filtro-chip${
-                      filtroEmpresa.has(g.key) ? " is-active" : ""
-                    }`}
-                    onClick={() => setFiltroEmpresa((p) => toggleSet(p, g.key))}
-                  >
-                    {g.label}
-                  </button>
-                ))}
-                {gruposRapidos.generaciones.slice(0, 4).map((g) => (
-                  <button
-                    key={`fgen-${g.key}`}
-                    type="button"
-                    className={`stock-sanidad-filtro-chip${
-                      filtroGeneracion.has(g.key) ? " is-active" : ""
-                    }`}
-                    onClick={() => setFiltroGeneracion((p) => toggleSet(p, g.key))}
-                  >
-                    {g.label}
-                  </button>
-                ))}
-              </div>
-            </div>
+            <section className="stock-sanidad-grupos-filtros" aria-label="Sumar por grupo">
+              <div className="stock-sanidad-grupos-rapidos stock-sanidad-panel stock-sanidad-panel--grupos">
+                  <header className="stock-sanidad-panel-head">
+                    <span className="stock-sanidad-panel-head-icon" aria-hidden>
+                      <ListPlus size={16} strokeWidth={2.25} />
+                    </span>
+                    <div className="stock-sanidad-panel-head-copy">
+                      <h4 className="stock-sanidad-panel-title">Sumar por grupo</h4>
+                      <p className="stock-sanidad-panel-sub muted">
+                        Clic para sumar o quitar un grupo de la selección
+                      </p>
+                    </div>
+                  </header>
+                  <StockSanidadGrupoCarousel
+                    categorias={grupoCategorias}
+                    disabled={!apiOnline || guardando}
+                    isChipActive={(_, g) => grupoChipActivo(g, seleccion)}
+                    onChipClick={(_, g) => toggleGrupoClaves(g)}
+                    getChipTitle={(_, g) => {
+                      const activo = grupoChipActivo(g, seleccion);
+                      return activo
+                        ? `Quitar ${g.claves.length} de la selección`
+                        : `Agregar ${g.claves.length} a la selección`;
+                    }}
+                  />
+                  {gruposSeleccionados.length > 0 ? (
+                    <footer className="stock-sanidad-grupos-activos">
+                      <span className="stock-sanidad-grupos-activos-label">Grupos en selección</span>
+                      <div className="stock-sanidad-grupos-activos-chips">
+                        {gruposSeleccionados.map((g) => (
+                          <button
+                            key={g.key}
+                            type="button"
+                            className="stock-sanidad-grupos-activos-chip"
+                            title={`Quitar ${g.label} de la selección`}
+                            onClick={() => quitarClaves(g.claves)}
+                          >
+                            <span className="stock-sanidad-grupos-activos-chip-cat">{g.categoria}</span>
+                            <span className="stock-sanidad-grupos-activos-chip-label">{g.label}</span>
+                            <span className="stock-sanidad-grupo-chip-count">{g.claves.length}</span>
+                            <X size={13} strokeWidth={2.5} className="stock-sanidad-grupos-activos-chip-remove" aria-hidden />
+                          </button>
+                        ))}
+                      </div>
+                    </footer>
+                  ) : null}
+                </div>
+            </section>
           </section>
 
           <StockSanidadHistorialDashboard
@@ -572,14 +673,12 @@ export default function StockGanaderoSanidad({
                   idPrefix="sanidad"
                   bandLayout
                   form={form}
-                  adminModo={adminModo}
                   guardando={guardando}
                   apiOnline={apiOnline}
                   modulo="ganadero"
-                  currentUser={currentUser}
                   onPatch={patchForm}
-                  onAdminModo={setAdminModo}
                   onError={onError}
+                  onFichaSaved={(msg) => onSuccess(msg)}
                 />
               </div>
 
@@ -600,76 +699,155 @@ export default function StockGanaderoSanidad({
           </section>
 
           <section className="stock-sanidad-listado" aria-label="Listado de animales">
-            <div className="stock-sanidad-table-wrap">
-              {loading ? (
-                <p className="muted stock-sanidad-empty">Cargando animales…</p>
-              ) : !apiOnline ? (
-                <p className="muted stock-sanidad-empty">Sin conexión a la API</p>
-              ) : filteredRows.length === 0 ? (
-                <p className="muted stock-sanidad-empty">No hay animales con estos filtros.</p>
-              ) : (
-                <table className="stock-sanidad-table">
-                  <thead>
+            <div className="table-wrap table-wrap-stock-pro stock-sanidad-table-wrap">
+              <table className="data-table stock-ganadera-table stock-table-pro stock-sanidad-table-pro">
+                <thead>
+                  <tr>
+                    <th className="stock-th stock-th--sel" aria-label="Seleccionar">
+                      <input
+                        type="checkbox"
+                        className="stock-row-check"
+                        checked={paginaTodaSeleccionada}
+                        ref={(el) => {
+                          if (el) el.indeterminate = paginaParcial;
+                        }}
+                        disabled={guardando || loading || filteredRows.length === 0}
+                        onChange={togglePagina}
+                        aria-label="Seleccionar página"
+                      />
+                    </th>
+                    <th className="stock-th stock-th--device-ids">EID / VID</th>
+                    <th className="stock-th">Categoría</th>
+                    <th className="stock-th stock-th--empresa">Empresa</th>
+                    <th className="stock-th">Generación</th>
+                    <th className="stock-th">Grupo personalizado</th>
+                    <th className="stock-th stock-th--potrero">Potrero</th>
+                    <th className="stock-th">Raza</th>
+                    <th className="stock-th">Sexo</th>
+                    <th className="stock-th stock-th--edad">Edad</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {loading ? (
                     <tr>
-                      <th className="stock-sanidad-th-check">
-                        <input
-                          type="checkbox"
-                          checked={paginaTodaSeleccionada}
-                          ref={(el) => {
-                            if (el) el.indeterminate = paginaParcial;
-                          }}
-                          disabled={guardando}
-                          onChange={togglePagina}
-                          aria-label="Seleccionar página"
-                        />
-                      </th>
-                      <th>VID / EID</th>
-                      <th>Categoría</th>
-                      <th>Grupo</th>
-                      <th>Empresa</th>
+                      <td colSpan={SANIDAD_TABLE_COLS} className="empty">
+                        Cargando animales…
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {rowsPagina.map((d) => {
+                  ) : !apiOnline ? (
+                    <tr>
+                      <td colSpan={SANIDAD_TABLE_COLS} className="empty">
+                        Sin conexión a la API
+                      </td>
+                    </tr>
+                  ) : filteredRows.length === 0 ? (
+                    <tr>
+                      <td colSpan={SANIDAD_TABLE_COLS} className="empty">
+                        No hay animales con esta búsqueda.
+                      </td>
+                    </tr>
+                  ) : (
+                    rowsPagina.map((d) => {
                       const cats = [...categoriasDispositivo(d)]
                         .map((k) => labelCategoriaFiltro(k))
                         .join(", ");
+                      const empresaNombre = fmtEmpresaOperativa(d.empresa, empresasOperativas);
                       const checked = seleccion.has(d.clave);
                       return (
                         <tr
                           key={d.clave}
-                          className={checked ? "is-selected" : undefined}
+                          className={`stock-ganadera-row stock-table-pro-row stock-table-pro-row--clickable${
+                            checked ? " stock-table-pro-row--selected" : ""
+                          }`}
                           onClick={() => !guardando && toggleClave(d.clave)}
                         >
-                          <td className="stock-sanidad-td-check" onClick={(e) => e.stopPropagation()}>
+                          <td
+                            className="stock-td stock-td--sel"
+                            onClick={(e) => e.stopPropagation()}
+                          >
                             <input
                               type="checkbox"
+                              className="stock-row-check"
                               checked={checked}
                               disabled={guardando}
                               onChange={() => toggleClave(d.clave)}
                               aria-label={`Seleccionar ${d.vid || d.eid}`}
                             />
                           </td>
-                          <td>
-                            <span className="stock-sanidad-id-vid">{d.vid || "—"}</span>
-                            <span className="stock-sanidad-id-eid muted">{d.eid}</span>
+                          <td className="stock-td stock-td--device-ids">
+                            <div className="stock-device-ids">
+                              <span className="stock-device-ids__icon-wrap" aria-hidden>
+                                <IconoDispositivoWifi
+                                  animated
+                                  className="stock-device-ids__icon"
+                                />
+                              </span>
+                              <div className="stock-device-ids__stack">
+                                <span className="stock-device-ids__eid" title="EID electrónico">
+                                  {d.eid || "—"}
+                                </span>
+                                <span
+                                  className="stock-device-ids__vid"
+                                  title={d.vid ? `VID ${d.vid}` : undefined}
+                                >
+                                  {d.vid || "—"}
+                                </span>
+                              </div>
+                            </div>
                           </td>
-                          <td>{cats || "—"}</td>
-                          <td>{fmtGrupoLibre(d.grupo_libre) || fmtGrupo(d.grupo) || "—"}</td>
-                          <td>
-                            {d.empresa
-                              ? fmtEmpresaOperativa(d.empresa, empresasOperativas)
-                              : "—"}
+                          <td
+                            className="stock-td stock-td--muted stock-td--categoria"
+                            title={cats || undefined}
+                          >
+                            {cats || "—"}
+                          </td>
+                          <td className="stock-td stock-td--muted stock-td--empresa">
+                            <span
+                              className="stock-td-empresa-name"
+                              title={empresaNombre !== "—" ? empresaNombre : undefined}
+                            >
+                              {empresaNombre}
+                            </span>
+                          </td>
+                          <td className="stock-td stock-td--muted stock-td--generacion">
+                            {fmtGrupo(d.grupo)}
+                          </td>
+                          <td className="stock-td stock-td--muted stock-td--grupo">
+                            {fmtGrupoLibre(d.grupo_libre)}
+                          </td>
+                          <td
+                            className="stock-td stock-td--muted stock-td--potrero"
+                            title={
+                              fmtPotrero(d.potrero) !== "—" ? fmtPotrero(d.potrero) : undefined
+                            }
+                          >
+                            {fmtPotrero(d.potrero)}
+                          </td>
+                          <td className="stock-td stock-td--muted stock-td--raza">
+                            {fmtRaza(d.raza)}
+                          </td>
+                          <td className={`stock-td stock-td--sexo ${claseCeldaSexo(d.sexo)}`}>
+                            {fmtSexo(d.sexo)}
+                          </td>
+                          <td className="stock-td stock-td--edad">
+                            <StockGanaderaEdadMiniTimeline
+                              sexo={d.sexo}
+                              nacimientoMes={d.nacimiento_mes}
+                              nacimientoAnio={d.nacimiento_anio}
+                              estado={d.estado}
+                              bajaMes={d.baja_mes}
+                              bajaAnio={d.baja_anio}
+                            />
                           </td>
                         </tr>
                       );
-                    })}
-                  </tbody>
-                </table>
-              )}
+                    })
+                  )}
+                </tbody>
+              </table>
             </div>
 
-            {filteredRows.length > 0 && (
+            {!loading && apiOnline && filteredRows.length > 0 && (
               <TablePagination
                 page={pageSafe}
                 pageSize={pageSize}

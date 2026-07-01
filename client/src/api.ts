@@ -57,6 +57,9 @@
   StockControlSanitarioRecord,
   StockControlSanitarioInput,
   StockControlSanitarioCantidadOpcion,
+  StockControlSanitarioEsperaOpcion,
+  StockControlSanitarioProductoFicha,
+  StockControlSanitarioProductoFichaInput,
   StockControlSanitarioResumen,
   StockEquinoLote,
   StockEquinoRegistro,
@@ -878,6 +881,47 @@ export async function createStockControlSanitarioCantidadOpcion(
   const json = await request<{ data: StockControlSanitarioCantidadOpcion }>(
     `/stock-${modulo}/control-sanitario/cantidad-opciones`,
     { method: "POST", body: JSON.stringify({ valor }) }
+  );
+  return json.data;
+}
+
+export async function fetchStockControlSanitarioEsperaOpciones(
+  modulo: StockDispositivoModulo
+): Promise<StockControlSanitarioEsperaOpcion[]> {
+  const json = await request<{ data: StockControlSanitarioEsperaOpcion[] }>(
+    `/stock-${modulo}/control-sanitario/espera-opciones`
+  );
+  return json.data;
+}
+
+export async function createStockControlSanitarioEsperaOpcion(
+  modulo: StockDispositivoModulo,
+  valor: string
+): Promise<StockControlSanitarioEsperaOpcion> {
+  const json = await request<{ data: StockControlSanitarioEsperaOpcion }>(
+    `/stock-${modulo}/control-sanitario/espera-opciones`,
+    { method: "POST", body: JSON.stringify({ valor }) }
+  );
+  return json.data;
+}
+
+export async function fetchStockControlSanitarioProductoFicha(
+  modulo: StockDispositivoModulo,
+  nombre: string
+): Promise<StockControlSanitarioProductoFicha | null> {
+  const json = await request<{ data: StockControlSanitarioProductoFicha | null }>(
+    `/stock-${modulo}/control-sanitario/producto-ficha/${encodeURIComponent(nombre)}`
+  );
+  return json.data;
+}
+
+export async function saveStockControlSanitarioProductoFicha(
+  modulo: StockDispositivoModulo,
+  input: StockControlSanitarioProductoFichaInput
+): Promise<StockControlSanitarioProductoFicha> {
+  const json = await request<{ data: StockControlSanitarioProductoFicha }>(
+    `/stock-${modulo}/control-sanitario/producto-ficha`,
+    { method: "PUT", body: JSON.stringify(input) }
   );
   return json.data;
 }

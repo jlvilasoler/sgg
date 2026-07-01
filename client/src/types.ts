@@ -379,6 +379,45 @@ export interface StockControlSanitarioCantidadOpcion {
   creado_por: string;
 }
 
+export interface StockControlSanitarioEsperaOpcion {
+  id: number;
+  valor: string;
+  creado_en: string;
+  creado_por: string;
+}
+
+export interface StockControlSanitarioProductoFicha {
+  id: number;
+  nombre: string;
+  laboratorio: string;
+  principio_activo: string;
+  presentacion: string;
+  via_administracion: string;
+  especie: string;
+  tiempo_espera_carne: string;
+  tiempo_espera_leche: string;
+  detalles_tecnicos: string;
+  caracteristicas: string;
+  foto_data: string;
+  creado_en: string;
+  actualizado_en: string;
+  actualizado_por: string;
+}
+
+export interface StockControlSanitarioProductoFichaInput {
+  nombre: string;
+  laboratorio?: string;
+  principio_activo?: string;
+  presentacion?: string;
+  via_administracion?: string;
+  especie?: string;
+  tiempo_espera_carne?: string;
+  tiempo_espera_leche?: string;
+  detalles_tecnicos?: string;
+  caracteristicas?: string;
+  foto_data?: string;
+}
+
 export interface StockControlSanitarioResumenItem {
   id: number;
   clave: string;

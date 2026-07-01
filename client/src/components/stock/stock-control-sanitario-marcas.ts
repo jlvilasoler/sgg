@@ -106,3 +106,9 @@ export function marcaCoincideBusqueda(
   }
   return false;
 }
+
+export function buscarMarcaCatalogo(nombre: string): MarcaRemedioCatalogo | undefined {
+  const key = nombre.trim().toLocaleLowerCase("es-UY");
+  if (!key) return undefined;
+  return MARCAS_REMEDIO_GANADO.find((m) => m.nombre.toLocaleLowerCase("es-UY") === key);
+}

@@ -1,12 +1,19 @@
-import type { AuthUser, StockControlSanitarioInput } from "../../types";
+import type { StockControlSanitarioInput } from "../../types";
 import type { StockDispositivoModulo } from "../../api";
+import { useCallback, useState } from "react";
 import StockControlSanitarioCantidadSelect from "./StockControlSanitarioCantidadSelect";
+import StockControlSanitarioEsperaSelect from "./StockControlSanitarioEsperaSelect";
 import StockControlSanitarioFormaSelect from "./StockControlSanitarioFormaSelect";
 import StockControlSanitarioFormulaSelect from "./StockControlSanitarioFormulaSelect";
-import StockControlSanitarioFuncionarioSelect from "./StockControlSanitarioFuncionarioSelect";
 import StockControlSanitarioMarcaSelect from "./StockControlSanitarioMarcaSelect";
 import StockControlSanitarioMotivoSelect from "./StockControlSanitarioMotivoSelect";
 import StockControlSanitarioSectionTitle from "./StockControlSanitarioSectionTitle";
+import {
+  flagsDesdePatch,
+  patchProductoDesdeMarca,
+  patchProductoDesdeMarcaAsync,
+  type ProductoSugeridoFlags,
+} from "./stock-control-sanitario-marca-formula";
 
 export type AdminModo = "fechas" | "periodo";
 
@@ -21,10 +28,9 @@ export interface StockControlSanitarioFormState {
   producto_forma: string;
   producto_espera: string;
   control_motivo: string;
-  control_funcionario: string;
 }
 
-export function emptyStockControlSanitarioForm(funcionarioDefault = ""): StockControlSanitarioFormState {
+export function emptyStockControlSanitarioForm(): StockControlSanitarioFormState {
   return {
     admin_fecha_inicio: "",
     admin_fecha_fin: "",
@@ -36,7 +42,6 @@ export function emptyStockControlSanitarioForm(funcionarioDefault = ""): StockCo
     producto_forma: "",
     producto_espera: "",
     control_motivo: "",
-    control_funcionario: funcionarioDefault,
   };
 }
 
@@ -59,7 +64,6 @@ export function buildStockControlSanitarioInput(
     animal_categoria_lote: animalCategoriaLote.trim(),
     animal_id: animalId.trim(),
     control_motivo: form.control_motivo.trim(),
-    control_funcionario: form.control_funcionario.trim(),
   };
 }
 
@@ -83,44 +87,49 @@ export function validateStockControlSanitarioForm(
 interface Props {
   idPrefix?: string;
   form: StockControlSanitarioFormState;
-  adminModo: AdminModo;
+  adminModo?: AdminModo;
   guardando: boolean;
   apiOnline: boolean;
   modulo: StockDispositivoModulo;
-  currentUser?: AuthUser | null;
   onPatch: (patch: Partial<StockControlSanitarioFormState>) => void;
-  onAdminModo: (modo: AdminModo) => void;
+  onAdminModo?: (modo: AdminModo) => void;
   onError: (msg: string) => void;
+  onFichaSaved?: (msg: string) => void;
   historialMarcas?: string[];
   historialFormulas?: string[];
   historialFormas?: string[];
   historialCantidades?: string[];
+  historialEsperas?: string[];
   historialMotivos?: string[];
-  historialFuncionarios?: string[];
   bandLayout?: boolean;
 }
 
 export default function StockControlSanitarioRegistroForm({
   idPrefix = "cs",
   form,
-  adminModo,
+  adminModo = "fechas",
   guardando,
   apiOnline,
   modulo,
-  currentUser,
   onPatch,
   onAdminModo,
   onError,
+  onFichaSaved,
   historialMarcas = [],
   historialFormulas = [],
   historialFormas = [],
   historialCantidades = [],
+  historialEsperas = [],
   historialMotivos = [],
-  historialFuncionarios = [],
   bandLayout = false,
 }: Props) {
+  const [sugeridoFicha, setSugeridoFicha] = useState<ProductoSugeridoFlags>({
+    formula: false,
+    forma: false,
+  });
+
   const setAdminModo = (modo: AdminModo) => {
-    onAdminModo(modo);
+    onAdminModo?.(modo);
     if (modo === "fechas") {
       onPatch({ admin_periodo_nota: "" });
     } else {
@@ -128,41 +137,73 @@ export default function StockControlSanitarioRegistroForm({
     }
   };
 
+  const onMarcaChange = useCallback(
+    (nombre: string) => {
+      setSugeridoFicha({ formula: false, forma: false });
+      const sync = patchProductoDesdeMarca(nombre);
+      onPatch(sync);
+      setSugeridoFicha(flagsDesdePatch(sync));
+
+      if (apiOnline && nombre.trim()) {
+        void patchProductoDesdeMarcaAsync(nombre, modulo, apiOnline).then((patch) => {
+          onPatch(patch);
+          setSugeridoFicha(flagsDesdePatch(patch));
+        });
+      }
+    },
+    [apiOnline, modulo, onPatch]
+  );
+
+  const sugerenciaHint = (activo: boolean) =>
+    activo ? (
+      <span className="stock-control-sanitario-sugerencia-hint"> · sugerido según ficha</span>
+    ) : null;
+
   const adminSection = (
     <section className="stock-control-sanitario-section stock-sanidad-form-section--admin">
-      <div className="stock-control-sanitario-section-head">
+      <div
+        className={`stock-control-sanitario-section-head${
+          bandLayout ? " stock-control-sanitario-section-head--solo-titulo" : ""
+        }`}
+      >
         <StockControlSanitarioSectionTitle icon="admin">
-          Fecha o período de administración
+          {bandLayout ? "Fecha de administración" : "Fecha o período de administración"}
         </StockControlSanitarioSectionTitle>
-        <div
-          className="stock-control-sanitario-modos"
-          role="tablist"
-          aria-label="Tipo de administración"
-        >
-          <button
-            type="button"
-            role="tab"
-            aria-selected={adminModo === "fechas"}
-            className={`stock-control-sanitario-modo${adminModo === "fechas" ? " is-active" : ""}`}
-            disabled={guardando}
-            onClick={() => setAdminModo("fechas")}
+        {!bandLayout ? (
+          <div
+            className="stock-control-sanitario-modos"
+            role="tablist"
+            aria-label="Tipo de administración"
           >
-            Fechas
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={adminModo === "periodo"}
-            className={`stock-control-sanitario-modo${adminModo === "periodo" ? " is-active" : ""}`}
-            disabled={guardando}
-            onClick={() => setAdminModo("periodo")}
-          >
-            Período
-          </button>
-        </div>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={adminModo === "fechas"}
+              className={`stock-control-sanitario-modo${adminModo === "fechas" ? " is-active" : ""}`}
+              disabled={guardando}
+              onClick={() => setAdminModo("fechas")}
+            >
+              Fechas
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={adminModo === "periodo"}
+              className={`stock-control-sanitario-modo${adminModo === "periodo" ? " is-active" : ""}`}
+              disabled={guardando}
+              onClick={() => setAdminModo("periodo")}
+            >
+              Período
+            </button>
+          </div>
+        ) : null}
       </div>
-      {adminModo === "fechas" ? (
-        <div className={bandLayout ? "stock-sanidad-admin-campos" : undefined}>
+      {bandLayout || adminModo === "fechas" ? (
+        <div
+          className={
+            bandLayout ? "stock-sanidad-admin-campos stock-sanidad-admin-campos--band" : undefined
+          }
+        >
           <div className="field">
             <label htmlFor={`${idPrefix}-admin-inicio`}>Fecha aplicación</label>
             <input
@@ -173,17 +214,58 @@ export default function StockControlSanitarioRegistroForm({
               onChange={(e) => onPatch({ admin_fecha_inicio: e.target.value })}
             />
           </div>
-          <div className="field stock-control-sanitario-admin-observaciones">
+          <div className={bandLayout ? "stock-sanidad-admin-row-detalles" : undefined}>
+            <div className="field stock-control-sanitario-admin-observaciones">
             <label htmlFor={`${idPrefix}-admin-observaciones`}>Observaciones</label>
-            <textarea
-              id={`${idPrefix}-admin-observaciones`}
-              rows={bandLayout ? 3 : 2}
-              maxLength={500}
-              placeholder="Notas..."
-              value={form.admin_observaciones}
-              disabled={guardando}
-              onChange={(e) => onPatch({ admin_observaciones: e.target.value })}
-            />
+            {bandLayout ? (
+              <input
+                id={`${idPrefix}-admin-observaciones`}
+                type="text"
+                className="stock-control-sanitario-admin-observaciones-input mayusculas-auto"
+                maxLength={500}
+                placeholder="Notas..."
+                value={form.admin_observaciones}
+                disabled={guardando}
+                onChange={(e) => onPatch({ admin_observaciones: e.target.value })}
+              />
+            ) : (
+              <textarea
+                id={`${idPrefix}-admin-observaciones`}
+                rows={2}
+                maxLength={500}
+                placeholder="Notas..."
+                value={form.admin_observaciones}
+                disabled={guardando}
+                onChange={(e) => onPatch({ admin_observaciones: e.target.value })}
+              />
+            )}
+            </div>
+            {bandLayout ? (
+              <div className="field stock-control-sanitario-admin-espera">
+                <label htmlFor={`${idPrefix}-producto-espera-trigger`}>Tiempo de espera</label>
+                <StockControlSanitarioEsperaSelect
+                  idPrefix={idPrefix}
+                  value={form.producto_espera}
+                  onChange={(v) => onPatch({ producto_espera: v })}
+                  disabled={guardando}
+                  apiOnline={apiOnline}
+                  modulo={modulo}
+                  historialEsperas={historialEsperas}
+                  onError={onError}
+                />
+              </div>
+            ) : null}
+            {bandLayout ? (
+              <div className="field stock-control-sanitario-admin-motivo">
+                <label htmlFor={`${idPrefix}-control-motivo-trigger`}>Motivo</label>
+                <StockControlSanitarioMotivoSelect
+                  value={form.control_motivo}
+                  onChange={(v) => onPatch({ control_motivo: v })}
+                  disabled={guardando}
+                  historialMotivos={historialMotivos}
+                />
+              </div>
+            ) : null}
           </div>
         </div>
       ) : (
@@ -218,25 +300,41 @@ export default function StockControlSanitarioRegistroForm({
           </label>
           <StockControlSanitarioMarcaSelect
             value={form.producto_nombre}
-            onChange={(v) => onPatch({ producto_nombre: v })}
+            onChange={onMarcaChange}
             disabled={guardando}
             historialMarcas={historialMarcas}
+            apiOnline={apiOnline}
+            modulo={modulo}
+            onError={onError}
+            onFichaSaved={onFichaSaved}
           />
         </div>
         <div className="field">
-          <label htmlFor={`${idPrefix}-producto-formula-trigger`}>Fórmula</label>
+          <label htmlFor={`${idPrefix}-producto-formula-trigger`}>
+            Fórmula
+            {sugerenciaHint(sugeridoFicha.formula)}
+          </label>
           <StockControlSanitarioFormulaSelect
             value={form.producto_formula}
-            onChange={(v) => onPatch({ producto_formula: v })}
+            onChange={(v) => {
+              onPatch({ producto_formula: v });
+              setSugeridoFicha((prev) => ({ ...prev, formula: false }));
+            }}
             disabled={guardando}
             historialFormulas={historialFormulas}
           />
         </div>
         <div className="field">
-          <label htmlFor={`${idPrefix}-producto-forma-trigger`}>Forma de administración</label>
+          <label htmlFor={`${idPrefix}-producto-forma-trigger`}>
+            Forma de administración
+            {sugerenciaHint(sugeridoFicha.forma)}
+          </label>
           <StockControlSanitarioFormaSelect
             value={form.producto_forma}
-            onChange={(v) => onPatch({ producto_forma: v })}
+            onChange={(v) => {
+              onPatch({ producto_forma: v });
+              setSugeridoFicha((prev) => ({ ...prev, forma: false }));
+            }}
             disabled={guardando}
             historialFormas={historialFormas}
           />
@@ -253,18 +351,21 @@ export default function StockControlSanitarioRegistroForm({
             onError={onError}
           />
         </div>
+        {!bandLayout ? (
         <div className="field">
-          <label htmlFor={`${idPrefix}-producto-espera`}>Tiempo de espera</label>
-          <input
-            id={`${idPrefix}-producto-espera`}
-            type="text"
-            maxLength={80}
-            placeholder="Ej. 28 días carne / 7 días leche"
+          <label htmlFor={`${idPrefix}-producto-espera-trigger`}>Tiempo de espera</label>
+          <StockControlSanitarioEsperaSelect
+            idPrefix={idPrefix}
             value={form.producto_espera}
+            onChange={(v) => onPatch({ producto_espera: v })}
             disabled={guardando}
-            onChange={(e) => onPatch({ producto_espera: e.target.value })}
+            apiOnline={apiOnline}
+            modulo={modulo}
+            historialEsperas={historialEsperas}
+            onError={onError}
           />
         </div>
+        ) : null}
       </div>
     </section>
   );
@@ -286,20 +387,6 @@ export default function StockControlSanitarioRegistroForm({
             historialMotivos={historialMotivos}
           />
         </div>
-        <div className="field">
-          <label htmlFor={`${idPrefix}-control-funcionario-trigger`}>
-            Nombre funcionario que autorizó
-          </label>
-          <StockControlSanitarioFuncionarioSelect
-            value={form.control_funcionario}
-            onChange={(v) => onPatch({ control_funcionario: v })}
-            disabled={guardando}
-            apiOnline={apiOnline}
-            currentUser={currentUser}
-            historialNombres={historialFuncionarios}
-            onError={onError}
-          />
-        </div>
       </div>
     </section>
   );
@@ -308,10 +395,7 @@ export default function StockControlSanitarioRegistroForm({
     return (
       <div className="stock-sanidad-form-band">
         {adminSection}
-        <div className="stock-sanidad-form-band-row">
-          {productoSection}
-          {controlesSection}
-        </div>
+        {productoSection}
       </div>
     );
   }
