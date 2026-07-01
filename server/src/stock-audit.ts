@@ -82,5 +82,5 @@ export function historialAutorFromRequest(
 /** Etiqueta legible del usuario para campos texto (p. ej. creado_por). */
 export function historialAutorLabelFromRequest(req: Request): string {
   const autor = historialAutorFromRequest(req);
-  return autor.user_nombre.trim() || autor.user_email.trim() || "";
+  return (autor.user_nombre ?? "").trim() || (autor.user_email ?? "").trim() || "";
 }
