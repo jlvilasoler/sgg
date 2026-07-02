@@ -133,13 +133,24 @@ export default function Usuarios({
     }
     setLoading(true);
     try {
-      setRows(await fetchUsuarios(undefined, { ambitoPropio: true }));
+      const cuentaId =
+        currentUser.cuenta_actividad_id ?? currentUser.empresa_id ?? undefined;
+      const data =
+        cuentaId != null && Number.isFinite(cuentaId)
+          ? await fetchUsuarios(cuentaId)
+          : await fetchUsuarios();
+      setRows(data);
     } catch (e) {
       onError(e instanceof Error ? e.message : "Error al cargar usuarios");
     } finally {
       setLoading(false);
     }
-  }, [apiOnline, onError]);
+  }, [
+    apiOnline,
+    currentUser.cuenta_actividad_id,
+    currentUser.empresa_id,
+    onError,
+  ]);
 
   useEffect(() => {
     void load();
