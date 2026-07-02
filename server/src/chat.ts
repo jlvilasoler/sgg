@@ -16,6 +16,7 @@ import {
   listUserChatWallpapers,
   markChatRead,
   rejectExternalContactRequest,
+  removeExternalChatContact,
   searchChatMessages,
   sendChatMessage,
   sendChatMessageWithAttachment,
@@ -563,6 +564,33 @@ export function registerChatRoutes(app: Express): void {
       res.status(400).json({
         ok: false,
         error: e instanceof Error ? e.message : "No se pudo rechazar la solicitud",
+      });
+    }
+  });
+
+  app.delete("/api/chat/contacts/external/:contactUserId", async (req, res) => {
+    const userId = requireUser(req, res);
+    if (userId === null) return;
+
+    const contactUserId = Math.max(0, Number(req.params.contactUserId) || 0);
+    if (contactUserId <= 0) {
+      res.status(400).json({ ok: false, error: "Contacto no válido" });
+      return;
+    }
+
+    try {
+      const result = await removeExternalChatContact(getDb(), userId, contactUserId);
+      res.json({
+        ok: true,
+        data: {
+          contact_user_id: contactUserId,
+          mensaje: `${result.nombre} fue eliminado de Otras cuentas.`,
+        },
+      });
+    } catch (e) {
+      res.status(400).json({
+        ok: false,
+        error: e instanceof Error ? e.message : "No se pudo eliminar el contacto",
       });
     }
   });

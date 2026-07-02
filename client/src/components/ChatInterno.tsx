@@ -3,6 +3,7 @@ import {
   agregarChatContactoExterno,
   buscarChatMensajes,
   crearChatCanal,
+  eliminarChatContactoExterno,
   enviarChatAdjunto,
   enviarChatMensaje,
   enviarPresencia,
@@ -33,8 +34,10 @@ import {
   setChatSidebarCache,
 } from "../utils/chat-sidebar-cache";
 import { resaltarTexto, truncarConHighlight } from "../utils/chat-search";
+import { confirmAction } from "../utils/confirm";
 import UserAvatar, { DEFAULT_USER_AVATAR } from "./UserAvatar";
 import ChatEmojiPicker from "./chat/ChatEmojiPicker";
+import ChatInternoKebabMenu from "./chat/ChatInternoKebabMenu";
 import ChatMessageAttachmentView from "./chat/ChatMessageAttachment";
 import ChatWallpaperPicker from "./chat/ChatWallpaperPicker";
 import { chatWallpaperClass } from "./chat/chat-wallpapers";
@@ -157,6 +160,7 @@ export default function ChatInterno({
   const [addingExternal, setAddingExternal] = useState(false);
   const [externalEmail, setExternalEmail] = useState("");
   const [addingExternalBusy, setAddingExternalBusy] = useState(false);
+  const [removingExternalId, setRemovingExternalId] = useState<number | null>(null);
   const [incomingAlert, setIncomingAlert] = useState(false);
   const [incomingSender, setIncomingSender] = useState<string | null>(null);
 
@@ -697,6 +701,48 @@ export default function ChatInterno({
     }
   };
 
+  const eliminarContactoExterno = async (c: ChatContact) => {
+    const ok = await confirmAction({
+      title: "Eliminar contacto",
+      message: `¿Querés quitar a ${c.nombre} de Otras cuentas? Dejarán de poder chatear entre ustedes.`,
+      confirmText: "Eliminar contacto",
+      variant: "danger",
+    });
+    if (!ok) return;
+
+    setRemovingExternalId(c.id);
+    setError(null);
+    setNotice(null);
+    try {
+      const result = await eliminarChatContactoExterno(c.id);
+      setExternalContacts((prev) => prev.filter((x) => x.id !== c.id));
+      setOpenTabs((prev) => prev.filter((t) => t !== c.id));
+      invalidateChatSidebarCache();
+      if (peerId === c.id) {
+        const fallback =
+          channels.find((ch) => ch.es_sistema)?.peer_id ??
+          channels[0]?.peer_id ??
+          contacts[0]?.id ??
+          CHAT_GENERAL_PEER_ID;
+        draftByPeerRef.current[c.id] = "";
+        skipPeerLoadRef.current = true;
+        peerRef.current = fallback;
+        setPeerId(fallback);
+        setDraft(draftByPeerRef.current[fallback] ?? "");
+        setMessages([]);
+        lastIdRef.current = 0;
+        setHasMoreOlder(false);
+        skipPeerLoadRef.current = false;
+        void loadMessages(fallback, { initial: true });
+      }
+      setNotice(result.mensaje);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "No se pudo eliminar el contacto");
+    } finally {
+      setRemovingExternalId(null);
+    }
+  };
+
   const guardarRenombre = async () => {
     if (renamingChannelId === null) return;
     const nombre = renameDraft.trim();
@@ -732,6 +778,11 @@ export default function ChatInterno({
         null
       : null;
 
+  const activeExternalContact =
+    isDirectMessagePeer(peerId)
+      ? externalContacts.find((c) => c.id === peerId) ?? null
+      : null;
+
   const peerLabel = peerTabLabel(peerId, channels, contacts, externalContacts);
   const currentWallpaper = wallpaperByPeer[peerId] ?? "default";
   const wallpaperClass = chatWallpaperClass(currentWallpaper);
@@ -743,16 +794,15 @@ export default function ChatInterno({
         : "Canal del equipo · todos los usuarios"
       : "Canal grupal · todos los usuarios"
     : peerContact && externalContacts.some((c) => c.id === peerContact.id)
-      ? `${peerContact.rol_label} · ${formatChatPresence(peerContact.presencia)}`
+      ? formatChatPresence(peerContact.presencia)
       : formatChatPresence(peerContact?.presencia);
 
   const onlineContacts = [...contacts, ...externalContacts].filter((c) => c.presencia.online);
 
   const renderDmContact = (c: ChatContact, opts?: { external?: boolean }) => (
     <button
-      key={c.id}
       type="button"
-      className={`chat-interno-channel${peerId === c.id ? " chat-interno-channel--active" : ""}`}
+      className={`chat-interno-channel${peerId === c.id ? " chat-interno-channel--active" : ""}${opts?.external ? " chat-interno-channel--external" : ""}`}
       onClick={() => openChannel(c.id)}
     >
       <span
@@ -777,9 +827,7 @@ export default function ChatInterno({
         >
           {opts?.external && c.external_estado === "pendiente_enviada"
             ? "Pendiente de autorización"
-            : opts?.external
-              ? c.rol_label
-              : formatChatPresence(c.presencia)}
+            : formatChatPresence(c.presencia)}
         </span>
         <span className="chat-interno-channel-preview">
           {c.last_message ? truncar(c.last_message, 42) : "Sin mensajes"}
@@ -1013,7 +1061,9 @@ export default function ChatInterno({
 
         <p className="chat-interno-sidebar-label">Personas</p>
         <div className="chat-interno-contacts">
-          {contacts.map((c) => renderDmContact(c))}
+          {contacts.map((c) => (
+            <div key={c.id}>{renderDmContact(c)}</div>
+          ))}
         </div>
 
         <div className="chat-interno-sidebar-section-head">
@@ -1063,7 +1113,16 @@ export default function ChatInterno({
               Agregá usuarios de otras cuentas por correo electrónico.
             </p>
           ) : (
-            externalContacts.map((c) => renderDmContact(c, { external: true }))
+            externalContacts.map((c) => (
+              <div key={c.id} className="chat-interno-external-row">
+                {renderDmContact(c, { external: true })}
+                <ChatInternoKebabMenu
+                  variant="sidebar"
+                  removing={removingExternalId === c.id}
+                  onRemove={() => void eliminarContactoExterno(c)}
+                />
+              </div>
+            ))
           )}
         </div>
       </aside>
@@ -1204,6 +1263,14 @@ export default function ChatInterno({
             <button type="button" className="btn btn-ghost btn-sm" onClick={onClose}>
               Volver
             </button>
+          )}
+          {activeExternalContact && (
+            <ChatInternoKebabMenu
+              variant="header"
+              removing={removingExternalId === activeExternalContact.id}
+              label={`Opciones de ${activeExternalContact.nombre}`}
+              onRemove={() => void eliminarContactoExterno(activeExternalContact)}
+            />
           )}
           <div className="chat-interno-head-tools">
             <button

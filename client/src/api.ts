@@ -3477,6 +3477,15 @@ export async function rechazarChatSolicitudExterna(
   return json.data;
 }
 
+export async function eliminarChatContactoExterno(
+  contactUserId: number
+): Promise<{ contact_user_id: number; mensaje: string }> {
+  const json = await request<{
+    data: { contact_user_id: number; mensaje: string };
+  }>(`/chat/contacts/external/${contactUserId}`, { method: "DELETE" });
+  return json.data;
+}
+
 export async function fetchChatPresence(): Promise<{
   users: Record<number, ChatUserPresence>;
   online_count: number;

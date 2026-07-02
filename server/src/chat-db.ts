@@ -710,8 +710,8 @@ function mapContactRows(
     return {
       id: u.id,
       nombre: u.nombre,
-      rol_label: opts?.useCuentaLabel && cuentaLabel
-        ? cuentaLabel
+      rol_label: opts?.useCuentaLabel
+        ? cuentaLabel || "Otra cuenta"
         : ROL_LABELS[rol] ?? u.rol,
       avatar: avatarDtoFromRow(u.id, u),
       unread_count: Number(u.unread_n ?? 0),
@@ -815,7 +815,12 @@ export async function listChatExternalContacts(
 
   const rows = (await db
     .prepare(
-      `SELECT ${CONTACT_LIST_SELECT}, cmadre.nombre AS cuenta_nombre,
+      `SELECT ${CONTACT_LIST_SELECT},
+              COALESCE(
+                cmadre_emp.nombre,
+                cmadre_admin.nombre,
+                'Otra cuenta'
+              ) AS cuenta_nombre,
               CASE
                 WHEN EXISTS (
                   SELECT 1 FROM CHAT_EXTERNAL_CONTACTS ec_a
@@ -831,7 +836,8 @@ export async function listChatExternalContacts(
                 ELSE NULL
               END AS external_estado
        FROM USERS u
-       LEFT JOIN EMPRESAS_CUENTA cmadre ON cmadre.id = u.empresa_id
+       LEFT JOIN EMPRESAS_CUENTA cmadre_emp ON cmadre_emp.id = u.empresa_id
+       LEFT JOIN EMPRESAS_CUENTA cmadre_admin ON cmadre_admin.admin_user_id = u.id
        ${CONTACT_LAST_MSG_LATERAL}
        ${CONTACT_UNREAD_LATERAL}
        WHERE u.activo = 1
@@ -1009,10 +1015,11 @@ export async function listPendingIncomingExternalRequests(
       `SELECT r.id, r.creado_en,
               u.id AS requester_id, u.nombre AS requester_nombre,
               u.avatar_tipo, u.avatar_archivo, u.actualizado_en,
-              COALESCE(cmadre.nombre, 'Otra cuenta') AS requester_cuenta
+              COALESCE(cmadre_emp.nombre, cmadre_admin.nombre, 'Otra cuenta') AS requester_cuenta
        FROM CHAT_EXTERNAL_REQUESTS r
        JOIN USERS u ON u.id = r.from_user_id
-       LEFT JOIN EMPRESAS_CUENTA cmadre ON cmadre.id = u.empresa_id
+       LEFT JOIN EMPRESAS_CUENTA cmadre_emp ON cmadre_emp.id = u.empresa_id
+       LEFT JOIN EMPRESAS_CUENTA cmadre_admin ON cmadre_admin.admin_user_id = u.id
        WHERE r.to_user_id = ? AND r.estado = 'pending' AND u.activo = 1
        ORDER BY r.creado_en DESC`
     )
@@ -1073,6 +1080,73 @@ export async function rejectExternalContactRequest(
   if (!result.changes) {
     throw new Error("Solicitud no encontrada o ya respondida");
   }
+}
+
+export async function removeExternalChatContact(
+  db: Db,
+  userId: number,
+  contactUserId: number
+): Promise<{ nombre: string }> {
+  if (contactUserId <= 0 || contactUserId === userId) {
+    throw new Error("Contacto no válido");
+  }
+
+  const peer = (await db
+    .prepare("SELECT id, nombre, activo FROM USERS WHERE id = ?")
+    .get(contactUserId)) as { id: number; nombre: string; activo: number } | undefined;
+  if (!peer || Number(peer.activo) !== 1) {
+    throw new Error("Usuario no encontrado");
+  }
+
+  const link = (await db
+    .prepare(
+      `SELECT 1 AS ok WHERE
+         EXISTS (
+           SELECT 1 FROM CHAT_EXTERNAL_CONTACTS
+           WHERE owner_user_id = ? AND contact_user_id = ?
+         )
+         OR EXISTS (
+           SELECT 1 FROM CHAT_EXTERNAL_CONTACTS
+           WHERE owner_user_id = ? AND contact_user_id = ?
+         )
+         OR EXISTS (
+           SELECT 1 FROM CHAT_EXTERNAL_REQUESTS
+           WHERE estado = 'pending'
+             AND ((from_user_id = ? AND to_user_id = ?) OR (from_user_id = ? AND to_user_id = ?))
+         )`
+    )
+    .get(
+      userId,
+      contactUserId,
+      contactUserId,
+      userId,
+      userId,
+      contactUserId,
+      contactUserId,
+      userId
+    )) as { ok: number } | undefined;
+
+  if (!link) {
+    throw new Error("No tenés a ese usuario en Otras cuentas");
+  }
+
+  await db
+    .prepare(
+      `DELETE FROM CHAT_EXTERNAL_CONTACTS
+       WHERE (owner_user_id = ? AND contact_user_id = ?)
+          OR (owner_user_id = ? AND contact_user_id = ?)`
+    )
+    .run(userId, contactUserId, contactUserId, userId);
+
+  await db
+    .prepare(
+      `DELETE FROM CHAT_EXTERNAL_REQUESTS
+       WHERE (from_user_id = ? AND to_user_id = ?)
+          OR (from_user_id = ? AND to_user_id = ?)`
+    )
+    .run(userId, contactUserId, contactUserId, userId);
+
+  return { nombre: peer.nombre };
 }
 
 export async function searchChatMessages(
