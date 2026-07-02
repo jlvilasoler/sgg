@@ -6,8 +6,10 @@ import { CHAT_ATTACHMENTS_DIR } from "./chat-attachments-db.js";
 import { getDb } from "./database.js";
 import {
   CHAT_GENERAL_PEER_ID,
+  addChatExternalContactByEmail,
   getChatUnreadSummary,
   listChatContacts,
+  listChatExternalContacts,
   listChatMessages,
   listUserChatWallpapers,
   markChatRead,
@@ -58,7 +60,8 @@ function defaultPresence(id: number): UserPresenceStatus {
 
 function summarizeChatUnread(
   channels: Awaited<ReturnType<typeof listChatChannels>>,
-  contacts: Array<{ unread_count: number }>
+  contacts: Array<{ unread_count: number }>,
+  externalContacts: Array<{ unread_count: number }> = []
 ): { total_unread: number; general_unread: number } {
   let total_unread = 0;
   let general_unread = 0;
@@ -67,7 +70,27 @@ function summarizeChatUnread(
     if (c.peer_id === CHAT_GENERAL_PEER_ID) general_unread = c.unread_count;
   }
   for (const c of contacts) total_unread += c.unread_count;
+  for (const c of externalContacts) total_unread += c.unread_count;
   return { total_unread, general_unread };
+}
+
+async function enrichContactsWithPresence(
+  db: Awaited<ReturnType<typeof getDb>>,
+  contacts: Awaited<ReturnType<typeof listChatContacts>>,
+  externalContacts: Awaited<ReturnType<typeof listChatExternalContacts>>
+) {
+  const allIds = [...contacts.map((c) => c.id), ...externalContacts.map((c) => c.id)];
+  const presenceMap = await getUsersPresenceStatus(db, allIds);
+  const enriched = contacts.map((c) => ({
+    ...c,
+    presencia: presenceMap[c.id] ?? defaultPresence(c.id),
+  }));
+  const enrichedExternal = externalContacts.map((c) => ({
+    ...c,
+    presencia: presenceMap[c.id] ?? defaultPresence(c.id),
+  }));
+  const online_count = [...enriched, ...enrichedExternal].filter((c) => c.presencia.online).length;
+  return { enriched, enrichedExternal, online_count };
 }
 
 export function registerChatRoutes(app: Express): void {
@@ -91,28 +114,30 @@ export function registerChatRoutes(app: Express): void {
     try {
       const db = getDb();
       await ensureTeamChannelsSynced(db);
-      const [channels, contacts, wallpapersByPeer, messages] = await Promise.all([
+      const [channels, contacts, externalContacts, wallpapersByPeer, messages] = await Promise.all([
         listChatChannels(db, userId),
         listChatContacts(db, userId),
+        listChatExternalContacts(db, userId),
         listUserChatWallpapers(db, userId),
         listChatMessages(db, userId, peerId, { limit }),
       ]);
-      const presenceMap = await getUsersPresenceStatus(
+      const { enriched, enrichedExternal, online_count } = await enrichContactsWithPresence(
         db,
-        contacts.map((c) => c.id)
+        contacts,
+        externalContacts
       );
-      const enriched = contacts.map((c) => ({
-        ...c,
-        presencia: presenceMap[c.id] ?? defaultPresence(c.id),
-      }));
-      const { total_unread, general_unread } = summarizeChatUnread(channels, enriched);
-      const online_count = enriched.filter((c) => c.presencia.online).length;
+      const { total_unread, general_unread } = summarizeChatUnread(
+        channels,
+        enriched,
+        enrichedExternal
+      );
 
       res.json({
         ok: true,
         data: {
           channels,
           contacts: enriched,
+          external_contacts: enrichedExternal,
           wallpapers: { presets: CHAT_WALLPAPER_PRESETS, by_peer: wallpapersByPeer },
           messages,
           total_unread,
@@ -301,25 +326,27 @@ export function registerChatRoutes(app: Express): void {
     try {
       const db = getDb();
       await ensureTeamChannelsSynced(db);
-      const [contacts, channels] = await Promise.all([
+      const [contacts, externalContacts, channels] = await Promise.all([
         listChatContacts(db, userId),
+        listChatExternalContacts(db, userId),
         listChatChannels(db, userId),
       ]);
-      const presenceMap = await getUsersPresenceStatus(
+      const { enriched, enrichedExternal, online_count } = await enrichContactsWithPresence(
         db,
-        contacts.map((c) => c.id)
+        contacts,
+        externalContacts
       );
-      const enriched = contacts.map((c) => ({
-        ...c,
-        presencia: presenceMap[c.id] ?? defaultPresence(c.id),
-      }));
-      const { total_unread, general_unread } = summarizeChatUnread(channels, enriched);
-      const online_count = enriched.filter((c) => c.presencia.online).length;
+      const { total_unread, general_unread } = summarizeChatUnread(
+        channels,
+        enriched,
+        enrichedExternal
+      );
       res.json({
         ok: true,
         data: {
           channels,
           contacts: enriched,
+          external_contacts: enrichedExternal,
           general_unread,
           total_unread,
           online_count,
@@ -376,8 +403,11 @@ export function registerChatRoutes(app: Express): void {
 
     try {
       const db = getDb();
-      const contacts = await listChatContacts(db, userId);
-      const ids = contacts.map((c) => c.id);
+      const [contacts, externalContacts] = await Promise.all([
+        listChatContacts(db, userId),
+        listChatExternalContacts(db, userId),
+      ]);
+      const ids = [...contacts.map((c) => c.id), ...externalContacts.map((c) => c.id)];
       const users = await getUsersPresenceStatus(db, ids);
       const online_count = Object.values(users).filter((p) => p.online).length;
       res.json({ ok: true, data: { users, online_count } });
@@ -426,6 +456,31 @@ export function registerChatRoutes(app: Express): void {
       res.status(400).json({
         ok: false,
         error: e instanceof Error ? e.message : "Error al guardar fondo",
+      });
+    }
+  });
+
+  app.post("/api/chat/contacts/external", async (req, res) => {
+    const userId = requireUser(req, res);
+    if (userId === null) return;
+
+    const email = String(req.body?.email ?? "").trim();
+    try {
+      const contact = await addChatExternalContactByEmail(getDb(), userId, email);
+      const presenceMap = await getUsersPresenceStatus(getDb(), [contact.id]);
+      res.status(201).json({
+        ok: true,
+        data: {
+          contact: {
+            ...contact,
+            presencia: presenceMap[contact.id] ?? defaultPresence(contact.id),
+          },
+        },
+      });
+    } catch (e) {
+      res.status(400).json({
+        ok: false,
+        error: e instanceof Error ? e.message : "No se pudo agregar el contacto",
       });
     }
   });

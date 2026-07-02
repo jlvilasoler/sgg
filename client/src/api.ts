@@ -3416,6 +3416,7 @@ export async function fetchChatUnread(): Promise<ChatUnreadSummary> {
 export async function fetchChatContacts(): Promise<{
   channels: ChatChannel[];
   contacts: ChatContact[];
+  external_contacts: ChatContact[];
   general_unread: number;
   total_unread: number;
   online_count: number;
@@ -3424,12 +3425,21 @@ export async function fetchChatContacts(): Promise<{
     data: {
       channels: ChatChannel[];
       contacts: ChatContact[];
+      external_contacts: ChatContact[];
       general_unread: number;
       total_unread: number;
       online_count: number;
     };
   }>("/chat/contacts");
   return json.data;
+}
+
+export async function agregarChatContactoExterno(email: string): Promise<ChatContact> {
+  const json = await request<{ data: { contact: ChatContact } }>("/chat/contacts/external", {
+    method: "POST",
+    body: JSON.stringify({ email }),
+  });
+  return json.data.contact;
 }
 
 export async function fetchChatPresence(): Promise<{
@@ -3474,6 +3484,7 @@ export async function guardarChatWallpaper(
 export async function fetchChatBootstrap(peerId = 0, limit = 50): Promise<{
   channels: ChatChannel[];
   contacts: ChatContact[];
+  external_contacts: ChatContact[];
   wallpapers: { presets: Array<{ id: string; label: string }>; by_peer: Record<number, string> };
   messages: ChatMessage[];
   total_unread: number;
@@ -3488,6 +3499,7 @@ export async function fetchChatBootstrap(peerId = 0, limit = 50): Promise<{
     data: {
       channels: ChatChannel[];
       contacts: ChatContact[];
+      external_contacts: ChatContact[];
       wallpapers: { presets: Array<{ id: string; label: string }>; by_peer: Record<number, string> };
       messages: ChatMessage[];
       total_unread: number;

@@ -9,10 +9,15 @@ export function isGroupChannelPeer(peerId: number): boolean {
 export function peerTabLabel(
   peerId: number,
   channels: Array<{ peer_id: number; nombre: string }>,
-  contacts: Array<{ id: number; nombre: string }>
+  contacts: Array<{ id: number; nombre: string }>,
+  externalContacts: Array<{ id: number; nombre: string }> = []
 ): string {
   if (isDirectMessagePeer(peerId)) {
-    return contacts.find((c) => c.id === peerId)?.nombre ?? "Chat";
+    return (
+      contacts.find((c) => c.id === peerId)?.nombre ??
+      externalContacts.find((c) => c.id === peerId)?.nombre ??
+      "Chat"
+    );
   }
   return channels.find((c) => c.peer_id === peerId)?.nombre ?? "Canal";
 }

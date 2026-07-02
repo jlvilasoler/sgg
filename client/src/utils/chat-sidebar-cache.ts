@@ -4,6 +4,7 @@ import type { ChatChannel, ChatContact } from "../types";
 export interface ChatSidebarCache {
   channels: ChatChannel[];
   contacts: ChatContact[];
+  external_contacts: ChatContact[];
   general_unread: number;
   total_unread: number;
   online_count: number;
@@ -39,6 +40,7 @@ export async function prefetchChatSidebar(force = false): Promise<ChatSidebarCac
     const entry: ChatSidebarCache = {
       channels: data.channels,
       contacts: data.contacts,
+      external_contacts: data.external_contacts ?? [],
       general_unread: data.general_unread,
       total_unread: data.total_unread,
       online_count: data.online_count,

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  agregarChatContactoExterno,
   buscarChatMensajes,
   crearChatCanal,
   enviarChatAdjunto,
@@ -20,6 +21,7 @@ import { isDirectMessagePeer, isGroupChannelPeer, peerTabLabel } from "../utils/
 import { playChatNotificationSound } from "../utils/chat-notification-sound";
 import {
   getChatSidebarCache,
+  invalidateChatSidebarCache,
   prefetchChatSidebar,
   setChatSidebarCache,
 } from "../utils/chat-sidebar-cache";
@@ -119,6 +121,7 @@ export default function ChatInterno({
   const [channels, setChannels] = useState<ChatChannel[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [contacts, setContacts] = useState<ChatContact[]>([]);
+  const [externalContacts, setExternalContacts] = useState<ChatContact[]>([]);
   const [onlineCount, setOnlineCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
@@ -145,6 +148,9 @@ export default function ChatInterno({
   const [renameDraft, setRenameDraft] = useState("");
   const [creatingChannel, setCreatingChannel] = useState(false);
   const [newChannelName, setNewChannelName] = useState("");
+  const [addingExternal, setAddingExternal] = useState(false);
+  const [externalEmail, setExternalEmail] = useState("");
+  const [addingExternalBusy, setAddingExternalBusy] = useState(false);
   const [incomingAlert, setIncomingAlert] = useState(false);
   const [incomingSender, setIncomingSender] = useState<string | null>(null);
 
@@ -201,6 +207,11 @@ export default function ChatInterno({
               c.id === targetPeer ? { ...c, unread_count: 0 } : c
             )
           );
+          setExternalContacts((prev) =>
+            prev.map((c) =>
+              c.id === targetPeer ? { ...c, unread_count: 0 } : c
+            )
+          );
         }
       } catch {
         /* no bloquear */
@@ -218,11 +229,13 @@ export default function ChatInterno({
     prevTotalUnreadRef.current = data.total_unread;
     setChannels(data.channels);
     setContacts(data.contacts);
+    setExternalContacts(data.external_contacts ?? []);
     setOnlineCount(data.online_count);
     onUnreadChange?.(data.total_unread);
     setChatSidebarCache({
       channels: data.channels,
       contacts: data.contacts,
+      external_contacts: data.external_contacts ?? [],
       general_unread: data.general_unread,
       total_unread: data.total_unread,
       online_count: data.online_count,
@@ -235,6 +248,12 @@ export default function ChatInterno({
       const data = await fetchChatPresence();
       setOnlineCount(data.online_count);
       setContacts((prev) =>
+        prev.map((c) => ({
+          ...c,
+          presencia: data.users[c.id] ?? c.presencia,
+        }))
+      );
+      setExternalContacts((prev) =>
         prev.map((c) => ({
           ...c,
           presencia: data.users[c.id] ?? c.presencia,
@@ -375,6 +394,7 @@ export default function ChatInterno({
             bootstrappedRef.current = true;
             setChannels(cached.channels);
             setContacts(cached.contacts);
+            setExternalContacts(cached.external_contacts ?? []);
             setOnlineCount(cached.online_count);
             setWallpaperByPeer({});
             setMessages([]);
@@ -393,6 +413,7 @@ export default function ChatInterno({
           bootstrappedRef.current = true;
           setChannels(data.channels);
           setContacts(data.contacts);
+          setExternalContacts(data.external_contacts ?? []);
           setOnlineCount(data.online_count);
           setWallpaperByPeer({});
           setMessages([]);
@@ -408,6 +429,7 @@ export default function ChatInterno({
           bootstrappedRef.current = true;
           setChannels(data.channels);
           setContacts(data.contacts);
+          setExternalContacts(data.external_contacts ?? []);
           setOnlineCount(data.online_count);
           setWallpaperByPeer(data.wallpapers.by_peer);
           setMessages(data.messages);
@@ -419,6 +441,7 @@ export default function ChatInterno({
           setChatSidebarCache({
             channels: data.channels,
             contacts: data.contacts,
+            external_contacts: data.external_contacts ?? [],
             general_unread: data.general_unread,
             total_unread: data.total_unread,
             online_count: data.online_count,
@@ -615,6 +638,30 @@ export default function ChatInterno({
     }
   };
 
+  const agregarContactoExterno = async () => {
+    const email = externalEmail.trim();
+    if (!email || addingExternalBusy) return;
+    setAddingExternalBusy(true);
+    setError(null);
+    try {
+      const contact = await agregarChatContactoExterno(email);
+      setExternalContacts((prev) => {
+        if (prev.some((c) => c.id === contact.id)) {
+          return prev.map((c) => (c.id === contact.id ? contact : c));
+        }
+        return [...prev, contact];
+      });
+      setAddingExternal(false);
+      setExternalEmail("");
+      invalidateChatSidebarCache();
+      openChannel(contact.id);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "No se pudo agregar el contacto");
+    } finally {
+      setAddingExternalBusy(false);
+    }
+  };
+
   const guardarRenombre = async () => {
     if (renamingChannelId === null) return;
     const nombre = renameDraft.trim();
@@ -644,9 +691,13 @@ export default function ChatInterno({
     isGroupChannelPeer(peerId) ? channels.find((c) => c.peer_id === peerId) ?? null : null;
 
   const peerContact =
-    isDirectMessagePeer(peerId) ? contacts.find((c) => c.id === peerId) ?? null : null;
+    isDirectMessagePeer(peerId)
+      ? contacts.find((c) => c.id === peerId) ??
+        externalContacts.find((c) => c.id === peerId) ??
+        null
+      : null;
 
-  const peerLabel = peerTabLabel(peerId, channels, contacts);
+  const peerLabel = peerTabLabel(peerId, channels, contacts, externalContacts);
   const currentWallpaper = wallpaperByPeer[peerId] ?? "default";
   const wallpaperClass = chatWallpaperClass(currentWallpaper);
 
@@ -656,9 +707,50 @@ export default function ChatInterno({
         ? `${onlineCount} en línea ahora · canal del equipo`
         : "Canal del equipo · todos los usuarios"
       : "Canal grupal · todos los usuarios"
-    : formatChatPresence(peerContact?.presencia);
+    : peerContact && externalContacts.some((c) => c.id === peerContact.id)
+      ? `${peerContact.rol_label} · ${formatChatPresence(peerContact.presencia)}`
+      : formatChatPresence(peerContact?.presencia);
 
-  const onlineContacts = contacts.filter((c) => c.presencia.online);
+  const onlineContacts = [...contacts, ...externalContacts].filter((c) => c.presencia.online);
+
+  const renderDmContact = (c: ChatContact, opts?: { external?: boolean }) => (
+    <button
+      key={c.id}
+      type="button"
+      className={`chat-interno-channel${peerId === c.id ? " chat-interno-channel--active" : ""}`}
+      onClick={() => openChannel(c.id)}
+    >
+      <span
+        className={`chat-interno-avatar-wrap${
+          c.presencia.online
+            ? " chat-interno-avatar-wrap--online"
+            : " chat-interno-avatar-wrap--offline"
+        }`}
+      >
+        <UserAvatar
+          nombre={c.nombre}
+          avatar={c.avatar}
+          variant="chat-channel"
+        />
+      </span>
+      <span className="chat-interno-channel-body">
+        <span className="chat-interno-channel-name">{c.nombre}</span>
+        <span
+          className={`chat-interno-channel-status ${
+            opts?.external ? "" : presenceStatusClass(c.presencia)
+          }`}
+        >
+          {opts?.external ? c.rol_label : formatChatPresence(c.presencia)}
+        </span>
+        <span className="chat-interno-channel-preview">
+          {c.last_message ? truncar(c.last_message, 42) : "Sin mensajes"}
+        </span>
+      </span>
+      {c.unread_count > 0 && (
+        <span className="chat-interno-badge">{c.unread_count > 99 ? "99+" : c.unread_count}</span>
+      )}
+    </button>
+  );
 
   useEffect(() => {
     draftByPeerRef.current[peerId] = draft;
@@ -875,42 +967,58 @@ export default function ChatInterno({
 
         <p className="chat-interno-sidebar-label">Personas</p>
         <div className="chat-interno-contacts">
-          {contacts.map((c) => (
+          {contacts.map((c) => renderDmContact(c))}
+        </div>
+
+        <div className="chat-interno-sidebar-section-head">
+          <p className="chat-interno-sidebar-label">Otras cuentas</p>
+          <button
+            type="button"
+            className="chat-interno-channel-add"
+            onClick={() => {
+              setAddingExternal((v) => !v);
+              setExternalEmail("");
+            }}
+            title="Agregar usuario de otra cuenta"
+            aria-label="Agregar contacto externo"
+          >
+            +
+          </button>
+        </div>
+
+        {addingExternal && (
+          <div className="chat-interno-channel-create">
+            <input
+              type="email"
+              className="chat-interno-channel-create-input"
+              placeholder="Correo del usuario…"
+              value={externalEmail}
+              maxLength={120}
+              onChange={(e) => setExternalEmail(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") void agregarContactoExterno();
+                if (e.key === "Escape") setAddingExternal(false);
+              }}
+            />
             <button
-              key={c.id}
               type="button"
-              className={`chat-interno-channel${peerId === c.id ? " chat-interno-channel--active" : ""}`}
-              onClick={() => openChannel(c.id)}
+              className="btn btn-sm btn-primary"
+              disabled={addingExternalBusy}
+              onClick={() => void agregarContactoExterno()}
             >
-              <span
-                className={`chat-interno-avatar-wrap${
-                  c.presencia.online
-                    ? " chat-interno-avatar-wrap--online"
-                    : " chat-interno-avatar-wrap--offline"
-                }`}
-              >
-                <UserAvatar
-                  nombre={c.nombre}
-                  avatar={c.avatar}
-                  variant="chat-channel"
-                />
-              </span>
-              <span className="chat-interno-channel-body">
-                <span className="chat-interno-channel-name">{c.nombre}</span>
-                <span
-                  className={`chat-interno-channel-status ${presenceStatusClass(c.presencia)}`}
-                >
-                  {formatChatPresence(c.presencia)}
-                </span>
-                <span className="chat-interno-channel-preview">
-                  {c.last_message ? truncar(c.last_message, 42) : "Sin mensajes"}
-                </span>
-              </span>
-              {c.unread_count > 0 && (
-                <span className="chat-interno-badge">{c.unread_count > 99 ? "99+" : c.unread_count}</span>
-              )}
+              {addingExternalBusy ? "…" : "Agregar"}
             </button>
-          ))}
+          </div>
+        )}
+
+        <div className="chat-interno-contacts chat-interno-contacts--external">
+          {externalContacts.length === 0 ? (
+            <p className="chat-interno-contacts-empty">
+              Agregá usuarios de otras cuentas por correo electrónico.
+            </p>
+          ) : (
+            externalContacts.map((c) => renderDmContact(c, { external: true }))
+          )}
         </div>
       </aside>
 
@@ -1109,13 +1217,13 @@ export default function ChatInterno({
                   className="chat-interno-tab-btn"
                   onClick={() => openChannel(tabPeer)}
                 >
-                  {peerTabLabel(tabPeer, channels, contacts)}
+                  {peerTabLabel(tabPeer, channels, contacts, externalContacts)}
                 </button>
                 <button
                   type="button"
                   className="chat-interno-tab-close"
                   onClick={() => closeTab(tabPeer)}
-                  aria-label={`Cerrar ${peerTabLabel(tabPeer, channels, contacts)}`}
+                  aria-label={`Cerrar ${peerTabLabel(tabPeer, channels, contacts, externalContacts)}`}
                 >
                   ✕
                 </button>

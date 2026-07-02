@@ -20735,6 +20735,18 @@ button.sg-kpi-card:disabled {
   width: 0;
 }
 
+.chat-interno-contacts--external {
+  flex: 0 1 auto;
+  max-height: 38%;
+}
+
+.chat-interno-contacts-empty {
+  margin: 0.2rem 0.85rem 0.5rem;
+  font-size: 0.72rem;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.52);
+}
+
 .chat-interno-channel {
   display: flex;
   align-items: center;

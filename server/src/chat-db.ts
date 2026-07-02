@@ -163,6 +163,25 @@ export async function initChatTables(db: Db): Promise<void> {
 
   await migrateChatAttachmentColumns(db);
   await initChatChannelTables(db);
+
+  await db.prepare(
+    `CREATE TABLE IF NOT EXISTS CHAT_EXTERNAL_CONTACTS (
+      id SERIAL PRIMARY KEY,
+      owner_user_id INTEGER NOT NULL REFERENCES USERS(id) ON DELETE CASCADE,
+      contact_user_id INTEGER NOT NULL REFERENCES USERS(id) ON DELETE CASCADE,
+      creado_en TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE(owner_user_id, contact_user_id)
+    )`
+  ).run();
+
+  await db.prepare(
+    `CREATE INDEX IF NOT EXISTS idx_chat_external_contacts_owner
+     ON CHAT_EXTERNAL_CONTACTS(owner_user_id)`
+  ).run();
+}
+
+function normalizeChatEmail(email: string): string {
+  return email.trim().toLowerCase();
 }
 
 async function getLastReadId(db: Db, userId: number, peerId: number): Promise<number> {
@@ -186,20 +205,61 @@ function rowToDto(row: SenderRow, currentUserId: number): ChatMessageDto {
   };
 }
 
+async function isDmPeerAllowed(
+  db: Db,
+  userId: number,
+  peerId: number
+): Promise<boolean> {
+  if (peerId <= 0 || peerId === userId) return false;
+
+  const peer = (await db
+    .prepare("SELECT id, empresa_id, activo, email, rol FROM USERS WHERE id = ?")
+    .get(peerId)) as
+    | { id: number; empresa_id: number | null; activo: number; email: string; rol: string }
+    | undefined;
+  if (!peer || Number(peer.activo) !== 1) return false;
+
+  const userScope = await getChatUserScope(db, userId);
+  if (userScope.cuentaId == null) return false;
+
+  const peerEsSuperAdmin = await isPlatformSuperAdmin(db, peer);
+  const peerCuentaId = await resolveCuentaMadreIdForUser(db, {
+    id: peer.id,
+    email: peer.email,
+    es_super_admin: peerEsSuperAdmin,
+    empresa_id: peer.empresa_id,
+  });
+
+  if (peerCuentaId === userScope.cuentaId) return true;
+
+  const externalLink = (await db
+    .prepare(
+      `SELECT 1 AS ok FROM CHAT_EXTERNAL_CONTACTS
+       WHERE (owner_user_id = ? AND contact_user_id = ?)
+          OR (owner_user_id = ? AND contact_user_id = ?)
+       LIMIT 1`
+    )
+    .get(userId, peerId, peerId, userId)) as { ok: number } | undefined;
+  if (externalLink) return true;
+
+  const priorDm = (await db
+    .prepare(
+      `SELECT 1 AS ok FROM CHAT_MESSAGES
+       WHERE recipient_id > 0
+         AND ((sender_id = ? AND recipient_id = ?) OR (sender_id = ? AND recipient_id = ?))
+       LIMIT 1`
+    )
+    .get(userId, peerId, peerId, userId)) as { ok: number } | undefined;
+  return Boolean(priorDm);
+}
+
 async function assertValidPeer(db: Db, senderId: number, recipientId: number): Promise<void> {
   if (recipientId <= 0) {
     await assertUserCanAccessGroupPeer(db, senderId, recipientId);
     return;
   }
-  const scope = await getChatUserScope(db, senderId);
-  const params: Record<string, number> = { recipientId, senderId };
-  const cuentaFilter = cuentaScopeSql("u", scope.cuentaId, params);
-  const peer = (await db
-    .prepare(
-      `SELECT id FROM USERS u WHERE u.id = @recipientId AND u.activo = 1 AND u.id != @senderId${cuentaFilter}`
-    )
-    .get(params)) as { id: number } | undefined;
-  if (!peer) {
+  const allowed = await isDmPeerAllowed(db, senderId, recipientId);
+  if (!allowed) {
     throw new Error("Usuario no válido para mensaje directo");
   }
 }
@@ -479,6 +539,22 @@ export async function getChatUnreadSummary(
     userId6: userId,
   };
   const dmCuentaFilter = cuentaScopeSql("peer", scope.cuentaId, dmParams);
+  const dmExternalFilter = scope.cuentaId != null
+    ? ` OR EXISTS (
+         SELECT 1 FROM CHAT_EXTERNAL_CONTACTS ec
+         WHERE (ec.owner_user_id = @userId AND ec.contact_user_id = peer.id)
+            OR (ec.owner_user_id = peer.id AND ec.contact_user_id = @userId)
+       )
+       OR (
+         (peer.empresa_id IS NULL OR peer.empresa_id != @cuentaId)
+         AND EXISTS (
+           SELECT 1 FROM CHAT_MESSAGES mx
+           WHERE mx.recipient_id > 0
+             AND ((mx.sender_id = @userId AND mx.recipient_id = peer.id)
+               OR (mx.sender_id = peer.id AND mx.recipient_id = @userId))
+         )
+       )`
+    : "";
 
   const channelRows = (await db
     .prepare(
@@ -506,8 +582,7 @@ export async function getChatUnreadSummary(
          AND (m.sender_id = @userId5 OR m.recipient_id = @userId6)
          AND m.id > COALESCE(rs.last_read_message_id, 0)
          AND m.sender_id != @userId6
-         ${dmCuentaFilter}
-       GROUP BY 1`
+         AND (1=1${dmCuentaFilter}${dmExternalFilter})`
     )
     .all(dmParams)) as Array<{
     peer_id: number;
@@ -524,6 +599,100 @@ export async function getChatUnreadSummary(
   for (const r of dmRows) total += Number(r.n ?? 0);
   return { total, general };
 }
+
+type ContactUserRow = {
+  id: number;
+  nombre: string;
+  rol: string;
+  cuenta_nombre?: string | null;
+  avatar_tipo?: string;
+  avatar_archivo?: string;
+  actualizado_en?: string;
+  last_body: string | null;
+  last_creado_en: string | null;
+  last_attachment_tipo: string | null;
+  last_attachment_nombre: string | null;
+  last_attachment_mime: string | null;
+  last_attachment_tamano: number | null;
+  last_attachment_archivo: string | null;
+  unread_n: number | string;
+};
+
+function mapContactRows(
+  rows: ContactUserRow[],
+  opts?: { useCuentaLabel?: boolean }
+): Array<Omit<ChatContactDto, "presencia">> {
+  const contacts: Array<Omit<ChatContactDto, "presencia">> = rows.map((u) => {
+    const last =
+      u.last_body != null
+        ? {
+            body: u.last_body,
+            creado_en: u.last_creado_en ?? "",
+            attachment_tipo: u.last_attachment_tipo,
+            attachment_nombre: u.last_attachment_nombre,
+            attachment_mime: u.last_attachment_mime,
+            attachment_tamano: u.last_attachment_tamano,
+            attachment_archivo: u.last_attachment_archivo,
+          }
+        : null;
+    const rol = u.rol as keyof typeof ROL_LABELS;
+    const cuentaLabel = u.cuenta_nombre?.trim();
+    return {
+      id: u.id,
+      nombre: u.nombre,
+      rol_label: opts?.useCuentaLabel && cuentaLabel
+        ? cuentaLabel
+        : ROL_LABELS[rol] ?? u.rol,
+      avatar: avatarDtoFromRow(u.id, u),
+      unread_count: Number(u.unread_n ?? 0),
+      last_message: last ? previewTextFromRow(last) : null,
+      last_message_at: last?.creado_en ?? null,
+    };
+  });
+
+  contacts.sort((a, b) => {
+    if (a.unread_count !== b.unread_count) return b.unread_count - a.unread_count;
+    const ta = a.last_message_at ? new Date(a.last_message_at).getTime() : 0;
+    const tb = b.last_message_at ? new Date(b.last_message_at).getTime() : 0;
+    if (ta !== tb) return tb - ta;
+    return a.nombre.localeCompare(b.nombre, "es");
+  });
+
+  return contacts;
+}
+
+const CONTACT_LIST_SELECT = `u.id, u.nombre, u.rol, u.avatar_tipo, u.avatar_archivo, u.actualizado_en,
+              lm.body AS last_body,
+              lm.creado_en AS last_creado_en,
+              lm.attachment_tipo AS last_attachment_tipo,
+              lm.attachment_nombre AS last_attachment_nombre,
+              lm.attachment_mime AS last_attachment_mime,
+              lm.attachment_tamano AS last_attachment_tamano,
+              lm.attachment_archivo AS last_attachment_archivo,
+              COALESCE(ur.unread_n, 0) AS unread_n`;
+
+const CONTACT_LAST_MSG_LATERAL = `LEFT JOIN LATERAL (
+         SELECT m.body, m.creado_en, m.attachment_tipo, m.attachment_nombre,
+                m.attachment_mime, m.attachment_tamano, m.attachment_archivo
+         FROM CHAT_MESSAGES m
+         WHERE m.recipient_id > 0
+           AND ((m.sender_id = @userId AND m.recipient_id = u.id) OR (m.sender_id = u.id AND m.recipient_id = @userId2))
+         ORDER BY m.id DESC
+         LIMIT 1
+       ) lm ON TRUE`;
+
+const CONTACT_UNREAD_LATERAL = `LEFT JOIN LATERAL (
+         SELECT COUNT(*)::bigint AS unread_n
+         FROM CHAT_MESSAGES m
+         WHERE m.recipient_id > 0
+           AND m.id > COALESCE((
+             SELECT rs.last_read_message_id
+             FROM CHAT_READ_STATE rs
+             WHERE rs.user_id = @userId3 AND rs.peer_id = u.id
+           ), 0)
+           AND m.sender_id != @userId4
+           AND ((m.sender_id = @userId5 AND m.recipient_id = u.id) OR (m.sender_id = u.id AND m.recipient_id = @userId6))
+       ) ur ON TRUE`;
 
 export async function listChatContacts(
   db: Db,
@@ -543,91 +712,154 @@ export async function listChatContacts(
 
   const rows = (await db
     .prepare(
-      `SELECT u.id, u.nombre, u.rol, u.avatar_tipo, u.avatar_archivo, u.actualizado_en,
-              lm.body AS last_body,
-              lm.creado_en AS last_creado_en,
-              lm.attachment_tipo AS last_attachment_tipo,
-              lm.attachment_nombre AS last_attachment_nombre,
-              lm.attachment_mime AS last_attachment_mime,
-              lm.attachment_tamano AS last_attachment_tamano,
-              lm.attachment_archivo AS last_attachment_archivo,
-              COALESCE(ur.unread_n, 0) AS unread_n
+      `SELECT ${CONTACT_LIST_SELECT}
        FROM USERS u
-       LEFT JOIN LATERAL (
-         SELECT m.body, m.creado_en, m.attachment_tipo, m.attachment_nombre,
-                m.attachment_mime, m.attachment_tamano, m.attachment_archivo
-         FROM CHAT_MESSAGES m
-         WHERE m.recipient_id > 0
-           AND ((m.sender_id = @userId AND m.recipient_id = u.id) OR (m.sender_id = u.id AND m.recipient_id = @userId2))
-         ORDER BY m.id DESC
-         LIMIT 1
-       ) lm ON TRUE
-       LEFT JOIN LATERAL (
-         SELECT COUNT(*)::bigint AS unread_n
-         FROM CHAT_MESSAGES m
-         WHERE m.recipient_id > 0
-           AND m.id > COALESCE((
-             SELECT rs.last_read_message_id
-             FROM CHAT_READ_STATE rs
-             WHERE rs.user_id = @userId3 AND rs.peer_id = u.id
-           ), 0)
-           AND m.sender_id != @userId4
-           AND ((m.sender_id = @userId5 AND m.recipient_id = u.id) OR (m.sender_id = u.id AND m.recipient_id = @userId6))
-       ) ur ON TRUE
+       ${CONTACT_LAST_MSG_LATERAL}
+       ${CONTACT_UNREAD_LATERAL}
        WHERE u.activo = 1 AND u.id != @userId7${cuentaFilter}
        ORDER BY LOWER(u.nombre) ASC`
     )
-    .all(params)) as Array<{
-    id: number;
-    nombre: string;
-    rol: string;
-    avatar_tipo?: string;
-    avatar_archivo?: string;
-    actualizado_en?: string;
-    last_body: string | null;
-    last_creado_en: string | null;
-    last_attachment_tipo: string | null;
-    last_attachment_nombre: string | null;
-    last_attachment_mime: string | null;
-    last_attachment_tamano: number | null;
-    last_attachment_archivo: string | null;
-    unread_n: number | string;
-  }>;
+    .all(params)) as ContactUserRow[];
 
-  const contacts: Array<Omit<ChatContactDto, "presencia">> = rows.map((u) => {
-    const last =
-      u.last_body != null
-        ? {
-            body: u.last_body,
-            creado_en: u.last_creado_en ?? "",
-            attachment_tipo: u.last_attachment_tipo,
-            attachment_nombre: u.last_attachment_nombre,
-            attachment_mime: u.last_attachment_mime,
-            attachment_tamano: u.last_attachment_tamano,
-            attachment_archivo: u.last_attachment_archivo,
-          }
-        : null;
-    const rol = u.rol as keyof typeof ROL_LABELS;
-    return {
-      id: u.id,
-      nombre: u.nombre,
-      rol_label: ROL_LABELS[rol] ?? u.rol,
-      avatar: avatarDtoFromRow(u.id, u),
-      unread_count: Number(u.unread_n ?? 0),
-      last_message: last ? previewTextFromRow(last) : null,
-      last_message_at: last?.creado_en ?? null,
-    };
+  return mapContactRows(rows);
+}
+
+export async function listChatExternalContacts(
+  db: Db,
+  userId: number
+): Promise<Array<Omit<ChatContactDto, "presencia">>> {
+  const scope = await getChatUserScope(db, userId);
+  if (scope.cuentaId == null) return [];
+
+  const params: Record<string, number> = {
+    userId,
+    userId2: userId,
+    userId3: userId,
+    userId4: userId,
+    userId5: userId,
+    userId6: userId,
+    userId7: userId,
+    cuentaId: scope.cuentaId,
+  };
+
+  const rows = (await db
+    .prepare(
+      `SELECT ${CONTACT_LIST_SELECT}, cmadre.nombre AS cuenta_nombre
+       FROM USERS u
+       LEFT JOIN EMPRESAS_CUENTA cmadre ON cmadre.id = u.empresa_id
+       ${CONTACT_LAST_MSG_LATERAL}
+       ${CONTACT_UNREAD_LATERAL}
+       WHERE u.activo = 1
+         AND u.id != @userId7
+         AND (u.empresa_id IS NULL OR u.empresa_id != @cuentaId)
+         AND (
+           EXISTS (
+             SELECT 1 FROM CHAT_EXTERNAL_CONTACTS ec
+             WHERE ec.owner_user_id = @userId AND ec.contact_user_id = u.id
+           )
+           OR EXISTS (
+             SELECT 1 FROM CHAT_MESSAGES m
+             WHERE m.recipient_id > 0
+               AND ((m.sender_id = @userId5 AND m.recipient_id = u.id)
+                 OR (m.sender_id = u.id AND m.recipient_id = @userId6))
+           )
+         )
+       ORDER BY LOWER(u.nombre) ASC`
+    )
+    .all(params)) as ContactUserRow[];
+
+  return mapContactRows(rows, { useCuentaLabel: true });
+}
+
+export async function addChatExternalContactByEmail(
+  db: Db,
+  ownerUserId: number,
+  rawEmail: string
+): Promise<Omit<ChatContactDto, "presencia">> {
+  const email = normalizeChatEmail(rawEmail);
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    throw new Error("Ingresá un correo electrónico válido");
+  }
+
+  const ownerScope = await getChatUserScope(db, ownerUserId);
+  if (ownerScope.cuentaId == null) {
+    throw new Error("No podés agregar contactos externos");
+  }
+
+  const target = (await db
+    .prepare(
+      `SELECT id, nombre, rol, empresa_id, activo, email, avatar_tipo, avatar_archivo, actualizado_en
+       FROM USERS
+       WHERE LOWER(TRIM(email)) = ?
+       LIMIT 1`
+    )
+    .get(email)) as
+    | {
+        id: number;
+        nombre: string;
+        rol: string;
+        empresa_id: number | null;
+        activo: number;
+        email: string;
+        avatar_tipo?: string;
+        avatar_archivo?: string;
+        actualizado_en?: string;
+      }
+    | undefined;
+
+  if (!target || Number(target.activo) !== 1) {
+    throw new Error("No hay un usuario activo con ese correo");
+  }
+  if (target.id === ownerUserId) {
+    throw new Error("No podés agregarte a vos mismo");
+  }
+
+  const targetEsSuperAdmin = await isPlatformSuperAdmin(db, target);
+  const targetCuentaId = await resolveCuentaMadreIdForUser(db, {
+    id: target.id,
+    email: target.email,
+    es_super_admin: targetEsSuperAdmin,
+    empresa_id: target.empresa_id,
   });
 
-  contacts.sort((a, b) => {
-    if (a.unread_count !== b.unread_count) return b.unread_count - a.unread_count;
-    const ta = a.last_message_at ? new Date(a.last_message_at).getTime() : 0;
-    const tb = b.last_message_at ? new Date(b.last_message_at).getTime() : 0;
-    if (ta !== tb) return tb - ta;
-    return a.nombre.localeCompare(b.nombre, "es");
-  });
+  if (targetCuentaId === ownerScope.cuentaId) {
+    throw new Error("Ese usuario ya está en tu equipo (Personas)");
+  }
 
-  return contacts;
+  const existing = (await db
+    .prepare(
+      `SELECT 1 AS ok FROM CHAT_EXTERNAL_CONTACTS
+       WHERE owner_user_id = ? AND contact_user_id = ?
+       LIMIT 1`
+    )
+    .get(ownerUserId, target.id)) as { ok: number } | undefined;
+  if (existing) {
+    throw new Error("Ese usuario ya está en Otras cuentas");
+  }
+
+  await db
+    .prepare(
+      `INSERT INTO CHAT_EXTERNAL_CONTACTS (owner_user_id, contact_user_id)
+       VALUES (?, ?)
+       ON CONFLICT (owner_user_id, contact_user_id) DO NOTHING`
+    )
+    .run(ownerUserId, target.id);
+
+  const cuentaRow = targetCuentaId
+    ? ((await db
+        .prepare("SELECT nombre FROM EMPRESAS_CUENTA WHERE id = ?")
+        .get(targetCuentaId)) as { nombre: string } | undefined)
+    : undefined;
+
+  return {
+    id: target.id,
+    nombre: target.nombre,
+    rol_label: cuentaRow?.nombre?.trim() || "Otra cuenta",
+    avatar: avatarDtoFromRow(target.id, target),
+    unread_count: 0,
+    last_message: null,
+    last_message_at: null,
+  };
 }
 
 export async function searchChatMessages(
@@ -699,6 +931,22 @@ export async function searchChatMessages(
       limit,
     };
     const dmCuentaFilter = cuentaScopeSql("p", scope.cuentaId, searchParams as Record<string, number>);
+    const dmExternalFilter = scope.cuentaId != null
+      ? ` OR EXISTS (
+           SELECT 1 FROM CHAT_EXTERNAL_CONTACTS ec
+           WHERE (ec.owner_user_id = @userId AND ec.contact_user_id = p.id)
+              OR (ec.owner_user_id = p.id AND ec.contact_user_id = @userId)
+         )
+         OR (
+           (p.empresa_id IS NULL OR p.empresa_id != @cuentaId)
+           AND EXISTS (
+             SELECT 1 FROM CHAT_MESSAGES mx
+             WHERE mx.recipient_id > 0
+               AND ((mx.sender_id = @userId AND mx.recipient_id = p.id)
+                 OR (mx.sender_id = p.id AND mx.recipient_id = @userId))
+           )
+         )`
+      : "";
     rows = (await db
       .prepare(
         `SELECT m.*, ${SENDER_JOIN_FIELDS},
@@ -724,7 +972,8 @@ export async function searchChatMessages(
              JOIN CHAT_CHANNELS c2 ON c2.id = cm.channel_id
              WHERE c2.peer_id = m.recipient_id AND cm.user_id = @userId3
            ))
-           OR (m.recipient_id > 0 AND (m.sender_id = @userId4 OR m.recipient_id = @userId5)${dmCuentaFilter})
+           OR (m.recipient_id > 0 AND (m.sender_id = @userId4 OR m.recipient_id = @userId5)
+             AND (1=1${dmCuentaFilter}${dmExternalFilter}))
          )
          AND m.body ILIKE @pattern ESCAPE '\\'
          ORDER BY m.id DESC LIMIT @limit`
