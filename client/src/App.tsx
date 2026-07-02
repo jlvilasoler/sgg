@@ -38,6 +38,7 @@ import StockEquino from "./components/stock-equino/StockEquino";
 import DocumentosDigitales from "./components/DocumentosDigitales";
 import ChatPanel from "./components/ChatPanel";
 import ChatInterno from "./components/ChatInterno";
+import ChatExternalRequestHost from "./components/chat/ChatExternalRequestHost";
 import MiCuentaPanel from "./components/MiCuentaModal";
 import ConfirmDialogHost from "./components/ConfirmDialogHost";
 import { HeaderBackProvider } from "./header-back";
@@ -637,6 +638,16 @@ export default function App() {
           setChatOpen((open) => !open);
         }}
       />
+
+      {user && canAccessChat(user) && (
+        <ChatExternalRequestHost
+          enabled
+          onAccepted={(_requesterId, requesterNombre) => {
+            showToast(`Autorizaste a ${requesterNombre}. Ya pueden chatear.`, true);
+          }}
+        />
+      )}
+
       <ConfirmDialogHost />
     </div>
     </HeaderBackProvider>

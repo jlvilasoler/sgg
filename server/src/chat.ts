@@ -6,13 +6,16 @@ import { CHAT_ATTACHMENTS_DIR } from "./chat-attachments-db.js";
 import { getDb } from "./database.js";
 import {
   CHAT_GENERAL_PEER_ID,
+  acceptExternalContactRequest,
   addChatExternalContactByEmail,
   getChatUnreadSummary,
   listChatContacts,
   listChatExternalContacts,
   listChatMessages,
+  listPendingIncomingExternalRequests,
   listUserChatWallpapers,
   markChatRead,
+  rejectExternalContactRequest,
   searchChatMessages,
   sendChatMessage,
   sendChatMessageWithAttachment,
@@ -22,8 +25,10 @@ import {
 import {
   createChatChannel,
   ensureTeamChannelsSynced,
+  ensureUserTeamChannelMembership,
   listChatChannels,
   renameChatChannel,
+  resolveBootstrapGroupPeer,
 } from "./chat-channels-db.js";
 import { CHAT_WALLPAPER_PRESETS } from "./chat-wallpapers.js";
 import { getUsersPresenceStatus, type UserPresenceStatus } from "./user-presence.js";
@@ -114,13 +119,17 @@ export function registerChatRoutes(app: Express): void {
     try {
       const db = getDb();
       await ensureTeamChannelsSynced(db);
-      const [channels, contacts, externalContacts, wallpapersByPeer, messages] = await Promise.all([
+      await ensureUserTeamChannelMembership(db, userId);
+      const [channels, contacts, externalContacts, externalRequests, wallpapersByPeer] =
+        await Promise.all([
         listChatChannels(db, userId),
         listChatContacts(db, userId),
         listChatExternalContacts(db, userId),
+        listPendingIncomingExternalRequests(db, userId),
         listUserChatWallpapers(db, userId),
-        listChatMessages(db, userId, peerId, { limit }),
       ]);
+      peerId = resolveBootstrapGroupPeer(channels, peerId);
+      const messages = await listChatMessages(db, userId, peerId, { limit });
       const { enriched, enrichedExternal, online_count } = await enrichContactsWithPresence(
         db,
         contacts,
@@ -138,6 +147,7 @@ export function registerChatRoutes(app: Express): void {
           channels,
           contacts: enriched,
           external_contacts: enrichedExternal,
+          external_requests_pending: externalRequests,
           wallpapers: { presets: CHAT_WALLPAPER_PRESETS, by_peer: wallpapersByPeer },
           messages,
           total_unread,
@@ -326,9 +336,11 @@ export function registerChatRoutes(app: Express): void {
     try {
       const db = getDb();
       await ensureTeamChannelsSynced(db);
-      const [contacts, externalContacts, channels] = await Promise.all([
+      await ensureUserTeamChannelMembership(db, userId);
+      const [contacts, externalContacts, externalRequests, channels] = await Promise.all([
         listChatContacts(db, userId),
         listChatExternalContacts(db, userId),
+        listPendingIncomingExternalRequests(db, userId),
         listChatChannels(db, userId),
       ]);
       const { enriched, enrichedExternal, online_count } = await enrichContactsWithPresence(
@@ -347,6 +359,7 @@ export function registerChatRoutes(app: Express): void {
           channels,
           contacts: enriched,
           external_contacts: enrichedExternal,
+          external_requests_pending: externalRequests,
           general_unread,
           total_unread,
           online_count,
@@ -468,6 +481,7 @@ export function registerChatRoutes(app: Express): void {
     try {
       const contact = await addChatExternalContactByEmail(getDb(), userId, email);
       const presenceMap = await getUsersPresenceStatus(getDb(), [contact.id]);
+      const aceptada = contact.external_estado === "aceptada";
       res.status(201).json({
         ok: true,
         data: {
@@ -475,12 +489,80 @@ export function registerChatRoutes(app: Express): void {
             ...contact,
             presencia: presenceMap[contact.id] ?? defaultPresence(contact.id),
           },
+          aceptada,
+          mensaje: aceptada
+            ? "Contacto confirmado. Ya pueden chatear."
+            : "Solicitud enviada. El usuario debe autorizarla para chatear.",
         },
       });
     } catch (e) {
       res.status(400).json({
         ok: false,
         error: e instanceof Error ? e.message : "No se pudo agregar el contacto",
+      });
+    }
+  });
+
+  app.get("/api/chat/contacts/external/requests", async (req, res) => {
+    const userId = requireUser(req, res);
+    if (userId === null) return;
+
+    try {
+      const requests = await listPendingIncomingExternalRequests(getDb(), userId);
+      res.json({ ok: true, data: { requests } });
+    } catch (e) {
+      res.status(500).json({
+        ok: false,
+        error: e instanceof Error ? e.message : "Error al cargar solicitudes",
+      });
+    }
+  });
+
+  app.post("/api/chat/contacts/external/requests/:id/accept", async (req, res) => {
+    const userId = requireUser(req, res);
+    if (userId === null) return;
+
+    const requestId = Math.max(0, Number(req.params.id) || 0);
+    if (requestId <= 0) {
+      res.status(400).json({ ok: false, error: "Solicitud no válida" });
+      return;
+    }
+
+    try {
+      const result = await acceptExternalContactRequest(getDb(), userId, requestId);
+      res.json({
+        ok: true,
+        data: {
+          requester_id: result.requester_id,
+          requester_nombre: result.requester_nombre,
+          mensaje: `Ahora podés chatear con ${result.requester_nombre}.`,
+        },
+      });
+    } catch (e) {
+      res.status(400).json({
+        ok: false,
+        error: e instanceof Error ? e.message : "No se pudo aceptar la solicitud",
+      });
+    }
+  });
+
+  app.post("/api/chat/contacts/external/requests/:id/reject", async (req, res) => {
+    const userId = requireUser(req, res);
+    if (userId === null) return;
+
+    const requestId = Math.max(0, Number(req.params.id) || 0);
+    if (requestId <= 0) {
+      res.status(400).json({ ok: false, error: "Solicitud no válida" });
+      return;
+    }
+
+    try {
+      await rejectExternalContactRequest(getDb(), userId, requestId);
+      res.json({ ok: true, data: { mensaje: "Solicitud rechazada." } });
+    } catch (e) {
+      res.status(400).json({
+        ok: false,
+        error: e instanceof Error ? e.message : "No se pudo rechazar la solicitud",
       });
     }
   });

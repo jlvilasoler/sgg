@@ -1340,6 +1340,16 @@ export interface ChatContact {
   unread_count: number;
   last_message: string | null;
   last_message_at: string | null;
+  external_estado?: "aceptada" | "pendiente_enviada" | null;
+}
+
+export interface ChatExternalRequest {
+  id: number;
+  requester_id: number;
+  requester_nombre: string;
+  requester_cuenta: string;
+  requester_avatar: UserAvatar;
+  creado_en: string;
 }
 
 export interface ChatUnreadSummary {

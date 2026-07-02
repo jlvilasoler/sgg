@@ -17,7 +17,14 @@ import {
 import type { AuthUser, ChatChannel, ChatContact, ChatMessage, ChatSearchHit } from "../types";
 import { formatChatPresence, presenceStatusClass } from "../utils/chat-presence";
 import { bubbleColorForSender, bubbleStyleVars } from "../utils/chat-bubble-colors";
-import { isDirectMessagePeer, isGroupChannelPeer, peerTabLabel } from "../utils/chat-peers";
+import {
+  CHAT_GENERAL_PEER_ID,
+  isDirectMessagePeer,
+  isGroupChannelPeer,
+  isGroupPeerAccessible,
+  peerTabLabel,
+  pickDefaultChatPeer,
+} from "../utils/chat-peers";
 import { playChatNotificationSound } from "../utils/chat-notification-sound";
 import {
   getChatSidebarCache,
@@ -31,8 +38,6 @@ import ChatEmojiPicker from "./chat/ChatEmojiPicker";
 import ChatMessageAttachmentView from "./chat/ChatMessageAttachment";
 import ChatWallpaperPicker from "./chat/ChatWallpaperPicker";
 import { chatWallpaperClass } from "./chat/chat-wallpapers";
-
-export const CHAT_GENERAL_PEER_ID = 0;
 
 const MESSAGES_PAGE = 50;
 
@@ -127,6 +132,7 @@ export default function ChatInterno({
   const [sending, setSending] = useState(false);
   const [draft, setDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(variant === "page" || isPanel);
   const [emojiOpen, setEmojiOpen] = useState(false);
   const [hasMoreOlder, setHasMoreOlder] = useState(false);
@@ -424,8 +430,13 @@ export default function ChatInterno({
           onUnreadChange?.(data.total_unread);
         } else {
           setLoading(true);
-          const data = await fetchChatBootstrap(peerId, MESSAGES_PAGE);
+          const data = await fetchChatBootstrap(CHAT_GENERAL_PEER_ID, MESSAGES_PAGE);
           if (cancelled) return;
+          const resolvedPeer = data.peer_id;
+          skipPeerLoadRef.current = true;
+          peerRef.current = resolvedPeer;
+          setPeerId(resolvedPeer);
+          setOpenTabs([resolvedPeer]);
           bootstrappedRef.current = true;
           setChannels(data.channels);
           setContacts(data.contacts);
@@ -446,8 +457,9 @@ export default function ChatInterno({
             total_unread: data.total_unread,
             online_count: data.online_count,
           });
-          if (data.messages.length > 0) void markRead(peerId, data.messages);
+          if (data.messages.length > 0) void markRead(resolvedPeer, data.messages);
           requestAnimationFrame(() => scrollToBottom(false));
+          skipPeerLoadRef.current = false;
         }
       } catch (e) {
         if (!cancelled) {
@@ -499,6 +511,20 @@ export default function ChatInterno({
     clearPendingFile();
     if (isPanel && panelPickedChat) setSidebarOpen(false);
   }, [peerId, panelPickedChat, loadMessages, isPanel, clearPendingFile]);
+
+  useEffect(() => {
+    if (!bootstrappedRef.current || channels.length === 0) return;
+    if (isDirectMessagePeer(peerId)) return;
+    if (isGroupPeerAccessible(peerId, channels)) return;
+    const next = pickDefaultChatPeer(channels);
+    if (next === peerId) return;
+    skipPeerLoadRef.current = true;
+    peerRef.current = next;
+    setPeerId(next);
+    setOpenTabs([next]);
+    skipPeerLoadRef.current = false;
+    void loadMessages(next, { initial: true });
+  }, [channels, peerId, loadMessages]);
 
   useEffect(() => {
     if (!incomingAlert) return;
@@ -594,6 +620,12 @@ export default function ChatInterno({
   }, []);
 
   const openChannel = (id: number) => {
+    const external = externalContacts.find((c) => c.id === id);
+    if (external?.external_estado === "pendiente_enviada") {
+      setNotice("Solicitud pendiente. El usuario debe autorizarla para chatear.");
+      setError(null);
+      return;
+    }
     draftByPeerRef.current[peerId] = draft;
     setOpenTabs((prev) => (prev.includes(id) ? prev : [...prev, id]));
     setPeerId(id);
@@ -643,8 +675,10 @@ export default function ChatInterno({
     if (!email || addingExternalBusy) return;
     setAddingExternalBusy(true);
     setError(null);
+    setNotice(null);
     try {
-      const contact = await agregarChatContactoExterno(email);
+      const result = await agregarChatContactoExterno(email);
+      const { contact, aceptada, mensaje } = result;
       setExternalContacts((prev) => {
         if (prev.some((c) => c.id === contact.id)) {
           return prev.map((c) => (c.id === contact.id ? contact : c));
@@ -654,7 +688,8 @@ export default function ChatInterno({
       setAddingExternal(false);
       setExternalEmail("");
       invalidateChatSidebarCache();
-      openChannel(contact.id);
+      setNotice(mensaje);
+      if (aceptada) openChannel(contact.id);
     } catch (e) {
       setError(e instanceof Error ? e.message : "No se pudo agregar el contacto");
     } finally {
@@ -740,7 +775,11 @@ export default function ChatInterno({
             opts?.external ? "" : presenceStatusClass(c.presencia)
           }`}
         >
-          {opts?.external ? c.rol_label : formatChatPresence(c.presencia)}
+          {opts?.external && c.external_estado === "pendiente_enviada"
+            ? "Pendiente de autorización"
+            : opts?.external
+              ? c.rol_label
+              : formatChatPresence(c.presencia)}
         </span>
         <span className="chat-interno-channel-preview">
           {c.last_message ? truncar(c.last_message, 42) : "Sin mensajes"}
@@ -793,6 +832,13 @@ export default function ChatInterno({
   const send = async () => {
     const text = draft.trim();
     if (sending || (!text && !pendingFile)) return;
+    const externalPending = externalContacts.find(
+      (c) => c.id === peerId && c.external_estado === "pendiente_enviada"
+    );
+    if (externalPending) {
+      setError("La solicitud aún no fue autorizada. No podés enviar mensajes todavía.");
+      return;
+    }
     setSending(true);
     setError(null);
     try {
@@ -1375,6 +1421,7 @@ export default function ChatInterno({
         </div>
 
         {error && <p className="chat-interno-error">{error}</p>}
+        {notice && <p className="chat-interno-notice">{notice}</p>}
 
         {pendingFile && (
           <div className="chat-interno-pending-file">

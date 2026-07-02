@@ -89,6 +89,7 @@
   RolPermisosInput,
   ChatMessage,
   ChatContact,
+  ChatExternalRequest,
   ChatUnreadSummary,
   ChatUserPresence,
   ChatSearchHit,
@@ -3417,6 +3418,7 @@ export async function fetchChatContacts(): Promise<{
   channels: ChatChannel[];
   contacts: ChatContact[];
   external_contacts: ChatContact[];
+  external_requests_pending: ChatExternalRequest[];
   general_unread: number;
   total_unread: number;
   online_count: number;
@@ -3426,6 +3428,7 @@ export async function fetchChatContacts(): Promise<{
       channels: ChatChannel[];
       contacts: ChatContact[];
       external_contacts: ChatContact[];
+      external_requests_pending: ChatExternalRequest[];
       general_unread: number;
       total_unread: number;
       online_count: number;
@@ -3434,12 +3437,44 @@ export async function fetchChatContacts(): Promise<{
   return json.data;
 }
 
-export async function agregarChatContactoExterno(email: string): Promise<ChatContact> {
-  const json = await request<{ data: { contact: ChatContact } }>("/chat/contacts/external", {
+export async function agregarChatContactoExterno(email: string): Promise<{
+  contact: ChatContact;
+  aceptada: boolean;
+  mensaje: string;
+}> {
+  const json = await request<{
+    data: { contact: ChatContact; aceptada: boolean; mensaje: string };
+  }>("/chat/contacts/external", {
     method: "POST",
     body: JSON.stringify({ email }),
   });
-  return json.data.contact;
+  return json.data;
+}
+
+export async function fetchChatExternalRequests(): Promise<ChatExternalRequest[]> {
+  const json = await request<{ data: { requests: ChatExternalRequest[] } }>(
+    "/chat/contacts/external/requests"
+  );
+  return json.data.requests;
+}
+
+export async function aceptarChatSolicitudExterna(
+  requestId: number
+): Promise<{ requester_id: number; requester_nombre: string; mensaje: string }> {
+  const json = await request<{
+    data: { requester_id: number; requester_nombre: string; mensaje: string };
+  }>(`/chat/contacts/external/requests/${requestId}/accept`, { method: "POST" });
+  return json.data;
+}
+
+export async function rechazarChatSolicitudExterna(
+  requestId: number
+): Promise<{ mensaje: string }> {
+  const json = await request<{ data: { mensaje: string } }>(
+    `/chat/contacts/external/requests/${requestId}/reject`,
+    { method: "POST" }
+  );
+  return json.data;
 }
 
 export async function fetchChatPresence(): Promise<{
@@ -3485,6 +3520,7 @@ export async function fetchChatBootstrap(peerId = 0, limit = 50): Promise<{
   channels: ChatChannel[];
   contacts: ChatContact[];
   external_contacts: ChatContact[];
+  external_requests_pending: ChatExternalRequest[];
   wallpapers: { presets: Array<{ id: string; label: string }>; by_peer: Record<number, string> };
   messages: ChatMessage[];
   total_unread: number;
@@ -3500,6 +3536,7 @@ export async function fetchChatBootstrap(peerId = 0, limit = 50): Promise<{
       channels: ChatChannel[];
       contacts: ChatContact[];
       external_contacts: ChatContact[];
+      external_requests_pending: ChatExternalRequest[];
       wallpapers: { presets: Array<{ id: string; label: string }>; by_peer: Record<number, string> };
       messages: ChatMessage[];
       total_unread: number;

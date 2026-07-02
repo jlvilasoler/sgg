@@ -28,6 +28,17 @@ export function isGroupChannelPeer(peerId: number): boolean {
   return peerId <= 0;
 }
 
+/** peer_id=0 es solo el canal de la cuenta semilla; el resto usa peer negativo. */
+export function resolveBootstrapGroupPeer(
+  channels: Array<{ peer_id: number; es_sistema: boolean }>,
+  requestedPeerId: number
+): number {
+  if (requestedPeerId > 0) return requestedPeerId;
+  if (channels.some((c) => c.peer_id === requestedPeerId)) return requestedPeerId;
+  const system = channels.find((c) => c.es_sistema) ?? channels[0];
+  return system?.peer_id ?? requestedPeerId;
+}
+
 export function channelIdFromPeer(peerId: number): number | null {
   if (peerId >= 0) return null;
   return -peerId;
@@ -228,6 +239,38 @@ async function syncTeamChannelsForAllCuentas(db: Db): Promise<void> {
       peerIdZero: c.id === seedId,
     });
   }
+}
+
+/** Garantiza canal de equipo y membresía para la cuenta del usuario actual. */
+export async function ensureUserTeamChannelMembership(
+  db: Db,
+  userId: number
+): Promise<void> {
+  const row = (await db
+    .prepare("SELECT id, email, empresa_id, rol FROM USERS WHERE id = ?")
+    .get(userId)) as
+    | { id: number; email: string; empresa_id: number | null; rol: string }
+    | undefined;
+  if (!row) return;
+
+  const esSuperAdmin = await isPlatformSuperAdmin(db, row);
+  const cuentaId = await resolveCuentaMadreIdForUser(db, {
+    id: row.id,
+    email: row.email,
+    es_super_admin: esSuperAdmin,
+    empresa_id: row.empresa_id,
+  });
+  if (cuentaId == null) return;
+
+  const cuenta = (await db
+    .prepare("SELECT nombre FROM EMPRESAS_CUENTA WHERE id = ?")
+    .get(cuentaId)) as { nombre: string } | undefined;
+  if (!cuenta) return;
+
+  const seedId = await getSeedCuentaMadreId(db);
+  await ensureTeamChannelForCuenta(db, cuentaId, cuenta.nombre, {
+    peerIdZero: cuentaId === seedId,
+  });
 }
 
 export async function userIsChannelMember(

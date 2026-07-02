@@ -21710,6 +21710,105 @@ button.sg-kpi-card:disabled {
   font-size: 0.78rem;
 }
 
+.chat-interno-notice {
+  margin: 0 1rem;
+  padding: 0.45rem 0.65rem;
+  border-radius: 6px;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  color: #065f46;
+  font-size: 0.78rem;
+}
+
+.chat-external-request-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10060;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(15, 28, 20, 0.45);
+}
+
+.chat-external-request-modal {
+  width: min(420px, 100%);
+  padding: 1.25rem 1.35rem 1rem;
+  border-radius: 12px;
+  background: var(--surface);
+  border: 1px solid rgba(30, 61, 42, 0.14);
+  box-shadow: 0 18px 48px rgba(15, 28, 20, 0.18);
+}
+
+.chat-external-request-modal h3 {
+  margin: 0 0 0.65rem;
+  font-size: 1.05rem;
+  color: var(--text);
+}
+
+.chat-external-request-lead {
+  margin: 0 0 1rem;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.chat-external-request-user {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  margin-bottom: 0.85rem;
+  border-radius: 10px;
+  background: rgba(30, 61, 42, 0.05);
+}
+
+.chat-external-request-name {
+  margin: 0;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.chat-external-request-cuenta {
+  margin: 0.15rem 0 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.chat-external-request-more {
+  margin: 0 0 0.75rem;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.chat-external-request-error {
+  margin: 0 0 0.75rem;
+  font-size: 0.78rem;
+  color: #991b1b;
+}
+
+.chat-external-request-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.chat-external-request-later {
+  display: block;
+  width: 100%;
+  margin-top: 0.65rem;
+  padding: 0.35rem;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.chat-external-request-later:hover {
+  color: var(--text);
+}
+
 .chat-interno-compose {
   display: flex;
   align-items: flex-end;

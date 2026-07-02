@@ -83,6 +83,16 @@ export interface ChatContactDto {
   unread_count: number;
   last_message: string | null;
   last_message_at: string | null;
+  external_estado?: "aceptada" | "pendiente_enviada" | null;
+}
+
+export interface ChatExternalRequestDto {
+  id: number;
+  requester_id: number;
+  requester_nombre: string;
+  requester_cuenta: string;
+  requester_avatar: UserAvatarDto;
+  creado_en: string;
 }
 
 export interface ChatSearchHitDto extends ChatMessageDto {
@@ -178,10 +188,89 @@ export async function initChatTables(db: Db): Promise<void> {
     `CREATE INDEX IF NOT EXISTS idx_chat_external_contacts_owner
      ON CHAT_EXTERNAL_CONTACTS(owner_user_id)`
   ).run();
+
+  await db.prepare(
+    `CREATE TABLE IF NOT EXISTS CHAT_EXTERNAL_REQUESTS (
+      id SERIAL PRIMARY KEY,
+      from_user_id INTEGER NOT NULL REFERENCES USERS(id) ON DELETE CASCADE,
+      to_user_id INTEGER NOT NULL REFERENCES USERS(id) ON DELETE CASCADE,
+      estado TEXT NOT NULL DEFAULT 'pending',
+      creado_en TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      respondido_en TIMESTAMPTZ,
+      UNIQUE(from_user_id, to_user_id)
+    )`
+  ).run();
+
+  await db.prepare(
+    `CREATE INDEX IF NOT EXISTS idx_chat_external_requests_to_pending
+     ON CHAT_EXTERNAL_REQUESTS(to_user_id) WHERE estado = 'pending'`
+  ).run();
+
+  await db
+    .prepare(
+      `INSERT INTO CHAT_EXTERNAL_CONTACTS (owner_user_id, contact_user_id)
+       SELECT ec.contact_user_id, ec.owner_user_id
+       FROM CHAT_EXTERNAL_CONTACTS ec
+       WHERE NOT EXISTS (
+         SELECT 1 FROM CHAT_EXTERNAL_CONTACTS ec2
+         WHERE ec2.owner_user_id = ec.contact_user_id
+           AND ec2.contact_user_id = ec.owner_user_id
+       )
+       ON CONFLICT (owner_user_id, contact_user_id) DO NOTHING`
+    )
+    .run();
 }
 
 function normalizeChatEmail(email: string): string {
   return email.trim().toLowerCase();
+}
+
+async function hasMutualExternalContact(
+  db: Db,
+  userId: number,
+  peerId: number
+): Promise<boolean> {
+  const row = (await db
+    .prepare(
+      `SELECT 1 AS ok
+       FROM CHAT_EXTERNAL_CONTACTS a
+       JOIN CHAT_EXTERNAL_CONTACTS b
+         ON b.owner_user_id = a.contact_user_id AND b.contact_user_id = a.owner_user_id
+       WHERE a.owner_user_id = ? AND a.contact_user_id = ?
+       LIMIT 1`
+    )
+    .get(userId, peerId)) as { ok: number } | undefined;
+  return Boolean(row?.ok);
+}
+
+async function insertMutualExternalContacts(
+  db: Db,
+  userA: number,
+  userB: number
+): Promise<void> {
+  await db
+    .prepare(
+      `INSERT INTO CHAT_EXTERNAL_CONTACTS (owner_user_id, contact_user_id)
+       VALUES (?, ?), (?, ?)
+       ON CONFLICT (owner_user_id, contact_user_id) DO NOTHING`
+    )
+    .run(userA, userB, userB, userA);
+}
+
+async function finalizeExternalContactPair(
+  db: Db,
+  userA: number,
+  userB: number
+): Promise<void> {
+  await insertMutualExternalContacts(db, userA, userB);
+  await db
+    .prepare(
+      `UPDATE CHAT_EXTERNAL_REQUESTS
+       SET estado = 'accepted', respondido_en = NOW()
+       WHERE estado = 'pending'
+         AND ((from_user_id = ? AND to_user_id = ?) OR (from_user_id = ? AND to_user_id = ?))`
+    )
+    .run(userA, userB, userB, userA);
 }
 
 async function getLastReadId(db: Db, userId: number, peerId: number): Promise<number> {
@@ -232,25 +321,9 @@ async function isDmPeerAllowed(
 
   if (peerCuentaId === userScope.cuentaId) return true;
 
-  const externalLink = (await db
-    .prepare(
-      `SELECT 1 AS ok FROM CHAT_EXTERNAL_CONTACTS
-       WHERE (owner_user_id = ? AND contact_user_id = ?)
-          OR (owner_user_id = ? AND contact_user_id = ?)
-       LIMIT 1`
-    )
-    .get(userId, peerId, peerId, userId)) as { ok: number } | undefined;
-  if (externalLink) return true;
+  if (await hasMutualExternalContact(db, userId, peerId)) return true;
 
-  const priorDm = (await db
-    .prepare(
-      `SELECT 1 AS ok FROM CHAT_MESSAGES
-       WHERE recipient_id > 0
-         AND ((sender_id = ? AND recipient_id = ?) OR (sender_id = ? AND recipient_id = ?))
-       LIMIT 1`
-    )
-    .get(userId, peerId, peerId, userId)) as { ok: number } | undefined;
-  return Boolean(priorDm);
+  return false;
 }
 
 async function assertValidPeer(db: Db, senderId: number, recipientId: number): Promise<void> {
@@ -541,18 +614,10 @@ export async function getChatUnreadSummary(
   const dmCuentaFilter = cuentaScopeSql("peer", scope.cuentaId, dmParams);
   const dmExternalFilter = scope.cuentaId != null
     ? ` OR EXISTS (
-         SELECT 1 FROM CHAT_EXTERNAL_CONTACTS ec
-         WHERE (ec.owner_user_id = @userId AND ec.contact_user_id = peer.id)
-            OR (ec.owner_user_id = peer.id AND ec.contact_user_id = @userId)
-       )
-       OR (
-         (peer.empresa_id IS NULL OR peer.empresa_id != @cuentaId)
-         AND EXISTS (
-           SELECT 1 FROM CHAT_MESSAGES mx
-           WHERE mx.recipient_id > 0
-             AND ((mx.sender_id = @userId AND mx.recipient_id = peer.id)
-               OR (mx.sender_id = peer.id AND mx.recipient_id = @userId))
-         )
+         SELECT 1 FROM CHAT_EXTERNAL_CONTACTS a
+         JOIN CHAT_EXTERNAL_CONTACTS b
+           ON b.owner_user_id = a.contact_user_id AND b.contact_user_id = a.owner_user_id
+         WHERE a.owner_user_id = @userId AND a.contact_user_id = peer.id
        )`
     : "";
 
@@ -616,6 +681,7 @@ type ContactUserRow = {
   last_attachment_tamano: number | null;
   last_attachment_archivo: string | null;
   unread_n: number | string;
+  external_estado?: string | null;
 };
 
 function mapContactRows(
@@ -637,6 +703,10 @@ function mapContactRows(
         : null;
     const rol = u.rol as keyof typeof ROL_LABELS;
     const cuentaLabel = u.cuenta_nombre?.trim();
+    const externalEstado =
+      u.external_estado === "aceptada" || u.external_estado === "pendiente_enviada"
+        ? u.external_estado
+        : null;
     return {
       id: u.id,
       nombre: u.nombre,
@@ -647,6 +717,7 @@ function mapContactRows(
       unread_count: Number(u.unread_n ?? 0),
       last_message: last ? previewTextFromRow(last) : null,
       last_message_at: last?.creado_en ?? null,
+      external_estado: externalEstado,
     };
   });
 
@@ -744,7 +815,21 @@ export async function listChatExternalContacts(
 
   const rows = (await db
     .prepare(
-      `SELECT ${CONTACT_LIST_SELECT}, cmadre.nombre AS cuenta_nombre
+      `SELECT ${CONTACT_LIST_SELECT}, cmadre.nombre AS cuenta_nombre,
+              CASE
+                WHEN EXISTS (
+                  SELECT 1 FROM CHAT_EXTERNAL_CONTACTS ec_a
+                  JOIN CHAT_EXTERNAL_CONTACTS ec_b
+                    ON ec_b.owner_user_id = ec_a.contact_user_id
+                   AND ec_b.contact_user_id = ec_a.owner_user_id
+                  WHERE ec_a.owner_user_id = @userId AND ec_a.contact_user_id = u.id
+                ) THEN 'aceptada'
+                WHEN EXISTS (
+                  SELECT 1 FROM CHAT_EXTERNAL_REQUESTS r
+                  WHERE r.from_user_id = @userId AND r.to_user_id = u.id AND r.estado = 'pending'
+                ) THEN 'pendiente_enviada'
+                ELSE NULL
+              END AS external_estado
        FROM USERS u
        LEFT JOIN EMPRESAS_CUENTA cmadre ON cmadre.id = u.empresa_id
        ${CONTACT_LAST_MSG_LATERAL}
@@ -753,15 +838,19 @@ export async function listChatExternalContacts(
          AND u.id != @userId7
          AND (u.empresa_id IS NULL OR u.empresa_id != @cuentaId)
          AND (
-           EXISTS (
-             SELECT 1 FROM CHAT_EXTERNAL_CONTACTS ec
-             WHERE ec.owner_user_id = @userId AND ec.contact_user_id = u.id
+           (
+             EXISTS (
+               SELECT 1 FROM CHAT_EXTERNAL_CONTACTS ec
+               WHERE ec.owner_user_id = @userId AND ec.contact_user_id = u.id
+             )
+             AND EXISTS (
+               SELECT 1 FROM CHAT_EXTERNAL_CONTACTS ec2
+               WHERE ec2.owner_user_id = u.id AND ec2.contact_user_id = @userId
+             )
            )
            OR EXISTS (
-             SELECT 1 FROM CHAT_MESSAGES m
-             WHERE m.recipient_id > 0
-               AND ((m.sender_id = @userId5 AND m.recipient_id = u.id)
-                 OR (m.sender_id = u.id AND m.recipient_id = @userId6))
+             SELECT 1 FROM CHAT_EXTERNAL_REQUESTS r
+             WHERE r.from_user_id = @userId AND r.to_user_id = u.id AND r.estado = 'pending'
            )
          )
        ORDER BY LOWER(u.nombre) ASC`
@@ -826,24 +915,72 @@ export async function addChatExternalContactByEmail(
     throw new Error("Ese usuario ya está en tu equipo (Personas)");
   }
 
-  const existing = (await db
-    .prepare(
-      `SELECT 1 AS ok FROM CHAT_EXTERNAL_CONTACTS
-       WHERE owner_user_id = ? AND contact_user_id = ?
-       LIMIT 1`
-    )
-    .get(ownerUserId, target.id)) as { ok: number } | undefined;
-  if (existing) {
+  if (await hasMutualExternalContact(db, ownerUserId, target.id)) {
     throw new Error("Ese usuario ya está en Otras cuentas");
   }
 
-  await db
+  const reversePending = (await db
     .prepare(
-      `INSERT INTO CHAT_EXTERNAL_CONTACTS (owner_user_id, contact_user_id)
-       VALUES (?, ?)
-       ON CONFLICT (owner_user_id, contact_user_id) DO NOTHING`
+      `SELECT id FROM CHAT_EXTERNAL_REQUESTS
+       WHERE from_user_id = ? AND to_user_id = ? AND estado = 'pending'
+       LIMIT 1`
     )
-    .run(ownerUserId, target.id);
+    .get(target.id, ownerUserId)) as { id: number } | undefined;
+
+  if (reversePending) {
+    await finalizeExternalContactPair(db, target.id, ownerUserId);
+    const cuentaRow = targetCuentaId
+      ? ((await db
+          .prepare("SELECT nombre FROM EMPRESAS_CUENTA WHERE id = ?")
+          .get(targetCuentaId)) as { nombre: string } | undefined)
+      : undefined;
+    return {
+      id: target.id,
+      nombre: target.nombre,
+      rol_label: cuentaRow?.nombre?.trim() || "Otra cuenta",
+      avatar: avatarDtoFromRow(target.id, target),
+      unread_count: 0,
+      last_message: null,
+      last_message_at: null,
+      external_estado: "aceptada",
+    };
+  }
+
+  const outgoingPending = (await db
+    .prepare(
+      `SELECT id FROM CHAT_EXTERNAL_REQUESTS
+       WHERE from_user_id = ? AND to_user_id = ? AND estado = 'pending'
+       LIMIT 1`
+    )
+    .get(ownerUserId, target.id)) as { id: number } | undefined;
+  if (outgoingPending) {
+    throw new Error("Ya enviaste una solicitud a ese usuario");
+  }
+
+  const priorRejected = (await db
+    .prepare(
+      `SELECT id FROM CHAT_EXTERNAL_REQUESTS
+       WHERE from_user_id = ? AND to_user_id = ? AND estado = 'rejected'
+       LIMIT 1`
+    )
+    .get(ownerUserId, target.id)) as { id: number } | undefined;
+  if (priorRejected) {
+    await db
+      .prepare(
+        `UPDATE CHAT_EXTERNAL_REQUESTS
+         SET estado = 'pending', respondido_en = NULL, creado_en = NOW()
+         WHERE id = ?`
+      )
+      .run(priorRejected.id);
+  } else {
+    await db
+      .prepare(
+        `INSERT INTO CHAT_EXTERNAL_REQUESTS (from_user_id, to_user_id, estado)
+         VALUES (?, ?, 'pending')
+         ON CONFLICT (from_user_id, to_user_id) DO NOTHING`
+      )
+      .run(ownerUserId, target.id);
+  }
 
   const cuentaRow = targetCuentaId
     ? ((await db
@@ -859,7 +996,83 @@ export async function addChatExternalContactByEmail(
     unread_count: 0,
     last_message: null,
     last_message_at: null,
+    external_estado: "pendiente_enviada",
   };
+}
+
+export async function listPendingIncomingExternalRequests(
+  db: Db,
+  userId: number
+): Promise<ChatExternalRequestDto[]> {
+  const rows = (await db
+    .prepare(
+      `SELECT r.id, r.creado_en,
+              u.id AS requester_id, u.nombre AS requester_nombre,
+              u.avatar_tipo, u.avatar_archivo, u.actualizado_en,
+              COALESCE(cmadre.nombre, 'Otra cuenta') AS requester_cuenta
+       FROM CHAT_EXTERNAL_REQUESTS r
+       JOIN USERS u ON u.id = r.from_user_id
+       LEFT JOIN EMPRESAS_CUENTA cmadre ON cmadre.id = u.empresa_id
+       WHERE r.to_user_id = ? AND r.estado = 'pending' AND u.activo = 1
+       ORDER BY r.creado_en DESC`
+    )
+    .all(userId)) as Array<{
+    id: number;
+    creado_en: string;
+    requester_id: number;
+    requester_nombre: string;
+    avatar_tipo?: string;
+    avatar_archivo?: string;
+    actualizado_en?: string;
+    requester_cuenta: string;
+  }>;
+
+  return rows.map((row) => ({
+    id: row.id,
+    requester_id: row.requester_id,
+    requester_nombre: row.requester_nombre,
+    requester_cuenta: row.requester_cuenta,
+    requester_avatar: avatarDtoFromRow(row.requester_id, row),
+    creado_en: row.creado_en,
+  }));
+}
+
+export async function acceptExternalContactRequest(
+  db: Db,
+  userId: number,
+  requestId: number
+): Promise<{ requester_id: number; requester_nombre: string }> {
+  const row = (await db
+    .prepare(
+      `SELECT r.id, r.from_user_id, r.to_user_id, u.nombre AS requester_nombre
+       FROM CHAT_EXTERNAL_REQUESTS r
+       JOIN USERS u ON u.id = r.from_user_id
+       WHERE r.id = ? AND r.to_user_id = ? AND r.estado = 'pending'`
+    )
+    .get(requestId, userId)) as
+    | { id: number; from_user_id: number; to_user_id: number; requester_nombre: string }
+    | undefined;
+  if (!row) throw new Error("Solicitud no encontrada o ya respondida");
+
+  await finalizeExternalContactPair(db, row.from_user_id, row.to_user_id);
+  return { requester_id: row.from_user_id, requester_nombre: row.requester_nombre };
+}
+
+export async function rejectExternalContactRequest(
+  db: Db,
+  userId: number,
+  requestId: number
+): Promise<void> {
+  const result = await db
+    .prepare(
+      `UPDATE CHAT_EXTERNAL_REQUESTS
+       SET estado = 'rejected', respondido_en = NOW()
+       WHERE id = ? AND to_user_id = ? AND estado = 'pending'`
+    )
+    .run(requestId, userId);
+  if (!result.changes) {
+    throw new Error("Solicitud no encontrada o ya respondida");
+  }
 }
 
 export async function searchChatMessages(
@@ -933,18 +1146,10 @@ export async function searchChatMessages(
     const dmCuentaFilter = cuentaScopeSql("p", scope.cuentaId, searchParams as Record<string, number>);
     const dmExternalFilter = scope.cuentaId != null
       ? ` OR EXISTS (
-           SELECT 1 FROM CHAT_EXTERNAL_CONTACTS ec
-           WHERE (ec.owner_user_id = @userId AND ec.contact_user_id = p.id)
-              OR (ec.owner_user_id = p.id AND ec.contact_user_id = @userId)
-         )
-         OR (
-           (p.empresa_id IS NULL OR p.empresa_id != @cuentaId)
-           AND EXISTS (
-             SELECT 1 FROM CHAT_MESSAGES mx
-             WHERE mx.recipient_id > 0
-               AND ((mx.sender_id = @userId AND mx.recipient_id = p.id)
-                 OR (mx.sender_id = p.id AND mx.recipient_id = @userId))
-           )
+           SELECT 1 FROM CHAT_EXTERNAL_CONTACTS a
+           JOIN CHAT_EXTERNAL_CONTACTS b
+             ON b.owner_user_id = a.contact_user_id AND b.contact_user_id = a.owner_user_id
+           WHERE a.owner_user_id = @userId AND a.contact_user_id = p.id
          )`
       : "";
     rows = (await db
