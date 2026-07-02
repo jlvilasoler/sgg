@@ -37,6 +37,8 @@ import { resaltarTexto, truncarConHighlight } from "../utils/chat-search";
 import { confirmAction } from "../utils/confirm";
 import UserAvatar, { DEFAULT_USER_AVATAR } from "./UserAvatar";
 import ChatEmojiPicker from "./chat/ChatEmojiPicker";
+import ChatExternalContactAddModal from "./chat/ChatExternalContactAddModal";
+import ChatChannelCreateModal from "./chat/ChatChannelCreateModal";
 import ChatInternoKebabMenu from "./chat/ChatInternoKebabMenu";
 import ChatMessageAttachmentView from "./chat/ChatMessageAttachment";
 import ChatWallpaperPicker from "./chat/ChatWallpaperPicker";
@@ -157,9 +159,12 @@ export default function ChatInterno({
   const [renameDraft, setRenameDraft] = useState("");
   const [creatingChannel, setCreatingChannel] = useState(false);
   const [newChannelName, setNewChannelName] = useState("");
+  const [creatingChannelBusy, setCreatingChannelBusy] = useState(false);
+  const [channelCreateError, setChannelCreateError] = useState<string | null>(null);
   const [addingExternal, setAddingExternal] = useState(false);
   const [externalEmail, setExternalEmail] = useState("");
   const [addingExternalBusy, setAddingExternalBusy] = useState(false);
+  const [externalAddError, setExternalAddError] = useState<string | null>(null);
   const [removingExternalId, setRemovingExternalId] = useState<number | null>(null);
   const [incomingAlert, setIncomingAlert] = useState(false);
   const [incomingSender, setIncomingSender] = useState<string | null>(null);
@@ -654,10 +659,12 @@ export default function ChatInterno({
   const crearCanal = async () => {
     const nombre = newChannelName.trim();
     if (nombre.length < 2) {
-      setError("El nombre del canal debe tener al menos 2 caracteres");
+      setChannelCreateError("El nombre del canal debe tener al menos 2 caracteres");
       return;
     }
-    setError(null);
+    if (creatingChannelBusy) return;
+    setCreatingChannelBusy(true);
+    setChannelCreateError(null);
     try {
       const channel = await crearChatCanal(nombre);
       setChannels((prev) =>
@@ -668,9 +675,12 @@ export default function ChatInterno({
       );
       setCreatingChannel(false);
       setNewChannelName("");
+      setChannelCreateError(null);
       openChannel(channel.peer_id);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "No se pudo crear el canal");
+      setChannelCreateError(e instanceof Error ? e.message : "No se pudo crear el canal");
+    } finally {
+      setCreatingChannelBusy(false);
     }
   };
 
@@ -680,6 +690,7 @@ export default function ChatInterno({
     setAddingExternalBusy(true);
     setError(null);
     setNotice(null);
+    setExternalAddError(null);
     try {
       const result = await agregarChatContactoExterno(email);
       const { contact, aceptada, mensaje } = result;
@@ -691,11 +702,13 @@ export default function ChatInterno({
       });
       setAddingExternal(false);
       setExternalEmail("");
+      setExternalAddError(null);
       invalidateChatSidebarCache();
       setNotice(mensaje);
       if (aceptada) openChannel(contact.id);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "No se pudo agregar el contacto");
+      const msg = e instanceof Error ? e.message : "No se pudo agregar el contacto";
+      setExternalAddError(msg);
     } finally {
       setAddingExternalBusy(false);
     }
@@ -977,8 +990,9 @@ export default function ChatInterno({
             type="button"
             className="chat-interno-channel-add"
             onClick={() => {
-              setCreatingChannel((v) => !v);
+              setCreatingChannel(true);
               setNewChannelName("");
+              setChannelCreateError(null);
             }}
             title="Nuevo canal"
             aria-label="Crear canal"
@@ -986,26 +1000,6 @@ export default function ChatInterno({
             +
           </button>
         </div>
-
-        {creatingChannel && (
-          <div className="chat-interno-channel-create">
-            <input
-              type="text"
-              className="chat-interno-channel-create-input"
-              placeholder="Nombre del canal…"
-              value={newChannelName}
-              maxLength={60}
-              onChange={(e) => setNewChannelName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") void crearCanal();
-                if (e.key === "Escape") setCreatingChannel(false);
-              }}
-            />
-            <button type="button" className="btn btn-sm btn-primary" onClick={() => void crearCanal()}>
-              Crear
-            </button>
-          </div>
-        )}
 
         <div className="chat-interno-channels">
           {channels.map((ch) => (
@@ -1072,8 +1066,9 @@ export default function ChatInterno({
             type="button"
             className="chat-interno-channel-add"
             onClick={() => {
-              setAddingExternal((v) => !v);
+              setAddingExternal(true);
               setExternalEmail("");
+              setExternalAddError(null);
             }}
             title="Agregar usuario de otra cuenta"
             aria-label="Agregar contacto externo"
@@ -1081,31 +1076,6 @@ export default function ChatInterno({
             +
           </button>
         </div>
-
-        {addingExternal && (
-          <div className="chat-interno-channel-create">
-            <input
-              type="email"
-              className="chat-interno-channel-create-input"
-              placeholder="Correo del usuario…"
-              value={externalEmail}
-              maxLength={120}
-              onChange={(e) => setExternalEmail(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") void agregarContactoExterno();
-                if (e.key === "Escape") setAddingExternal(false);
-              }}
-            />
-            <button
-              type="button"
-              className="btn btn-sm btn-primary"
-              disabled={addingExternalBusy}
-              onClick={() => void agregarContactoExterno()}
-            >
-              {addingExternalBusy ? "…" : "Agregar"}
-            </button>
-          </div>
-        )}
 
         <div className="chat-interno-contacts chat-interno-contacts--external">
           {externalContacts.length === 0 ? (
@@ -1591,6 +1561,42 @@ export default function ChatInterno({
           onClick={() => setSidebarOpen(false)}
         />
       )}
+
+      <ChatChannelCreateModal
+        open={creatingChannel}
+        name={newChannelName}
+        busy={creatingChannelBusy}
+        error={channelCreateError}
+        onNameChange={(value) => {
+          setNewChannelName(value);
+          if (channelCreateError) setChannelCreateError(null);
+        }}
+        onSubmit={() => void crearCanal()}
+        onClose={() => {
+          if (creatingChannelBusy) return;
+          setCreatingChannel(false);
+          setNewChannelName("");
+          setChannelCreateError(null);
+        }}
+      />
+
+      <ChatExternalContactAddModal
+        open={addingExternal}
+        email={externalEmail}
+        busy={addingExternalBusy}
+        error={externalAddError}
+        onEmailChange={(value) => {
+          setExternalEmail(value);
+          if (externalAddError) setExternalAddError(null);
+        }}
+        onSubmit={() => void agregarContactoExterno()}
+        onClose={() => {
+          if (addingExternalBusy) return;
+          setAddingExternal(false);
+          setExternalEmail("");
+          setExternalAddError(null);
+        }}
+      />
     </div>
   );
 }
