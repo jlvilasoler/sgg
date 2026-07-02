@@ -31509,11 +31509,64 @@ button.sg-kpi-card:disabled {
 }
 
 .cuenta-panel--admin .arquitectura-sistema-admin-control {
-  margin: 0.65rem 1.2rem 0;
+  margin: 0.85rem 1.2rem 0;
   padding: 0.85rem 1rem;
   border-radius: 12px;
   background: #f8fafc;
   border: 1px solid #e2e8f0;
+}
+
+.cuenta-administradores-list {
+  list-style: none;
+  margin: 0 1.2rem 0.85rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.cuenta-administrador-card {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.55rem 0.7rem;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.cuenta-administrador-card--designado {
+  border-color: rgba(37, 99, 235, 0.35);
+  background: linear-gradient(90deg, rgba(59, 130, 246, 0.08), rgba(255, 255, 255, 0.85));
+}
+
+.cuenta-administrador-card--editing {
+  outline: 2px solid rgba(59, 130, 246, 0.35);
+}
+
+.cuenta-administrador-card-copy {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.cuenta-admin-designado-badge {
+  flex-shrink: 0;
+  padding: 0.12rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #1d4ed8;
+  background: rgba(59, 130, 246, 0.14);
+}
+
+.cuenta-administrador-card-note {
+  flex-shrink: 0;
+  font-size: 0.72rem;
 }
 
 .cuenta-panel--admin .arquitectura-sistema-admin-control select {

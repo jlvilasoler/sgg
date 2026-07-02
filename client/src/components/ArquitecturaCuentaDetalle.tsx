@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   actualizarEmpresaCuenta,
@@ -312,6 +312,46 @@ export default function ArquitecturaCuentaDetalle({
     closeEditOperativa();
   };
 
+  const focusEditAdmin = (u: AuthUser) => {
+    openEditUser(u);
+    setShowUsuariosSection(true);
+  };
+
+  type AdminListItem = {
+    id: number;
+    nombre: string;
+    email: string;
+    esSuperAdmin: boolean;
+    usuario?: AuthUser;
+  };
+
+  const administradoresDeCuenta = useMemo((): AdminListItem[] => {
+    const map = new Map<number, AdminListItem>();
+    for (const u of usuarios) {
+      if (u.rol === "admin") {
+        map.set(u.id, {
+          id: u.id,
+          nombre: u.nombre,
+          email: u.email,
+          esSuperAdmin: u.es_super_admin,
+          usuario: u,
+        });
+      }
+    }
+    const designado = cuentaActual.admin;
+    if (designado && !map.has(designado.id)) {
+      map.set(designado.id, {
+        id: designado.id,
+        nombre: designado.nombre,
+        email: designado.email,
+        esSuperAdmin: designado.es_super_admin,
+      });
+    }
+    return [...map.values()].sort((a, b) =>
+      a.nombre.localeCompare(b.nombre, "es", { sensitivity: "base" })
+    );
+  }, [cuentaActual.admin, usuarios]);
+
   const closeEditUser = () => {
     setEditingUserId(null);
     setUserEditForm(emptyUserForm());
@@ -519,19 +559,57 @@ export default function ArquitecturaCuentaDetalle({
               <div>
                 <h3>Administrador de la cuenta</h3>
                 <p className="muted">
-                  {cuentaActual.admin
-                    ? `${cuentaActual.admin.nombre} · ${cuentaActual.admin.email}${
-                        cuentaActual.admin.es_super_admin
-                          ? " (también administrador del sistema SAG)"
-                          : ""
-                      }`
-                    : "Esta cuenta todavía no tiene un administrador asignado."}
+                  {administradoresDeCuenta.length > 1
+                    ? `${administradoresDeCuenta.length} administradores con acceso de gestión. El designado es el referente principal de la cuenta.`
+                    : cuentaActual.admin
+                      ? `${cuentaActual.admin.nombre} · ${cuentaActual.admin.email}${
+                          cuentaActual.admin.es_super_admin
+                            ? " (también administrador del sistema SAG)"
+                            : ""
+                        }`
+                      : "Esta cuenta todavía no tiene un administrador asignado."}
                 </p>
               </div>
             </div>
+            {administradoresDeCuenta.length > 0 ? (
+              <ul className="cuenta-administradores-list" aria-label="Administradores de la cuenta">
+                {administradoresDeCuenta.map((a) => {
+                  const esDesignado = cuentaActual.admin_user_id === a.id;
+                  const editable = Boolean(a.usuario);
+                  return (
+                    <li
+                      key={a.id}
+                      className={`cuenta-administrador-card${
+                        esDesignado ? " cuenta-administrador-card--designado" : ""
+                      }${editingUserId === a.id ? " cuenta-administrador-card--editing" : ""}`}
+                    >
+                      <UserAvatar nombre={a.nombre} avatar={a.usuario?.avatar ?? null} variant="list" />
+                      <div className="cuenta-administrador-card-copy">
+                        <strong>{a.nombre}</strong>
+                        <span className="muted">{a.email}</span>
+                      </div>
+                      {esDesignado ? (
+                        <span className="cuenta-admin-designado-badge">Designado</span>
+                      ) : null}
+                      {editable && a.usuario ? (
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-sm"
+                          onClick={() => focusEditAdmin(a.usuario!)}
+                        >
+                          {editingUserId === a.id ? "Editando…" : "Editar"}
+                        </button>
+                      ) : (
+                        <span className="muted cuenta-administrador-card-note">Admin SAG</span>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : null}
             <div className="arquitectura-sistema-admin-control">
               <label>
-                <span>Asignar administrador</span>
+                <span>Administrador designado</span>
                 <select
                   value={cuentaActual.admin_user_id ?? ""}
                   onChange={(e) =>
@@ -554,8 +632,8 @@ export default function ArquitecturaCuentaDetalle({
                 </select>
               </label>
               <small className="muted">
-                Elegí un usuario de esta cuenta. Quedará con rol Administrador y gestionará
-                los usuarios de la cuenta.
+                Elegí el administrador principal de la cuenta. Podés tener más usuarios con rol
+                Administrador (se listan arriba); solo uno queda como designado en el selector.
               </small>
             </div>
           </section>
