@@ -123,8 +123,8 @@ const SAG_MODULOS: {
   },
   {
     id: "control_global_cuentas",
-    label: "Control global de cuentas",
-    subtitle: "Solo superadministrador · animales y gastos por cuenta",
+    label: "Centro de control de cuentas",
+    subtitle: "Supervisión bancaria · cartera cliente y exposición",
     icon: { type: "tab", id: "resumen" },
   },
   {
