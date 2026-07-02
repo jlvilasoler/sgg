@@ -1203,116 +1203,80 @@ export default function ChatInterno({
               <p className={presenceStatusClass(peerContact?.presencia)}>{peerSubtitle}</p>
             </div>
           </div>
-          {activeChannel && renamingChannelId === null && (
-            <button
-              type="button"
-              className="chat-interno-rename-btn"
-              onClick={() => {
-                setRenamingChannelId(activeChannel.id);
-                setRenameDraft(activeChannel.nombre);
-              }}
-              title="Renombrar canal"
-              aria-label="Renombrar canal"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
-                <path
-                  d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </button>
-          )}
-          {variant === "panel" && (onClose || onOpenFullscreen) && (
-            <div className="chat-interno-panel-actions chat-interno-panel-actions--main">
-              {onOpenFullscreen && (
-                <button
-                  type="button"
-                  className="chat-interno-panel-expand"
-                  onClick={onOpenFullscreen}
-                  aria-label="Abrir chat en pantalla completa"
-                  title="Abrir en vista completa"
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
-                    <path
-                      d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"
-                      stroke="currentColor"
-                      strokeWidth="1.8"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                </button>
-              )}
-              {onClose && (
-                <button
-                  type="button"
-                  className="chat-interno-panel-close"
-                  onClick={onClose}
-                  aria-label="Ocultar chat"
-                  title="Ocultar chat (Esc)"
-                >
-                  ✕
-                </button>
-              )}
-            </div>
-          )}
           {variant === "page" && onClose && (
             <button type="button" className="btn btn-ghost btn-sm" onClick={onClose}>
               Volver
             </button>
           )}
-          {activeExternalContact && (
+          <div className="chat-interno-main-head-actions">
             <ChatInternoKebabMenu
               variant="header"
-              removing={removingExternalId === activeExternalContact.id}
-              label={`Opciones de ${activeExternalContact.nombre}`}
-              onRemove={() => void eliminarContactoExterno(activeExternalContact)}
-            />
-          )}
-          <div className="chat-interno-head-tools">
-            <button
-              type="button"
-              className={`chat-interno-wallpaper-btn${wallpaperOpen ? " chat-interno-wallpaper-btn--active" : ""}`}
-              onClick={() => {
+              label={
+                activeExternalContact
+                  ? `Opciones de ${activeExternalContact.nombre}`
+                  : "Opciones del chat"
+              }
+              onChangeWallpaper={() => {
                 setWallpaperOpen((v) => !v);
                 setSearchOpen(false);
                 setEmojiOpen(false);
               }}
-              title="Cambiar fondo del chat"
-              aria-label="Cambiar fondo del chat"
-              aria-expanded={wallpaperOpen}
-            >
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden>
-                <rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" strokeWidth="1.8" />
-                <circle cx="8.5" cy="10" r="1.5" fill="currentColor" />
-                <path
-                  d="M3 15l4.5-4 3 3 5.5-6 4 4"
-                  stroke="currentColor"
-                  strokeWidth="1.6"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </button>
-            <button
-              type="button"
-              className={`chat-interno-search-btn${searchOpen ? " chat-interno-search-btn--active" : ""}`}
-              onClick={() => {
+              onSearch={() => {
                 setSearchOpen((v) => !v);
                 setWallpaperOpen(false);
               }}
-              title="Buscar en el chat"
-              aria-label="Buscar mensajes"
-              aria-expanded={searchOpen}
-            >
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden>
-                <circle cx="11" cy="11" r="6.5" stroke="currentColor" strokeWidth="1.8" />
-                <path d="M16 16l4.5 4.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-              </svg>
-            </button>
+              {...(activeChannel && renamingChannelId === null
+                ? {
+                    onRenameChannel: () => {
+                      setRenamingChannelId(activeChannel.id);
+                      setRenameDraft(activeChannel.nombre);
+                      setWallpaperOpen(false);
+                      setSearchOpen(false);
+                      setEmojiOpen(false);
+                    },
+                  }
+                : {})}
+              {...(activeExternalContact
+                ? {
+                    removing: removingExternalId === activeExternalContact.id,
+                    onRemove: () => void eliminarContactoExterno(activeExternalContact),
+                  }
+                : {})}
+            />
+            {variant === "panel" && (onClose || onOpenFullscreen) && (
+              <div className="chat-interno-panel-actions">
+                {onOpenFullscreen && (
+                  <button
+                    type="button"
+                    className="chat-interno-panel-expand"
+                    onClick={onOpenFullscreen}
+                    aria-label="Abrir chat en pantalla completa"
+                    title="Abrir en vista completa"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+                      <path
+                        d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"
+                        stroke="currentColor"
+                        strokeWidth="1.8"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </button>
+                )}
+                {onClose && (
+                  <button
+                    type="button"
+                    className="chat-interno-panel-close"
+                    onClick={onClose}
+                    aria-label="Ocultar chat"
+                    title="Ocultar chat (Esc)"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         </header>
 

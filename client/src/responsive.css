@@ -123,9 +123,11 @@ body {
 @media (max-width: 768px) {
   .chat-panel-drawer {
     right: 0.5rem;
+    top: var(--app-top-chrome, 9rem);
     bottom: calc(var(--app-footer-height, 3.15rem) + env(safe-area-inset-bottom, 0) + 0.25rem);
     width: calc(100vw - 1rem);
-    height: min(480px, calc(100vh - var(--app-footer-height, 3.15rem) - env(safe-area-inset-bottom, 0) - 5.5rem));
+    height: auto;
+    min-height: 240px;
   }
 
   .app-footer-chat-group {

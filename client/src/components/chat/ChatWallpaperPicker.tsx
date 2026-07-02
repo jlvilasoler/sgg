@@ -25,7 +25,7 @@ export default function ChatWallpaperPicker({
     const onPointer = (e: MouseEvent) => {
       const target = e.target as Node;
       if (panelRef.current?.contains(target)) return;
-      if ((target as Element).closest?.(".chat-interno-wallpaper-btn")) return;
+      if ((target as Element).closest?.(".chat-interno-kebab")) return;
       onClose();
     };
     window.addEventListener("keydown", onKey);

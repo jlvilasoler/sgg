@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useFormularioMayusculas } from "./hooks/useFormularioMayusculas";
+import { useAppTopChrome } from "./hooks/useAppTopChrome";
 import {
   checkApiHealth,
   fetchCatalogos,
@@ -90,6 +91,8 @@ export default function App() {
   const navHistoryRef = useRef<ScreenId[]>([]);
   screenRef.current = screen;
   navHistoryRef.current = navHistory;
+
+  useAppTopChrome(!!user);
 
   const notify = useCallback((msg: string, ok = true, title?: string) => {
     showToast(msg, ok, title);
@@ -410,29 +413,31 @@ export default function App() {
   return (
     <HeaderBackProvider>
       <div className="app-shell">
-        <MainHeaderNav
-          user={user}
-          screen={screen}
-          navHistory={navHistory}
-          onHome={goHome}
-          onGoBackScreen={goBackScreen}
-          onLogout={() => void onLogout()}
-          onOpenCuenta={() => setCuentaOpen(true)}
-          onUserUpdated={setUser}
-          onPasswordChanged={(msg) => {
-            setCuentaOpen(false);
-            setUser(null);
-            navHistoryRef.current = [];
-            setNavHistory([]);
-            setScreen("home");
-            setEditRow(null);
-            hadUserRef.current = false;
-            notify(msg, true, "Contraseña actualizada");
-          }}
-          onError={(m) => notify(m, false)}
-        />
+        <div id="app-chrome-top" className="app-chrome-top">
+          <MainHeaderNav
+            user={user}
+            screen={screen}
+            navHistory={navHistory}
+            onHome={goHome}
+            onGoBackScreen={goBackScreen}
+            onLogout={() => void onLogout()}
+            onOpenCuenta={() => setCuentaOpen(true)}
+            onUserUpdated={setUser}
+            onPasswordChanged={(msg) => {
+              setCuentaOpen(false);
+              setUser(null);
+              navHistoryRef.current = [];
+              setNavHistory([]);
+              setScreen("home");
+              setEditRow(null);
+              hadUserRef.current = false;
+              notify(msg, true, "Contraseña actualizada");
+            }}
+            onError={(m) => notify(m, false)}
+          />
 
-        <HomeMarketTicker apiOnline={apiOnline} />
+          <HomeMarketTicker apiOnline={apiOnline} />
+        </div>
 
       <div className="layout-content">
         {cuentaOpen ? (
