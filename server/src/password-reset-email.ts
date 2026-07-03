@@ -50,7 +50,8 @@ async function sendViaDevEthereal(opts: {
     html: buildResetEmailHtml(opts.nombre, opts.resetUrl),
   });
 
-  const emailPreviewUrl = nodemailer.getTestMessageUrl(info) ?? undefined;
+  const rawPreview = nodemailer.getTestMessageUrl(info);
+  const emailPreviewUrl = typeof rawPreview === "string" ? rawPreview : undefined;
   if (emailPreviewUrl) {
     console.info(`[SGG Auth] Vista previa del email de recuperación: ${emailPreviewUrl}`);
   }
