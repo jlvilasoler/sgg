@@ -29,6 +29,7 @@ import {
 } from "./auth-security.js";
 import {
   buildPasswordResetUrl,
+  isPasswordResetEmailConfigured,
   sendPasswordResetEmail,
 } from "./password-reset-email.js";
 
@@ -1486,6 +1487,24 @@ export function registerAuthRoutes(app: Express): void {
       });
     }
   });
+
+  logPasswordResetEmailStatus();
+}
+
+function logPasswordResetEmailStatus(): void {
+  if (isPasswordResetEmailConfigured()) {
+    console.info("[SGG Auth] Recuperación de contraseña: email configurado (Resend o SMTP)");
+    return;
+  }
+  if (process.env.NODE_ENV !== "production") {
+    console.info(
+      "[SGG Auth] Recuperación de contraseña: sin email en .env — el enlace se registra en la consola del servidor al solicitarlo",
+    );
+    return;
+  }
+  console.warn(
+    "[SGG Auth] ADVERTENCIA: recuperación de contraseña sin RESEND_API_KEY ni SMTP — los usuarios no recibirán emails",
+  );
 }
 
 export function getCorsOrigin(): string {

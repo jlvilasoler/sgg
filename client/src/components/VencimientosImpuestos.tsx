@@ -46,7 +46,7 @@ import {
   SEMAFORO_VENCIMIENTO_LABEL,
 } from "../utils/contribucion-rural-common";
 import { escudoDepartamentoSrc } from "../utils/escudos-departamentos";
-import { canWriteModulo } from "../utils/auth-permissions";
+import { canConfigurarVencimientosImpuestos } from "../utils/auth-permissions";
 import {
   consolidarCuotasVencimientos,
   tipoImpuestoInicialDesdePrefs,
@@ -61,9 +61,10 @@ function initialTipoImpuesto(): TipoImpuestoVenc {
 }
 
 function initialShowOnboarding(user: AuthUser | null): boolean {
-  if (!canWriteModulo(user, "presupuesto")) return false;
-  const prefs = INITIAL_BOOTSTRAP?.preferencias;
-  if (!prefs) return false;
+  if (!canConfigurarVencimientosImpuestos(user)) return false;
+  if (!INITIAL_BOOTSTRAP) return false;
+  const prefs = INITIAL_BOOTSTRAP.preferencias;
+  if (!prefs) return true;
   return !prefs.onboarding_completado;
 }
 
@@ -251,7 +252,7 @@ export default function VencimientosImpuestos({ apiOnline, currentUser, onError 
     setCalendarioModal(null);
   }, [tipoImpuesto]);
 
-  const puedeConfigurar = canWriteModulo(currentUser, "presupuesto");
+  const puedeConfigurar = canConfigurarVencimientosImpuestos(currentUser);
 
   const applyPreferenciasCuenta = useCallback(
     (preferencias: UserVencimientosImpuestosPrefs | null) => {
@@ -1381,8 +1382,9 @@ export default function VencimientosImpuestos({ apiOnline, currentUser, onError 
                   type="button"
                   className="btn venc-imp-filters-btn venc-imp-filters-btn--ghost"
                   onClick={abrirPreferencias}
+                  title="Preferencias compartidas de la cuenta: los cambios aplican a todos los usuarios"
                 >
-                  Preferencias
+                  Preferencias de la cuenta
                 </button>
               </div>
             )}
@@ -1444,8 +1446,10 @@ export default function VencimientosImpuestos({ apiOnline, currentUser, onError 
 
       {configPendienteLector && (
         <p className="venc-imp-empty venc-imp-empty--cuenta-pendiente" role="status">
-          La configuración de vencimientos de su cuenta aún no fue realizada. Un usuario con permiso
-          de edición debe completar el asistente inicial.
+          La configuración de vencimientos de esta cuenta aún no fue realizada. Un{" "}
+          <strong>Administrador</strong> o <strong>Gestor</strong> (N1 o N2) con permiso de edición
+          debe completar el asistente inicial una sola vez. Cuando esté lista, todos los usuarios de la
+          cuenta verán aquí los mismos vencimientos.
         </p>
       )}
 

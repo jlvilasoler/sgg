@@ -30,8 +30,8 @@ export default function ForgotPasswordScreen({
     }
     setLoading(true);
     try {
-      const msg = await solicitarResetPassword(email.trim());
-      setSuccessMessage(msg);
+      const result = await solicitarResetPassword(email.trim());
+      setSuccessMessage(result.message);
       setSent(true);
     } catch (err) {
       onError(err instanceof Error ? err.message : "Error al enviar solicitud");

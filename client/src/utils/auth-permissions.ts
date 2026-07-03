@@ -218,6 +218,11 @@ export function canAccessScreen(user: AuthUser | null, screen: TabId): boolean {
   return user.permisos.includes(mod);
 }
 
+/** Configuración de vencimientos impuestos: una vez por cuenta (admin, gestor N1/N2). Lectores solo consultan. */
+export function canConfigurarVencimientosImpuestos(user: AuthUser | null): boolean {
+  return canWriteModulo(user, "presupuesto");
+}
+
 export function canWrite(user: AuthUser | null): boolean {
   return Boolean(user?.puede_escribir);
 }

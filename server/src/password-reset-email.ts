@@ -15,6 +15,50 @@ export function isPasswordResetEmailConfigured(): boolean {
   return false;
 }
 
+export type PasswordResetEmailResult =
+  | { mode: "sent" }
+  | { mode: "dev_fallback"; resetUrl: string; emailPreviewUrl?: string };
+
+let devEtherealTransport: nodemailer.Transporter | null = null;
+
+async function sendViaDevEthereal(opts: {
+  to: string;
+  nombre: string;
+  resetUrl: string;
+}): Promise<{ resetUrl: string; emailPreviewUrl?: string }> {
+  if (!devEtherealTransport) {
+    const account = await nodemailer.createTestAccount();
+    devEtherealTransport = nodemailer.createTransport({
+      host: account.smtp.host,
+      port: account.smtp.port,
+      secure: account.smtp.secure,
+      auth: { user: account.user, pass: account.pass },
+    });
+    console.info(
+      `[SGG Auth] SMTP de prueba Ethereal activo (${account.user}). Los emails de recuperación tienen vista previa en consola.`,
+    );
+  }
+
+  const fromUser = (devEtherealTransport as nodemailer.Transporter & { options?: { auth?: { user?: string } } })
+    .options?.auth?.user;
+  const from = fromUser ? `SAG <${fromUser}>` : `SAG <dev@ethereal.email>`;
+
+  const info = await devEtherealTransport.sendMail({
+    from,
+    to: opts.to,
+    subject: `Restablecer contraseña — ${APP_NAME}`,
+    html: buildResetEmailHtml(opts.nombre, opts.resetUrl),
+  });
+
+  const emailPreviewUrl = nodemailer.getTestMessageUrl(info) ?? undefined;
+  if (emailPreviewUrl) {
+    console.info(`[SGG Auth] Vista previa del email de recuperación: ${emailPreviewUrl}`);
+  }
+  console.info(`[SGG Auth] Enlace directo de recuperación para ${opts.to}:\n${opts.resetUrl}`);
+
+  return { resetUrl: opts.resetUrl, emailPreviewUrl };
+}
+
 function buildResetEmailHtml(nombre: string, resetUrl: string): string {
   const safeName = nombre.trim() || "Usuario";
   return `<!DOCTYPE html>
@@ -108,32 +152,41 @@ async function sendViaSmtp(opts: {
     auth: user ? { user, pass } : undefined,
   });
 
-  await transport.sendMail({
+  const info = await transport.sendMail({
     from,
     to: opts.to,
     subject: `Restablecer contraseña — ${APP_NAME}`,
     html: buildResetEmailHtml(opts.nombre, opts.resetUrl),
   });
+
+  if (process.env.NODE_ENV !== "production" && host.includes("ethereal.email")) {
+    const preview = nodemailer.getTestMessageUrl(info);
+    if (preview) {
+      console.info(`[SGG Auth] Vista previa email Ethereal: ${preview}`);
+    }
+  }
 }
 
 export async function sendPasswordResetEmail(opts: {
   to: string;
   nombre: string;
   resetUrl: string;
-}): Promise<void> {
+}): Promise<PasswordResetEmailResult> {
   if (process.env.RESEND_API_KEY?.trim()) {
     await sendViaResend(opts);
-    return;
+    return { mode: "sent" };
   }
   if (process.env.SMTP_HOST?.trim() && process.env.SMTP_FROM?.trim()) {
     await sendViaSmtp(opts);
-    return;
+    return { mode: "sent" };
   }
   if (process.env.NODE_ENV !== "production") {
-    console.info(
-      `[SGG Auth] Email no configurado. Enlace de recuperación para ${opts.to}:\n${opts.resetUrl}`
-    );
-    return;
+    const dev = await sendViaDevEthereal(opts);
+    return {
+      mode: "dev_fallback",
+      resetUrl: dev.resetUrl,
+      emailPreviewUrl: dev.emailPreviewUrl,
+    };
   }
   throw new Error("Servicio de email no configurado");
 }

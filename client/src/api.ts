@@ -3273,15 +3273,20 @@ export async function cambiarPasswordAuth(
   return json.message ?? "Contraseña actualizada";
 }
 
-export async function solicitarResetPassword(email: string): Promise<string> {
+export interface ForgotPasswordResult {
+  message: string;
+}
+
+export async function solicitarResetPassword(email: string): Promise<ForgotPasswordResult> {
   const json = await request<{ message?: string }>("/auth/forgot-password", {
     method: "POST",
     body: JSON.stringify({ email }),
   });
-  return (
-    json.message ??
-    "Si el email está registrado, recibirás un enlace para restablecer tu contraseña."
-  );
+  return {
+    message:
+      json.message ??
+      "Si el email está registrado, recibirás un enlace para restablecer tu contraseña.",
+  };
 }
 
 export async function validarResetPasswordToken(

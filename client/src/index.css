@@ -24445,6 +24445,46 @@ button.sg-kpi-card:disabled {
   font-size: 0.8rem;
 }
 
+.auth-login-dev-reset {
+  margin: 0 0 1rem;
+  padding: 0.85rem 1rem;
+  border-radius: 8px;
+  border: 1px dashed #c9a227;
+  background: #fffbeb;
+  text-align: left;
+}
+
+.auth-login-dev-reset-title {
+  margin: 0 0 0.35rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #7a5c00;
+}
+
+.auth-login-dev-reset-hint {
+  margin: 0 0 0.65rem;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: #5c6b63;
+}
+
+.auth-login-dev-reset-link {
+  display: inline-block;
+  margin-top: 0.35rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #2d5a3d;
+  word-break: break-all;
+}
+
+.auth-login-dev-reset-link--secondary {
+  color: #1a4d7a;
+}
+
+.auth-login-dev-reset-link:hover {
+  text-decoration: underline;
+}
+
 .main-header-user {
   display: flex;
   align-items: center;

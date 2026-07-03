@@ -25,6 +25,13 @@ const vars = [
   ["DATABASE_URL", map.DATABASE_URL, true],
   ["SCG_ADMIN_EMAIL", map.SCG_ADMIN_EMAIL, false],
   ["SCG_ADMIN_PASSWORD", map.SCG_ADMIN_PASSWORD, true],
+  ["RESEND_API_KEY", map.RESEND_API_KEY, true],
+  ["EMAIL_FROM", map.EMAIL_FROM, false],
+  ["SMTP_HOST", map.SMTP_HOST, false],
+  ["SMTP_PORT", map.SMTP_PORT, false],
+  ["SMTP_USER", map.SMTP_USER, false],
+  ["SMTP_PASS", map.SMTP_PASS, true],
+  ["SMTP_FROM", map.SMTP_FROM, false],
   ["NODE_ENV", "production", false],
   ["SCG_TRUST_PROXY", "1", false],
 ];

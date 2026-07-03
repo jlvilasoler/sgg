@@ -188,12 +188,15 @@ export default function VencimientosImpuestosOnboarding({
             </span>
             <div>
               <p className="venc-imp-onboard-brand-kicker">Vencimientos Impuestos</p>
-              <p className="venc-imp-onboard-brand-title">Tu calendario a medida</p>
+              <p className="venc-imp-onboard-brand-title">
+                {modoEdicion ? "Preferencias de la cuenta" : "Configuración de la cuenta"}
+              </p>
             </div>
           </div>
           <p className="venc-imp-onboard-aside-lead">
-            En cinco pasos armamos contribución rural, patente SUCIVE, BPS Caja rural e Impuesto
-            Primaria (DGI) según cómo operás en tu establecimiento.
+            {modoEdicion
+              ? "Los ajustes que guardes se aplican a todos los usuarios de la cuenta: contribución rural, patente SUCIVE, BPS Caja rural e Impuesto Primaria (DGI)."
+              : "Se configura una sola vez para toda la cuenta. El primer Administrador o Gestor que complete estos pasos habilita los vencimientos para el resto del equipo."}
           </p>
           <ol className="venc-imp-onboard-steps" aria-label="Progreso">
             <li className={`venc-imp-onboard-step${stepClass(1)}`}>
@@ -239,15 +242,17 @@ export default function VencimientosImpuestosOnboarding({
             <p className="venc-imp-onboard-kicker">
               {modoEdicion
                 ? "Preferencias de la cuenta"
-                : `Configuración inicial · Paso ${paso} de ${TOTAL_PASOS}`}
+                : `Configuración inicial de la cuenta · Paso ${paso} de ${TOTAL_PASOS}`}
             </p>
             <h2 id="venc-imp-onboard-title">
-              {modoEdicion ? "Ajustá tu calendario de vencimientos" : "Personalicemos tus vencimientos"}
+              {modoEdicion
+                ? "Ajustá el calendario de vencimientos"
+                : "Definamos los vencimientos de la cuenta"}
             </h2>
             <p className="venc-imp-onboard-lead">
               {modoEdicion
                 ? "Los cambios aplican a toda la cuenta y se reflejan en contribución rural, patente SUCIVE, BPS Caja rural e Impuesto Primaria (DGI)."
-                : "Podés cambiar todo esto cuando quieras desde el módulo."}
+                : "Estos parámetros son compartidos: todos los usuarios de la cuenta verán el mismo calendario. Podés modificarlos después desde Preferencias de la cuenta en este módulo."}
             </p>
           </header>
 
