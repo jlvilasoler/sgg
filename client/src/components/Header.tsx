@@ -15,4 +15,5 @@ export type TabId =
   | "usuarios"
   | "chat"
   | "documentos_digitales"
-  | "panel_admin_sitio";
+  | "panel_admin_sitio"
+  | "vencimientos_impuestos";

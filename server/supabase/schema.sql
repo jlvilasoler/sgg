@@ -666,6 +666,22 @@ CREATE TABLE IF NOT EXISTS DOC_DIGITAL_TIPOS_GASTO (
 
 CREATE INDEX IF NOT EXISTS idx_doc_digital_tipos_gasto_activo ON DOC_DIGITAL_TIPOS_GASTO(activo);
 
+CREATE TABLE IF NOT EXISTS USER_VENCIMIENTOS_PREFS (
+  cuenta_id INTEGER PRIMARY KEY REFERENCES EMPRESAS_CUENTA(id) ON DELETE CASCADE,
+  jurisdiccion_id TEXT NOT NULL,
+  jurisdiccion_ids TEXT,
+  modalidad_pago TEXT NOT NULL CHECK (modalidad_pago IN ('contado', 'cuotas')),
+  modalidad_pago_patente TEXT CHECK (modalidad_pago_patente IN ('contado', 'cuotas')),
+  planes_cuotas_por_jurisdiccion TEXT,
+  seguir_patente_sucive INTEGER NOT NULL DEFAULT 1,
+  seguir_bps_caja_rural INTEGER NOT NULL DEFAULT 1,
+  seguir_primaria_rural INTEGER NOT NULL DEFAULT 1,
+  regimen_primaria_rural TEXT NOT NULL DEFAULT 'con_explotacion' CHECK (regimen_primaria_rural IN ('con_explotacion', 'sin_explotacion')),
+  onboarding_completado INTEGER NOT NULL DEFAULT 0,
+  actualizado_por_user_id INTEGER REFERENCES USERS(id) ON DELETE SET NULL,
+  actualizado_en TIMESTAMPTZ DEFAULT NOW()
+);
+
 CREATE TABLE IF NOT EXISTS scg_schema_version (
   id INTEGER PRIMARY KEY CHECK (id = 1),
   version INTEGER NOT NULL DEFAULT 1

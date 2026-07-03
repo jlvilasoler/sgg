@@ -24,6 +24,7 @@ export const MODULOS_SOLO_ADMIN: Modulo[] = ["usuarios", "documentos_digitales"]
 const SCREEN_MODULO: Record<TabId, Modulo> = {
   registro: "presupuesto",
   listado: "presupuesto",
+  vencimientos_impuestos: "presupuesto",
   resumen: "presupuesto",
   configuracion: "configuracion",
   divisas: "divisas",
@@ -163,6 +164,11 @@ export function canAccessClasificacionProveedores(user: AuthUser | null): boolea
 /** Administración de Stock Ganadero (vaciar/restaurar base): solo administradores de cuenta. */
 export function canAccessStockGanaderoAdmin(user: AuthUser | null): boolean {
   return user?.rol === "admin";
+}
+
+/** Calendarios de contribución rural (Configuración SAG): solo superadministrador de plataforma. */
+export function canAccessConfigVencimientosImpuestos(user: AuthUser | null): boolean {
+  return Boolean(user?.es_super_admin);
 }
 
 /** Módulos visibles para cualquier usuario autenticado. */

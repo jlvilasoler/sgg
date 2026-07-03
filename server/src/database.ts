@@ -46,6 +46,7 @@ import * as empresasCuenta from "./empresas-cuenta-db.js";
 import * as docDig from "./documentos-digitales-db.js";
 import * as presDoc from "./presupuesto-documentos-db.js";
 import * as chat from "./chat-db.js";
+import * as vencImpPrefs from "./vencimientos-impuestos-prefs-db.js";
 import { scheduleTeamChannelSync } from "./chat-channels-db.js";
 import * as simVenta from "./simulador-venta-ganado-db.js";
 import * as simVentaAud from "./simulador-venta-auditoria-db.js";
@@ -177,6 +178,7 @@ export async function initDb(): Promise<void> {
     }
     await empresasCuenta.initEmpresasCuentaTables(db);
     await auth.initAuthTables(db);
+    await vencImpPrefs.initVencimientosImpuestosPrefsTable(db);
     await empresasCuenta.ensureCuentaMadreAdmin(db);
     await empresasCuenta.backfillCuentaMadreUsuarios(db);
     await empresasCuenta.syncCuentaAdminsEmpresaId(db);
@@ -1370,6 +1372,7 @@ export async function getCatalogos(user?: {
   id?: number;
   email?: string;
   es_super_admin?: boolean;
+  es_admin_plataforma?: boolean;
   empresa_id?: number | null;
 }): Promise<{
   empresas: string[];
@@ -1388,16 +1391,21 @@ export async function getCatalogos(user?: {
           id: user.id,
           email: user.email,
           es_super_admin: user.es_super_admin,
+          es_admin_plataforma: user.es_admin_plataforma,
           empresa_id: user.empresa_id,
         }
       : null;
   const empresasScope = scopeUser
     ? await empresasCuenta.getEmpresasOperativasPermitidas(db, scopeUser)
     : null;
+  const empresas =
+    empresasScope ??
+    (scopeUser?.es_admin_plataforma
+      ? await empresasCuenta.getEmpresaNombresActivos(db)
+      : []);
   const cuentaId = scopeUser
     ? await empresasCuenta.resolveCuentaMadreIdForUser(db, scopeUser)
     : null;
-  const empresas = empresasScope ?? [];
 
   const sinCuentaOperativa =
     scopeUser && !scopeUser.es_super_admin && cuentaId == null;

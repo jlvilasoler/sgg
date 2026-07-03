@@ -1,4 +1,4 @@
-﻿import "./load-env.js";
+import "./load-env.js";
 import "./pdf-node-polyfills.js";
 import cors from "cors";
 import cookieParser from "cookie-parser";
@@ -68,6 +68,11 @@ import {
 import * as presDoc from "./presupuesto-documentos-db.js";
 import * as stockDispositivoFoto from "./stock-dispositivo-foto-db.js";
 import * as stockControlSanitario from "./stock-control-sanitario-db.js";
+import * as contribRural from "./contribucion-rural-calendarios-db.js";
+import * as patenteSucive from "./patente-sucive-calendarios-db.js";
+import * as bpsCajaRural from "./bps-caja-rural-calendarios-db.js";
+import * as primariaRural from "./primaria-rural-calendarios-db.js";
+import * as vencImpPrefs from "./vencimientos-impuestos-prefs-db.js";
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -487,7 +492,7 @@ app.get("/api/empresas-operativas", async (req, res) => {
 });
 
 async function puedeAccederPresupuesto(row: Presupuesto, user: UserPublic): Promise<boolean> {
-  if (!user.es_super_admin) {
+  if (!user.es_admin_plataforma) {
     const permitidas = await empresasPermitidas(user);
     if (permitidas.length > 0 && !permitidas.includes(row.empresa)) {
       return false;
@@ -522,7 +527,7 @@ async function cuentaIdForUser(user: UserPublic): Promise<number | null> {
 
 /** Scope de lectura por cuenta: super admin ve todo; resto solo su cuenta (nunca null sin filtro). */
 async function cuentaIdForScopedRead(user: UserPublic): Promise<number | null> {
-  if (user.es_super_admin) return null;
+  if (user.es_admin_plataforma) return null;
   return await cuentaIdForUser(user);
 }
 
@@ -654,7 +659,7 @@ async function applyEmpresaScopeToFilters(
   filters: db.ListFilters,
   user: UserPublic
 ): Promise<db.ListFilters> {
-  if (user.es_super_admin) return filters;
+  if (user.es_admin_plataforma) return filters;
   const permitidas = await empresasPermitidas(user);
   if (permitidas.length === 0) {
     return { ...filters, empresas: ["__sin_empresas__"] };
@@ -669,7 +674,7 @@ async function resumenEmpresaScope(
   user: UserPublic,
   empresa?: string
 ): Promise<db.ResumenEmpresaScope> {
-  if (user.es_super_admin) {
+  if (user.es_admin_plataforma) {
     return empresa ? { empresa } : {};
   }
   const permitidas = await empresasPermitidas(user);
@@ -713,6 +718,211 @@ async function presupuestoListFilters(req: Request): Promise<db.ListFilters> {
 app.get("/api/presupuesto", async (req, res) => {
   const data = await db.listPresupuesto(await presupuestoListFilters(req));
   res.json({ ok: true, data });
+});
+
+app.get("/api/contribucion-rural/calendarios", async (req, res) => {
+  if (!req.user) {
+    res.status(401).json({ ok: false, error: "No autenticado" });
+    return;
+  }
+  res.json({ ok: true, data: contribRural.loadContribucionRuralCalendarios() });
+});
+
+app.put("/api/contribucion-rural/calendarios", async (req, res) => {
+  if (!req.user) {
+    res.status(401).json({ ok: false, error: "No autenticado" });
+    return;
+  }
+  if (req.user.rol !== "admin" || !req.user.es_super_admin) {
+    res.status(403).json({ ok: false, error: "Solo el superadministrador puede actualizar calendarios" });
+    return;
+  }
+  try {
+    const body = req.body as contribRural.ContribucionRuralCalendariosStore;
+    const saved = contribRural.saveContribucionRuralCalendarios(
+      body,
+      req.user.nombre || req.user.email,
+    );
+    res.json({ ok: true, data: saved });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Datos de calendario inválidos",
+    });
+  }
+});
+
+app.get("/api/patente-sucive/calendarios", async (req, res) => {
+  if (!req.user) {
+    res.status(401).json({ ok: false, error: "No autenticado" });
+    return;
+  }
+  res.json({ ok: true, data: patenteSucive.loadPatenteSuciveCalendarios() });
+});
+
+app.put("/api/patente-sucive/calendarios", async (req, res) => {
+  if (!req.user) {
+    res.status(401).json({ ok: false, error: "No autenticado" });
+    return;
+  }
+  if (req.user.rol !== "admin" || !req.user.es_super_admin) {
+    res.status(403).json({ ok: false, error: "Solo el superadministrador puede actualizar calendarios" });
+    return;
+  }
+  try {
+    const body = req.body as patenteSucive.PatenteSuciveCalendariosStore;
+    const saved = patenteSucive.savePatenteSuciveCalendarios(
+      body,
+      req.user.nombre || req.user.email,
+    );
+    res.json({ ok: true, data: saved });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Datos de calendario inválidos",
+    });
+  }
+});
+
+app.get("/api/bps-caja-rural/calendarios", async (req, res) => {
+  if (!req.user) {
+    res.status(401).json({ ok: false, error: "No autenticado" });
+    return;
+  }
+  res.json({ ok: true, data: bpsCajaRural.loadBpsCajaRuralCalendarios() });
+});
+
+app.put("/api/bps-caja-rural/calendarios", async (req, res) => {
+  if (!req.user) {
+    res.status(401).json({ ok: false, error: "No autenticado" });
+    return;
+  }
+  if (req.user.rol !== "admin" || !req.user.es_super_admin) {
+    res.status(403).json({ ok: false, error: "Solo el superadministrador puede actualizar calendarios" });
+    return;
+  }
+  try {
+    const body = req.body as bpsCajaRural.BpsCajaRuralCalendariosStore;
+    const saved = bpsCajaRural.saveBpsCajaRuralCalendarios(
+      body,
+      req.user.nombre || req.user.email,
+    );
+    res.json({ ok: true, data: saved });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Datos de calendario inválidos",
+    });
+  }
+});
+
+app.get("/api/primaria-rural/calendarios", async (req, res) => {
+  if (!req.user) {
+    res.status(401).json({ ok: false, error: "No autenticado" });
+    return;
+  }
+  res.json({ ok: true, data: primariaRural.loadPrimariaRuralCalendarios() });
+});
+
+app.put("/api/primaria-rural/calendarios", async (req, res) => {
+  if (!req.user) {
+    res.status(401).json({ ok: false, error: "No autenticado" });
+    return;
+  }
+  if (req.user.rol !== "admin" || !req.user.es_super_admin) {
+    res.status(403).json({ ok: false, error: "Solo el superadministrador puede actualizar calendarios" });
+    return;
+  }
+  try {
+    const body = req.body as primariaRural.PrimariaRuralCalendariosStore;
+    const saved = primariaRural.savePrimariaRuralCalendarios(
+      body,
+      req.user.nombre || req.user.email,
+    );
+    res.json({ ok: true, data: saved });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Datos de calendario inválidos",
+    });
+  }
+});
+
+app.get("/api/vencimientos-impuestos/bootstrap", async (req, res) => {
+  if (!req.user) {
+    res.status(401).json({ ok: false, error: "No autenticado" });
+    return;
+  }
+  const cuentaId = await cuentaIdForUser(req.user);
+  const preferencias =
+    cuentaId != null
+      ? await vencImpPrefs.getCuentaVencimientosPrefs(db.getDb(), cuentaId)
+      : null;
+  res.json({
+    ok: true,
+    data: {
+      rural: contribRural.loadContribucionRuralCalendarios(),
+      patente: patenteSucive.loadPatenteSuciveCalendarios(),
+      bps: bpsCajaRural.loadBpsCajaRuralCalendarios(),
+      primaria: primariaRural.loadPrimariaRuralCalendarios(),
+      preferencias,
+    },
+  });
+});
+
+app.get("/api/vencimientos-impuestos/preferencias", async (req, res) => {
+  if (!req.user) {
+    res.status(401).json({ ok: false, error: "No autenticado" });
+    return;
+  }
+  const cuentaId = await cuentaIdForUser(req.user);
+  if (cuentaId == null) {
+    res.json({ ok: true, data: null });
+    return;
+  }
+  const prefs = await vencImpPrefs.getCuentaVencimientosPrefs(db.getDb(), cuentaId);
+  res.json({ ok: true, data: prefs });
+});
+
+app.put("/api/vencimientos-impuestos/preferencias", async (req, res) => {
+  if (!req.user) {
+    res.status(401).json({ ok: false, error: "No autenticado" });
+    return;
+  }
+  const cuentaId = await cuentaIdParaInsert(req.user);
+  if (cuentaId == null) {
+    res.status(400).json({ ok: false, error: "No se pudo determinar la cuenta para guardar las preferencias." });
+    return;
+  }
+  try {
+    const body = req.body as vencImpPrefs.CuentaVencimientosImpuestosPrefsInput;
+    if (!Array.isArray(body.jurisdiccion_ids)) {
+      res.status(400).json({ ok: false, error: "Departamentos inválidos." });
+      return;
+    }
+    const saved = await vencImpPrefs.saveCuentaVencimientosPrefs(
+      db.getDb(),
+      cuentaId,
+      req.user.id,
+      {
+        jurisdiccion_ids: body.jurisdiccion_ids,
+        modalidad_pago: body.modalidad_pago,
+        modalidad_pago_patente: body.modalidad_pago_patente,
+        planes_cuotas_por_jurisdiccion: body.planes_cuotas_por_jurisdiccion,
+        seguir_patente_sucive: body.seguir_patente_sucive,
+        seguir_bps_caja_rural: body.seguir_bps_caja_rural,
+        seguir_primaria_rural: body.seguir_primaria_rural,
+        regimen_primaria_rural: body.regimen_primaria_rural,
+        onboarding_completado: body.onboarding_completado ?? true,
+      },
+    );
+    res.json({ ok: true, data: saved });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Preferencias inválidas",
+    });
+  }
 });
 
 app.get("/api/presupuesto/siguiente-operacion", async (_req, res) => {
@@ -942,7 +1152,7 @@ async function ventasArrendamientoFiltersFromRequest(
 async function assertEmpresaPermitida(user: UserPublic, empresa: string): Promise<void> {
   const nombre = empresa.trim();
   if (!nombre) throw new Error("La empresa es obligatoria.");
-  if (user.es_super_admin) {
+  if (user.es_admin_plataforma) {
     if (!(await empresasCuenta.isValidEmpresaNombre(db.getDb(), nombre))) {
       throw new Error("Empresa inválida o inactiva.");
     }
@@ -971,7 +1181,7 @@ async function assertEmpresaCodigoPermitida(
 ): Promise<void> {
   const normalized = codigo.trim().toUpperCase();
   if (!normalized) return;
-  if (user.es_super_admin) {
+  if (user.es_admin_plataforma) {
     if (!(await empresasCuenta.isValidEmpresaCodigo(db.getDb(), normalized))) {
       throw new Error("Empresa inválida o inactiva.");
     }

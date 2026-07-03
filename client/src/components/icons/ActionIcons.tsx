@@ -306,3 +306,18 @@ export function IconHistorial({ size, className }: IconProps) {
     </IconBase>
   );
 }
+
+/** Mano señalando — abrir detalle / calendario */
+export function IconMano({ size, className }: IconProps) {
+  return (
+    <IconBase size={size} className={className}>
+      <path
+        d="M7.5 11.5V6.8a1.3 1.3 0 1 1 2.6 0V11M10.1 11.5V5.6a1.3 1.3 0 1 1 2.6 0v6.2M12.7 11.5V6.4a1.3 1.3 0 1 1 2.6 0v7.1c0 2.4-1.4 4.5-3.6 5.5l-2.2 1-2.4-5.2 1.2-.6"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </IconBase>
+  );
+}

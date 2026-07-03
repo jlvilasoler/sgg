@@ -1,4 +1,4 @@
-﻿import type {
+import type {
   Catalogos,
   IngresoVenta,
   IngresoVentaForm,
@@ -100,6 +100,14 @@
   ComprobanteLeido,
   DetectarCamposDocumentoResult,
 } from "./types";
+import type {
+  ContribucionRuralCalendariosStore,
+  UserVencimientosImpuestosPrefs,
+  UserVencimientosImpuestosPrefsInput,
+} from "./types/contribucion-rural";
+import type { PatenteSuciveCalendariosStore } from "./types/patente-sucive";
+import type { BpsCajaRuralCalendariosStore } from "./types/bps-caja-rural";
+import type { PrimariaRuralCalendariosStore } from "./types/primaria-rural";
 import type { GastoMapeoCampos } from "./utils/gasto-campos";
 import { apiConnectionError } from "./utils/api-messages";
 
@@ -3965,5 +3973,110 @@ export async function leerComprobante(file: File): Promise<ComprobanteLeido> {
   if (!res.ok || !json.ok || !json.data) {
     throw new Error(json.error || "No se pudo leer el comprobante");
   }
+  return json.data;
+}
+
+export async function fetchContribucionRuralCalendarios(): Promise<ContribucionRuralCalendariosStore> {
+  const json = await request<{ ok: true; data: ContribucionRuralCalendariosStore }>(
+    "/contribucion-rural/calendarios",
+  );
+  return json.data;
+}
+
+export async function saveContribucionRuralCalendarios(
+  store: ContribucionRuralCalendariosStore,
+): Promise<ContribucionRuralCalendariosStore> {
+  const json = await request<{ ok: true; data: ContribucionRuralCalendariosStore }>(
+    "/contribucion-rural/calendarios",
+    { method: "PUT", body: JSON.stringify(store) },
+  );
+  return json.data;
+}
+
+export async function fetchPatenteSuciveCalendarios(): Promise<PatenteSuciveCalendariosStore> {
+  const json = await request<{ ok: true; data: PatenteSuciveCalendariosStore }>(
+    "/patente-sucive/calendarios",
+  );
+  return json.data;
+}
+
+export async function savePatenteSuciveCalendarios(
+  store: PatenteSuciveCalendariosStore,
+): Promise<PatenteSuciveCalendariosStore> {
+  const json = await request<{ ok: true; data: PatenteSuciveCalendariosStore }>(
+    "/patente-sucive/calendarios",
+    { method: "PUT", body: JSON.stringify(store) },
+  );
+  return json.data;
+}
+
+export async function fetchBpsCajaRuralCalendarios(): Promise<BpsCajaRuralCalendariosStore> {
+  const json = await request<{ ok: true; data: BpsCajaRuralCalendariosStore }>(
+    "/bps-caja-rural/calendarios",
+  );
+  return json.data;
+}
+
+export async function saveBpsCajaRuralCalendarios(
+  store: BpsCajaRuralCalendariosStore,
+): Promise<BpsCajaRuralCalendariosStore> {
+  const json = await request<{ ok: true; data: BpsCajaRuralCalendariosStore }>(
+    "/bps-caja-rural/calendarios",
+    { method: "PUT", body: JSON.stringify(store) },
+  );
+  return json.data;
+}
+
+export async function fetchPrimariaRuralCalendarios(): Promise<PrimariaRuralCalendariosStore> {
+  const json = await request<{ ok: true; data: PrimariaRuralCalendariosStore }>(
+    "/primaria-rural/calendarios",
+  );
+  return json.data;
+}
+
+export async function savePrimariaRuralCalendarios(
+  store: PrimariaRuralCalendariosStore,
+): Promise<PrimariaRuralCalendariosStore> {
+  const json = await request<{ ok: true; data: PrimariaRuralCalendariosStore }>(
+    "/primaria-rural/calendarios",
+    { method: "PUT", body: JSON.stringify(store) },
+  );
+  return json.data;
+}
+
+export async function fetchVencimientosImpuestosBootstrap(): Promise<{
+  rural: ContribucionRuralCalendariosStore;
+  patente: PatenteSuciveCalendariosStore;
+  bps: BpsCajaRuralCalendariosStore;
+  primaria: PrimariaRuralCalendariosStore;
+  preferencias: UserVencimientosImpuestosPrefs | null;
+}> {
+  const json = await request<{
+    ok: true;
+    data: {
+      rural: ContribucionRuralCalendariosStore;
+      patente: PatenteSuciveCalendariosStore;
+      bps: BpsCajaRuralCalendariosStore;
+      primaria: PrimariaRuralCalendariosStore;
+      preferencias: UserVencimientosImpuestosPrefs | null;
+    };
+  }>("/vencimientos-impuestos/bootstrap");
+  return json.data;
+}
+
+export async function fetchVencimientosImpuestosPreferencias(): Promise<UserVencimientosImpuestosPrefs | null> {
+  const json = await request<{ ok: true; data: UserVencimientosImpuestosPrefs | null }>(
+    "/vencimientos-impuestos/preferencias",
+  );
+  return json.data;
+}
+
+export async function saveVencimientosImpuestosPreferencias(
+  input: UserVencimientosImpuestosPrefsInput,
+): Promise<UserVencimientosImpuestosPrefs> {
+  const json = await request<{ ok: true; data: UserVencimientosImpuestosPrefs }>(
+    "/vencimientos-impuestos/preferencias",
+    { method: "PUT", body: JSON.stringify(input) },
+  );
   return json.data;
 }

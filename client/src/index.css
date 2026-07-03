@@ -359,6 +359,264 @@ body {
   gap: 1.25rem;
 }
 
+.home-contrib-rural {
+  width: 100%;
+  padding: 1rem 1.1rem 1.05rem;
+  background: linear-gradient(180deg, #fff 0%, #fafaf8 100%);
+  border: 1px solid color-mix(in srgb, var(--border) 88%, #fff);
+  border-radius: 14px;
+  box-shadow:
+    0 1px 2px rgba(26, 46, 31, 0.04),
+    0 8px 22px rgba(26, 46, 31, 0.06);
+}
+
+.home-contrib-rural-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.65rem 1rem;
+  margin-bottom: 0.55rem;
+}
+
+.home-contrib-rural--collapsed .home-contrib-rural-head {
+  margin-bottom: 0;
+}
+
+.home-contrib-rural-toggle {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0.45rem 0.75rem;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+}
+
+.home-contrib-rural-toggle-icon {
+  flex: 0 0 auto;
+  margin-top: 0.15rem;
+  font-size: 0.85rem;
+  color: var(--bn-muted);
+  line-height: 1;
+}
+
+.home-contrib-rural-toggle-text {
+  flex: 1 1 12rem;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.home-contrib-rural-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--header-green-dark);
+  line-height: 1.25;
+}
+
+.home-contrib-rural-title::after {
+  content: "";
+  display: block;
+  width: 2rem;
+  height: 3px;
+  margin-top: 0.35rem;
+  border-radius: 2px;
+  background: var(--bn-gold);
+}
+
+.home-contrib-rural-highlight--inline {
+  flex: 0 1 auto;
+  align-self: center;
+}
+
+.home-contrib-rural-modalidades {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0 0 0.65rem;
+  padding: 0;
+  list-style: none;
+}
+
+.home-contrib-rural-modalidad {
+  display: inline-block;
+  padding: 0.18rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--header-green-dark);
+  background: color-mix(in srgb, var(--header-green) 8%, #fff);
+  border: 1px solid color-mix(in srgb, var(--header-green) 22%, var(--border));
+}
+
+.home-contrib-rural-body {
+  padding-top: 0.15rem;
+}
+
+.home-contrib-rural--collapsed .home-contrib-rural-modalidades {
+  margin-bottom: 0;
+}
+
+.home-contrib-rural-kicker {
+  margin: 0 0 0.2rem;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--bn-muted);
+}
+
+.home-contrib-rural-head h2 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--header-green-dark);
+  line-height: 1.25;
+}
+
+.home-contrib-rural-head h2::after {
+  content: "";
+  display: block;
+  width: 2rem;
+  height: 3px;
+  margin-top: 0.35rem;
+  border-radius: 2px;
+  background: var(--bn-gold);
+}
+
+.home-contrib-rural-sub {
+  margin: 0.35rem 0 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.home-contrib-rural-highlight {
+  margin: 0;
+  padding: 0.45rem 0.65rem;
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: color-mix(in srgb, var(--header-green-dark) 88%, #000);
+  background: color-mix(in srgb, var(--bn-gold) 16%, #fff);
+  border: 1px solid color-mix(in srgb, var(--bn-gold) 38%, var(--border));
+  border-radius: 8px;
+  white-space: nowrap;
+}
+
+.home-contrib-rural-plans {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.75rem;
+}
+
+.home-contrib-rural-plan {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.28rem 0.75rem;
+  font-size: 0.74rem;
+  font-weight: 600;
+  font-family: inherit;
+  background: #fff;
+  color: var(--muted);
+  cursor: pointer;
+  transition:
+    background 0.16s ease,
+    color 0.16s ease,
+    border-color 0.16s ease;
+}
+
+.home-contrib-rural-plan:hover {
+  border-color: color-mix(in srgb, var(--bn-gold) 45%, var(--border));
+  color: var(--text);
+}
+
+.home-contrib-rural-plan--active {
+  background: color-mix(in srgb, var(--bn-gold) 14%, #fff);
+  border-color: color-mix(in srgb, var(--bn-gold) 55%, var(--border));
+  color: var(--header-green-dark);
+}
+
+.home-contrib-rural-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--bn-border-soft);
+  border-radius: 10px;
+  background: #fff;
+}
+
+.home-contrib-rural-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+
+.home-contrib-rural-table th,
+.home-contrib-rural-table td {
+  padding: 0.52rem 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid var(--bn-border-soft);
+}
+
+.home-contrib-rural-table th {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--bn-muted);
+  background: var(--bn-surface);
+}
+
+.home-contrib-rural-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.home-contrib-rural-row--proxima td {
+  background: color-mix(in srgb, var(--bn-gold) 8%, #fff);
+}
+
+.home-contrib-rural-badge {
+  display: inline-block;
+  padding: 0.12rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.home-contrib-rural-badge--vencida {
+  background: color-mix(in srgb, var(--bn-down) 12%, #fff);
+  color: #991b1b;
+}
+
+.home-contrib-rural-badge--proxima {
+  background: color-mix(in srgb, var(--bn-gold) 22%, #fff);
+  color: #7a5c00;
+}
+
+.home-contrib-rural-badge--pendiente {
+  background: color-mix(in srgb, var(--header-green) 10%, #fff);
+  color: var(--header-green-dark);
+}
+
+.home-contrib-rural-foot {
+  margin: 0.65rem 0 0;
+  font-size: 0.68rem;
+  line-height: 1.45;
+  color: var(--bn-muted);
+}
+
+.home-contrib-rural-foot a {
+  color: var(--header-green);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 .home-intro {
   margin-bottom: 0;
 }
@@ -18625,6 +18883,4302 @@ button.sg-kpi-card:disabled {
   gap: 1rem;
 }
 
+.bn-ui .vencimientos-impuestos-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  --venc-imp-radius-lg: 6px;
+  --venc-imp-radius-md: 4px;
+  --venc-imp-radius-sm: 3px;
+  --venc-imp-surface-card: #fff;
+  --venc-imp-surface-border: var(--bn-border);
+  --venc-imp-surface-shadow: 0 1px 2px rgba(26, 46, 31, 0.05);
+  --venc-imp-title: var(--bn-text);
+  --venc-imp-kicker: var(--bn-muted);
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-filters-card {
+  border-radius: var(--venc-imp-radius-lg);
+  box-shadow: var(--venc-imp-surface-shadow);
+  overflow: hidden;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-filters-card > .venc-imp-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0;
+  padding: 1.1rem 1.25rem 0.85rem;
+  border-bottom: 1px solid var(--bn-border-soft);
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-head-main {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-head-actions {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  padding-top: 0.2rem;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-filters-card .page-module-head-icon {
+  box-shadow: none;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-controls {
+  padding: 0.85rem 1.25rem 1rem;
+  border-top: 1px solid var(--bn-border-soft);
+  background: var(--bn-bg);
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-filters-bar {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: flex-start;
+  width: 100%;
+  gap: 0.65rem 1rem;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-filters-actions {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.5rem;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-field label,
+.bn-ui .vencimientos-impuestos-page .venc-imp-field-label {
+  display: block;
+  margin-bottom: 0.3rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--bn-muted);
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-field select {
+  min-width: 11rem;
+  min-height: 2.15rem;
+  padding: 0.48rem 0.55rem;
+  border: 1px solid var(--bn-border);
+  border-radius: var(--venc-imp-radius-sm);
+  background: #fff;
+  color: var(--bn-text);
+  font-size: 0.84rem;
+  font-family: inherit;
+  transition: border-color 0.15s ease;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-field select:hover:not(:disabled) {
+  border-color: #d0d4da;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-field select:focus {
+  outline: none;
+  border-color: color-mix(in srgb, var(--bn-gold) 55%, var(--bn-border));
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-field select:disabled {
+  opacity: 0.72;
+  cursor: default;
+  background: var(--bn-surface);
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-field--impuesto {
+  flex: 1 1 auto;
+  min-width: min(100%, 20rem);
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-impuesto-pick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-impuesto-pick-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.15rem;
+  padding: 0.48rem 0.85rem;
+  border: 1px solid var(--bn-border);
+  border-radius: var(--venc-imp-radius-sm);
+  background: #fff;
+  color: var(--bn-muted);
+  font-size: 0.84rem;
+  font-weight: 600;
+  font-family: inherit;
+  letter-spacing: normal;
+  text-transform: none;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  white-space: nowrap;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-impuesto-pick-btn:hover:not(.is-active) {
+  color: var(--bn-text);
+  border-color: #d0d4da;
+  background: var(--bn-surface);
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-impuesto-pick-btn.is-active {
+  background: var(--bn-gold);
+  border-color: var(--bn-gold);
+  color: #181a20;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-impuesto-pick-btn.is-active:hover {
+  background: var(--bn-gold-hover);
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-proximo-impuesto {
+  margin: 0;
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--bn-muted);
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-brand-icon-img--total {
+  width: 2.35rem;
+  height: 2.35rem;
+  flex-shrink: 0;
+  object-fit: contain;
+  border-radius: var(--venc-imp-radius-md);
+  box-shadow: 0 1px 3px rgba(11, 14, 17, 0.06);
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-field--segment {
+  min-width: 15.5rem;
+  margin-left: -5cm;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-segment {
+  display: inline-flex;
+  width: 100%;
+  min-height: 2.15rem;
+  padding: 2px;
+  gap: 2px;
+  border: 1px solid var(--bn-border);
+  border-radius: var(--venc-imp-radius-sm);
+  background: var(--bn-surface);
+  box-sizing: border-box;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-segment-btn {
+  flex: 1 1 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 1.85rem;
+  padding: 0.35rem 0.55rem;
+  border: none;
+  border-radius: 2px;
+  background: transparent;
+  color: var(--bn-muted);
+  font-size: 0.8rem;
+  font-weight: 500;
+  font-family: inherit;
+  letter-spacing: normal;
+  text-transform: none;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-segment-btn:hover:not(.is-active) {
+  color: var(--bn-text);
+  background: color-mix(in srgb, var(--bn-border) 35%, #fff);
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-segment-btn.is-active {
+  background: #fff;
+  color: var(--bn-text);
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(24, 26, 32, 0.06);
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-filters-btn {
+  min-height: 2.15rem;
+  padding: 0.48rem 1rem;
+  font-size: 0.84rem;
+  font-weight: 600;
+  border-radius: var(--venc-imp-radius-sm);
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-filters-btn--ghost {
+  border: 1px solid var(--bn-border);
+  background: #fff;
+  color: var(--bn-muted);
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-filters-btn--ghost:hover {
+  color: var(--bn-text);
+  border-color: #d0d4da;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-filters-btn--primary {
+  min-width: 7.25rem;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-stats-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem 1.1rem;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-stats-strip--inline {
+  flex: 1 1 12rem;
+  min-width: min(100%, 14rem);
+  align-self: flex-end;
+  padding-bottom: 0.35rem;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+  line-height: 1.2;
+  color: var(--bn-muted);
+  white-space: nowrap;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-stat-dot {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--bn-border);
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-stat--rojo .venc-imp-stat-dot {
+  background: #dc2626;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-stat--amarillo .venc-imp-stat-dot {
+  background: #ca8a04;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-stat--verde .venc-imp-stat-dot {
+  background: #16a34a;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-stat--total .venc-imp-stat-dot {
+  background: var(--bn-gold);
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-stat-val {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--bn-text);
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-stat-label {
+  font-weight: 500;
+}
+
+/* Shell layout (sidebar + main, como Cabaña) */
+.bn-ui .vencimientos-impuestos-page .venc-imp-shell {
+  border-radius: var(--venc-imp-radius-lg);
+  border: 1px solid var(--bn-border);
+  box-shadow: var(--venc-imp-surface-shadow);
+  overflow: hidden;
+  padding: 0;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-shell-layout {
+  display: grid;
+  grid-template-columns: minmax(11rem, 15rem) minmax(0, 1fr);
+  align-items: start;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-aside {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.15rem 1rem 1.25rem;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--header-green-dark) 6%, var(--bn-surface)) 0%,
+    var(--bn-surface) 100%
+  );
+  border-right: 1px solid var(--bn-border-soft);
+  min-height: 100%;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-aside-title {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--venc-imp-title);
+  letter-spacing: -0.01em;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-aside-subtitle {
+  margin: 0 0 0.45rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--venc-imp-kicker);
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-aside-note {
+  margin: 0.35rem 0 0;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--bn-muted);
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-aside-block {
+  display: flex;
+  flex-direction: column;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-aside-chips {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-aside-chips .venc-imp-banner-chip {
+  width: fit-content;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-aside-leyenda {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.76rem;
+  color: var(--bn-muted);
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-aside-leyenda li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-aside-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-shell-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding: 1rem 1.15rem 1.25rem;
+  min-width: 0;
+}
+
+/* Section cards */
+.bn-ui .vencimientos-impuestos-page .venc-imp-section {
+  border-radius: var(--venc-imp-radius-lg);
+  border: 1px solid var(--bn-border);
+  background: var(--bn-bg);
+  box-shadow: none;
+  padding: 1rem 1.15rem 1.15rem;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-section--detalle {
+  padding-bottom: 0.85rem;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-section-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+  margin-bottom: 0.85rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--bn-border-soft);
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-section-head-side {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-section-kicker {
+  margin: 0 0 0.18rem;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--venc-imp-kicker);
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-section-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--venc-imp-title);
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-section-sub {
+  margin: 0.28rem 0 0;
+  font-size: 0.8rem;
+  color: var(--bn-muted);
+  line-height: 1.45;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-section-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.75rem;
+  height: 1.75rem;
+  padding: 0 0.45rem;
+  border-radius: var(--venc-imp-radius-md);
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--venc-imp-title);
+  background: color-mix(in srgb, var(--bn-gold) 14%, #fff);
+  border: 1px solid color-mix(in srgb, var(--bn-gold) 35%, var(--bn-border));
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-workspace--pro {
+  gap: 0.85rem;
+}
+
+@media (max-width: 900px) {
+  .bn-ui .vencimientos-impuestos-page .venc-imp-shell-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .bn-ui .vencimientos-impuestos-page .venc-imp-aside {
+    border-right: none;
+    border-bottom: 1px solid var(--bn-border-soft);
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 0.85rem 1.25rem;
+  }
+
+  .bn-ui .vencimientos-impuestos-page .venc-imp-aside-block {
+    flex: 1 1 10rem;
+  }
+
+  .bn-ui .vencimientos-impuestos-page .venc-imp-filters-actions {
+    width: 100%;
+    margin-left: 0;
+    justify-content: flex-start;
+  }
+
+  .bn-ui .vencimientos-impuestos-page .venc-imp-stats-strip--inline {
+    flex-basis: 100%;
+    padding-bottom: 0;
+  }
+}
+
+@media (max-width: 560px) {
+  .bn-ui .vencimientos-impuestos-page .venc-imp-section-head {
+    flex-direction: column;
+  }
+
+  .bn-ui .vencimientos-impuestos-page .venc-imp-section-head-side {
+    width: 100%;
+  }
+
+  .bn-ui .vencimientos-impuestos-page .venc-imp-proximos-actions {
+    width: 100%;
+  }
+}
+
+.bn-ui .vencimientos-impuestos-page .module-hub-head {
+  margin-bottom: 0;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-tabs {
+  padding: 0.2rem;
+  border-radius: var(--venc-imp-radius-lg);
+  background: var(--bn-bg);
+  border: 1px solid var(--bn-border);
+  box-shadow: none;
+  gap: 0.2rem;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-tab {
+  border-radius: var(--venc-imp-radius-md);
+  padding: 0.5rem 1.05rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--bn-muted);
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-tab:hover {
+  color: var(--venc-imp-title);
+  background: color-mix(in srgb, var(--bn-gold) 8%, #fff);
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-tab--active {
+  background: color-mix(in srgb, var(--bn-gold) 14%, #fff);
+  color: var(--venc-imp-title);
+  box-shadow: inset 0 -2px 0 var(--bn-gold);
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-user-banner,
+.bn-ui .vencimientos-impuestos-page .venc-imp-user-banner--patente {
+  padding: 0.9rem 1.15rem;
+  background: var(--bn-bg);
+  border: 1px solid var(--bn-border);
+  border-radius: 8px;
+  box-shadow: none;
+  border-left: 3px solid var(--bn-gold);
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-user-banner-kicker {
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  color: var(--bn-muted);
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-user-banner-text {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--bn-text);
+  line-height: 1.45;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-user-banner-deptos {
+  color: var(--bn-muted);
+  font-weight: 500;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-onboard-btn--ghost {
+  border: 1px solid var(--bn-border);
+  border-radius: 6px;
+  background: var(--bn-surface);
+  color: var(--bn-text);
+  font-weight: 600;
+  padding: 0.42rem 0.85rem;
+  box-shadow: none;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-onboard-btn--ghost:hover {
+  border-color: var(--bn-gold);
+  background: color-mix(in srgb, var(--bn-gold) 8%, var(--bn-bg));
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-onboard-btn--primary {
+  border-radius: 6px;
+  background: var(--bn-gold);
+  color: var(--bn-text);
+  font-weight: 700;
+  border: 1px solid var(--bn-gold);
+  box-shadow: none;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-onboard-btn--primary:hover {
+  background: var(--bn-gold-hover);
+  border-color: var(--bn-gold-hover);
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-toolbar,
+.bn-ui .vencimientos-impuestos-page .venc-imp-toolbar--patente {
+  padding: 0.85rem 1.15rem;
+  background: var(--bn-bg);
+  border: 1px solid var(--bn-border);
+  border-radius: 8px;
+  box-shadow: none;
+  gap: 0.75rem;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-search-label {
+  color: var(--bn-muted);
+  letter-spacing: 0.04em;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-search input {
+  border-color: var(--bn-border);
+  border-radius: 4px;
+  background: var(--bn-surface);
+  color: var(--bn-text);
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-search input:focus {
+  outline: none;
+  border-color: var(--bn-gold);
+  box-shadow: none;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-vista {
+  border-color: var(--bn-border);
+  border-radius: 6px;
+  background: var(--bn-surface);
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-vista-btn {
+  color: var(--bn-muted);
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-vista-btn--active {
+  background: var(--bn-bg);
+  color: var(--bn-text);
+  box-shadow: inset 0 -2px 0 var(--bn-gold);
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-chip-filter {
+  border-color: var(--bn-border);
+  border-radius: 6px;
+  background: var(--bn-surface);
+  color: var(--bn-muted);
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-chip-filter--active {
+  background: color-mix(in srgb, var(--bn-gold) 10%, var(--bn-bg));
+  border-color: var(--bn-gold);
+  color: var(--bn-text);
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-chips-label {
+  color: var(--bn-muted);
+  font-weight: 600;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-chip {
+  border-color: var(--bn-border);
+  border-radius: 6px;
+  background: var(--bn-surface);
+  color: var(--bn-muted);
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-chip--active,
+.bn-ui .vencimientos-impuestos-page .venc-imp-chip--primary.venc-imp-chip--active {
+  background: var(--bn-bg);
+  border-color: var(--bn-gold);
+  color: var(--bn-text);
+  box-shadow: inset 0 0 0 1px rgba(240, 185, 11, 0.2);
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-link-btn {
+  color: var(--bn-muted);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-link-btn:hover {
+  color: var(--bn-text);
+  text-decoration: underline;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-empty {
+  background: var(--bn-surface);
+  border: 1px dashed var(--bn-border);
+  border-radius: 8px;
+  color: var(--bn-muted);
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-patente-lead,
+.bn-ui .vencimientos-impuestos-page .venc-imp-patente-modalidad {
+  color: var(--bn-muted);
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-patente-modalidad strong {
+  color: var(--bn-text);
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-proximos {
+  padding: 0.85rem 1.15rem 1rem;
+  background: var(--bn-bg);
+  border: 1px solid var(--bn-border);
+  border-radius: 8px;
+  box-shadow: none;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-proximos-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.65rem 1rem;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.65rem;
+  border-bottom: 1px solid var(--bn-border-soft);
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-proximos-title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--bn-text);
+  letter-spacing: -0.01em;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-proximos-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-proximos-filtros {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.2rem;
+  padding: 0.12rem;
+  border-radius: var(--venc-imp-radius-md);
+  background: var(--bn-surface);
+  border: 1px solid var(--bn-border-soft);
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-proximos-filtro {
+  border: none;
+  border-radius: var(--venc-imp-radius-sm);
+  padding: 0.28rem 0.65rem;
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--bn-muted);
+  background: transparent;
+  cursor: pointer;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-proximos-filtro--active {
+  color: var(--bn-text);
+  background: var(--bn-bg);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-proximos-track,
+.bn-ui .vencimientos-impuestos-page .venc-imp-proximos-carousel-track {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  gap: 0.65rem;
+  min-width: min-content;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-proximos-track {
+  overflow-x: auto;
+  padding-bottom: 0.35rem;
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-proximos-carousel {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.45rem;
+  min-width: 0;
+  margin-top: 0.15rem;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-proximos-carousel-fade {
+  position: relative;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-proximos-carousel-fade::before,
+.bn-ui .vencimientos-impuestos-page .venc-imp-proximos-carousel-fade::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1.35rem;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-proximos-carousel-fade::before {
+  left: 0;
+  background: linear-gradient(90deg, #fafaf8 30%, transparent);
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-proximos-carousel-fade::after {
+  right: 0;
+  background: linear-gradient(270deg, #fafaf8 30%, transparent);
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-proximos-carousel-viewport {
+  width: 100%;
+  min-width: 0;
+  min-height: 9.4rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-behavior: smooth;
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  padding-bottom: 0.15rem;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-proximos-carousel-viewport::-webkit-scrollbar {
+  display: none;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-proximos-carousel-track [role="listitem"] {
+  scroll-snap-align: start;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-proximos-carousel-track .venc-imp-proximo-card--pro {
+  flex: 0 0 min(15.5rem, 82vw);
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-proximos-carousel-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  min-height: 1.95rem;
+  padding-top: 0.05rem;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-proximos-carousel-nav--reserved {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-proximos-carousel-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  flex-shrink: 0;
+  padding: 0;
+  border: 1px solid color-mix(in srgb, var(--bn-gold) 45%, var(--bn-border));
+  border-radius: var(--venc-imp-radius-md);
+  background: #fff;
+  color: var(--header-green-dark);
+  cursor: pointer;
+  transition:
+    background 0.16s ease,
+    border-color 0.16s ease,
+    opacity 0.16s ease,
+    box-shadow 0.16s ease;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-proximos-carousel-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--bn-gold) 12%, #fff);
+  border-color: var(--bn-gold);
+  box-shadow: 0 2px 8px rgba(240, 185, 11, 0.18);
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-proximos-carousel-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-proximos-carousel-btn:focus-visible {
+  outline: 2px solid var(--bn-gold);
+  outline-offset: 2px;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-proximo-card {
+  flex: 0 0 min(11.5rem, 78vw);
+  scroll-snap-align: start;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--bn-border);
+  border-radius: var(--venc-imp-radius-md);
+  background: var(--bn-surface);
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-proximo-card--rojo {
+  background: color-mix(in srgb, #dc2626 6%, var(--bn-surface));
+  border-color: color-mix(in srgb, #dc2626 45%, var(--bn-border));
+  box-shadow: inset 3px 0 0 #dc2626;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-proximo-card--amarillo {
+  background: color-mix(in srgb, #eab308 10%, var(--bn-surface));
+  border-color: color-mix(in srgb, #ca8a04 40%, var(--bn-border));
+  box-shadow: inset 3px 0 0 #ca8a04;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-proximo-card--verde {
+  background: color-mix(in srgb, #16a34a 8%, var(--bn-surface));
+  border-color: color-mix(in srgb, #16a34a 35%, var(--bn-border));
+  box-shadow: inset 3px 0 0 #16a34a;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-proximo-card .venc-imp-semaforo-badge {
+  align-self: flex-start;
+  margin-top: 0.15rem;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-semaforo-badge {
+  display: inline-block;
+  padding: 0.12rem 0.45rem;
+  border-radius: var(--venc-imp-radius-sm);
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-semaforo-badge--rojo {
+  background: color-mix(in srgb, #dc2626 14%, var(--bn-bg));
+  color: #b91c1c;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-semaforo-badge--amarillo {
+  background: color-mix(in srgb, #eab308 22%, var(--bn-bg));
+  color: #854d0e;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-semaforo-badge--verde {
+  background: color-mix(in srgb, #16a34a 14%, var(--bn-bg));
+  color: #15803d;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-proximo-depto {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--bn-text);
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-proximo-cuota,
+.bn-ui .vencimientos-impuestos-page .venc-imp-proximo-fecha {
+  margin: 0;
+  font-size: 0.76rem;
+  color: var(--bn-muted);
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-proximos-body {
+  min-height: 11.95rem;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-proximos-carousel-track--empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 9.25rem;
+  width: 100%;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-proximos-carousel-track--empty .venc-imp-proximos-empty {
+  margin: 0;
+  padding: 0.75rem 0.5rem;
+  font-size: 0.82rem;
+  color: var(--bn-muted);
+  text-align: center;
+  width: 100%;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-proximos-empty {
+  margin: 0;
+  padding: 0.75rem 0.5rem;
+  font-size: 0.82rem;
+  color: var(--bn-muted);
+  text-align: center;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-resumen {
+  padding: 0.85rem 1.15rem;
+  background: var(--bn-bg);
+  border: 1px solid var(--bn-border);
+  border-radius: 8px;
+  box-shadow: none;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-resumen-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--bn-text);
+  letter-spacing: -0.01em;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-resumen-card {
+  border-color: var(--bn-border);
+  border-radius: 8px;
+  background: var(--bn-surface);
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-resumen-card--proxima {
+  background: var(--bn-bg);
+  border-color: var(--bn-gold);
+  box-shadow: inset 3px 0 0 var(--bn-gold);
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-resumen-depto {
+  color: var(--bn-text);
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-resumen-cuota,
+.bn-ui .vencimientos-impuestos-page .venc-imp-resumen-fecha {
+  color: var(--bn-muted);
+}
+
+.bn-ui .vencimientos-impuestos-page .home-contrib-rural {
+  padding: 0;
+  background: var(--bn-bg);
+  border: 1px solid var(--bn-border);
+  border-radius: var(--venc-imp-radius-lg);
+  box-shadow: none;
+  overflow: hidden;
+}
+
+.bn-ui .vencimientos-impuestos-page .home-contrib-rural + .home-contrib-rural {
+  margin-top: 0;
+}
+
+.bn-ui .vencimientos-impuestos-page .home-contrib-rural-head {
+  margin-bottom: 0;
+  padding: 0.85rem 1.15rem;
+  border-bottom: 1px solid var(--bn-border-soft);
+}
+
+.bn-ui .vencimientos-impuestos-page .home-contrib-rural--collapsed .home-contrib-rural-head {
+  border-bottom: none;
+}
+
+.bn-ui .vencimientos-impuestos-page .home-contrib-rural-toggle {
+  align-items: center;
+}
+
+.bn-ui .vencimientos-impuestos-page .home-contrib-rural-kicker {
+  font-size: 0.68rem;
+  letter-spacing: 0.05em;
+  color: var(--bn-muted);
+}
+
+.bn-ui .vencimientos-impuestos-page .home-contrib-rural-title,
+.bn-ui .vencimientos-impuestos-page .home-contrib-rural-head h2 {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--bn-text);
+  letter-spacing: -0.02em;
+}
+
+.bn-ui .vencimientos-impuestos-page .home-contrib-rural-title::after,
+.bn-ui .vencimientos-impuestos-page .home-contrib-rural-head h2::after {
+  display: none;
+}
+
+.bn-ui .vencimientos-impuestos-page .home-contrib-rural-sub {
+  font-size: 0.78rem;
+  color: var(--bn-muted);
+}
+
+.bn-ui .vencimientos-impuestos-page .home-contrib-rural-highlight,
+.bn-ui .vencimientos-impuestos-page .home-contrib-rural-highlight--inline {
+  padding: 0.35rem 0.65rem;
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--bn-text);
+  background: color-mix(in srgb, var(--bn-gold) 12%, var(--bn-bg));
+  border: 1px solid color-mix(in srgb, var(--bn-gold) 35%, var(--bn-border));
+  border-radius: var(--venc-imp-radius-md);
+}
+
+.bn-ui .vencimientos-impuestos-page .home-contrib-rural-body {
+  padding: 0.75rem 1.15rem 1rem;
+}
+
+.bn-ui .vencimientos-impuestos-page .home-contrib-rural-table-wrap {
+  border-color: var(--bn-border);
+  border-radius: var(--venc-imp-radius-md);
+}
+
+.bn-ui .vencimientos-impuestos-page .home-contrib-rural-table th {
+  background: var(--bn-surface);
+  color: var(--bn-muted);
+  font-size: 0.7rem;
+}
+
+.bn-ui .vencimientos-impuestos-page .home-contrib-rural-table td {
+  color: var(--bn-text);
+  border-bottom-color: var(--bn-border-soft);
+}
+
+.bn-ui .vencimientos-impuestos-page .home-contrib-rural-row--proxima td {
+  background: color-mix(in srgb, var(--bn-gold) 8%, var(--bn-bg));
+}
+
+.bn-ui .vencimientos-impuestos-page .home-contrib-rural-badge--vencida {
+  background: color-mix(in srgb, var(--bn-down) 12%, var(--bn-bg));
+  color: var(--bn-down);
+}
+
+.bn-ui .vencimientos-impuestos-page .home-contrib-rural-badge--proxima {
+  background: color-mix(in srgb, var(--bn-gold) 18%, var(--bn-bg));
+  color: #9a7300;
+}
+
+.bn-ui .vencimientos-impuestos-page .home-contrib-rural-badge--pendiente {
+  background: color-mix(in srgb, var(--bn-up) 12%, var(--bn-bg));
+  color: var(--bn-up);
+}
+
+.bn-ui .vencimientos-impuestos-page .home-contrib-rural-foot {
+  color: var(--bn-muted-light);
+}
+
+.bn-ui .vencimientos-impuestos-page .home-contrib-rural-foot a {
+  color: var(--bn-text);
+  font-weight: 600;
+}
+
+.bn-ui .vencimientos-impuestos-page .home-contrib-rural-toggle-icon {
+  color: var(--bn-muted);
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-loading {
+  color: var(--bn-muted);
+}
+
+/* —— Vencimientos Impuestos · capa Pro —— */
+.bn-ui .vencimientos-impuestos-page .venc-imp-workspace {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding: 0.25rem 0;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-skeleton-line {
+  border-radius: 12px;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--bn-border) 40%, var(--bn-surface)) 0%,
+    color-mix(in srgb, var(--bn-border) 15%, var(--bn-bg)) 50%,
+    color-mix(in srgb, var(--bn-border) 40%, var(--bn-surface)) 100%
+  );
+  background-size: 200% 100%;
+  animation: venc-imp-shimmer 1.2s ease-in-out infinite;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-skeleton-line--banner {
+  height: 5.5rem;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-skeleton-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-skeleton-line--kpi {
+  height: 4.25rem;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-skeleton-cards {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-skeleton-line--card {
+  height: 8.5rem;
+}
+
+@keyframes venc-imp-shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-user-banner--pro {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: 1rem 1.25rem;
+  padding: 1rem 1.15rem;
+  border-radius: var(--venc-imp-radius-lg);
+  border: 1px solid var(--bn-border);
+  border-left: 3px solid var(--bn-gold);
+  background: var(--bn-bg);
+  box-shadow: none;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-user-banner--patente-pro {
+  border-left-color: color-mix(in srgb, var(--header-green) 55%, var(--bn-gold));
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-brand-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-brand-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.35rem;
+  height: 2.35rem;
+  border-radius: var(--venc-imp-radius-md);
+  font-size: 1.05rem;
+  flex-shrink: 0;
+  background: var(--bn-surface);
+  border: 1px solid var(--bn-border);
+  box-shadow: none;
+}
+.bn-ui .vencimientos-impuestos-page .venc-imp-brand-icon-img {
+  width: 2.35rem;
+  height: auto;
+  flex-shrink: 0;
+  object-fit: contain;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-brand-icon-img--bps {
+  width: auto;
+  height: 2.35rem;
+  max-width: 11rem;
+  flex-shrink: 0;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-banner-chip-escudo--bps {
+  width: auto;
+  height: 1.15rem;
+  max-width: 3.5rem;
+  padding: 0;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-brand-icon-img--dgi {
+  width: auto;
+  height: 2rem;
+  max-width: 5.5rem;
+  flex-shrink: 0;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-banner-chip-escudo--dgi,
+.bn-ui .vencimientos-impuestos-page .venc-imp-banner-next-escudo--dgi {
+  width: auto;
+  height: 1.35rem;
+  max-width: 3.25rem;
+  min-width: 2.5rem;
+  padding: 0.05rem 0.15rem;
+  object-position: left center;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-proximo-escudo.venc-imp-proximo-escudo--dgi {
+  width: auto;
+  height: 1.75rem;
+  max-width: 4.5rem;
+  min-width: 3rem;
+  padding: 0.1rem 0.25rem;
+  object-fit: contain;
+  object-position: left center;
+  flex-shrink: 0;
+}
+
+.venc-imp-calendario-modal-escudo--dgi {
+  width: auto;
+  height: 2rem;
+  max-width: 5.5rem;
+  padding: 0.1rem 0.25rem;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-aside-links {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-aside-links a {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--bn-text);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-aside-block--alert {
+  padding: 0.55rem 0.65rem;
+  border-radius: var(--venc-imp-radius-sm);
+  border: 1px solid color-mix(in srgb, #ca8a04 35%, var(--bn-border));
+  background: color-mix(in srgb, #eab308 8%, var(--bn-bg));
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-aside-note--small {
+  font-size: 0.72rem;
+  line-height: 1.45;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-aside-info-head {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-aside-info-head .venc-imp-aside-subtitle {
+  margin: 0;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-info-tip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 1.2rem;
+  height: 1.2rem;
+  border-radius: 999px;
+  color: var(--bn-muted);
+  cursor: help;
+  outline: none;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-info-tip:hover,
+.bn-ui .vencimientos-impuestos-page .venc-imp-info-tip:focus-visible {
+  color: #2563eb;
+  background: color-mix(in srgb, #2563eb 10%, transparent);
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-info-tip-icon {
+  display: block;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-info-tip-bubble {
+  position: absolute;
+  left: calc(100% + 0.45rem);
+  top: 50%;
+  z-index: 40;
+  transform: translateY(-50%) scale(0.96);
+  min-width: 11rem;
+  max-width: 17rem;
+  padding: 0.55rem 0.65rem;
+  border-radius: 10px;
+  border: 1px solid var(--bn-border);
+  background: var(--bn-surface);
+  color: var(--bn-text);
+  font-size: 0.76rem;
+  font-weight: 500;
+  line-height: 1.45;
+  text-align: left;
+  white-space: normal;
+  box-shadow: 0 8px 24px rgba(11, 14, 17, 0.12);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.15s ease, transform 0.15s ease, visibility 0.15s ease;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-info-tip:hover .venc-imp-info-tip-bubble,
+.bn-ui .vencimientos-impuestos-page .venc-imp-info-tip:focus-visible .venc-imp-info-tip-bubble,
+.bn-ui .vencimientos-impuestos-page .venc-imp-info-tip:focus-within .venc-imp-info-tip-bubble {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(-50%) scale(1);
+}
+
+.home-contrib-rural-primaria-boleto-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0 0 0.45rem;
+}
+
+.home-contrib-rural-primaria-boleto-row > span:first-child {
+  font-weight: 600;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-info-strip--primaria {
+  margin: 0 0 0.85rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: var(--venc-imp-radius-md);
+  border: 1px solid color-mix(in srgb, #003da5 22%, var(--bn-border));
+  background: color-mix(in srgb, #003da5 5%, var(--bn-bg));
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: var(--bn-text);
+}
+
+.home-contrib-rural-primaria-dj,
+.home-contrib-rural-primaria-info {
+  margin: 0.65rem 0 0.85rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: var(--venc-imp-radius-sm);
+  border: 1px solid var(--bn-border-soft);
+  background: color-mix(in srgb, #003da5 4%, var(--bn-bg));
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.home-contrib-rural-primaria-dj-title {
+  margin: 0 0 0.35rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--bn-muted);
+}
+
+.venc-imp-form-regimen {
+  margin-top: 1rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--bn-border-soft);
+}
+
+.venc-imp-form-regimen h4 {
+  margin: 0 0 0.55rem;
+  font-size: 0.92rem;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-user-banner--pro .venc-imp-onboard-kicker {
+  margin-bottom: 0.2rem;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-banner-kicker-row {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-banner-kicker-row .venc-imp-onboard-kicker {
+  margin-bottom: 0;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-info-tip--banner .venc-imp-info-tip-bubble {
+  max-width: 22rem;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-user-banner--pro .venc-imp-user-banner-text {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--venc-imp-title);
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-banner-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  justify-content: flex-end;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-info-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem 1.25rem;
+  padding: 0.85rem 1.15rem;
+  border-radius: var(--venc-imp-radius-lg);
+  border: 1px solid var(--bn-border);
+  background: var(--bn-bg);
+  box-shadow: none;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-info-strip .venc-imp-patente-lead {
+  margin: 0;
+  flex: 1 1 16rem;
+  font-size: 0.82rem;
+  line-height: 1.55;
+  color: var(--bn-muted);
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-info-strip .venc-imp-patente-modalidad {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--venc-imp-title);
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-detalle-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-proximo-escudo--patente {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  object-fit: unset;
+  padding: 0;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-user-banner-glow {
+  display: none;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-user-banner-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 0.65rem;
+  min-width: min(100%, 11rem);
+  min-height: 4.35rem;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-banner-next {
+  position: relative;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.55rem 0.75rem 0.55rem 0.85rem;
+  border-radius: var(--venc-imp-radius-md);
+  border: 1px solid var(--bn-border);
+  background: var(--bn-surface);
+  overflow: hidden;
+  box-shadow: 0 1px 4px rgba(11, 14, 17, 0.06);
+  --venc-imp-banner-glow: var(--bn-gold);
+  animation: venc-imp-banner-next-blink 1.75s ease-in-out infinite;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-banner-next-accent {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--bn-border);
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-banner-next--rojo {
+  --venc-imp-banner-glow: #dc2626;
+  border-color: color-mix(in srgb, #dc2626 42%, var(--bn-border));
+  background: color-mix(in srgb, #dc2626 7%, var(--bn-bg));
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-banner-next--rojo .venc-imp-banner-next-accent {
+  background: #dc2626;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-banner-next--rojo .venc-imp-banner-next-label {
+  color: #b91c1c;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-banner-next--rojo .venc-imp-banner-next-dias {
+  color: #b91c1c;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-banner-next--amarillo {
+  --venc-imp-banner-glow: #ca8a04;
+  border-color: color-mix(in srgb, #ca8a04 38%, var(--bn-border));
+  background: color-mix(in srgb, #eab308 9%, var(--bn-bg));
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-banner-next--amarillo .venc-imp-banner-next-accent {
+  background: #ca8a04;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-banner-next--amarillo .venc-imp-banner-next-label {
+  color: #a16207;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-banner-next--amarillo .venc-imp-banner-next-dias {
+  color: #a16207;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-banner-next--verde {
+  --venc-imp-banner-glow: #16a34a;
+  border-color: color-mix(in srgb, #16a34a 30%, var(--bn-border));
+  background: color-mix(in srgb, #16a34a 6%, var(--bn-bg));
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-banner-next--verde .venc-imp-banner-next-accent {
+  background: #16a34a;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-banner-next--verde .venc-imp-banner-next-label {
+  color: #15803d;
+}
+
+@keyframes venc-imp-banner-next-blink {
+  0%,
+  100% {
+    border-color: color-mix(in srgb, var(--venc-imp-banner-glow) 38%, var(--bn-border));
+    box-shadow:
+      0 2px 8px color-mix(in srgb, var(--venc-imp-banner-glow) 12%, transparent),
+      inset 0 0 0 1px color-mix(in srgb, var(--venc-imp-banner-glow) 6%, transparent);
+  }
+  50% {
+    border-color: color-mix(in srgb, var(--venc-imp-banner-glow) 72%, var(--bn-border));
+    box-shadow:
+      0 0 0 3px color-mix(in srgb, var(--venc-imp-banner-glow) 26%, transparent),
+      0 4px 18px color-mix(in srgb, var(--venc-imp-banner-glow) 34%, transparent),
+      inset 0 0 0 1px color-mix(in srgb, var(--venc-imp-banner-glow) 14%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bn-ui .vencimientos-impuestos-page .venc-imp-banner-next {
+    animation: none;
+  }
+
+  .bn-ui .vencimientos-impuestos-page .venc-imp-banner-next-dot {
+    animation: none;
+  }
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-banner-next-escudo {
+  width: 1.5rem;
+  height: 1.5rem;
+  flex-shrink: 0;
+  object-fit: contain;
+  border-radius: 6px;
+  background: var(--bn-bg);
+  border: 1px solid var(--bn-border-soft);
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-banner-next-escudo--patente {
+  padding: 0.1rem;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-banner-next-escudo--bps {
+  width: auto;
+  height: 1.35rem;
+  max-width: 3.25rem;
+  min-width: 2.5rem;
+  padding: 0.05rem 0.15rem;
+  object-position: left center;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-banner-next-body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.12rem;
+  min-width: 0;
+  flex: 1;
+  text-align: right;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-banner-next-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--bn-muted);
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-banner-next-dot {
+  width: 0.42rem;
+  height: 0.42rem;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: currentColor;
+  box-shadow: 0 0 0 2px color-mix(in srgb, currentColor 22%, transparent);
+  animation: venc-imp-banner-next-dot-blink 1.75s ease-in-out infinite;
+}
+
+@keyframes venc-imp-banner-next-dot-blink {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.35;
+    transform: scale(0.82);
+  }
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-banner-next strong {
+  font-size: 0.88rem;
+  color: var(--bn-text);
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-banner-next-fecha {
+  font-size: 0.76rem;
+  color: var(--bn-muted);
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-banner-next-dias {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--bn-text);
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-banner-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.65rem;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-banner-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.28rem 0.55rem 0.28rem 0.35rem;
+  border-radius: var(--venc-imp-radius-sm);
+  border: 1px solid var(--bn-border);
+  background: var(--bn-surface);
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--bn-text);
+  box-shadow: none;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-banner-chip-escudo {
+  width: 1.15rem;
+  height: 1.15rem;
+  object-fit: contain;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-kpi-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-kpi {
+  position: relative;
+  overflow: hidden;
+  padding: 0.8rem 0.9rem;
+  border-radius: var(--venc-imp-radius-lg);
+  border: 1px solid var(--venc-imp-surface-border);
+  background: var(--venc-imp-surface-card);
+  box-shadow: 0 4px 16px rgba(26, 46, 31, 0.04);
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-kpi::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: var(--bn-border);
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-kpi--rojo::before {
+  background: #dc2626;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-kpi--amarillo::before {
+  background: #ca8a04;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-kpi--verde::before {
+  background: #16a34a;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-kpi--total::before {
+  background: var(--bn-gold);
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-kpi-value {
+  display: block;
+  font-size: 1.5rem;
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  color: var(--venc-imp-title);
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-kpi-label {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--bn-muted);
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-proximos--pro {
+  padding: 1.15rem 1.25rem 1.2rem;
+  border-radius: 18px;
+  border: 1px solid var(--venc-imp-surface-border);
+  background: var(--venc-imp-surface-card);
+  box-shadow: var(--venc-imp-surface-shadow);
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-proximos--pro .venc-imp-onboard-kicker {
+  margin-bottom: 0.15rem;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-proximos-intro {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: min(100%, 18rem);
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-proximos-sub {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--bn-muted);
+  line-height: 1.45;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-semaforo-leyenda {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem 0.85rem;
+  margin: 0.35rem 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--bn-muted);
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-semaforo-leyenda li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-semaforo-dot {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow: 0 0 0 2px color-mix(in srgb, currentColor 15%, transparent);
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-semaforo-dot--rojo {
+  background: #dc2626;
+  color: #dc2626;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-semaforo-dot--amarillo {
+  background: #eab308;
+  color: #eab308;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-semaforo-dot--verde {
+  background: #16a34a;
+  color: #16a34a;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-proximos-track-wrap {
+  position: relative;
+  margin-top: 0.85rem;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-proximos-track-wrap::before,
+.bn-ui .vencimientos-impuestos-page .venc-imp-proximos-track-wrap::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0.35rem;
+  width: 1.25rem;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-proximos-track-wrap::before {
+  left: 0;
+  background: linear-gradient(90deg, var(--bn-bg), transparent);
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-proximos-track-wrap::after {
+  right: 0;
+  background: linear-gradient(270deg, var(--bn-bg), transparent);
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-proximo-card--pro {
+  position: relative;
+  flex: 0 0 min(13.5rem, 82vw);
+  min-height: 9.25rem;
+  padding: 0.85rem 0.9rem 0.8rem;
+  border-radius: var(--venc-imp-radius-lg);
+  border: 1px solid var(--bn-border);
+  background: var(--bn-bg);
+  box-shadow: none;
+  transition:
+    border-color 0.16s ease,
+    background 0.16s ease;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-proximo-card--pro:hover {
+  transform: none;
+  border-color: color-mix(in srgb, var(--bn-gold) 35%, var(--bn-border));
+  box-shadow: none;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-proximo-accent {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  border-radius: var(--venc-imp-radius-lg) var(--venc-imp-radius-lg) 0 0;
+  background: var(--bn-border);
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-proximo-card--pro.venc-imp-proximo-card--rojo {
+  border-color: color-mix(in srgb, #dc2626 35%, var(--bn-border));
+  background: color-mix(in srgb, #dc2626 5%, var(--bn-bg));
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-proximo-card--pro.venc-imp-proximo-card--rojo .venc-imp-proximo-accent {
+  background: #dc2626;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-proximo-card--pro.venc-imp-proximo-card--amarillo {
+  border-color: color-mix(in srgb, #ca8a04 32%, var(--bn-border));
+  background: color-mix(in srgb, #eab308 6%, var(--bn-bg));
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-proximo-card--pro.venc-imp-proximo-card--amarillo .venc-imp-proximo-accent {
+  background: #ca8a04;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-proximo-card--pro.venc-imp-proximo-card--verde {
+  border-color: color-mix(in srgb, #16a34a 28%, var(--bn-border));
+  background: color-mix(in srgb, #16a34a 5%, var(--bn-bg));
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-proximo-card--pro.venc-imp-proximo-card--verde .venc-imp-proximo-accent {
+  background: #16a34a;
+}
+
+.bn-ui .vencimientos-impuestos-page button.venc-imp-proximo-card {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: auto;
+  margin: 0;
+  padding: 0.85rem 0.9rem 0.8rem;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.bn-ui .vencimientos-impuestos-page button.venc-imp-proximo-card:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--bn-gold) 55%, transparent);
+  outline-offset: 2px;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-proximo-top {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin-bottom: 0.45rem;
+}
+
+.venc-imp-calendario-modal {
+  position: relative;
+  width: min(760px, 96vw);
+  max-height: min(90vh, 860px);
+  overflow: hidden;
+  border-radius: 16px;
+  border: 1px solid var(--bn-border);
+  box-shadow:
+    0 24px 48px rgba(11, 14, 17, 0.16),
+    0 4px 12px rgba(11, 14, 17, 0.08);
+}
+
+.venc-imp-calendario-modal--primaria {
+  --venc-imp-cal-accent: #003da5;
+}
+
+.venc-imp-calendario-modal--bps {
+  --venc-imp-cal-accent: #1d6b3a;
+}
+
+.venc-imp-calendario-modal--patente {
+  --venc-imp-cal-accent: #0f4c81;
+}
+
+.venc-imp-calendario-modal--rural {
+  --venc-imp-cal-accent: #ca8a04;
+}
+
+.venc-imp-calendario-modal-head {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.15rem 1rem 1.25rem;
+  border-bottom: 1px solid var(--bn-border-soft);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--venc-imp-cal-accent, #003da5) 7%, var(--bn-bg)) 0%,
+    var(--bn-bg) 55%
+  );
+}
+
+.venc-imp-calendario-modal-accent {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--venc-imp-cal-accent, #003da5);
+}
+
+.venc-imp-calendario-modal-head-main {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  min-width: 0;
+}
+
+.venc-imp-calendario-modal-head-text {
+  min-width: 0;
+}
+
+.venc-imp-calendario-modal-title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem 0.6rem;
+}
+
+.venc-imp-calendario-modal-ejercicio {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.12rem 0.45rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--venc-imp-cal-accent, #003da5) 28%, var(--bn-border));
+  background: color-mix(in srgb, var(--venc-imp-cal-accent, #003da5) 8%, var(--bn-surface));
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--venc-imp-cal-accent, #003da5);
+}
+
+.venc-imp-calendario-modal-escudo {
+  width: 2.5rem;
+  height: 2.5rem;
+  object-fit: contain;
+  flex-shrink: 0;
+  padding: 0.2rem;
+  border: 1px solid var(--bn-border-soft);
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(11, 14, 17, 0.06);
+}
+
+.venc-imp-calendario-modal-escudo--patente {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.15rem;
+}
+
+.venc-imp-calendario-modal-escudo--bps {
+  width: auto;
+  height: 2.5rem;
+  max-width: 11rem;
+  padding: 0.15rem 0.35rem;
+}
+
+.venc-imp-calendario-modal-escudo--dgi {
+  width: auto;
+  height: 2.35rem;
+  max-width: 5.5rem;
+  padding: 0.15rem 0.3rem;
+}
+
+.venc-imp-calendario-modal-kicker {
+  margin: 0 0 0.2rem;
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--bn-muted);
+  line-height: 1.35;
+}
+
+.venc-imp-calendario-modal-head h2 {
+  margin: 0;
+  font-size: 1.12rem;
+  font-weight: 700;
+  color: var(--bn-text);
+  line-height: 1.25;
+}
+
+.venc-imp-calendario-modal-close {
+  flex-shrink: 0;
+  color: var(--bn-muted);
+  border-radius: 8px;
+}
+
+.venc-imp-calendario-modal-close:hover {
+  color: var(--bn-text);
+  background: color-mix(in srgb, var(--bn-text) 6%, transparent);
+}
+
+.venc-imp-calendario-modal-body {
+  overflow: auto;
+  padding: 1rem 1.15rem 1.15rem;
+  background: var(--bn-surface);
+}
+
+.venc-imp-calendario-modal-body .home-contrib-rural--modal {
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  background: transparent;
+}
+
+.venc-imp-calendario-modal-body .home-contrib-rural--modal .home-contrib-rural-body {
+  padding-top: 0;
+}
+
+.venc-imp-cal-modal-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.venc-imp-cal-modal-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.venc-imp-cal-modal-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.28rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid var(--bn-border);
+  background: var(--bn-bg);
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--bn-text);
+}
+
+.venc-imp-cal-modal-chip--primary {
+  border-color: color-mix(in srgb, var(--venc-imp-cal-accent, #003da5) 30%, var(--bn-border));
+  background: color-mix(in srgb, var(--venc-imp-cal-accent, #003da5) 8%, var(--bn-bg));
+  color: var(--venc-imp-cal-accent, #003da5);
+}
+
+.venc-imp-cal-modal-chip--muted {
+  color: var(--bn-muted);
+  font-weight: 500;
+}
+
+.venc-imp-cal-modal-proximo {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.7rem 0.85rem 0.7rem 0.95rem;
+  border-radius: 12px;
+  border: 1px solid var(--bn-border);
+  background: var(--bn-bg);
+  overflow: hidden;
+}
+
+.venc-imp-cal-modal-proximo-accent {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--bn-border);
+}
+
+.venc-imp-cal-modal-proximo--rojo {
+  border-color: color-mix(in srgb, #dc2626 38%, var(--bn-border));
+  background: color-mix(in srgb, #dc2626 6%, var(--bn-bg));
+}
+
+.venc-imp-cal-modal-proximo--rojo .venc-imp-cal-modal-proximo-accent {
+  background: #dc2626;
+}
+
+.venc-imp-cal-modal-proximo--rojo .venc-imp-cal-modal-proximo-dias {
+  color: #b91c1c;
+}
+
+.venc-imp-cal-modal-proximo--amarillo {
+  border-color: color-mix(in srgb, #ca8a04 35%, var(--bn-border));
+  background: color-mix(in srgb, #eab308 8%, var(--bn-bg));
+}
+
+.venc-imp-cal-modal-proximo--amarillo .venc-imp-cal-modal-proximo-accent {
+  background: #ca8a04;
+}
+
+.venc-imp-cal-modal-proximo--verde {
+  border-color: color-mix(in srgb, #16a34a 30%, var(--bn-border));
+  background: color-mix(in srgb, #16a34a 6%, var(--bn-bg));
+}
+
+.venc-imp-cal-modal-proximo--verde .venc-imp-cal-modal-proximo-accent {
+  background: #16a34a;
+}
+
+.venc-imp-cal-modal-proximo-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.venc-imp-cal-modal-proximo-label {
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--bn-muted);
+}
+
+.venc-imp-cal-modal-proximo-main strong {
+  font-size: 0.95rem;
+  color: var(--bn-text);
+}
+
+.venc-imp-cal-modal-proximo-main span:last-child {
+  font-size: 0.8rem;
+  color: var(--bn-muted);
+}
+
+.venc-imp-cal-modal-proximo-dias {
+  flex-shrink: 0;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--bn-text);
+}
+
+.venc-imp-cal-modal-nota {
+  margin: 0;
+  padding: 0.55rem 0.7rem;
+  border-radius: 10px;
+  border: 1px solid var(--bn-border-soft);
+  background: var(--bn-bg);
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: var(--bn-muted);
+}
+
+.venc-imp-cal-modal-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+  gap: 0.65rem;
+}
+
+.venc-imp-cal-modal-card {
+  padding: 0.75rem 0.85rem;
+  border-radius: 12px;
+  border: 1px solid var(--bn-border);
+  background: var(--bn-bg);
+}
+
+.venc-imp-cal-modal-card--dj {
+  border-color: color-mix(in srgb, #003da5 22%, var(--bn-border));
+  background: color-mix(in srgb, #003da5 5%, var(--bn-bg));
+}
+
+.venc-imp-cal-modal-card--alert {
+  border-color: color-mix(in srgb, #ca8a04 35%, var(--bn-border));
+  background: color-mix(in srgb, #eab308 8%, var(--bn-bg));
+}
+
+.venc-imp-cal-modal-card--info {
+  border-color: color-mix(in srgb, #16a34a 22%, var(--bn-border));
+  background: color-mix(in srgb, #16a34a 5%, var(--bn-bg));
+}
+
+.venc-imp-cal-modal-card--boleto {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.venc-imp-cal-modal-card-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.venc-imp-cal-modal-card-title {
+  margin: 0 0 0.35rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--bn-muted);
+}
+
+.venc-imp-cal-modal-card-title-row .venc-imp-cal-modal-card-title {
+  margin: 0;
+}
+
+.venc-imp-cal-modal-card-fecha {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--bn-text);
+}
+
+.venc-imp-cal-modal-card-dias {
+  margin: 0 0 0.45rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: #a16207;
+}
+
+.venc-imp-cal-modal-card-text {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--bn-text);
+}
+
+.venc-imp-cal-modal-card-hint {
+  margin: 0;
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--bn-muted);
+}
+
+.venc-imp-cal-modal-card-link {
+  display: inline-block;
+  margin-top: 0.45rem;
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: #003da5;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.venc-imp-cal-modal-section-title {
+  margin: 0 0 0.55rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--bn-muted);
+}
+
+.venc-imp-cal-modal-table-section .home-contrib-rural-table-wrap {
+  border-radius: 12px;
+  border: 1px solid var(--bn-border);
+  overflow: hidden;
+  box-shadow: none;
+}
+
+.venc-imp-cal-modal-table-section .home-contrib-rural-table th {
+  background: var(--bn-bg);
+  font-size: 0.68rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.venc-imp-cal-modal-table-section .home-contrib-rural-row--destacada td {
+  background: color-mix(in srgb, var(--venc-imp-cal-accent, #003da5) 6%, var(--bn-surface));
+  font-weight: 600;
+}
+
+.venc-imp-cal-modal-table-section .home-contrib-rural-row--destacada td:first-child {
+  box-shadow: inset 3px 0 0 var(--venc-imp-cal-accent, #003da5);
+}
+
+.venc-imp-cal-modal-foot {
+  padding-top: 0.35rem;
+  border-top: 1px solid var(--bn-border-soft);
+}
+
+.venc-imp-cal-modal-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.venc-imp-cal-modal-links a {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.32rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, #003da5 22%, var(--bn-border));
+  background: color-mix(in srgb, #003da5 5%, var(--bn-bg));
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: #003da5;
+  text-decoration: none;
+}
+
+.venc-imp-cal-modal-links a:hover {
+  background: color-mix(in srgb, #003da5 10%, var(--bn-bg));
+}
+
+.venc-imp-cal-modal-foot-source {
+  margin: 0;
+  font-size: 0.76rem;
+  line-height: 1.45;
+  color: var(--bn-muted);
+}
+
+.venc-imp-cal-modal-foot-source a {
+  color: #003da5;
+  font-weight: 600;
+}
+
+.venc-imp-calendario-modal-body .venc-imp-info-tip-bubble {
+  z-index: 60;
+}
+
+.home-contrib-rural-modal-meta {
+  margin: 0 0 0.75rem;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-proximo-top {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin-bottom: 0.45rem;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-proximo-escudo {
+  width: 2rem;
+  height: 2rem;
+  object-fit: contain;
+  padding: 0.15rem;
+  border-radius: 10px;
+  background: var(--bn-bg);
+  border: 1px solid var(--bn-border-soft);
+  box-shadow: 0 2px 6px rgba(11, 14, 17, 0.05);
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-proximo-escudo.venc-imp-proximo-escudo--bps {
+  width: auto;
+  height: 1.75rem;
+  max-width: 5rem;
+  min-width: 3.25rem;
+  padding: 0.1rem 0.25rem;
+  object-fit: contain;
+  object-position: left center;
+  flex-shrink: 0;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-proximo-meta {
+  min-width: 0;
+  flex: 1;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-proximo-plazo {
+  margin: 0.08rem 0 0;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--bn-muted);
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-proximo-card--rojo .venc-imp-proximo-plazo {
+  color: #b91c1c;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-semaforo-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-proximos-title {
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--venc-imp-title);
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-proximo-depto {
+  color: var(--venc-imp-title);
+}
+
+.bn-ui .vencimientos-impuestos-page .home-contrib-rural {
+  border-radius: var(--venc-imp-radius-lg);
+  border: 1px solid var(--venc-imp-surface-border);
+  background: var(--venc-imp-surface-card);
+  box-shadow: var(--venc-imp-surface-shadow);
+}
+
+.bn-ui .vencimientos-impuestos-page .home-contrib-rural--open {
+  box-shadow: var(--venc-imp-surface-shadow);
+}
+
+.bn-ui .vencimientos-impuestos-page .home-contrib-rural-title,
+.bn-ui .vencimientos-impuestos-page .home-contrib-rural-head h2 {
+  color: var(--venc-imp-title);
+}
+
+.bn-ui .vencimientos-impuestos-page .home-contrib-rural-highlight--inline {
+  border-radius: var(--venc-imp-radius-md);
+  font-size: 0.7rem;
+  background: color-mix(in srgb, var(--bn-gold) 14%, var(--bn-bg));
+  border-color: color-mix(in srgb, var(--bn-gold) 38%, var(--bn-border));
+  color: var(--venc-imp-title);
+}
+
+.bn-ui .vencimientos-impuestos-page .home-contrib-rural-badge {
+  border-radius: var(--venc-imp-radius-sm);
+}
+
+.bn-ui .vencimientos-impuestos-page .home-contrib-rural-plan,
+.bn-ui .vencimientos-impuestos-page .home-contrib-rural-modalidad {
+  border-radius: var(--venc-imp-radius-md);
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-onboard-btn--primary {
+  border-radius: 10px;
+  font-weight: 700;
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--bn-gold) 35%, transparent);
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-proximos-filtros {
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--bn-gold) 18%, var(--bn-border));
+  background: #fff;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-proximos-filtro--active {
+  color: var(--venc-imp-title);
+  background: color-mix(in srgb, var(--bn-gold) 12%, #fff);
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-vista {
+  border-radius: 10px;
+  border-color: color-mix(in srgb, var(--bn-gold) 18%, var(--bn-border));
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-vista-btn--active {
+  color: var(--venc-imp-title);
+  background: color-mix(in srgb, var(--bn-gold) 12%, #fff);
+}
+
+@media (max-width: 900px) {
+  .bn-ui .vencimientos-impuestos-page .venc-imp-kpi-strip,
+  .bn-ui .vencimientos-impuestos-page .venc-imp-skeleton-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .bn-ui .vencimientos-impuestos-page .venc-imp-skeleton-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .bn-ui .vencimientos-impuestos-page .venc-imp-user-banner-side {
+    align-items: stretch;
+    width: 100%;
+  }
+
+  .bn-ui .vencimientos-impuestos-page .venc-imp-banner-next {
+    align-items: flex-start;
+  }
+
+  .bn-ui .vencimientos-impuestos-page .venc-imp-banner-next-body {
+    align-items: flex-start;
+    text-align: left;
+  }
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-dash {
+  padding: 0.85rem 1.15rem 1rem;
+  background: var(--bn-bg);
+  border: 1px solid var(--bn-border);
+  border-radius: 8px;
+  box-shadow: none;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-dash .stock-dash-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.65rem;
+  border-bottom: 1px solid var(--bn-border-soft);
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-dash-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-dash-kpi {
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-dash-kpi-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-height: 4.5rem;
+}
+
+.bn-ui .vencimientos-impuestos-page .venc-imp-expand-actions--solo {
+  padding: 0 0.15rem;
+}
+
+@media (max-width: 720px) {
+  .bn-ui .vencimientos-impuestos-page .venc-imp-dash-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.venc-imp-tabs {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  padding: 0.2rem;
+  border-radius: 6px;
+  background: var(--bn-bg);
+  border: 1px solid var(--bn-border);
+  width: fit-content;
+  max-width: 100%;
+}
+
+.venc-imp-tabs--onboard,
+.venc-imp-tabs--config {
+  align-self: center;
+}
+
+.venc-imp-tab {
+  border: none;
+  border-radius: 4px;
+  padding: 0.42rem 0.95rem;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition:
+    background 0.16s ease,
+    color 0.16s ease,
+    box-shadow 0.16s ease;
+}
+
+.venc-imp-tab:hover {
+  color: var(--header-green-dark);
+}
+
+.venc-imp-tab--active {
+  background: #fff;
+  color: var(--header-green-dark);
+  box-shadow: 0 1px 4px rgba(26, 46, 31, 0.08);
+}
+
+.venc-imp-onboard-step--skip {
+  opacity: 0.45;
+}
+
+.venc-imp-onboard-modalidad-icon--muted {
+  background: color-mix(in srgb, var(--bn-muted) 18%, #fff);
+  color: var(--muted);
+}
+
+.venc-imp-onboard-modalidades--compact {
+  margin: 0;
+}
+
+.venc-imp-onboard-subtitle {
+  margin: 0;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--header-green-dark);
+}
+
+.venc-imp-onboard-subtitle--planes {
+  padding-top: 0;
+  border-top: none;
+}
+
+.venc-imp-onboard-planes-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  padding: 0.85rem 0.95rem;
+  border-radius: 6px;
+  background: var(--bn-bg);
+  border: 1px solid var(--bn-border);
+}
+
+.venc-imp-onboard-planes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.venc-imp-onboard-planes-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.55rem 0.75rem;
+  padding: 0.55rem 0;
+  border-top: 1px solid color-mix(in srgb, var(--border) 70%, #fff);
+}
+
+.venc-imp-onboard-planes-row:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+
+.venc-imp-onboard-planes-depto {
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: var(--header-green-dark);
+  min-width: 6.5rem;
+}
+
+.venc-imp-onboard-planes-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  justify-content: flex-end;
+  flex: 1;
+}
+
+.venc-imp-onboard-plan {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.32rem 0.8rem;
+  font-size: 0.76rem;
+  font-weight: 600;
+  font-family: inherit;
+  background: #fff;
+  color: var(--muted);
+  cursor: pointer;
+  transition:
+    background 0.16s ease,
+    color 0.16s ease,
+    border-color 0.16s ease;
+}
+
+.venc-imp-onboard-plan:hover {
+  border-color: color-mix(in srgb, var(--bn-gold) 45%, var(--border));
+  color: var(--text);
+}
+
+.venc-imp-onboard-plan--active {
+  background: color-mix(in srgb, var(--header-green) 9%, #fff);
+  border-color: color-mix(in srgb, var(--header-green) 45%, var(--border));
+  color: var(--header-green-dark);
+}
+
+.venc-imp-onboard-planes-fijo {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--bn-muted);
+  text-align: right;
+}
+
+.venc-imp-onboard-omit-note {
+  margin: 0;
+  padding: 0.7rem 0.85rem;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--muted);
+  background: var(--bn-surface);
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+}
+
+.venc-imp-onboard-sync {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  margin-bottom: 0.85rem;
+  padding: 0.7rem 0.85rem;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--header-green) 5%, #fff);
+  border: 1px solid color-mix(in srgb, var(--border) 88%, #fff);
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.venc-imp-onboard-sync--inline {
+  margin-top: 0;
+}
+
+.venc-imp-onboard-sync input {
+  margin-top: 0.15rem;
+  flex-shrink: 0;
+}
+
+.venc-imp-onboard-sync span {
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+}
+
+.venc-imp-onboard-sync strong {
+  font-size: 0.82rem;
+  color: var(--header-green-dark);
+}
+
+.venc-imp-onboard-sync small {
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.venc-imp-onboard-patente-preview {
+  margin-bottom: 0.85rem;
+  padding: 0.75rem 0.85rem;
+  border-radius: 12px;
+  background: color-mix(in srgb, #1a4a8a 5%, #fff);
+  border: 1px solid color-mix(in srgb, #1a4a8a 16%, var(--border));
+}
+
+.venc-imp-onboard-patente-preview-title {
+  margin: 0 0 0.55rem;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--bn-muted);
+}
+
+.venc-imp-onboard-patente-table {
+  font-size: 0.78rem;
+}
+
+.venc-imp-onboard-actions--split {
+  justify-content: space-between;
+  align-items: center;
+}
+
+.venc-imp-onboard-actions--split .venc-imp-link-btn {
+  margin-right: auto;
+}
+
+.venc-imp-user-banner--patente {
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, #1a4a8a 8%, #fff) 0%,
+    color-mix(in srgb, var(--bn-gold) 10%, #fff) 100%
+  );
+  border-color: color-mix(in srgb, #1a4a8a 22%, var(--border));
+}
+
+.venc-imp-toolbar--patente {
+  padding-bottom: 0.65rem;
+}
+
+.venc-imp-patente-lead {
+  margin: 0;
+  flex: 1 1 16rem;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.venc-imp-patente-modalidad {
+  margin: 0;
+  flex: 0 0 auto;
+  font-size: 0.8rem;
+  color: var(--header-green-dark);
+}
+
+.venc-imp-chips--readonly .venc-imp-chip {
+  cursor: default;
+  pointer-events: none;
+}
+
+.venc-imp-empty--cuenta-pendiente {
+  max-width: 36rem;
+  margin: 2rem auto;
+  text-align: center;
+  line-height: 1.55;
+}
+
+.venc-imp-resumen--solo .venc-imp-resumen-grid {
+  grid-template-columns: minmax(0, 20rem);
+}
+
+.venc-imp-form-card--wide {
+  grid-column: 1 / -1;
+}
+
+.venc-imp-form-check-row {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.venc-imp-form-check-row input[type="checkbox"] {
+  width: auto;
+  margin: 0;
+}
+
+.app-shell:has(.vencimientos-impuestos-page--onboarding) {
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
+}
+
+.layout-content:has(.vencimientos-impuestos-page--onboarding) {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.page-main:has(.vencimientos-impuestos-page--onboarding) {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.bn-ui .vencimientos-impuestos-page--onboarding {
+  flex: 1;
+  min-height: 0;
+  max-height: 100%;
+  overflow: hidden;
+  justify-content: flex-start;
+  padding: 0;
+}
+
+.venc-imp-loading {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.venc-imp-toolbar {
+  padding: 1rem 1.1rem;
+  background: linear-gradient(180deg, #fff 0%, #fafaf8 100%);
+  border: 1px solid color-mix(in srgb, var(--border) 88%, #fff);
+  border-radius: 14px;
+  box-shadow:
+    0 1px 2px rgba(26, 46, 31, 0.04),
+    0 8px 22px rgba(26, 46, 31, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.venc-imp-toolbar-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+}
+
+.venc-imp-search {
+  flex: 1 1 14rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.venc-imp-search-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--bn-muted);
+}
+
+.venc-imp-search input {
+  width: 100%;
+  padding: 0.45rem 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font: inherit;
+  font-size: 0.82rem;
+  background: #fff;
+}
+
+.venc-imp-toolbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.venc-imp-vista {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.venc-imp-vista-btn {
+  border: none;
+  padding: 0.32rem 0.75rem;
+  font: inherit;
+  font-size: 0.74rem;
+  font-weight: 600;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.venc-imp-vista-btn--active {
+  background: color-mix(in srgb, var(--bn-gold) 16%, #fff);
+  color: var(--header-green-dark);
+}
+
+.venc-imp-chip-filter {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.32rem 0.75rem;
+  font: inherit;
+  font-size: 0.74rem;
+  font-weight: 600;
+  background: #fff;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.venc-imp-chip-filter--active {
+  background: color-mix(in srgb, var(--header-green) 10%, #fff);
+  border-color: color-mix(in srgb, var(--header-green) 35%, var(--border));
+  color: var(--header-green-dark);
+}
+
+.venc-imp-chips-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.venc-imp-chips-label {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--header-green-dark);
+}
+
+.venc-imp-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.venc-imp-chip {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.28rem 0.65rem;
+  font: inherit;
+  font-size: 0.74rem;
+  font-weight: 600;
+  background: #fff;
+  color: var(--muted);
+  cursor: pointer;
+  transition:
+    background 0.16s ease,
+    border-color 0.16s ease,
+    color 0.16s ease;
+}
+
+.venc-imp-chip:hover {
+  border-color: color-mix(in srgb, var(--bn-gold) 45%, var(--border));
+  color: var(--text);
+}
+
+.venc-imp-chip--active {
+  background: color-mix(in srgb, var(--header-green) 12%, #fff);
+  border-color: color-mix(in srgb, var(--header-green) 40%, var(--border));
+  color: var(--header-green-dark);
+}
+
+.venc-imp-chips-actions,
+.venc-imp-expand-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem 0.65rem;
+}
+
+.venc-imp-link-btn {
+  border: none;
+  padding: 0;
+  font: inherit;
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--header-green);
+  background: none;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.venc-imp-link-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.venc-imp-link-btn--primary {
+  color: var(--header-green-dark);
+}
+
+.venc-imp-pref-ok {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--header-green-dark);
+}
+
+.venc-imp-empty {
+  margin: 0;
+  padding: 1rem 1.1rem;
+  font-size: 0.82rem;
+  color: var(--muted);
+  background: var(--bn-surface);
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  text-align: center;
+}
+
+.venc-imp-user-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+  padding: 0.85rem 1.1rem;
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--header-green) 8%, #fff) 0%,
+    color-mix(in srgb, var(--bn-gold) 10%, #fff) 100%
+  );
+  border: 1px solid color-mix(in srgb, var(--header-green) 22%, var(--border));
+  border-radius: 14px;
+}
+
+.venc-imp-user-banner-kicker {
+  margin: 0 0 0.15rem;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--bn-muted);
+}
+
+.venc-imp-user-banner-text {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--header-green-dark);
+}
+
+.venc-imp-user-banner-deptos {
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.venc-imp-onboard {
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+  max-height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  margin-top: 0;
+  overflow: hidden;
+  padding: 0 0.75rem;
+}
+
+.venc-imp-onboard-shell {
+  --venc-imp-onboard-h: min(calc(38rem + 2.5cm), 100%);
+  width: min(100%, calc(68rem + 4.5cm));
+  height: var(--venc-imp-onboard-h);
+  max-height: 100%;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(13rem, calc(17rem + 2cm)) minmax(0, 1fr);
+  gap: 1.25rem;
+  align-items: stretch;
+}
+
+.venc-imp-onboard-aside {
+  display: flex;
+  flex-direction: column;
+  gap: 1.15rem;
+  height: 100%;
+  min-height: 0;
+  padding: 1.2rem 1.25rem 1.45rem;
+  border-radius: 18px;
+  background: linear-gradient(
+    165deg,
+    var(--header-green-dark) 0%,
+    color-mix(in srgb, var(--header-green-dark) 82%, #000) 100%
+  );
+  color: #fff;
+  box-shadow: 0 12px 32px rgba(26, 46, 31, 0.18);
+}
+
+.venc-imp-onboard-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.venc-imp-onboard-brand-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 12px;
+  font-size: 1.15rem;
+  background: color-mix(in srgb, #fff 14%, transparent);
+}
+
+.venc-imp-onboard-brand-kicker {
+  margin: 0;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.82;
+}
+
+.venc-imp-onboard-brand-title {
+  margin: 0.1rem 0 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.venc-imp-onboard-aside-lead {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.6;
+  opacity: 0.92;
+}
+
+.venc-imp-onboard-steps {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  justify-content: flex-start;
+  gap: 0.65rem;
+  margin: 0;
+  padding: 0.15rem 0 0;
+  list-style: none;
+}
+
+.venc-imp-onboard-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  padding: 0.72rem 0.75rem;
+  border-radius: 12px;
+  color: color-mix(in srgb, #fff 72%, transparent);
+  transition: background 0.16s ease;
+}
+
+.venc-imp-onboard-step--active {
+  background: color-mix(in srgb, #fff 12%, transparent);
+  color: #fff;
+}
+
+.venc-imp-onboard-step--done {
+  color: color-mix(in srgb, #fff 92%, transparent);
+}
+
+.venc-imp-onboard-step-num {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.55rem;
+  height: 1.55rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  background: color-mix(in srgb, #fff 10%, transparent);
+  border: 1px solid color-mix(in srgb, #fff 28%, transparent);
+}
+
+.venc-imp-onboard-step--active .venc-imp-onboard-step-num {
+  background: color-mix(in srgb, var(--bn-gold) 88%, #fff);
+  border-color: var(--bn-gold);
+  color: var(--header-green-dark);
+}
+
+.venc-imp-onboard-step--done .venc-imp-onboard-step-num {
+  background: color-mix(in srgb, var(--header-green) 55%, #fff);
+  border-color: transparent;
+  color: #fff;
+}
+
+.venc-imp-onboard-step-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.venc-imp-onboard-step-text strong {
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.venc-imp-onboard-step-text small {
+  font-size: 0.68rem;
+  opacity: 0.82;
+}
+
+.venc-imp-onboard-card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  height: 100%;
+  min-height: 0;
+  padding: 1.3rem 1.55rem 1.45rem;
+  background: linear-gradient(180deg, #fff 0%, #fafaf8 100%);
+  border: 1px solid color-mix(in srgb, var(--bn-gold) 28%, var(--border));
+  border-radius: 18px;
+  box-shadow:
+    0 2px 8px rgba(26, 46, 31, 0.05),
+    0 18px 44px rgba(26, 46, 31, 0.08);
+}
+
+.venc-imp-onboard-head {
+  flex-shrink: 0;
+  margin-bottom: 0.95rem;
+  padding-bottom: 0.9rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 75%, #fff);
+}
+
+.venc-imp-onboard-kicker {
+  margin: 0 0 0.28rem;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--bn-muted);
+}
+
+.venc-imp-onboard-head h2 {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--header-green-dark);
+}
+
+.venc-imp-onboard-lead {
+  margin: 0.4rem 0 0;
+  font-size: 0.84rem;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+.venc-imp-onboard-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.venc-imp-onboard-panel-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  gap: 1rem;
+  padding-top: 0;
+  overflow: auto;
+  padding-right: 0.15rem;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--header-green) 35%, transparent) transparent;
+}
+
+.venc-imp-onboard-panel-body > :is(h3, h4, p, label, .venc-imp-onboard-selection, .venc-imp-onboard-deptos-meta) {
+  margin: 0;
+}
+
+.venc-imp-onboard-panel-body > .venc-imp-onboard-modalidades {
+  margin: 0;
+}
+
+.venc-imp-onboard-panel-body > .venc-imp-onboard-subtitle:not(.venc-imp-onboard-subtitle--planes) {
+  margin: 0;
+  padding-top: 1rem;
+  border-top: 1px solid color-mix(in srgb, var(--border) 70%, #fff);
+}
+
+.venc-imp-onboard-panel-body > .venc-imp-onboard-planes-block {
+  margin: 0;
+}
+
+.venc-imp-onboard-panel h3 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--header-green-dark);
+}
+
+.venc-imp-onboard-hint {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+.venc-imp-onboard-search {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin: 0;
+}
+
+.venc-imp-onboard-search-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--bn-muted);
+}
+
+.venc-imp-onboard-search input {
+  width: 100%;
+  padding: 0.62rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font: inherit;
+  font-size: 0.86rem;
+  background: #fff;
+  transition:
+    border-color 0.16s ease,
+    box-shadow 0.16s ease;
+}
+
+.venc-imp-onboard-search input:focus {
+  outline: none;
+  border-color: color-mix(in srgb, var(--header-green) 45%, var(--border));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--header-green) 12%, transparent);
+}
+
+.venc-imp-onboard-deptos-meta {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--bn-muted);
+}
+
+.venc-imp-onboard-deptos {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.48rem;
+  flex: 1;
+  min-height: 13rem;
+  overflow: auto;
+  padding: 0.25rem 0.35rem 0.25rem 0.1rem;
+  margin: 0;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--header-green) 35%, transparent) transparent;
+}
+
+.venc-imp-onboard-depto {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.35rem;
+  min-height: 2.1rem;
+  padding: 0.3rem 0.72rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: #fff;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 0.16s ease,
+    background 0.16s ease,
+    box-shadow 0.16s ease,
+    transform 0.12s ease;
+}
+
+.venc-imp-onboard-depto:hover {
+  border-color: color-mix(in srgb, var(--bn-gold) 50%, var(--border));
+  transform: translateY(-1px);
+}
+
+.venc-imp-onboard-depto--active {
+  border-color: color-mix(in srgb, var(--header-green) 50%, var(--border));
+  background: color-mix(in srgb, var(--header-green) 9%, #fff);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--header-green) 20%, transparent);
+}
+
+.venc-imp-onboard-depto-escudo {
+  flex-shrink: 0;
+  width: 1.25rem;
+  height: 1.25rem;
+  object-fit: contain;
+  object-position: center;
+}
+
+.venc-imp-onboard-depto-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--header-green-dark);
+  line-height: 1.15;
+}
+
+.venc-imp-onboard-depto-check {
+  flex-shrink: 0;
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1rem;
+  height: 1rem;
+  border-radius: 999px;
+  font-size: 0.58rem;
+  font-weight: 700;
+  color: #fff;
+  background: var(--header-green);
+}
+
+.venc-imp-onboard-empty {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+  text-align: center;
+  padding: 1rem 0.75rem;
+}
+
+.venc-imp-onboard-selection {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin: 0;
+  padding: 0.72rem 0.9rem;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--header-green) 7%, #fff);
+  border: 1px solid color-mix(in srgb, var(--header-green) 22%, var(--border));
+}
+
+.venc-imp-onboard-selection--inline {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  margin: 0;
+}
+
+.venc-imp-onboard-selection-label {
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--bn-muted);
+}
+
+.venc-imp-onboard-selection strong {
+  font-size: 0.88rem;
+  color: var(--header-green-dark);
+}
+
+.venc-imp-onboard-selection-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.venc-imp-onboard-selection-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.28rem 0.55rem 0.28rem 0.65rem;
+  border: 1px solid color-mix(in srgb, var(--header-green) 30%, var(--border));
+  border-radius: 999px;
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--header-green-dark);
+  background: #fff;
+  cursor: pointer;
+  transition:
+    background 0.16s ease,
+    border-color 0.16s ease;
+}
+
+.venc-imp-onboard-selection-chip:hover {
+  background: color-mix(in srgb, var(--header-green) 6%, #fff);
+  border-color: color-mix(in srgb, var(--header-green) 45%, var(--border));
+}
+
+.venc-imp-onboard-selection-chip span {
+  font-size: 0.9rem;
+  line-height: 1;
+  opacity: 0.65;
+}
+
+.venc-imp-onboard-modalidades {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 0.85rem;
+  margin: 0;
+}
+
+.venc-imp-onboard-modalidad {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.45rem;
+  padding: 1.05rem 1.1rem;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: #fff;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 0.16s ease,
+    background 0.16s ease,
+    transform 0.12s ease,
+    box-shadow 0.16s ease;
+}
+
+.venc-imp-onboard-modalidad:hover {
+  border-color: color-mix(in srgb, var(--bn-gold) 45%, var(--border));
+}
+
+.venc-imp-onboard-modalidad--active {
+  border-color: color-mix(in srgb, var(--header-green) 45%, var(--border));
+  background: color-mix(in srgb, var(--header-green) 7%, #fff);
+  box-shadow: 0 6px 18px rgba(26, 46, 31, 0.07);
+  transform: translateY(-1px);
+}
+
+.venc-imp-onboard-modalidad-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 10px;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--header-green-dark);
+  background: color-mix(in srgb, var(--bn-gold) 20%, #fff);
+}
+
+.venc-imp-onboard-modalidad-icon--cuotas {
+  font-size: 0.85rem;
+  letter-spacing: -0.04em;
+}
+
+.venc-imp-onboard-modalidad-title {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--header-green-dark);
+}
+
+.venc-imp-onboard-modalidad-desc {
+  font-size: 0.76rem;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.venc-imp-onboard-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.65rem;
+  flex-shrink: 0;
+  margin-top: auto;
+  padding-top: 1.125rem;
+  border-top: 1px solid color-mix(in srgb, var(--border) 75%, #fff);
+}
+
+.venc-imp-onboard-btn {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.5rem 1.1rem;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  background: #fff;
+  color: var(--text);
+  cursor: pointer;
+  transition:
+    background 0.16s ease,
+    border-color 0.16s ease,
+    opacity 0.16s ease;
+}
+
+.venc-imp-onboard-btn:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+}
+
+.venc-imp-onboard-btn--primary {
+  background: var(--header-green-dark);
+  border-color: var(--header-green-dark);
+  color: #fff;
+  min-width: 8.5rem;
+}
+
+.venc-imp-onboard-btn--primary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--header-green-dark) 88%, #000);
+}
+
+.venc-imp-onboard-btn--ghost {
+  border-color: color-mix(in srgb, var(--header-green) 30%, var(--border));
+  color: var(--header-green-dark);
+  background: #fff;
+}
+
+@media (max-width: 860px) {
+  .venc-imp-onboard-shell {
+    grid-template-columns: 1fr;
+    --venc-imp-onboard-h: auto;
+    min-height: min(calc(38rem + 2.5cm), calc(100vh - 10rem));
+    height: auto;
+  }
+
+  .venc-imp-onboard-aside {
+    order: -1;
+    height: auto;
+  }
+
+  .venc-imp-onboard-card {
+    min-height: min(calc(32rem + 2.5cm), calc(100vh - 12rem));
+  }
+
+  .venc-imp-onboard-steps {
+    flex: none;
+    justify-content: flex-start;
+    flex-direction: row;
+    flex-wrap: wrap;
+    padding: 0;
+  }
+
+  .venc-imp-onboard-step {
+    flex: 1 1 10rem;
+  }
+
+  .venc-imp-onboard-deptos {
+    min-height: 10rem;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 520px) {
+  .venc-imp-onboard {
+    padding-inline: 0.35rem;
+  }
+
+  .venc-imp-onboard-card {
+    padding: 1.05rem 1rem 1rem;
+  }
+
+  .venc-imp-onboard-deptos {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .venc-imp-onboard-actions {
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
+
+  .venc-imp-onboard-btn {
+    width: 100%;
+    text-align: center;
+  }
+}
+
+.venc-imp-chip--primary.venc-imp-chip--active {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--bn-gold) 55%, transparent);
+}
+
+.home-contrib-rural-modalidades-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0 0 0.65rem;
+}
+
+.home-contrib-rural-modalidad--user {
+  background: color-mix(in srgb, var(--bn-gold) 18%, #fff);
+  border-color: color-mix(in srgb, var(--bn-gold) 45%, var(--border));
+  color: #7a5c00;
+}
+
+.home-contrib-rural-modalidad-nota {
+  margin: 0 0 0.65rem;
+  padding: 0.55rem 0.7rem;
+  font-size: 0.74rem;
+  line-height: 1.45;
+  color: var(--header-green-dark);
+  background: color-mix(in srgb, var(--bn-gold) 10%, #fff);
+  border: 1px solid color-mix(in srgb, var(--bn-gold) 30%, var(--border));
+  border-radius: 8px;
+}
+
+.home-contrib-rural-empty-vista {
+  margin: 0;
+  padding: 0.75rem;
+  font-size: 0.78rem;
+  color: var(--muted);
+  text-align: center;
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+}
+
+.venc-imp-proximos {
+  padding: 1rem 1.1rem;
+  background: linear-gradient(180deg, #fff 0%, #fafaf8 100%);
+  border: 1px solid color-mix(in srgb, var(--border) 88%, #fff);
+  border-radius: 14px;
+}
+
+.venc-imp-proximos-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.65rem 1rem;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.65rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 70%, #fff);
+}
+
+.venc-imp-proximos-title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--header-green-dark);
+}
+
+.venc-imp-proximos-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+}
+
+.venc-imp-proximos-filtros {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  padding: 0.15rem;
+  border-radius: 999px;
+  background: #fff;
+  border: 1px solid var(--border);
+}
+
+.venc-imp-proximos-filtro {
+  border: none;
+  border-radius: 999px;
+  padding: 0.28rem 0.65rem;
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--muted);
+  background: transparent;
+  cursor: pointer;
+}
+
+.venc-imp-proximos-filtro--active {
+  color: var(--header-green-dark);
+  background: color-mix(in srgb, var(--header-green) 8%, #fff);
+}
+
+.venc-imp-proximos-track {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  gap: 0.65rem;
+  overflow-x: auto;
+  padding-bottom: 0.35rem;
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
+}
+
+.venc-imp-proximo-card {
+  flex: 0 0 min(11.5rem, 78vw);
+  scroll-snap-align: start;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--bn-border-soft);
+  border-radius: 10px;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.venc-imp-proximo-card--rojo {
+  border-color: color-mix(in srgb, #dc2626 45%, var(--border));
+  background: color-mix(in srgb, #dc2626 6%, #fff);
+  box-shadow: inset 3px 0 0 #dc2626;
+}
+
+.venc-imp-proximo-card--amarillo {
+  border-color: color-mix(in srgb, #ca8a04 40%, var(--border));
+  background: color-mix(in srgb, #eab308 10%, #fff);
+  box-shadow: inset 3px 0 0 #ca8a04;
+}
+
+.venc-imp-proximo-card--verde {
+  border-color: color-mix(in srgb, #16a34a 35%, var(--border));
+  background: color-mix(in srgb, #16a34a 8%, #fff);
+  box-shadow: inset 3px 0 0 #16a34a;
+}
+
+.venc-imp-semaforo-badge {
+  display: inline-block;
+  padding: 0.12rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1.3;
+  align-self: flex-start;
+  margin-top: 0.15rem;
+}
+
+.venc-imp-semaforo-badge--rojo {
+  background: color-mix(in srgb, #dc2626 14%, #fff);
+  color: #b91c1c;
+}
+
+.venc-imp-semaforo-badge--amarillo {
+  background: color-mix(in srgb, #eab308 22%, #fff);
+  color: #854d0e;
+}
+
+.venc-imp-semaforo-badge--verde {
+  background: color-mix(in srgb, #16a34a 14%, #fff);
+  color: #15803d;
+}
+
+.venc-imp-proximo-depto {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--header-green-dark);
+}
+
+.venc-imp-proximo-cuota,
+.venc-imp-proximo-fecha {
+  margin: 0;
+  font-size: 0.76rem;
+  color: var(--text);
+}
+
+.venc-imp-proximos-empty {
+  margin: 0;
+  padding: 0.75rem 0.5rem;
+  font-size: 0.82rem;
+  color: var(--muted);
+  text-align: center;
+}
+
+.venc-imp-resumen {
+  padding: 1rem 1.1rem;
+  background: linear-gradient(180deg, #fff 0%, #fafaf8 100%);
+  border: 1px solid color-mix(in srgb, var(--border) 88%, #fff);
+  border-radius: 14px;
+}
+
+.venc-imp-resumen-title {
+  margin: 0 0 0.75rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--header-green-dark);
+}
+
+.venc-imp-resumen-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(11.5rem, 1fr));
+  gap: 0.65rem;
+}
+
+.venc-imp-resumen-card {
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--bn-border-soft);
+  border-radius: 10px;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.venc-imp-resumen-card--proxima {
+  border-color: color-mix(in srgb, var(--bn-gold) 45%, var(--border));
+  background: color-mix(in srgb, var(--bn-gold) 6%, #fff);
+}
+
+.venc-imp-resumen-depto {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--header-green-dark);
+}
+
+.venc-imp-resumen-cuota,
+.venc-imp-resumen-fecha {
+  margin: 0;
+  font-size: 0.76rem;
+  color: var(--text);
+}
+
+.venc-imp-resumen-mods {
+  margin: 0.35rem 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.venc-imp-resumen-mods li {
+  font-size: 0.64rem;
+  font-weight: 600;
+  color: var(--bn-muted);
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  background: var(--bn-surface);
+}
+
+.venc-imp-form {
+  padding: 1rem 1.1rem;
+  background: linear-gradient(180deg, #fff 0%, #fafaf8 100%);
+  border: 1px solid color-mix(in srgb, var(--border) 88%, #fff);
+  border-radius: 14px;
+  box-shadow:
+    0 1px 2px rgba(26, 46, 31, 0.04),
+    0 8px 22px rgba(26, 46, 31, 0.06);
+}
+
+.venc-imp-form-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+  margin-bottom: 0.9rem;
+}
+
+.venc-imp-form-head h2 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--header-green-dark);
+}
+
+.venc-imp-form-sub {
+  margin: 0.35rem 0 0;
+  max-width: 42rem;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.venc-imp-form-meta {
+  margin: 0.4rem 0 0;
+  font-size: 0.68rem;
+  color: var(--bn-muted);
+}
+
+.venc-imp-form-shift {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.38rem 0.75rem;
+  font-size: 0.74rem;
+  font-weight: 600;
+  font-family: inherit;
+  background: #fff;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.venc-imp-form-shift:hover {
+  border-color: color-mix(in srgb, var(--bn-gold) 45%, var(--border));
+}
+
+.venc-imp-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 0.75rem;
+}
+
+.venc-imp-form-card {
+  padding: 0.75rem;
+  border: 1px solid var(--bn-border-soft);
+  border-radius: 10px;
+  background: #fff;
+}
+
+.venc-imp-form-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.55rem;
+}
+
+.venc-imp-form-card-head h3 {
+  margin: 0;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--header-green-dark);
+}
+
+.venc-imp-form-anio {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--bn-muted);
+}
+
+.venc-imp-form-anio input {
+  width: 5.5rem;
+  padding: 0.28rem 0.45rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-family: inherit;
+}
+
+.venc-imp-form-url,
+.venc-imp-form-nota {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  margin-bottom: 0.45rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--bn-muted);
+}
+
+.venc-imp-form-url input,
+.venc-imp-form-nota input {
+  padding: 0.38rem 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-family: inherit;
+}
+
+.venc-imp-form-link {
+  display: inline-block;
+  margin-bottom: 0.5rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--header-green);
+}
+
+.venc-imp-form-cuotas {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
+  gap: 0.35rem;
+  margin-bottom: 0.45rem;
+}
+
+.venc-imp-form-cuota {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  font-size: 0.66rem;
+  font-weight: 600;
+  color: var(--bn-muted);
+}
+
+.venc-imp-form-cuota input {
+  padding: 0.28rem 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 0.76rem;
+  font-family: inherit;
+}
+
+.venc-imp-form-planes {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-bottom: 0.45rem;
+}
+
+.venc-imp-form-plan {
+  border: 1px solid var(--bn-border-soft);
+  border-radius: 8px;
+  padding: 0.35rem 0.45rem;
+}
+
+.venc-imp-form-plan summary {
+  cursor: pointer;
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.venc-imp-form-plan .venc-imp-form-cuotas {
+  margin-top: 0.45rem;
+}
+
+.venc-imp-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.85rem;
+}
+
+.venc-imp-form-save {
+  border: none;
+  border-radius: 8px;
+  padding: 0.48rem 1rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  font-family: inherit;
+  background: var(--header-green-dark);
+  color: #fff;
+  cursor: pointer;
+}
+
+.venc-imp-form-save:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.vencimientos-impuestos-config .venc-imp-form {
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  background: transparent;
+}
+
 .module-hub-head {
   margin-bottom: 1.15rem;
   padding: 0 0.15rem;
@@ -18655,7 +23209,8 @@ button.sg-kpi-card:disabled {
   border-bottom: 1px solid var(--bn-border-soft);
 }
 
-.bn-ui .resumen-head-title {
+.bn-ui .resumen-head-title,
+.bn-ui .venc-imp-head-title {
   margin: 0;
   font-size: 1.35rem;
   font-weight: 600;
@@ -18667,11 +23222,17 @@ button.sg-kpi-card:disabled {
   display: inline-block;
 }
 
-.bn-ui .resumen-head-sub {
+.bn-ui .resumen-head-sub,
+.bn-ui .venc-imp-head-sub {
   margin: 0.45rem 0 0;
   font-size: 0.84rem;
   color: var(--bn-muted);
   font-weight: 400;
+  line-height: 1.45;
+}
+
+.bn-ui .venc-imp-head-sub {
+  max-width: 56ch;
 }
 
 .bn-ui .resumen-filters-card .resumen-filters,
@@ -34045,11 +38606,11 @@ button.sg-kpi-card:disabled {
 
 .stock-producto-ficha-modal {
   position: relative;
-  width: min(1100px, 95vw);
-  max-height: none;
+  width: min(920px, 95vw);
+  max-height: min(92vh, 52rem);
   display: flex;
   flex-direction: column;
-  overflow: visible;
+  overflow: hidden;
   margin: 0 auto;
   background: linear-gradient(180deg, #f8fbfb 0%, #f1f5f4 100%);
   border: 1px solid rgba(45, 90, 61, 0.12);
@@ -34290,8 +38851,236 @@ button.sg-kpi-card:disabled {
   display: flex;
   flex-direction: column;
   gap: 0;
-  flex: 0 0 auto;
-  overflow: visible;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.stock-producto-ficha-tabs {
+  display: flex;
+  gap: 0.35rem;
+  padding: 0.65rem 1.15rem 0;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+  background: #fff;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.stock-producto-ficha-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.85rem;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  background: transparent;
+  color: #64748b;
+  font-size: 0.8rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.stock-producto-ficha-tab:hover {
+  color: #0f766e;
+}
+
+.stock-producto-ficha-tab.is-active {
+  color: #134e4a;
+  border-bottom-color: #14b8a6;
+}
+
+.stock-producto-ficha-tab-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #0f766e;
+  background: rgba(20, 184, 166, 0.12);
+}
+
+.stock-producto-ficha-hero {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 1rem;
+  padding: 1rem 1.15rem 0.85rem;
+  background: #fff;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+}
+
+.stock-producto-ficha-hero-foto {
+  width: 7.5rem;
+  flex-shrink: 0;
+}
+
+.stock-producto-ficha-foto-frame--compact {
+  min-height: 6.5rem;
+  max-height: 7.5rem;
+}
+
+.stock-producto-ficha-foto-frame--compact .stock-producto-ficha-foto {
+  max-height: 7rem;
+}
+
+.stock-producto-ficha-foto-frame--compact .stock-producto-ficha-foto-placeholder {
+  min-height: 6.5rem;
+  padding: 0.5rem;
+}
+
+.stock-producto-ficha-foto-frame--compact .stock-edit-foto-placeholder-text {
+  font-size: 0.68rem;
+}
+
+.stock-producto-ficha-hero-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  min-width: 0;
+}
+
+.stock-producto-ficha-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.stock-producto-ficha-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.22rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: #0f766e;
+  background: rgba(20, 184, 166, 0.1);
+  border: 1px solid rgba(13, 148, 136, 0.2);
+  line-height: 1.3;
+}
+
+.stock-producto-ficha-chip--muted {
+  color: #475569;
+  background: #f8fafc;
+  border-color: rgba(148, 163, 184, 0.35);
+}
+
+.stock-producto-ficha-spec-grid--hero {
+  grid-template-columns: 1fr;
+  gap: 0.45rem;
+}
+
+.stock-producto-ficha-resumen-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+  gap: 0.75rem;
+  padding: 0.85rem 1.15rem 1rem;
+  background: linear-gradient(180deg, #f8fffe 0%, #f4f8f7 100%);
+}
+
+.stock-producto-ficha-detalles-acc {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.stock-producto-ficha-detalle-block {
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 10px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.stock-producto-ficha-detalle-block.is-open {
+  border-color: rgba(13, 148, 136, 0.28);
+  box-shadow: 0 2px 8px rgba(13, 148, 136, 0.06);
+}
+
+.stock-producto-ficha-detalle-trigger {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.65rem 0.75rem;
+  border: none;
+  background: linear-gradient(180deg, #fafcfb 0%, #f6faf9 100%);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.stock-producto-ficha-detalle-trigger:hover {
+  background: #f0fdfa;
+}
+
+.stock-producto-ficha-detalle-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #134e4a;
+  line-height: 1.35;
+}
+
+.stock-producto-ficha-detalle-meta {
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: #94a3b8;
+  white-space: nowrap;
+}
+
+.stock-producto-ficha-detalle-chevron {
+  flex-shrink: 0;
+  color: #64748b;
+  transition: transform 0.2s ease;
+}
+
+.stock-producto-ficha-detalle-block.is-open .stock-producto-ficha-detalle-chevron {
+  transform: rotate(180deg);
+}
+
+.stock-producto-ficha-detalle-list {
+  margin: 0;
+  padding: 0.55rem 0.85rem 0.7rem 1.35rem;
+  list-style: disc;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: #334155;
+  max-height: 11rem;
+  overflow-y: auto;
+}
+
+.stock-producto-ficha-detalle-list li + li {
+  margin-top: 0.2rem;
+}
+
+.stock-producto-ficha-espera-card--info {
+  border-color: rgba(234, 179, 8, 0.45);
+  background: linear-gradient(180deg, #fffbeb 0%, #fff 100%);
+}
+
+.stock-producto-ficha-espera-card--info .stock-producto-ficha-espera-valor {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #92400e;
+  line-height: 1.4;
+}
+
+.stock-producto-ficha-texto--notas {
+  max-height: 8rem;
+  overflow-y: auto;
+}
+
+.stock-producto-ficha-textarea--detalles {
+  max-height: 14rem;
+  overflow-y: auto !important;
 }
 
 .stock-producto-ficha-body-top {
@@ -34301,8 +39090,8 @@ button.sg-kpi-card:disabled {
 }
 
 .stock-producto-ficha-detalles-panel {
-  padding: 0 1.25rem 1.15rem;
-  border-top: 1px solid rgba(148, 163, 184, 0.22);
+  padding: 0.85rem 1.15rem 1.1rem;
+  border-top: 1px solid rgba(148, 163, 184, 0.18);
   background: #fff;
 }
 
@@ -34640,6 +39429,19 @@ button.sg-kpi-card:disabled {
 }
 
 @media (max-width: 860px) {
+  .stock-producto-ficha-hero {
+    grid-template-columns: 1fr;
+  }
+
+  .stock-producto-ficha-hero-foto {
+    width: 100%;
+    max-width: 10rem;
+  }
+
+  .stock-producto-ficha-resumen-grid {
+    grid-template-columns: 1fr;
+  }
+
   .stock-producto-ficha-body-top {
     grid-template-columns: 1fr;
   }

@@ -201,6 +201,18 @@ function IconPanelAdminSitio({ className }: IconProps) {
   );
 }
 
+function IconVencimientosImpuestos({ className }: IconProps) {
+  return (
+    <IconShell className={className}>
+      <path d="M7 4v2M17 4v2" {...stroke} />
+      <rect x="4" y="5.5" width="16" height="14.5" rx="2" {...stroke} />
+      <path d="M4 10.5h16" {...stroke} />
+      <path d="M8 14.5h3M8 17h5" {...stroke} strokeWidth="1.4" />
+      <circle cx="16.5" cy="16.5" r="2.25" fill="currentColor" fillOpacity="0.18" {...stroke} strokeWidth="1.4" />
+    </IconShell>
+  );
+}
+
 function IconDocumentosDigitales({ className }: IconProps) {
   return (
     <IconShell className={className}>
@@ -224,6 +236,7 @@ function IconDocumentosDigitales({ className }: IconProps) {
 const ICONS: Record<TabId, (props: IconProps) => ReactNode> = {
   registro: IconRegistro,
   listado: IconListado,
+  vencimientos_impuestos: IconVencimientosImpuestos,
   resumen: IconResumen,
   configuracion: IconConfiguracion,
   divisas: IconDivisas,
@@ -262,6 +275,11 @@ export const MENU_APP_THEMES: Record<TabId, MenuAppTheme> = {
     accent: "#2563eb",
     accentSoft: "linear-gradient(145deg, #eff6ff 0%, #dbeafe 52%, #bfdbfe 100%)",
     accentGlow: "rgba(37, 99, 235, 0.28)",
+  },
+  vencimientos_impuestos: {
+    accent: "#be123c",
+    accentSoft: "linear-gradient(145deg, #fff1f2 0%, #ffe4e6 52%, #fecdd3 100%)",
+    accentGlow: "rgba(190, 18, 60, 0.28)",
   },
   resumen: {
     accent: "#d97706",

@@ -138,7 +138,7 @@ export function moduleFromApiPath(path: string): Modulo | null {
   ) {
     return "usuarios";
   }
-  if (p.startsWith("/api/presupuesto") || p.startsWith("/api/resumen")) {
+  if (p.startsWith("/api/presupuesto") || p.startsWith("/api/resumen") || p.startsWith("/api/vencimientos-impuestos")) {
     return "presupuesto";
   }
   if (

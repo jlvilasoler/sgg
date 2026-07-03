@@ -7,6 +7,8 @@ export interface HubMenuCardProps {
   icon: ReactNode;
   theme: MenuAppTheme;
   onClick: () => void;
+  onMouseEnter?: () => void;
+  onFocus?: () => void;
   className?: string;
 }
 
@@ -24,6 +26,8 @@ export function HubMenuCard({
   icon,
   theme,
   onClick,
+  onMouseEnter,
+  onFocus,
   className,
 }: HubMenuCardProps) {
   return (
@@ -32,6 +36,8 @@ export function HubMenuCard({
       className={className ? `app-card-btn ${className}` : "app-card-btn"}
       style={hubCardStyle(theme)}
       onClick={onClick}
+      onMouseEnter={onMouseEnter}
+      onFocus={onFocus}
     >
       <span className="app-card-icon">
         <span className="app-card-icon-shine" aria-hidden />

@@ -1152,7 +1152,7 @@ export const PRODUCTO_FICHAS_SEED: readonly ProductoFichaSeed[] = [
   }),
   buildFicha({
     nombre: "VAC-SULES",
-    laboratorio: "VAC-SULES POLIVAC 10/1 — vacuna clostridial polivalente.",
+    laboratorio: "POLIVAC — vacuna clostridial multidosis.",
     principio_activo:
       "Toxoides purificados de Clostridium (novyi B, perfringens A/B/C/D, septicum, sordellii, tetani) y anacultivos de C. chauvoei y C. haemolyticum.",
     presentacion: "Suspensión inyectable multidosis (POLIVAC 10/1).",
@@ -1161,8 +1161,6 @@ export const PRODUCTO_FICHAS_SEED: readonly ProductoFichaSeed[] = [
     tiempo_espera_carne: "Consultar etiqueta y legislación local.",
     tiempo_espera_leche: "Consultar etiqueta local.",
     detalles_tecnicos: joinLines([
-      "• Producto: VAC-SULES POLIVAC 10/1 — Vacuna clostridial.",
-      "",
       "Composición — Toxoides purificados de:",
       "• Clostridium novyi tipo B ≥ 500 DLM/mL",
       "• Clostridium perfringens tipo D ≥ 200 L/mL",

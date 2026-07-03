@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { fetchChatUnread } from "../api";
 import { canAccessChat } from "../utils/auth-permissions";
-import { prefetchChatSidebar } from "../utils/chat-sidebar-cache";
+import { getChatSidebarCache, prefetchChatSidebar } from "../utils/chat-sidebar-cache";
 import { playChatNotificationSound } from "../utils/chat-notification-sound";
 import type { AuthUser } from "../types";
 
@@ -29,13 +29,21 @@ export default function AppFooter({
   const refreshUnread = useCallback(async () => {
     if (!showChat) return;
     try {
-      const data = await fetchChatUnread();
-      if (unreadInitializedRef.current && !chatOpen && !chatPageOpen && data.total > prevUnreadRef.current) {
+      let total = getChatSidebarCache()?.total_unread;
+      if (total == null) {
+        const sidebar = await prefetchChatSidebar();
+        total = sidebar?.total_unread;
+      }
+      if (total == null) {
+        const data = await fetchChatUnread();
+        total = data.total;
+      }
+      if (unreadInitializedRef.current && !chatOpen && !chatPageOpen && total > prevUnreadRef.current) {
         playChatNotificationSound();
       }
       unreadInitializedRef.current = true;
-      prevUnreadRef.current = data.total;
-      setChatUnread(data.total);
+      prevUnreadRef.current = total;
+      setChatUnread(total);
     } catch {
       /* silencioso */
     }

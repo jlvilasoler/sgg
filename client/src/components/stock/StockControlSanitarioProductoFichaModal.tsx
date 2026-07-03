@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Clock, FileText, FlaskConical, ImageIcon, Pencil, PillBottle, X } from "lucide-react";
+import { ChevronDown, FileText, ImageIcon, Pencil, PillBottle, X } from "lucide-react";
 import {
   fetchStockControlSanitarioProductoFicha,
   saveStockControlSanitarioProductoFicha,
@@ -12,6 +12,11 @@ import {
   formatMarcaPaises,
 } from "./stock-control-sanitario-marcas";
 import { sanitizeProductoFichaFoto } from "./stock-producto-ficha-foto";
+import {
+  defaultOpenDetalleSections,
+  parseDetallesTecnicos,
+  type DetalleTecnicoSection,
+} from "./stock-producto-ficha-detalles";
 
 const MAX_FOTO_BYTES = 450_000;
 
@@ -168,9 +173,15 @@ export default function StockControlSanitarioProductoFichaModal({
   const [form, setForm] = useState<ProductoFichaFormState>(() => emptyForm());
   const [actualizadoEn, setActualizadoEn] = useState("");
   const [fotoCargada, setFotoCargada] = useState(true);
+  const [vistaFicha, setVistaFicha] = useState<"resumen" | "detalles">("resumen");
 
   const titulo = String(nombre ?? "").trim() || "Producto";
   const fotoMostrar = useMemo(() => sanitizeProductoFichaFoto(form.foto_data), [form.foto_data]);
+  const detalleSecciones = useMemo(
+    () => parseDetallesTecnicos(form.detalles_tecnicos),
+    [form.detalles_tecnicos],
+  );
+  const tieneDetalles = detalleSecciones.length > 0 || String(form.detalles_tecnicos ?? "").trim().length > 0;
 
   const load = useCallback(async () => {
     if (!open || !String(nombre ?? "").trim()) return;
@@ -196,6 +207,7 @@ export default function StockControlSanitarioProductoFichaModal({
   useEffect(() => {
     if (!open) return;
     setEditando(initialEdit);
+    setVistaFicha("resumen");
     void load();
   }, [open, load, initialEdit]);
 
@@ -357,169 +369,251 @@ export default function StockControlSanitarioProductoFichaModal({
           </div>
         ) : (
           <div className="stock-producto-ficha-body">
-            <div className="stock-producto-ficha-body-top">
-              <section className="stock-producto-ficha-col stock-producto-ficha-col--tecnico">
-                <div className="stock-producto-ficha-section-head">
-                  <span className="stock-producto-ficha-section-icon" aria-hidden>
-                    <FlaskConical size={16} strokeWidth={2.25} />
-                  </span>
-                  <h3 className="stock-producto-ficha-col-title">Detalle técnico</h3>
-                </div>
+            {!editando && tieneDetalles ? (
+              <nav className="stock-producto-ficha-tabs" aria-label="Secciones de la ficha">
+                <button
+                  type="button"
+                  className={`stock-producto-ficha-tab${vistaFicha === "resumen" ? " is-active" : ""}`}
+                  onClick={() => setVistaFicha("resumen")}
+                >
+                  Resumen
+                </button>
+                <button
+                  type="button"
+                  className={`stock-producto-ficha-tab${vistaFicha === "detalles" ? " is-active" : ""}`}
+                  onClick={() => setVistaFicha("detalles")}
+                >
+                  Detalles técnicos
+                  {detalleSecciones.length > 0 ? (
+                    <span className="stock-producto-ficha-tab-count">{detalleSecciones.length}</span>
+                  ) : null}
+                </button>
+              </nav>
+            ) : null}
 
-                <div className="stock-producto-ficha-foto-card">
-                <div className="stock-producto-ficha-foto-frame">
-                  {fotoMostrar && fotoCargada ? (
-                    <img
-                      src={fotoMostrar}
-                      alt={`Foto de ${titulo}`}
-                      className="stock-producto-ficha-foto"
-                      onError={() => setFotoCargada(false)}
-                    />
-                  ) : (
-                    <FotoProductoPlaceholder />
-                  )}
-                  {editando ? (
-                    <div className="stock-producto-ficha-foto-actions stock-producto-ficha-foto-actions--overlay">
-                      <input
-                        ref={fileRef}
-                        type="file"
-                        accept="image/jpeg,image/png,image/webp"
-                        className="sr-only"
-                        onChange={(e) => onFotoChange(e.target.files?.[0] ?? null)}
-                      />
-                      <button
-                        type="button"
-                        className="stock-producto-ficha-btn-soft"
-                        onClick={() => fileRef.current?.click()}
-                      >
-                        <ImageIcon size={14} aria-hidden />
-                        {fotoMostrar ? "Cambiar foto" : "Subir foto"}
-                      </button>
-                      {fotoMostrar ? (
-                        <button
-                          type="button"
-                          className="stock-producto-ficha-btn-soft stock-producto-ficha-btn-soft--muted"
-                          onClick={() => patch({ foto_data: "" })}
-                        >
-                          Quitar
-                        </button>
+            {(editando || vistaFicha === "resumen") && (
+              <>
+                <div className="stock-producto-ficha-hero">
+                  <div className="stock-producto-ficha-hero-foto">
+                    <div className="stock-producto-ficha-foto-frame stock-producto-ficha-foto-frame--compact">
+                      {fotoMostrar && fotoCargada ? (
+                        <img
+                          src={fotoMostrar}
+                          alt={`Foto de ${titulo}`}
+                          className="stock-producto-ficha-foto"
+                          onError={() => setFotoCargada(false)}
+                        />
+                      ) : (
+                        <FotoProductoPlaceholder />
+                      )}
+                      {editando ? (
+                        <div className="stock-producto-ficha-foto-actions stock-producto-ficha-foto-actions--overlay">
+                          <input
+                            ref={fileRef}
+                            type="file"
+                            accept="image/jpeg,image/png,image/webp"
+                            className="sr-only"
+                            onChange={(e) => onFotoChange(e.target.files?.[0] ?? null)}
+                          />
+                          <button
+                            type="button"
+                            className="stock-producto-ficha-btn-soft"
+                            onClick={() => fileRef.current?.click()}
+                          >
+                            <ImageIcon size={14} aria-hidden />
+                            {fotoMostrar ? "Cambiar" : "Subir"}
+                          </button>
+                          {fotoMostrar ? (
+                            <button
+                              type="button"
+                              className="stock-producto-ficha-btn-soft stock-producto-ficha-btn-soft--muted"
+                              onClick={() => patch({ foto_data: "" })}
+                            >
+                              Quitar
+                            </button>
+                          ) : null}
+                        </div>
                       ) : null}
                     </div>
-                  ) : null}
+                  </div>
+
+                  <div className="stock-producto-ficha-hero-copy">
+                    <div className="stock-producto-ficha-chips">
+                      {String(form.presentacion ?? "").trim() ? (
+                        <span className="stock-producto-ficha-chip">{String(form.presentacion).trim()}</span>
+                      ) : null}
+                      {String(form.via_administracion ?? "").trim() ? (
+                        <span className="stock-producto-ficha-chip stock-producto-ficha-chip--muted">
+                          {String(form.via_administracion).trim()}
+                        </span>
+                      ) : null}
+                    </div>
+                    <div className="stock-producto-ficha-spec-grid stock-producto-ficha-spec-grid--hero">
+                      <Campo
+                        label="Laboratorio"
+                        value={form.laboratorio}
+                        editando={editando}
+                        onChange={(v) => patch({ laboratorio: v })}
+                      />
+                      <Campo
+                        label="Principio activo"
+                        value={form.principio_activo}
+                        editando={editando}
+                        onChange={(v) => patch({ principio_activo: v })}
+                        className="stock-producto-ficha-campo--wide"
+                      />
+                      {editando ? (
+                        <>
+                          <Campo
+                            label="Presentación"
+                            value={form.presentacion}
+                            editando={editando}
+                            onChange={(v) => patch({ presentacion: v })}
+                          />
+                          <Campo
+                            label="Vía de administración"
+                            value={form.via_administracion}
+                            editando={editando}
+                            onChange={(v) => patch({ via_administracion: v })}
+                          />
+                          <Campo
+                            label="Especie"
+                            value={form.especie}
+                            editando={editando}
+                            onChange={(v) => patch({ especie: v })}
+                            className="stock-producto-ficha-campo--wide"
+                          />
+                        </>
+                      ) : null}
+                    </div>
+                  </div>
                 </div>
-              </div>
 
-              <div className="stock-producto-ficha-spec-grid">
-                <Campo
-                  label="Laboratorio"
-                  value={form.laboratorio}
-                  editando={editando}
-                  onChange={(v) => patch({ laboratorio: v })}
-                />
-                <Campo
-                  label="Principio activo"
-                  value={form.principio_activo}
-                  editando={editando}
-                  onChange={(v) => patch({ principio_activo: v })}
-                />
-                <Campo
-                  label="Presentación"
-                  value={form.presentacion}
-                  editando={editando}
-                  onChange={(v) => patch({ presentacion: v })}
-                />
-                <Campo
-                  label="Vía de administración"
-                  value={form.via_administracion}
-                  editando={editando}
-                  onChange={(v) => patch({ via_administracion: v })}
-                />
-                <Campo
-                  label="Especie"
-                  value={form.especie}
-                  editando={editando}
-                  onChange={(v) => patch({ especie: v })}
-                  className="stock-producto-ficha-campo--wide"
-                />
-              </div>
-              </section>
+                <div className="stock-producto-ficha-resumen-grid">
+                  <div className="stock-producto-ficha-espera-grid">
+                    <CampoEspera
+                      label="Carne"
+                      value={form.tiempo_espera_carne}
+                      editando={editando}
+                      onChange={(v) => patch({ tiempo_espera_carne: v })}
+                      placeholder="Ej. 40 DIAS"
+                    />
+                    <CampoEspera
+                      label="Leche"
+                      value={form.tiempo_espera_leche}
+                      editando={editando}
+                      onChange={(v) => patch({ tiempo_espera_leche: v })}
+                      placeholder="Ej. 7 DIAS"
+                    />
+                  </div>
 
-              <section className="stock-producto-ficha-col stock-producto-ficha-col--caracteristicas">
-              <div className="stock-producto-ficha-section-head">
-                <span className="stock-producto-ficha-section-icon stock-producto-ficha-section-icon--alt" aria-hidden>
-                  <Clock size={16} strokeWidth={2.25} />
-                </span>
-                <h3 className="stock-producto-ficha-col-title">Características</h3>
-              </div>
+                  <div className="stock-producto-ficha-prose-card stock-producto-ficha-prose-card--compact">
+                    <label htmlFor="producto-ficha-caracteristicas" className="stock-producto-ficha-prose-label">
+                      <FileText size={14} aria-hidden />
+                      Notas y uso
+                    </label>
+                    {editando ? (
+                      <AutoResizeTextarea
+                        id="producto-ficha-caracteristicas"
+                        maxLength={4000}
+                        className="stock-producto-ficha-textarea mayusculas-auto"
+                        value={form.caracteristicas}
+                        onChange={(v) => patch({ caracteristicas: v })}
+                        placeholder="Indicaciones, período de retiro, observaciones de campo…"
+                      />
+                    ) : (
+                      <p className="stock-producto-ficha-texto stock-producto-ficha-texto--notas">
+                        {String(form.caracteristicas ?? "").trim() || "—"}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
 
-              <div className="stock-producto-ficha-espera-grid">
-                <CampoEspera
-                  label="Carne"
-                  value={form.tiempo_espera_carne}
-                  editando={editando}
-                  onChange={(v) => patch({ tiempo_espera_carne: v })}
-                  placeholder="Ej. 40 DIAS"
-                />
-                <CampoEspera
-                  label="Leche"
-                  value={form.tiempo_espera_leche}
-                  editando={editando}
-                  onChange={(v) => patch({ tiempo_espera_leche: v })}
-                  placeholder="Ej. 7 DIAS"
-                />
-              </div>
-
-              <div className="stock-producto-ficha-prose-card stock-producto-ficha-prose-card--compact">
-                <label htmlFor="producto-ficha-caracteristicas" className="stock-producto-ficha-prose-label">
-                  <FileText size={14} aria-hidden />
-                  Notas y uso
-                </label>
+            {(editando || vistaFicha === "detalles") && (
+              <section className="stock-producto-ficha-detalles-panel" aria-label="Detalles técnicos">
                 {editando ? (
-                  <AutoResizeTextarea
-                    id="producto-ficha-caracteristicas"
-                    maxLength={4000}
-                    className="stock-producto-ficha-textarea mayusculas-auto"
-                    value={form.caracteristicas}
-                    onChange={(v) => patch({ caracteristicas: v })}
-                    placeholder="Indicaciones, período de retiro, observaciones de campo…"
-                  />
+                  <div className="stock-producto-ficha-prose-card">
+                    <label htmlFor="producto-ficha-detalles" className="stock-producto-ficha-prose-label">
+                      <FileText size={14} aria-hidden />
+                      Detalles técnicos
+                    </label>
+                    <AutoResizeTextarea
+                      id="producto-ficha-detalles"
+                      maxLength={4000}
+                      className="stock-producto-ficha-textarea stock-producto-ficha-textarea--detalles mayusculas-auto"
+                      value={form.detalles_tecnicos}
+                      onChange={(v) => patch({ detalles_tecnicos: v })}
+                      placeholder="Composición, dosis, contraindicaciones, almacenamiento…"
+                    />
+                  </div>
+                ) : detalleSecciones.length > 0 ? (
+                  <DetallesTecnicosAccordion secciones={detalleSecciones} />
                 ) : (
-                  <p className="stock-producto-ficha-texto">
-                    {String(form.caracteristicas ?? "").trim() || "—"}
-                  </p>
+                  <p className="stock-producto-ficha-texto muted">Sin detalles técnicos cargados.</p>
                 )}
-              </div>
               </section>
-            </div>
-
-            <section className="stock-producto-ficha-detalles-panel" aria-label="Detalles técnicos">
-              <div className="stock-producto-ficha-prose-card">
-                <label htmlFor="producto-ficha-detalles" className="stock-producto-ficha-prose-label">
-                  <FileText size={14} aria-hidden />
-                  Detalles técnicos
-                </label>
-                {editando ? (
-                  <AutoResizeTextarea
-                    id="producto-ficha-detalles"
-                    maxLength={4000}
-                    className="stock-producto-ficha-textarea mayusculas-auto"
-                    value={form.detalles_tecnicos}
-                    onChange={(v) => patch({ detalles_tecnicos: v })}
-                    placeholder="Composición, dosis, contraindicaciones, almacenamiento…"
-                  />
-                ) : (
-                  <p className="stock-producto-ficha-texto">
-                    {String(form.detalles_tecnicos ?? "").trim() || "—"}
-                  </p>
-                )}
-              </div>
-            </section>
+            )}
           </div>
         )}
 
       </div>
     </div>,
     document.body
+  );
+}
+
+function DetallesTecnicosAccordion({ secciones }: { secciones: DetalleTecnicoSection[] }) {
+  const [open, setOpen] = useState<Set<number>>(() => defaultOpenDetalleSections(secciones));
+
+  useEffect(() => {
+    setOpen(defaultOpenDetalleSections(secciones));
+  }, [secciones]);
+
+  const toggle = (index: number) => {
+    setOpen((prev) => {
+      const next = new Set(prev);
+      if (next.has(index)) next.delete(index);
+      else next.add(index);
+      return next;
+    });
+  };
+
+  return (
+    <div className="stock-producto-ficha-detalles-acc">
+      {secciones.map((sec, index) => {
+        const expanded = open.has(index);
+        const panelId = `producto-ficha-detalle-${index}`;
+        return (
+          <div
+            key={`${sec.title}-${index}`}
+            className={`stock-producto-ficha-detalle-block${expanded ? " is-open" : ""}`}
+          >
+            <button
+              type="button"
+              className="stock-producto-ficha-detalle-trigger"
+              aria-expanded={expanded}
+              aria-controls={panelId}
+              onClick={() => toggle(index)}
+            >
+              <span className="stock-producto-ficha-detalle-title">{sec.title}</span>
+              <span className="stock-producto-ficha-detalle-meta">
+                {sec.items.length} {sec.items.length === 1 ? "ítem" : "ítems"}
+              </span>
+              <ChevronDown size={16} className="stock-producto-ficha-detalle-chevron" aria-hidden />
+            </button>
+            {expanded ? (
+              <ul id={panelId} className="stock-producto-ficha-detalle-list">
+                {sec.items.map((item, i) => (
+                  <li key={`${index}-${i}`}>{item}</li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
@@ -575,8 +669,12 @@ function CampoEspera({
   placeholder?: string;
 }) {
   const id = `espera-${label.replace(/\s+/g, "-").toLowerCase()}`;
+  const texto = String(value ?? "").trim();
+  const esConsulta = /consultar/i.test(texto);
   return (
-    <div className="stock-producto-ficha-espera-card">
+    <div
+      className={`stock-producto-ficha-espera-card${esConsulta && !editando ? " stock-producto-ficha-espera-card--info" : ""}`}
+    >
       <p className="stock-producto-ficha-espera-kicker">Tiempo de espera</p>
       <p className="stock-producto-ficha-espera-tipo">{label}</p>
       {editando ? (
@@ -590,7 +688,7 @@ function CampoEspera({
           onChange={(e) => onChange(e.target.value)}
         />
       ) : (
-        <p className="stock-producto-ficha-espera-valor">{String(value ?? "").trim() || "—"}</p>
+        <p className="stock-producto-ficha-espera-valor">{texto || "—"}</p>
       )}
     </div>
   );

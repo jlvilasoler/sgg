@@ -1,6 +1,7 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { fetchEmpresasOperativas, fetchEstadoResultados, fetchResumen } from "../api";
 import type {
+  AuthUser,
   Catalogos,
   EstadoFinancieroMes,
   EstadoFinancieroRubro,
@@ -21,6 +22,7 @@ import { PageModuleHeadRow } from "./PageModuleHead";
 
 interface Props {
   catalogos: Catalogos;
+  currentUser: AuthUser;
   apiOnline: boolean;
   onError: (msg: string) => void;
 }
@@ -147,7 +149,7 @@ function filtrosInicialesEjercicio() {
   };
 }
 
-export default function Resumen({ catalogos, apiOnline, onError }: Props) {
+export default function Resumen({ catalogos, currentUser, apiOnline, onError }: Props) {
   const iniciales = filtrosInicialesEjercicio();
   const [ejercicio, setEjercicio] = useState(iniciales.ejercicio);
   const [fechaDesde, setFechaDesde] = useState(iniciales.fechaDesde);
@@ -381,7 +383,15 @@ export default function Resumen({ catalogos, apiOnline, onError }: Props) {
     []
   );
 
-  const entidadLabel = empresa || "Consolidado — todas las empresas";
+  const entidadLabel = useMemo(() => {
+    if (empresa) return empresa;
+    if (currentUser.es_admin_plataforma) return "Consolidado — todas las empresas";
+    if (currentUser.cuenta_actividad_nombre) {
+      return `Cuenta ${currentUser.cuenta_actividad_nombre}`;
+    }
+    if (empresas.length === 1) return empresas[0];
+    return "Todas mis empresas";
+  }, [empresa, currentUser, empresas]);
   const hayDatos = porEmpresa.length > 0 || porRubro.length > 0;
   const hayEstado = estadoFinanciero.length > 0;
 

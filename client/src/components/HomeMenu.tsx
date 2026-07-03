@@ -5,6 +5,7 @@ import {
 } from "../utils/auth-permissions";
 import { HubMenuCard } from "./HubMenuCard";
 import { MENU_APP_THEMES, MenuAppIcon } from "./icons/MenuAppIcons";
+import { prefetchVencimientosImpuestos } from "../utils/vencimientos-impuestos-cache";
 
 export type ScreenId = "home" | TabId;
 
@@ -24,6 +25,11 @@ export const MENU_APPS: MenuApp[] = [
     id: "listado",
     label: "Presupuesto",
     subtitle: "Ver y editar gastos",
+  },
+  {
+    id: "vencimientos_impuestos",
+    label: "Vencimientos Impuestos",
+    subtitle: "Cuotas y fechas de tributos",
   },
   {
     id: "resumen",
@@ -85,6 +91,7 @@ export const MENU_APPS: MenuApp[] = [
 const SCREEN_TITLES: Record<TabId, string> = {
   registro: "Registrar gasto",
   listado: "Listado de gastos",
+  vencimientos_impuestos: "Vencimientos Impuestos",
   resumen: "Resumen",
   configuracion: "Configuración",
   divisas: "Divisas",
@@ -125,6 +132,12 @@ export default function HomeMenu({ user, onOpen }: Props) {
             theme={MENU_APP_THEMES[app.id]}
             icon={<MenuAppIcon id={app.id} className="menu-app-icon-svg" />}
             onClick={() => onOpen(app.id)}
+            onMouseEnter={
+              app.id === "vencimientos_impuestos" ? prefetchVencimientosImpuestos : undefined
+            }
+            onFocus={
+              app.id === "vencimientos_impuestos" ? prefetchVencimientosImpuestos : undefined
+            }
           />
         ))}
       </nav>

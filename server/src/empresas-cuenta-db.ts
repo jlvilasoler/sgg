@@ -1138,8 +1138,7 @@ export async function isPlatformSuperAdmin(
   user: { id: number; rol: string; empresa_id: number | null; email: string }
 ): Promise<boolean> {
   if (user.rol !== "admin" || user.empresa_id != null) return false;
-  if (user.email.trim().toLowerCase() === primaryAdminEmail()) return true;
-  return !(await isCuentaAdminUser(db, user.id));
+  return user.email.trim().toLowerCase() === primaryAdminEmail();
 }
 
 export function isSuperAdminUser(user: {

@@ -37,6 +37,7 @@ import IngresosVentas from "./components/ventas/IngresosVentas";
 import StockGanadero from "./components/stock/StockGanadero";
 import StockEquino from "./components/stock-equino/StockEquino";
 import DocumentosDigitales from "./components/DocumentosDigitales";
+import VencimientosImpuestos from "./components/VencimientosImpuestos";
 import ChatPanel from "./components/ChatPanel";
 import ChatInterno from "./components/ChatInterno";
 import ChatExternalRequestHost from "./components/chat/ChatExternalRequestHost";
@@ -50,6 +51,8 @@ import {
   actividadTituloPorModo,
 } from "./utils/auth-permissions";
 import { showToast } from "./utils/toast";
+import { clearVencImpLoginAlertStorage } from "./utils/vencimientos-impuestos-alertas";
+import { notifyVencimientosProximosOnLogin } from "./utils/vencimientos-impuestos-login-notify";
 
 const DB_BOOT_TIMEOUT_MS = 90_000;
 
@@ -86,6 +89,7 @@ export default function App() {
   const [resetToken, setResetToken] = useState<string | null>(parseResetTokenFromUrl);
   const [forgotEmail, setForgotEmail] = useState("");
   const hadUserRef = useRef(false);
+  const freshLoginRef = useRef(false);
   const dbBootStartedRef = useRef<number | null>(null);
   const screenRef = useRef<ScreenId>("home");
   const navHistoryRef = useRef<ScreenId[]>([]);
@@ -97,6 +101,19 @@ export default function App() {
   const notify = useCallback((msg: string, ok = true, title?: string) => {
     showToast(msg, ok, title);
   }, []);
+
+  const runVencimientosLoginAlert = useCallback(async (userId: number, force = false) => {
+    await notifyVencimientosProximosOnLogin(userId, { force });
+  }, []);
+
+  useEffect(() => {
+    if (!user || !apiOnline) return;
+    if (freshLoginRef.current) {
+      freshLoginRef.current = false;
+      return;
+    }
+    void runVencimientosLoginAlert(user.id, false);
+  }, [user?.id, apiOnline, runVencimientosLoginAlert]);
 
   const refreshCatalogos = useCallback(async () => {
     if (!user) return;
@@ -273,6 +290,7 @@ export default function App() {
   };
 
   const onLogin = (u: AuthUser) => {
+    freshLoginRef.current = true;
     setUser(u);
     navHistoryRef.current = [];
     setNavHistory([]);
@@ -289,15 +307,18 @@ export default function App() {
         }));
       }
     })();
+    void runVencimientosLoginAlert(u.id, true);
     notify(`Bienvenido, ${u.nombre}`, true, "Sesión iniciada");
   };
 
   const onLogout = async () => {
+    const userId = user?.id;
     try {
       await logoutAuth();
     } catch {
       /* cerrar sesión local aunque falle la API */
     }
+    if (userId != null) clearVencImpLoginAlertStorage(userId);
     setUser(null);
     clearStockGanaderaPageCache();
     clearStockEquinaPageCache();
@@ -491,9 +512,17 @@ export default function App() {
                 onSuccess={(m) => notify(m, true)}
               />
             )}
+            {screen === "vencimientos_impuestos" && (
+              <VencimientosImpuestos
+                apiOnline={apiOnline}
+                currentUser={user}
+                onError={(m) => notify(m, false)}
+              />
+            )}
             {screen === "resumen" && (
               <Resumen
                 catalogos={catalogos}
+                currentUser={user}
                 apiOnline={apiOnline}
                 onError={(m) => notify(m, false)}
               />

@@ -9,8 +9,11 @@ import {
 } from "./chat-attachments-db.js";
 import {
   assertUserCanAccessGroupPeer,
+  ensureTeamChannelsSynced,
+  ensureUserTeamChannelMembership,
   getChannelNameByPeer,
   initChatChannelTables,
+  listChatChannels,
 } from "./chat-channels-db.js";
 import { resolveCuentaMadreIdForUser, isPlatformSuperAdmin } from "./empresas-cuenta-db.js";
 import { isValidChatWallpaperId } from "./chat-wallpapers.js";
@@ -602,66 +605,22 @@ export async function getChatUnreadSummary(
   db: Db,
   userId: number
 ): Promise<{ total: number; general: number }> {
-  const scope = await getChatUserScope(db, userId);
-  const dmParams: Record<string, number> = {
-    userId,
-    userId2: userId,
-    userId3: userId,
-    userId4: userId,
-    userId5: userId,
-    userId6: userId,
-  };
-  const dmCuentaFilter = cuentaScopeSql("peer", scope.cuentaId, dmParams);
-  const dmExternalFilter = scope.cuentaId != null
-    ? ` OR EXISTS (
-         SELECT 1 FROM CHAT_EXTERNAL_CONTACTS a
-         JOIN CHAT_EXTERNAL_CONTACTS b
-           ON b.owner_user_id = a.contact_user_id AND b.contact_user_id = a.owner_user_id
-         WHERE a.owner_user_id = @userId AND a.contact_user_id = peer.id
-       )`
-    : "";
-
-  const channelRows = (await db
-    .prepare(
-      `SELECT c.peer_id, COUNT(msg.id) AS n
-       FROM CHAT_CHANNELS c
-       JOIN CHAT_CHANNEL_MEMBERS cm ON cm.channel_id = c.id AND cm.user_id = ?
-       LEFT JOIN CHAT_READ_STATE rs ON rs.user_id = ? AND rs.peer_id = c.peer_id
-       LEFT JOIN CHAT_MESSAGES msg ON msg.recipient_id = c.peer_id
-         AND msg.id > COALESCE(rs.last_read_message_id, 0)
-         AND msg.sender_id != ?
-       GROUP BY c.peer_id`
-    )
-    .all(userId, userId, userId)) as Array<{ peer_id: number; n: number | string }>;
-
-  const dmRows = (await db
-    .prepare(
-      `SELECT
-         CASE WHEN m.sender_id = @userId THEN m.recipient_id ELSE m.sender_id END AS peer_id,
-         COUNT(*) AS n
-       FROM CHAT_MESSAGES m
-       JOIN USERS peer ON peer.id = CASE WHEN m.sender_id = @userId2 THEN m.recipient_id ELSE m.sender_id END
-       LEFT JOIN CHAT_READ_STATE rs ON rs.user_id = @userId3
-         AND rs.peer_id = CASE WHEN m.sender_id = @userId4 THEN m.recipient_id ELSE m.sender_id END
-       WHERE m.recipient_id > 0
-         AND (m.sender_id = @userId5 OR m.recipient_id = @userId6)
-         AND m.id > COALESCE(rs.last_read_message_id, 0)
-         AND m.sender_id != @userId6
-         AND (1=1${dmCuentaFilter}${dmExternalFilter})`
-    )
-    .all(dmParams)) as Array<{
-    peer_id: number;
-    n: number | string;
-  }>;
+  await ensureTeamChannelsSynced(db);
+  await ensureUserTeamChannelMembership(db, userId);
+  const [channels, contacts, externalContacts] = await Promise.all([
+    listChatChannels(db, userId),
+    listChatContacts(db, userId),
+    listChatExternalContacts(db, userId),
+  ]);
 
   let total = 0;
   let general = 0;
-  for (const r of channelRows) {
-    const n = Number(r.n ?? 0);
-    total += n;
-    if (r.peer_id === CHAT_GENERAL_PEER_ID) general = n;
+  for (const c of channels) {
+    total += c.unread_count;
+    if (c.peer_id === CHAT_GENERAL_PEER_ID) general = c.unread_count;
   }
-  for (const r of dmRows) total += Number(r.n ?? 0);
+  for (const c of contacts) total += c.unread_count;
+  for (const c of externalContacts) total += c.unread_count;
   return { total, general };
 }
 

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { HubMenuCard } from "./HubMenuCard";
 import { useHeaderBackStep } from "../header-back";
 import type { AuthUser } from "../types";
-import { canAccessAdministradorCuentas, canAccessActividadSagTotal, canAccessArquitecturaSistema, canAccessCatalogoSanitarioProductos, canAccessClasificacionProveedores, canAccessControlGlobalCuentas, canAccessDocumentosDigitales, canAccessStockGanaderoAdmin, canManageUsuariosCuenta } from "../utils/auth-permissions";
+import { canAccessAdministradorCuentas, canAccessActividadSagTotal, canAccessArquitecturaSistema, canAccessCatalogoSanitarioProductos, canAccessClasificacionProveedores, canAccessConfigVencimientosImpuestos, canAccessControlGlobalCuentas, canAccessDocumentosDigitales, canAccessStockGanaderoAdmin, canManageUsuariosCuenta } from "../utils/auth-permissions";
 import Proveedores from "./Proveedores";
 import ClasificacionProveedores from "./proveedores/ClasificacionProveedores";
 import Responsables from "./Responsables";
@@ -14,6 +14,7 @@ import ArquitecturaSistema from "./ArquitecturaSistema";
 import DocumentosDigitales from "./DocumentosDigitales";
 import ControlGlobalCuentas from "./ControlGlobalCuentas";
 import ConfigSanitarioProductos from "./stock/ConfigSanitarioProductos";
+import ConfigVencimientosImpuestos from "./ConfigVencimientosImpuestos";
 import Usuarios from "./Usuarios";
 import UsuariosActividad from "./UsuariosActividad";
 import type { TabId } from "./Header";
@@ -37,7 +38,8 @@ type SagModulo =
   | "registro_actividad_total"
   | "control_global_cuentas"
   | "documentos_digitales"
-  | "catalogo_sanitario_productos";
+  | "catalogo_sanitario_productos"
+  | "vencimientos_impuestos";
 
 type SagModuloIcon =
   | { type: "tab"; id: TabId }
@@ -139,6 +141,12 @@ const SAG_MODULOS: {
     subtitle: "Archivo y gestión documental global",
     icon: { type: "tab", id: "documentos_digitales" },
   },
+  {
+    id: "vencimientos_impuestos",
+    label: "Vencimientos Impuestos",
+    subtitle: "Calendarios de contribución rural · links y fechas por departamento",
+    icon: { type: "tab", id: "vencimientos_impuestos" },
+  },
 ];
 
 function sagModuloTheme(icon: SagModuloIcon) {
@@ -191,7 +199,7 @@ export default function Configuracion({
     if (modulo === "cuenta_hub" || modulo === "sag_hub") {
       return { onBack: () => setModulo("menu"), label: "Configuración" };
     }
-    if (modulo === "sag_arquitectura" || modulo === "documentos_digitales" || modulo === "registro_actividad_total" || modulo === "control_global_cuentas" || modulo === "catalogo_sanitario_productos") {
+    if (modulo === "sag_arquitectura" || modulo === "documentos_digitales" || modulo === "registro_actividad_total" || modulo === "control_global_cuentas" || modulo === "catalogo_sanitario_productos" || modulo === "vencimientos_impuestos") {
       return { onBack: () => setModulo("sag_hub"), label: "Configuración SAG" };
     }
     if (esSuperAdmin && isCatalogoModulo(modulo)) {
@@ -234,6 +242,12 @@ export default function Configuracion({
     if (
       modulo === "catalogo_sanitario_productos" &&
       !canAccessCatalogoSanitarioProductos(currentUser ?? null)
+    ) {
+      setModulo("sag_hub");
+    }
+    if (
+      modulo === "vencimientos_impuestos" &&
+      !canAccessConfigVencimientosImpuestos(currentUser ?? null)
     ) {
       setModulo("sag_hub");
     }
@@ -416,6 +430,22 @@ export default function Configuracion({
     );
   }
 
+  if (
+    modulo === "vencimientos_impuestos" &&
+    currentUser &&
+    canAccessConfigVencimientosImpuestos(currentUser)
+  ) {
+    return (
+      <ConfigVencimientosImpuestos
+        apiOnline={apiOnline}
+        onError={onError}
+        onSuccess={onSuccess}
+        volverLabel="Volver a Configuración SAG"
+        onVolver={backStep?.onBack ?? (() => setModulo("sag_hub"))}
+      />
+    );
+  }
+
   const adminCuentaItem = canAccessAdministradorCuentas(currentUser ?? null)
     ? [
         {
@@ -466,6 +496,9 @@ export default function Configuracion({
     }
     if (item.id === "catalogo_sanitario_productos") {
       return canAccessCatalogoSanitarioProductos(currentUser ?? null);
+    }
+    if (item.id === "vencimientos_impuestos") {
+      return canAccessConfigVencimientosImpuestos(currentUser ?? null);
     }
     return true;
   });
