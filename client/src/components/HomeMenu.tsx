@@ -6,6 +6,7 @@ import {
 import { HubMenuCard } from "./HubMenuCard";
 import { MENU_APP_THEMES, MenuAppIcon } from "./icons/MenuAppIcons";
 import { prefetchVencimientosImpuestos } from "../utils/vencimientos-impuestos-cache";
+import { useVencImpProximosBadge } from "../hooks/useVencImpProximosBadge";
 
 export type ScreenId = "home" | TabId;
 
@@ -120,6 +121,7 @@ interface Props {
 
 export default function HomeMenu({ user, onOpen }: Props) {
   const apps = MENU_APPS.filter((app) => canAccessScreen(user, app.id));
+  const vencProximosCount = useVencImpProximosBadge();
 
   return (
     <div className="layout-frame home-menu-inner">
@@ -131,6 +133,7 @@ export default function HomeMenu({ user, onOpen }: Props) {
             subtitle={app.subtitle}
             theme={MENU_APP_THEMES[app.id]}
             icon={<MenuAppIcon id={app.id} className="menu-app-icon-svg" />}
+            badgeCount={app.id === "vencimientos_impuestos" ? vencProximosCount : 0}
             onClick={() => onOpen(app.id)}
             onMouseEnter={
               app.id === "vencimientos_impuestos" ? prefetchVencimientosImpuestos : undefined

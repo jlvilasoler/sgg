@@ -4,6 +4,8 @@ import {
   clearVencImpLoginAlertStorage,
   vencImpLoginAlertStorageKey,
 } from "./vencimientos-impuestos-alertas";
+import { setVencImpProximosCount } from "./vencimientos-impuestos-proximos-badge";
+import { playChatNotificationSound } from "./chat-notification-sound";
 import { toastVencimientosProximos } from "./toast";
 
 export async function notifyVencimientosProximosOnLogin(
@@ -12,19 +14,20 @@ export async function notifyVencimientosProximosOnLogin(
 ): Promise<void> {
   if (options.force) clearVencImpLoginAlertStorage(userId);
 
-  const key = vencImpLoginAlertStorageKey(userId);
-  if (!options.force) {
-    try {
-      if (sessionStorage.getItem(key)) return;
-    } catch {
-      /* noop */
-    }
-  }
-
   try {
     const bootstrap = await loadVencimientosImpuestosBootstrap();
     const alert = buildVencimientosProximosLoginAlert(bootstrap);
+    setVencImpProximosCount(alert?.totalProximos ?? 0);
     if (!alert) return;
+
+    const key = vencImpLoginAlertStorageKey(userId);
+    if (!options.force) {
+      try {
+        if (sessionStorage.getItem(key)) return;
+      } catch {
+        /* noop */
+      }
+    }
 
     try {
       sessionStorage.setItem(key, "1");
@@ -32,6 +35,7 @@ export async function notifyVencimientosProximosOnLogin(
       /* noop */
     }
 
+    playChatNotificationSound();
     toastVencimientosProximos(alert.totalProximos, alert.items[0]);
   } catch {
     /* silencioso */

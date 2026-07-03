@@ -53,6 +53,7 @@ import {
 import { showToast } from "./utils/toast";
 import { clearVencImpLoginAlertStorage } from "./utils/vencimientos-impuestos-alertas";
 import { notifyVencimientosProximosOnLogin } from "./utils/vencimientos-impuestos-login-notify";
+import { setVencImpProximosCount } from "./utils/vencimientos-impuestos-proximos-badge";
 
 const DB_BOOT_TIMEOUT_MS = 90_000;
 
@@ -211,6 +212,7 @@ export default function App() {
   useEffect(() => {
     const onUnauthorized = () => {
       const wasLoggedIn = hadUserRef.current;
+      setVencImpProximosCount(0);
       setUser(null);
       setNavHistory([]);
       navHistoryRef.current = [];
@@ -319,6 +321,7 @@ export default function App() {
       /* cerrar sesión local aunque falle la API */
     }
     if (userId != null) clearVencImpLoginAlertStorage(userId);
+    setVencImpProximosCount(0);
     setUser(null);
     clearStockGanaderaPageCache();
     clearStockEquinaPageCache();

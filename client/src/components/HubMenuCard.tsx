@@ -10,6 +10,7 @@ export interface HubMenuCardProps {
   onMouseEnter?: () => void;
   onFocus?: () => void;
   className?: string;
+  badgeCount?: number;
 }
 
 export function hubCardStyle(theme: MenuAppTheme): CSSProperties {
@@ -29,7 +30,11 @@ export function HubMenuCard({
   onMouseEnter,
   onFocus,
   className,
+  badgeCount = 0,
 }: HubMenuCardProps) {
+  const showBadge = badgeCount > 0;
+  const badgeLabel = badgeCount > 99 ? "99+" : String(badgeCount);
+
   return (
     <button
       type="button"
@@ -38,10 +43,18 @@ export function HubMenuCard({
       onClick={onClick}
       onMouseEnter={onMouseEnter}
       onFocus={onFocus}
+      aria-label={
+        showBadge ? `${label}, ${badgeCount} vencimientos próximos` : undefined
+      }
     >
       <span className="app-card-icon">
         <span className="app-card-icon-shine" aria-hidden />
         {icon}
+        {showBadge && (
+          <span className="app-card-badge app-card-badge--alert" aria-hidden>
+            {badgeLabel}
+          </span>
+        )}
       </span>
       <span className="app-card-text">
         <span className="app-card-label" title={label}>

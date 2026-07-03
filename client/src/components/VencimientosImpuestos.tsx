@@ -25,6 +25,8 @@ import {
   setVencimientosImpuestosCache,
   type VencimientosImpuestosBootstrap,
 } from "../utils/vencimientos-impuestos-cache";
+import { buildVencimientosProximosLoginAlert } from "../utils/vencimientos-impuestos-alertas";
+import { setVencImpProximosCount } from "../utils/vencimientos-impuestos-proximos-badge";
 import {
   MODALIDAD_PAGO_LABEL,
   cuotasFuturasCuentaRural,
@@ -273,6 +275,8 @@ export default function VencimientosImpuestos({ apiOnline, currentUser, onError 
       setPrimariaStore(calendarios.primaria);
       setPrefs(calendarios.preferencias);
       applyPreferenciasCuenta(calendarios.preferencias);
+      const alert = buildVencimientosProximosLoginAlert(calendarios);
+      setVencImpProximosCount(alert?.totalProximos ?? 0);
     },
     [applyPreferenciasCuenta],
   );
