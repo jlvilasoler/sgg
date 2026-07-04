@@ -17,7 +17,6 @@ import {
   exportPresupuestoListadoPdf,
 } from "../utils/export-presupuesto-listado";
 import { IconCsv, IconExcel, IconPdf } from "./icons/ActionIcons";
-import { PageModuleHeadRow } from "./PageModuleHead";
 import GastoAccionesMenu from "./GastoAccionesMenu";
 import PresupuestoDocumentoModal from "./PresupuestoDocumentoModal";
 import PresupuestoDetallePanel from "./PresupuestoDetalleModal";
@@ -271,33 +270,12 @@ export default function Listado({ catalogos, apiOnline, onEdit, onDeleted, onErr
   }
 
   return (
-    <div className="listado-pro">
-      <div className="listado-pro-shell">
-        <header className="listado-pro-head">
-          <div className="listado-pro-head-main">
-            <PageModuleHeadRow
-              icon={{ source: "app", id: "listado" }}
-              title="Presupuesto"
-              subtitle={
-                loading
-                  ? "Actualizando…"
-                  : !apiOnline
-                    ? "Sin conexión con la API"
-                    : indicadores.cantidad === 0
-                      ? "Sin registros para los filtros aplicados"
-                      : `${indicadores.cantidad} operación${
-                          indicadores.cantidad === 1 ? "" : "es"
-                        } en el período filtrado`
-              }
-              titleClassName="listado-pro-head-title"
-              subClassName="listado-pro-head-sub"
-              textClassName="listado-pro-head-text"
-            />
-          </div>
-        </header>
-
-        <div className="filters filters-presupuesto listado-pro-filters mayusculas-auto">
-          <div className="listado-pro-filters-row listado-pro-filters-row--principal">
+    <div className="presupuesto-listado--hub presupuesto-hub-workspace">
+      <section
+        className="presupuesto-hub-filters-box filters filters-presupuesto mayusculas-auto"
+        aria-label="Filtros del listado"
+      >
+        <div className="listado-pro-filters-row listado-pro-filters-row--principal">
             <div className="field">
               <label htmlFor="filtro-empresa">Empresa</label>
               <select
@@ -427,97 +405,93 @@ export default function Listado({ catalogos, apiOnline, onEdit, onDeleted, onErr
                 </div>
               </>
             )}
-            <div className="listado-pro-filters-actions">
-              <button type="button" className="btn listado-pro-reset-btn" onClick={resetFiltros}>
+            <div className="presupuesto-hub-filters-actions listado-pro-filters-actions">
+              <button
+                type="button"
+                className="sg-hub-cta sg-hub-cta--ghost sg-hub-cta--compact"
+                onClick={resetFiltros}
+              >
                 Reset
               </button>
               <button
                 type="button"
-                className="btn btn-primary listado-pro-search-btn"
+                className="sg-hub-cta sg-hub-cta--compact"
                 onClick={load}
               >
                 Buscar
               </button>
             </div>
           </div>
-        </div>
-
-      <section
-        className="listado-indicadores listado-pro-indicadores"
-        aria-label="Indicadores acumulados"
-      >
-        <div className="listado-indicadores-grid listado-pro-kpi-grid">
-          <div className="listado-indicador listado-indicador--pesos listado-pro-kpi">
-            <span className="listado-indicador-label">Pesos</span>
-            <span className="listado-pro-kpi-currency">UYU</span>
-            <span className="listado-indicador-valor listado-pro-kpi-valor">
-              {loading || !apiOnline ? "—" : fmtNum(indicadores.pesos)}
-            </span>
-          </div>
-          <div className="listado-indicador listado-indicador--usd listado-pro-kpi">
-            <span className="listado-indicador-label">Dólares</span>
-            <span className="listado-pro-kpi-currency">USD</span>
-            <span className="listado-indicador-valor listado-pro-kpi-valor">
-              {loading || !apiOnline ? "—" : fmtNum(indicadores.usd)}
-            </span>
-          </div>
-          <div className="listado-indicador listado-indicador--reales listado-pro-kpi">
-            <span className="listado-indicador-label">Reales</span>
-            <span className="listado-pro-kpi-currency">BRL</span>
-            <span className="listado-indicador-valor listado-pro-kpi-valor">
-              {loading || !apiOnline ? "—" : fmtNum(indicadores.reales)}
-            </span>
-          </div>
-          <div
-            className="listado-indicador listado-indicador--saldo-total listado-pro-kpi listado-pro-kpi--hero"
-            title="Suma de la columna Total USD de todas las operaciones del listado filtrado"
-          >
-            <span className="listado-indicador-label">Total gastos</span>
-            <span className="listado-pro-kpi-currency">USD</span>
-            <span className="listado-indicador-valor listado-indicador-valor--destacado listado-pro-kpi-valor listado-pro-kpi-valor--hero">
-              {loading || !apiOnline ? "—" : fmtNum(indicadores.saldoUsd)}
-            </span>
-            <span className="listado-indicador-hint">Equivalente acumulado en dólares</span>
-          </div>
-        </div>
       </section>
 
-      <div className="listado-pro-export-bar" aria-label="Exportar listado">
-        <span className="listado-pro-export-label">Descargar</span>
-        <button
-          type="button"
-          className="btn btn-sm listado-pro-export-btn listado-pro-export-btn--csv"
-          disabled={!puedeExportar || exportando !== null}
-          onClick={() => void exportar("csv")}
-          title="Descargar tabla en CSV"
-          aria-label="Descargar tabla en CSV"
+      <div className="sg-hub-kpi-strip presupuesto-listado-kpi-strip" aria-label="Indicadores acumulados">
+        <article className="sg-hub-kpi">
+          <p className="sg-hub-kpi-kicker">Pesos · UYU</p>
+          <p className="sg-hub-kpi-value">
+            {loading || !apiOnline ? "—" : fmtNum(indicadores.pesos)}
+          </p>
+        </article>
+        <article className="sg-hub-kpi">
+          <p className="sg-hub-kpi-kicker">Dólares · USD</p>
+          <p className="sg-hub-kpi-value">
+            {loading || !apiOnline ? "—" : fmtNum(indicadores.usd)}
+          </p>
+        </article>
+        <article className="sg-hub-kpi">
+          <p className="sg-hub-kpi-kicker">Reales · BRL</p>
+          <p className="sg-hub-kpi-value">
+            {loading || !apiOnline ? "—" : fmtNum(indicadores.reales)}
+          </p>
+        </article>
+        <article
+          className="sg-hub-kpi sg-hub-kpi--dark"
+          title="Suma de la columna Total USD de todas las operaciones del listado filtrado"
         >
-          <IconCsv size={16} className="btn-action-icon" />
-          {exportando === "csv" ? "Exportando…" : "CSV"}
-        </button>
-        <button
-          type="button"
-          className="btn btn-sm listado-pro-export-btn listado-pro-export-btn--excel"
-          disabled={!puedeExportar || exportando !== null}
-          onClick={() => void exportar("excel")}
-          title="Descargar tabla en Excel"
-          aria-label="Descargar tabla en Excel"
-        >
-          <IconExcel size={16} className="btn-action-icon" />
-          {exportando === "excel" ? "Exportando…" : "Excel"}
-        </button>
-        <button
-          type="button"
-          className="btn btn-sm listado-pro-export-btn"
-          disabled={!puedeExportar || exportando !== null}
-          onClick={() => void exportar("pdf")}
-          title="Descargar tabla en PDF"
-          aria-label="Descargar tabla en PDF"
-        >
-          <IconPdf size={16} className="btn-action-icon" />
-          {exportando === "pdf" ? "Exportando…" : "PDF"}
-        </button>
+          <p className="sg-hub-kpi-kicker">Total gastos · USD</p>
+          <p className="sg-hub-kpi-value">
+            {loading || !apiOnline ? "—" : fmtNum(indicadores.saldoUsd)}
+          </p>
+          <p className="sg-hub-kpi-hint">Equivalente acumulado en dólares</p>
+        </article>
       </div>
+
+      <section className="presupuesto-hub-table-box" aria-label="Tabla de gastos">
+        <div className="presupuesto-hub-export-bar" aria-label="Exportar listado">
+          <span className="presupuesto-hub-export-label">Descargar</span>
+          <button
+            type="button"
+            className="sg-hub-cta sg-hub-cta--ghost sg-hub-cta--compact listado-pro-export-btn listado-pro-export-btn--csv"
+            disabled={!puedeExportar || exportando !== null}
+            onClick={() => void exportar("csv")}
+            title="Descargar tabla en CSV"
+            aria-label="Descargar tabla en CSV"
+          >
+            <IconCsv size={16} className="btn-action-icon" />
+            {exportando === "csv" ? "Exportando…" : "CSV"}
+          </button>
+          <button
+            type="button"
+            className="sg-hub-cta sg-hub-cta--ghost sg-hub-cta--compact listado-pro-export-btn listado-pro-export-btn--excel"
+            disabled={!puedeExportar || exportando !== null}
+            onClick={() => void exportar("excel")}
+            title="Descargar tabla en Excel"
+            aria-label="Descargar tabla en Excel"
+          >
+            <IconExcel size={16} className="btn-action-icon" />
+            {exportando === "excel" ? "Exportando…" : "Excel"}
+          </button>
+          <button
+            type="button"
+            className="sg-hub-cta sg-hub-cta--ghost sg-hub-cta--compact listado-pro-export-btn"
+            disabled={!puedeExportar || exportando !== null}
+            onClick={() => void exportar("pdf")}
+            title="Descargar tabla en PDF"
+            aria-label="Descargar tabla en PDF"
+          >
+            <IconPdf size={16} className="btn-action-icon" />
+            {exportando === "pdf" ? "Exportando…" : "PDF"}
+          </button>
+        </div>
 
       <div className="table-wrap table-wrap-presupuesto listado-pro-table-wrap">
         <table className="data-table data-table-presupuesto listado-pro-table">
@@ -645,7 +619,7 @@ export default function Listado({ catalogos, apiOnline, onEdit, onDeleted, onErr
           </tbody>
         </table>
       </div>
-      </div>
+      </section>
 
       {documentoRow?.documento_adjunto ? (
         <PresupuestoDocumentoModal

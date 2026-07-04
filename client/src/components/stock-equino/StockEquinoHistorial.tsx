@@ -147,7 +147,7 @@ export default function StockEquinoHistorial({
               ) : lotes.length === 0 ? (
                 <tr>
                   <td colSpan={4} className="empty">
-                    Sin importaciones. Cargá un archivo desde «Alta de Dispositivo».
+                    Sin importaciones. Cargá un archivo desde «Alta de Equinos».
                   </td>
                 </tr>
               ) : (

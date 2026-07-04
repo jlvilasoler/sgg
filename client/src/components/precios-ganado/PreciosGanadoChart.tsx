@@ -51,7 +51,7 @@ function addDaysIso(iso: string, days: number): string {
 }
 
 function fmtPriceAxis(price: number): string {
-  return price.toLocaleString("es-AR", {
+  return price.toLocaleString("es-UY", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });

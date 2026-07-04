@@ -1402,7 +1402,7 @@ export default function StockGanadera({
                   )}
                   <button
                     type="button"
-                    className="btn btn-primary btn-sm"
+                    className="sg-hub-cta sg-hub-cta--compact"
                     onClick={() => setBulkOpen(true)}
                   >
                     Editar seleccionados
@@ -1410,7 +1410,7 @@ export default function StockGanadera({
                   {esAdmin && (
                     <button
                       type="button"
-                      className="btn btn-sm btn-danger"
+                      className="sg-hub-cta sg-hub-cta--compact sg-hub-cta--danger"
                       onClick={() => void eliminarSeleccionados()}
                     >
                       Eliminar del sistema

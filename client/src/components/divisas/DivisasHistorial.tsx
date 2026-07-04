@@ -174,7 +174,7 @@ export default function DivisasHistorial({
   };
 
   return (
-    <div className={`subseccion-panel${embedded ? " sg-hub-embedded" : ""}`}>
+    <div className={embedded ? "divisas-hub-workspace" : "subseccion-panel"}>
       {!embedded ? (
         <button type="button" className="subseccion-back" onClick={onVolver}>
           ‹ Volver a Divisas
@@ -192,47 +192,59 @@ export default function DivisasHistorial({
 
       <DivisasChart key={config.id} rows={rows} config={config} refreshing={loading} />
 
-      <div className="card">
-        <div className="form-header">
-          <PageModuleHeadRow
-            icon={{ source: "hub", id: config.icon }}
-            title={`Histórico — ${config.titulo}`}
-            subtitle={PAR_DIVISA_LABELS[par]}
-          />
-        </div>
+      <div className={embedded ? "divisas-hub-table-box" : "card"}>
+        {!embedded ? (
+          <div className="form-header">
+            <PageModuleHeadRow
+              icon={{ source: "hub", id: config.icon }}
+              title={`Histórico — ${config.titulo}`}
+              subtitle={PAR_DIVISA_LABELS[par]}
+            />
+          </div>
+        ) : null}
 
-        <div className="filters">
-          <div className="field">
-            <label htmlFor="div-desde">Desde</label>
-            <input
-              type="date"
-              id="div-desde"
-              value={fechaDesde}
-              onChange={(e) => setFechaDesde(e.target.value)}
-            />
+        <div className={embedded ? "divisas-hub-filters-box" : "filters"}>
+          <div className={embedded ? "divisas-hub-filters-row" : undefined}>
+            <div className="field">
+              <label htmlFor="div-desde">Desde</label>
+              <input
+                type="date"
+                id="div-desde"
+                value={fechaDesde}
+                onChange={(e) => setFechaDesde(e.target.value)}
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="div-hasta">Hasta</label>
+              <input
+                type="date"
+                id="div-hasta"
+                value={fechaHasta}
+                onChange={(e) => setFechaHasta(e.target.value)}
+              />
+            </div>
+            <div className={embedded ? "divisas-hub-filters-actions" : undefined}>
+              <button
+                type="button"
+                className={embedded ? "sg-hub-cta sg-hub-cta--compact" : "btn btn-primary"}
+                onClick={load}
+              >
+                Buscar
+              </button>
+              {config.autoImport && (
+                <button
+                  type="button"
+                  className={
+                    embedded ? "sg-hub-cta sg-hub-cta--ghost sg-hub-cta--compact" : "btn btn-secondary"
+                  }
+                  disabled={importing || syncing || !apiOnline}
+                  onClick={importarManual}
+                >
+                  {importing || syncing ? "Importando…" : config.importLabel}
+                </button>
+              )}
+            </div>
           </div>
-          <div className="field">
-            <label htmlFor="div-hasta">Hasta</label>
-            <input
-              type="date"
-              id="div-hasta"
-              value={fechaHasta}
-              onChange={(e) => setFechaHasta(e.target.value)}
-            />
-          </div>
-          <button type="button" className="btn btn-primary" onClick={load}>
-            Buscar
-          </button>
-          {config.autoImport && (
-            <button
-              type="button"
-              className="btn btn-secondary"
-              disabled={importing || syncing || !apiOnline}
-              onClick={importarManual}
-            >
-              {importing || syncing ? "Importando…" : config.importLabel}
-            </button>
-          )}
         </div>
 
         {config.autoImport && (

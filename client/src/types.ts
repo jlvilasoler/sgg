@@ -444,6 +444,7 @@ export interface StockControlSanitarioProductoNombreGlobal {
   tiene_foto: boolean;
   usos: number;
   usos_cuenta: number;
+  especie: string;
 }
 
 export interface StockControlSanitarioResumenItem {
@@ -755,6 +756,33 @@ export interface ResumenPagosFuncionario {
     total_saldo_usd: number;
   }>;
   pagos: PagoFuncionario[];
+}
+
+export interface UltimoPagoRRHH {
+  id: number;
+  fecha: string;
+  empresa: string;
+  concepto: string;
+  rubro: string;
+  saldo_usd: number;
+  pesos: number;
+  funcionario_nombre: string | null;
+  cedula: string | null;
+  cedula_display: string | null;
+}
+
+export interface RrhhDashboardData {
+  funcionarios_total: number;
+  funcionarios_activos: number;
+  funcionarios_inactivos: number;
+  funcionarios_sin_banco: number;
+  pagos_periodo: {
+    total_registros: number;
+    total_pesos: number;
+    total_saldo_usd: number;
+    funcionarios_con_pagos: number;
+  };
+  ultimos_pagos: UltimoPagoRRHH[];
 }
 
 export interface Rubro {

@@ -1,0 +1,659 @@
+/* —— Recursos Humanos · hub dashboard —— */
+
+.rrhh-module-page {
+  --sg-hub-workspace: #f3f2ed;
+  --sg-hub-accent: #7cb342;
+  --sg-hub-accent-soft: rgba(124, 179, 66, 0.16);
+  --sg-hub-radius-md: 0.65rem;
+}
+
+.rrhh-hub-workspace {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  width: 100%;
+  min-width: 0;
+}
+
+.rrhh-dash-periodo {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.bn-ui .rrhh-dash-kpi-strip.sg-hub-kpi-strip {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+@media (max-width: 1080px) {
+  .bn-ui .rrhh-dash-kpi-strip.sg-hub-kpi-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .bn-ui .rrhh-dash-kpi-strip.sg-hub-kpi-strip {
+    grid-template-columns: 1fr;
+  }
+}
+
+.bn-ui .rrhh-module-page .rrhh-dash-kpi-strip .sg-hub-kpi {
+  min-height: 0;
+  padding: 0.75rem 0.85rem 0.7rem;
+}
+
+.bn-ui .rrhh-module-page .rrhh-dash-kpi-strip .sg-hub-kpi-value {
+  font-size: clamp(1.15rem, 1.35vw + 0.65rem, 1.55rem);
+}
+
+.bn-ui .rrhh-module-page .rrhh-dash-kpi-strip .sg-hub-kpi--dark .sg-hub-kpi-value {
+  color: #a3e635;
+}
+
+.rrhh-dash-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.65fr) minmax(16rem, 1fr);
+  gap: 0.85rem;
+  align-items: start;
+}
+
+@media (max-width: 960px) {
+  .rrhh-dash-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.rrhh-dash-panel {
+  min-width: 0;
+}
+
+.rrhh-dash-panel--compact {
+  padding: 0.85rem 0.95rem;
+}
+
+.rrhh-dash-panel .sg-hub-panel-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem 0.85rem;
+  margin-bottom: 0.75rem;
+}
+
+.rrhh-dash-table-wrap {
+  border: 1px solid color-mix(in srgb, var(--bn-border, #eaecef) 92%, transparent);
+  border-radius: var(--sg-hub-radius-md);
+  overflow: auto;
+}
+
+.rrhh-dash-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.84rem;
+}
+
+.rrhh-dash-table thead th {
+  padding: 0.55rem 0.65rem;
+  background: color-mix(in srgb, var(--sg-hub-workspace) 40%, #fff);
+  font-size: 0.68rem;
+  font-weight: 650;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--bn-muted, #707a8a);
+  border-bottom: 1px solid var(--bn-border, #eaecef);
+  white-space: nowrap;
+}
+
+.rrhh-dash-table tbody td {
+  padding: 0.55rem 0.65rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--bn-border, #eaecef) 75%, transparent);
+  vertical-align: top;
+}
+
+.rrhh-dash-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.rrhh-dash-table tbody tr:hover td {
+  background: color-mix(in srgb, var(--sg-hub-accent) 5%, #fff);
+}
+
+.rrhh-dash-func-nombre {
+  display: block;
+  font-weight: 600;
+}
+
+.rrhh-dash-func-ci,
+.rrhh-dash-rubro {
+  display: block;
+  font-size: 0.74rem;
+  margin-top: 0.12rem;
+}
+
+.rrhh-dash-fecha {
+  white-space: nowrap;
+}
+
+.rrhh-dash-link-btn {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--sg-hub-accent);
+  font-size: 0.78rem;
+  font-weight: 650;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.rrhh-dash-link-btn:hover {
+  color: #3f6212;
+}
+
+.rrhh-dash-side {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  min-width: 0;
+}
+
+.rrhh-dash-alert {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.65rem;
+  padding: 0.7rem 0.85rem;
+  border-radius: var(--sg-hub-radius-md);
+  border: 1px solid color-mix(in srgb, #eab308 35%, var(--bn-border, #eaecef));
+  background: color-mix(in srgb, #eab308 10%, #fff);
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: #713f12;
+}
+
+.rrhh-dash-stats-list {
+  margin: 0.65rem 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.rrhh-dash-stats-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  font-size: 0.82rem;
+  color: var(--bn-muted, #707a8a);
+}
+
+.rrhh-dash-stats-list strong {
+  font-size: 1rem;
+  color: var(--bn-text, #1e2329);
+  font-variant-numeric: tabular-nums;
+}
+
+.rrhh-dash-modules.sg-hub-panel--modules {
+  margin: 0;
+}
+
+.rrhh-dash-modules .sg-hub-module-grid {
+  grid-template-columns: 1fr;
+}
+
+.rrhh-dash-modules .sg-hub-module-card {
+  min-height: 0;
+}
+
+/* —— Funcionarios · listado hub —— */
+
+.rrhh-func-listado--hub {
+  min-width: 0;
+}
+
+.rrhh-func-listado--refreshing .rrhh-func-table-box,
+.rrhh-func-listado--refreshing .rrhh-func-kpi-strip {
+  opacity: 0.62;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.rrhh-func-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem 1rem;
+}
+
+.rrhh-func-status {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  flex: 1;
+  min-width: 12rem;
+}
+
+.rrhh-func-status-hint {
+  color: var(--bn-muted, #707a8a);
+}
+
+.rrhh-hub-filters-box,
+.rrhh-func-filters-box {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.65rem 0.75rem;
+  padding: 0.85rem 0.95rem;
+  border: 1px solid color-mix(in srgb, var(--bn-border, #eaecef) 92%, transparent);
+  border-radius: var(--sg-hub-radius-md);
+  background: color-mix(in srgb, var(--sg-hub-workspace) 45%, var(--sg-hub-surface, #fff));
+  box-shadow: 0 2px 10px rgba(30, 35, 41, 0.04);
+}
+
+.rrhh-func-filters-box .field label {
+  font-size: 0.72rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--bn-muted, #707a8a);
+}
+
+.rrhh-func-filters-box .field input {
+  border-color: var(--bn-border, #eaecef);
+  border-radius: var(--sg-hub-radius-md);
+  background: var(--sg-hub-surface, #fff);
+  min-height: 2.15rem;
+}
+
+.rrhh-func-filters-box .field input:focus {
+  outline: none;
+  border-color: color-mix(in srgb, var(--sg-hub-accent) 45%, var(--bn-border, #eaecef));
+  box-shadow: 0 0 0 2px var(--sg-hub-accent-soft);
+}
+
+.rrhh-func-search {
+  flex: 1;
+  min-width: min(100%, 14rem);
+  max-width: 22rem;
+}
+
+.rrhh-func-check {
+  margin-bottom: 0.35rem;
+  white-space: nowrap;
+  font-size: 0.82rem;
+  color: var(--bn-text, #1e2329);
+}
+
+.rrhh-hub-filters-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+  margin-left: auto;
+}
+
+.bn-ui .rrhh-func-kpi-strip.sg-hub-kpi-strip {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@media (max-width: 720px) {
+  .bn-ui .rrhh-func-kpi-strip.sg-hub-kpi-strip {
+    grid-template-columns: 1fr;
+  }
+}
+
+.bn-ui .rrhh-module-page .rrhh-func-kpi-strip .sg-hub-kpi {
+  min-height: 0;
+  padding: 0.75rem 0.85rem 0.7rem;
+}
+
+.bn-ui .rrhh-module-page .rrhh-func-kpi-strip .sg-hub-kpi-value {
+  font-size: clamp(1.15rem, 1.35vw + 0.65rem, 1.55rem);
+}
+
+.rrhh-func-kpi-value--activo {
+  color: var(--sg-hub-accent) !important;
+}
+
+.rrhh-func-kpi-value--inactivo {
+  color: #64748b !important;
+}
+
+.rrhh-func-table-box {
+  min-width: 0;
+  border: 1px solid var(--bn-border, #eaecef);
+  border-radius: var(--sg-hub-radius-md);
+  background: var(--sg-hub-surface, #fff);
+  overflow: hidden;
+  box-shadow: 0 2px 10px rgba(30, 35, 41, 0.04);
+}
+
+.rrhh-func-table-wrap {
+  overflow: auto;
+}
+
+.rrhh-func-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.84rem;
+}
+
+.rrhh-func-table thead th {
+  padding: 0.55rem 0.65rem;
+  background: color-mix(in srgb, var(--sg-hub-workspace) 40%, #fff);
+  font-size: 0.68rem;
+  font-weight: 650;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--bn-muted, #707a8a);
+  border-bottom: 1px solid var(--bn-border, #eaecef);
+  white-space: nowrap;
+}
+
+.rrhh-func-table tbody td {
+  padding: 0.55rem 0.65rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--bn-border, #eaecef) 75%, transparent);
+  vertical-align: top;
+}
+
+.rrhh-func-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.rrhh-func-table tbody tr:hover td {
+  background: color-mix(in srgb, var(--sg-hub-accent) 5%, #fff);
+}
+
+.rrhh-func-row--inactivo td {
+  opacity: 0.72;
+}
+
+.rrhh-func-cedula strong {
+  font-variant-numeric: tabular-nums;
+}
+
+.rrhh-func-nombre {
+  display: block;
+  font-weight: 600;
+}
+
+.rrhh-func-contacto span,
+.rrhh-func-email {
+  display: block;
+}
+
+.rrhh-func-email {
+  font-size: 0.76rem;
+  margin-top: 0.12rem;
+}
+
+.rrhh-func-depto {
+  font-size: 0.78rem;
+}
+
+.rrhh-func-cuenta {
+  display: block;
+  font-size: 0.76rem;
+  margin-top: 0.1rem;
+}
+
+.rrhh-func-estado-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.rrhh-func-estado-pill--activo {
+  background: var(--sg-hub-accent-soft);
+  color: #3f6212;
+}
+
+.rrhh-func-estado-pill--inactivo {
+  background: color-mix(in srgb, var(--sg-hub-workspace) 55%, #fff);
+  color: #64748b;
+}
+
+.rrhh-func-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.35rem;
+}
+
+.rrhh-func-empty-cell {
+  padding: 2rem 1rem !important;
+}
+
+.rrhh-func-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.65rem;
+  text-align: center;
+  color: var(--bn-muted, #707a8a);
+  font-size: 0.88rem;
+}
+
+.rrhh-func-empty-icon {
+  font-size: 1.75rem;
+  opacity: 0.55;
+}
+
+.rrhh-func-empty-btn {
+  margin-top: 0.25rem;
+}
+
+@media (max-width: 960px) {
+  .rrhh-func-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .rrhh-func-actions .sg-hub-cta {
+    width: 100%;
+  }
+}
+
+/* —— Sueldos y Jornales · hub —— */
+
+.rrhh-sueldos--hub {
+  min-width: 0;
+}
+
+.rrhh-sueldos--loading .rrhh-sueldos-filters-box {
+  opacity: 0.85;
+}
+
+.rrhh-sueldos-hint {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.rrhh-sueldos-hint strong {
+  color: var(--bn-text, #1e2329);
+  font-weight: 600;
+}
+
+.rrhh-sueldos-filters-box {
+  align-items: flex-end;
+}
+
+.rrhh-sueldos-field-cedula {
+  flex: 1;
+  min-width: min(100%, 12rem);
+  max-width: 16rem;
+}
+
+.rrhh-sueldos-filters-box .field label {
+  font-size: 0.72rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--bn-muted, #707a8a);
+}
+
+.rrhh-sueldos-filters-box .field input,
+.rrhh-sueldos-filters-box .field select {
+  border-color: var(--bn-border, #eaecef);
+  border-radius: var(--sg-hub-radius-md);
+  background: var(--sg-hub-surface, #fff);
+  min-height: 2.15rem;
+}
+
+.rrhh-sueldos-filters-box .field input:focus,
+.rrhh-sueldos-filters-box .field select:focus {
+  outline: none;
+  border-color: color-mix(in srgb, var(--sg-hub-accent) 45%, var(--bn-border, #eaecef));
+  box-shadow: 0 0 0 2px var(--sg-hub-accent-soft);
+}
+
+.rrhh-sueldos-empty-hint {
+  padding: 1.1rem 1rem;
+  text-align: center;
+}
+
+.rrhh-sueldos-empty-title {
+  margin: 0 0 0.45rem;
+  font-size: 1rem;
+  font-weight: 650;
+  color: var(--bn-text, #1e2329);
+}
+
+.bn-ui .rrhh-module-page .rrhh-sueldos-func-card.sg-hub-panel {
+  padding: 0.95rem 1rem 1.05rem;
+  border: 1px solid var(--bn-border, #eaecef);
+  border-radius: var(--sg-hub-radius-md);
+  background: var(--sg-hub-surface, #fff);
+  box-shadow: 0 2px 10px rgba(30, 35, 41, 0.04);
+}
+
+.bn-ui .rrhh-module-page .rrhh-sueldos-func-card .rrhh-func-head {
+  padding: 0;
+  border-bottom: none;
+}
+
+.bn-ui .rrhh-sueldos-kpi-strip.sg-hub-kpi-strip {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+@media (max-width: 1100px) {
+  .bn-ui .rrhh-sueldos-kpi-strip.sg-hub-kpi-strip {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .bn-ui .rrhh-sueldos-kpi-strip.sg-hub-kpi-strip {
+    grid-template-columns: 1fr;
+  }
+}
+
+.bn-ui .rrhh-module-page .rrhh-sueldos-kpi-strip .sg-hub-kpi {
+  min-height: 0;
+  padding: 0.75rem 0.85rem 0.7rem;
+}
+
+.bn-ui .rrhh-module-page .rrhh-sueldos-kpi-strip .sg-hub-kpi-value {
+  font-size: clamp(1.05rem, 1.2vw + 0.6rem, 1.45rem);
+}
+
+.bn-ui .rrhh-module-page .rrhh-sueldos-kpi-strip .sg-hub-kpi--dark .sg-hub-kpi-value {
+  color: #a3e635;
+}
+
+.rrhh-sueldos-table-box {
+  min-width: 0;
+  border: 1px solid var(--bn-border, #eaecef);
+  border-radius: var(--sg-hub-radius-md);
+  background: var(--sg-hub-surface, #fff);
+  overflow: hidden;
+  box-shadow: 0 2px 10px rgba(30, 35, 41, 0.04);
+}
+
+.rrhh-sueldos-panel-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 0.85rem;
+  padding: 0.75rem 0.85rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--bn-border, #eaecef) 88%, transparent);
+  background: color-mix(in srgb, var(--sg-hub-workspace) 35%, var(--sg-hub-surface, #fff));
+}
+
+.rrhh-sueldos-panel-title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--bn-text, #1e2329);
+}
+
+.rrhh-sueldos-count-badge {
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  background: var(--sg-hub-accent-soft);
+  color: #3f6212;
+  font-size: 0.72rem;
+  font-weight: 650;
+}
+
+.rrhh-sueldos-empty-state {
+  padding: 1.5rem 1rem;
+  text-align: center;
+}
+
+.rrhh-sueldos-empty-state .rrhh-sueldos-empty-title {
+  margin: 0 0 0.45rem;
+  font-weight: 650;
+}
+
+.rrhh-sueldos-table-box .rrhh-func-table-wrap {
+  border: none;
+  border-radius: 0;
+}
+
+.rrhh-sueldos-table-box .rrhh-informe-table tfoot td {
+  background: color-mix(in srgb, var(--sg-hub-workspace) 45%, #fff);
+  font-weight: 600;
+  border-top: 1px solid var(--bn-border, #eaecef);
+}
+
+.rrhh-saldo-cell strong {
+  color: var(--sg-hub-accent);
+}
+
+.rrhh-vinculo-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.18rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.66rem;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.rrhh-vinculo-pill--explicito {
+  background: var(--sg-hub-accent-soft);
+  color: #3f6212;
+}
+
+.rrhh-vinculo-pill--concepto {
+  background: color-mix(in srgb, #3b82f6 14%, #fff);
+  color: #1d4ed8;
+}
+
+.rrhh-vinculo-pill--rubro {
+  background: color-mix(in srgb, var(--sg-hub-workspace) 55%, #fff);
+  color: #475569;
+}

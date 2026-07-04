@@ -74,8 +74,8 @@ export function formatTotalProduccionAgricultura(value: number): string {
 
 export function formatRendimientoAgricultura(value: number): string {
   const text = Number.isInteger(value)
-    ? value.toLocaleString("en-US")
-    : value.toLocaleString("en-US", { maximumFractionDigits: 2 });
+    ? fmtNum(value, 0)
+    : fmtNum(value, 2);
   return `${text} kg/ha`;
 }
 

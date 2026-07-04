@@ -1,5 +1,7 @@
 import type { Db } from "./db/pg-client.js";
 import { PRODUCTO_FICHAS_SEED } from "./stock-control-sanitario-producto-fichas-seed.js";
+import { PRODUCTO_FICHAS_SEED_EQUINO } from "./stock-control-sanitario-producto-fichas-seed-equino.js";
+import { productoVisibleEnModuloSanitario } from "./stock-control-sanitario-marcas-equino.js";
 import {
   esFotoProductoAceptable,
   sanitizeProductoFichaFoto,
@@ -794,7 +796,7 @@ export async function repairProductoFichasFotosInvalidas(db: Db): Promise<void> 
 }
 
 export async function seedStockControlSanitarioProductoFichasIfMissing(db: Db): Promise<void> {
-  for (const seed of PRODUCTO_FICHAS_SEED) {
+  for (const seed of [...PRODUCTO_FICHAS_SEED, ...PRODUCTO_FICHAS_SEED_EQUINO]) {
     const existente = await getStockControlSanitarioProductoFicha(db, seed.nombre);
     if (existente?.detalles_tecnicos?.trim()) continue;
 
@@ -997,13 +999,15 @@ export interface StockControlSanitarioProductoNombreGlobal {
   laboratorio: string;
   principio_activo: string;
   tiene_foto: boolean;
+  especie: string;
   usos: number;
   usos_cuenta: number;
 }
 
 export async function listStockControlSanitarioProductoNombresGlobales(
   db: Db,
-  autoresCuenta: string[] = []
+  autoresCuenta: string[] = [],
+  modulo?: StockDispositivoModulo
 ): Promise<StockControlSanitarioProductoNombreGlobal[]> {
   const map = new Map<string, StockControlSanitarioProductoNombreGlobal>();
 
@@ -1015,6 +1019,9 @@ export async function listStockControlSanitarioProductoNombresGlobales(
     ),
   ];
 
+  const tablaUsos =
+    modulo === "equino" ? TABLE.equino : modulo === "ganadero" ? TABLE.ganadero : null;
+
   const usosCuentaMap = new Map<string, number>();
   if (autoresNorm.length > 0) {
     const autoresPlaceholders = autoresNorm.map((_, i) => `@a${i}`).join(", ");
@@ -1023,18 +1030,20 @@ export async function listStockControlSanitarioProductoNombresGlobales(
       autoresParams[`a${i}`] = a;
     });
 
-    const usosCuentaRows = (await db
-      .prepare(
-        `SELECT TRIM(producto_nombre) AS nombre, COUNT(*) AS usos
-         FROM (
-           SELECT producto_nombre, creado_por
+    const usosCuentaFrom = tablaUsos
+      ? `SELECT producto_nombre, creado_por FROM ${tablaUsos} WHERE TRIM(producto_nombre) <> ''`
+      : `SELECT producto_nombre, creado_por
            FROM ${TABLE.ganadero}
            WHERE TRIM(producto_nombre) <> ''
            UNION ALL
            SELECT producto_nombre, creado_por
            FROM ${TABLE.equino}
-           WHERE TRIM(producto_nombre) <> ''
-         ) AS registros
+           WHERE TRIM(producto_nombre) <> ''`;
+
+    const usosCuentaRows = (await db
+      .prepare(
+        `SELECT TRIM(producto_nombre) AS nombre, COUNT(*) AS usos
+         FROM (${usosCuentaFrom}) AS registros
          WHERE LOWER(TRIM(creado_por)) IN (${autoresPlaceholders})
          GROUP BY LOWER(TRIM(producto_nombre)), TRIM(producto_nombre)`
       )
@@ -1058,23 +1067,26 @@ export async function listStockControlSanitarioProductoNombresGlobales(
       laboratorio: String(f.laboratorio ?? "").trim(),
       principio_activo: String(f.principio_activo ?? "").trim(),
       tiene_foto: Boolean(f.tiene_foto),
+      especie: String(f.especie ?? "").trim(),
       usos: 0,
       usos_cuenta: usosCuentaMap.get(key) ?? 0,
     });
   }
 
-  const usosRows = (await db
-    .prepare(
-      `SELECT TRIM(producto_nombre) AS nombre, COUNT(*) AS usos
-       FROM (
-         SELECT producto_nombre
+  const usosFrom = tablaUsos
+    ? `SELECT producto_nombre FROM ${tablaUsos} WHERE TRIM(producto_nombre) <> ''`
+    : `SELECT producto_nombre
          FROM ${TABLE.ganadero}
          WHERE TRIM(producto_nombre) <> ''
          UNION ALL
          SELECT producto_nombre
          FROM ${TABLE.equino}
-         WHERE TRIM(producto_nombre) <> ''
-       ) AS usos
+         WHERE TRIM(producto_nombre) <> ''`;
+
+  const usosRows = (await db
+    .prepare(
+      `SELECT TRIM(producto_nombre) AS nombre, COUNT(*) AS usos
+       FROM (${usosFrom}) AS usos
        GROUP BY LOWER(TRIM(producto_nombre)), TRIM(producto_nombre)`
     )
     .all()) as { nombre: string; usos: number }[];
@@ -1097,23 +1109,26 @@ export async function listStockControlSanitarioProductoNombresGlobales(
       laboratorio: "",
       principio_activo: "",
       tiene_foto: false,
+      especie: "",
       usos,
       usos_cuenta: usosCuentaMap.get(key) ?? 0,
     });
   }
 
-  const rows = (await db
-    .prepare(
-      `SELECT TRIM(producto_nombre) AS nombre, MAX(creado_en) AS creado_en
-       FROM (
-         SELECT producto_nombre, creado_en
+  const creadoFrom = tablaUsos
+    ? `SELECT producto_nombre, creado_en FROM ${tablaUsos} WHERE TRIM(producto_nombre) <> ''`
+    : `SELECT producto_nombre, creado_en
          FROM ${TABLE.ganadero}
          WHERE TRIM(producto_nombre) <> ''
          UNION ALL
          SELECT producto_nombre, creado_en
          FROM ${TABLE.equino}
-         WHERE TRIM(producto_nombre) <> ''
-       ) AS usos
+         WHERE TRIM(producto_nombre) <> ''`;
+
+  const rows = (await db
+    .prepare(
+      `SELECT TRIM(producto_nombre) AS nombre, MAX(creado_en) AS creado_en
+       FROM (${creadoFrom}) AS usos
        GROUP BY LOWER(TRIM(producto_nombre)), TRIM(producto_nombre)`
     )
     .all()) as { nombre: string; creado_en: string }[];
@@ -1138,6 +1153,7 @@ export async function listStockControlSanitarioProductoNombresGlobales(
       laboratorio: "",
       principio_activo: "",
       tiene_foto: false,
+      especie: "",
       usos: 0,
       usos_cuenta: usosCuentaMap.get(key) ?? 0,
     });
@@ -1149,10 +1165,18 @@ export async function listStockControlSanitarioProductoNombresGlobales(
     }
   }
 
-  return [...map.values()].sort((a, b) => {
-    if (b.usos !== a.usos) return b.usos - a.usos;
-    return a.nombre.localeCompare(b.nombre, "es", { sensitivity: "base" });
-  });
+  return [...map.values()]
+    .filter((entry) =>
+      productoVisibleEnModuloSanitario(modulo, {
+        nombre: entry.nombre,
+        especie: entry.especie,
+        en_ficha: entry.en_ficha,
+      })
+    )
+    .sort((a, b) => {
+      if (b.usos !== a.usos) return b.usos - a.usos;
+      return a.nombre.localeCompare(b.nombre, "es", { sensitivity: "base" });
+    });
 }
 
 export async function deleteStockControlSanitarioProductoFicha(

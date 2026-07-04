@@ -1,12 +1,12 @@
 import type { ReactNode } from "react";
-import type { TabId } from "../Header";
 import SgHubShell from "../hub/SgHubShell";
 import { MenuAppIcon } from "../icons/MenuAppIcons";
-import { PRESUPUESTO_HUB_ITEMS, type PresupuestoVista } from "./presupuesto-hub-items";
+import { DIVISAS_HUB_ITEMS } from "./divisas-hub-items";
+import type { DivisasMonedaId } from "./divisas-config";
 
 interface Props {
-  vista: PresupuestoVista | "menu";
-  onNavigate: (id: TabId) => void;
+  vista: DivisasMonedaId | "menu";
+  onNavigate: (id: string) => void;
   onVolverDashboard: () => void;
   onVolver: () => void;
   apiOnline: boolean;
@@ -16,7 +16,7 @@ interface Props {
   children: ReactNode;
 }
 
-export default function PresupuestoHub({
+export default function DivisasHub({
   vista,
   onNavigate,
   onVolverDashboard,
@@ -28,21 +28,21 @@ export default function PresupuestoHub({
   children,
 }: Props) {
   return (
-    <div className="sg-module-page presupuesto-module-page">
+    <div className="sg-module-page divisas-module-page">
       <SgHubShell
         activeId={vista}
-        items={PRESUPUESTO_HUB_ITEMS}
-        onNavigate={(id) => onNavigate(id as TabId)}
+        items={DIVISAS_HUB_ITEMS}
+        onNavigate={onNavigate}
         onVolverDashboard={onVolverDashboard}
         onVolverInicio={onVolver}
         apiOnline={apiOnline}
         title={title}
         subtitle={subtitle}
-        asideKicker="SGG · Presupuesto y gastos"
-        asideTitle="Presupuesto y gastos"
-        asideLogo={<MenuAppIcon id="registro" />}
-        navAriaLabel="Módulos de presupuesto"
-        hubClassName="presupuesto--hub"
+        asideKicker="SGG · Finanzas"
+        asideTitle="Divisas"
+        asideLogo={<MenuAppIcon id="divisas" />}
+        navAriaLabel="Monedas en divisas"
+        hubClassName="divisas--hub"
       >
         {embedded ? <div className="sg-hub-embedded">{children}</div> : children}
       </SgHubShell>

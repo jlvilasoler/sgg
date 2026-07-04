@@ -1,5 +1,5 @@
 ﻿import { useCallback, useEffect, useMemo, useState } from "react";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, Search, SlidersHorizontal } from "lucide-react";
 import {
   deleteStockEquinaDispositivos,
   fetchEmpresasOperativasStock,
@@ -57,6 +57,7 @@ import {
   labelEdadFiltro,
   labelGrupoLibreFiltro,
   labelRazaFiltro,
+  labelUltimaLecturaMesFiltro,
   razaFiltroKey,
   ultimaLecturaMesFiltroKey,
   SIN_FECHA_NAC_FILTRO_KEY,
@@ -271,7 +272,6 @@ export default function StockEquina({
   );
 
   useEffect(() => {
-    setLoading(true);
     if (!cacheScope) {
       setRows([]);
       setStatsRows([]);
@@ -411,14 +411,9 @@ export default function StockEquina({
   const muertesCount = resumenKpis.muertos.length;
   const extraviadosCount = resumenKpis.perdidos.length;
 
-  const sexoTotal = useMemo(() => contarSexoDispositivos(statsRows), [statsRows]);
   const sexoSalidas = useMemo(
     () => contarSexoDispositivos(resumenKpis.salidas),
     [resumenKpis.salidas]
-  );
-  const sexoActivos = useMemo(
-    () => contarSexoDispositivos(resumenKpis.activos),
-    [resumenKpis.activos]
   );
   const sexoVentas = useMemo(
     () => contarSexoDispositivos(resumenKpis.vendidos),
@@ -945,146 +940,176 @@ export default function StockEquina({
           </header>
 
           {apiOnline && (
-            <section className="stock-dash stock-dash--pro" aria-label="Resumen de dispositivos">
-            <div className="stock-dash-head sg-kpi-board-head">
-              <div>
-                <h3 className="stock-dash-title sg-kpi-board-title">Resumen</h3>
-                <p className="stock-dash-sub sg-kpi-board-desc">
-                  Caravanas electrónicas únicas en la base
-                </p>
+            <section className="sg-hub-panel sg-devices-dashboard" aria-label="Resumen del stock equino">
+              <div className="sg-hub-panel-head">
+                <div>
+                  <p className="sg-hub-panel-kicker">Indicadores</p>
+                  <h2 className="sg-hub-panel-title">Resumen del stock</h2>
+                </div>
               </div>
-            </div>
-            <div className="sg-kpi-grid">
-              <StockEquinaDashKpi
-                label="Total dispositivos"
-                value={totalDispositivosCount}
-                hint={`${activosCount} activos · ${salidasCount} salidas del sistema`}
-                variant="total"
-                sexoStats={sexoTotal}
-                loading={kpisCargando}
-              />
-              <StockEquinaDashKpi
-                label="Dispositivos activos"
-                value={activosCount}
-                hint="En stock hoy (sin bajas)"
-                variant="activos"
-                sexoStats={sexoActivos}
-                loading={kpisCargando}
-              />
-              <StockEquinaDashKpi
-                label="Salidas del sistema"
-                value={salidasCount}
-                hint={salidasHint}
-                variant="salida"
-                sexoStats={sexoSalidas}
-                loading={kpisCargando}
-                active={filtroSalidasSistema}
-                disabled={salidasCount === 0}
-                onClick={() => {
-                  setFiltroVentasCerradas(false);
-                  setFiltroEstado(new Set());
-                  setFiltroSalidasSistema((v) => !v);
-                }}
-              />
-              <StockEquinaDashKpi
-                label="Ventas"
-                value={ventasCount}
-                hint={
-                  ventasSimuladorCount > 0
-                    ? `${ventasSimuladorCount} desde el simulador de ventas`
-                    : "Animales registrados como vendidos"
-                }
-                variant="vendido"
-                sexoStats={sexoVentas}
-                loading={kpisCargando}
-                active={filtroEstado.size === 1 && filtroEstado.has("VENDIDO")}
-                disabled={ventasCount === 0}
-                onClick={() => {
-                  setFiltroSalidasSistema(false);
-                  setFiltroVentasCerradas(false);
-                  setFiltroEstado((prev) => {
-                    const soloVendido = prev.size === 1 && prev.has("VENDIDO");
-                    return soloVendido
-                      ? new Set()
-                      : new Set<DispositivoEstado>(["VENDIDO"]);
-                  });
-                }}
-              />
-              <StockEquinaDashKpi
-                label="Muertes"
-                value={muertesCount}
-                hint="Registradas en salidas del sistema"
-                variant="muerto"
-                sexoStats={sexoMuertes}
-                loading={kpisCargando}
-                active={filtroEstado.size === 1 && filtroEstado.has("MUERTO")}
-                disabled={muertesCount === 0}
-                onClick={() => {
-                  setFiltroVentasCerradas(false);
-                  setFiltroSalidasSistema(false);
-                  setFiltroEstado((prev) => {
-                    const soloMuerto = prev.size === 1 && prev.has("MUERTO");
-                    return soloMuerto ? new Set() : new Set<DispositivoEstado>(["MUERTO"]);
-                  });
-                }}
-              />
-              <StockEquinaDashKpi
-                label="Extraviados"
-                value={extraviadosCount}
-                hint="Registrados como extraviados en salidas"
-                variant="extraviado"
-                sexoStats={sexoExtraviados}
-                loading={kpisCargando}
-                active={filtroEstado.size === 1 && filtroEstado.has("PERDIDO")}
-                disabled={extraviadosCount === 0}
-                onClick={() => {
-                  setFiltroVentasCerradas(false);
-                  setFiltroSalidasSistema(false);
-                  setFiltroEstado((prev) => {
-                    const soloPerdido = prev.size === 1 && prev.has("PERDIDO");
-                    return soloPerdido ? new Set() : new Set<DispositivoEstado>(["PERDIDO"]);
-                  });
-                }}
-              />
-            </div>
-          </section>
-        )}
 
-          <div className="stock-equina-main">
-            <div className="stock-equina-search-bar mayusculas-auto">
+              <div className="sg-hub-kpi-strip sg-devices-kpi-summary">
+                <StockEquinaDashKpi
+                  label="Total dispositivos"
+                  value={totalDispositivosCount}
+                  hint="Caravanas electrónicas equinas únicas en la base."
+                  variant="total"
+                  trend={
+                    !kpisCargando && totalDispositivosCount > 0
+                      ? `${activosCount} activos · ${salidasCount} salidas`
+                      : undefined
+                  }
+                  showSexo={false}
+                  barsHighlight="last"
+                  loading={kpisCargando}
+                />
+                <StockEquinaDashKpi
+                  label="Dispositivos activos"
+                  value={activosCount}
+                  hint="En stock hoy (sin bajas registradas)."
+                  variant="activos"
+                  showSexo={false}
+                  barsHighlight="mid"
+                  loading={kpisCargando}
+                />
+                <StockEquinaDashKpi
+                  label="Salidas del sistema"
+                  value={salidasCount}
+                  hint={salidasHint}
+                  variant="salida"
+                  showSexo={false}
+                  loading={kpisCargando}
+                />
+              </div>
+
+              <div className="sg-devices-kpi-divider">
+                <p className="sg-devices-kpi-divider-label">Filtrar por estado</p>
+                <span className="sg-devices-kpi-divider-line" aria-hidden />
+              </div>
+
+              <div className="sg-hub-kpi-strip sg-devices-kpi-filters">
+                <StockEquinaDashKpi
+                  label="Salidas del sistema"
+                  value={salidasCount}
+                  hint={salidasHint}
+                  variant="salida"
+                  sexoStats={sexoSalidas}
+                  loading={kpisCargando}
+                  active={filtroSalidasSistema}
+                  disabled={salidasCount === 0}
+                  onClick={() => {
+                    setFiltroVentasCerradas(false);
+                    setFiltroEstado(new Set());
+                    setFiltroSalidasSistema((v) => !v);
+                  }}
+                />
+                <StockEquinaDashKpi
+                  label="Ventas"
+                  value={ventasCount}
+                  hint={
+                    ventasSimuladorCount > 0
+                      ? `${ventasSimuladorCount} desde el simulador de ventas`
+                      : "Equinos registrados como vendidos"
+                  }
+                  variant="vendido"
+                  sexoStats={sexoVentas}
+                  loading={kpisCargando}
+                  active={filtroEstado.size === 1 && filtroEstado.has("VENDIDO")}
+                  disabled={ventasCount === 0}
+                  onClick={() => {
+                    setFiltroSalidasSistema(false);
+                    setFiltroVentasCerradas(false);
+                    setFiltroEstado((prev) => {
+                      const soloVendido = prev.size === 1 && prev.has("VENDIDO");
+                      return soloVendido
+                        ? new Set()
+                        : new Set<DispositivoEstado>(["VENDIDO"]);
+                    });
+                  }}
+                />
+                <StockEquinaDashKpi
+                  label="Muertes"
+                  value={muertesCount}
+                  hint="Registradas en salidas del sistema"
+                  variant="muerto"
+                  sexoStats={sexoMuertes}
+                  loading={kpisCargando}
+                  active={filtroEstado.size === 1 && filtroEstado.has("MUERTO")}
+                  disabled={muertesCount === 0}
+                  onClick={() => {
+                    setFiltroVentasCerradas(false);
+                    setFiltroSalidasSistema(false);
+                    setFiltroEstado((prev) => {
+                      const soloMuerto = prev.size === 1 && prev.has("MUERTO");
+                      return soloMuerto ? new Set() : new Set<DispositivoEstado>(["MUERTO"]);
+                    });
+                  }}
+                />
+                <StockEquinaDashKpi
+                  label="Extraviados"
+                  value={extraviadosCount}
+                  hint="Registrados como extraviados en salidas"
+                  variant="extraviado"
+                  sexoStats={sexoExtraviados}
+                  loading={kpisCargando}
+                  active={filtroEstado.size === 1 && filtroEstado.has("PERDIDO")}
+                  disabled={extraviadosCount === 0}
+                  onClick={() => {
+                    setFiltroVentasCerradas(false);
+                    setFiltroSalidasSistema(false);
+                    setFiltroEstado((prev) => {
+                      const soloPerdido = prev.size === 1 && prev.has("PERDIDO");
+                      return soloPerdido ? new Set() : new Set<DispositivoEstado>(["PERDIDO"]);
+                    });
+                  }}
+                />
+              </div>
+            </section>
+          )}
+
+          <section className="sg-hub-panel sg-hub-panel--devices-table" aria-label="Listado de dispositivos equinos">
+            <div className="sg-devices-search-bar mayusculas-auto">
               <button
                 type="button"
-                className="stock-equina-filtros-mobile-btn"
+                className="sg-devices-filtros-mobile-btn"
                 onClick={() => setFiltrosMobileOpen(true)}
                 aria-label="Abrir filtros"
               >
+                <SlidersHorizontal size={16} aria-hidden />
                 Filtros
                 {hayFacetasActivas ? (
-                  <span className="stock-equina-filtros-badge" aria-hidden />
+                  <span className="sg-devices-filtros-badge" aria-hidden />
                 ) : null}
               </button>
-              <div className="stock-equina-search-field">
-                <label htmlFor="equina-busq" className="sr-only">
-                  Buscar EID / VID
-                </label>
+              <label className="sg-devices-search-field">
+                <Search size={17} className="sg-devices-search-icon" aria-hidden />
+                <span className="sr-only">Buscar EID / VID</span>
                 <input
                   id="equina-busq"
                   type="search"
                   placeholder="Buscar por EID o caravana visual…"
                   value={busqueda}
                   onChange={(e) => setBusqueda(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && load()}
                 />
-              </div>
-              <button type="button" className="btn btn-primary" onClick={load}>
+              </label>
+              <button
+                type="button"
+                className="sg-hub-cta sg-devices-search-btn"
+                onClick={() => void load()}
+                disabled={!apiOnline}
+              >
                 Buscar
               </button>
             </div>
 
-            {(hayFacetasActivas || busqueda.trim() || fechaDesde || fechaHasta) && (
-              <div className="stock-equina-chips" aria-label="Filtros activos">
+            {(hayFacetasActivas ||
+              busqueda.trim() ||
+              fechaDesde ||
+              fechaHasta ||
+              filtroUltimaLecturaMes.size > 0) && (
+              <div className="sg-devices-chips" aria-label="Filtros activos">
                 {busqueda.trim() ? (
-                  <span className="stock-equina-chip">
+                  <span className="stock-ganadera-chip">
                     Búsqueda: {busqueda.trim()}
                     <button
                       type="button"
@@ -1096,7 +1121,7 @@ export default function StockEquina({
                   </span>
                 ) : null}
                 {fechaDesde ? (
-                  <span className="stock-equina-chip">
+                  <span className="stock-ganadera-chip">
                     Desde {fechaDesde}
                     <button
                       type="button"
@@ -1108,7 +1133,7 @@ export default function StockEquina({
                   </span>
                 ) : null}
                 {fechaHasta ? (
-                  <span className="stock-equina-chip">
+                  <span className="stock-ganadera-chip">
                     Hasta {fechaHasta}
                     <button
                       type="button"
@@ -1119,8 +1144,20 @@ export default function StockEquina({
                     </button>
                   </span>
                 ) : null}
+                {[...filtroUltimaLecturaMes].map((k) => (
+                  <span key={`lect-${k || "sin"}`} className="stock-ganadera-chip">
+                    Última lectura: {labelUltimaLecturaMesFiltro(k)}
+                    <button
+                      type="button"
+                      aria-label="Quitar filtro de última lectura"
+                      onClick={() => setFiltroUltimaLecturaMes((p) => toggleSet(p, k))}
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
                 {[...filtroSexo].map((k) => (
-                  <span key={`sexo-${k}`} className="stock-equina-chip">
+                  <span key={`sexo-${k}`} className="stock-ganadera-chip">
                     Sexo: {k === "MACHO" ? "Macho" : k === "HEMBRA" ? "Hembra" : "Sin definir"}
                     <button
                       type="button"
@@ -1132,7 +1169,7 @@ export default function StockEquina({
                   </span>
                 ))}
                 {[...filtroEmpresa].map((k) => (
-                  <span key={`emp-${k}`} className="stock-equina-chip">
+                  <span key={`emp-${k}`} className="stock-ganadera-chip">
                     Empresa: {empresaOpciones.find((o) => o.key === k)?.label ?? (k || "Sin definir")}
                     <button
                       type="button"
@@ -1144,7 +1181,7 @@ export default function StockEquina({
                   </span>
                 ))}
                 {[...filtroRaza].map((k) => (
-                  <span key={`raza-${k}`} className="stock-equina-chip">
+                  <span key={`raza-${k}`} className="stock-ganadera-chip">
                     Raza: {labelRazaFiltro(k)}
                     <button
                       type="button"
@@ -1156,7 +1193,7 @@ export default function StockEquina({
                   </span>
                 ))}
                 {[...filtroEstado].map((e) => (
-                  <span key={`est-${e}`} className="stock-equina-chip">
+                  <span key={`est-${e}`} className="stock-ganadera-chip">
                     Estado: {fmtEstadoDispositivo(e)}
                     <button
                       type="button"
@@ -1168,7 +1205,7 @@ export default function StockEquina({
                   </span>
                 ))}
                 {[...filtroEdad].map((k) => (
-                  <span key={`edad-${k}`} className="stock-equina-chip">
+                  <span key={`edad-${k}`} className="stock-ganadera-chip">
                     Edad: {labelEdadFiltro(k as EdadFiltroKey)}
                     <button
                       type="button"
@@ -1180,7 +1217,7 @@ export default function StockEquina({
                   </span>
                 ))}
                 {[...filtroGrupoLibre].map((k) => (
-                  <span key={`grupo-${k || "sin"}`} className="stock-equina-chip">
+                  <span key={`grupo-${k || "sin"}`} className="stock-ganadera-chip">
                     Grupo: {labelGrupoLibreFiltro(k)}
                     <button
                       type="button"
@@ -1192,7 +1229,7 @@ export default function StockEquina({
                   </span>
                 ))}
                 {[...filtroCategoria].map((k) => (
-                  <span key={`cat-${k}`} className="stock-equina-chip">
+                  <span key={`cat-${k}`} className="stock-ganadera-chip">
                     Categoría: {labelCategoriaFiltro(k as CategoriaFiltroKey)}
                     <button
                       type="button"
@@ -1204,7 +1241,7 @@ export default function StockEquina({
                   </span>
                 ))}
                 {filtroSinFechaNac.has(SIN_FECHA_NAC_FILTRO_KEY) ? (
-                  <span key="sin-fecha-nac" className="stock-equina-chip">
+                  <span key="sin-fecha-nac" className="stock-ganadera-chip">
                     Sin fecha nacimiento
                     <button
                       type="button"
@@ -1217,7 +1254,7 @@ export default function StockEquina({
                 ) : null}
                 <button
                   type="button"
-                  className="stock-equina-chips-clear"
+                  className="stock-ganadera-chips-clear"
                   onClick={() => {
                     setBusqueda("");
                     setFechaDesde("");
@@ -1249,7 +1286,7 @@ export default function StockEquina({
                   )}
                   <button
                     type="button"
-                    className="btn btn-primary btn-sm"
+                    className="sg-hub-cta sg-hub-cta--compact"
                     onClick={() => setBulkOpen(true)}
                   >
                     Editar seleccionados
@@ -1257,7 +1294,7 @@ export default function StockEquina({
                   {esAdmin && (
                     <button
                       type="button"
-                      className="btn btn-sm btn-danger"
+                      className="sg-hub-cta sg-hub-cta--compact sg-hub-cta--danger"
                       onClick={() => void eliminarSeleccionados()}
                     >
                       Eliminar del sistema
@@ -1412,7 +1449,7 @@ export default function StockEquina({
                 }}
               />
             )}
-          </div>
+          </section>
         </main>
       </div>
     </div>

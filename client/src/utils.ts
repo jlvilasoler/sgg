@@ -1,17 +1,4 @@
-export function fmtNum(n: number, decimals = 2): string {
-  return (n ?? 0).toLocaleString("es-AR", {
-    minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals,
-  });
-}
-
-export function fmtDate(iso: string): string {
-  if (!iso) return "";
-  const datePart = iso.slice(0, 10);
-  const [y, m, d] = datePart.split("-");
-  if (!y || !m || !d) return iso;
-  return `${d}/${m}/${y}`;
-}
+export { APP_LOCALE, fmtDate, fmtDateHora, fmtNum, parseLocalDateFromIso } from "./utils/format";
 
 export function todayIso(): string {
   return new Date().toISOString().slice(0, 10);

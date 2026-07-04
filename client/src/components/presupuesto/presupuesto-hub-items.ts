@@ -4,19 +4,19 @@ export const PRESUPUESTO_HUB_ITEMS: SgHubItem[] = [
   {
     id: "registro",
     label: "Ingresar gasto",
-    subtitle: "Cargar gasto en PRESUPUESTO",
+    subtitle: "Rubros · Proveedores · Documentos",
     icon: "prov_ingresar",
   },
   {
     id: "listado",
     label: "Presupuesto",
-    subtitle: "Ver y editar gastos",
+    subtitle: "Consultar · Filtrar · Editar",
     icon: "prov_listado",
   },
   {
     id: "resumen",
     label: "Control de Gestión",
-    subtitle: "Presupuestos por Empresa y Rubro",
+    subtitle: "Por empresa · Por rubro",
     icon: "config_responsables",
   },
 ];

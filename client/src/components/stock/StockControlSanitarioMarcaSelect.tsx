@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  MARCAS_REMEDIO_GANADO,
+  catalogoMarcasPorModulo,
   marcaCoincideBusqueda,
+  marcaGlobalVisibleEnModulo,
   type MarcaRemedioCatalogo,
   type MarcaRemedioPais,
 } from "./stock-control-sanitario-marcas";
@@ -16,7 +17,8 @@ import { confirmAction } from "../../utils/confirm";
 import { IconEliminar } from "../icons/ActionIcons";
 import StockControlSanitarioProductoFichaModal from "./StockControlSanitarioProductoFichaModal";
 
-const STORAGE_KEY = "scg-marcas-remedio-extras";
+const STORAGE_KEY_GANADERO = "scg-marcas-remedio-extras";
+const STORAGE_KEY_EQUINO = "scg-marcas-remedio-extras-equino";
 const MAX_MARCA_LEN = 120;
 const TOP_MARCAS_DESTACADAS = 10;
 const TOP_MARCAS_CUENTA = 8;
@@ -64,6 +66,7 @@ function normalizarMarcaGlobal(
     tiene_foto: Boolean(meta.tiene_foto),
     usos: Number(meta.usos ?? 0),
     usos_cuenta: Number(meta.usos_cuenta ?? 0),
+    especie: txt(meta.especie),
   };
 }
 
@@ -206,9 +209,10 @@ function etiquetaSeccionMarca(
   return null;
 }
 
-function loadMarcaExtras(): MarcaExtra[] {
+function loadMarcaExtras(modulo: StockDispositivoModulo): MarcaExtra[] {
+  const key = modulo === "equino" ? STORAGE_KEY_EQUINO : STORAGE_KEY_GANADERO;
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(key);
     if (!raw) return [];
     const parsed = JSON.parse(raw) as unknown;
     if (!Array.isArray(parsed)) return [];
@@ -237,8 +241,9 @@ function loadMarcaExtras(): MarcaExtra[] {
   }
 }
 
-function saveMarcaExtras(list: MarcaExtra[]): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+function saveMarcaExtras(list: MarcaExtra[], modulo: StockDispositivoModulo): void {
+  const key = modulo === "equino" ? STORAGE_KEY_EQUINO : STORAGE_KEY_GANADERO;
+  localStorage.setItem(key, JSON.stringify(list));
 }
 
 interface Props {
@@ -279,20 +284,31 @@ export default function StockControlSanitarioMarcaSelect({
     StockControlSanitarioProductoNombreGlobal[]
   >([]);
 
+  const catalogoMarcas = useMemo(() => catalogoMarcasPorModulo(modulo), [modulo]);
+
   const reloadMarcas = useCallback(async () => {
     if (!apiOnline) {
       setMarcasGlobales([]);
       return;
     }
     try {
-      const list = await fetchStockControlSanitarioProductoNombresGlobales();
+      const list = await fetchStockControlSanitarioProductoNombresGlobales(modulo);
       setMarcasGlobales(
-        list.map(normalizarMarcaGlobal).filter((m) => m.nombre)
+        list
+          .map(normalizarMarcaGlobal)
+          .filter((m) => m.nombre)
+          .filter((m) =>
+            marcaGlobalVisibleEnModulo(modulo, {
+              nombre: m.nombre,
+              especie: m.especie,
+              en_ficha: m.en_ficha,
+            })
+          )
       );
     } catch {
       setMarcasGlobales([]);
     }
-  }, [apiOnline]);
+  }, [apiOnline, modulo]);
 
   useEffect(() => {
     void reloadMarcas();
@@ -300,17 +316,20 @@ export default function StockControlSanitarioMarcaSelect({
 
   useEffect(() => {
     if (!apiOnline) return;
-    const legacy = loadMarcaExtras();
+    const legacy = loadMarcaExtras(modulo);
     if (legacy.length === 0) return;
     void (async () => {
       for (const extra of legacy) {
         try {
-          await saveStockControlSanitarioProductoFicha(modulo, { nombre: extra.nombre });
+          await saveStockControlSanitarioProductoFicha(modulo, {
+            nombre: extra.nombre,
+            especie: modulo === "equino" ? "Equinos" : "Bovinos",
+          });
         } catch {
           /* omitir duplicados o errores puntuales */
         }
       }
-      saveMarcaExtras([]);
+      saveMarcaExtras([], modulo);
       await reloadMarcas();
     })();
   }, [apiOnline, modulo, reloadMarcas]);
@@ -325,11 +344,11 @@ export default function StockControlSanitarioMarcaSelect({
 
   const catalogoPorNombre = useMemo(() => {
     const map = new Map<string, MarcaRemedioCatalogo>();
-    for (const m of MARCAS_REMEDIO_GANADO) {
+    for (const m of catalogoMarcas) {
       map.set(m.nombre.toLocaleLowerCase("es-UY"), m);
     }
     return map;
-  }, []);
+  }, [catalogoMarcas]);
 
   const todasLasMarcas = useMemo(() => {
     const seen = new Set<string>();
@@ -356,7 +375,7 @@ export default function StockControlSanitarioMarcaSelect({
         usosCuenta: global?.usos_cuenta ?? 0,
       });
     };
-    for (const m of MARCAS_REMEDIO_GANADO) push(m.nombre);
+    for (const m of catalogoMarcas) push(m.nombre);
     for (const meta of marcasGlobales) {
       push(meta.nombre, {
         esPersonalizada: !catalogoPorNombre.has(meta.nombre.toLocaleLowerCase("es-UY")),
@@ -367,7 +386,7 @@ export default function StockControlSanitarioMarcaSelect({
     if (String(value ?? "").trim()) push(String(value ?? ""));
 
     return ordenarMarcasPorSeccion(list, marcasGlobalesPorNombre);
-  }, [catalogoPorNombre, currentUser, historialMarcas, marcasGlobales, marcasGlobalesPorNombre, value]);
+  }, [catalogoMarcas, catalogoPorNombre, currentUser, historialMarcas, marcasGlobales, marcasGlobalesPorNombre, value]);
 
   const destacadasCount = useMemo(
     () => todasLasMarcas.filter((m) => m.seccion === "destacada").length,
@@ -476,7 +495,10 @@ export default function StockControlSanitarioMarcaSelect({
 
     setGuardandoMarca(true);
     try {
-      await saveStockControlSanitarioProductoFicha(modulo, { nombre });
+      await saveStockControlSanitarioProductoFicha(modulo, {
+        nombre,
+        especie: modulo === "equino" ? "Equinos" : "Bovinos",
+      });
       await reloadMarcas();
       onChange(nombre);
       cerrar();
@@ -603,7 +625,7 @@ export default function StockControlSanitarioMarcaSelect({
                       ? ` · ${ultimasAgregadasCount} agregada(s) este mes`
                       : ""
                   }`
-                : `${MARCAS_REMEDIO_GANADO.length} marcas — buscá o agregá una nueva`}
+                : `${catalogoMarcas.length} marcas${modulo === "equino" ? " equinas" : ""} — buscá o agregá una nueva`}
           </p>
 
           {modoNuevo ? (

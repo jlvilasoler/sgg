@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
 import { useHeaderBackStep } from "../header-back";
 import type { Catalogos, Funcionario } from "../types";
-import SgHubModuleGrid from "./hub/SgHubModuleGrid";
+import RrhhDashboard from "./rrhh/RrhhDashboard";
 import SgHubShell from "./hub/SgHubShell";
 import { MenuAppIcon } from "./icons/MenuAppIcons";
 import FuncionarioForm from "./rrhh/FuncionarioForm";
@@ -88,24 +88,28 @@ export default function RecursosHumanos({
         asideTitle="Recursos Humanos"
         asideLogo={<MenuAppIcon id="recursos_humanos" />}
         navAriaLabel="Módulos de Recursos Humanos"
+        hubClassName="rrhh--hub"
       >
+        <div className="sg-hub-embedded">
         {vista === "menu" ? (
-          <div className="sg-hub-panels">
-            <SgHubModuleGrid
-              items={RRHH_HUB_ITEMS}
-              onSelect={(id: string) => {
-                if (id === "funcionarios") {
-                  setEditFuncionario(null);
-                  setVista("funcionarios");
-                } else {
-                  setCedulaSueldos("");
-                  setVista("sueldos");
-                }
-              }}
-              title="Módulos"
-              kicker="Gestión de personal"
-            />
-          </div>
+          <RrhhDashboard
+            apiOnline={apiOnline}
+            onError={onError}
+            onNavigate={(id) => {
+              if (id === "funcionarios") {
+                setEditFuncionario(null);
+                setVista("funcionarios");
+              } else if (id === "sueldos") {
+                setCedulaSueldos("");
+                setVista("sueldos");
+              }
+            }}
+            onVerPago={(cedula) => {
+              setCedulaSueldos(cedula);
+              setVista("sueldos");
+            }}
+            onEditGasto={onEditGasto}
+          />
         ) : vista === "funcionario-form" ? (
           <FuncionarioForm
             key={editFuncionario?.id ?? "nuevo"}
@@ -157,6 +161,7 @@ export default function RecursosHumanos({
             onVolver={volverMenu}
           />
         )}
+        </div>
       </SgHubShell>
     </div>
   );

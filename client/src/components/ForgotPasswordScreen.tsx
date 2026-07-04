@@ -1,8 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { solicitarResetPassword } from "../api";
 import { apiConnectionError, apiOfflineMessage } from "../utils/api-messages";
-import { APP_FULL_NAME, APP_NAME } from "../brand";
-import LogoSgg from "./LogoSgg";
+import AuthLoginShell from "./AuthLoginShell";
 
 interface Props {
   apiOnline: boolean;
@@ -41,89 +40,83 @@ export default function ForgotPasswordScreen({
   };
 
   return (
-    <div className="auth-login-page">
-      <div className="auth-login-shell">
-        <header className="auth-login-head">
-          <div className="auth-login-brand">
-            <LogoSgg className="auth-login-logo" />
-            <div>
-              <h1 className="auth-login-title">{APP_NAME}</h1>
-              <p className="auth-login-sub">{APP_FULL_NAME}</p>
-            </div>
-          </div>
-          <p className="auth-login-head-note">Recuperación de acceso</p>
-        </header>
-
-        {sent ? (
-          <div className="auth-login-form auth-login-recovery-sent">
-            <div className="auth-login-recovery-icon" aria-hidden>
-              ✉
-            </div>
-            <h2 className="auth-login-recovery-title">Revisá tu correo</h2>
-            <p className="auth-login-recovery-text">{successMessage}</p>
-            <p className="auth-login-recovery-hint muted">
-              El enlace para crear una nueva contraseña vence en 1 hora.
-            </p>
-            <button
-              type="button"
-              className="btn btn-primary auth-login-submit"
-              onClick={onBack}
-            >
-              Volver al inicio de sesión
-            </button>
-          </div>
+    <AuthLoginShell
+      title={
+        sent ? (
+          <>Revisá tu <span className="auth-login-accent">correo</span></>
         ) : (
-          <form className="auth-login-form" onSubmit={submit}>
-            <p className="auth-login-recovery-intro">
-              Ingresá el <strong>email registrado en tu cuenta</strong>. Te enviaremos un
-              enlace seguro para restablecer tu contraseña.
-            </p>
+          <>Recuperar tu <span className="auth-login-accent">contraseña</span></>
+        )
+      }
+      footer={
+        <p className="auth-login-foot-hint">
+          Por seguridad, el sistema no indica si un email existe o no en la base de datos.
+        </p>
+      }
+    >
+      {sent ? (
+        <div className="auth-login-recovery-sent auth-login-recovery-sent--split">
+          <div className="auth-login-recovery-icon auth-login-recovery-icon--split" aria-hidden>
+            ✉
+          </div>
+          <p className="auth-login-recovery-text auth-login-recovery-text--split">{successMessage}</p>
+          <p className="auth-login-recovery-hint auth-login-recovery-hint--split">
+            El enlace para crear una nueva contraseña vence en 1 hora.
+          </p>
+          <button
+            type="button"
+            className="auth-login-submit auth-login-submit--split"
+            onClick={onBack}
+          >
+            Volver al inicio de sesión
+          </button>
+        </div>
+      ) : (
+        <form className="auth-login-form auth-login-form--split" onSubmit={submit}>
+          <p className="auth-login-recovery-intro auth-login-recovery-intro--split">
+            Ingresá el <strong>email registrado en tu cuenta</strong>. Te enviaremos un enlace seguro
+            para restablecer tu contraseña.
+          </p>
 
-            <div className="field">
-              <label htmlFor="forgot-email">Email</label>
-              <input
-                id="forgot-email"
-                type="email"
-                autoComplete="username"
-                maxLength={254}
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="usuario@empresa.com"
-                disabled={loading || !apiOnline}
-                required
-                autoFocus
-              />
-            </div>
+          <input
+            id="forgot-email"
+            type="email"
+            className="auth-login-input"
+            autoComplete="username"
+            maxLength={254}
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="E-mail"
+            disabled={loading || !apiOnline}
+            required
+            autoFocus
+            aria-label="E-mail"
+          />
 
-            {!apiOnline && (
-              <p className="auth-login-offline">{apiOfflineMessage()}</p>
-            )}
+          {!apiOnline && (
+            <p className="auth-login-offline auth-login-offline--split">{apiOfflineMessage()}</p>
+          )}
 
-            <button
-              type="submit"
-              className="btn btn-primary auth-login-submit"
-              disabled={loading || !apiOnline}
-            >
-              {loading ? "Enviando…" : "Enviar enlace de recuperación"}
-            </button>
+          <button
+            type="submit"
+            className="auth-login-submit auth-login-submit--split"
+            disabled={loading || !apiOnline}
+          >
+            {loading ? "Enviando…" : "Enviar enlace de recuperación"}
+          </button>
 
+          <div className="auth-login-forgot-wrap auth-login-forgot-wrap--split">
             <button
               type="button"
-              className="auth-login-link-btn"
+              className="auth-login-forgot-link auth-login-forgot-link--split"
               onClick={onBack}
               disabled={loading}
             >
               ← Volver al inicio de sesión
             </button>
-          </form>
-        )}
-
-        <footer className="auth-login-foot">
-          <p className="auth-login-foot-hint">
-            Por seguridad, el sistema no indica si un email existe o no en la base de datos.
-          </p>
-        </footer>
-      </div>
-    </div>
+          </div>
+        </form>
+      )}
+    </AuthLoginShell>
   );
 }

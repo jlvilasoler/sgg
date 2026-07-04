@@ -396,7 +396,7 @@ export default function Resumen({ catalogos, currentUser, apiOnline, onError }: 
   const hayEstado = estadoFinanciero.length > 0;
 
   return (
-    <div className="resumen-page">
+    <div className="resumen-page presupuesto-resumen--hub presupuesto-hub-workspace">
       <div className="card resumen-filters-card">
         <header className="resumen-head">
           <PageModuleHeadRow
@@ -495,13 +495,17 @@ export default function Resumen({ catalogos, currentUser, apiOnline, onError }: 
                 </div>
               </>
             )}
-            <div className="listado-pro-filters-actions">
-              <button type="button" className="btn listado-pro-reset-btn" onClick={resetFiltros}>
+            <div className="presupuesto-hub-filters-actions listado-pro-filters-actions">
+              <button
+                type="button"
+                className="sg-hub-cta sg-hub-cta--ghost sg-hub-cta--compact"
+                onClick={resetFiltros}
+              >
                 Reset
               </button>
               <button
                 type="button"
-                className="btn btn-primary listado-pro-search-btn"
+                className="sg-hub-cta sg-hub-cta--compact"
                 onClick={load}
               >
                 Actualizar

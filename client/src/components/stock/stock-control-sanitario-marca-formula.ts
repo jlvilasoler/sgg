@@ -1,7 +1,10 @@
 import type { StockDispositivoModulo } from "../../api";
 import { fetchStockControlSanitarioProductoFicha } from "../../api";
 import type { StockControlSanitarioProductoFicha } from "../../types";
-import { FORMULAS_REMEDIO_GANADO } from "./stock-control-sanitario-formulas";
+import {
+  catalogoFormulasPorModulo,
+  type FormulaRemedioModulo,
+} from "./stock-control-sanitario-formulas";
 
 function normKey(text: string): string {
   return text
@@ -11,12 +14,8 @@ function normKey(text: string): string {
     .replace(/[\u0300-\u036f]/g, "");
 }
 
-const FORMULAS_NORM = new Map(
-  FORMULAS_REMEDIO_GANADO.map((f) => [normKey(f), f] as const)
-);
-
-/** Marcas con fórmula representativa única (catálogo de fichas técnicas). */
-const FORMULA_POR_MARCA: Readonly<Record<string, string>> = {
+/** Marcas ganaderas con fórmula representativa única. */
+const FORMULA_POR_MARCA_GANADO: Readonly<Record<string, string>> = {
   Albex: "Albendazol 10%",
   Albenil: "Albendazol 10%",
   Ausmectin: "Ivermectina 1%",
@@ -57,14 +56,48 @@ const FORMULA_POR_MARCA: Readonly<Record<string, string>> = {
   Virbamec: "Ivermectina 1%",
 };
 
-const FORMULA_POR_MARCA_NORM = new Map(
-  Object.entries(FORMULA_POR_MARCA).map(([marca, formula]) => [normKey(marca), formula] as const)
-);
+/** Marcas equinas con fórmula representativa única. */
+const FORMULA_POR_MARCA_EQUINO: Readonly<Record<string, string>> = {
+  Acepran: "Acepromazina 1%",
+  Adequan: "Polisulfato de glicosaminoglicano 50 mg/ml",
+  Banamine: "Flunixin meglumine 2,5%",
+  "Bio-Bute": "Fenilbutazona 20%",
+  Bute: "Fenilbutazona 20%",
+  Dormosedan: "Detomidina 1 mg/ml",
+  Engemycin: "Oxitetraciclina 10% L.A.",
+  Eqvalan: "Ivermectina 1,87% pasta oral",
+  Equilis: "Influenza equina — vacuna inactivada",
+  Equimax: "Praziquantel 14,02% + Ivermectina 1,87%",
+  Equimec: "Ivermectina 1,87% pasta oral",
+  Equioxx: "Firocoxib 57 mg",
+  Equipalazone: "Fenilbutazona 20%",
+  Equipaste: "Ivermectina 1,87% pasta oral",
+  Equistrong: "Fenbendazol 10% pasta oral",
+  Equest: "Moxidectina 2% gel oral",
+  Excenel: "Ceftiofur sódico 2,2%",
+  Gastrogard: "Omeprazol pasta oral",
+  Hylartil: "Hialuronato sódico 10 mg/ml",
+  Ketofen: "Ketoprofeno 1%",
+  Legend: "Hialuronato sódico 10 mg/ml",
+  Metacam: "Meloxicam 2%",
+  Naxcel: "Ceftiofur sódico 2,2%",
+  Panacur: "Fenbendazol 10% pasta oral",
+  Pneumequine: "Rinoneumonitis equina — vacuna",
+  "Regu-Mate": "Altrenogest 0,044%",
+  "Strongid P": "Pamoato de pirantel 11,4% pasta oral",
+  Ulcergard: "Omeprazol pasta oral",
+  "West Nile Innovator": "West Nile — vacuna inactivada",
+};
+
+function formulaPorMarcaMap(modulo: FormulaRemedioModulo): Map<string, string> {
+  const source = modulo === "equino" ? FORMULA_POR_MARCA_EQUINO : FORMULA_POR_MARCA_GANADO;
+  return new Map(Object.entries(source).map(([marca, formula]) => [normKey(marca), formula] as const));
+}
 
 const PRINCIPIO_AMBIGUO =
   /linea|multicomponente|combinacion|combinaciones|segun|vacuna|biologico|portafolio|variedad/i;
 
-const MOLECULA_DEFAULT: Readonly<Record<string, string>> = {
+const MOLECULA_DEFAULT_GANADO: Readonly<Record<string, string>> = {
   albendazol: "Albendazol 10%",
   doramectina: "Doramectina 1%",
   eprinomectina: "Eprinomectina 1%",
@@ -83,6 +116,32 @@ const MOLECULA_DEFAULT: Readonly<Record<string, string>> = {
   ceftiofur: "Ceftiofur sódico 2,2%",
 };
 
+const MOLECULA_DEFAULT_EQUINO: Readonly<Record<string, string>> = {
+  acepromazina: "Acepromazina 1%",
+  altrenogest: "Altrenogest 0,044%",
+  ceftiofur: "Ceftiofur sódico 2,2%",
+  detomidina: "Detomidina 1 mg/ml",
+  fenbendazol: "Fenbendazol 10% pasta oral",
+  fenilbutazona: "Fenilbutazona 20%",
+  firocoxib: "Firocoxib 57 mg",
+  flunixin: "Flunixin meglumine 2,5%",
+  hialuronato: "Hialuronato sódico 10 mg/ml",
+  ivermectina: "Ivermectina 1,87% pasta oral",
+  ketoprofeno: "Ketoprofeno 1%",
+  meloxicam: "Meloxicam 2%",
+  moxidectina: "Moxidectina 2% gel oral",
+  omeprazol: "Omeprazol pasta oral",
+  oxitetraciclina: "Oxitetraciclina 10% L.A.",
+  pirantel: "Pamoato de pirantel 11,4% pasta oral",
+  praziquantel: "Praziquantel 14,02% + Ivermectina 1,87%",
+  romifidina: "Romifidina 10 mg/ml",
+  xilazina: "Xilazina 2%",
+};
+
+function moleculaDefault(modulo: FormulaRemedioModulo): Readonly<Record<string, string>> {
+  return modulo === "equino" ? MOLECULA_DEFAULT_EQUINO : MOLECULA_DEFAULT_GANADO;
+}
+
 export interface ProductoSugeridoPatch {
   producto_nombre: string;
   producto_formula?: string;
@@ -100,13 +159,16 @@ function pctToken(raw: string): string | undefined {
   return m[1].replace(".", ",");
 }
 
-function matchFormulaInCatalog(text: string): string | undefined {
+function matchFormulaInCatalog(
+  text: string,
+  catalogo: readonly string[]
+): string | undefined {
   const key = normKey(text);
-  const exact = FORMULAS_NORM.get(key);
+  const exact = catalogo.find((f) => normKey(f) === key);
   if (exact) return exact;
 
   const pct = pctToken(text);
-  const candidates = FORMULAS_REMEDIO_GANADO.filter((f) => {
+  const candidates = catalogo.filter((f) => {
     const fn = normKey(f);
     const base = fn.split(/\d/)[0]?.trim() ?? fn;
     return key.includes(base) || fn.includes(key);
@@ -122,35 +184,35 @@ function matchFormulaInCatalog(text: string): string | undefined {
     if (withPct.length >= 1) return withPct[0];
   }
 
-  for (const [mol, formula] of Object.entries(MOLECULA_DEFAULT)) {
-    if (key.includes(mol) && candidates.some((c) => normKey(c) === normKey(formula))) {
-      return formula;
-    }
-  }
-
   return candidates[0];
 }
 
-export function resolverFormulaDesdePrincipio(principio: string): string | undefined {
+export function resolverFormulaDesdePrincipio(
+  principio: string,
+  modulo: FormulaRemedioModulo = "ganadero"
+): string | undefined {
   const raw = principio.trim();
   if (!raw || PRINCIPIO_AMBIGUO.test(raw)) return undefined;
+
+  const catalogo = catalogoFormulasPorModulo(modulo);
+  const defaults = moleculaDefault(modulo);
 
   if (raw.includes("+")) {
     const combo = raw
       .split("+")
-      .map((part) => matchFormulaInCatalog(part.replace(/\./g, " ").trim()))
+      .map((part) => matchFormulaInCatalog(part.replace(/\./g, " ").trim(), catalogo))
       .filter(Boolean) as string[];
     if (combo.length >= 2) {
       const joined = combo.join(" + ");
-      return matchFormulaInCatalog(joined) ?? joined;
+      return matchFormulaInCatalog(joined, catalogo) ?? joined;
     }
   }
 
-  const direct = matchFormulaInCatalog(raw.replace(/\./g, " "));
+  const direct = matchFormulaInCatalog(raw.replace(/\./g, " "), catalogo);
   if (direct) return direct;
 
   const key = normKey(raw);
-  for (const [mol, formula] of Object.entries(MOLECULA_DEFAULT)) {
+  for (const [mol, formula] of Object.entries(defaults)) {
     if (key.includes(mol)) return formula;
   }
 
@@ -165,7 +227,8 @@ export function resolverFormaDesdeFicha(
   const blob = `${presentacion} ${via}`;
 
   if (/pour/.test(blob)) return "Pour-on";
-  if (/oral|suspension|pasta|bolo|premix|comprimido/.test(blob)) return "Oral";
+  if (/pasta|gel oral/.test(blob)) return "Oral";
+  if (/oral|suspension|bolo|premix|comprimido|tableta/.test(blob)) return "Oral";
   if (/intraven|(^|\s)iv(\s|$)|iv lenta/.test(blob)) return "Intravenosa";
   if (/intramus|im prof|(^|\s)im(\s|$)/.test(blob)) return "Intramuscular";
   if (/subcut|(^|\s)sc(\s|$)/.test(blob)) return "Subcutánea";
@@ -183,9 +246,10 @@ function formaSugeridaPorNombreMarca(nombre: string): string | undefined {
 }
 
 export function sugerenciasDesdeFicha(
-  ficha: StockControlSanitarioProductoFicha
+  ficha: StockControlSanitarioProductoFicha,
+  modulo: FormulaRemedioModulo = "ganadero"
 ): Omit<ProductoSugeridoPatch, "producto_nombre"> {
-  const producto_formula = resolverFormulaDesdePrincipio(ficha.principio_activo ?? "");
+  const producto_formula = resolverFormulaDesdePrincipio(ficha.principio_activo ?? "", modulo);
   const producto_forma = resolverFormaDesdeFicha(ficha);
 
   return {
@@ -194,15 +258,21 @@ export function sugerenciasDesdeFicha(
   };
 }
 
-export function formulaSugeridaPorMarca(nombre: string): string | undefined {
+export function formulaSugeridaPorMarca(
+  nombre: string,
+  modulo: FormulaRemedioModulo = "ganadero"
+): string | undefined {
   const key = normKey(nombre);
   if (!key) return undefined;
-  return FORMULA_POR_MARCA_NORM.get(key);
+  return formulaPorMarcaMap(modulo).get(key);
 }
 
-export function patchProductoDesdeMarca(nombre: string): ProductoSugeridoPatch {
+export function patchProductoDesdeMarca(
+  nombre: string,
+  modulo: FormulaRemedioModulo = "ganadero"
+): ProductoSugeridoPatch {
   const producto_nombre = nombre.trim();
-  const producto_formula = formulaSugeridaPorMarca(producto_nombre);
+  const producto_formula = formulaSugeridaPorMarca(producto_nombre, modulo);
   const producto_forma = formaSugeridaPorNombreMarca(producto_nombre);
 
   return {
@@ -218,7 +288,7 @@ export async function patchProductoDesdeMarcaAsync(
   apiOnline: boolean
 ): Promise<ProductoSugeridoPatch> {
   const producto_nombre = nombre.trim();
-  const base = patchProductoDesdeMarca(producto_nombre);
+  const base = patchProductoDesdeMarca(producto_nombre, modulo);
 
   if (!apiOnline || !producto_nombre) return base;
 
@@ -226,7 +296,7 @@ export async function patchProductoDesdeMarcaAsync(
     const ficha = await fetchStockControlSanitarioProductoFicha(modulo, producto_nombre);
     if (!ficha) return base;
 
-    const fromFicha = sugerenciasDesdeFicha(ficha);
+    const fromFicha = sugerenciasDesdeFicha(ficha, modulo);
     const producto_formula = fromFicha.producto_formula ?? base.producto_formula;
     const producto_forma = fromFicha.producto_forma ?? base.producto_forma;
     return {

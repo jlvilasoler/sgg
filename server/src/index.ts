@@ -2151,9 +2151,15 @@ app.get("/api/stock-ganadero/control-sanitario/producto-fichas", async (_req, re
 app.get("/api/stock-ganadero/control-sanitario/producto-nombres", async (req, res) => {
   try {
     const autoresCuenta = req.user ? await autoresLabelsForMarcaScope(req.user) : [];
+    const moduloRaw = String(req.query.modulo ?? "").trim().toLowerCase();
+    const modulo =
+      moduloRaw === "equino" || moduloRaw === "ganadero"
+        ? (moduloRaw as "equino" | "ganadero")
+        : undefined;
     const data = await stockControlSanitario.listStockControlSanitarioProductoNombresGlobales(
       db.getDb(),
-      autoresCuenta
+      autoresCuenta,
+      modulo
     );
     res.json({ ok: true, data });
   } catch (e) {
@@ -6567,6 +6573,21 @@ app.get("/api/rrhh/resumen-global", async (req, res) => {
       fecha_hasta: req.query.fecha_hasta as string | undefined,
     }),
   });
+});
+
+app.get("/api/rrhh/dashboard", async (req, res) => {
+  try {
+    const cuentaId = await cuentaIdForUser(req.user!);
+    res.json({
+      ok: true,
+      data: await db.rrhhPagos.dashboard(cuentaId, {
+        fecha_desde: req.query.fecha_desde as string | undefined,
+        fecha_hasta: req.query.fecha_hasta as string | undefined,
+      }),
+    });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: (e as Error).message });
+  }
 });
 
 if (!IS_PROD) {

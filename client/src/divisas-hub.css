@@ -1,0 +1,117 @@
+/* —— Divisas · hub workspace —— */
+
+.divisas-module-page {
+  --sg-hub-workspace: #f3f2ed;
+  --sg-hub-surface: #ffffff;
+  --sg-hub-accent: #7cb342;
+  --sg-hub-accent-soft: rgba(124, 179, 66, 0.16);
+  --sg-hub-radius-md: 0.65rem;
+  --sg-hub-radius-card: 1.35rem;
+}
+
+.divisas-hub-workspace {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  width: 100%;
+  min-width: 0;
+}
+
+.bn-ui .divisas-module-page .divisas-kpi-board {
+  border: 1px solid color-mix(in srgb, var(--bn-border, #eaecef) 92%, transparent);
+  border-radius: var(--sg-hub-radius-card);
+  box-shadow: 0 2px 10px rgba(30, 35, 41, 0.04);
+}
+
+.bn-ui .divisas-module-page .divisas-chart-panel {
+  border: 1px solid color-mix(in srgb, var(--bn-border, #eaecef) 92%, transparent);
+  border-radius: var(--sg-hub-radius-card);
+  background: var(--sg-hub-surface);
+  box-shadow: 0 2px 10px rgba(30, 35, 41, 0.04);
+}
+
+.divisas-hub-filters-box {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.85rem 0.95rem;
+  border: 1px solid color-mix(in srgb, var(--bn-border, #eaecef) 92%, transparent);
+  border-radius: var(--sg-hub-radius-md);
+  background: color-mix(in srgb, var(--sg-hub-workspace) 45%, var(--sg-hub-surface));
+  box-shadow: 0 2px 10px rgba(30, 35, 41, 0.04);
+}
+
+.divisas-hub-filters-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.65rem 0.75rem;
+  margin: 0;
+}
+
+.divisas-hub-filters-box .field label {
+  font-size: 0.72rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--bn-muted, #707a8a);
+}
+
+.divisas-hub-filters-box .field input {
+  border-color: var(--bn-border, #eaecef);
+  border-radius: var(--sg-hub-radius-md);
+  background: var(--sg-hub-surface);
+  min-height: 2.15rem;
+}
+
+.divisas-hub-filters-box .field input:focus {
+  outline: none;
+  border-color: color-mix(in srgb, var(--sg-hub-accent) 45%, var(--bn-border, #eaecef));
+  box-shadow: 0 0 0 2px var(--sg-hub-accent-soft);
+}
+
+.divisas-hub-filters-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+  margin-left: auto;
+}
+
+.divisas-hub-table-box {
+  border: 1px solid color-mix(in srgb, var(--bn-border, #eaecef) 92%, transparent);
+  border-radius: var(--sg-hub-radius-card);
+  background: var(--sg-hub-surface);
+  box-shadow: 0 2px 10px rgba(30, 35, 41, 0.04);
+  overflow: hidden;
+}
+
+.divisas-hub-table-box > .divisas-hub-filters-box {
+  margin: 0.85rem 0.95rem 0;
+  border: none;
+  box-shadow: none;
+  background: color-mix(in srgb, var(--sg-hub-workspace) 45%, var(--sg-hub-surface));
+}
+
+.divisas-hub-table-box .table-wrap {
+  border: none;
+  border-radius: 0;
+}
+
+.divisas-hub-table-box .data-table thead th {
+  background: color-mix(in srgb, var(--sg-hub-workspace) 40%, #fff);
+  font-size: 0.68rem;
+  font-weight: 650;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--bn-muted, #707a8a);
+}
+
+.divisas-hub-table-box .divisas-investing-hint {
+  padding: 0 0.95rem 0.85rem;
+  margin: 0;
+}
+
+.divisas-hub-table-box .table-pagination {
+  padding: 0 0.95rem 0.85rem;
+}

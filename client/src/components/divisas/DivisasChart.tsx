@@ -78,7 +78,7 @@ function subtractMonthsIso(iso: string, months: number): string {
 }
 
 function fmtPriceAxis(price: number): string {
-  return price.toLocaleString("es-AR", {
+  return price.toLocaleString("es-UY", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 4,
   });

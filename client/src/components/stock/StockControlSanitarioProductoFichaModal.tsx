@@ -96,13 +96,13 @@ export interface ProductoFichaFormState {
   foto_data: string;
 }
 
-function emptyForm(): ProductoFichaFormState {
+function emptyForm(modulo: StockDispositivoModulo): ProductoFichaFormState {
   return {
     laboratorio: "",
     principio_activo: "",
     presentacion: "",
     via_administracion: "",
-    especie: "Bovinos",
+    especie: modulo === "equino" ? "Equinos" : "Bovinos",
     tiempo_espera_carne: "",
     tiempo_espera_leche: "",
     detalles_tecnicos: "",
@@ -113,10 +113,11 @@ function emptyForm(): ProductoFichaFormState {
 
 function formFromApi(
   data: Partial<ProductoFichaFormState> | null,
-  nombre: string
+  nombre: string,
+  modulo: StockDispositivoModulo
 ): ProductoFichaFormState {
-  const base = emptyForm();
-  const catalogo = buscarMarcaCatalogo(nombre);
+  const base = emptyForm(modulo);
+  const catalogo = buscarMarcaCatalogo(nombre, modulo);
   if (!data) {
     if (catalogo) {
       base.caracteristicas = `Comercialización habitual: ${formatMarcaPaises(catalogo.paises)}.`;
@@ -170,7 +171,7 @@ export default function StockControlSanitarioProductoFichaModal({
   const [loading, setLoading] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [editando, setEditando] = useState(false);
-  const [form, setForm] = useState<ProductoFichaFormState>(() => emptyForm());
+  const [form, setForm] = useState<ProductoFichaFormState>(() => emptyForm(modulo));
   const [actualizadoEn, setActualizadoEn] = useState("");
   const [fotoCargada, setFotoCargada] = useState(true);
   const [vistaFicha, setVistaFicha] = useState<"resumen" | "detalles">("resumen");
@@ -186,18 +187,18 @@ export default function StockControlSanitarioProductoFichaModal({
   const load = useCallback(async () => {
     if (!open || !String(nombre ?? "").trim()) return;
     if (!apiOnline) {
-      setForm(formFromApi(null, nombre));
+      setForm(formFromApi(null, nombre, modulo));
       setActualizadoEn("");
       return;
     }
     setLoading(true);
     try {
       const data = await fetchStockControlSanitarioProductoFicha(modulo, nombre);
-      setForm(formFromApi(data, nombre));
+      setForm(formFromApi(data, nombre, modulo));
       setActualizadoEn(data?.actualizado_en ?? "");
     } catch (e) {
       onError(e instanceof Error ? e.message : "Error al cargar ficha del producto");
-      setForm(formFromApi(null, nombre));
+      setForm(formFromApi(null, nombre, modulo));
       setActualizadoEn("");
     } finally {
       setLoading(false);
@@ -258,7 +259,7 @@ export default function StockControlSanitarioProductoFichaModal({
         modulo,
         formToInput(nombre, form)
       );
-      setForm(formFromApi(data, nombre));
+      setForm(formFromApi(data, nombre, modulo));
       setActualizadoEn(data.actualizado_en);
       setEditando(false);
       onSaved?.("Ficha del producto guardada");

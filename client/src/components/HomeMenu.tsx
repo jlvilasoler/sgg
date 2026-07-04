@@ -19,23 +19,13 @@ export interface MenuApp {
 export const MENU_APPS: MenuApp[] = [
   {
     id: "registro",
-    label: "Ingresar gasto",
-    subtitle: "Cargar gasto en PRESUPUESTO",
-  },
-  {
-    id: "listado",
-    label: "Presupuesto",
-    subtitle: "Ver y editar gastos",
+    label: "Presupuesto y gastos",
+    subtitle: "Ingresar, ver y editar gastos",
   },
   {
     id: "vencimientos_impuestos",
     label: "Vencimientos Impuestos",
     subtitle: "Cuotas y fechas de tributos",
-  },
-  {
-    id: "resumen",
-    label: "Control de Gestión",
-    subtitle: "Presupuestos por Empresa y Rubro",
   },
   {
     id: "configuracion",

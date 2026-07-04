@@ -24544,6 +24544,59 @@ button.sg-kpi-card:disabled {
   color: rgba(248, 246, 240, 0.28);
 }
 
+.auth-login-recovery-intro--split {
+  margin: 0 0 0.15rem;
+  font-size: 0.88rem;
+  line-height: 1.55;
+  color: rgba(248, 246, 240, 0.55);
+}
+
+.auth-login-recovery-intro--split strong {
+  color: rgba(248, 246, 240, 0.88);
+  font-weight: 600;
+}
+
+.auth-login-recovery-sent--split {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.65rem;
+  text-align: center;
+}
+
+.auth-login-recovery-icon--split {
+  width: 3.25rem;
+  height: 3.25rem;
+  margin: 0 auto 0.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--bn-gold) 18%, rgba(255, 255, 255, 0.06));
+  color: var(--bn-gold);
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+.auth-login-recovery-icon--split.auth-login-recovery-icon--warn {
+  background: color-mix(in srgb, #ff8a80 22%, rgba(255, 255, 255, 0.06));
+  color: #ff8a80;
+}
+
+.auth-login-recovery-text--split {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: rgba(248, 246, 240, 0.72);
+}
+
+.auth-login-recovery-hint--split {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: rgba(248, 246, 240, 0.42);
+}
+
 @media (max-width: 900px) {
   .auth-login-page--split {
     grid-template-columns: 1fr;
@@ -43462,7 +43515,10 @@ button.sg-kpi-card:disabled {
 
 /* Más ancho útil en hub y dispositivos EID */
 .page-main.bn-ui:has(.stock-ganadero-hub-page),
-.page-main.bn-ui:has(.stock-ganadero-devices-page) {
+.page-main.bn-ui:has(.stock-ganadero-devices-page),
+.page-main.bn-ui:has(.stock-equino-hub-page),
+.page-main.bn-ui:has(.stock-equino-devices-page),
+.page-main.bn-ui:has(.stock-equino-module-page) {
   display: flex;
   flex-direction: column;
   flex: 1;
@@ -43475,7 +43531,10 @@ button.sg-kpi-card:disabled {
 
 @media (min-width: 900px) {
   .page-main.bn-ui:has(.stock-ganadero-hub-page),
-  .page-main.bn-ui:has(.stock-ganadero-devices-page) {
+  .page-main.bn-ui:has(.stock-ganadero-devices-page),
+  .page-main.bn-ui:has(.stock-equino-hub-page),
+  .page-main.bn-ui:has(.stock-equino-devices-page),
+  .page-main.bn-ui:has(.stock-equino-module-page) {
     padding-left: max(0.65rem, env(safe-area-inset-left, 0px));
     padding-right: max(0.65rem, env(safe-area-inset-right, 0px));
   }
@@ -43828,6 +43887,21 @@ button.sg-kpi-card:disabled {
   box-shadow: none;
 }
 
+.bn-ui .sg-hub-cta--compact {
+  padding: 0.38rem 0.85rem;
+  font-size: 0.78rem;
+  box-shadow: 0 3px 10px rgba(26, 33, 26, 0.18);
+}
+
+.bn-ui .sg-hub-cta--danger {
+  background: linear-gradient(135deg, #991b1b 0%, #dc2626 100%);
+  box-shadow: 0 4px 14px rgba(185, 28, 28, 0.28);
+}
+
+.bn-ui .sg-hub-cta--danger:hover {
+  box-shadow: 0 6px 18px rgba(185, 28, 28, 0.35);
+}
+
 /* Stock Ganadero · módulos con shell hub compartido */
 .bn-ui .stock-ganadero-module-page {
   --sg-hub-sidebar: #1a211a;
@@ -43862,7 +43936,8 @@ button.sg-kpi-card:disabled {
 }
 
 @media (min-width: 900px) {
-  .page-main.bn-ui:has(.stock-ganadero-module-page) {
+  .page-main.bn-ui:has(.stock-ganadero-module-page),
+  .page-main.bn-ui:has(.stock-equino-module-page) {
     padding-left: max(0.65rem, env(safe-area-inset-left, 0px));
     padding-right: max(0.65rem, env(safe-area-inset-right, 0px));
   }
@@ -43882,6 +43957,35 @@ button.sg-kpi-card:disabled {
 }.bn-ui .stock-ganadero-module-page .sg-hub--module,
 .bn-ui .stock-equino-module-page .sg-hub--module{
   width: 100%;
+}
+
+.bn-ui .stock-equino-module-page.stock-equino-devices-page {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: calc(100dvh - 11rem);
+}
+
+.bn-ui .stock-equino-module-page.stock-equino-devices-page > .stock-equino-devices-page {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.bn-ui .stock-equino-module-page.stock-equino-devices-page .sg-hub--devices {
+  flex: 1 1 auto;
+  min-height: 100%;
+}
+
+.bn-ui .stock-equino-dash-kpi.sg-hub-kpi-strip {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@media (max-width: 960px) {
+  .bn-ui .stock-equino-dash-kpi.sg-hub-kpi-strip {
+    grid-template-columns: 1fr;
+  }
 }
 
 .bn-ui .sg-hub-aside--module {
@@ -44740,7 +44844,9 @@ button.sg-kpi-card:disabled {
 
 /* —— Stock Ganadero · Baja / Alta hub —— */
 .bn-ui .stock-ganadero-module-page .stock-baja-hub-workspace,
-.bn-ui .stock-ganadero-module-page .stock-alta-hub-workspace {
+.bn-ui .stock-equino-module-page .stock-baja-hub-workspace,
+.bn-ui .stock-ganadero-module-page .stock-alta-hub-workspace,
+.bn-ui .stock-equino-module-page .stock-alta-hub-workspace {
   display: flex;
   flex-direction: column;
   gap: 0.85rem;
@@ -46106,7 +46212,8 @@ button.sg-kpi-card:disabled {
   background: #fff;
 }
 
-.bn-ui .sg-hub-panel--devices-table .stock-ganadera-selection-bar {
+.bn-ui .sg-hub-panel--devices-table .stock-ganadera-selection-bar,
+.bn-ui .sg-hub-panel--devices-table .stock-equina-selection-bar {
   margin: 0;
   border-bottom: 1px solid rgba(240, 185, 11, 0.35);
 }

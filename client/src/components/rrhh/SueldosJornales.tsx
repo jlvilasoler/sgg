@@ -4,7 +4,6 @@ import { formatCuentaOtrosBancos, isBancoSantander } from "../../constants/banco
 import BancoLogo from "./BancoLogo";
 import type { Catalogos, Funcionario, ResumenPagosFuncionario, VinculoPago } from "../../types";
 import { fmtDate, fmtNum } from "../../utils";
-import { PageModuleHeadRow } from "../PageModuleHead";
 
 interface Props {
   catalogos: Catalogos;
@@ -93,96 +92,104 @@ export default function SueldosJornales({
   const f = resumen?.funcionario;
 
   return (
-    <div className={`subseccion-panel${embedded ? " sg-hub-embedded" : ""}`}>
+    <div
+      className={`rrhh-sueldos--hub rrhh-hub-workspace${embedded ? " sg-hub-embedded" : ""}${loading ? " rrhh-sueldos--loading" : ""}`}
+    >
       {!embedded ? (
         <button type="button" className="subseccion-back" onClick={onVolver}>
           ‹ Volver a Recursos Humanos
         </button>
       ) : null}
 
-      <div className="card">
-        <div className="form-header">
-          <PageModuleHeadRow
-            icon={{ source: "hub", id: "rrhh_sueldos" }}
-            title="Sueldos y Jornales"
-            subtitle={
-              <>
-                Pagos detectados por <strong>cédula</strong>: vínculo en el gasto, número en el
-                concepto o nombre del funcionario. Relacionado con rubros de sueldos en{" "}
-                <strong>Gastos</strong>.
-              </>
-            }
+      <p className="rrhh-sueldos-hint muted" role="note">
+        Pagos detectados por <strong>cédula</strong>: vínculo en el gasto, número en el concepto o
+        nombre del funcionario. Relacionado con rubros de sueldos en <strong>Gastos</strong>.
+      </p>
+
+      <section
+        className="rrhh-hub-filters-box rrhh-sueldos-filters-box mayusculas-auto"
+        aria-label="Buscar pagos por cédula"
+      >
+        <div className="field rrhh-sueldos-field-cedula">
+          <label htmlFor="rrhh-cedula">Cédula de identidad *</label>
+          <input
+            id="rrhh-cedula"
+            list="rrhh-cedulas-list"
+            value={cedula}
+            onChange={(e) => setCedula(e.target.value)}
+            placeholder="1234567-8"
+            disabled={!apiOnline}
+            onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), void buscar())}
+          />
+          <datalist id="rrhh-cedulas-list">
+            {funcionarios.map((x) => (
+              <option key={x.id} value={x.cedula}>
+                {x.apellido}, {x.nombre}
+              </option>
+            ))}
+          </datalist>
+        </div>
+        <div className="field">
+          <label htmlFor="rrhh-desde">Desde</label>
+          <input
+            id="rrhh-desde"
+            type="date"
+            value={fechaDesde}
+            disabled={!apiOnline}
+            onChange={(e) => setFechaDesde(e.target.value)}
           />
         </div>
-
-        <div className="rrhh-search-panel">
-          <div className="filters filters-inline filters-wrap mayusculas-auto">
-            <div className="field">
-              <label htmlFor="rrhh-cedula">Cédula de identidad *</label>
-              <input
-                id="rrhh-cedula"
-                list="rrhh-cedulas-list"
-                value={cedula}
-                onChange={(e) => setCedula(e.target.value)}
-                placeholder="1234567-8"
-                onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), buscar())}
-              />
-              <datalist id="rrhh-cedulas-list">
-                {funcionarios.map((x) => (
-                  <option key={x.id} value={x.cedula}>
-                    {x.apellido}, {x.nombre}
-                  </option>
-                ))}
-              </datalist>
-            </div>
-            <div className="field">
-              <label htmlFor="rrhh-desde">Desde</label>
-              <input
-                id="rrhh-desde"
-                type="date"
-                value={fechaDesde}
-                onChange={(e) => setFechaDesde(e.target.value)}
-              />
-            </div>
-            <div className="field">
-              <label htmlFor="rrhh-hasta">Hasta</label>
-              <input
-                id="rrhh-hasta"
-                type="date"
-                value={fechaHasta}
-                onChange={(e) => setFechaHasta(e.target.value)}
-              />
-            </div>
-            <div className="field">
-              <label htmlFor="rrhh-emp">Empresa</label>
-              <select
-                id="rrhh-emp"
-                value={empresa}
-                onChange={(e) => setEmpresa(e.target.value)}
-              >
-                <option value="">Todas</option>
-                {catalogos.empresas.map((e) => (
-                  <option key={e} value={e}>
-                    {e}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
+        <div className="field">
+          <label htmlFor="rrhh-hasta">Hasta</label>
+          <input
+            id="rrhh-hasta"
+            type="date"
+            value={fechaHasta}
+            disabled={!apiOnline}
+            onChange={(e) => setFechaHasta(e.target.value)}
+          />
+        </div>
+        <div className="field">
+          <label htmlFor="rrhh-emp">Empresa</label>
+          <select
+            id="rrhh-emp"
+            value={empresa}
+            disabled={!apiOnline}
+            onChange={(e) => setEmpresa(e.target.value)}
+          >
+            <option value="">Todas</option>
+            {catalogos.empresas.map((e) => (
+              <option key={e} value={e}>
+                {e}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="rrhh-hub-filters-actions">
           <button
             type="button"
-            className="btn btn-primary"
+            className="sg-hub-cta sg-hub-cta--compact"
             disabled={!apiOnline || loading}
-            onClick={buscar}
+            onClick={() => void buscar()}
           >
             {loading ? "Buscando…" : "Buscar pagos"}
           </button>
         </div>
-      </div>
+      </section>
 
-      {resumen && (
+      {!resumen && !loading ? (
+        <section className="sg-hub-panel rrhh-sueldos-empty-hint" aria-live="polite">
+          <p className="rrhh-sueldos-empty-title">Consultá pagos por cédula</p>
+          <p className="muted">
+            Ingresá la cédula del funcionario y opcionalmente acotá por fechas o empresa. Los
+            resultados incluyen gastos vinculados directamente o detectados por rubro/concepto.
+          </p>
+        </section>
+      ) : null}
+
+      {resumen ? (
         <>
-          <div className="card rrhh-funcionario-card">
+          <section className="sg-hub-panel rrhh-sueldos-func-card rrhh-funcionario-card">
             <div className="rrhh-func-head">
               <div
                 className="rrhh-func-avatar"
@@ -194,29 +201,25 @@ export default function SueldosJornales({
                   : "?"}
               </div>
               <div className="rrhh-func-head-text">
-                <h3>
-                  {f ? `${f.apellido}, ${f.nombre}` : "Sin ficha en Funcionarios"}
-                </h3>
+                <h3>{f ? `${f.apellido}, ${f.nombre}` : "Sin ficha en Funcionarios"}</h3>
                 <div className="rrhh-func-head-meta">
                   <span className="rrhh-func-chip">CI {resumen.cedula_display}</span>
-                  {f && (
+                  {f ? (
                     <span
-                      className={`rrhh-func-chip rrhh-func-chip--estado${
-                        f.activo === 0 ? " rrhh-func-chip--inactivo" : ""
-                      }`}
+                      className={`rrhh-func-estado-pill ${f.activo === 0 ? "rrhh-func-estado-pill--inactivo" : "rrhh-func-estado-pill--activo"}`}
                     >
-                      {f.activo === 0 ? "Inactivo" : "Activo"}
+                      {f.activo === 0 ? "No activo" : "Trabaja hoy"}
                     </span>
-                  )}
+                  ) : null}
                 </div>
-                {!f && (
+                {!f ? (
                   <p className="muted rrhh-func-head-hint">
                     Registrá la ficha en Funcionarios para ver los datos bancarios.
                   </p>
-                )}
+                ) : null}
               </div>
             </div>
-            {f && (
+            {f ? (
               <div className="rrhh-func-body">
                 <section className="rrhh-func-section">
                   <h4 className="rrhh-func-section-title">Contacto</h4>
@@ -236,11 +239,11 @@ export default function SueldosJornales({
                       <span className="rrhh-contacto-text">
                         <span className="rrhh-dato-label">Domicilio</span>
                         <span className="rrhh-dato-valor">{f.domicilio || "—"}</span>
-                        {(f.ciudad || f.departamento) && (
+                        {f.ciudad || f.departamento ? (
                           <span className="rrhh-dato-subvalor">
                             {[f.ciudad, f.departamento].filter(Boolean).join(", ")}
                           </span>
-                        )}
+                        ) : null}
                       </span>
                     </li>
                     <li className="rrhh-contacto-item">
@@ -303,11 +306,11 @@ export default function SueldosJornales({
                     <div className="rrhh-dato">
                       <span className="rrhh-dato-label">Cuenta</span>
                       <span className="rrhh-dato-valor">{f.cuenta || "—"}</span>
-                      {f.tipo_cuenta && (
+                      {f.tipo_cuenta ? (
                         <span className="rrhh-dato-subvalor">{f.tipo_cuenta}</span>
-                      )}
+                      ) : null}
                     </div>
-                    {isBancoSantander(f.banco) && (
+                    {isBancoSantander(f.banco) ? (
                       <div className="rrhh-dato rrhh-dato--destacado">
                         <span className="rrhh-dato-label">Cuenta desde otros bancos</span>
                         <span className="rrhh-dato-valor rrhh-dato-valor--mono">
@@ -316,7 +319,7 @@ export default function SueldosJornales({
                             "—"}
                         </span>
                       </div>
-                    )}
+                    ) : null}
                     <div className="rrhh-dato">
                       <span className="rrhh-dato-label">Titular</span>
                       <span className="rrhh-dato-valor">
@@ -326,62 +329,41 @@ export default function SueldosJornales({
                   </div>
                 </section>
               </div>
-            )}
+            ) : null}
+          </section>
+
+          <div className="sg-hub-kpi-strip rrhh-sueldos-kpi-strip" aria-label="Totales de pagos">
+            <article className="sg-hub-kpi">
+              <p className="sg-hub-kpi-kicker">Pagos encontrados</p>
+              <p className="sg-hub-kpi-value">{fmtNum(resumen.total_registros, 0)}</p>
+            </article>
+            <article className="sg-hub-kpi">
+              <p className="sg-hub-kpi-kicker">Total · UYU</p>
+              <p className="sg-hub-kpi-value">{fmtNum(resumen.total_pesos)}</p>
+            </article>
+            <article className="sg-hub-kpi">
+              <p className="sg-hub-kpi-kicker">Total · USD</p>
+              <p className="sg-hub-kpi-value">{fmtNum(resumen.total_usd)}</p>
+            </article>
+            <article className="sg-hub-kpi">
+              <p className="sg-hub-kpi-kicker">Total · BRL</p>
+              <p className="sg-hub-kpi-value">{fmtNum(resumen.total_reales)}</p>
+            </article>
+            <article className="sg-hub-kpi sg-hub-kpi--dark">
+              <p className="sg-hub-kpi-kicker">Total gastos · USD</p>
+              <p className="sg-hub-kpi-value">{fmtNum(resumen.total_saldo_usd ?? 0)}</p>
+            </article>
           </div>
 
-          <div className="rrhh-stats-grid">
-            <div className="rrhh-stat-card rrhh-stat-card--count">
-              <span className="rrhh-stat-icon" aria-hidden>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                  <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
-                  <rect x="9" y="3" width="6" height="4" rx="1" stroke="currentColor" strokeWidth="1.8" />
-                  <path d="M9 12h6M9 16h4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-                </svg>
-              </span>
-              <div className="rrhh-stat-body">
-                <span className="rrhh-stat-label">Pagos encontrados</span>
-                <span className="rrhh-stat-value">{resumen.total_registros}</span>
+          {resumen.por_anio.length > 0 ? (
+            <section className="rrhh-sueldos-table-box" aria-labelledby="rrhh-sueldos-anio-title">
+              <div className="rrhh-sueldos-panel-head">
+                <h3 id="rrhh-sueldos-anio-title" className="rrhh-sueldos-panel-title">
+                  Resumen por año
+                </h3>
               </div>
-            </div>
-            <div className="rrhh-stat-card rrhh-stat-card--uyu">
-              <span className="rrhh-stat-icon" aria-hidden>$</span>
-              <div className="rrhh-stat-body">
-                <span className="rrhh-stat-label">Total $</span>
-                <span className="rrhh-stat-value">{fmtNum(resumen.total_pesos)}</span>
-              </div>
-            </div>
-            <div className="rrhh-stat-card rrhh-stat-card--usd">
-              <span className="rrhh-stat-icon" aria-hidden>US$</span>
-              <div className="rrhh-stat-body">
-                <span className="rrhh-stat-label">Total USD</span>
-                <span className="rrhh-stat-value">{fmtNum(resumen.total_usd)}</span>
-              </div>
-            </div>
-            <div className="rrhh-stat-card rrhh-stat-card--brl">
-              <span className="rrhh-stat-icon" aria-hidden>R$</span>
-              <div className="rrhh-stat-body">
-                <span className="rrhh-stat-label">Total R$</span>
-                <span className="rrhh-stat-value">{fmtNum(resumen.total_reales)}</span>
-              </div>
-            </div>
-            <div className="rrhh-stat-card rrhh-stat-card--saldo">
-              <span className="rrhh-stat-icon" aria-hidden>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                  <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </span>
-              <div className="rrhh-stat-body">
-                <span className="rrhh-stat-label">Total gastos (TOTAL USD)</span>
-                <span className="rrhh-stat-value">{fmtNum(resumen.total_saldo_usd ?? 0)}</span>
-              </div>
-            </div>
-          </div>
-
-          {resumen.por_anio.length > 0 && (
-            <div className="card">
-              <h3 className="rrhh-section-title">Resumen por año</h3>
-              <div className="table-wrap">
-                <table className="data-table data-table-compact rrhh-informe-table">
+              <div className="rrhh-func-table-wrap">
+                <table className="data-table rrhh-func-table rrhh-informe-table">
                   <thead>
                     <tr>
                       <th>Año</th>
@@ -407,14 +389,18 @@ export default function SueldosJornales({
                   </tbody>
                 </table>
               </div>
-            </div>
-          )}
+            </section>
+          ) : null}
 
-          {resumen.por_rubro.length > 0 && (
-            <div className="card">
-              <h3 className="rrhh-section-title">Resumen por rubro</h3>
-              <div className="table-wrap">
-                <table className="data-table data-table-compact rrhh-informe-table">
+          {resumen.por_rubro.length > 0 ? (
+            <section className="rrhh-sueldos-table-box" aria-labelledby="rrhh-sueldos-rubro-title">
+              <div className="rrhh-sueldos-panel-head">
+                <h3 id="rrhh-sueldos-rubro-title" className="rrhh-sueldos-panel-title">
+                  Resumen por rubro
+                </h3>
+              </div>
+              <div className="rrhh-func-table-wrap">
+                <table className="data-table rrhh-func-table rrhh-informe-table">
                   <thead>
                     <tr>
                       <th>Rubro</th>
@@ -442,41 +428,30 @@ export default function SueldosJornales({
                   </tbody>
                 </table>
               </div>
-            </div>
-          )}
+            </section>
+          ) : null}
 
-          <div className="card rrhh-pagos-card">
-            <div className="rrhh-pagos-head">
-              <h3 className="rrhh-section-title">Detalle de pagos (gastos)</h3>
-              <span className="rrhh-pagos-badge">
-                {resumen.pagos.length}{" "}
-                {resumen.pagos.length === 1 ? "registro" : "registros"}
+          <section className="rrhh-sueldos-table-box" aria-labelledby="rrhh-sueldos-detalle-title">
+            <div className="rrhh-sueldos-panel-head">
+              <h3 id="rrhh-sueldos-detalle-title" className="rrhh-sueldos-panel-title">
+                Detalle de pagos (gastos)
+              </h3>
+              <span className="rrhh-sueldos-count-badge">
+                {resumen.pagos.length} {resumen.pagos.length === 1 ? "registro" : "registros"}
               </span>
             </div>
             {resumen.pagos.length === 0 ? (
-              <div className="rrhh-empty-state">
-                <div className="rrhh-empty-icon" aria-hidden>
-                  <svg width="40" height="40" viewBox="0 0 24 24" fill="none">
-                    <path
-                      d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                      strokeLinejoin="round"
-                    />
-                    <rect x="9" y="3" width="6" height="4" rx="1" stroke="currentColor" strokeWidth="1.5" />
-                    <path d="M9 12h6M9 16h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                  </svg>
-                </div>
-                <p className="rrhh-empty-title">Sin pagos vinculados</p>
-                <p className="muted rrhh-empty-hint">
-                  No hay gastos vinculados a esta cédula con los filtros actuales. Al registrar
-                  un gasto de sueldos, seleccioná el funcionario por cédula en{" "}
+              <div className="rrhh-sueldos-empty-state">
+                <p className="rrhh-sueldos-empty-title">Sin pagos vinculados</p>
+                <p className="muted">
+                  No hay gastos vinculados a esta cédula con los filtros actuales. Al registrar un
+                  gasto de sueldos, seleccioná el funcionario por cédula en{" "}
                   <strong>Registrar gasto</strong>.
                 </p>
               </div>
             ) : (
-              <div className="table-wrap table-wrap-scroll">
-                <table className="data-table rrhh-informe-table rrhh-detalle-pagos">
+              <div className="rrhh-func-table-wrap table-wrap-scroll">
+                <table className="data-table rrhh-func-table rrhh-informe-table rrhh-detalle-pagos">
                   <thead>
                     <tr>
                       <th>Fecha</th>
@@ -510,32 +485,32 @@ export default function SueldosJornales({
                         <td>{p.nro_factura || "—"}</td>
                         <td className="small-cell">
                           {p.rubro}
-                          {p.sub_rubro ? (
-                            <span className="muted"> / {p.sub_rubro}</span>
-                          ) : null}
+                          {p.sub_rubro ? <span className="muted"> / {p.sub_rubro}</span> : null}
                         </td>
                         <td className="num">{fmtNum(p.pesos)}</td>
                         <td className="num">{fmtNum(p.dolares_usd)}</td>
                         <td className="num">{fmtNum(p.reales)}</td>
-                        <td className="num rrhh-saldo-cell">{fmtNum(p.saldo_usd)}</td>
+                        <td className="num rrhh-saldo-cell">
+                          <strong>{fmtNum(p.saldo_usd)}</strong>
+                        </td>
                         <td>
                           <span
-                            className={`badge-vinculo badge-vinculo--${p.vinculo}`}
+                            className={`rrhh-vinculo-pill rrhh-vinculo-pill--${p.vinculo}`}
                             title={VINCULO_LABEL[p.vinculo]}
                           >
                             {vinculoCorto(p.vinculo)}
                           </span>
                         </td>
                         <td className="actions-cell">
-                          {onEditGasto && (
+                          {onEditGasto ? (
                             <button
                               type="button"
-                              className="btn btn-sm"
+                              className="sg-hub-cta sg-hub-cta--ghost sg-hub-cta--compact"
                               onClick={() => onEditGasto(p.id)}
                             >
                               Ver gasto
                             </button>
-                          )}
+                          ) : null}
                         </td>
                       </tr>
                     ))}
@@ -563,9 +538,9 @@ export default function SueldosJornales({
                 </table>
               </div>
             )}
-          </div>
+          </section>
         </>
-      )}
+      ) : null}
     </div>
   );
 }

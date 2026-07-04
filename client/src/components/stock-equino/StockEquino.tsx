@@ -2,6 +2,8 @@
 import { fetchStockEquinoResumen } from "../../api";
 import { useHeaderBackStep } from "../../header-back";
 import type { AuthUser } from "../../types";
+import SgHubModuleGrid from "../hub/SgHubModuleGrid";
+import { SgHubKpi, SgMiniBars } from "../stock/SgHubUi";
 import StockEquina from "./StockEquina";
 import StockEquinaSalidas from "./StockEquinaSalidas";
 import StockEquinoHistorial from "./StockEquinoHistorial";
@@ -9,8 +11,8 @@ import StockEquinoImportar from "./StockEquinoImportar";
 import StockEquinoImportarBaja from "./StockEquinoImportarBaja";
 import StockEquinoListado from "./StockEquinoListado";
 import StockEquinoSanidad from "./StockEquinoSanidad";
-import StockEquinoHub, { type StockEquinoHubItem } from "./StockEquinoHub";
 import StockEquinoHubShell from "./StockEquinoHubShell";
+import type { StockEquinoHubItem } from "./StockEquinoHub";
 import { clearStockEquinaPageCache } from "./stock-equina-page-cache";
 
 type VistaStock =
@@ -34,38 +36,38 @@ interface Props {
 export const STOCK_EQUINO_SUBMENU: StockEquinoHubItem[] = [
   {
     id: "importar",
-    label: "Alta de Dispositivo",
-    subtitle: "Lecturas EID del bastón / lector RFID",
+    label: "Alta de Equinos",
+    subtitle: "Lecturas EID · bastón / lector RFID",
     icon: "stock_alta",
   },
   {
     id: "importar_baja",
     label: "Baja de Dispositivo",
-    subtitle: "Archivo TXT o baja manual por caravana",
+    subtitle: "Archivo TXT · baja manual",
     icon: "stock_baja",
   },
   {
     id: "listado",
     label: "Lecturas importadas",
-    subtitle: "Ver, filtrar y gestionar importaciones",
+    subtitle: "Consultar · filtrar · gestionar",
     icon: "stock_lecturas",
   },
   {
     id: "equina",
     label: "Stock Equino",
-    subtitle: "Dispositivos EID y detalle de cada caravana",
+    subtitle: "Dispositivos EID · detalle por caravana",
     icon: "stock_dispositivos",
   },
   {
     id: "salidas",
     label: "Salidas del sistema",
-    subtitle: "Muertes, ventas y frigorífico registradas",
+    subtitle: "Muertes · ventas · frigorífico",
     icon: "stock_salidas",
   },
   {
     id: "sanidad",
     label: "Sanidad",
-    subtitle: "Controles sanitarios por grupos, categorías o selección múltiple",
+    subtitle: "Controles sanitarios equinos",
     icon: "stock_sanidad",
   },
 ];
@@ -75,7 +77,7 @@ const MODULE_META: Record<
   { title: string; subtitle: string; navId?: string }
 > = {
   importar: {
-    title: "Alta de Dispositivo",
+    title: "Alta de Equinos",
     subtitle:
       "Cargá el export del bastón o lector RFID, o ingresá lecturas una a una. Cada registro guarda fecha, hora y condición del equino.",
   },
@@ -136,46 +138,94 @@ export default function StockEquino({
   useHeaderBackStep(vista !== "menu", volverMenu, "Stock Equino");
 
   const navegarModulo = useCallback((id: string) => {
+    if (id === "menu") {
+      volverMenu();
+      return;
+    }
     setVista(id as Exclude<VistaStock, "menu" | "historial">);
-  }, []);
+  }, [volverMenu]);
 
   const bumpRefresh = useCallback(() => {
     clearStockEquinaPageCache();
     setListRefresh((k) => k + 1);
   }, []);
 
-  const wrapModule = useCallback(
-    (
-      vistaId: Exclude<VistaStock, "menu">,
-      content: ReactNode,
-      options?: { headerActions?: ReactNode },
-    ) => {
-      const meta = MODULE_META[vistaId];
-      const activeNavId = meta.navId ?? vistaId;
-      return (
-        <div className="sg-module-page stock-equino-module-page">
-          <StockEquinoHubShell
-            activeId={activeNavId}
-            items={STOCK_EQUINO_SUBMENU}
-            onNavigate={navegarModulo}
-            onVolverDashboard={volverMenu}
-            onVolverInicio={onVolver}
-            apiOnline={apiOnline}
-            title={meta.title}
-            subtitle={meta.subtitle}
-            headerActions={options?.headerActions}
-          >
-            {content}
-          </StockEquinoHubShell>
-        </div>
-      );
-    },
-    [apiOnline, navegarModulo, onVolver, volverMenu],
-  );
+  const hubNavProps = {
+    items: STOCK_EQUINO_SUBMENU,
+    onNavigate: navegarModulo,
+    onVolverDashboard: volverMenu,
+    onVolverInicio: onVolver,
+  };
 
-  if (vista === "importar") {
-    return wrapModule(
-      "importar",
+  if (vista === "equina") {
+    return (
+      <div className="sg-module-page stock-equino-module-page stock-equino-devices-page">
+        <StockEquina
+          apiOnline={apiOnline}
+          currentUser={currentUser}
+          refreshKey={listRefresh}
+          onError={onError}
+          onSuccess={onSuccess}
+          onVolver={volverMenu}
+          hubNav={{
+            ...hubNavProps,
+            activeId: "equina",
+          }}
+        />
+      </div>
+    );
+  }
+
+  const shellActiveId = vista === "menu" ? "menu" : MODULE_META[vista].navId ?? vista;
+  const meta =
+    vista === "menu"
+      ? {
+          title: "Dashboard",
+          subtitle:
+            "Identificación electrónica equina, stock activo, salidas y sanidad en un solo lugar.",
+        }
+      : MODULE_META[vista];
+
+  let body: ReactNode;
+  let headerActions: ReactNode | undefined;
+
+  if (vista === "menu") {
+    body = (
+      <>
+        <section className="sg-hub-kpi-strip stock-equino-dash-kpi" aria-label="Indicadores">
+          <SgHubKpi
+            variant="dark"
+            kicker="Dispositivos activos"
+            value={apiOnline ? resumen.dispositivos : "—"}
+            trend={apiOnline && resumen.dispositivos > 0 ? "En stock hoy" : undefined}
+            hint="Caravanas electrónicas equinas únicas registradas."
+            bars={<SgMiniBars highlight="last" />}
+          />
+          <SgHubKpi
+            kicker="Lecturas importadas"
+            value={apiOnline ? resumen.registros : "—"}
+            hint="Registros acumulados desde el lector RFID."
+            bars={<SgMiniBars highlight="mid" />}
+          />
+          <SgHubKpi
+            kicker="Lotes de importación"
+            value={apiOnline ? resumen.lotes : "—"}
+            hint="Archivos .txt procesados en el sistema."
+            bars={<SgMiniBars />}
+          />
+        </section>
+        <div className="sg-hub-panels">
+          <SgHubModuleGrid
+            items={STOCK_EQUINO_SUBMENU}
+            onSelect={navegarModulo}
+            title="Módulos"
+            kicker="Stock Equino"
+          />
+        </div>
+      </>
+    );
+  } else if (vista === "importar") {
+    body = (
       <StockEquinoImportar
         embedded
         apiOnline={apiOnline}
@@ -187,13 +237,10 @@ export default function StockEquino({
         onError={onError}
         onSuccess={onSuccess}
         onVolver={volverMenu}
-      />,
+      />
     );
-  }
-
-  if (vista === "importar_baja") {
-    return wrapModule(
-      "importar_baja",
+  } else if (vista === "importar_baja") {
+    body = (
       <StockEquinoImportarBaja
         embedded
         apiOnline={apiOnline}
@@ -204,13 +251,19 @@ export default function StockEquino({
         onError={onError}
         onSuccess={onSuccess}
         onVolver={volverMenu}
-      />,
+      />
     );
-  }
-
-  if (vista === "historial") {
-    return wrapModule(
-      "historial",
+  } else if (vista === "historial") {
+    headerActions = (
+      <button
+        type="button"
+        className="sg-hub-cta sg-hub-cta--ghost"
+        onClick={() => setVista("listado")}
+      >
+        ‹ Lecturas importadas
+      </button>
+    );
+    body = (
       <StockEquinoHistorial
         embedded
         apiOnline={apiOnline}
@@ -225,53 +278,20 @@ export default function StockEquino({
           setListLoteFilter(String(loteId));
           setVista("listado");
         }}
-      />,
-      {
-        headerActions: (
-          <button type="button" className="sg-hub-cta sg-hub-cta--ghost" onClick={() => setVista("listado")}>
-            ‹ Lecturas importadas
-          </button>
-        ),
-      },
-    );
-  }
-
-  if (vista === "equina") {
-    return (
-      <StockEquina
-        apiOnline={apiOnline}
-        currentUser={currentUser}
-        refreshKey={listRefresh}
-        onError={onError}
-        onSuccess={onSuccess}
-        onVolver={volverMenu}
-        hubNav={{
-          items: STOCK_EQUINO_SUBMENU,
-          activeId: "equina",
-          onNavigate: navegarModulo,
-          onVolverDashboard: volverMenu,
-          onVolverInicio: onVolver,
-        }}
       />
     );
-  }
-
-  if (vista === "salidas") {
-    return wrapModule(
-      "salidas",
+  } else if (vista === "salidas") {
+    body = (
       <StockEquinaSalidas
         embedded
         apiOnline={apiOnline}
         refreshKey={listRefresh}
         onError={onError}
         onVolver={volverMenu}
-      />,
+      />
     );
-  }
-
-  if (vista === "sanidad") {
-    return wrapModule(
-      "sanidad",
+  } else if (vista === "sanidad") {
+    body = (
       <StockEquinoSanidad
         embedded
         apiOnline={apiOnline}
@@ -279,13 +299,10 @@ export default function StockEquino({
         onError={onError}
         onSuccess={onSuccess}
         onVolver={volverMenu}
-      />,
+      />
     );
-  }
-
-  if (vista === "listado") {
-    return wrapModule(
-      "listado",
+  } else if (vista === "listado") {
+    body = (
       <StockEquinoListado
         embedded
         key={listRefresh}
@@ -296,19 +313,26 @@ export default function StockEquino({
         onSuccess={(m) => onSuccess(m)}
         onVolver={volverMenu}
         onVerHistorial={() => setVista("historial")}
-      />,
+      />
     );
   }
 
   return (
-    <div className="sg-module-page stock-equino-hub-page">
-      <StockEquinoHub
-        apiOnline={apiOnline}
-        resumen={resumen}
+    <div className="sg-module-page stock-equino-module-page">
+      <StockEquinoHubShell
+        activeId={shellActiveId}
         items={STOCK_EQUINO_SUBMENU}
         onNavigate={navegarModulo}
+        onVolverDashboard={volverMenu}
         onVolverInicio={onVolver}
-      />
+        apiOnline={apiOnline}
+        title={meta.title}
+        subtitle={meta.subtitle}
+        headerActions={headerActions}
+        asideKicker="SGG · Dispositivos"
+      >
+        {vista === "menu" ? body : <div className="sg-hub-embedded">{body}</div>}
+      </StockEquinoHubShell>
     </div>
   );
 }

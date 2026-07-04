@@ -97,3 +97,68 @@ export const FORMULAS_REMEDIO_GANADO: readonly string[] = [
   "Xilazina 2%",
   "Zilpaterol 4,8%",
 ].sort((a, b) => a.localeCompare(b, "es", { sensitivity: "base" }));
+
+/** Fórmulas / principios activos frecuentes en medicina equina (sugerencias). */
+export const FORMULAS_REMEDIO_EQUINO: readonly string[] = [
+  "Acepromazina 1%",
+  "Altrenogest 0,044%",
+  "Altrenogest 2,2 mg/ml",
+  "Bromhexina 3%",
+  "Butafosfán 10% + Cianocobalamina 0,005%",
+  "Ceftiofur cristalino 6%",
+  "Ceftiofur sódico 2,2%",
+  "Detomidina 1 mg/ml",
+  "Detomidina 10 mg/ml gel oral",
+  "Dexametasona 2 mg/ml",
+  "Diclofenaco sódico 1%",
+  "Encefalitis equina occidental — vacuna",
+  "Encefalitis equina oriental — vacuna",
+  "Enrofloxacina 2,5%",
+  "Enrofloxacina 5%",
+  "Fenbendazol 10% pasta oral",
+  "Fenbendazol 20%",
+  "Fenilbutazona 20%",
+  "Firocoxib 57 mg",
+  "Flunixin meglumine 2,5%",
+  "Flunixin meglumine 5%",
+  "Gentamicina 5%",
+  "Hialuronato sódico 10 mg/ml",
+  "Hierro dextrano 20%",
+  "Influenza equina — vacuna inactivada",
+  "Ivermectina 1%",
+  "Ivermectina 1,87% pasta oral",
+  "Ketoprofeno 1%",
+  "Ketoprofeno 10%",
+  "Lidocaína 2%",
+  "Meloxicam 0,5%",
+  "Meloxicam 2%",
+  "Metronidazol 5%",
+  "Moxidectina 1%",
+  "Moxidectina 2% gel oral",
+  "Omeprazol pasta oral",
+  "Oxibendazol 10%",
+  "Oxitetraciclina 10% L.A.",
+  "Pamoato de pirantel 11,4% pasta oral",
+  "Pamoato de pirantel 13,2%",
+  "Penicilina G procainica 300.000 UI/ml",
+  "Polisulfato de glicosaminoglicano 50 mg/ml",
+  "Potomac horse fever — vacuna",
+  "Praziquantel 14,02% + Ivermectina 1,87%",
+  "Praziquantel 14,03% + Moxidectina 0,4%",
+  "Progesterona 4%",
+  "Ranitidina 15 mg/ml",
+  "Rinoneumonitis equina — vacuna",
+  "Romifidina 10 mg/ml",
+  "Tétanos equino — toxoide",
+  "Vitamina E + Selenio inyectable",
+  "West Nile — vacuna inactivada",
+  "Xilazina 2%",
+].sort((a, b) => a.localeCompare(b, "es", { sensitivity: "base" }));
+
+export type FormulaRemedioModulo = "ganadero" | "equino";
+
+export function catalogoFormulasPorModulo(
+  modulo: FormulaRemedioModulo
+): readonly string[] {
+  return modulo === "equino" ? FORMULAS_REMEDIO_EQUINO : FORMULAS_REMEDIO_GANADO;
+}

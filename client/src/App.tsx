@@ -14,7 +14,7 @@ import {
 import { DEFAULT_CATALOGOS } from "./constants";
 import { clearStockGanaderaPageCache } from "./components/stock/stock-ganadera-page-cache";
 import { clearStockEquinaPageCache } from "./components/stock-equino/stock-equina-page-cache";
-import type { AuthUser, Catalogos, Presupuesto } from "./types";
+import type { AuthUser, Catalogos, Presupuesto as PresupuestoRow } from "./types";
 import type { TabId } from "./components/Header";
 import HomeMenu, { type ScreenId } from "./components/HomeMenu";
 import HomeMarketTicker from "./components/HomeMarketTicker";
@@ -25,10 +25,7 @@ import ForgotPasswordScreen from "./components/ForgotPasswordScreen";
 import ResetPasswordScreen from "./components/ResetPasswordScreen";
 import UsuariosActividad from "./components/UsuariosActividad";
 import ArquitecturaSistema from "./components/ArquitecturaSistema";
-import FormGasto from "./components/FormGasto";
-import PresupuestoHub from "./components/presupuesto/PresupuestoHub";
-import Listado from "./components/Listado";
-import Resumen from "./components/Resumen";
+import PresupuestoModule from "./components/presupuesto/Presupuesto";
 import Configuracion from "./components/Configuracion";
 import Divisas from "./components/Divisas";
 import PreciosGanado from "./components/precios-ganado/PreciosGanado";
@@ -82,7 +79,7 @@ export default function App() {
   const [bootPhase, setBootPhase] = useState<"api" | "db">("api");
   const [bootBlocked, setBootBlocked] = useState(false);
   const [bootError, setBootError] = useState("");
-  const [editRow, setEditRow] = useState<Presupuesto | null>(null);
+  const [editRow, setEditRow] = useState<PresupuestoRow | null>(null);
   const [listKey, setListKey] = useState(0);
   const [cuentaOpen, setCuentaOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
@@ -338,7 +335,7 @@ export default function App() {
     setListKey((k) => k + 1);
   };
 
-  const onEdit = (row: Presupuesto) => {
+  const onEdit = (row: PresupuestoRow) => {
     if (screenRef.current !== "registro") pushNavHistory();
     setEditRow(row);
     setScreen("registro");
@@ -487,47 +484,27 @@ export default function App() {
           <HomeMenu user={user} onOpen={navigate} />
         ) : (
           <main className="layout-frame page-main bn-ui">
-            {screen === "registro" && (
-              <PresupuestoHub
-                vista="registro"
-                onNavigate={navigate}
-                onVolver={goHome}
+            {(screen === "registro" || screen === "listado" || screen === "resumen") && (
+              <PresupuestoModule
+                screen={screen}
+                catalogos={catalogos}
+                currentUser={user}
+                editRow={editRow}
+                listKey={listKey}
                 apiOnline={apiOnline}
-              >
-                <FormGasto
-                  catalogos={catalogos}
-                  currentUser={user}
-                  editRow={editRow}
-                  apiOnline={apiOnline}
-                  onSaved={onSaved}
-                  onCancelEdit={() => setEditRow(null)}
-                  onEdit={onEdit}
-                  onCatalogosChanged={refreshCatalogos}
-                  onError={(m) => notify(m, false)}
-                  onSuccess={(m, t) => notify(m, true, t)}
-                />
-              </PresupuestoHub>
-            )}
-            {screen === "listado" && (
-              <PresupuestoHub
-                vista="listado"
-                onNavigate={navigate}
+                onScreenChange={navigate}
                 onVolver={goHome}
-                apiOnline={apiOnline}
-              >
-                <Listado
-                  key={listKey}
-                  catalogos={catalogos}
-                  apiOnline={apiOnline}
-                  onEdit={onEdit}
-                  onDeleted={() => {
-                    notify("Registro eliminado");
-                    setListKey((k) => k + 1);
-                  }}
-                  onError={(m) => notify(m, false)}
-                  onSuccess={(m) => notify(m, true)}
-                />
-              </PresupuestoHub>
+                onSaved={onSaved}
+                onCancelEdit={() => setEditRow(null)}
+                onEdit={onEdit}
+                onDeleted={() => {
+                  notify("Registro eliminado");
+                  setListKey((k) => k + 1);
+                }}
+                onCatalogosChanged={refreshCatalogos}
+                onError={(m) => notify(m, false)}
+                onSuccess={(m, t) => notify(m, true, t)}
+              />
             )}
             {screen === "vencimientos_impuestos" && (
               <VencimientosImpuestos
@@ -535,21 +512,6 @@ export default function App() {
                 currentUser={user}
                 onError={(m) => notify(m, false)}
               />
-            )}
-            {screen === "resumen" && (
-              <PresupuestoHub
-                vista="resumen"
-                onNavigate={navigate}
-                onVolver={goHome}
-                apiOnline={apiOnline}
-              >
-                <Resumen
-                  catalogos={catalogos}
-                  currentUser={user}
-                  apiOnline={apiOnline}
-                  onError={(m) => notify(m, false)}
-                />
-              </PresupuestoHub>
             )}
             {screen === "configuracion" && (
               <Configuracion

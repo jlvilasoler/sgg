@@ -1,4 +1,5 @@
 ﻿import StockDashSexoBreakdown from "../stock/StockDashSexoBreakdown";
+import { SgMiniBars } from "../stock/SgHubUi";
 import type { SexoDispositivoCounts } from "./stock-equina-utils";
 
 export type StockEquinaDashKpiVariant =
@@ -14,7 +15,12 @@ interface Props {
   value: number | string;
   hint: string;
   variant: StockEquinaDashKpiVariant;
-  sexoStats: SexoDispositivoCounts;
+  sexoStats?: SexoDispositivoCounts;
+  trend?: string;
+  tone?: "light" | "dark";
+  showSexo?: boolean;
+  showBars?: boolean;
+  barsHighlight?: "last" | "mid";
   loading?: boolean;
   active?: boolean;
   disabled?: boolean;
@@ -97,45 +103,53 @@ export default function StockEquinaDashKpi({
   hint,
   variant,
   sexoStats,
+  trend,
+  tone = "dark",
+  showSexo = true,
+  showBars = true,
+  barsHighlight = "last",
   loading = false,
   active = false,
   disabled = false,
   onClick,
 }: Props) {
   const className = [
-    "sg-kpi-card",
-    `sg-kpi-card--${variant}`,
+    "sg-hub-kpi",
+    "sg-hub-kpi--dash",
+    tone === "dark" ? "sg-hub-kpi--dark" : "sg-hub-kpi--light",
+    `sg-hub-kpi--accent-${variant}`,
+    onClick ? "sg-hub-kpi--clickable" : "",
     active ? "is-active" : "",
-    onClick ? "sg-kpi-card--clickable" : "",
   ]
     .filter(Boolean)
     .join(" ");
 
   const content = (
     <>
-      <span className="sg-kpi-card-accent" aria-hidden />
-      <div className="sg-kpi-card-body">
-        <div className="sg-kpi-card-main">
-          <header className="sg-kpi-card-head">
-            <span className="sg-kpi-card-icon">
-              <KpiIcon variant={variant} />
-            </span>
-            <span className="sg-kpi-card-label">{label}</span>
-            {onClick ? (
-              <span className="sg-kpi-card-action" aria-hidden>
-                {active ? "Filtrando" : "Filtrar"}
-              </span>
-            ) : (
-              <span className="sg-kpi-card-action sg-kpi-card-action--placeholder" aria-hidden />
-            )}
-          </header>
-          <div className="sg-kpi-card-value">{loading ? "—" : value}</div>
-          <p className="sg-kpi-card-hint" title={hint || undefined}>
-            {hint || "\u00a0"}
-          </p>
+      {onClick ? (
+        <span className="sg-hub-kpi-filter-tag" aria-hidden>
+          {active ? "Filtrando" : "Filtrar"}
+        </span>
+      ) : null}
+      <div className="sg-hub-kpi-top">
+        <div className="sg-hub-kpi-dash-main">
+          <span className="sg-hub-kpi-dash-icon" aria-hidden>
+            <KpiIcon variant={variant} />
+          </span>
+          <div className="sg-hub-kpi-dash-copy">
+            <p className="sg-hub-kpi-kicker">{label}</p>
+            <p className="sg-hub-kpi-value">{loading ? "—" : value}</p>
+            {trend ? <p className="sg-hub-kpi-trend">{trend}</p> : null}
+          </div>
         </div>
-        <StockDashSexoBreakdown stats={sexoStats} loading={loading} variant="compact" />
+        {showBars ? <SgMiniBars highlight={barsHighlight} /> : null}
       </div>
+      <p className="sg-hub-kpi-hint">{hint || "\u00a0"}</p>
+      {showSexo && sexoStats ? (
+        <div className="sg-hub-kpi-sexo">
+          <StockDashSexoBreakdown stats={sexoStats} loading={loading} variant="compact" />
+        </div>
+      ) : null}
     </>
   );
 
@@ -154,5 +168,5 @@ export default function StockEquinaDashKpi({
     );
   }
 
-  return <div className={className}>{content}</div>;
+  return <article className={className}>{content}</article>;
 }

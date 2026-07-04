@@ -1,12 +1,20 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { FORMULAS_REMEDIO_GANADO } from "./stock-control-sanitario-formulas";
+import {
+  catalogoFormulasPorModulo,
+  type FormulaRemedioModulo,
+} from "./stock-control-sanitario-formulas";
 
-const STORAGE_KEY = "scg-formulas-remedio-extras";
+const STORAGE_KEY_GANADERO = "scg-formulas-remedio-extras";
+const STORAGE_KEY_EQUINO = "scg-formulas-remedio-extras-equino";
 const MAX_FORMULA_LEN = 80;
 
-function loadFormulaExtras(): string[] {
+function storageKey(modulo: FormulaRemedioModulo): string {
+  return modulo === "equino" ? STORAGE_KEY_EQUINO : STORAGE_KEY_GANADERO;
+}
+
+function loadFormulaExtras(modulo: FormulaRemedioModulo): string[] {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(storageKey(modulo));
     if (!raw) return [];
     const parsed = JSON.parse(raw) as unknown;
     if (!Array.isArray(parsed)) return [];
@@ -19,8 +27,8 @@ function loadFormulaExtras(): string[] {
   }
 }
 
-function saveFormulaExtras(list: string[]): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+function saveFormulaExtras(modulo: FormulaRemedioModulo, list: string[]): void {
+  localStorage.setItem(storageKey(modulo), JSON.stringify(list));
 }
 
 interface Props {
@@ -28,6 +36,7 @@ interface Props {
   onChange: (value: string) => void;
   disabled?: boolean;
   historialFormulas?: string[];
+  modulo?: FormulaRemedioModulo;
 }
 
 export default function StockControlSanitarioFormulaSelect({
@@ -35,6 +44,7 @@ export default function StockControlSanitarioFormulaSelect({
   onChange,
   disabled = false,
   historialFormulas = [],
+  modulo = "ganadero",
 }: Props) {
   const rootRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -44,7 +54,13 @@ export default function StockControlSanitarioFormulaSelect({
   const [busqueda, setBusqueda] = useState("");
   const [modoNuevo, setModoNuevo] = useState(false);
   const [nuevaFormula, setNuevaFormula] = useState("");
-  const [extras, setExtras] = useState<string[]>(() => loadFormulaExtras());
+  const [extras, setExtras] = useState<string[]>(() => loadFormulaExtras(modulo));
+
+  useEffect(() => {
+    setExtras(loadFormulaExtras(modulo));
+  }, [modulo]);
+
+  const catalogoBase = useMemo(() => catalogoFormulasPorModulo(modulo), [modulo]);
 
   const todasLasFormulas = useMemo(() => {
     const seen = new Set<string>();
@@ -55,12 +71,12 @@ export default function StockControlSanitarioFormulaSelect({
       seen.add(t);
       list.push(t);
     };
-    for (const f of FORMULAS_REMEDIO_GANADO) push(f);
+    for (const f of catalogoBase) push(f);
     for (const f of extras) push(f);
     for (const f of historialFormulas) push(f);
     if (String(value ?? "").trim()) push(String(value ?? ""));
     return list.sort((a, b) => a.localeCompare(b, "es", { sensitivity: "base" }));
-  }, [extras, historialFormulas, value]);
+  }, [catalogoBase, extras, historialFormulas, value]);
 
   const listaFiltrada = useMemo(() => {
     const t = busqueda.trim().toLowerCase();
@@ -107,7 +123,7 @@ export default function StockControlSanitarioFormulaSelect({
       const next = [...prev, nombre].sort((a, b) =>
         a.localeCompare(b, "es", { sensitivity: "base" })
       );
-      saveFormulaExtras(next);
+      saveFormulaExtras(modulo, next);
       return next;
     });
     onChange(nombre);
@@ -138,6 +154,10 @@ export default function StockControlSanitarioFormulaSelect({
   }, [abierto, cerrar]);
 
   const textoSeleccion = value.trim() || "— Seleccionar —";
+  const metaLabel =
+    modulo === "equino"
+      ? `${todasLasFormulas.length} fórmula(s) equina(s) — buscá o agregá una nueva`
+      : `${todasLasFormulas.length} fórmula(s) — buscá o agregá una nueva`;
 
   return (
     <div className="stock-control-sanitario-formula-select" ref={rootRef}>
@@ -197,7 +217,7 @@ export default function StockControlSanitarioFormulaSelect({
           <p className="proveedor-panel-meta">
             {busqueda.trim()
               ? `${listaFiltrada.length} coincidencia(s) de ${todasLasFormulas.length}`
-              : `${todasLasFormulas.length} fórmula(s) — buscá o agregá una nueva`}
+              : metaLabel}
           </p>
 
           {modoNuevo ? (
@@ -223,7 +243,11 @@ export default function StockControlSanitarioFormulaSelect({
                   type="text"
                   className="proveedor-panel-input"
                   maxLength={MAX_FORMULA_LEN}
-                  placeholder="Ej. Ivermectina 1%, Albendazol 10%…"
+                  placeholder={
+                    modulo === "equino"
+                      ? "Ej. Ivermectina 1,87% pasta oral, Flunixin 2,5%…"
+                      : "Ej. Ivermectina 1%, Albendazol 10%…"
+                  }
                   value={nuevaFormula}
                   onChange={(e) => setNuevaFormula(e.target.value)}
                 />

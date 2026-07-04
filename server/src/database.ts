@@ -1341,6 +1341,10 @@ export const rrhhPagos = {
   ) => rrhh.listPagosPorCedula(db, cedula, filters),
   resumenGlobal: (filters?: { fecha_desde?: string; fecha_hasta?: string }) =>
     rrhh.resumenGlobalSueldos(db, filters),
+  dashboard: (
+    cuentaId?: number | null,
+    filters?: { fecha_desde?: string; fecha_hasta?: string }
+  ) => rrhh.resumenDashboardRRHH(db, cuentaId, filters),
 };
 
 export const grupoIconos = {

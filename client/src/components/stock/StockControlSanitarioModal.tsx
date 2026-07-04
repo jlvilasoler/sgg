@@ -298,7 +298,7 @@ export default function StockControlSanitarioModal({
   const onMarcaChange = useCallback(
     (nombre: string) => {
       setSugeridoFicha({ formula: false, forma: false });
-      const sync = patchProductoDesdeMarca(nombre);
+      const sync = patchProductoDesdeMarca(nombre, modulo);
       patchForm(sync);
       setSugeridoFicha(flagsDesdePatch(sync));
 
@@ -592,6 +592,7 @@ export default function StockControlSanitarioModal({
                       }}
                       disabled={guardando}
                       historialFormulas={historialFormulas}
+                      modulo={modulo}
                     />
                   </div>
                   <div className="field">

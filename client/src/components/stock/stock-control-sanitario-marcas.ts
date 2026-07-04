@@ -89,6 +89,98 @@ export const MARCAS_REMEDIO_GANADO: readonly MarcaRemedioCatalogo[] = [
   { nombre: "Zuprevo", paises: ["UY", "AR", "BR"] },
 ];
 
+/** Marcas comerciales frecuentes en medicina equina (UY, AR, BR). Sin líneas exclusivas de bovinos. */
+export const MARCAS_REMEDIO_EQUINO: readonly MarcaRemedioCatalogo[] = [
+  { nombre: "Acepran", paises: ["UY", "AR", "BR"] },
+  { nombre: "Adequan", paises: ["UY", "AR", "BR"] },
+  { nombre: "Banamine", paises: ["UY", "AR", "BR"] },
+  { nombre: "Bio-Bute", paises: ["UY", "AR"] },
+  { nombre: "Bute", paises: ["UY", "AR", "BR"] },
+  { nombre: "Calier", paises: ["AR", "UY", "BR"] },
+  { nombre: "Dormosedan", paises: ["UY", "AR", "BR"] },
+  { nombre: "Engemycin", paises: ["UY", "AR", "BR"] },
+  { nombre: "Eqvalan", paises: ["UY", "AR", "BR"] },
+  { nombre: "Equilis", paises: ["UY", "AR", "BR"] },
+  { nombre: "Equimax", paises: ["UY", "AR", "BR"] },
+  { nombre: "Equimec", paises: ["UY", "AR", "BR"] },
+  { nombre: "Equioxx", paises: ["UY", "AR", "BR"] },
+  { nombre: "Equipalazone", paises: ["AR", "UY"] },
+  { nombre: "Equipaste", paises: ["UY", "AR", "BR"] },
+  { nombre: "Equistrong", paises: ["UY", "AR", "BR"] },
+  { nombre: "Equest", paises: ["UY", "AR", "BR"] },
+  { nombre: "Excenel", paises: ["UY", "AR", "BR"] },
+  { nombre: "Gastrogard", paises: ["UY", "AR", "BR"] },
+  { nombre: "Hipra", paises: ["UY", "AR", "BR"] },
+  { nombre: "Hylartil", paises: ["UY", "AR", "BR"] },
+  { nombre: "Ketofen", paises: ["UY", "AR", "BR"] },
+  { nombre: "Legend", paises: ["UY", "AR", "BR"] },
+  { nombre: "Metacam", paises: ["UY", "AR", "BR"] },
+  { nombre: "MSD Salud Animal", paises: ["UY", "AR", "BR"] },
+  { nombre: "Naxcel", paises: ["UY", "AR", "BR"] },
+  { nombre: "Panacur", paises: ["UY", "AR", "BR"] },
+  { nombre: "Pneumequine", paises: ["AR", "UY"] },
+  { nombre: "Prodigy", paises: ["UY", "AR"] },
+  { nombre: "Regu-Mate", paises: ["UY", "AR", "BR"] },
+  { nombre: "Rotecno", paises: ["UY", "AR", "BR"] },
+  { nombre: "Strongid P", paises: ["UY", "AR", "BR"] },
+  { nombre: "Ulcergard", paises: ["UY", "AR", "BR"] },
+  { nombre: "Vetoquinol", paises: ["UY", "AR", "BR"] },
+  { nombre: "Virbac", paises: ["UY", "AR", "BR"] },
+  { nombre: "West Nile Innovator", paises: ["UY", "AR", "BR"] },
+  { nombre: "Zoetis", paises: ["UY", "AR", "BR"] },
+];
+
+export type MarcaRemedioModulo = "ganadero" | "equino";
+
+export function catalogoMarcasPorModulo(
+  modulo: MarcaRemedioModulo
+): readonly MarcaRemedioCatalogo[] {
+  return modulo === "equino" ? MARCAS_REMEDIO_EQUINO : MARCAS_REMEDIO_GANADO;
+}
+
+export function nombreEnCatalogoModulo(nombre: string, modulo: MarcaRemedioModulo): boolean {
+  const key = nombre.trim().toLocaleLowerCase("es-UY");
+  if (!key) return false;
+  return catalogoMarcasPorModulo(modulo).some(
+    (m) => m.nombre.toLocaleLowerCase("es-UY") === key
+  );
+}
+
+export function especieIndicaEquinos(especie: string): boolean {
+  return /equino/i.test(String(especie ?? "").trim());
+}
+
+export function especieIndicaSoloBovinos(especie: string): boolean {
+  const e = String(especie ?? "").trim();
+  if (!e) return false;
+  if (especieIndicaEquinos(e)) return false;
+  return /bovino|vacuno|ovino|caprino|porcino/i.test(e);
+}
+
+export function marcaGlobalVisibleEnModulo(
+  modulo: MarcaRemedioModulo,
+  opts: { nombre: string; especie?: string; en_ficha?: boolean }
+): boolean {
+  const especie = String(opts.especie ?? "").trim();
+  const enCatalogo = nombreEnCatalogoModulo(opts.nombre, modulo);
+
+  if (modulo === "equino") {
+    if (especieIndicaSoloBovinos(especie)) return false;
+    if (especieIndicaEquinos(especie)) return true;
+    if (enCatalogo) return true;
+    if (!opts.en_ficha) return true;
+    return false;
+  }
+
+  if (especieIndicaEquinos(especie) && !especieIndicaSoloBovinos(especie)) {
+    const esp = especie.toLocaleLowerCase("es");
+    if (/equino/.test(esp) && !/bovino|vacuno|ovino|caprino|porcino/.test(esp)) {
+      return false;
+    }
+  }
+  return true;
+}
+
 export function formatMarcaPaises(paises: readonly MarcaRemedioPais[]): string {
   return paises.map((p) => PAIS_MARCA_LABEL[p]).join(" · ");
 }
@@ -107,8 +199,13 @@ export function marcaCoincideBusqueda(
   return false;
 }
 
-export function buscarMarcaCatalogo(nombre: string): MarcaRemedioCatalogo | undefined {
+export function buscarMarcaCatalogo(
+  nombre: string,
+  modulo: MarcaRemedioModulo = "ganadero"
+): MarcaRemedioCatalogo | undefined {
   const key = nombre.trim().toLocaleLowerCase("es-UY");
   if (!key) return undefined;
-  return MARCAS_REMEDIO_GANADO.find((m) => m.nombre.toLocaleLowerCase("es-UY") === key);
+  return catalogoMarcasPorModulo(modulo).find(
+    (m) => m.nombre.toLocaleLowerCase("es-UY") === key
+  );
 }

@@ -19,6 +19,7 @@ import type {
   Funcionario,
   FuncionarioForm,
   ResumenPagosFuncionario,
+  RrhhDashboardData,
   Responsable,
   ResponsableForm,
   ResumenEmpresa,
@@ -943,11 +944,11 @@ export async function fetchStockControlSanitarioProductoFichas(): Promise<
   return json.data;
 }
 
-export async function fetchStockControlSanitarioProductoNombresGlobales(): Promise<
-  StockControlSanitarioProductoNombreGlobal[]
-> {
+export async function fetchStockControlSanitarioProductoNombresGlobales(
+  modulo: StockDispositivoModulo = "ganadero"
+): Promise<StockControlSanitarioProductoNombreGlobal[]> {
   const json = await request<{ data: StockControlSanitarioProductoNombreGlobal[] }>(
-    `/stock-ganadero/control-sanitario/producto-nombres`
+    `/stock-ganadero/control-sanitario/producto-nombres?modulo=${encodeURIComponent(modulo)}`
   );
   return json.data;
 }
@@ -3221,6 +3222,18 @@ export async function fetchPagosPorCedula(
   const json = await request<{ data: ResumenPagosFuncionario }>(
     `/rrhh/pagos?${params}`
   );
+  return json.data;
+}
+
+export async function fetchRrhhDashboard(filters?: {
+  fecha_desde?: string;
+  fecha_hasta?: string;
+}): Promise<RrhhDashboardData> {
+  const params = new URLSearchParams();
+  if (filters?.fecha_desde) params.set("fecha_desde", filters.fecha_desde);
+  if (filters?.fecha_hasta) params.set("fecha_hasta", filters.fecha_hasta);
+  const q = params.toString() ? `?${params}` : "";
+  const json = await request<{ data: RrhhDashboardData }>(`/rrhh/dashboard${q}`);
   return json.data;
 }
 

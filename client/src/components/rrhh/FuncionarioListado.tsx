@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { deleteFuncionario, fetchFuncionarios } from "../../api";
 import type { Funcionario } from "../../types";
+import { fmtNum } from "../../utils";
 import { confirmAction } from "../../utils/confirm";
-import { PageModuleHeadRow } from "../PageModuleHead";
 
 interface Props {
   apiOnline: boolean;
@@ -80,7 +80,7 @@ export default function FuncionarioListado({
     }
   };
 
-  const subtitulo = initialLoading
+  const statusLine = initialLoading
     ? "Cargando…"
     : refreshing
       ? "Actualizando…"
@@ -97,220 +97,208 @@ export default function FuncionarioListado({
       : "No hay funcionarios registrados todavía.";
 
   return (
-    <div className={`subseccion-panel${embedded ? " sg-hub-embedded" : ""}`}>
+    <div
+      className={`rrhh-func-listado--hub rrhh-hub-workspace${embedded ? " sg-hub-embedded" : ""}${refreshing && hasData ? " rrhh-func-listado--refreshing" : ""}`}
+    >
       {!embedded ? (
         <button type="button" className="subseccion-back" onClick={onVolver}>
           ‹ Volver a Recursos Humanos
         </button>
       ) : null}
 
-      <div className="listado-pro rrhh-func-listado">
-        <div className={`listado-pro-shell${refreshing && hasData ? " listado-pro-shell--refreshing" : ""}`}>
-          <header className="rrhh-func-head">
-            <div className="rrhh-func-head-main">
-              <PageModuleHeadRow
-                icon={{ source: "hub", id: "rrhh_funcionarios" }}
-                title="Funcionarios"
-                subtitle={
-                  <>
-                    {subtitulo}
-                    {!initialLoading && apiOnline ? (
-                      <span className="rrhh-func-head-hint">
-                        {" "}
-                        · Solo quienes trabajan hoy aparecen al cargar sueldos.
-                      </span>
-                    ) : null}
-                  </>
-                }
-                titleClassName="listado-pro-head-title"
-                subClassName="listado-pro-head-sub"
-                textClassName="listado-pro-head-text"
-              />
-            </div>
-            <div className="rrhh-func-head-actions">
-              <button
-                type="button"
-                className="btn btn-primary"
-                disabled={!apiOnline}
-                onClick={onNuevo}
-              >
-                + Nuevo funcionario
-              </button>
-            </div>
-          </header>
+      <div className="rrhh-func-toolbar">
+        <p className="rrhh-func-status muted" role="status">
+          {statusLine}
+          {!initialLoading && apiOnline ? (
+            <span className="rrhh-func-status-hint">
+              {" "}
+              · Solo quienes trabajan hoy aparecen al cargar sueldos.
+            </span>
+          ) : null}
+        </p>
+        <button
+          type="button"
+          className="sg-hub-cta sg-hub-cta--compact"
+          disabled={!apiOnline}
+          onClick={onNuevo}
+        >
+          + Nuevo funcionario
+        </button>
+      </div>
 
-          <div className="filters listado-pro-filters rrhh-func-filters mayusculas-auto">
-            <div className="field rrhh-func-search">
-              <label htmlFor="busq-func">Buscar</label>
-              <input
-                id="busq-func"
-                value={busqueda}
-                disabled={!apiOnline || initialLoading}
-                onChange={(e) => setBusqueda(e.target.value)}
-                placeholder="Cédula, nombre, celular, email…"
-              />
-            </div>
-            <label className="inline-check rrhh-func-check">
-              <input
-                type="checkbox"
-                checked={soloActivos}
-                disabled={!apiOnline || initialLoading}
-                onChange={(e) => setSoloActivos(e.target.checked)}
-              />
-              Solo quienes trabajan hoy
-            </label>
-            <button
-              type="button"
-              className="btn listado-pro-reset-btn"
-              disabled={!apiOnline || initialLoading || (!busqueda && !soloActivos)}
-              onClick={resetFiltros}
-            >
-              Limpiar
-            </button>
-            <button
-              type="button"
-              className="btn btn-primary listado-pro-search-btn"
-              disabled={!apiOnline || initialLoading}
-              onClick={() => void load()}
-            >
-              {refreshing && hasData ? "Actualizando…" : "Actualizar"}
-            </button>
-          </div>
-
-          <section
-            className="listado-indicadores listado-pro-indicadores rrhh-func-kpis"
-            aria-label="Resumen de funcionarios"
+      <section
+        className="rrhh-hub-filters-box rrhh-func-filters-box mayusculas-auto"
+        aria-label="Filtros de funcionarios"
+      >
+        <div className="field rrhh-func-search">
+          <label htmlFor="busq-func">Buscar</label>
+          <input
+            id="busq-func"
+            value={busqueda}
+            disabled={!apiOnline || initialLoading}
+            onChange={(e) => setBusqueda(e.target.value)}
+            placeholder="Cédula, nombre, celular, email…"
+          />
+        </div>
+        <label className="rrhh-func-check inline-check">
+          <input
+            type="checkbox"
+            checked={soloActivos}
+            disabled={!apiOnline || initialLoading}
+            onChange={(e) => setSoloActivos(e.target.checked)}
+          />
+          Solo quienes trabajan hoy
+        </label>
+        <div className="rrhh-hub-filters-actions">
+          <button
+            type="button"
+            className="sg-hub-cta sg-hub-cta--ghost sg-hub-cta--compact"
+            disabled={!apiOnline || initialLoading || (!busqueda && !soloActivos)}
+            onClick={resetFiltros}
           >
-            <div className="rrhh-func-kpi-grid">
-              <div className="rrhh-func-kpi">
-                <span className="rrhh-func-kpi-label">Total listado</span>
-                <span className="rrhh-func-kpi-valor">
-                  {!apiOnline ? "—" : stats.total}
-                </span>
-              </div>
-              <div className="rrhh-func-kpi rrhh-func-kpi--activo">
-                <span className="rrhh-func-kpi-label">Trabajan hoy</span>
-                <span className="rrhh-func-kpi-valor">
-                  {!apiOnline ? "—" : stats.activos}
-                </span>
-              </div>
-              <div className="rrhh-func-kpi rrhh-func-kpi--inactivo">
-                <span className="rrhh-func-kpi-label">No activos</span>
-                <span className="rrhh-func-kpi-valor">
-                  {!apiOnline ? "—" : stats.inactivos}
-                </span>
-              </div>
-            </div>
-          </section>
+            Limpiar
+          </button>
+          <button
+            type="button"
+            className="sg-hub-cta sg-hub-cta--compact"
+            disabled={!apiOnline || initialLoading}
+            onClick={() => void load()}
+          >
+            {refreshing && hasData ? "Actualizando…" : "Actualizar"}
+          </button>
+        </div>
+      </section>
 
-          <div className="table-wrap listado-pro-table-wrap rrhh-func-table-wrap">
-            <table className="data-table listado-pro-table rrhh-func-table">
-              <thead>
+      <div className="sg-hub-kpi-strip rrhh-func-kpi-strip" aria-label="Resumen de funcionarios">
+        <article className="sg-hub-kpi">
+          <p className="sg-hub-kpi-kicker">Total listado</p>
+          <p className="sg-hub-kpi-value">{!apiOnline ? "—" : fmtNum(stats.total, 0)}</p>
+        </article>
+        <article className="sg-hub-kpi">
+          <p className="sg-hub-kpi-kicker">Trabajan hoy</p>
+          <p className="sg-hub-kpi-value rrhh-func-kpi-value--activo">
+            {!apiOnline ? "—" : fmtNum(stats.activos, 0)}
+          </p>
+        </article>
+        <article className="sg-hub-kpi">
+          <p className="sg-hub-kpi-kicker">No activos</p>
+          <p className="sg-hub-kpi-value rrhh-func-kpi-value--inactivo">
+            {!apiOnline ? "—" : fmtNum(stats.inactivos, 0)}
+          </p>
+        </article>
+      </div>
+
+      <section className="rrhh-func-table-box" aria-label="Listado de funcionarios">
+        <div className="rrhh-func-table-wrap">
+          <table className="data-table rrhh-func-table">
+            <thead>
+              <tr>
+                <th>Cédula</th>
+                <th>Nombre</th>
+                <th>Ciudad</th>
+                <th>Contacto</th>
+                <th>Banco / Cuenta</th>
+                <th>Estado</th>
+                <th className="col-acciones" />
+              </tr>
+            </thead>
+            <tbody>
+              {initialLoading ? (
                 <tr>
-                  <th>Cédula</th>
-                  <th>Nombre</th>
-                  <th>Ciudad</th>
-                  <th>Contacto</th>
-                  <th>Banco / Cuenta</th>
-                  <th>Estado</th>
-                  <th className="col-acciones" />
+                  <td colSpan={7} className="rrhh-func-empty-cell">
+                    <div className="rrhh-func-empty-msg">Cargando funcionarios…</div>
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {initialLoading ? (
-                  <tr>
-                    <td colSpan={7} className="rrhh-func-empty-cell">
-                      <div className="rrhh-func-empty-msg">Cargando funcionarios…</div>
+              ) : rows.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="rrhh-func-empty-cell">
+                    <div className="rrhh-func-empty" role="status">
+                      <span className="rrhh-func-empty-icon" aria-hidden="true">
+                        👤
+                      </span>
+                      <span>{emptyMsg}</span>
+                      {!busqueda.trim() && !soloActivos ? (
+                        <button
+                          type="button"
+                          className="sg-hub-cta sg-hub-cta--compact rrhh-func-empty-btn"
+                          disabled={!apiOnline}
+                          onClick={onNuevo}
+                        >
+                          + Nuevo funcionario
+                        </button>
+                      ) : null}
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                rows.map((f) => (
+                  <tr
+                    key={f.id}
+                    className={`rrhh-func-row${!f.activo ? " rrhh-func-row--inactivo" : ""}`}
+                  >
+                    <td className="rrhh-func-cedula">
+                      <strong>{f.cedula}</strong>
                     </td>
-                  </tr>
-                ) : rows.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="rrhh-func-empty-cell">
-                      <div className="rrhh-func-empty" role="status">
-                        <span className="rrhh-func-empty-icon" aria-hidden="true">
-                          👤
-                        </span>
-                        <span>{emptyMsg}</span>
-                        {!busqueda.trim() && !soloActivos ? (
-                          <button
-                            type="button"
-                            className="btn btn-primary rrhh-func-empty-btn"
-                            disabled={!apiOnline}
-                            onClick={onNuevo}
-                          >
-                            + Nuevo funcionario
-                          </button>
-                        ) : null}
+                    <td>
+                      <span className="rrhh-func-nombre">
+                        {f.apellido}, {f.nombre}
+                      </span>
+                    </td>
+                    <td>
+                      {f.ciudad || "—"}
+                      {f.departamento ? (
+                        <span className="muted rrhh-func-depto"> ({f.departamento})</span>
+                      ) : null}
+                    </td>
+                    <td className="rrhh-func-contacto">
+                      {f.celular ? <span>{f.celular}</span> : <span className="muted">—</span>}
+                      {f.email ? (
+                        <span className="muted rrhh-func-email">{f.email}</span>
+                      ) : null}
+                    </td>
+                    <td className="muted small-cell rrhh-func-banco">
+                      {f.banco || "—"}
+                      {f.cuenta ? <span className="rrhh-func-cuenta"> · {f.cuenta}</span> : null}
+                    </td>
+                    <td>
+                      <span
+                        className={`rrhh-func-estado-pill ${f.activo ? "rrhh-func-estado-pill--activo" : "rrhh-func-estado-pill--inactivo"}`}
+                      >
+                        {f.activo ? "Trabaja hoy" : "No activo"}
+                      </span>
+                    </td>
+                    <td className="actions-cell">
+                      <div className="rrhh-func-actions">
+                        <button
+                          type="button"
+                          className="sg-hub-cta sg-hub-cta--ghost sg-hub-cta--compact"
+                          onClick={() => onVerPagos(f.cedula)}
+                        >
+                          Pagos
+                        </button>
+                        <button
+                          type="button"
+                          className="sg-hub-cta sg-hub-cta--ghost sg-hub-cta--compact"
+                          onClick={() => onEdit(f)}
+                        >
+                          Editar
+                        </button>
+                        <button
+                          type="button"
+                          className="sg-hub-cta sg-hub-cta--compact sg-hub-cta--danger"
+                          onClick={() => void borrar(f)}
+                        >
+                          Eliminar
+                        </button>
                       </div>
                     </td>
                   </tr>
-                ) : (
-                  rows.map((f) => (
-                    <tr key={f.id} className={`listado-pro-row${!f.activo ? " rrhh-func-row--inactivo" : ""}`}>
-                      <td className="listado-pro-num">
-                        <strong>{f.cedula}</strong>
-                      </td>
-                      <td>
-                        <span className="rrhh-func-nombre">
-                          {f.apellido}, {f.nombre}
-                        </span>
-                      </td>
-                      <td>
-                        {f.ciudad || "—"}
-                        {f.departamento ? (
-                          <span className="muted rrhh-func-depto"> ({f.departamento})</span>
-                        ) : null}
-                      </td>
-                      <td className="rrhh-func-contacto">
-                        {f.celular ? <span>{f.celular}</span> : <span className="muted">—</span>}
-                        {f.email ? (
-                          <span className="muted rrhh-func-email">{f.email}</span>
-                        ) : null}
-                      </td>
-                      <td className="muted small-cell rrhh-func-banco">
-                        {f.banco || "—"}
-                        {f.cuenta ? <span className="rrhh-func-cuenta"> · {f.cuenta}</span> : null}
-                      </td>
-                      <td>
-                        <span
-                          className={`rrhh-func-estado ${f.activo ? "rrhh-func-estado--activo" : "rrhh-func-estado--inactivo"}`}
-                        >
-                          {f.activo ? "Trabaja hoy" : "No activo"}
-                        </span>
-                      </td>
-                      <td className="actions-cell">
-                        <div className="actions-cell-inner rrhh-func-actions">
-                          <button
-                            type="button"
-                            className="btn btn-ghost btn-xs"
-                            onClick={() => onVerPagos(f.cedula)}
-                          >
-                            Pagos
-                          </button>
-                          <button
-                            type="button"
-                            className="btn btn-ghost btn-xs"
-                            onClick={() => onEdit(f)}
-                          >
-                            Editar
-                          </button>
-                          <button
-                            type="button"
-                            className="btn btn-ghost btn-xs rrhh-func-btn-danger"
-                            onClick={() => void borrar(f)}
-                          >
-                            Eliminar
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
-      </div>
+      </section>
     </div>
   );
 }

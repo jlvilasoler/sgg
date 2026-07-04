@@ -913,7 +913,7 @@ export default function FormGasto({
   };
 
   return (
-    <div className="form-gasto-layout">
+    <div className="form-gasto-layout presupuesto-form--hub">
     <form className={`card form-card${!editRow ? " gasto-factura-card" : ""}`} onSubmit={handleSubmit}>
       <div className="form-header">
         {!editRow ? (

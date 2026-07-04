@@ -25,7 +25,7 @@ function joinLines(lines: readonly string[]): string {
   return lines.join("\n");
 }
 
-function buildFicha(ficha: Omit<ProductoFichaSeed, "foto">): ProductoFichaSeed {
+export function buildFicha(ficha: Omit<ProductoFichaSeed, "foto">): ProductoFichaSeed {
   const candidata = FOTOS_BY_NOMBRE[ficha.nombre] ?? productoFichaFotoPath(ficha.nombre);
   return {
     ...ficha,

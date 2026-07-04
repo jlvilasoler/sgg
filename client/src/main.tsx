@@ -6,7 +6,9 @@ import "./index.css";
 import "./sg-hub-modules.css";
 import "./chat-interno-hub.css";
 import "./usuarios-actividad-hub.css";
-import "./ventas-ingresos-hub.css";
+import "./presupuesto-hub.css";
+import "./rrhh-hub.css";
+import "./divisas-hub.css";
 import "./responsive.css";
 
 createRoot(document.getElementById("root")!).render(

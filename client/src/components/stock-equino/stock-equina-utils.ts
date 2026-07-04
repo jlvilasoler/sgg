@@ -301,7 +301,7 @@ export function progresoEtapaMacho(meses: number): number {
 export function fmtEdadAniosDesdeMeses(meses: number): string {
   const anios = meses / 12;
   const tieneResto = meses % 12 !== 0;
-  return anios.toLocaleString("es-AR", {
+  return anios.toLocaleString("es-UY", {
     minimumFractionDigits: tieneResto ? 1 : 0,
     maximumFractionDigits: tieneResto ? 1 : 0,
   });

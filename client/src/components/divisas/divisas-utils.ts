@@ -1,41 +1,12 @@
-export function fmtNum(n: number, decimals = 2): string {
-  return (n ?? 0).toLocaleString("es-AR", {
-    minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals,
-  });
-}
+import { APP_LOCALE, fmtDate, fmtDateHora, fmtNum, parseLocalDateFromIso } from "../../utils/format";
 
-function parseLocalDateFromIso(iso: string): Date | null {
-  if (!iso) return null;
-  const head = iso.slice(0, 10);
-  if (/^\d{4}-\d{2}-\d{2}$/.test(head)) {
-    const [y, m, day] = head.split("-").map(Number);
-    return new Date(y, m - 1, day);
-  }
-  const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? null : d;
-}
-
-export function fmtDate(iso: string): string {
-  const d = parseLocalDateFromIso(iso);
-  if (!d) return "";
-  const head = iso.slice(0, 10);
-  if (/^\d{4}-\d{2}-\d{2}$/.test(head)) {
-    const [y, m, day] = head.split("-");
-    return `${day}/${m}/${y}`;
-  }
-  return d.toLocaleDateString("es-UY", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
-}
+export { fmtDate, fmtDateHora, fmtNum, parseLocalDateFromIso };
 
 /** "2026-05-15" → "Jueves" */
 export function fmtDiaSemana(iso: string): string {
   const d = parseLocalDateFromIso(iso);
   if (!d) return "";
-  const nombre = d.toLocaleDateString("es-UY", { weekday: "long" });
+  const nombre = d.toLocaleDateString(APP_LOCALE, { weekday: "long" });
   return nombre.charAt(0).toUpperCase() + nombre.slice(1);
 }
 
@@ -49,26 +20,6 @@ export function fmtSemanaAnio(iso: string): string {
   const yearStart = new Date(Date.UTC(utc.getUTCFullYear(), 0, 1));
   const week = Math.ceil(((utc.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
   return `Semana ${week}`;
-}
-
-export function fmtDateHora(iso: string): { fecha: string; hora: string } | null {
-  if (!iso) return null;
-  const normalized = iso.includes("T") ? iso : iso.replace(" ", "T");
-  const d = new Date(normalized);
-  if (Number.isNaN(d.getTime())) return null;
-  return {
-    fecha: d.toLocaleDateString("es-UY", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    }),
-    hora: d.toLocaleTimeString("es-UY", {
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-      hour12: false,
-    }),
-  };
 }
 
 const MESES_ES = [
@@ -145,7 +96,7 @@ export function buildTcTendenciaMap(rows: TcRow[]): Map<number, TcTendencia> {
 
 export function fmtTcVariacionPct(pct: number): string {
   const sign = pct > 0 ? "+" : "";
-  return `${sign}${pct.toLocaleString("es-AR", {
+  return `${sign}${pct.toLocaleString(APP_LOCALE, {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}%`;

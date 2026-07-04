@@ -1,0 +1,166 @@
+import type { ProductoFichaSeed } from "./stock-control-sanitario-producto-fichas-seed.js";
+import {
+  buildFicha,
+  productoFichaFotoPath,
+} from "./stock-control-sanitario-producto-fichas-seed.js";
+
+function joinLines(lines: readonly string[]): string {
+  return lines.join("\n");
+}
+
+/** Fichas de productos exclusivos o de uso principal en equinos. */
+export const PRODUCTO_FICHAS_SEED_EQUINO: readonly ProductoFichaSeed[] = [
+  buildFicha({
+    nombre: "Banamine",
+    laboratorio: "Merck Animal Health / MSD.",
+    principio_activo: "Flunixin meglumine.",
+    presentacion: "Solución inyectable y oral para equinos.",
+    via_administracion: "IV, IM u oral según indicación.",
+    especie: "Equinos",
+    tiempo_espera_carne: "CONSULTAR RETIRO PARA CONSUMO DE CARNE EQUINA.",
+    tiempo_espera_leche: "NO APLICA.",
+    detalles_tecnicos: joinLines([
+      "• AINE de referencia en cólico, dolor musculoesquelético y procesos inflamatorios.",
+      "• Dosis y vía según protocolo veterinario y peso vivo.",
+    ]),
+    caracteristicas: "Uso frecuente en clínica equina para analgesia y control de inflamación.",
+  }),
+  buildFicha({
+    nombre: "Metacam",
+    laboratorio: "Boehringer Ingelheim.",
+    principio_activo: "Meloxicam.",
+    presentacion: "Solución inyectable y oral para equinos.",
+    via_administracion: "IV u oral.",
+    especie: "Equinos",
+    tiempo_espera_carne: "CONSULTAR RETIRO.",
+    tiempo_espera_leche: "NO APLICA.",
+    detalles_tecnicos: joinLines([
+      "• AINE COX-2 preferencial para dolor e inflamación en caballos.",
+      "• Manejo de osteoartritis, laminitis y postoperatorio.",
+    ]),
+    caracteristicas: "Referencia en medicina equina deportiva y de reproducción.",
+  }),
+  buildFicha({
+    nombre: "Equioxx",
+    laboratorio: "Zoetis.",
+    principio_activo: "Firocoxib.",
+    presentacion: "Tabletas masticables para equinos.",
+    via_administracion: "Oral.",
+    especie: "Equinos",
+    tiempo_espera_carne: "CONSULTAR RETIRO.",
+    tiempo_espera_leche: "NO APLICA.",
+    detalles_tecnicos: joinLines([
+      "• AINE COX-2 específico para caballos.",
+      "• Indicado en osteoartritis y control del dolor crónico.",
+    ]),
+    caracteristicas: "Formulación exclusiva equina de la línea Zoetis.",
+  }),
+  buildFicha({
+    nombre: "Eqvalan",
+    laboratorio: "MSD / Merck Animal Health.",
+    principio_activo: "Ivermectina.",
+    presentacion: "Pasta oral.",
+    via_administracion: "Oral.",
+    especie: "Equinos",
+    tiempo_espera_carne: "CONSULTAR RETIRO.",
+    tiempo_espera_leche: "NO APLICA.",
+    detalles_tecnicos: joinLines([
+      "• Endectocida oral de referencia en equinos.",
+      "• Control de nematodos, áscaridios y algunos ectoparásitos.",
+    ]),
+    caracteristicas: "Programas de desparasitación estratégica en caballos.",
+  }),
+  buildFicha({
+    nombre: "Equest",
+    laboratorio: "Zoetis.",
+    principio_activo: "Moxidectina.",
+    presentacion: "Gel oral 2%.",
+    via_administracion: "Oral.",
+    especie: "Equinos",
+    tiempo_espera_carne: "CONSULTAR RETIRO.",
+    tiempo_espera_leche: "NO APLICA.",
+    detalles_tecnicos: joinLines([
+      "• Endectocida de acción prolongada para equinos.",
+      "• Incluye control de áscaridios y estrategias de rotación.",
+    ]),
+    caracteristicas: "Uso habitual en potros y adultos en sistemas de cría y deporte.",
+  }),
+  buildFicha({
+    nombre: "Gastrogard",
+    laboratorio: "Merial / Boehringer Ingelheim.",
+    principio_activo: "Omeprazol.",
+    presentacion: "Pasta oral.",
+    via_administracion: "Oral.",
+    especie: "Equinos",
+    tiempo_espera_carne: "SIN RETIRO ESPECÍFICO HABITUAL.",
+    tiempo_espera_leche: "NO APLICA.",
+    detalles_tecnicos: joinLines([
+      "• Inhibidor de bomba de protones para úlcera gástrica equina.",
+      "• Tratamiento y prevención en caballos de alto rendimiento.",
+    ]),
+    caracteristicas: "Estándar en manejo de EGUS en equinos deportivos.",
+  }),
+  buildFicha({
+    nombre: "Dormosedan",
+    laboratorio: "Zoetis.",
+    principio_activo: "Detomidina.",
+    presentacion: "Solución inyectable y gel oral.",
+    via_administracion: "IV, IM u oral.",
+    especie: "Equinos",
+    tiempo_espera_carne: "CONSULTAR RETIRO.",
+    tiempo_espera_leche: "NO APLICA.",
+    detalles_tecnicos: joinLines([
+      "• Sedante y analgésico alfa-2 para procedimientos en equinos.",
+      "• Requiere monitoreo cardiorrespiratorio.",
+    ]),
+    caracteristicas: "Referencia en sedación equina clínica y de campo.",
+  }),
+  buildFicha({
+    nombre: "Regu-Mate",
+    laboratorio: "Merck Animal Health.",
+    principio_activo: "Altrenogest.",
+    presentacion: "Solución oral.",
+    via_administracion: "Oral.",
+    especie: "Equinos",
+    tiempo_espera_carne: "CONSULTAR RETIRO.",
+    tiempo_espera_leche: "NO APLICA.",
+    detalles_tecnicos: joinLines([
+      "• Progestágeno sintético para sincronización y supresión de celo en yeguas.",
+      "• Uso bajo supervisión veterinaria en reproducción equina.",
+    ]),
+    caracteristicas: "Herramienta central en manejo reproductivo de yeguas.",
+  }),
+  buildFicha({
+    nombre: "Equilis",
+    laboratorio: "MSD Salud Animal.",
+    principio_activo: "Vacuna contra influenza equina.",
+    presentacion: "Suspensión inyectable.",
+    via_administracion: "IM.",
+    especie: "Equinos",
+    tiempo_espera_carne: "NO APLICA — BIOLÓGICO.",
+    tiempo_espera_leche: "NO APLICA.",
+    detalles_tecnicos: joinLines([
+      "• Esquema de vacunación según calendario sanitario equino.",
+      "• Refuerzos previo a competencia o convivencia en haras.",
+    ]),
+    caracteristicas: "Vacunación preventiva en caballos de deporte y cría.",
+  }),
+  buildFicha({
+    nombre: "Strongid P",
+    laboratorio: "Zoetis.",
+    principio_activo: "Pamoato de pirantel.",
+    presentacion: "Pasta oral.",
+    via_administracion: "Oral.",
+    especie: "Equinos",
+    tiempo_espera_carne: "CONSULTAR RETIRO.",
+    tiempo_espera_leche: "NO APLICA.",
+    detalles_tecnicos: joinLines([
+      "• Desparasitante oral para áscaridios y nematodos en potros y adultos.",
+      "• Componente de programas de rotación antiparasitaria.",
+    ]),
+    caracteristicas: "Clásico en desparasitación equina.",
+  }),
+].map((f) => ({
+  ...f,
+  foto: f.foto ?? productoFichaFotoPath(f.nombre),
+}));
