@@ -188,6 +188,11 @@ export function canAccessPreciosGanado(user: AuthUser | null): boolean {
   return Boolean(user?.permisos.includes("precios_ganado"));
 }
 
+/** Ingresos por ventas: lectura/consulta del módulo ventas. */
+export function canAccessIngresosVentasModulo(user: AuthUser | null): boolean {
+  return Boolean(user?.permisos.includes("ventas"));
+}
+
 export function canAccessSimuladorVentaGanado(user: AuthUser | null): boolean {
   return Boolean(user?.permisos.includes("simulador_venta_ganado"));
 }
@@ -202,6 +207,13 @@ export function canWriteIngresosVentas(user: AuthUser | null): boolean {
   return canWriteModulo(user, "ventas");
 }
 
+/** Catálogo de rubros de ingresos por ventas: solo administrador y gestor nivel 1. */
+export function canManageVentaRubros(user: AuthUser | null): boolean {
+  if (!user) return false;
+  if (user.rol !== "admin" && user.rol !== "editor") return false;
+  return canWriteModulo(user, "ventas");
+}
+
 export function moduloForScreen(screen: TabId): Modulo {
   return SCREEN_MODULO[screen];
 }
@@ -212,6 +224,12 @@ export function canAccessScreen(user: AuthUser | null, screen: TabId): boolean {
   if (screen === "usuarios") return false;
   if (screen === "documentos_digitales") return canAccessDocumentosDigitales(user);
   if (screen === "panel_admin_sitio") return canAccessArquitecturaSistema(user);
+  if (screen === "ingresos_ventas") {
+    return canAccessIngresosVentasModulo(user) || canAccessSimuladorVentaGanado(user);
+  }
+  if (screen === "simulador_venta_ganado") {
+    return canAccessSimuladorVentaGanado(user);
+  }
   const mod = moduloForScreen(screen);
   if (MODULOS_SOLO_ADMIN.includes(mod)) return user.rol === "admin";
   if (MODULOS_ACCESO_TODOS.includes(mod)) return true;

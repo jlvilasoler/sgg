@@ -1,0 +1,779 @@
+/* —— Ingresos por ventas · hub —— */
+
+.ventas-ingresos--hub,
+.ventas-ganado-cerradas--hub {
+  --sg-hub-workspace: #f3f2ed;
+  --sg-hub-surface: #ffffff;
+  --sg-hub-accent: #7cb342;
+  --sg-hub-accent-soft: rgba(124, 179, 66, 0.16);
+  --sg-hub-radius-md: 0.65rem;
+  --sg-hub-radius-card: 1.35rem;
+  --sg-hub-radius-xl: 1.25rem;
+}
+
+.ventas-ingresos-hub-workspace,
+.ventas-ganado-hub-workspace {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  width: 100%;
+  min-width: 0;
+  padding: 0.15rem 0 0.5rem;
+}
+
+.ventas-ingresos-hub-page-head,
+.ventas-ganado-hub-page-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.65rem 1rem;
+  padding: 0.15rem 0.1rem 0.35rem;
+}
+
+.ventas-ingresos-hub-page-head .listado-pro-head-text,
+.ventas-ganado-hub-page-head .listado-pro-head-text {
+  min-width: 0;
+}
+
+/* KPI strip — una fila */
+.bn-ui .ventas-ingresos--hub .ventas-ingresos-kpi-strip.sg-hub-kpi-strip,
+.bn-ui .ventas-ganado-cerradas--hub .ventas-ganado-kpi-strip.sg-hub-kpi-strip,
+.bn-ui .ventas-ganado-cerradas--hub .ventas-ingresos-kpi-strip.sg-hub-kpi-strip {
+  grid-template-columns: repeat(var(--ventas-ingresos-kpi-cols, 4), minmax(0, 1fr));
+}
+
+.ventas-ingresos-kpi-strip--3 {
+  --ventas-ingresos-kpi-cols: 3;
+}
+
+.ventas-ingresos-kpi-strip--4,
+.ventas-ganado-kpi-strip {
+  --ventas-ingresos-kpi-cols: 4;
+}
+
+.bn-ui .ventas-ingresos--hub .ventas-ingresos-kpi-strip .sg-hub-kpi,
+.bn-ui .ventas-ganado-cerradas--hub .ventas-ingresos-kpi-strip .sg-hub-kpi,
+.bn-ui .ventas-ganado-cerradas--hub .ventas-ganado-kpi-strip .sg-hub-kpi {
+  min-height: 0;
+  padding: 0.75rem 0.85rem 0.7rem;
+  gap: 0.35rem;
+}
+
+.bn-ui .ventas-ingresos--hub .ventas-ingresos-kpi-strip .sg-hub-kpi-value,
+.bn-ui .ventas-ganado-cerradas--hub .ventas-ingresos-kpi-strip .sg-hub-kpi-value,
+.bn-ui .ventas-ganado-cerradas--hub .ventas-ganado-kpi-strip .sg-hub-kpi-value {
+  font-size: clamp(1.15rem, 1.35vw + 0.65rem, 1.65rem);
+}
+
+.bn-ui .ventas-ingresos--hub .ventas-ingresos-kpi-strip .sg-hub-kpi-hint,
+.bn-ui .ventas-ganado-cerradas--hub .ventas-ingresos-kpi-strip .sg-hub-kpi-hint,
+.bn-ui .ventas-ganado-cerradas--hub .ventas-ganado-kpi-strip .sg-hub-kpi-hint {
+  font-size: 0.68rem;
+  line-height: 1.35;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 1080px) {
+  .bn-ui .ventas-ingresos--hub .ventas-ingresos-kpi-strip.sg-hub-kpi-strip,
+  .bn-ui .ventas-ganado-cerradas--hub .ventas-ganado-kpi-strip.sg-hub-kpi-strip,
+  .bn-ui .ventas-ganado-cerradas--hub .ventas-ingresos-kpi-strip.sg-hub-kpi-strip {
+    grid-template-columns: repeat(var(--ventas-ingresos-kpi-cols, 4), minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .bn-ui .ventas-ingresos--hub .ventas-ingresos-kpi-strip.sg-hub-kpi-strip,
+  .bn-ui .ventas-ganado-cerradas--hub .ventas-ganado-kpi-strip.sg-hub-kpi-strip,
+  .bn-ui .ventas-ganado-cerradas--hub .ventas-ingresos-kpi-strip.sg-hub-kpi-strip {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: thin;
+    -webkit-overflow-scrolling: touch;
+    gap: 0.65rem;
+    padding-bottom: 0.15rem;
+  }
+
+  .bn-ui .ventas-ingresos--hub .ventas-ingresos-kpi-strip .sg-hub-kpi,
+  .bn-ui .ventas-ganado-cerradas--hub .ventas-ganado-kpi-strip .sg-hub-kpi,
+  .bn-ui .ventas-ganado-cerradas--hub .ventas-ingresos-kpi-strip .sg-hub-kpi {
+    flex: 0 0 min(42vw, 11.5rem);
+    min-width: 9.5rem;
+  }
+}
+
+.ventas-ingresos--hub .sg-hub-kpi-value--usd,
+.ventas-ganado-cerradas--hub .sg-hub-kpi-value--usd {
+  color: var(--sg-hub-accent);
+}
+
+.ventas-ingresos--hub .sg-hub-kpi--dark .sg-hub-kpi-value--usd,
+.ventas-ganado-cerradas--hub .sg-hub-kpi--dark .sg-hub-kpi-value--usd {
+  color: #a3e635;
+}
+
+.ventas-ingresos-hub-box,
+.ventas-ganado-hub-box {
+  min-width: 0;
+  padding: 0.75rem 0.85rem 0.8rem;
+  border: 1px solid var(--bn-border, #eaecef);
+  border-radius: var(--sg-hub-radius-md);
+  background: var(--sg-hub-surface);
+  box-shadow: 0 2px 10px rgba(30, 35, 41, 0.04);
+}
+
+.ventas-ingresos-hub-head-box,
+.ventas-ganado-hub-head-box {
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.65rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--bn-border, #eaecef) 88%, transparent);
+}
+
+.ventas-ingresos-hub-head-box .sg-hub-panel-kicker,
+.ventas-ganado-hub-head-box .sg-hub-panel-kicker {
+  margin: 0 0 0.2rem;
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sg-hub-accent);
+}
+
+.ventas-ingresos-hub-title,
+.ventas-ganado-hub-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--bn-text, #1e2329);
+}
+
+.ventas-ingresos-hub-sub,
+.ventas-ganado-hub-sub {
+  margin: 0.2rem 0 0;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--bn-muted, #707a8a);
+}
+
+.ventas-ingresos-hub-filters-box,
+.ventas-ganado-hub-filters-box {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.65rem 0.75rem;
+  margin-bottom: 0.85rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid color-mix(in srgb, var(--bn-border, #eaecef) 92%, transparent);
+  border-radius: var(--sg-hub-radius-md);
+  background: color-mix(in srgb, var(--sg-hub-workspace) 45%, var(--sg-hub-surface));
+}
+
+.ventas-ingresos-hub-filters-box .field label,
+.ventas-ganado-hub-filters-box .field label {
+  font-size: 0.72rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--bn-muted, #707a8a);
+}
+
+.ventas-ingresos-hub-filters-box input,
+.ventas-ingresos-hub-filters-box select,
+.ventas-ganado-hub-filters-box input,
+.ventas-ganado-hub-filters-box select {
+  border-color: var(--bn-border, #eaecef);
+  border-radius: var(--sg-hub-radius-md);
+  background: var(--sg-hub-surface);
+}
+
+.ventas-ingresos-hub-filters-box input:focus,
+.ventas-ingresos-hub-filters-box select:focus,
+.ventas-ganado-hub-filters-box input:focus,
+.ventas-ganado-hub-filters-box select:focus {
+  outline: none;
+  border-color: color-mix(in srgb, var(--sg-hub-accent) 45%, var(--bn-border, #eaecef));
+  box-shadow: 0 0 0 2px var(--sg-hub-accent-soft);
+}
+
+.ventas-ingresos-hub-filters-actions,
+.ventas-ganado-hub-filters-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+  margin-left: auto;
+}
+
+.ventas-ingresos--hub .ventas-ingresos-hub-table-box,
+.ventas-ganado-cerradas--hub .ventas-ganado-hub-table-box {
+  border: 1px solid var(--bn-border, #eaecef);
+  border-radius: var(--sg-hub-radius-md);
+  overflow: hidden;
+  box-shadow: none;
+}
+
+.ventas-ingresos--hub .ventas-ingresos-hub-box--listado .table-pagination,
+.ventas-ganado-cerradas--hub .ventas-ganado-hub-box--listado .table-pagination {
+  margin-top: 0.75rem;
+  padding-top: 0.65rem;
+  border-top: 1px solid color-mix(in srgb, var(--bn-border, #eaecef) 88%, transparent);
+}
+
+.ventas-ingresos--hub .data-table tfoot .data-table-totals td,
+.ventas-ganado-cerradas--hub .data-table tfoot .data-table-totals td {
+  background: color-mix(in srgb, var(--sg-hub-workspace) 55%, var(--sg-hub-surface));
+  border-top: 1px solid color-mix(in srgb, var(--bn-border, #eaecef) 88%, transparent);
+}
+
+.ventas-ingresos--hub .sim-historial-editing-banner,
+.ventas-ganado-cerradas--hub .sim-historial-editing-banner {
+  margin-bottom: 0.65rem;
+  border-radius: var(--sg-hub-radius-md);
+}
+
+/* Ganado cerradas */
+.ventas-ganado-cerradas--hub .ventas-ganado-totales {
+  display: none;
+}
+
+.ventas-ganado-cerradas--hub .ventas-ganado-destino-input {
+  border-radius: var(--sg-hub-radius-md);
+  border-color: color-mix(in srgb, var(--bn-border, #eaecef) 92%, transparent);
+  background: color-mix(in srgb, var(--sg-hub-workspace) 35%, var(--sg-hub-surface));
+}
+
+.ventas-ganado-cerradas--hub .ventas-ganado-destino-input:focus {
+  border-color: color-mix(in srgb, var(--sg-hub-accent) 45%, var(--bn-border, #eaecef));
+  box-shadow: 0 0 0 2px var(--sg-hub-accent-soft);
+}
+
+/* Rubros */
+.ventas-rubros--hub .listado-toolbar,
+.bn-ui .ventas-rubros-list-inner .listado-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.65rem;
+  margin-bottom: 0;
+  padding: 0.85rem 1rem 0;
+}
+
+.ventas-rubros--hub .listado-toolbar .filters-inline,
+.bn-ui .ventas-rubros-list-inner .listado-toolbar .filters-inline {
+  flex: 1 1 12rem;
+  margin: 0;
+}
+
+.bn-ui .ventas-rubros-list-inner .listado-toolbar .ventas-ingresos-hub-filters-box {
+  margin: 0;
+  width: 100%;
+}
+
+.ventas-rubros--hub .ventas-ingresos-hub-table-box.table-wrap-rubros,
+.bn-ui .ventas-rubros-list-inner .ventas-hub-table-box.table-wrap-rubros {
+  border: 1px solid var(--bn-border, #eaecef);
+  border-radius: var(--sg-hub-radius-md);
+  overflow: auto;
+  background: var(--sg-hub-surface, #fff);
+  margin: 0.85rem 1rem 1rem;
+}
+
+.bn-ui .ventas-rubros-list-inner .data-table-rubros thead th {
+  background: color-mix(in srgb, var(--sg-hub-workspace, #f3f2ed) 55%, #fff);
+}
+
+.bn-ui .ventas-rubros-list-inner .subrubro-grupo-row .subrubro-grupo-head-cell {
+  background: color-mix(in srgb, var(--sg-hub-workspace, #f3f2ed) 35%, var(--sg-hub-surface));
+}
+
+/* Rubros — bloques por grupo: bordes y separadores de columnas */
+.ventas-rubros--hub .data-table-rubros--hub-blocks,
+.bn-ui .ventas-rubros-list-inner .data-table-rubros--hub-blocks {
+  border-collapse: separate;
+  border-spacing: 0 0.7rem;
+  width: 100%;
+}
+
+.ventas-rubros--hub .data-table-rubros--hub-blocks thead th,
+.bn-ui .ventas-rubros-list-inner .data-table-rubros--hub-blocks thead th {
+  border-bottom: 2px solid color-mix(in srgb, var(--bn-border, #eaecef) 90%, #c8cdd4);
+  vertical-align: bottom;
+}
+
+.ventas-rubros--hub .data-table-rubros--hub-blocks thead th + th,
+.bn-ui .ventas-rubros-list-inner .data-table-rubros--hub-blocks thead th + th,
+.ventas-rubros--hub .data-table-rubros--hub-blocks tbody td + td,
+.bn-ui .ventas-rubros-list-inner .data-table-rubros--hub-blocks tbody td + td {
+  border-left: 1px solid color-mix(in srgb, var(--bn-border, #eaecef) 78%, transparent);
+}
+
+.ventas-rubros--hub .subrubro-grupo-block--hub tr td,
+.bn-ui .ventas-rubros-list-inner .subrubro-grupo-block--hub tr td {
+  border-color: color-mix(in srgb, var(--bn-border, #eaecef) 88%, #c5cad1);
+}
+
+.ventas-rubros--hub .subrubro-grupo-block--hub tr:first-child td,
+.bn-ui .ventas-rubros-list-inner .subrubro-grupo-block--hub tr:first-child td {
+  border-top: 1px solid color-mix(in srgb, var(--bn-border, #eaecef) 92%, #b8bec8);
+}
+
+.ventas-rubros--hub .subrubro-grupo-block--hub tr:last-child td,
+.bn-ui .ventas-rubros-list-inner .subrubro-grupo-block--hub tr:last-child td {
+  border-bottom: 1px solid color-mix(in srgb, var(--bn-border, #eaecef) 92%, #b8bec8);
+}
+
+.ventas-rubros--hub .subrubro-grupo-block--hub tr td:first-child,
+.bn-ui .ventas-rubros-list-inner .subrubro-grupo-block--hub tr td:first-child {
+  border-left: 1px solid color-mix(in srgb, var(--bn-border, #eaecef) 92%, #b8bec8);
+}
+
+.ventas-rubros--hub .subrubro-grupo-block--hub tr td:last-child,
+.bn-ui .ventas-rubros-list-inner .subrubro-grupo-block--hub tr td:last-child {
+  border-right: 1px solid color-mix(in srgb, var(--bn-border, #eaecef) 92%, #b8bec8);
+}
+
+.ventas-rubros--hub .subrubro-grupo-block--hub tr:first-child td:first-child,
+.bn-ui .ventas-rubros-list-inner .subrubro-grupo-block--hub tr:first-child td:first-child {
+  border-top-left-radius: var(--sg-hub-radius-md, 0.65rem);
+}
+
+.ventas-rubros--hub .subrubro-grupo-block--hub tr:first-child td:last-child,
+.bn-ui .ventas-rubros-list-inner .subrubro-grupo-block--hub tr:first-child td:last-child {
+  border-top-right-radius: var(--sg-hub-radius-md, 0.65rem);
+}
+
+.ventas-rubros--hub .subrubro-grupo-block--hub tr:last-child td:first-child,
+.bn-ui .ventas-rubros-list-inner .subrubro-grupo-block--hub tr:last-child td:first-child {
+  border-bottom-left-radius: var(--sg-hub-radius-md, 0.65rem);
+}
+
+.ventas-rubros--hub .subrubro-grupo-block--hub tr:last-child td:last-child,
+.bn-ui .ventas-rubros-list-inner .subrubro-grupo-block--hub tr:last-child td:last-child {
+  border-bottom-right-radius: var(--sg-hub-radius-md, 0.65rem);
+}
+
+.ventas-rubros--hub .subrubro-grupo-block--hub .subrubro-grupo-row td,
+.bn-ui .ventas-rubros-list-inner .subrubro-grupo-block--hub .subrubro-grupo-row td {
+  border-bottom: 2px solid color-mix(in srgb, var(--sg-hub-accent, #7cb342) 18%, var(--bn-border, #eaecef));
+  background: color-mix(in srgb, var(--sg-hub-workspace, #f3f2ed) 42%, var(--sg-hub-surface, #fff));
+}
+
+.ventas-rubros--hub .subrubro-grupo-block--hub .subrubro-item-row td,
+.bn-ui .ventas-rubros-list-inner .subrubro-grupo-block--hub .subrubro-item-row td {
+  background: var(--sg-hub-surface, #fff);
+  border-bottom: 1px solid color-mix(in srgb, var(--bn-border, #eaecef) 72%, transparent);
+}
+
+.ventas-rubros--hub .subrubro-grupo-block--hub .subrubro-item-row:last-child td,
+.bn-ui .ventas-rubros-list-inner .subrubro-grupo-block--hub .subrubro-item-row:last-child td {
+  border-bottom-color: transparent;
+}
+
+.ventas-rubros--hub .data-table-rubros--hub-blocks .subrubro-grupo-row:hover td,
+.bn-ui .ventas-rubros-list-inner .data-table-rubros--hub-blocks .subrubro-grupo-row:hover td {
+  background: color-mix(in srgb, var(--sg-hub-workspace, #f3f2ed) 48%, var(--sg-hub-surface, #fff));
+}
+
+.ventas-rubros--hub .data-table-rubros--hub-blocks .subrubro-item-row:hover td,
+.bn-ui .ventas-rubros-list-inner .data-table-rubros--hub-blocks .subrubro-item-row:hover td {
+  background: color-mix(in srgb, var(--sg-hub-workspace, #f3f2ed) 38%, #fff);
+}
+
+.ventas-rubros--hub .subrubro-grupo-block--hub .subrubro-item-row.subrubro-row--editing td,
+.bn-ui .ventas-rubros-list-inner .subrubro-grupo-block--hub .subrubro-item-row.subrubro-row--editing td {
+  background: color-mix(in srgb, var(--sg-hub-accent-soft, rgba(124, 179, 66, 0.16)) 55%, #fff);
+}
+
+.ventas-rubros--hub .btn.btn-accent {
+  display: none;
+}
+
+/* Módulo ventas — shell ancho como Stock Ganadero */
+.bn-ui .ventas-module-page {
+  --sg-hub-sidebar: #1a211a;
+  --sg-hub-sidebar-soft: #242d24;
+  --sg-hub-sidebar-text: rgba(248, 246, 240, 0.92);
+  --sg-hub-sidebar-muted: rgba(248, 246, 240, 0.55);
+  --sg-hub-workspace: #f3f2ed;
+  --sg-hub-surface: #ffffff;
+  --sg-hub-accent: #7cb342;
+  --sg-hub-accent-soft: rgba(124, 179, 66, 0.16);
+  --sg-hub-radius-xl: 1.25rem;
+  --sg-hub-radius-lg: 1rem;
+  --sg-hub-radius-md: 0.65rem;
+  --sg-hub-radius-card: 1.35rem;
+  min-height: min(42rem, calc(100dvh - 11rem));
+  width: 100%;
+  max-width: none;
+}
+
+.page-main.bn-ui:has(.ventas-module-page) {
+  max-width: none;
+  width: 100%;
+  padding-left: max(0.45rem, env(safe-area-inset-left, 0px));
+  padding-right: max(0.45rem, env(safe-area-inset-right, 0px));
+}
+
+@media (min-width: 900px) {
+  .page-main.bn-ui:has(.ventas-module-page) {
+    padding-left: max(0.65rem, env(safe-area-inset-left, 0px));
+    padding-right: max(0.65rem, env(safe-area-inset-right, 0px));
+  }
+}
+
+.bn-ui .ventas-module-page .sg-hub--module {
+  width: 100%;
+}
+
+.bn-ui .ventas-module-page .ventas-ingresos-dashboard {
+  margin-bottom: 0;
+}
+
+.bn-ui .ventas-module-page .ventas-ingresos-kpi-summary {
+  grid-template-columns: repeat(var(--ventas-ingresos-kpi-cols, 4), minmax(0, 1fr));
+}
+
+.bn-ui .ventas-module-page .ventas-ingresos-kpi-summary .sg-hub-kpi--dark {
+  background: linear-gradient(145deg, #1a2318 0%, #243326 55%, #2a3d2c 100%);
+}
+
+.bn-ui .ventas-module-page .ventas-ingresos-list-panel {
+  margin-top: 0;
+}
+
+.bn-ui .ventas-module-page .ventas-ingresos-list-panel .ventas-ingresos-hub-filters-box {
+  margin: 0.85rem 1rem;
+}
+
+.bn-ui .ventas-module-page .ventas-ingresos-list-panel .ventas-ingresos-list-head {
+  padding: 0.85rem 1rem 0;
+  margin-bottom: 0;
+}
+
+.bn-ui .ventas-module-page .ventas-ingresos-list-panel .ventas-ingresos-list-banner {
+  margin: 0 1rem 0.75rem;
+}
+
+/* Contenedor de tabla dentro del panel blanco */
+.bn-ui .ventas-hub-table-box,
+.bn-ui .ventas-simulador-panel .ventas-hub-table-box {
+  margin: 0 1rem 0.85rem;
+  border: 1px solid color-mix(in srgb, var(--bn-border, #eaecef) 92%, transparent);
+  border-radius: var(--sg-hub-radius-md);
+  overflow: auto;
+  background: var(--sg-hub-surface, #fff);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+.bn-ui .ventas-ingresos-list-panel .ventas-hub-table-box.sim-historial-table-wrap {
+  padding: 0.55rem 0.65rem 0.65rem;
+  -webkit-overflow-scrolling: touch;
+}
+
+.bn-ui .ventas-ingresos-list-panel .ventas-hub-table-box.table-wrap {
+  padding: 0;
+}
+
+.bn-ui .ventas-hub-table-box .sim-historial-table thead th {
+  background: color-mix(in srgb, var(--sg-hub-workspace, #f3f2ed) 55%, #fff);
+}
+
+.bn-ui .ventas-hub-table-box .sim-historial-table tbody td:first-child {
+  border-top-left-radius: var(--sg-hub-radius-md);
+  border-bottom-left-radius: var(--sg-hub-radius-md);
+}
+
+.bn-ui .ventas-hub-table-box .sim-historial-table tbody td:last-child {
+  border-top-right-radius: var(--sg-hub-radius-md);
+  border-bottom-right-radius: var(--sg-hub-radius-md);
+}
+
+.bn-ui .ventas-module-page .ventas-ingresos-list-panel .table-pagination {
+  padding: 0 1rem 0.85rem;
+}
+
+/* Formulario simulador — panel blanco único */
+.bn-ui .ventas-agricultura-form-hub {
+  --form-control-h: 2.35rem;
+  padding: 0;
+  overflow: hidden;
+  margin-bottom: 0.85rem;
+  width: 100%;
+  min-width: 0;
+}
+
+.bn-ui .ventas-agricultura-form-hub .sim-calc-editing-banner {
+  margin: 0.75rem 1rem 0;
+}
+
+.bn-ui .ventas-agricultura-form-hub .form-grid {
+  padding: 0.85rem 1rem 0;
+  margin: 0;
+}
+
+.bn-ui .ventas-agricultura-form-hub .form-grid > .field > input,
+.bn-ui .ventas-agricultura-form-hub .form-grid > .field > select,
+.bn-ui .ventas-agricultura-form-hub .ventas-agricultura-zafra-grid .field > input,
+.bn-ui .ventas-agricultura-form-hub .ventas-agricultura-zafra-grid .field > select,
+.bn-ui .ventas-agricultura-form-hub .ventas-arrendamiento-fechas-grid .field > input,
+.bn-ui .ventas-agricultura-form-hub .ventas-arrendamiento-fechas-grid .field > select,
+.bn-ui .ventas-agricultura-form-hub .ventas-arrendamiento-pagos-grid .field > input,
+.bn-ui .ventas-agricultura-form-hub .ventas-arrendamiento-pago-monto-group .field > input,
+.bn-ui .ventas-agricultura-form-hub .ventas-arrendamiento-importe-inputs .field > input,
+.bn-ui .ventas-agricultura-form-hub .ventas-arrendamiento-notas textarea {
+  height: var(--form-control-h);
+  min-height: var(--form-control-h);
+  box-sizing: border-box;
+  padding: 0.48rem 0.55rem;
+  font-size: 0.84rem;
+  border-color: var(--bn-border, #eaecef);
+  border-radius: var(--sg-hub-radius-md);
+  background: var(--sg-hub-surface);
+}
+
+.bn-ui .ventas-agricultura-form-hub .form-grid > .field > input:focus,
+.bn-ui .ventas-agricultura-form-hub .form-grid > .field > select:focus,
+.bn-ui .ventas-agricultura-form-hub .ventas-agricultura-zafra-grid .field > select:focus,
+.bn-ui .ventas-agricultura-form-hub .ventas-arrendamiento-fechas-grid .field > input:focus,
+.bn-ui .ventas-agricultura-form-hub .ventas-arrendamiento-fechas-grid .field > select:focus {
+  outline: none;
+  border-color: color-mix(in srgb, var(--sg-hub-accent) 45%, var(--bn-border, #eaecef));
+  box-shadow: 0 0 0 2px var(--sg-hub-accent-soft);
+}
+
+.bn-ui .ventas-agricultura-form-hub label {
+  color: var(--bn-muted, #707a8a);
+  font-size: 0.72rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.bn-ui .ventas-agricultura-form-hub .ventas-agricultura-zafra,
+.bn-ui .ventas-agricultura-form-hub .ventas-arrendamiento-fechas,
+.bn-ui .ventas-agricultura-form-hub .ventas-arrendamiento-pagos {
+  background: color-mix(in srgb, var(--sg-hub-workspace) 50%, var(--sg-hub-surface));
+  border: 1px solid color-mix(in srgb, var(--bn-border, #eaecef) 92%, transparent);
+  border-radius: var(--sg-hub-radius-md);
+}
+
+.bn-ui .ventas-agricultura-form-hub .ventas-agricultura-resumen {
+  margin: 1rem 1rem 0;
+  background: color-mix(in srgb, var(--sg-hub-workspace) 45%, var(--sg-hub-surface));
+  border: 1px solid color-mix(in srgb, var(--bn-border, #eaecef) 92%, transparent);
+  border-radius: var(--sg-hub-radius-md);
+}
+
+.bn-ui .ventas-agricultura-form-hub .ventas-agricultura-form-actions {
+  margin: 0;
+  padding: 0.85rem 1rem 1rem;
+  border-top: 1px solid var(--bn-border-soft, #f0f1f3);
+}
+
+.bn-ui .ventas-agricultura-form-hub .ventas-arrendamiento-modalidad-btn.is-active,
+.bn-ui .ventas-agricultura-form-hub .ventas-arrendamiento-modalidad-btn.is-active:hover:not(:disabled) {
+  background: var(--sg-hub-accent) !important;
+  border-color: var(--sg-hub-accent) !important;
+  color: #fff !important;
+}
+
+.bn-ui .ventas-agricultura-form-hub .ventas-agricultura-cultivo-select {
+  position: relative;
+}
+
+.bn-ui .ventas-agricultura-form-hub .ventas-agricultura-cultivo-select .stock-control-sanitario-field-trigger {
+  width: 100%;
+  min-height: 2.45rem;
+  padding: 0.55rem 2rem 0.55rem 0.75rem;
+  border-radius: var(--sg-hub-radius-md, 0.65rem);
+  border: 1px solid color-mix(in srgb, var(--bn-border, #eaecef) 92%, transparent);
+  background: var(--sg-hub-surface, #fff);
+  text-align: left;
+  font-size: 0.92rem;
+}
+
+.bn-ui .ventas-agricultura-form-hub .ventas-agricultura-cultivo-select .stock-control-sanitario-field-trigger:focus-visible {
+  outline: none;
+  border-color: color-mix(in srgb, var(--sg-hub-accent) 45%, var(--bn-border, #eaecef));
+  box-shadow: 0 0 0 2px var(--sg-hub-accent-soft);
+}
+
+.bn-ui .ventas-agricultura-form-hub .ventas-agricultura-cultivo-select .proveedor-panel {
+  z-index: 40;
+}
+
+.bn-ui .ventas-module-page .ventas-ingresos-list-panel .table-pagination {
+  margin-top: 0.75rem;
+  padding-top: 0.65rem;
+  border-top: 1px solid color-mix(in srgb, var(--bn-border, #eaecef) 88%, transparent);
+}
+
+/* Simulador dentro del hub de ingresos */
+.ventas-simulador-hub-inner {
+  width: 100%;
+  min-width: 0;
+}
+
+.ventas-simulador-hub-grid .sg-hub-module-grid {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr));
+}
+
+/* Submenú anidado en sidebar ventas */
+.bn-ui .sg-hub-nav-item--nested {
+  font-size: 0.78rem;
+}
+
+.bn-ui .sg-hub-nav-item.is-active-group {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--sg-hub-sidebar-text);
+}
+
+.bn-ui .sg-hub-nav-chevron {
+  margin-left: auto;
+  flex-shrink: 0;
+  opacity: 0.55;
+  transition: transform 0.18s ease;
+}
+
+.bn-ui .sg-hub-nav-chevron.is-open {
+  transform: rotate(180deg);
+}
+
+.bn-ui .sg-hub-nav-children {
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+  margin: 0.05rem 0 0.2rem;
+  padding-left: 0.15rem;
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+  margin-left: 1.35rem;
+}
+
+.bn-ui .sg-hub-nav-children .sg-hub-nav-item--nested .sg-hub-nav-icon {
+  transform: scale(0.9);
+}
+
+/* Simulador ganado — paneles estructurados */
+.bn-ui .simulador-venta-layout--hub {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  width: 100%;
+  min-width: 0;
+}
+
+.bn-ui .ventas-simulador-panel {
+  padding: 0;
+  overflow: hidden;
+  width: 100%;
+  min-width: 0;
+}
+
+.bn-ui .ventas-simulador-calc-panel .ventas-simulador-readonly-banner,
+.bn-ui .ventas-simulador-calc-panel .ventas-simulador-editing-banner {
+  margin: 0.75rem 1rem 0;
+}
+
+.bn-ui .ventas-simulador-calc-toolbar {
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid var(--bn-border-soft, #f0f1f3);
+  margin: 0;
+}
+
+.bn-ui .ventas-simulador-calc-toolbar .sim-calc-head h2 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.bn-ui .ventas-simulador-kpi-box {
+  margin: 0.85rem 1rem 0;
+  padding: 0.75rem 1rem;
+  border-radius: var(--sg-hub-radius-md);
+  border: 1px solid color-mix(in srgb, var(--bn-border, #eaecef) 92%, transparent);
+  background: color-mix(in srgb, var(--sg-hub-workspace, #f3f2ed) 45%, var(--sg-hub-surface));
+}
+
+.bn-ui .ventas-simulador-kpi-box .simulador-venta-resultado {
+  margin: 0;
+  padding: 0;
+  min-height: 0;
+  border: none;
+  background: transparent;
+  border-radius: 0;
+}
+
+.bn-ui .ventas-simulador-form-box {
+  margin: 0.85rem 1rem 1rem;
+  padding: 0.85rem 1rem 1rem;
+  border-radius: var(--sg-hub-radius-md);
+  border: 1px solid color-mix(in srgb, var(--bn-border, #eaecef) 92%, transparent);
+  background: var(--sg-hub-surface, #fff);
+}
+
+.bn-ui .ventas-simulador-form-box .sim-calc-form {
+  padding: 0;
+  margin: 0;
+}
+
+.bn-ui .ventas-simulador-calc-panel .sim-calc-field-compact label,
+.bn-ui .ventas-simulador-calc-panel .sim-calc-notas label {
+  font-size: 0.72rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--bn-muted, #707a8a);
+}
+
+.bn-ui .ventas-simulador-calc-panel .sim-calc-field-compact input,
+.bn-ui .ventas-simulador-calc-panel .sim-calc-notas input {
+  border-color: var(--bn-border, #eaecef);
+  border-radius: var(--sg-hub-radius-md);
+  background: var(--sg-hub-surface, #fff);
+}
+
+.bn-ui .ventas-simulador-calc-panel .sim-calc-field-compact input:focus,
+.bn-ui .ventas-simulador-calc-panel .sim-calc-notas input:focus {
+  outline: none;
+  border-color: color-mix(in srgb, var(--sg-hub-accent) 45%, var(--bn-border, #eaecef));
+  box-shadow: 0 0 0 2px var(--sg-hub-accent-soft);
+}
+
+.bn-ui .ventas-simulador-calc-panel .simulador-venta-modo {
+  border-radius: var(--sg-hub-radius-md);
+  border-color: var(--bn-border, #eaecef);
+  background: color-mix(in srgb, var(--sg-hub-workspace, #f3f2ed) 40%, var(--sg-hub-surface));
+}
+
+.bn-ui .ventas-simulador-calc-panel .simulador-venta-modo-btn.is-active {
+  background: var(--sg-hub-surface, #fff);
+  color: var(--sg-hub-accent, #7cb342);
+  box-shadow: 0 1px 3px rgba(30, 35, 41, 0.08);
+}
+
+.bn-ui .ventas-simulador-calc-panel .simulador-venta-precio-row .btn-secondary {
+  border-radius: var(--sg-hub-radius-md);
+  border-color: var(--bn-border, #eaecef);
+  font-size: 0.78rem;
+  font-weight: 650;
+}
+
+.bn-ui .ventas-simulador-calc-panel .sim-calc-actions {
+  margin-left: auto;
+}
+
+.bn-ui .ventas-simulador-historial-panel .sim-historial-head {
+  border-bottom: 1px solid var(--bn-border-soft, #f0f1f3);
+  padding: 0.85rem 1rem;
+  margin-bottom: 0;
+}
+
+.bn-ui .ventas-simulador-historial-panel .ventas-hub-table-box {
+  margin-top: 0.85rem;
+}

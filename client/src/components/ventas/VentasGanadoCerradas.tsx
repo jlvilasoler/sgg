@@ -9,6 +9,11 @@ import TablePagination, {
   type PageSize,
 } from "../TablePagination";
 import { PageModuleHeadRow } from "../PageModuleHead";
+import {
+  VentasDashKpi,
+  VentasIngresosDashPanel,
+  VentasIngresosListPanel,
+} from "./VentasIngresosDashUi";
 
 const DESTINO_SUGERENCIAS = [
   "Frigorífico",
@@ -23,6 +28,7 @@ interface Props {
   onSuccess?: (msg: string) => void;
   onVolver: () => void;
   puedeEditar?: boolean;
+  embedded?: boolean;
 }
 
 function categoriaLabel(row: SimuladorVentaGanadoRow): string {
@@ -45,6 +51,7 @@ export default function VentasGanadoCerradas({
   onSuccess,
   onVolver,
   puedeEditar = true,
+  embedded = false,
 }: Props) {
   const [rows, setRows] = useState<SimuladorVentaGanadoRow[]>([]);
   const [fechaDesde, setFechaDesde] = useState("");
@@ -141,103 +148,171 @@ export default function VentasGanadoCerradas({
     );
   }, [rows]);
 
-  return (
-    <div className="subseccion-panel">
-      <button type="button" className="subseccion-back" onClick={onVolver}>
-        ‹ Volver a Ingresos por ventas
-      </button>
+  const tieneFiltros = Boolean(fechaDesde || fechaHasta || busqueda.trim() || tipo);
 
-      {!puedeEditar && (
-        <div className="sim-historial-editing-banner sim-calc-editing-banner" role="status">
-          <span>Tu rol solo permite consultar ingresos por ventas</span>
+  const hubKpiStrip = embedded ? (
+    <VentasIngresosDashPanel title="Resumen de ventas cerradas">
+      <VentasDashKpi
+        kicker="Ventas"
+        value={loading || !apiOnline ? "—" : rows.length}
+        hint="Operaciones cerradas"
+        variant="dark"
+      />
+      <VentasDashKpi
+        kicker="Cabezas"
+        value={loading || !apiOnline ? "—" : fmtNum(totales.cabezas, 0)}
+        hint="Total en el listado"
+        variant="light"
+        highlight="mid"
+      />
+      <VentasDashKpi
+        kicker="Kg"
+        value={loading || !apiOnline ? "—" : fmtNum(totales.kg, 1)}
+        hint="Peso total embarcado"
+        variant="light"
+      />
+      <VentasDashKpi
+        kicker="Total USD"
+        value={loading || !apiOnline ? "—" : fmtUsd(totales.totalUsd)}
+        hint="Monto acumulado"
+        variant="light"
+      />
+    </VentasIngresosDashPanel>
+  ) : (
+    <section
+      className="sg-hub-kpi-strip ventas-ingresos-kpi-strip ventas-ingresos-kpi-strip--4 ventas-ganado-kpi-strip"
+      aria-label="Totales de ventas cerradas"
+    >
+      <article className="sg-hub-kpi sg-hub-kpi--dark">
+        <div className="sg-hub-kpi-top">
+          <div>
+            <p className="sg-hub-kpi-kicker">Ventas</p>
+            <p className="sg-hub-kpi-value">{loading || !apiOnline ? "—" : rows.length}</p>
+          </div>
         </div>
-      )}
-
-      <div className="card">
-        <div className="form-header">
-          <PageModuleHeadRow
-            icon={{ source: "hub", id: "ventas_ganado_cerradas" }}
-            title="Ventas de ganado cerradas"
-            subtitle={
-              loading
-                ? "Cargando..."
-                : `${rows.length} venta(s) cerrada(s) desde el simulador — Total USD: ${fmtUsd(totales.totalUsd)}`
-            }
-          />
+        <p className="sg-hub-kpi-hint">Operaciones cerradas</p>
+      </article>
+      <article className="sg-hub-kpi sg-hub-kpi--light">
+        <div className="sg-hub-kpi-top">
+          <div>
+            <p className="sg-hub-kpi-kicker">Cabezas</p>
+            <p className="sg-hub-kpi-value">
+              {loading || !apiOnline ? "—" : fmtNum(totales.cabezas, 0)}
+            </p>
+          </div>
         </div>
-
-        <div className="filters mayusculas-auto">
-          <div className="field">
-            <label htmlFor="vg-f-desde">Embarque desde</label>
-            <input
-              id="vg-f-desde"
-              type="date"
-              value={fechaDesde}
-              onChange={(e) => setFechaDesde(e.target.value)}
-            />
+        <p className="sg-hub-kpi-hint">Total en el listado</p>
+      </article>
+      <article className="sg-hub-kpi sg-hub-kpi--light">
+        <div className="sg-hub-kpi-top">
+          <div>
+            <p className="sg-hub-kpi-kicker">Kg</p>
+            <p className="sg-hub-kpi-value">
+              {loading || !apiOnline ? "—" : fmtNum(totales.kg, 1)}
+            </p>
           </div>
-          <div className="field">
-            <label htmlFor="vg-f-hasta">Embarque hasta</label>
-            <input
-              id="vg-f-hasta"
-              type="date"
-              value={fechaHasta}
-              onChange={(e) => setFechaHasta(e.target.value)}
-            />
-          </div>
-          <div className="field">
-            <label htmlFor="vg-tipo">Tipo</label>
-            <select
-              id="vg-tipo"
-              value={tipo}
-              onChange={(e) => setTipo(e.target.value as "" | SimuladorVentaTipo)}
-            >
-              <option value="">Todos</option>
-              <option value="EN_PIE">Venta en pie</option>
-              <option value="CUARTA_BALANZA">Venta en cuarta balanza</option>
-            </select>
-          </div>
-          <div className="field flex-grow">
-            <label htmlFor="vg-busq">Buscar</label>
-            <input
-              id="vg-busq"
-              type="search"
-              placeholder="N° operación, categoría, destino, usuario…"
-              value={busqueda}
-              onChange={(e) => setBusqueda(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && load()}
-            />
-          </div>
-          <button type="button" className="btn btn-primary" onClick={load}>
-            Buscar
-          </button>
         </div>
-
-        {!loading && apiOnline && rows.length > 0 && (
-          <div className="ventas-ganado-totales" aria-label="Totales de ventas cerradas">
-            <span>
-              <strong>{rows.length}</strong> ventas
-            </span>
-            <span>
-              <strong>{fmtNum(totales.cabezas, 0)}</strong> cabezas
-            </span>
-            <span>
-              <strong>{fmtNum(totales.kg, 1)}</strong> kg
-            </span>
-            <span className="ventas-ganado-totales-usd">
-              <strong>{fmtUsd(totales.totalUsd)}</strong> USD
-            </span>
+        <p className="sg-hub-kpi-hint">Peso total embarcado</p>
+      </article>
+      <article className="sg-hub-kpi sg-hub-kpi--light">
+        <div className="sg-hub-kpi-top">
+          <div>
+            <p className="sg-hub-kpi-kicker">Total USD</p>
+            <p className="sg-hub-kpi-value sg-hub-kpi-value--usd">
+              {loading || !apiOnline ? "—" : fmtUsd(totales.totalUsd)}
+            </p>
           </div>
-        )}
+        </div>
+        <p className="sg-hub-kpi-hint">Monto acumulado</p>
+      </article>
+    </section>
+  );
 
-        <datalist id="vg-destino-sugerencias">
-          {DESTINO_SUGERENCIAS.map((item) => (
-            <option key={item} value={item} />
-          ))}
-        </datalist>
+  const filtersBar = (
+    <div className="ventas-ingresos-hub-filters-box mayusculas-auto">
+      <div className="field">
+        <label htmlFor="vg-f-desde">Embarque desde</label>
+        <input
+          id="vg-f-desde"
+          type="date"
+          value={fechaDesde}
+          disabled={!apiOnline || loading}
+          onChange={(e) => setFechaDesde(e.target.value)}
+        />
+      </div>
+      <div className="field">
+        <label htmlFor="vg-f-hasta">Embarque hasta</label>
+        <input
+          id="vg-f-hasta"
+          type="date"
+          value={fechaHasta}
+          disabled={!apiOnline || loading}
+          onChange={(e) => setFechaHasta(e.target.value)}
+        />
+      </div>
+      <div className="field">
+        <label htmlFor="vg-tipo">Tipo</label>
+        <select
+          id="vg-tipo"
+          value={tipo}
+          disabled={!apiOnline || loading}
+          onChange={(e) => setTipo(e.target.value as "" | SimuladorVentaTipo)}
+        >
+          <option value="">Todos</option>
+          <option value="EN_PIE">Venta en pie</option>
+          <option value="CUARTA_BALANZA">Venta en cuarta balanza</option>
+        </select>
+      </div>
+      <div className="field flex-grow">
+        <label htmlFor="vg-busq">Buscar</label>
+        <input
+          id="vg-busq"
+          type="search"
+          placeholder="N° operación, categoría, destino, usuario…"
+          value={busqueda}
+          disabled={!apiOnline || loading}
+          onChange={(e) => setBusqueda(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && load()}
+        />
+      </div>
+      <div className="ventas-ingresos-hub-filters-actions">
+        <button
+          type="button"
+          className="sg-hub-cta sg-hub-cta--ghost"
+          disabled={!apiOnline || loading || !tieneFiltros}
+          onClick={() => {
+            setFechaDesde("");
+            setFechaHasta("");
+            setBusqueda("");
+            setTipo("");
+          }}
+        >
+          Limpiar
+        </button>
+        <button
+          type="button"
+          className="sg-hub-cta"
+          disabled={!apiOnline || loading}
+          onClick={() => void load()}
+        >
+          Buscar
+        </button>
+      </div>
+    </div>
+  );
 
-        <div className="table-wrap">
-          <table className="data-table ventas-ganado-table">
+  const listadoInner = (
+    <>
+      {filtersBar}
+
+      <datalist id="vg-destino-sugerencias">
+        {DESTINO_SUGERENCIAS.map((item) => (
+          <option key={item} value={item} />
+        ))}
+      </datalist>
+
+      <div className={`table-wrap${embedded ? " ventas-ingresos-hub-table-box" : " ventas-ganado-hub-table-box"}`}>
+        <table className="data-table ventas-ganado-table">
             <thead>
               <tr>
                 <th>N° oper.</th>
@@ -358,6 +433,74 @@ export default function VentasGanadoCerradas({
             }}
           />
         )}
+    </>
+  );
+
+  if (embedded) {
+    return (
+      <>
+        {!puedeEditar && (
+          <div className="sim-historial-editing-banner sim-calc-editing-banner" role="status">
+            <span>Tu rol solo permite consultar ingresos por ventas</span>
+          </div>
+        )}
+        {hubKpiStrip}
+        <VentasIngresosListPanel>{listadoInner}</VentasIngresosListPanel>
+      </>
+    );
+  }
+
+  return (
+    <div className="subseccion-panel ventas-ingresos--hub ventas-ganado-cerradas ventas-ganado-cerradas--hub">
+      <button type="button" className="subseccion-back" onClick={onVolver}>
+        ‹ Volver a Ingresos por ventas
+      </button>
+
+      {!puedeEditar && (
+        <div className="sim-historial-editing-banner sim-calc-editing-banner" role="status">
+          <span>Tu rol solo permite consultar ingresos por ventas</span>
+        </div>
+      )}
+
+      <div className="ventas-ingresos-hub-workspace">
+        <header className="ventas-ingresos-hub-page-head">
+          <PageModuleHeadRow
+            icon={{ source: "hub", id: "ventas_ganado_cerradas" }}
+            title="Ventas de ganado cerradas"
+            subtitle={
+              loading
+                ? "Cargando ventas del simulador…"
+                : `${rows.length} venta(s) cerrada(s) desde el simulador`
+            }
+            titleClassName="listado-pro-head-title"
+            subClassName="listado-pro-head-sub"
+            textClassName="listado-pro-head-text"
+          />
+          <span
+            className={`sg-hub-status${apiOnline ? " sg-hub-status--online" : ""}`}
+            role="status"
+          >
+            {apiOnline ? "API conectada" : "Sin conexión API"}
+          </span>
+        </header>
+
+        {hubKpiStrip}
+
+        <section
+          className="ventas-ingresos-hub-box ventas-ingresos-hub-box--listado"
+          aria-label="Listado de ventas cerradas"
+        >
+          <header className="ventas-ingresos-hub-head-box">
+            <p className="sg-hub-panel-kicker">Listado</p>
+            <h2 className="ventas-ingresos-hub-title">Operaciones cerradas</h2>
+            <p className="ventas-ingresos-hub-sub muted">
+              Filtrá por fecha de embarque, tipo o texto libre. Editá el destino directamente en
+              la tabla.
+            </p>
+          </header>
+
+          {listadoInner}
+        </section>
       </div>
     </div>
   );

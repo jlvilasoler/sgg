@@ -16,7 +16,6 @@ import TablePagination, {
 } from "../TablePagination";
 import {
   ANIOS_AGRICULTURA,
-  CULTIVOS_AGRICULTURA,
   empresasSelectOptions,
   MESES_AGRICULTURA,
   calcularImporteAgricultura,
@@ -33,19 +32,28 @@ import {
   labelEmpresaAgricultura,
   parsePositiveDecimal,
   VENTAS_AGRICULTURA_COPY,
-  type CultivoAgriculturaId,
   type EmpresaAgricultura,
   type MesAgricultura,
   type VentasAgriculturaModo,
 } from "./ventas-agricultura-utils";
+import VentasAgriculturaCultivoSelect from "./VentasAgriculturaCultivoSelect";
+import {
+  fetchCultivosVentaAgricultura,
+  normalizeCultivoNombre,
+} from "./ventas-agricultura-cultivos";
 import VentasAgriculturaTablaFila from "./VentasAgriculturaTablaFila";
 import {
   importeEfectivoAgricultura,
   normalizeVentaAgriculturaRow,
   tonEfectivaAgricultura,
 } from "./ventas-agricultura-real-utils";
-import { canWriteSimuladorVentaGanado, canWriteIngresosVentas } from "../../utils/auth-permissions";
+import { canWriteSimuladorVentaGanado, canWriteIngresosVentas, canManageVentaRubros } from "../../utils/auth-permissions";
 import { PageModuleHeadRow } from "../PageModuleHead";
+import {
+  VentasDashKpi,
+  VentasIngresosDashPanel,
+  VentasIngresosListPanel,
+} from "./VentasIngresosDashUi";
 
 interface Props {
   catalogos: Catalogos;
@@ -55,6 +63,7 @@ interface Props {
   onVolver: () => void;
   modo?: VentasAgriculturaModo;
   user?: AuthUser | null;
+  embedded?: boolean;
 }
 
 export default function VentasAgricultura({
@@ -65,6 +74,7 @@ export default function VentasAgricultura({
   onVolver,
   modo = "ingresos",
   user = null,
+  embedded = false,
 }: Props) {
   const copy = VENTAS_AGRICULTURA_COPY[modo];
   const [empresasCuenta, setEmpresasCuenta] = useState<string[]>(catalogos.empresas);
@@ -76,12 +86,14 @@ export default function VentasAgricultura({
   const puedeEditar = esSimulador
     ? canWriteSimuladorVentaGanado(user)
     : canWriteIngresosVentas(user);
+  const puedeAgregarCultivo = canManageVentaRubros(user);
   const formRef = useRef<HTMLFormElement>(null);
   const [empresa, setEmpresa] = useState<EmpresaAgricultura>("");
   const [zafraInicio, setZafraInicio] = useState("");
   const [zafraFin, setZafraFin] = useState("");
   const [hectareas, setHectareas] = useState("");
-  const [cultivo, setCultivo] = useState<CultivoAgriculturaId>("SOJA");
+  const [cultivo, setCultivo] = useState("");
+  const [cultivosCatalogo, setCultivosCatalogo] = useState<string[]>([]);
   const [rendimiento, setRendimiento] = useState("");
   const [precio, setPrecio] = useState("");
   const [saving, setSaving] = useState(false);
@@ -91,11 +103,27 @@ export default function VentasAgricultura({
   const [filtroEmpresa, setFiltroEmpresa] = useState("");
   const [filtroMes, setFiltroMes] = useState<MesAgricultura>("");
   const [filtroAnio, setFiltroAnio] = useState<number | "">("");
-  const [filtroCultivo, setFiltroCultivo] = useState<"" | CultivoAgriculturaId>("");
+  const [filtroCultivo, setFiltroCultivo] = useState("");
   const [busqueda, setBusqueda] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<PageSize>(30);
   const [editingRealId, setEditingRealId] = useState<number | null>(null);
+
+  const reloadCultivosCatalogo = useCallback(async () => {
+    if (!apiOnline) {
+      setCultivosCatalogo([]);
+      return;
+    }
+    try {
+      setCultivosCatalogo(await fetchCultivosVentaAgricultura());
+    } catch {
+      setCultivosCatalogo([]);
+    }
+  }, [apiOnline]);
+
+  useEffect(() => {
+    void reloadCultivosCatalogo();
+  }, [reloadCultivosCatalogo]);
 
   useEffect(() => {
     if (!apiOnline) {
@@ -143,14 +171,15 @@ export default function VentasAgricultura({
     zafraFin !== "" &&
     hasNum != null &&
     rendimientoNum != null &&
-    precioNum != null;
+    precioNum != null &&
+    cultivo.trim() !== "";
 
   const limpiar = () => {
     setEmpresa("");
     setZafraInicio("");
     setZafraFin("");
     setHectareas("");
-    setCultivo("SOJA");
+    setCultivo("");
     setRendimiento("");
     setPrecio("");
     setEditingId(null);
@@ -160,7 +189,7 @@ export default function VentasAgricultura({
     setEmpresa(row.empresa);
     setZafraInicio(encodeMesAnioAgricultura(row.anio_inicio, row.mes_inicio));
     setZafraFin(encodeMesAnioAgricultura(row.anio_fin, row.mes_fin));
-    setCultivo(row.cultivo);
+    setCultivo(normalizeCultivoNombre(row.cultivo));
     setHectareas(String(row.hectareas));
     setRendimiento(String(row.rendimiento_ton_ha));
     setPrecio(String(row.precio_usd_ton));
@@ -226,7 +255,7 @@ export default function VentasAgricultura({
         mes_fin: fin.mes,
         anio_inicio: ini.anio,
         anio_fin: fin.anio,
-        cultivo,
+        cultivo: normalizeCultivoNombre(cultivo),
         hectareas: hasNum!,
         rendimiento_ton_ha: rendimientoNum!,
         precio_usd_ton: precioNum!,
@@ -349,16 +378,217 @@ export default function VentasAgricultura({
     };
   }, [rowsVisibles]);
 
+  const tieneFiltrosIngresos = Boolean(
+    filtroEmpresa || filtroMes !== "" || filtroAnio !== "" || filtroCultivo || busqueda.trim()
+  );
+
+  const ingresosHubKpiStrip = embedded ? (
+    <VentasIngresosDashPanel title="Resumen de ventas agrícolas">
+      <VentasDashKpi
+        kicker="Ventas"
+        value={loading || !apiOnline ? "—" : rowsVisibles.length}
+        hint="Operaciones cerradas"
+        variant="dark"
+      />
+      <VentasDashKpi
+        kicker="Has"
+        value={loading || !apiOnline ? "—" : fmtNum(totales.has, 2)}
+        hint="Hectáreas totales"
+        variant="light"
+        highlight="mid"
+      />
+      <VentasDashKpi
+        kicker="Ton"
+        value={loading || !apiOnline ? "—" : formatTotalProduccionAgricultura(totales.ton)}
+        hint="Producción total"
+        variant="light"
+      />
+      <VentasDashKpi
+        kicker="Total USD"
+        value={loading || !apiOnline ? "—" : fmtNum(totales.usd, 2)}
+        hint="Monto acumulado"
+        variant="light"
+      />
+    </VentasIngresosDashPanel>
+  ) : (
+    <section
+      className="sg-hub-kpi-strip ventas-ingresos-kpi-strip ventas-ingresos-kpi-strip--4"
+      aria-label="Totales de ventas agrícolas"
+    >
+      <article className="sg-hub-kpi sg-hub-kpi--dark">
+        <div className="sg-hub-kpi-top">
+          <div>
+            <p className="sg-hub-kpi-kicker">Ventas</p>
+            <p className="sg-hub-kpi-value">
+              {loading || !apiOnline ? "—" : rowsVisibles.length}
+            </p>
+          </div>
+        </div>
+        <p className="sg-hub-kpi-hint">Operaciones cerradas</p>
+      </article>
+      <article className="sg-hub-kpi sg-hub-kpi--light">
+        <div className="sg-hub-kpi-top">
+          <div>
+            <p className="sg-hub-kpi-kicker">Has</p>
+            <p className="sg-hub-kpi-value">
+              {loading || !apiOnline ? "—" : fmtNum(totales.has, 2)}
+            </p>
+          </div>
+        </div>
+        <p className="sg-hub-kpi-hint">Hectáreas totales</p>
+      </article>
+      <article className="sg-hub-kpi sg-hub-kpi--light">
+        <div className="sg-hub-kpi-top">
+          <div>
+            <p className="sg-hub-kpi-kicker">Ton</p>
+            <p className="sg-hub-kpi-value">
+              {loading || !apiOnline ? "—" : formatTotalProduccionAgricultura(totales.ton)}
+            </p>
+          </div>
+        </div>
+        <p className="sg-hub-kpi-hint">Producción total</p>
+      </article>
+      <article className="sg-hub-kpi sg-hub-kpi--light">
+        <div className="sg-hub-kpi-top">
+          <div>
+            <p className="sg-hub-kpi-kicker">Total USD</p>
+            <p className="sg-hub-kpi-value sg-hub-kpi-value--usd">
+              {loading || !apiOnline ? "—" : fmtNum(totales.usd, 2)}
+            </p>
+          </div>
+        </div>
+        <p className="sg-hub-kpi-hint">Monto acumulado</p>
+      </article>
+    </section>
+  );
+
+  const ingresosFiltersBar = (
+    <div className="ventas-ingresos-hub-filters-box mayusculas-auto">
+      <div className="field">
+        <label htmlFor="va-f-empresa">Empresa</label>
+        <select
+          id="va-f-empresa"
+          value={filtroEmpresa}
+          disabled={!apiOnline || loading}
+          onChange={(e) => setFiltroEmpresa(e.target.value)}
+        >
+          <option value="">Todas</option>
+          {empresasOpciones.map((item) => (
+            <option key={item.value} value={item.value}>
+              {item.label}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className="field">
+        <label htmlFor="va-f-mes">Mes en zafra</label>
+        <select
+          id="va-f-mes"
+          value={filtroMes === "" ? "" : String(filtroMes)}
+          disabled={!apiOnline || loading}
+          onChange={(e) => {
+            const v = e.target.value;
+            setFiltroMes(v === "" ? "" : (Number(v) as MesAgricultura));
+          }}
+        >
+          <option value="">Todos</option>
+          {MESES_AGRICULTURA.map((item) => (
+            <option key={item.value} value={item.value}>
+              {item.label}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className="field">
+        <label htmlFor="va-f-anio">Año</label>
+        <select
+          id="va-f-anio"
+          value={filtroAnio === "" ? "" : String(filtroAnio)}
+          disabled={!apiOnline || loading}
+          onChange={(e) => {
+            const v = e.target.value;
+            setFiltroAnio(v === "" ? "" : Number(v));
+          }}
+        >
+          <option value="">Todos</option>
+          {ANIOS_AGRICULTURA.map((y) => (
+            <option key={y} value={y}>
+              {y}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className="field">
+        <label htmlFor="va-f-cultivo">Cultivo</label>
+        <select
+          id="va-f-cultivo"
+          value={filtroCultivo}
+          disabled={!apiOnline || loading}
+          onChange={(e) => setFiltroCultivo(e.target.value)}
+        >
+          <option value="">Todos</option>
+          {cultivosCatalogo.map((nombre) => (
+            <option key={nombre} value={nombre}>
+              {nombre}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className="field flex-grow">
+        <label htmlFor="va-f-busq">Buscar</label>
+        <input
+          id="va-f-busq"
+          type="search"
+          placeholder="Empresa, cultivo, período…"
+          value={busqueda}
+          disabled={!apiOnline || loading}
+          onChange={(e) => setBusqueda(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && load()}
+        />
+      </div>
+      <div className="ventas-ingresos-hub-filters-actions">
+        <button
+          type="button"
+          className="sg-hub-cta sg-hub-cta--ghost"
+          disabled={!apiOnline || loading || !tieneFiltrosIngresos}
+          onClick={() => {
+            setFiltroEmpresa("");
+            setFiltroMes("");
+            setFiltroAnio("");
+            setFiltroCultivo("");
+            setBusqueda("");
+          }}
+        >
+          Limpiar
+        </button>
+        <button
+          type="button"
+          className="sg-hub-cta"
+          disabled={!apiOnline || loading}
+          onClick={() => void load()}
+        >
+          Buscar
+        </button>
+      </div>
+    </div>
+  );
+
   return (
-    <div className="subseccion-panel">
+    <div
+      className={`subseccion-panel${!esSimulador && !embedded ? " ventas-ingresos--hub ventas-agricultura--hub" : ""}`}
+    >
+      {!embedded ? (
       <button type="button" className="subseccion-back" onClick={onVolver}>
         ‹ {copy.volver}
       </button>
+      ) : null}
 
       {esSimulador && puedeEditar && (
       <form
         ref={formRef}
-        className="card form-card ventas-agricultura-card"
+        className={`form-card ventas-agricultura-card${
+          embedded ? " sg-hub-panel ventas-simulador-panel ventas-agricultura-form-hub" : " card"
+        }`}
         onSubmit={(e) => {
           e.preventDefault();
           void guardar();
@@ -377,6 +607,7 @@ export default function VentasAgricultura({
             <span>Cargando venta real — completá los datos en la tabla</span>
           </div>
         )}
+        {!embedded && (
         <div className="form-header">
           <PageModuleHeadRow
             icon={{ source: "hub", id: "ventas_agricultura" }}
@@ -389,6 +620,7 @@ export default function VentasAgricultura({
             }
           />
         </div>
+        )}
 
         <div className="form-grid">
           <div className="field">
@@ -459,17 +691,16 @@ export default function VentasAgricultura({
 
           <div className="field">
             <label htmlFor="va-cultivo">Tipo de cultivo</label>
-            <select
+            <VentasAgriculturaCultivoSelect
               id="va-cultivo"
               value={cultivo}
-              onChange={(e) => setCultivo(e.target.value as CultivoAgriculturaId)}
-            >
-              {CULTIVOS_AGRICULTURA.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.label}
-                </option>
-              ))}
-            </select>
+              onChange={setCultivo}
+              disabled={!apiOnline || saving}
+              apiOnline={apiOnline}
+              puedeAgregar={puedeAgregarCultivo}
+              onError={onError}
+              onCatalogoChanged={reloadCultivosCatalogo}
+            />
           </div>
 
           <div className="field">
@@ -565,118 +796,156 @@ export default function VentasAgricultura({
         </div>
       )}
 
-      <div className={`card ventas-agricultura-listado${esSimulador ? " simulador-venta-historial" : ""}`}>
-        {esSimulador ? (
-          <header className="sim-historial-head">
-            <div>
-              <h2>{copy.tituloListado}</h2>
-              <p className="muted">Historial de simulaciones agrícolas guardadas</p>
+      {!esSimulador ? (
+          <>
+            {ingresosHubKpiStrip}
+            <VentasIngresosListPanel>
+              {ingresosFiltersBar}
+
+              <div className="table-wrap ventas-ingresos-hub-table-box ventas-hub-table-box">
+                <table className="data-table ventas-agricultura-table">
+                <thead>
+                  <tr>
+                    <th>Operación</th>
+                    <th>Zafra</th>
+                    <th>Cultivo</th>
+                    <th className="num">Has</th>
+                    <th className="num" title="Rendimiento kg/ha">
+                      Rend. (kg/ha)
+                    </th>
+                    <th className="num" title="Precio USD por tonelada">
+                      Precio USD/ton
+                    </th>
+                    <th className="num" title="Total toneladas">
+                      Total ton
+                    </th>
+                    <th className="num" title="Total USD">
+                      USD
+                    </th>
+                    <th className="num" title="USD por hectárea">
+                      USD/ha
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {loading ? (
+                    <tr>
+                      <td colSpan={9} className="empty">
+                        Cargando...
+                      </td>
+                    </tr>
+                  ) : !apiOnline ? (
+                    <tr>
+                      <td colSpan={9} className="empty">
+                        API no conectada
+                      </td>
+                    </tr>
+                  ) : rowsVisibles.length === 0 ? (
+                    <tr>
+                      <td colSpan={9} className="empty">
+                        {copy.sinFilas}
+                      </td>
+                    </tr>
+                  ) : (
+                    rowsPagina.map((r) => {
+                      const hasReal = normalizeVentaAgriculturaRow(r).venta_realizada;
+                      const mesIni =
+                        hasReal && r.real_mes_inicio != null ? r.real_mes_inicio : r.mes_inicio;
+                      const anioIni =
+                        hasReal && r.real_anio_inicio != null ? r.real_anio_inicio : r.anio_inicio;
+                      const mesFin =
+                        hasReal && r.real_mes_fin != null ? r.real_mes_fin : r.mes_fin;
+                      const anioFin =
+                        hasReal && r.real_anio_fin != null ? r.real_anio_fin : r.anio_fin;
+                      const has = r.real_hectareas ?? r.hectareas;
+                      const rend = r.real_rendimiento_ton_ha ?? r.rendimiento_ton_ha;
+                      const precio = r.real_precio_usd_ton ?? r.precio_usd_ton;
+                      const usdHa = calcUsdPorHa(importeEfectivoAgricultura(r), has);
+                      return (
+                        <tr key={r.id}>
+                          <td>
+                            <strong>{formatOperacionAgricultura(r.id)}</strong>
+                            <span className="sim-historial-op-empresa">
+                              {labelEmpresaAgricultura(r.empresa)}
+                            </span>
+                          </td>
+                          <td>{formatZafraAgricultura(mesIni, anioIni, mesFin, anioFin)}</td>
+                          <td>{labelCultivoAgricultura(r.cultivo)}</td>
+                          <td className="num">{fmtNum(has, 2)}</td>
+                          <td className="num">{formatRendimientoAgricultura(rend)}</td>
+                          <td className="num">{fmtNum(precio, 2)}</td>
+                          <td className="num">
+                            {formatTotalProduccionAgricultura(tonEfectivaAgricultura(r))}
+                          </td>
+                          <td className="num">
+                            <strong>USD {fmtNum(importeEfectivoAgricultura(r), 2)}</strong>
+                          </td>
+                          <td className="num">
+                            {usdHa != null ? `USD ${fmtNum(usdHa, 2)}` : "—"}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+                {!loading && apiOnline && rowsVisibles.length > 0 && (
+                  <tfoot>
+                    <tr className="data-table-totals">
+                      <td colSpan={3}>
+                        <strong>Totales ({rowsVisibles.length})</strong>
+                      </td>
+                      <td className="num">
+                        <strong>{fmtNum(totales.has, 2)}</strong>
+                      </td>
+                      <td colSpan={2} />
+                      <td className="num">
+                        <strong>{formatTotalProduccionAgricultura(totales.ton)}</strong>
+                      </td>
+                      <td className="num">
+                        <strong>USD {fmtNum(totales.usd, 2)}</strong>
+                      </td>
+                      <td className="num">
+                        <strong>
+                          {totales.usdHa != null ? `USD ${fmtNum(totales.usdHa, 2)}` : "—"}
+                        </strong>
+                      </td>
+                    </tr>
+                  </tfoot>
+                )}
+              </table>
             </div>
-            {!loading && rows.length > 0 && (
-              <span className="sim-historial-count">
-                {rows.length} {copy.unidadConteo} — USD {fmtNum(totales.usd, 2)}
-              </span>
+
+            {!loading && apiOnline && rowsVisibles.length > 0 && (
+              <TablePagination
+                total={rowsVisibles.length}
+                page={pageSafe}
+                pageSize={pageSize}
+                onPageChange={setPage}
+                onPageSizeChange={(size) => {
+                  setPageSize(size);
+                  setPage(1);
+                }}
+              />
             )}
-          </header>
-        ) : (
-          <div className="form-header">
-            <PageModuleHeadRow
-              icon={{ source: "hub", id: "ventas_agricultura" }}
-              title={copy.tituloListado}
-              subtitle="Ingresos registrados al cerrar ventas en el simulador de ventas agrícolas."
-            />
-            <p className="muted">
-              {loading
-                ? "Cargando..."
-                : `${rowsVisibles.length} ${copy.unidadConteo} — Total USD: ${fmtNum(totales.usd, 2)}`}
-            </p>
+            </VentasIngresosListPanel>
+          </>
+      ) : (
+      <VentasIngresosListPanel>
+        <header className="sim-historial-head ventas-ingresos-list-head">
+          <div>
+            <h2>{copy.tituloListado}</h2>
+            <p className="muted">Historial de simulaciones agrícolas guardadas</p>
           </div>
-        )}
+          {!loading && rows.length > 0 && (
+            <span className="sim-historial-count">
+              {rows.length} {copy.unidadConteo} — USD {fmtNum(totales.usd, 2)}
+            </span>
+          )}
+        </header>
 
-        <div className="filters mayusculas-auto">
-          <div className="field">
-            <label htmlFor="va-f-empresa">Empresa</label>
-            <select
-              id="va-f-empresa"
-              value={filtroEmpresa}
-              onChange={(e) => setFiltroEmpresa(e.target.value)}
-            >
-              <option value="">Todas</option>
-              {empresasOpciones.map((item) => (
-                <option key={item.value} value={item.value}>
-                  {item.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="field">
-            <label htmlFor="va-f-mes">Mes en zafra</label>
-            <select
-              id="va-f-mes"
-              value={filtroMes === "" ? "" : String(filtroMes)}
-              onChange={(e) => {
-                const v = e.target.value;
-                setFiltroMes(v === "" ? "" : (Number(v) as MesAgricultura));
-              }}
-            >
-              <option value="">Todos</option>
-              {MESES_AGRICULTURA.map((item) => (
-                <option key={item.value} value={item.value}>
-                  {item.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="field">
-            <label htmlFor="va-f-anio">Año</label>
-            <select
-              id="va-f-anio"
-              value={filtroAnio === "" ? "" : String(filtroAnio)}
-              onChange={(e) => {
-                const v = e.target.value;
-                setFiltroAnio(v === "" ? "" : Number(v));
-              }}
-            >
-              <option value="">Todos</option>
-              {ANIOS_AGRICULTURA.map((y) => (
-                <option key={y} value={y}>
-                  {y}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="field">
-            <label htmlFor="va-f-cultivo">Cultivo</label>
-            <select
-              id="va-f-cultivo"
-              value={filtroCultivo}
-              onChange={(e) => setFiltroCultivo(e.target.value as "" | CultivoAgriculturaId)}
-            >
-              <option value="">Todos</option>
-              {CULTIVOS_AGRICULTURA.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="field flex-grow">
-            <label htmlFor="va-f-busq">Buscar</label>
-            <input
-              id="va-f-busq"
-              type="search"
-              placeholder="Empresa, cultivo, período…"
-              value={busqueda}
-              onChange={(e) => setBusqueda(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && load()}
-            />
-          </div>
-          <button type="button" className="btn btn-primary" onClick={load}>
-            Buscar
-          </button>
-        </div>
+        {ingresosFiltersBar}
 
-        <div className={esSimulador ? "sim-historial-table-wrap" : "table-wrap"}>
+        <div className="sim-historial-table-wrap ventas-ingresos-hub-table-box ventas-hub-table-box">
           <table
             className={
               esSimulador
@@ -845,7 +1114,8 @@ export default function VentasAgricultura({
             }}
           />
         )}
-      </div>
+      </VentasIngresosListPanel>
+      )}
     </div>
   );
 }

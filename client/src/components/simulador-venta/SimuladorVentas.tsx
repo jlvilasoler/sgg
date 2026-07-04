@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
-import { HubMenuCard } from "../HubMenuCard";
+import { useCallback, useEffect, useState } from "react";
 import { useHeaderBackContext } from "../../header-back";
 import { HUB_ICON_THEMES, HubMenuIcon } from "../icons/HubMenuIcons";
 import { MENU_APP_THEMES, MenuAppIcon } from "../icons/MenuAppIcons";
 import { PageModuleHeadRow } from "../PageModuleHead";
+import { HubMenuCard } from "../HubMenuCard";
 import SimuladorVentaPanel from "./SimuladorVentaPanel";
 import VentasAgricultura from "../ventas/VentasAgricultura";
 import VentasArrendamientos from "../ventas/VentasArrendamientos";
@@ -14,12 +14,17 @@ import {
 } from "./simulador-venta-config";
 import type { AuthUser, Catalogos, SimuladorVentaTipo } from "../../types";
 
+export type SimuladorSeccionId = "en_pie" | "cuarta_balanza" | "agricultura" | "arrendamientos";
+
 interface Props {
   user: AuthUser;
   catalogos: Catalogos;
   apiOnline: boolean;
   onError: (msg: string) => void;
   onSuccess: (msg: string) => void;
+  embedded?: boolean;
+  seccion?: SimuladorSeccionId;
+  onVolverDashboard?: () => void;
 }
 
 type VistaSimulador =
@@ -61,18 +66,29 @@ const VISTA_LABELS: Record<Exclude<VistaSimulador, "menu">, string> = {
   ventas_arrendamientos: "Ingresos por Arrendamientos",
 };
 
+const SECCION_TIPO: Record<"en_pie" | "cuarta_balanza", SimuladorVentaTipo> = {
+  en_pie: "EN_PIE",
+  cuarta_balanza: "CUARTA_BALANZA",
+};
+
 export default function SimuladorVentas({
   user,
   catalogos,
   apiOnline,
   onError,
   onSuccess,
+  embedded = false,
+  seccion,
+  onVolverDashboard,
 }: Props) {
   const [vista, setVista] = useState<VistaSimulador>("menu");
   const [tipo, setTipo] = useState<SimuladorVentaTipo | null>(null);
   const headerBack = useHeaderBackContext();
 
+  const volverMenu = useCallback(() => setVista("menu"), []);
+
   useEffect(() => {
+    if (embedded) return;
     if (!headerBack) return;
     if (tipo) {
       const cfg = SIMULADOR_VENTA_TIPO_MAP[tipo];
@@ -82,14 +98,55 @@ export default function SimuladorVentas({
       });
     } else if (vista !== "menu") {
       headerBack.setStep({
-        onBack: () => setVista("menu"),
+        onBack: volverMenu,
         destinationLabel: VISTA_LABELS[vista],
       });
     } else {
       headerBack.setStep(null);
     }
     return () => headerBack.setStep(null);
-  }, [vista, tipo, headerBack]);
+  }, [vista, tipo, headerBack, embedded, volverMenu]);
+
+  if (embedded && seccion) {
+    if (seccion === "en_pie" || seccion === "cuarta_balanza") {
+      const config = SIMULADOR_VENTA_TIPO_MAP[SECCION_TIPO[seccion]] as SimuladorVentaTipoConfig;
+      return (
+        <SimuladorVentaPanel
+          config={config}
+          user={user}
+          apiOnline={apiOnline}
+          onError={onError}
+          onSuccess={onSuccess}
+        />
+      );
+    }
+    if (seccion === "agricultura") {
+      return (
+        <VentasAgricultura
+          embedded
+          catalogos={catalogos}
+          modo="simulador"
+          user={user}
+          apiOnline={apiOnline}
+          onError={onError}
+          onSuccess={onSuccess}
+          onVolver={onVolverDashboard ?? volverMenu}
+        />
+      );
+    }
+    return (
+      <VentasArrendamientos
+        embedded
+        catalogos={catalogos}
+        modo="simulador"
+        user={user}
+        apiOnline={apiOnline}
+        onError={onError}
+        onSuccess={onSuccess}
+        onVolver={onVolverDashboard ?? volverMenu}
+      />
+    );
+  }
 
   if (tipo) {
     const config = SIMULADOR_VENTA_TIPO_MAP[tipo] as SimuladorVentaTipoConfig;
@@ -141,7 +198,7 @@ export default function SimuladorVentas({
         apiOnline={apiOnline}
         onError={onError}
         onSuccess={onSuccess}
-        onVolver={() => setVista("menu")}
+        onVolver={volverMenu}
       />
     );
   }
@@ -155,7 +212,7 @@ export default function SimuladorVentas({
         apiOnline={apiOnline}
         onError={onError}
         onSuccess={onSuccess}
-        onVolver={() => setVista("menu")}
+        onVolver={volverMenu}
       />
     );
   }

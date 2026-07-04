@@ -31,7 +31,6 @@ import Resumen from "./components/Resumen";
 import Configuracion from "./components/Configuracion";
 import Divisas from "./components/Divisas";
 import PreciosGanado from "./components/precios-ganado/PreciosGanado";
-import SimuladorVentas from "./components/simulador-venta/SimuladorVentas";
 import RecursosHumanos from "./components/RecursosHumanos";
 import IngresosVentas from "./components/ventas/IngresosVentas";
 import StockGanadero from "./components/stock/StockGanadero";
@@ -554,13 +553,15 @@ export default function App() {
                 onSuccess={(m) => notify(m, true)}
               />
             )}
-            {screen === "simulador_venta_ganado" && (
-              <SimuladorVentas
+            {screen === "simulador_venta_ganado" && user && (
+              <IngresosVentas
                 user={user}
                 catalogos={catalogos}
                 apiOnline={apiOnline}
                 onError={(m) => notify(m, false)}
-                onSuccess={(m) => notify(m, true)}
+                onSuccess={(m, t) => notify(m, true, t)}
+                onVolver={goHome}
+                initialVista="simulador"
               />
             )}
             {screen === "recursos_humanos" && (

@@ -5,8 +5,8 @@ import {
   migrateAddCuentaIdColumn,
 } from "./empresas-cuenta-db.js";
 
-export const CULTIVOS_AGRICULTURA = ["TRIGO", "SOJA", "MAIZ", "COLZA"] as const;
-export type CultivoAgricultura = (typeof CULTIVOS_AGRICULTURA)[number];
+export const CULTIVOS_AGRICULTURA_LEGACY = ["TRIGO", "SOJA", "MAIZ", "COLZA"] as const;
+export type CultivoAgricultura = string;
 
 export type EmpresaAgricultura = string;
 
@@ -82,7 +82,7 @@ export async function initVentasAgriculturaTable(db: Db): Promise<void> {
       empresa TEXT NOT NULL,
       mes INTEGER NOT NULL CHECK (mes >= 1 AND mes <= 12),
       anio INTEGER NOT NULL CHECK (anio >= 2025 AND anio <= 2040),
-      cultivo TEXT NOT NULL CHECK (cultivo IN ('TRIGO', 'SOJA', 'MAIZ', 'COLZA')),
+      cultivo TEXT NOT NULL,
       hectareas DOUBLE PRECISION NOT NULL,
       rendimiento_ton_ha DOUBLE PRECISION NOT NULL,
       precio_usd_ton DOUBLE PRECISION NOT NULL,
@@ -138,6 +138,30 @@ export async function initVentasAgriculturaTable(db: Db): Promise<void> {
 
   await migrateAddCuentaIdColumn(db, "VENTAS_AGRICULTURA");
   await backfillCuentaIdPorEmpresa(db, "VENTAS_AGRICULTURA");
+  await migrateCultivoLibre(db);
+}
+
+async function migrateCultivoLibre(db: Db): Promise<void> {
+  for (const [legacy, nombre] of [
+    ["TRIGO", "Trigo"],
+    ["SOJA", "Soja"],
+    ["MAIZ", "Maíz"],
+    ["COLZA", "Colza"],
+  ] as const) {
+    await db
+      .prepare("UPDATE VENTAS_AGRICULTURA SET cultivo = @nombre WHERE cultivo = @legacy")
+      .run({ legacy, nombre });
+  }
+  for (const stmt of [
+    "ALTER TABLE VENTAS_AGRICULTURA DROP CONSTRAINT IF EXISTS ventas_agricultura_cultivo_check",
+    "ALTER TABLE VENTAS_AGRICULTURA DROP CONSTRAINT IF EXISTS ventas_agricultura_cultivo_check1",
+  ]) {
+    try {
+      await db.prepare(stmt).run();
+    } catch {
+      /* ignore */
+    }
+  }
 }
 
 function mapRow(row: Record<string, unknown>): VentaAgriculturaRow {
@@ -194,8 +218,9 @@ function normalizeInput(data: VentaAgriculturaInput): VentaAgriculturaInput {
   if (!String(data.empresa ?? "").trim()) {
     throw new Error("La empresa es obligatoria");
   }
-  if (!CULTIVOS_AGRICULTURA.includes(data.cultivo)) {
-    throw new Error("Cultivo inválido");
+  const cultivo = String(data.cultivo ?? "").trim();
+  if (!cultivo) {
+    throw new Error("El cultivo es obligatorio");
   }
   if (!Number.isFinite(mes_inicio) || mes_inicio < 1 || mes_inicio > 12) {
     throw new Error("Mes de inicio de zafra inválido");
@@ -236,7 +261,7 @@ function normalizeInput(data: VentaAgriculturaInput): VentaAgriculturaInput {
     mes_fin,
     anio_inicio,
     anio_fin,
-    cultivo: data.cultivo,
+    cultivo,
     hectareas,
     rendimiento_ton_ha,
     precio_usd_ton,

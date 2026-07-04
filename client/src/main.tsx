@@ -4,6 +4,8 @@ import "toastr/build/toastr.min.css";
 import App from "./App";
 import "./index.css";
 import "./chat-interno-hub.css";
+import "./usuarios-actividad-hub.css";
+import "./ventas-ingresos-hub.css";
 import "./responsive.css";
 
 createRoot(document.getElementById("root")!).render(

@@ -743,19 +743,19 @@ export default function SimuladorVentaPanel({
 
   return (
 
-    <div className="subseccion-panel simulador-venta-panel">
+    <div className="simulador-venta-panel">
+
+      <div className="simulador-venta-layout simulador-venta-layout--hub">
+
+        <section ref={calcRef} className="sg-hub-panel ventas-simulador-panel ventas-simulador-calc-panel simulador-venta-calc">
 
       {soloLectura && (
-        <div className="sim-historial-editing-banner sim-calc-editing-banner" role="status">
+        <div className="sim-historial-editing-banner sim-calc-editing-banner ventas-simulador-readonly-banner" role="status">
           <span>Tu rol solo permite consultar simulaciones guardadas</span>
         </div>
       )}
 
-      <div className="simulador-venta-layout">
-
-        <section ref={calcRef} className="card simulador-venta-calc">
-
-          <div className="sim-calc-toolbar">
+          <div className="ventas-simulador-calc-toolbar sim-calc-toolbar">
 
             <header className="sim-calc-head">
 
@@ -825,7 +825,7 @@ export default function SimuladorVentaPanel({
 
           {editingId != null && (
 
-            <div className="sim-historial-editing-banner sim-calc-editing-banner" role="status">
+            <div className="sim-historial-editing-banner sim-calc-editing-banner ventas-simulador-editing-banner" role="status">
 
               <span>Editando #{editingId}</span>
 
@@ -840,6 +840,8 @@ export default function SimuladorVentaPanel({
           )}
 
 
+
+          <div className="ventas-simulador-kpi-box">
 
           <div className="simulador-venta-resultado sim-resultado-compact" aria-live="polite">
 
@@ -910,9 +912,9 @@ export default function SimuladorVentaPanel({
             </p>
 
           </div>
+          </div>
 
-
-
+          <div className="ventas-simulador-form-box">
           <div className="sim-calc-form">
 
             <div className="field sim-calc-field-compact sim-calc-field-operacion">
@@ -1156,7 +1158,7 @@ export default function SimuladorVentaPanel({
               <div className="sim-calc-actions">
                 <button
                   type="button"
-                  className="btn btn-primary"
+                  className="sg-hub-cta"
                   disabled={
                     saving ||
                     loading ||
@@ -1176,14 +1178,15 @@ export default function SimuladorVentaPanel({
             </div>
 
           </div>
+          </div>
 
         </section>
 
 
 
-        <section className="card simulador-venta-historial">
+        <section className="sg-hub-panel ventas-simulador-panel ventas-simulador-historial-panel simulador-venta-historial">
 
-          <header className="sim-historial-head">
+          <header className="sim-historial-head ventas-ingresos-list-head">
 
             <div>
 
@@ -1203,7 +1206,7 @@ export default function SimuladorVentaPanel({
 
 
 
-          <div className="sim-historial-table-wrap">
+          <div className="sim-historial-table-wrap ventas-ingresos-hub-table-box ventas-hub-table-box">
 
             <table className="sim-historial-table">
 

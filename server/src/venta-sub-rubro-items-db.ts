@@ -1,5 +1,10 @@
 import type { Db } from "./db/pg-client.js";
 import { normalizarTituloRubro } from "./text-normalize.js";
+import {
+  filterVentaSubRubroIdsInCuenta,
+  getVentaSubRubroById,
+  getVentaSubRubroByNombre,
+} from "./venta-sub-rubros-db.js";
 
 export interface VentaSubRubroItem {
   id: number;
@@ -19,8 +24,11 @@ export async function initVentaSubRubroItemsTable(_db: Db): Promise<void> {}
 export async function listVentaItemsBySubRubroId(
   db: Db,
   subRubroId: number,
-  soloActivos = false
+  soloActivos = false,
+  cuentaId?: number | null
 ): Promise<VentaSubRubroItem[]> {
+  const sub = await getVentaSubRubroById(db, subRubroId, cuentaId);
+  if (!sub) return [];
   let q = "SELECT * FROM VENTA_SUB_RUBRO_ITEMS WHERE sub_rubro_id = ?";
   if (soloActivos) q += " AND activo = 1";
   q += " ORDER BY LOWER(nombre) ASC";
@@ -30,29 +38,30 @@ export async function listVentaItemsBySubRubroId(
 export async function listVentaItemsBySubRubroNombre(
   db: Db,
   subRubroNombre: string,
-  soloActivos = true
+  soloActivos = true,
+  cuentaId?: number | null
 ): Promise<VentaSubRubroItem[]> {
-  const row = (await db
-    .prepare("SELECT id FROM VENTA_SUB_RUBROS WHERE LOWER(nombre) = LOWER(?)")
-    .get(subRubroNombre.trim())) as { id: number } | undefined;
+  const row = await getVentaSubRubroByNombre(db, subRubroNombre, cuentaId);
   if (!row) return [];
-  return listVentaItemsBySubRubroId(db, row.id, soloActivos);
+  return listVentaItemsBySubRubroId(db, row.id, soloActivos, cuentaId);
 }
 
 export async function listVentaItemsGroupedBySubRubroIds(
   db: Db,
-  ids: number[]
+  ids: number[],
+  cuentaId?: number | null
 ): Promise<Record<number, VentaSubRubroItem[]>> {
   const out: Record<number, VentaSubRubroItem[]> = {};
-  if (!ids.length) return out;
-  for (const id of ids) out[id] = [];
-  const placeholders = ids.map(() => "?").join(",");
+  const scopedIds = await filterVentaSubRubroIdsInCuenta(db, ids, cuentaId);
+  if (!scopedIds.length) return out;
+  for (const id of scopedIds) out[id] = [];
+  const placeholders = scopedIds.map(() => "?").join(",");
   const rows = (await db
     .prepare(
       `SELECT * FROM VENTA_SUB_RUBRO_ITEMS WHERE sub_rubro_id IN (${placeholders})
        ORDER BY sub_rubro_id, LOWER(nombre) ASC`
     )
-    .all(...ids)) as VentaSubRubroItem[];
+    .all(...scopedIds)) as VentaSubRubroItem[];
   for (const r of rows) {
     out[r.sub_rubro_id].push(r);
   }
@@ -61,18 +70,20 @@ export async function listVentaItemsGroupedBySubRubroIds(
 
 export async function countVentaItemsBySubRubroIds(
   db: Db,
-  ids: number[]
+  ids: number[],
+  cuentaId?: number | null
 ): Promise<Record<number, number>> {
   const out: Record<number, number> = {};
-  if (!ids.length) return out;
-  const placeholders = ids.map(() => "?").join(",");
+  const scopedIds = await filterVentaSubRubroIdsInCuenta(db, ids, cuentaId);
+  if (!scopedIds.length) return out;
+  const placeholders = scopedIds.map(() => "?").join(",");
   const rows = (await db
     .prepare(
       `SELECT sub_rubro_id, COUNT(*) AS n FROM VENTA_SUB_RUBRO_ITEMS
        WHERE sub_rubro_id IN (${placeholders}) GROUP BY sub_rubro_id`
     )
-    .all(...ids)) as { sub_rubro_id: number; n: number }[];
-  for (const id of ids) out[id] = 0;
+    .all(...scopedIds)) as { sub_rubro_id: number; n: number }[];
+  for (const id of scopedIds) out[id] = 0;
   for (const r of rows) out[r.sub_rubro_id] = r.n;
   return out;
 }
@@ -86,13 +97,34 @@ export async function getVentaItemById(
     | undefined;
 }
 
+export async function getVentaItemByIdInCuenta(
+  db: Db,
+  id: number,
+  cuentaId?: number | null
+): Promise<VentaSubRubroItem | undefined> {
+  const item = await getVentaItemById(db, id);
+  if (!item) return undefined;
+  const sub = await getVentaSubRubroById(db, item.sub_rubro_id, cuentaId);
+  if (!sub) return undefined;
+  return item;
+}
+
 export async function insertVentaItem(
   db: Db,
   subRubroId: number,
-  data: VentaSubRubroItemInput
+  data: VentaSubRubroItemInput,
+  cuentaId?: number | null
 ): Promise<number> {
+  const sub = await getVentaSubRubroById(db, subRubroId, cuentaId);
+  if (!sub) throw new Error("Sub-rubro no encontrado.");
   const nombre = normalizarTituloRubro(data.nombre);
   if (!nombre) throw new Error("El nombre del ítem es obligatorio.");
+  const dup = (await db
+    .prepare(
+      "SELECT id FROM VENTA_SUB_RUBRO_ITEMS WHERE sub_rubro_id = ? AND LOWER(nombre) = LOWER(?)"
+    )
+    .get(subRubroId, nombre)) as { id: number } | undefined;
+  if (dup) throw new Error("Ya existe un ítem con ese nombre en este sub-rubro.");
   const result = await db
     .prepare(
       `INSERT INTO VENTA_SUB_RUBRO_ITEMS (sub_rubro_id, nombre, activo)
@@ -109,10 +141,19 @@ export async function insertVentaItem(
 export async function updateVentaItem(
   db: Db,
   id: number,
-  data: VentaSubRubroItemInput
+  data: VentaSubRubroItemInput,
+  cuentaId?: number | null
 ): Promise<boolean> {
+  const row = await getVentaItemByIdInCuenta(db, id, cuentaId);
+  if (!row) return false;
   const nombre = normalizarTituloRubro(data.nombre);
   if (!nombre) throw new Error("El nombre del ítem es obligatorio.");
+  const dup = (await db
+    .prepare(
+      `SELECT id FROM VENTA_SUB_RUBRO_ITEMS WHERE sub_rubro_id = ? AND LOWER(nombre) = LOWER(?) AND id != ?`
+    )
+    .get(row.sub_rubro_id, nombre, id)) as { id: number } | undefined;
+  if (dup) throw new Error("Ya existe otro ítem con ese nombre en este sub-rubro.");
   return (
     await db
       .prepare(
@@ -126,6 +167,12 @@ export async function updateVentaItem(
   ).changes > 0;
 }
 
-export async function deleteVentaItem(db: Db, id: number): Promise<boolean> {
+export async function deleteVentaItem(
+  db: Db,
+  id: number,
+  cuentaId?: number | null
+): Promise<boolean> {
+  const row = await getVentaItemByIdInCuenta(db, id, cuentaId);
+  if (!row) return false;
   return (await db.prepare("DELETE FROM VENTA_SUB_RUBRO_ITEMS WHERE id = ?").run(id)).changes > 0;
 }

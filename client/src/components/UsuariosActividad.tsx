@@ -348,92 +348,303 @@ export default function UsuariosActividad({
 
   const seccionOnline = puedeVerOnline ? (
     <section
-      className={`usuarios-actividad-online${esActividadTotalPlataforma ? " usuarios-actividad-online--plataforma" : ""}`}
+      className="usuarios-actividad-hub-box usuarios-actividad-hub-box--online"
       aria-label="Usuarios en línea y desconectados recientes"
     >
-      <div className="usuarios-actividad-online-head">
-        <h3 className="usuarios-actividad-online-title">
-          <span className="usuarios-online-pulse" aria-hidden />
-          En línea ahora
-          <span className="usuarios-actividad-online-count">
-            {loadingOnline || !apiOnline ? "—" : online.length}
-          </span>
-          {!loadingOnline && apiOnline && recentlyOffline.length > 0 ? (
-            <>
-              <span className="usuarios-actividad-online-sep" aria-hidden>
-                ·
-              </span>
-              <span className="usuarios-actividad-online-recientes-label">
-                Desconectados
-              </span>
-              <span className="usuarios-actividad-online-count usuarios-actividad-online-count--reciente">
-                {recentlyOffline.length}
-              </span>
-            </>
-          ) : null}
-          {!loadingOnline && apiOnline && staleOffline.length > 0 ? (
-            <>
-              <span className="usuarios-actividad-online-sep" aria-hidden>
-                ·
-              </span>
-              <span className="usuarios-actividad-online-recientes-label usuarios-actividad-online-recientes-label--stale">
-                Inactivos
-              </span>
-              <span className="usuarios-actividad-online-count usuarios-actividad-online-count--stale">
-                {staleOffline.length}
-              </span>
-            </>
-          ) : null}
-        </h3>
-        <span className="usuarios-actividad-online-hint">{onlineHint}</span>
+      <header className="usuarios-actividad-hub-head-box usuarios-actividad-hub-head-box--inline">
+        <div>
+          <p className="sg-hub-panel-kicker">Presencia</p>
+          <h2 className="usuarios-actividad-hub-title">
+            <span className="usuarios-online-pulse" aria-hidden />
+            En línea ahora
+            <span className="usuarios-actividad-online-count">
+              {loadingOnline || !apiOnline ? "—" : online.length}
+            </span>
+            {!loadingOnline && apiOnline && recentlyOffline.length > 0 ? (
+              <>
+                <span className="usuarios-actividad-online-sep" aria-hidden>
+                  ·
+                </span>
+                <span className="usuarios-actividad-online-recientes-label">Desconectados</span>
+                <span className="usuarios-actividad-online-count usuarios-actividad-online-count--reciente">
+                  {recentlyOffline.length}
+                </span>
+              </>
+            ) : null}
+            {!loadingOnline && apiOnline && staleOffline.length > 0 ? (
+              <>
+                <span className="usuarios-actividad-online-sep" aria-hidden>
+                  ·
+                </span>
+                <span className="usuarios-actividad-online-recientes-label usuarios-actividad-online-recientes-label--stale">
+                  Inactivos
+                </span>
+                <span className="usuarios-actividad-online-count usuarios-actividad-online-count--stale">
+                  {staleOffline.length}
+                </span>
+              </>
+            ) : null}
+          </h2>
+        </div>
+        <span className="usuarios-actividad-hub-sub">{onlineHint}</span>
+      </header>
+      <div className="usuarios-actividad-online">
+        {!apiOnline ? (
+          <p className="usuarios-actividad-online-empty muted">Sin conexión con la API</p>
+        ) : loadingOnline ? (
+          <p className="usuarios-actividad-online-empty muted">Consultando usuarios activos…</p>
+        ) : totalPresencia === 0 ? (
+          <p className="usuarios-actividad-online-empty muted">
+            Nadie está usando la app en este momento
+          </p>
+        ) : (
+          <ul className="usuarios-online-list">
+            {online.map((u) => (
+              <TarjetaUsuarioPresencia key={`on-${u.email}`} u={u} mostrarIp={puedeVerIp} />
+            ))}
+            {recentlyOffline.map((u) => (
+              <TarjetaUsuarioPresencia
+                key={`off-${u.email}`}
+                u={u}
+                estado="reciente-offline"
+                mostrarIp={puedeVerIp}
+              />
+            ))}
+            {staleOffline.map((u) => (
+              <TarjetaUsuarioPresencia
+                key={`stale-${u.email}`}
+                u={u}
+                estado="stale-offline"
+                mostrarIp={puedeVerIp}
+              />
+            ))}
+          </ul>
+        )}
       </div>
-      {!apiOnline ? (
-        <p className="usuarios-actividad-online-empty muted">Sin conexión con la API</p>
-      ) : loadingOnline ? (
-        <p className="usuarios-actividad-online-empty muted">Consultando usuarios activos…</p>
-      ) : totalPresencia === 0 ? (
-        <p className="usuarios-actividad-online-empty muted">
-          Nadie está usando la app en este momento
-        </p>
-      ) : (
-        <ul className="usuarios-online-list">
-          {online.map((u) => (
-            <TarjetaUsuarioPresencia key={`on-${u.email}`} u={u} mostrarIp={puedeVerIp} />
-          ))}
-          {recentlyOffline.map((u) => (
-            <TarjetaUsuarioPresencia
-              key={`off-${u.email}`}
-              u={u}
-              estado="reciente-offline"
-              mostrarIp={puedeVerIp}
-            />
-          ))}
-          {staleOffline.map((u) => (
-            <TarjetaUsuarioPresencia
-              key={`stale-${u.email}`}
-              u={u}
-              estado="stale-offline"
-              mostrarIp={puedeVerIp}
-            />
-          ))}
-        </ul>
-      )}
     </section>
   ) : null;
 
+  const hubKpiStrip = (
+    <section className="sg-hub-kpi-strip usuarios-actividad-kpi-strip" aria-label="Resumen de actividad">
+      {puedeVerOnline ? (
+        <article className="sg-hub-kpi sg-hub-kpi--light">
+          <div className="sg-hub-kpi-top">
+            <div>
+              <p className="sg-hub-kpi-kicker">En línea</p>
+              <p className="sg-hub-kpi-value">
+                {loadingOnline || !apiOnline ? "—" : online.length}
+              </p>
+            </div>
+          </div>
+          <p className="sg-hub-kpi-hint">Usuarios activos ahora</p>
+        </article>
+      ) : null}
+      <article className="sg-hub-kpi sg-hub-kpi--dark">
+        <div className="sg-hub-kpi-top">
+          <div>
+            <p className="sg-hub-kpi-kicker">Registros</p>
+            <p className="sg-hub-kpi-value">{loading || !apiOnline ? "—" : resumen.total}</p>
+          </div>
+        </div>
+        <p className="sg-hub-kpi-hint">Total en el historial</p>
+      </article>
+      <article className="sg-hub-kpi sg-hub-kpi--light">
+        <div className="sg-hub-kpi-top">
+          <div>
+            <p className="sg-hub-kpi-kicker">Logins</p>
+            <p className="sg-hub-kpi-value">{loading || !apiOnline ? "—" : resumen.logins}</p>
+          </div>
+        </div>
+        <p className="sg-hub-kpi-hint">Inicios de sesión</p>
+      </article>
+      <article className="sg-hub-kpi sg-hub-kpi--light">
+        <div className="sg-hub-kpi-top">
+          <div>
+            <p className="sg-hub-kpi-kicker">Navegación</p>
+            <p className="sg-hub-kpi-value">{loading || !apiOnline ? "—" : resumen.navegacion}</p>
+          </div>
+        </div>
+        <p className="sg-hub-kpi-hint">Cambios de pantalla</p>
+      </article>
+      <article className="sg-hub-kpi sg-hub-kpi--light">
+        <div className="sg-hub-kpi-top">
+          <div>
+            <p className="sg-hub-kpi-kicker">Acciones</p>
+            <p className="sg-hub-kpi-value">{loading || !apiOnline ? "—" : resumen.acciones}</p>
+          </div>
+        </div>
+        <p className="sg-hub-kpi-hint">Operaciones en el sistema</p>
+      </article>
+    </section>
+  );
+
+  const filtersBar = (
+    <div className="usuarios-actividad-hub-filters-box">
+      {puedeFiltrarCuenta ? (
+        <div className="field">
+          <label htmlFor="ua-filtro-cuenta">Cuenta</label>
+          <select
+            id="ua-filtro-cuenta"
+            value={filtroCuentaId}
+            disabled={!apiOnline || loading}
+            onChange={(e) => setFiltroCuentaId(e.target.value)}
+          >
+            <option value="">Todas las cuentas</option>
+            {cuentas.map((c) => (
+              <option key={c.id} value={String(c.id)}>
+                {c.nombre}
+              </option>
+            ))}
+          </select>
+        </div>
+      ) : null}
+      {puedeFiltrarUsuario ? (
+        <div className="field">
+          <label htmlFor="ua-filtro-usuario">Usuario</label>
+          <select
+            id="ua-filtro-usuario"
+            value={filtroEmail}
+            disabled={!apiOnline || loading}
+            onChange={(e) => setFiltroEmail(e.target.value)}
+          >
+            <option value="">Todos</option>
+            {usuarios.map((u) => (
+              <option key={u.email} value={u.email}>
+                {u.nombre}
+              </option>
+            ))}
+          </select>
+        </div>
+      ) : null}
+      <div className="field">
+        <label htmlFor="ua-filtro-evento">Tipo</label>
+        <select
+          id="ua-filtro-evento"
+          value={filtroEvento}
+          disabled={!apiOnline || loading}
+          onChange={(e) => setFiltroEvento(e.target.value)}
+        >
+          {EVENTO_OPCIONES.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className="usuarios-actividad-hub-filters-actions">
+        <button
+          type="button"
+          className="sg-hub-cta sg-hub-cta--ghost"
+          disabled={!apiOnline || loading || (!filtroEmail && !filtroEvento && !filtroCuentaId)}
+          onClick={() => {
+            setFiltroCuentaId("");
+            setFiltroEmail("");
+            setFiltroEvento("");
+          }}
+        >
+          Limpiar
+        </button>
+        <button
+          type="button"
+          className="sg-hub-cta"
+          disabled={!apiOnline || loading}
+          onClick={() => void load()}
+        >
+          Actualizar
+        </button>
+      </div>
+    </div>
+  );
+
+  const dataTable = (
+    <div className="table-wrap usuarios-actividad-hub-table-box">
+      <table className="data-table listado-pro-table usuarios-actividad-table">
+        <thead>
+          <tr>
+            <th>Fecha y hora</th>
+            <th>Usuario</th>
+            <th>Tipo</th>
+            <th>Actividad</th>
+            {puedeVerIp ? <th>IP</th> : null}
+          </tr>
+        </thead>
+        <tbody>
+          {loading ? (
+            <tr>
+              <td colSpan={puedeVerIp ? 5 : 4} className="empty">
+                Cargando actividad…
+              </td>
+            </tr>
+          ) : rows.length === 0 ? (
+            <tr>
+              <td colSpan={puedeVerIp ? 5 : 4} className="empty">
+                Sin registros de actividad
+              </td>
+            </tr>
+          ) : (
+            rows.map((row) => {
+              const { fecha, hora } = fmtFecha(row.creado_en);
+              return (
+                <tr key={row.id}>
+                  <td className="usuarios-act-fecha">
+                    <span>{fecha}</span>
+                    {hora ? <span className="muted">{hora}</span> : null}
+                  </td>
+                  <td>
+                    <strong>{row.user_nombre || row.email || "—"}</strong>
+                    {row.email ? (
+                      <span className="muted usuarios-act-email">{row.email}</span>
+                    ) : null}
+                  </td>
+                  <td>
+                    <span className={`usuarios-act-tipo ${tipoBadgeClass(row.evento)}`}>
+                      {labelEvento(row.evento)}
+                    </span>
+                  </td>
+                  <td className="usuarios-act-detalle">{row.detalle || "—"}</td>
+                  {puedeVerIp ? (
+                    <td className="muted small-cell">{row.ip || "—"}</td>
+                  ) : null}
+                </tr>
+              );
+            })
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+
+  const pagination =
+    !loading && apiOnline && total > 0 ? (
+      <TablePagination
+        total={total}
+        page={pageSafe}
+        pageSize={pageSize}
+        onPageChange={setPage}
+        onPageSizeChange={(size) => {
+          setPageSize(size);
+          setPage(1);
+        }}
+      />
+    ) : null;
+
   if (modo === "total" && !canAccessActividadSagTotal(currentUser)) {
     return (
-      <div className="subseccion-panel">
-        <div className="card">
-          <div className="form-header">
-            <PageModuleHeadRow
-              icon={{ source: "app", id: "registro_actividad" }}
-              title="Acceso restringido"
-              subtitle="El registro de actividad global solo está disponible para el superadministrador de plataforma."
-            />
-          </div>
-          <div className="form-actions">
-            <button type="button" className="btn btn-secondary" onClick={onVolver}>
+      <div className="subseccion-panel usuarios-actividad usuarios-actividad--hub">
+        <button type="button" className="subseccion-back" onClick={onVolver}>
+          ‹ {volverLabel}
+        </button>
+        <div className="usuarios-actividad-hub-workspace">
+          <div className="usuarios-actividad-hub-box usuarios-actividad-restricted-box">
+            <header className="usuarios-actividad-hub-head-box">
+              <p className="sg-hub-panel-kicker">Acceso</p>
+              <h2 className="usuarios-actividad-hub-title">Acceso restringido</h2>
+              <p className="usuarios-actividad-hub-sub">
+                El registro de actividad global solo está disponible para el superadministrador
+                de plataforma.
+              </p>
+            </header>
+            <button type="button" className="sg-hub-cta sg-hub-cta--ghost" onClick={onVolver}>
               {volverLabel}
             </button>
           </div>
@@ -443,219 +654,56 @@ export default function UsuariosActividad({
   }
 
   return (
-    <div className="subseccion-panel usuarios-actividad">
+    <div className="subseccion-panel usuarios-actividad usuarios-actividad--hub">
       <button type="button" className="subseccion-back" onClick={onVolver}>
         ‹ {volverLabel}
       </button>
 
-      <div className="card usuarios-panel listado-pro-shell">
-        <header className="listado-pro-head usuarios-actividad-head">
-          <div className="listado-pro-head-main">
-            <PageModuleHeadRow
-              icon={{ source: "app", id: "registro_actividad" }}
-              title={titulo}
-              subtitle={
-                <>
-                  {subtituloAmbito ? `${subtituloAmbito} · ` : ""}
-                  {subtitulo}
-                </>
-              }
-              titleClassName="listado-pro-head-title"
-              subClassName="listado-pro-head-sub"
-              textClassName="listado-pro-head-text"
-            />
-          </div>
+      <div className="usuarios-actividad-hub-workspace">
+        <header className="usuarios-actividad-hub-page-head">
+          <PageModuleHeadRow
+            icon={{ source: "app", id: "registro_actividad" }}
+            title={titulo}
+            subtitle={
+              subtituloAmbito ? `${subtituloAmbito} · ${subtitulo}` : subtitulo
+            }
+            titleClassName="listado-pro-head-title"
+            subClassName="listado-pro-head-sub"
+            textClassName="listado-pro-head-text"
+          />
+          <span
+            className={`sg-hub-status${apiOnline ? " sg-hub-status--online" : ""}`}
+            role="status"
+          >
+            {apiOnline ? "API conectada" : "Sin conexión API"}
+          </span>
         </header>
+
+        {hubKpiStrip}
+
+        <p className="usuarios-actividad-hub-status muted" role="status">
+          {subtituloAmbito ? `${subtituloAmbito} · ` : ""}
+          {subtitulo}
+        </p>
 
         {seccionOnline}
 
-        <div className="filters listado-pro-filters usuarios-actividad-filters">
-          <div className="listado-pro-filters-row listado-pro-filters-row--unica">
-            {puedeFiltrarCuenta ? (
-              <div className="field">
-                <label htmlFor="ua-filtro-cuenta">Cuenta</label>
-                <select
-                  id="ua-filtro-cuenta"
-                  value={filtroCuentaId}
-                  disabled={!apiOnline || loading}
-                  onChange={(e) => setFiltroCuentaId(e.target.value)}
-                >
-                  <option value="">Todas las cuentas</option>
-                  {cuentas.map((c) => (
-                    <option key={c.id} value={String(c.id)}>
-                      {c.nombre}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            ) : null}
-            {puedeFiltrarUsuario ? (
-              <div className="field">
-                <label htmlFor="ua-filtro-usuario">Usuario</label>
-                <select
-                  id="ua-filtro-usuario"
-                  value={filtroEmail}
-                  disabled={!apiOnline || loading}
-                  onChange={(e) => setFiltroEmail(e.target.value)}
-                >
-                  <option value="">Todos</option>
-                  {usuarios.map((u) => (
-                    <option key={u.email} value={u.email}>
-                      {u.nombre}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            ) : null}
-            <div className="field">
-              <label htmlFor="ua-filtro-evento">Tipo</label>
-              <select
-                id="ua-filtro-evento"
-                value={filtroEvento}
-                disabled={!apiOnline || loading}
-                onChange={(e) => setFiltroEvento(e.target.value)}
-              >
-                {EVENTO_OPCIONES.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="listado-pro-filters-actions">
-              <button
-                type="button"
-                className="btn listado-pro-reset-btn"
-                disabled={
-                  !apiOnline ||
-                  loading ||
-                  (!filtroEmail && !filtroEvento && !filtroCuentaId)
-                }
-                onClick={() => {
-                  setFiltroCuentaId("");
-                  setFiltroEmail("");
-                  setFiltroEvento("");
-                }}
-              >
-                Limpiar
-              </button>
-              <button
-                type="button"
-                className="btn btn-primary listado-pro-search-btn"
-                disabled={!apiOnline || loading}
-                onClick={() => void load()}
-              >
-                Actualizar
-              </button>
-            </div>
-          </div>
-        </div>
+        <section
+          className="usuarios-actividad-hub-box usuarios-actividad-hub-box--listado"
+          aria-label="Historial de actividad"
+        >
+          <header className="usuarios-actividad-hub-head-box">
+            <p className="sg-hub-panel-kicker">Historial</p>
+            <h2 className="usuarios-actividad-hub-title">Registro de actividad</h2>
+            <p className="usuarios-actividad-hub-sub muted">
+              Filtrá por usuario, tipo de evento o cuenta y consultá el detalle de cada acción.
+            </p>
+          </header>
 
-        <section className="usuarios-actividad-kpis" aria-label="Resumen">
-          <div className="usuarios-actividad-kpi-grid">
-            {puedeVerOnline ? (
-              <div className="usuarios-actividad-kpi usuarios-actividad-kpi--online">
-                <span className="usuarios-actividad-kpi-label">En línea</span>
-                <span className="usuarios-actividad-kpi-valor">
-                  {loadingOnline || !apiOnline ? "—" : online.length}
-                </span>
-              </div>
-            ) : null}
-            <div className="usuarios-actividad-kpi">
-              <span className="usuarios-actividad-kpi-label">Registros</span>
-              <span className="usuarios-actividad-kpi-valor">
-                {loading || !apiOnline ? "—" : resumen.total}
-              </span>
-            </div>
-            <div className="usuarios-actividad-kpi usuarios-actividad-kpi--login">
-              <span className="usuarios-actividad-kpi-label">Logins</span>
-              <span className="usuarios-actividad-kpi-valor">
-                {loading || !apiOnline ? "—" : resumen.logins}
-              </span>
-            </div>
-            <div className="usuarios-actividad-kpi usuarios-actividad-kpi--nav">
-              <span className="usuarios-actividad-kpi-label">Navegación</span>
-              <span className="usuarios-actividad-kpi-valor">
-                {loading || !apiOnline ? "—" : resumen.navegacion}
-              </span>
-            </div>
-            <div className="usuarios-actividad-kpi usuarios-actividad-kpi--accion">
-              <span className="usuarios-actividad-kpi-label">Acciones</span>
-              <span className="usuarios-actividad-kpi-valor">
-                {loading || !apiOnline ? "—" : resumen.acciones}
-              </span>
-            </div>
-          </div>
+          {filtersBar}
+          {dataTable}
+          {pagination}
         </section>
-
-        <div className="table-wrap listado-pro-table-wrap">
-          <table className="data-table listado-pro-table usuarios-actividad-table">
-            <thead>
-              <tr>
-                <th>Fecha y hora</th>
-                <th>Usuario</th>
-                <th>Tipo</th>
-                <th>Actividad</th>
-                {puedeVerIp ? <th>IP</th> : null}
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={puedeVerIp ? 5 : 4} className="empty">
-                    Cargando actividad…
-                  </td>
-                </tr>
-              ) : rows.length === 0 ? (
-                <tr>
-                  <td colSpan={puedeVerIp ? 5 : 4} className="empty">
-                    Sin registros de actividad
-                  </td>
-                </tr>
-              ) : (
-                rows.map((row) => {
-                  const { fecha, hora } = fmtFecha(row.creado_en);
-                  return (
-                    <tr key={row.id}>
-                      <td className="usuarios-act-fecha">
-                        <span>{fecha}</span>
-                        {hora ? <span className="muted">{hora}</span> : null}
-                      </td>
-                      <td>
-                        <strong>{row.user_nombre || row.email || "—"}</strong>
-                        {row.email ? (
-                          <span className="muted usuarios-act-email">{row.email}</span>
-                        ) : null}
-                      </td>
-                      <td>
-                        <span className={`usuarios-act-tipo ${tipoBadgeClass(row.evento)}`}>
-                          {labelEvento(row.evento)}
-                        </span>
-                      </td>
-                      <td className="usuarios-act-detalle">{row.detalle || "—"}</td>
-                      {puedeVerIp ? (
-                        <td className="muted small-cell">{row.ip || "—"}</td>
-                      ) : null}
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {!loading && apiOnline && total > 0 && (
-          <TablePagination
-            total={total}
-            page={pageSafe}
-            pageSize={pageSize}
-            onPageChange={setPage}
-            onPageSizeChange={(size) => {
-              setPageSize(size);
-              setPage(1);
-            }}
-          />
-        )}
       </div>
     </div>
   );

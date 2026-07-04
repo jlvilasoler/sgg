@@ -2,14 +2,15 @@ import type { Empresa } from "../../types";
 import { fmtNum } from "../../utils";
 import { empresasSelectOptions } from "../../utils/empresas-catalogo";
 
+/** @deprecated Prefer nombres del catálogo venta-sub-rubros (grupo Venta agricultura). */
 export const CULTIVOS_AGRICULTURA = [
-  { id: "TRIGO", label: "Trigo", color: "#d97706" },
-  { id: "SOJA", label: "Soja", color: "#65a30d" },
-  { id: "MAIZ", label: "Maíz", color: "#ca8a04" },
-  { id: "COLZA", label: "Colza", color: "#eab308" },
+  { id: "Trigo", label: "Trigo", color: "#d97706" },
+  { id: "Soja", label: "Soja", color: "#65a30d" },
+  { id: "Maíz", label: "Maíz", color: "#ca8a04" },
+  { id: "Colza", label: "Colza", color: "#eab308" },
 ] as const;
 
-export type CultivoAgriculturaId = (typeof CULTIVOS_AGRICULTURA)[number]["id"];
+export type CultivoAgriculturaId = string;
 
 export type EmpresaAgricultura = Empresa | "";
 
@@ -83,11 +84,25 @@ export function labelEmpresaAgricultura(empresa: string): string {
 }
 
 export function colorCultivoAgricultura(cultivo: string): string {
-  return CULTIVOS_AGRICULTURA.find((c) => c.id === cultivo)?.color ?? "#848e9c";
+  const key = cultivo.trim().toLowerCase();
+  const found = CULTIVOS_AGRICULTURA.find(
+    (c) =>
+      c.id.toLowerCase() === key ||
+      c.label.toLowerCase() === key ||
+      c.id.toUpperCase() === cultivo.trim().toUpperCase()
+  );
+  return found?.color ?? "#848e9c";
 }
 
 export function labelCultivoAgricultura(cultivo: string): string {
-  return CULTIVOS_AGRICULTURA.find((c) => c.id === cultivo)?.label ?? cultivo;
+  const key = cultivo.trim();
+  const found = CULTIVOS_AGRICULTURA.find(
+    (c) =>
+      c.id === key ||
+      c.label === key ||
+      c.id.toUpperCase() === key.toUpperCase()
+  );
+  return found?.label ?? key;
 }
 
 export function labelMesAgricultura(mes: number): string {

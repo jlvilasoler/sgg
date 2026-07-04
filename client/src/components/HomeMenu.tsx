@@ -53,19 +53,14 @@ export const MENU_APPS: MenuApp[] = [
     subtitle: "Gordo y reposición (USD/kg)",
   },
   {
-    id: "simulador_venta_ganado",
-    label: "Simulador de Ventas",
-    subtitle: "Simular ingresos por ventas de ganado",
+    id: "ingresos_ventas",
+    label: "Ingresos por ventas",
+    subtitle: "Simulador, ingresos cerrados y rubros",
   },
   {
     id: "recursos_humanos",
     label: "Recursos Humanos",
     subtitle: "Funcionarios, sueldos y jornales",
-  },
-  {
-    id: "ingresos_ventas",
-    label: "Ingresos por ventas",
-    subtitle: "Documentos e ingresos por ventas",
   },
   {
     id: "stock_ganadero",

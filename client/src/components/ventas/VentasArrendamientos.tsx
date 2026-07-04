@@ -60,6 +60,11 @@ import {
 } from "./ventas-arrendamientos-real-utils";
 import { canWriteSimuladorVentaGanado, canWriteIngresosVentas } from "../../utils/auth-permissions";
 import { PageModuleHeadRow } from "../PageModuleHead";
+import {
+  VentasDashKpi,
+  VentasIngresosDashPanel,
+  VentasIngresosListPanel,
+} from "./VentasIngresosDashUi";
 
 interface Props {
   catalogos: Catalogos;
@@ -69,6 +74,7 @@ interface Props {
   onVolver: () => void;
   modo?: VentasArrendamientosModo;
   user?: AuthUser | null;
+  embedded?: boolean;
 }
 
 export default function VentasArrendamientos({
@@ -79,6 +85,7 @@ export default function VentasArrendamientos({
   onVolver,
   modo = "simulador",
   user = null,
+  embedded = false,
 }: Props) {
   const copy = VENTAS_ARRENDAMIENTOS_COPY[modo];
   const [empresasCuenta, setEmpresasCuenta] = useState<string[]>(catalogos.empresas);
@@ -615,16 +622,160 @@ export default function VentasArrendamientos({
     [modalidad, fechaInicio, fechaFinEfectiva]
   );
 
+  const tieneFiltrosIngresos = Boolean(filtroEmpresa || filtroDepartamento || busqueda.trim());
+
+  const ingresosHubKpiStrip = embedded ? (
+    <VentasIngresosDashPanel title="Resumen de arrendamientos">
+      <VentasDashKpi
+        kicker="Arrendamientos"
+        value={loading || !apiOnline ? "—" : rowsVisibles.length}
+        hint="Registros en el listado"
+        variant="dark"
+      />
+      <VentasDashKpi
+        kicker="Has"
+        value={loading || !apiOnline ? "—" : fmtNum(totalHasListado, 2)}
+        hint="Hectáreas totales"
+        variant="light"
+        highlight="mid"
+      />
+      <VentasDashKpi
+        kicker="Total USD"
+        value={loading || !apiOnline ? "—" : formatUsdArrendamiento(totalUsdListado)}
+        hint="Monto acumulado"
+        variant="light"
+      />
+    </VentasIngresosDashPanel>
+  ) : (
+    <section
+      className="sg-hub-kpi-strip ventas-ingresos-kpi-strip ventas-ingresos-kpi-strip--3"
+      aria-label="Totales de arrendamientos"
+    >
+      <article className="sg-hub-kpi sg-hub-kpi--dark">
+        <div className="sg-hub-kpi-top">
+          <div>
+            <p className="sg-hub-kpi-kicker">Arrendamientos</p>
+            <p className="sg-hub-kpi-value">
+              {loading || !apiOnline ? "—" : rowsVisibles.length}
+            </p>
+          </div>
+        </div>
+        <p className="sg-hub-kpi-hint">Registros en el listado</p>
+      </article>
+      <article className="sg-hub-kpi sg-hub-kpi--light">
+        <div className="sg-hub-kpi-top">
+          <div>
+            <p className="sg-hub-kpi-kicker">Has</p>
+            <p className="sg-hub-kpi-value">
+              {loading || !apiOnline ? "—" : fmtNum(totalHasListado, 2)}
+            </p>
+          </div>
+        </div>
+        <p className="sg-hub-kpi-hint">Hectáreas totales</p>
+      </article>
+      <article className="sg-hub-kpi sg-hub-kpi--light">
+        <div className="sg-hub-kpi-top">
+          <div>
+            <p className="sg-hub-kpi-kicker">Total USD</p>
+            <p className="sg-hub-kpi-value sg-hub-kpi-value--usd">
+              {loading || !apiOnline ? "—" : formatUsdArrendamiento(totalUsdListado)}
+            </p>
+          </div>
+        </div>
+        <p className="sg-hub-kpi-hint">Monto acumulado</p>
+      </article>
+    </section>
+  );
+
+  const ingresosFiltersBar = (
+    <div className="ventas-ingresos-hub-filters-box mayusculas-auto">
+      <div className="field">
+        <label htmlFor="var-f-empresa">Empresa</label>
+        <select
+          id="var-f-empresa"
+          value={filtroEmpresa}
+          disabled={!apiOnline || loading}
+          onChange={(e) => setFiltroEmpresa(e.target.value)}
+        >
+          <option value="">Todas</option>
+          {empresasOpciones.map((item) => (
+            <option key={item.value} value={item.value}>
+              {item.label}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className="field">
+        <label htmlFor="var-f-depto">Departamento</label>
+        <select
+          id="var-f-depto"
+          value={filtroDepartamento}
+          disabled={!apiOnline || loading}
+          onChange={(e) =>
+            setFiltroDepartamento(e.target.value as "" | DepartamentoArrendamientoId)
+          }
+        >
+          <option value="">Todos</option>
+          {DEPARTAMENTOS_ARRENDAMIENTO.map((item) => (
+            <option key={item.id} value={item.id}>
+              {item.label}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className="field flex-grow">
+        <label htmlFor="var-f-busq">Buscar</label>
+        <input
+          id="var-f-busq"
+          type="search"
+          placeholder="Empresa, departamento, padrón…"
+          value={busqueda}
+          disabled={!apiOnline || loading}
+          onChange={(e) => setBusqueda(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && load()}
+        />
+      </div>
+      <div className="ventas-ingresos-hub-filters-actions">
+        <button
+          type="button"
+          className="sg-hub-cta sg-hub-cta--ghost"
+          disabled={!apiOnline || loading || !tieneFiltrosIngresos}
+          onClick={() => {
+            setFiltroEmpresa("");
+            setFiltroDepartamento("");
+            setBusqueda("");
+          }}
+        >
+          Limpiar
+        </button>
+        <button
+          type="button"
+          className="sg-hub-cta"
+          disabled={!apiOnline || loading}
+          onClick={() => void load()}
+        >
+          Buscar
+        </button>
+      </div>
+    </div>
+  );
+
   return (
-    <div className="subseccion-panel">
+    <div
+      className={`subseccion-panel${!esSimulador && !embedded ? " ventas-ingresos--hub ventas-arrendamientos--hub" : ""}`}
+    >
+      {!embedded ? (
       <button type="button" className="subseccion-back" onClick={onVolver}>
         ‹ {copy.volver}
       </button>
+      ) : null}
 
       {esSimulador && puedeEditar && (
         <form
           ref={formRef}
-          className="card form-card ventas-agricultura-card"
+          className={`form-card ventas-agricultura-card${
+            embedded ? " sg-hub-panel ventas-simulador-panel ventas-agricultura-form-hub" : " card"
+          }`}
           onSubmit={(e) => {
             e.preventDefault();
             void guardar();
@@ -639,6 +790,7 @@ export default function VentasArrendamientos({
             </div>
           )}
 
+          {!embedded && (
           <div className="form-header">
             <PageModuleHeadRow
               icon={{ source: "hub", id: "ventas_arrendamientos" }}
@@ -646,6 +798,7 @@ export default function VentasArrendamientos({
               subtitle={copy.descripcionPagina}
             />
           </div>
+          )}
 
           <div className="form-grid">
             <div className="field">
@@ -1081,91 +1234,133 @@ export default function VentasArrendamientos({
         </div>
       )}
 
-      <div className={`card ventas-agricultura-listado${esSimulador ? " simulador-venta-historial" : ""}`}>
-        {esSimulador ? (
-          <header className="sim-historial-head">
-            <div>
-              <h2>{copy.tituloListado}</h2>
-              <p className="muted">{copy.subtituloListado}</p>
-            </div>
-            {!loading && rowsVisibles.length > 0 && (
-              <span className="sim-historial-count">
-                {rowsVisibles.length} {copy.unidadConteo} — USD {fmtNum(totalUsdListado, 2)}
-              </span>
-            )}
-          </header>
-        ) : (
-          <div className="form-header">
-            <PageModuleHeadRow
-              icon={{ source: "hub", id: "ventas_arrendamientos" }}
-              title={copy.tituloPagina}
-              subtitle={copy.descripcionPagina}
-            />
-            <p className="muted">{copy.subtituloListado}</p>
-            <p className="muted">
-              {loading
-                ? "Cargando..."
-                : `${rowsVisibles.length} ${copy.unidadConteo} — Total USD: ${fmtNum(totalUsdListado, 2)}`}
-            </p>
-          </div>
-        )}
+      {!esSimulador ? (
+          <>
+            {ingresosHubKpiStrip}
+            <VentasIngresosListPanel>
+              {ingresosFiltersBar}
 
-        <div className="filters mayusculas-auto">
-          <div className="field">
-            <label htmlFor="var-f-empresa">Empresa</label>
-            <select
-              id="var-f-empresa"
-              value={filtroEmpresa}
-              onChange={(e) => setFiltroEmpresa(e.target.value)}
-            >
-              <option value="">Todas</option>
-              {empresasOpciones.map((item) => (
-                <option key={item.value} value={item.value}>
-                  {item.label}
-                </option>
-              ))}
-            </select>
+              <div className="table-wrap ventas-ingresos-hub-table-box ventas-hub-table-box">
+                <table className="data-table ventas-agricultura-table">
+                <thead>
+                  <tr>
+                    <th>Operación</th>
+                    <th>Empresa</th>
+                    <th>Período</th>
+                    <th>Depto.</th>
+                    <th>Padrón</th>
+                    <th className="num">Has</th>
+                    <th className="num">USD/ha</th>
+                    <th className="num">Total USD</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {loading ? (
+                    <tr>
+                      <td colSpan={8} className="empty-cell">
+                        Cargando…
+                      </td>
+                    </tr>
+                  ) : !apiOnline ? (
+                    <tr>
+                      <td colSpan={8} className="empty-cell">
+                        API no conectada
+                      </td>
+                    </tr>
+                  ) : rowsVisibles.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="empty-cell">
+                        {copy.sinFilas}
+                      </td>
+                    </tr>
+                  ) : (
+                    rowsPagina.map((row) => {
+                      const hasReal = arrendamientoHasVentaReal(row);
+                      const fechaIni =
+                        hasReal && row.real_fecha_inicio ? row.real_fecha_inicio : row.fecha_inicio;
+                      const fechaFin =
+                        hasReal && row.real_fecha_fin ? row.real_fecha_fin : row.fecha_fin;
+                      const has = hectareasEfectivasArrendamiento(row);
+                      const precio =
+                        hasReal && row.real_precio_usd_ha != null
+                          ? row.real_precio_usd_ha
+                          : row.precio_usd_ha;
+                      const total = totalUsdEfectivoArrendamiento(row);
+                      return (
+                        <tr key={row.id}>
+                          <td className="sim-historial-op">
+                            <span className="sim-historial-op-code">
+                              {formatOperacionArrendamiento(row.id)}
+                            </span>
+                          </td>
+                          <td>{labelEmpresaArrendamiento(row.empresa)}</td>
+                          <td>{formatPeriodoArrendamiento(fechaIni, fechaFin)}</td>
+                          <td>{labelDepartamentoArrendamiento(row.departamento)}</td>
+                          <td>{row.padron}</td>
+                          <td className="num">{fmtNum(has, 2)}</td>
+                          <td className="num">{formatUsdPorHaArrendamiento(precio)}</td>
+                          <td className="num">{formatUsdArrendamiento(total)}</td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+                {!loading && apiOnline && rowsVisibles.length > 0 && (
+                  <tfoot>
+                    <tr className="data-table-totals">
+                      <td colSpan={5}>
+                        <strong>Totales ({rowsVisibles.length})</strong>
+                      </td>
+                      <td className="num">
+                        <strong>{fmtNum(totalHasListado, 2)}</strong>
+                      </td>
+                      <td />
+                      <td className="num">
+                        <strong>{formatUsdArrendamiento(totalUsdListado)}</strong>
+                      </td>
+                    </tr>
+                  </tfoot>
+                )}
+              </table>
+            </div>
+
+            {!loading && rowsVisibles.length > 0 && (
+              <TablePagination
+                total={rowsVisibles.length}
+                page={pageSafe}
+                pageSize={pageSize}
+                onPageChange={setPage}
+                onPageSizeChange={(size) => {
+                  setPageSize(size);
+                  setPage(1);
+                }}
+              />
+            )}
+            </VentasIngresosListPanel>
+          </>
+      ) : (
+      <VentasIngresosListPanel>
+        <header className="sim-historial-head ventas-ingresos-list-head">
+          <div>
+            <h2>{copy.tituloListado}</h2>
+            <p className="muted">{copy.subtituloListado}</p>
           </div>
-          <div className="field">
-            <label htmlFor="var-f-depto">Departamento</label>
-            <select
-              id="var-f-depto"
-              value={filtroDepartamento}
-              onChange={(e) =>
-                setFiltroDepartamento(e.target.value as "" | DepartamentoArrendamientoId)
-              }
-            >
-              <option value="">Todos</option>
-              {DEPARTAMENTOS_ARRENDAMIENTO.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="field flex-grow">
-            <label htmlFor="var-f-busq">Buscar</label>
-            <input
-              id="var-f-busq"
-              type="search"
-              placeholder="Empresa, departamento, padrón…"
-              value={busqueda}
-              onChange={(e) => setBusqueda(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && load()}
-            />
-          </div>
-          <button type="button" className="btn btn-primary" onClick={load}>
-            Buscar
-          </button>
-        </div>
+          {!loading && rowsVisibles.length > 0 && (
+            <span className="sim-historial-count">
+              {rowsVisibles.length} {copy.unidadConteo} — USD {fmtNum(totalUsdListado, 2)}
+            </span>
+          )}
+        </header>
+
+        {ingresosFiltersBar}
 
         {esSimulador && editingRealId != null && editingId == null && (
-          <div className="sim-historial-editing-banner sim-calc-editing-banner" role="status">
+          <div className="sim-historial-editing-banner sim-calc-editing-banner ventas-ingresos-list-banner" role="status">
             <span>Confirmando operación — completá los datos en la tabla</span>
           </div>
         )}
 
-        <div className={esSimulador ? "sim-historial-table-wrap" : "table-wrap"}>
+        <div className="sim-historial-table-wrap ventas-ingresos-hub-table-box ventas-hub-table-box">
           <table
             className={
               esSimulador
@@ -1305,7 +1500,8 @@ export default function VentasArrendamientos({
             }}
           />
         )}
-      </div>
+      </VentasIngresosListPanel>
+      )}
     </div>
   );
 }

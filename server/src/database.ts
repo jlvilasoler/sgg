@@ -331,46 +331,58 @@ export const simuladorVentaDispositivos = {
 };
 
 export const ventaSubRubros = {
-  list: (soloActivos?: boolean) => vsub.listVentaSubRubros(db, soloActivos ?? false),
-  listGrupos: () => vsub.listVentaSubRubrosGrupos(db),
-  getById: (id: number) => vsub.getVentaSubRubroById(db, id),
-  getByNombre: (nombre: string) => vsub.getVentaSubRubroByNombre(db, nombre),
-  insert: (data: vsub.VentaSubRubroInput) => vsub.insertVentaSubRubro(db, data),
-  update: (id: number, data: vsub.VentaSubRubroInput) =>
-    vsub.updateVentaSubRubro(db, id, data),
-  delete: (id: number) => vsub.deleteVentaSubRubro(db, id),
-  deleteByGrupo: (grupo: string) => vsub.deleteVentaSubRubrosByGrupo(db, grupo),
-  renameGrupo: (anterior: string, nuevo: string) =>
-    vsub.renameVentaSubRubroGrupo(db, anterior, nuevo),
+  list: (soloActivos?: boolean, cuentaId?: number | null) =>
+    vsub.listVentaSubRubros(db, soloActivos ?? false, cuentaId),
+  listGrupos: (cuentaId?: number | null) => vsub.listVentaSubRubrosGrupos(db, cuentaId),
+  getById: (id: number, cuentaId?: number | null) =>
+    vsub.getVentaSubRubroById(db, id, cuentaId),
+  getByNombre: (nombre: string, cuentaId?: number | null) =>
+    vsub.getVentaSubRubroByNombre(db, nombre, cuentaId),
+  insert: (data: vsub.VentaSubRubroInput, cuentaId?: number | null) =>
+    vsub.insertVentaSubRubro(db, data, cuentaId),
+  update: (id: number, data: vsub.VentaSubRubroInput, cuentaId?: number | null) =>
+    vsub.updateVentaSubRubro(db, id, data, cuentaId),
+  delete: (id: number, cuentaId?: number | null) =>
+    vsub.deleteVentaSubRubro(db, id, cuentaId),
+  deleteByGrupo: (grupo: string, cuentaId?: number | null) =>
+    vsub.deleteVentaSubRubrosByGrupo(db, grupo, cuentaId),
+  renameGrupo: (anterior: string, nuevo: string, cuentaId?: number | null) =>
+    vsub.renameVentaSubRubroGrupo(db, anterior, nuevo, cuentaId),
 };
 
 export const ventaSubRubroItems = {
-  listBySubRubroId: (subRubroId: number, soloActivos?: boolean) =>
-    vsubItems.listVentaItemsBySubRubroId(db, subRubroId, soloActivos ?? false),
-  listBySubRubroNombre: (nombre: string, soloActivos?: boolean) =>
-    vsubItems.listVentaItemsBySubRubroNombre(db, nombre, soloActivos ?? true),
-  countsBySubRubroIds: (ids: number[]) => vsubItems.countVentaItemsBySubRubroIds(db, ids),
-  groupedBySubRubroIds: (ids: number[]) =>
-    vsubItems.listVentaItemsGroupedBySubRubroIds(db, ids),
+  listBySubRubroId: (subRubroId: number, soloActivos?: boolean, cuentaId?: number | null) =>
+    vsubItems.listVentaItemsBySubRubroId(db, subRubroId, soloActivos ?? false, cuentaId),
+  listBySubRubroNombre: (nombre: string, soloActivos?: boolean, cuentaId?: number | null) =>
+    vsubItems.listVentaItemsBySubRubroNombre(db, nombre, soloActivos ?? true, cuentaId),
+  countsBySubRubroIds: (ids: number[], cuentaId?: number | null) =>
+    vsubItems.countVentaItemsBySubRubroIds(db, ids, cuentaId),
+  groupedBySubRubroIds: (ids: number[], cuentaId?: number | null) =>
+    vsubItems.listVentaItemsGroupedBySubRubroIds(db, ids, cuentaId),
   getById: (id: number) => vsubItems.getVentaItemById(db, id),
-  insert: (subRubroId: number, data: vsubItems.VentaSubRubroItemInput) =>
-    vsubItems.insertVentaItem(db, subRubroId, data),
-  update: (id: number, data: vsubItems.VentaSubRubroItemInput) =>
-    vsubItems.updateVentaItem(db, id, data),
-  delete: (id: number) => vsubItems.deleteVentaItem(db, id),
+  getByIdInCuenta: (id: number, cuentaId?: number | null) =>
+    vsubItems.getVentaItemByIdInCuenta(db, id, cuentaId),
+  insert: (subRubroId: number, data: vsubItems.VentaSubRubroItemInput, cuentaId?: number | null) =>
+    vsubItems.insertVentaItem(db, subRubroId, data, cuentaId),
+  update: (id: number, data: vsubItems.VentaSubRubroItemInput, cuentaId?: number | null) =>
+    vsubItems.updateVentaItem(db, id, data, cuentaId),
+  delete: (id: number, cuentaId?: number | null) =>
+    vsubItems.deleteVentaItem(db, id, cuentaId),
 };
 
 export const ventaGrupoIconos = {
-  map: () => vgicon.getVentaGrupoIconosMap(db),
+  map: (cuentaId?: number | null) => vgicon.getVentaGrupoIconosMap(db, cuentaId),
   banco: () => vgicon.listVentaBancoIconos(),
-  save: (grupo: string, buffer: Buffer, mime: string) =>
-    vgicon.saveVentaGrupoIcono(db, grupo, buffer, mime),
-  saveEmoji: (grupo: string, emoji: string) =>
-    vgicon.saveVentaGrupoIconoEmoji(db, grupo, emoji),
-  filePath: (grupo: string) => vgicon.resolveVentaIconFilePath(db, grupo),
-  deleteByGrupo: (grupo: string) => vgicon.deleteVentaGrupoIcono(db, grupo),
-  renameGrupo: (anterior: string, nuevo: string) =>
-    vgicon.renameVentaGrupoIcono(db, anterior, nuevo),
+  save: (grupo: string, buffer: Buffer, mime: string, cuentaId?: number | null) =>
+    vgicon.saveVentaGrupoIcono(db, grupo, buffer, mime, cuentaId),
+  saveEmoji: (grupo: string, emoji: string, cuentaId?: number | null) =>
+    vgicon.saveVentaGrupoIconoEmoji(db, grupo, emoji, cuentaId),
+  filePath: (grupo: string, cuentaId?: number | null) =>
+    vgicon.resolveVentaIconFilePath(db, grupo, cuentaId),
+  deleteByGrupo: (grupo: string, cuentaId?: number | null) =>
+    vgicon.deleteVentaGrupoIcono(db, grupo, cuentaId),
+  renameGrupo: (anterior: string, nuevo: string, cuentaId?: number | null) =>
+    vgicon.renameVentaGrupoIcono(db, anterior, nuevo, cuentaId),
 };
 
 export const stockGanadero = {

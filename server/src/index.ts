@@ -536,6 +536,31 @@ async function cuentaIdParaInsert(user: UserPublic): Promise<number | null> {
   return await empresasCuenta.cuentaIdParaInsert(db.getDb(), user);
 }
 
+/** Scope de lectura del catálogo venta-sub-rubros; undefined = usuario sin cuenta. */
+async function ventaRubrosCuentaReadScope(
+  user: UserPublic
+): Promise<number | null | undefined> {
+  const cuentaId = await cuentaIdForScopedRead(user);
+  if (!user.es_super_admin && cuentaId == null) return undefined;
+  return cuentaId;
+}
+
+function requireVentaRubrosManage(req: Request, res: Response): boolean {
+  const user = req.user!;
+  if (user.rol === "admin" || user.rol === "editor") return true;
+  res.status(403).json({
+    ok: false,
+    error:
+      "Solo administradores y gestores nivel 1 pueden modificar el catálogo de rubros de ventas",
+  });
+  return false;
+}
+
+/** Cuenta efectiva para altas/ediciones del catálogo de ventas. */
+async function ventaRubrosCuentaWriteScope(user: UserPublic): Promise<number | null> {
+  return (await cuentaIdForUser(user)) ?? (await cuentaIdParaInsert(user));
+}
+
 /** Etiquetas creado_por de todos los usuarios de la cuenta (para marcas más usadas). */
 async function autoresLabelsForMarcaScope(user: UserPublic): Promise<string[]> {
   const labels = new Set<string>();
@@ -1587,20 +1612,34 @@ app.delete("/api/ingresos-ventas/:id", async (req, res) => {
 
 app.get("/api/venta-sub-rubros", async (req, res) => {
   const soloActivos = req.query.solo_activos === "1";
-  res.json({ ok: true, data: await db.ventaSubRubros.list(soloActivos) });
+  const user = req.user!;
+  const cuentaId = await ventaRubrosCuentaReadScope(user);
+  if (cuentaId === undefined) {
+    res.json({ ok: true, data: [] });
+    return;
+  }
+  res.json({ ok: true, data: await db.ventaSubRubros.list(soloActivos, cuentaId) });
 });
 
-app.get("/api/venta-sub-rubros/grupos", async (_req, res) => {
-  res.json({ ok: true, data: await db.ventaSubRubros.listGrupos() });
+app.get("/api/venta-sub-rubros/grupos", async (req, res) => {
+  const user = req.user!;
+  const cuentaId = await ventaRubrosCuentaReadScope(user);
+  if (cuentaId === undefined) {
+    res.json({ ok: true, data: [] });
+    return;
+  }
+  res.json({ ok: true, data: await db.ventaSubRubros.listGrupos(cuentaId) });
 });
 
 app.post("/api/venta-sub-rubros", async (req, res) => {
+  if (!requireVentaRubrosManage(req, res)) return;
   try {
     const payload = parseSubRubroBody(req);
-    const id = await db.ventaSubRubros.insert(payload);
+    const cuentaId = await cuentaIdParaInsert(req.user!);
+    const id = await db.ventaSubRubros.insert(payload, cuentaId);
     res.status(201).json({
       ok: true,
-      data: await db.ventaSubRubros.getById(id),
+      data: await db.ventaSubRubros.getById(id, cuentaId),
       message: "Sub-rubro creado",
     });
   } catch (e) {
@@ -1609,20 +1648,22 @@ app.post("/api/venta-sub-rubros", async (req, res) => {
 });
 
 app.put("/api/venta-sub-rubros/:id", async (req, res) => {
+  if (!requireVentaRubrosManage(req, res)) return;
   try {
     const id = Number(req.params.id);
-    const prev = await db.ventaSubRubros.getById(id);
+    const cuentaId = await ventaRubrosCuentaWriteScope(req.user!);
+    const prev = await db.ventaSubRubros.getById(id, cuentaId);
     const payload = parseSubRubroBody(req);
-    if (!await db.ventaSubRubros.update(id, payload)) {
+    if (!await db.ventaSubRubros.update(id, payload, cuentaId)) {
       res.status(404).json({ ok: false, error: "Sub-rubro no encontrado" });
       return;
     }
     if (prev && prev.grupo !== payload.grupo) {
-      await db.ventaGrupoIconos.renameGrupo(prev.grupo, payload.grupo);
+      await db.ventaGrupoIconos.renameGrupo(prev.grupo, payload.grupo, cuentaId);
     }
     res.json({
       ok: true,
-      data: await db.ventaSubRubros.getById(id),
+      data: await db.ventaSubRubros.getById(id, cuentaId),
       message: "Sub-rubro actualizado",
     });
   } catch (e) {
@@ -1631,12 +1672,14 @@ app.put("/api/venta-sub-rubros/:id", async (req, res) => {
 });
 
 app.put("/api/venta-sub-rubros/grupo/rename", async (req, res) => {
+  if (!requireVentaRubrosManage(req, res)) return;
   try {
     const anterior = String(req.body?.anterior ?? "").trim();
     const nuevo = String(req.body?.nuevo ?? "").trim();
-    const updated = await db.ventaSubRubros.renameGrupo(anterior, nuevo);
+    const cuentaId = await ventaRubrosCuentaWriteScope(req.user!);
+    const updated = await db.ventaSubRubros.renameGrupo(anterior, nuevo, cuentaId);
     const nombreCanon = normalizarTituloRubro(nuevo);
-    await db.ventaGrupoIconos.renameGrupo(anterior, nombreCanon);
+    await db.ventaGrupoIconos.renameGrupo(anterior, nombreCanon, cuentaId);
     res.json({
       ok: true,
       message:
@@ -1651,10 +1694,12 @@ app.put("/api/venta-sub-rubros/grupo/rename", async (req, res) => {
 });
 
 app.delete("/api/venta-sub-rubros/grupo/:grupo", async (req, res) => {
+  if (!requireVentaRubrosManage(req, res)) return;
   try {
     const grupo = decodeURIComponent(req.params.grupo);
-    const result = await db.ventaSubRubros.deleteByGrupo(grupo);
-    await db.ventaGrupoIconos.deleteByGrupo(grupo);
+    const cuentaId = await ventaRubrosCuentaWriteScope(req.user!);
+    const result = await db.ventaSubRubros.deleteByGrupo(grupo, cuentaId);
+    await db.ventaGrupoIconos.deleteByGrupo(grupo, cuentaId);
     const msg =
       result.deleted > 0
         ? `Rubro eliminado (${result.deleted} sub-rubro(s))`
@@ -1666,9 +1711,11 @@ app.delete("/api/venta-sub-rubros/grupo/:grupo", async (req, res) => {
 });
 
 app.delete("/api/venta-sub-rubros/:id", async (req, res) => {
+  if (!requireVentaRubrosManage(req, res)) return;
   try {
     const id = Number(req.params.id);
-    if (!await db.ventaSubRubros.delete(id)) {
+    const cuentaId = await ventaRubrosCuentaWriteScope(req.user!);
+    if (!await db.ventaSubRubros.delete(id, cuentaId)) {
       res.status(404).json({ ok: false, error: "Sub-rubro no encontrado" });
       return;
     }
@@ -1679,24 +1726,45 @@ app.delete("/api/venta-sub-rubros/:id", async (req, res) => {
 });
 
 app.get("/api/venta-sub-rubros/items-counts", async (req, res) => {
+  const user = req.user!;
+  const cuentaId = await ventaRubrosCuentaReadScope(user);
+  if (cuentaId === undefined) {
+    res.json({ ok: true, data: {} });
+    return;
+  }
   const raw = String(req.query.ids ?? "").trim();
   const ids = raw
     .split(",")
     .map((s) => Number(s.trim()))
     .filter((n) => Number.isFinite(n) && n > 0);
-  res.json({ ok: true, data: await db.ventaSubRubroItems.countsBySubRubroIds(ids) });
+  res.json({ ok: true, data: await db.ventaSubRubroItems.countsBySubRubroIds(ids, cuentaId) });
 });
 
 app.get("/api/venta-sub-rubros/items-batch", async (req, res) => {
+  const user = req.user!;
+  const cuentaId = await ventaRubrosCuentaReadScope(user);
+  if (cuentaId === undefined) {
+    res.json({ ok: true, data: {} });
+    return;
+  }
   const raw = String(req.query.ids ?? "").trim();
   const ids = raw
     .split(",")
     .map((s) => Number(s.trim()))
     .filter((n) => Number.isFinite(n) && n > 0);
-  res.json({ ok: true, data: await db.ventaSubRubroItems.groupedBySubRubroIds(ids) });
+  res.json({
+    ok: true,
+    data: await db.ventaSubRubroItems.groupedBySubRubroIds(ids, cuentaId),
+  });
 });
 
 app.get("/api/venta-sub-rubros/items", async (req, res) => {
+  const user = req.user!;
+  const cuentaId = await ventaRubrosCuentaReadScope(user);
+  if (cuentaId === undefined) {
+    res.json({ ok: true, data: [] });
+    return;
+  }
   const nombre = String(req.query.sub_rubro ?? "").trim();
   if (!nombre) {
     res.status(400).json({ ok: false, error: "Falta el sub-rubro." });
@@ -1705,11 +1773,12 @@ app.get("/api/venta-sub-rubros/items", async (req, res) => {
   const soloActivos = req.query.solo_activos !== "0";
   res.json({
     ok: true,
-    data: await db.ventaSubRubroItems.listBySubRubroNombre(nombre, soloActivos),
+    data: await db.ventaSubRubroItems.listBySubRubroNombre(nombre, soloActivos, cuentaId),
   });
 });
 
 app.post("/api/venta-sub-rubros/items", async (req, res) => {
+  if (!requireVentaRubrosManage(req, res)) return;
   try {
     const subRubroNombre = String(
       (req.body as { sub_rubro?: string }).sub_rubro ?? ""
@@ -1719,13 +1788,14 @@ app.post("/api/venta-sub-rubros/items", async (req, res) => {
       res.status(400).json({ ok: false, error: "Falta el sub-rubro." });
       return;
     }
-    const sub = await db.ventaSubRubros.getByNombre(subRubroNombre);
+    const cuentaId = await ventaRubrosCuentaWriteScope(req.user!);
+    const sub = await db.ventaSubRubros.getByNombre(subRubroNombre, cuentaId);
     if (!sub) {
       res.status(404).json({ ok: false, error: "Sub-rubro no encontrado" });
       return;
     }
     const activo = (req.body as { activo?: boolean }).activo !== false;
-    const itemId = await db.ventaSubRubroItems.insert(sub.id, { nombre, activo });
+    const itemId = await db.ventaSubRubroItems.insert(sub.id, { nombre, activo }, cuentaId);
     res.status(201).json({
       ok: true,
       data: await db.ventaSubRubroItems.getById(itemId),
@@ -1738,25 +1808,36 @@ app.post("/api/venta-sub-rubros/items", async (req, res) => {
 
 app.get("/api/venta-sub-rubros/:id/items", async (req, res) => {
   const id = Number(req.params.id);
-  const sub = await db.ventaSubRubros.getById(id);
+  const user = req.user!;
+  const cuentaId = await ventaRubrosCuentaReadScope(user);
+  if (cuentaId === undefined) {
+    res.json({ ok: true, data: [] });
+    return;
+  }
+  const sub = await db.ventaSubRubros.getById(id, cuentaId);
   if (!sub) {
     res.status(404).json({ ok: false, error: "Sub-rubro no encontrado" });
     return;
   }
   const soloActivos = req.query.solo_activos !== "0";
-  res.json({ ok: true, data: await db.ventaSubRubroItems.listBySubRubroId(id, soloActivos) });
+  res.json({
+    ok: true,
+    data: await db.ventaSubRubroItems.listBySubRubroId(id, soloActivos, cuentaId),
+  });
 });
 
 app.post("/api/venta-sub-rubros/:id/items", async (req, res) => {
+  if (!requireVentaRubrosManage(req, res)) return;
   try {
     const id = Number(req.params.id);
-    if (!await db.ventaSubRubros.getById(id)) {
+    const cuentaId = await ventaRubrosCuentaWriteScope(req.user!);
+    if (!await db.ventaSubRubros.getById(id, cuentaId)) {
       res.status(404).json({ ok: false, error: "Sub-rubro no encontrado" });
       return;
     }
     const nombre = String((req.body as { nombre?: string }).nombre ?? "").trim();
     const activo = (req.body as { activo?: boolean }).activo !== false;
-    const itemId = await db.ventaSubRubroItems.insert(id, { nombre, activo });
+    const itemId = await db.ventaSubRubroItems.insert(id, { nombre, activo }, cuentaId);
     res.status(201).json({
       ok: true,
       data: await db.ventaSubRubroItems.getById(itemId),
@@ -1768,11 +1849,13 @@ app.post("/api/venta-sub-rubros/:id/items", async (req, res) => {
 });
 
 app.put("/api/venta-sub-rubro-items/:id", async (req, res) => {
+  if (!requireVentaRubrosManage(req, res)) return;
   try {
     const id = Number(req.params.id);
+    const cuentaId = await ventaRubrosCuentaWriteScope(req.user!);
     const nombre = String((req.body as { nombre?: string }).nombre ?? "").trim();
     const activo = (req.body as { activo?: boolean }).activo !== false;
-    if (!await db.ventaSubRubroItems.update(id, { nombre, activo })) {
+    if (!await db.ventaSubRubroItems.update(id, { nombre, activo }, cuentaId)) {
       res.status(404).json({ ok: false, error: "Ítem no encontrado" });
       return;
     }
@@ -1787,16 +1870,24 @@ app.put("/api/venta-sub-rubro-items/:id", async (req, res) => {
 });
 
 app.delete("/api/venta-sub-rubro-items/:id", async (req, res) => {
+  if (!requireVentaRubrosManage(req, res)) return;
   const id = Number(req.params.id);
-  if (!await db.ventaSubRubroItems.delete(id)) {
+  const cuentaId = await cuentaIdForUser(req.user!);
+  if (!await db.ventaSubRubroItems.delete(id, cuentaId)) {
     res.status(404).json({ ok: false, error: "Ítem no encontrado" });
     return;
   }
   res.json({ ok: true, message: "Ítem eliminado" });
 });
 
-app.get("/api/venta-grupo-iconos", async (_req, res) => {
-  res.json({ ok: true, data: await db.ventaGrupoIconos.map() });
+app.get("/api/venta-grupo-iconos", async (req, res) => {
+  const user = req.user!;
+  const cuentaId = await ventaRubrosCuentaReadScope(user);
+  if (cuentaId === undefined) {
+    res.json({ ok: true, data: {} });
+    return;
+  }
+  res.json({ ok: true, data: await db.ventaGrupoIconos.map(cuentaId) });
 });
 
 app.get("/api/venta-grupo-iconos/banco", async (_req, res) => {
@@ -1804,6 +1895,7 @@ app.get("/api/venta-grupo-iconos/banco", async (_req, res) => {
 });
 
 app.put("/api/venta-grupo-iconos/:grupo/emoji", async (req, res) => {
+  if (!requireVentaRubrosManage(req, res)) return;
   try {
     const grupo = decodeURIComponent(paramString(req.params.grupo)).trim();
     const emoji = String((req.body as { emoji?: unknown })?.emoji ?? "").trim();
@@ -1811,7 +1903,8 @@ app.put("/api/venta-grupo-iconos/:grupo/emoji", async (req, res) => {
       res.status(400).json({ ok: false, error: "Rubro inválido." });
       return;
     }
-    const dto = await db.ventaGrupoIconos.saveEmoji(grupo, emoji);
+    const cuentaId = await cuentaIdParaInsert(req.user!);
+    const dto = await db.ventaGrupoIconos.saveEmoji(grupo, emoji, cuentaId);
     res.json({
       ok: true,
       data: { grupo, icono: dto },
@@ -1824,7 +1917,13 @@ app.put("/api/venta-grupo-iconos/:grupo/emoji", async (req, res) => {
 
 app.get("/api/venta-grupo-iconos/:grupo/imagen", async (req, res) => {
   const grupo = decodeURIComponent(paramString(req.params.grupo));
-  const filePath = await db.ventaGrupoIconos.filePath(grupo);
+  const user = req.user!;
+  const cuentaId = await ventaRubrosCuentaReadScope(user);
+  if (cuentaId === undefined) {
+    res.status(404).json({ ok: false, error: "Sin imagen personalizada" });
+    return;
+  }
+  const filePath = await db.ventaGrupoIconos.filePath(grupo, cuentaId);
   if (!filePath) {
     res.status(404).json({ ok: false, error: "Sin imagen personalizada" });
     return;
@@ -1840,6 +1939,7 @@ app.post(
   "/api/venta-grupo-iconos/:grupo/imagen",
   iconUpload.single("imagen"),
   async (req, res) => {
+    if (!requireVentaRubrosManage(req, res)) return;
     try {
       const grupo = decodeURIComponent(paramString(req.params.grupo)).trim();
       if (!grupo) {
@@ -1851,7 +1951,8 @@ app.post(
         res.status(400).json({ ok: false, error: "Seleccioná una imagen." });
         return;
       }
-      const icono = await db.ventaGrupoIconos.save(grupo, file.buffer, file.mimetype);
+      const cuentaId = await cuentaIdParaInsert(req.user!);
+      const icono = await db.ventaGrupoIconos.save(grupo, file.buffer, file.mimetype, cuentaId);
       res.json({
         ok: true,
         data: { grupo, icono },
@@ -1864,9 +1965,11 @@ app.post(
 );
 
 app.delete("/api/venta-grupo-iconos/:grupo/imagen", async (req, res) => {
+  if (!requireVentaRubrosManage(req, res)) return;
   try {
     const grupo = decodeURIComponent(paramString(req.params.grupo));
-    await db.ventaGrupoIconos.deleteByGrupo(grupo);
+    const cuentaId = await ventaRubrosCuentaWriteScope(req.user!);
+    await db.ventaGrupoIconos.deleteByGrupo(grupo, cuentaId);
     res.json({ ok: true, message: "Icono restaurado al predeterminado" });
   } catch (e) {
     res.status(400).json({ ok: false, error: (e as Error).message });

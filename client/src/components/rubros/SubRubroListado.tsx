@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { GrupoIconoInfo } from "../../api";
 import type { SubRubro, SubRubroItem } from "../../types";
 import {
@@ -16,6 +16,11 @@ import GrupoIconoPickerPanel from "./GrupoIconoPickerModal";
 import SubRubroItemsCell from "./SubRubroItemsCell";
 import SubRubroNombre from "./SubRubroNombre";
 import { PageModuleHeadRow } from "../PageModuleHead";
+import {
+  VentasDashKpi,
+  VentasIngresosDashPanel,
+  VentasIngresosListPanel,
+} from "../ventas/VentasIngresosDashUi";
 import {
   IconCancelar,
   IconEditar,
@@ -48,6 +53,9 @@ interface Props {
   rubrosApi?: RubrosListadoApi;
   copy?: RubrosListadoCopy;
   puedeEditar?: boolean;
+  /** Layout hub de Ingresos por ventas */
+  hubLayout?: boolean;
+  embedded?: boolean;
 }
 
 export default function SubRubroListado({
@@ -60,7 +68,10 @@ export default function SubRubroListado({
   rubrosApi = GASTOS_RUBROS_API,
   copy = GASTOS_RUBROS_COPY,
   puedeEditar = true,
+  hubLayout = false,
+  embedded = false,
 }: Props) {
+  const esHubVentas = hubLayout || embedded;
   const [rows, setRows] = useState<SubRubro[]>([]);
   const [loading, setLoading] = useState(true);
   const [filtroGrupo, setFiltroGrupo] = useState("");
@@ -205,6 +216,11 @@ export default function SubRubroListado({
       .map(([clave, list]) => [titulos.get(clave) ?? clave, list] as const)
       .sort(([a], [b]) => a.localeCompare(b, "es"));
   }, [filtrados]);
+
+  const totalItems = useMemo(
+    () => filtrados.reduce((acc, r) => acc + (itemsBySubRubro[r.id]?.length ?? 0), 0),
+    [filtrados, itemsBySubRubro]
+  );
 
   const startNewSub = (grupo: string) => {
     pendingFocus.current = "nombre";
@@ -601,7 +617,7 @@ export default function SubRubroListado({
 
     if (editableGrupo) {
       return (
-        <tr className="subrubro-row--editing subrubro-row--new" key={key}>
+        <tr className="subrubro-item-row subrubro-row--editing subrubro-row--new" key={key}>
           <td colSpan={2} className="subrubro-grupo-cell subrubro-grupo-cell--inline-fields">
             <div className="subrubro-inline-grupo-nombre">
               <input
@@ -640,7 +656,7 @@ export default function SubRubroListado({
     }
 
     return (
-      <tr className="subrubro-row--editing subrubro-row--new" key={key}>
+      <tr className="subrubro-item-row subrubro-row--editing subrubro-row--new" key={key}>
         <td
           className="muted subrubro-grupo-cell subrubro-grupo-cell--icon-only"
           title={inline.grupo}
@@ -691,19 +707,66 @@ export default function SubRubroListado({
     );
   }
 
-  return (
-    <div className="subseccion-panel">
-      <button type="button" className="subseccion-back" onClick={onVolver}>
-        ‹ Volver {volverLabel}
-      </button>
-
-      {!puedeEditar && (
-        <div className="sim-historial-editing-banner sim-calc-editing-banner" role="status">
-          <span>Tu rol solo permite consultar el catálogo</span>
+  const hubKpiStrip = embedded ? (
+    <VentasIngresosDashPanel title="Resumen del catálogo">
+      <VentasDashKpi
+        kicker="Grupos"
+        value={loading || !apiOnline ? "—" : porGrupo.length}
+        hint="Rubros en el catálogo"
+        variant="dark"
+      />
+      <VentasDashKpi
+        kicker="Sub-rubros"
+        value={loading || !apiOnline ? "—" : filtrados.length}
+        hint="Según filtro activo"
+        variant="light"
+        highlight="mid"
+      />
+      <VentasDashKpi
+        kicker="Ítems"
+        value={loading || !apiOnline ? "—" : totalItems}
+        hint="Conceptos de ingreso"
+        variant="light"
+      />
+    </VentasIngresosDashPanel>
+  ) : esHubVentas ? (
+    <section
+      className="sg-hub-kpi-strip ventas-ingresos-kpi-strip ventas-ingresos-kpi-strip--3"
+      aria-label="Resumen del catálogo"
+    >
+      <article className="sg-hub-kpi sg-hub-kpi--dark">
+        <div className="sg-hub-kpi-top">
+          <div>
+            <p className="sg-hub-kpi-kicker">Grupos</p>
+            <p className="sg-hub-kpi-value">{loading || !apiOnline ? "—" : porGrupo.length}</p>
+          </div>
         </div>
-      )}
+        <p className="sg-hub-kpi-hint">Rubros en el catálogo</p>
+      </article>
+      <article className="sg-hub-kpi sg-hub-kpi--light">
+        <div className="sg-hub-kpi-top">
+          <div>
+            <p className="sg-hub-kpi-kicker">Sub-rubros</p>
+            <p className="sg-hub-kpi-value">{loading || !apiOnline ? "—" : filtrados.length}</p>
+          </div>
+        </div>
+        <p className="sg-hub-kpi-hint">Según filtro activo</p>
+      </article>
+      <article className="sg-hub-kpi sg-hub-kpi--light">
+        <div className="sg-hub-kpi-top">
+          <div>
+            <p className="sg-hub-kpi-kicker">Ítems</p>
+            <p className="sg-hub-kpi-value">{loading || !apiOnline ? "—" : totalItems}</p>
+          </div>
+        </div>
+        <p className="sg-hub-kpi-hint">Conceptos de ingreso</p>
+      </article>
+    </section>
+  ) : null;
 
-      <div className="card">
+  const listadoPanel = (
+    <>
+        {!esHubVentas ? (
         <div className="form-header">
           <PageModuleHeadRow
             icon={{ source: "hub", id: "config_rubros" }}
@@ -713,9 +776,18 @@ export default function SubRubroListado({
             }
           />
         </div>
+        ) : !embedded ? (
+          <header className="ventas-ingresos-hub-head-box">
+            <p className="sg-hub-panel-kicker">Catálogo</p>
+            <h2 className="ventas-ingresos-hub-title">{copy.title}</h2>
+            <p className="ventas-ingresos-hub-sub muted">
+              Administrá rubros, sub-rubros e ítems para ingresos por ventas.
+            </p>
+          </header>
+        ) : null}
 
         <div className="listado-toolbar">
-          <div className="filters filters-inline mayusculas-auto">
+          <div className={`filters filters-inline mayusculas-auto${esHubVentas ? " ventas-ingresos-hub-filters-box" : ""}`}>
             <div className="field">
               <label htmlFor="filtro-grupo-sub">Grupo</label>
               <select
@@ -738,7 +810,7 @@ export default function SubRubroListado({
           {puedeEditar && (
             <button
               type="button"
-              className="btn btn-accent"
+              className={esHubVentas ? "sg-hub-cta" : "btn btn-accent"}
               disabled={!apiOnline || !!inline}
               onClick={startNewRubro}
             >
@@ -757,8 +829,16 @@ export default function SubRubroListado({
           onChange={onIconFileSelected}
         />
 
-        <div className="table-wrap table-wrap-rubros">
-          <table className="data-table data-table-rubros">
+        <div
+          className={
+            esHubVentas
+              ? "table-wrap table-wrap-rubros ventas-ingresos-hub-table-box ventas-hub-table-box"
+              : "table-wrap table-wrap-rubros"
+          }
+        >
+          <table
+            className={`data-table data-table-rubros${esHubVentas ? " data-table-rubros--hub-blocks" : ""}`}
+          >
             <thead>
               <tr>
                 <th className="col-grupo">Grupo</th>
@@ -768,40 +848,48 @@ export default function SubRubroListado({
                 {puedeEditar && <th className="col-acciones" />}
               </tr>
             </thead>
-            <tbody>
-              {loading ? (
+            {loading ? (
+              <tbody>
                 <tr>
                   <td colSpan={puedeEditar ? 5 : 4} className="muted">
                     Cargando...
                   </td>
                 </tr>
-              ) : porGrupo.length === 0 && !inlineNuevoRubro ? (
+              </tbody>
+            ) : porGrupo.length === 0 && !inlineNuevoRubro ? (
+              <tbody>
                 <tr>
                   <td colSpan={puedeEditar ? 5 : 4} className="muted">
                     No hay sub-rubros en este filtro.
                   </td>
                 </tr>
-              ) : (
-                <>
-                  {puedeEditar && inlineNuevoRubro && (
-                    <Fragment key="nuevo-rubro-block">
-                      <tr className="subrubro-grupo-row subrubro-grupo-row--nuevo">
-                        <td colSpan={5} className="subrubro-grupo-head-cell">
-                          <span className="subrubro-grupo-title">
-                            <span className="rubro-grupo-badge" aria-hidden>
-                              ✨
-                            </span>
-                            <strong>Nuevo rubro</strong>
-                            <span className="muted"> — completá y guardá en esta fila</span>
+              </tbody>
+            ) : (
+              <>
+                {puedeEditar && inlineNuevoRubro && (
+                  <tbody
+                    className={`subrubro-grupo-block${esHubVentas ? " subrubro-grupo-block--hub" : ""}`}
+                  >
+                    <tr className="subrubro-grupo-row subrubro-grupo-row--nuevo">
+                      <td colSpan={5} className="subrubro-grupo-head-cell">
+                        <span className="subrubro-grupo-title">
+                          <span className="rubro-grupo-badge" aria-hidden>
+                            ✨
                           </span>
-                        </td>
-                      </tr>
-                      {renderInlineRow("new-rubro")}
-                    </Fragment>
-                  )}
-                  {porGrupo.map(([grupo, items]) => (
-                    <Fragment key={grupo}>
-                      <tr className="subrubro-grupo-row">
+                          <strong>Nuevo rubro</strong>
+                          <span className="muted"> — completá y guardá en esta fila</span>
+                        </span>
+                      </td>
+                    </tr>
+                    {renderInlineRow("new-rubro")}
+                  </tbody>
+                )}
+                {porGrupo.map(([grupo, items]) => (
+                  <tbody
+                    key={grupo}
+                    className={`subrubro-grupo-block${esHubVentas ? " subrubro-grupo-block--hub" : ""}`}
+                  >
+                    <tr className="subrubro-grupo-row">
                         <td colSpan={puedeEditar ? 5 : 4} className="subrubro-grupo-head-cell">
                           <div className="subrubro-grupo-head">
                             {renamingGrupo === grupo ? (
@@ -909,7 +997,7 @@ export default function SubRubroListado({
                         return (
                           <tr
                             key={r.id}
-                            className={isEditing ? "subrubro-row--editing" : undefined}
+                            className={`subrubro-item-row${isEditing ? " subrubro-row--editing" : ""}`}
                           >
                             <td
                               className="muted subrubro-grupo-cell subrubro-grupo-cell--icon-only"
@@ -1005,12 +1093,72 @@ export default function SubRubroListado({
                         );
                       })}
                       {puedeEditar && inlineNuevoSubEnGrupo(grupo) && renderInlineRow(`new-${grupo}`)}
-                    </Fragment>
-                  ))}
-                </>
-              )}
-            </tbody>
+                  </tbody>
+                ))}
+              </>
+            )}
           </table>
+        </div>
+    </>
+  );
+
+  if (embedded) {
+    return (
+      <>
+        {!puedeEditar && (
+          <div className="sim-historial-editing-banner sim-calc-editing-banner" role="status">
+            <span>Solo administradores y gestores nivel 1 pueden modificar este catálogo</span>
+          </div>
+        )}
+        {hubKpiStrip}
+        <VentasIngresosListPanel>
+          <div className="ventas-rubros--hub ventas-rubros-list-inner">{listadoPanel}</div>
+        </VentasIngresosListPanel>
+      </>
+    );
+  }
+
+  return (
+    <div
+      className={`subseccion-panel${esHubVentas ? " ventas-ingresos--hub ventas-rubros--hub" : ""}`}
+    >
+      <button type="button" className="subseccion-back" onClick={onVolver}>
+        ‹ Volver {volverLabel}
+      </button>
+
+      {!puedeEditar && (
+        <div className="sim-historial-editing-banner sim-calc-editing-banner" role="status">
+          <span>Solo administradores y gestores nivel 1 pueden modificar este catálogo</span>
+        </div>
+      )}
+
+      <div className={esHubVentas ? "ventas-ingresos-hub-workspace" : undefined}>
+        {esHubVentas ? (
+          <>
+            <header className="ventas-ingresos-hub-page-head">
+              <PageModuleHeadRow
+                icon={{ source: "hub", id: "ventas_rubros" }}
+                title={copy.title}
+                subtitle={
+                  loading ? copy.subtitleLoading : copy.subtitleLoaded(filtrados.length, porGrupo.length)
+                }
+                titleClassName="listado-pro-head-title"
+                subClassName="listado-pro-head-sub"
+                textClassName="listado-pro-head-text"
+              />
+              <span
+                className={`sg-hub-status${apiOnline ? " sg-hub-status--online" : ""}`}
+                role="status"
+              >
+                {apiOnline ? "API conectada" : "Sin conexión API"}
+              </span>
+            </header>
+            {hubKpiStrip}
+          </>
+        ) : null}
+
+        <div className={esHubVentas ? "ventas-ingresos-hub-box ventas-ingresos-hub-box--listado" : "card"}>
+          {listadoPanel}
         </div>
       </div>
     </div>

@@ -137,7 +137,7 @@ export interface IngresoVenta {
 
 export type IngresoVentaForm = Omit<IngresoVenta, "id" | "nro_registro" | "creado_en" | "total_usd">;
 
-export type VentaAgriculturaCultivo = "TRIGO" | "SOJA" | "MAIZ" | "COLZA";
+export type VentaAgriculturaCultivo = string;
 
 export interface VentaAgriculturaRow {
   id: number;

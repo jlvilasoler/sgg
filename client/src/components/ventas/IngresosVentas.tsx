@@ -1,18 +1,38 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  fetchVentasAgricultura,
+  fetchVentasArrendamientos,
+  fetchVentasGanadoCerradas,
+  fetchVentaSubRubros,
+} from "../../api";
 import type { AuthUser, Catalogos } from "../../types";
-import { canWriteIngresosVentas } from "../../utils/auth-permissions";
-import { HubMenuCard } from "../HubMenuCard";
-import { useHeaderBackContext } from "../../header-back";
-import type { HubIconId } from "../icons/HubMenuIcons";
-import { HUB_ICON_THEMES, HubMenuIcon } from "../icons/HubMenuIcons";
+import {
+  canAccessIngresosVentasModulo,
+  canAccessSimuladorVentaGanado,
+  canManageVentaRubros,
+  canWriteIngresosVentas,
+} from "../../utils/auth-permissions";
+import { useHeaderBackStep } from "../../header-back";
+import { MenuAppIcon } from "../icons/MenuAppIcons";
+import SimuladorVentas, { type SimuladorSeccionId } from "../simulador-venta/SimuladorVentas";
 import VentaRubros from "./VentaRubros";
 import VentasGanadoCerradas from "./VentasGanadoCerradas";
 import VentasAgricultura from "./VentasAgricultura";
 import VentasArrendamientos from "./VentasArrendamientos";
-import { PageModuleHeadRow } from "../PageModuleHead";
+import VentasHubShell from "./VentasHubShell";
+import VentasIngresosHub, { type VentasIngresosResumen } from "./VentasIngresosHub";
+import { findVentasHubItem } from "./VentasHubTypes";
+import {
+  buildIngresosVentasSubmenu,
+  dashboardVentasHubItems,
+  isSimuladorVistaId,
+  SIMULADOR_VISTA_DEFAULT,
+  type SimuladorVistaId,
+} from "./ventas-hub-items";
 
-type VistaVentas =
+export type VistaIngresosVentas =
   | "menu"
+  | SimuladorVistaId
   | "rubros"
   | "ventas_ganado"
   | "ventas_agricultura"
@@ -25,39 +45,71 @@ interface Props {
   onError: (msg: string) => void;
   onSuccess: (msg: string, title?: string) => void;
   onVolver: () => void;
+  initialVista?: VistaIngresosVentas | "simulador";
 }
 
-const SUBMENU: {
-  id: Exclude<VistaVentas, "menu">;
-  label: string;
-  subtitle: string;
-  icon: HubIconId;
-}[] = [
-  {
-    id: "ventas_ganado",
-    label: "Ventas de ganado cerradas",
-    subtitle: "Ventas cerradas del simulador con totales",
-    icon: "ventas_ganado_cerradas",
+const SIMULADOR_SECCION: Record<SimuladorVistaId, SimuladorSeccionId> = {
+  simulador_en_pie: "en_pie",
+  simulador_cuarta_balanza: "cuarta_balanza",
+  simulador_agricultura: "agricultura",
+  simulador_arrendamientos: "arrendamientos",
+};
+
+const MODULE_META: Record<
+  Exclude<VistaIngresosVentas, "menu">,
+  { title: string; subtitle: string }
+> = {
+  simulador_en_pie: {
+    title: "Venta en pie",
+    subtitle: "Simulá ingresos por kg en pie con el último precio de reposición (ACG).",
   },
-  {
-    id: "ventas_agricultura",
-    label: "Ventas Agricultura",
-    subtitle: "Ventas cerradas desde el simulador agrícola",
-    icon: "ventas_agricultura",
+  simulador_cuarta_balanza: {
+    title: "Venta en cuarta balanza",
+    subtitle: "Simulá ingresos a frigorífico: precio gordo × kg × rendimiento estimado (ACG).",
   },
-  {
-    id: "ventas_arrendamientos",
-    label: "Ingresos por Arrendamientos",
-    subtitle: "Arrendamientos, medianería y uso de campos",
-    icon: "ventas_arrendamientos",
+  simulador_agricultura: {
+    title: "Ventas Agrícolas",
+    subtitle: "Cultivos, has y rendimiento estimado.",
   },
-  {
-    id: "rubros",
-    label: "Rubros ingresos por ventas",
-    subtitle: "Rubros, sub-rubros e ítems del catálogo",
-    icon: "ventas_rubros",
+  simulador_arrendamientos: {
+    title: "Ingresos por Arrendamientos",
+    subtitle: "Arrendamientos, medianería y acuerdos de uso de campos.",
   },
-];
+  ventas_ganado: {
+    title: "Ventas de ganado cerradas",
+    subtitle: "Operaciones cerradas desde el simulador con totales por cabezas, kg y USD.",
+  },
+  ventas_agricultura: {
+    title: "Ventas agrícolas cerradas",
+    subtitle: "Ingresos registrados al cerrar ventas en el simulador agrícola.",
+  },
+  ventas_arrendamientos: {
+    title: "Ingresos por arrendamientos",
+    subtitle: "Arrendamientos, medianería y acuerdos de uso de campos.",
+  },
+  rubros: {
+    title: "Rubros ingresos por ventas",
+    subtitle: "Catálogo de rubros, sub-rubros e ítems para clasificar ingresos.",
+  },
+};
+
+function vistaInicialPermitida(
+  user: AuthUser,
+  initial?: VistaIngresosVentas | "simulador"
+): VistaIngresosVentas {
+  if (!initial || initial === "menu") return "menu";
+  if (initial === "simulador") {
+    return canAccessSimuladorVentaGanado(user) ? SIMULADOR_VISTA_DEFAULT : "menu";
+  }
+  if (isSimuladorVistaId(initial) && canAccessSimuladorVentaGanado(user)) return initial;
+  if (!isSimuladorVistaId(initial) && canAccessIngresosVentasModulo(user)) return initial;
+  return "menu";
+}
+
+function shellActiveId(vista: VistaIngresosVentas): string {
+  if (isSimuladorVistaId(vista)) return vista;
+  return vista;
+}
 
 export default function IngresosVentas({
   user,
@@ -66,32 +118,108 @@ export default function IngresosVentas({
   onError,
   onSuccess,
   onVolver,
+  initialVista,
 }: Props) {
-  const [vista, setVista] = useState<VistaVentas>("menu");
+  const submenuItems = useMemo(() => buildIngresosVentasSubmenu(user), [user]);
+  const dashboardItems = useMemo(() => dashboardVentasHubItems(user), [user]);
+  const puedeSimular = canAccessSimuladorVentaGanado(user);
+  const puedeVerRegistros = canAccessIngresosVentasModulo(user);
   const puedeEditar = canWriteIngresosVentas(user);
+  const puedeEditarRubros = canManageVentaRubros(user);
 
-  const volverMenu = useCallback(() => {
-    setVista("menu");
-  }, []);
+  const [vista, setVista] = useState<VistaIngresosVentas>(() =>
+    vistaInicialPermitida(user, initialVista)
+  );
+  const [resumen, setResumen] = useState<VentasIngresosResumen>({
+    ganado: 0,
+    agricultura: 0,
+    arrendamientos: 0,
+    rubros: 0,
+  });
 
-  const headerBack = useHeaderBackContext();
+  const volverMenu = useCallback(() => setVista("menu"), []);
+  useHeaderBackStep(vista !== "menu", volverMenu, "Ingresos por ventas");
+
   useEffect(() => {
-    if (!headerBack) return;
-    if (vista === "menu") {
-      headerBack.setStep(null);
+    if (!apiOnline || !puedeVerRegistros) {
+      setResumen({ ganado: 0, agricultura: 0, arrendamientos: 0, rubros: 0 });
       return;
     }
-    headerBack.setStep({
-      onBack: volverMenu,
-      destinationLabel: "Ingresos por ventas",
+    Promise.all([
+      fetchVentasGanadoCerradas().then((r) => r.length).catch(() => 0),
+      fetchVentasAgricultura().then((r) => r.length).catch(() => 0),
+      fetchVentasArrendamientos().then((r) => r.length).catch(() => 0),
+      fetchVentaSubRubros(false).then((r) => r.length).catch(() => 0),
+    ]).then(([ganado, agricultura, arrendamientos, rubros]) => {
+      setResumen({ ganado, agricultura, arrendamientos, rubros });
     });
-    return () => headerBack.setStep(null);
-  }, [vista, volverMenu, headerBack]);
+  }, [apiOnline, vista, puedeVerRegistros]);
 
-  if (vista === "rubros") {
-    return (
+  const navegarModulo = useCallback(
+    (id: string) => {
+      if (isSimuladorVistaId(id)) {
+        if (!puedeSimular) return;
+        setVista(id);
+        return;
+      }
+      if (id === "simulador" && puedeSimular) {
+        setVista(SIMULADOR_VISTA_DEFAULT);
+        return;
+      }
+      if (!puedeVerRegistros) return;
+      setVista(id as Exclude<VistaIngresosVentas, "menu">);
+    },
+    [puedeSimular, puedeVerRegistros]
+  );
+
+  const wrapModule = useCallback(
+    (vistaId: Exclude<VistaIngresosVentas, "menu">, content: ReactNode) => {
+      const meta = MODULE_META[vistaId];
+      const navItem = findVentasHubItem(submenuItems, vistaId);
+      return (
+        <div className="ventas-module-page">
+          <VentasHubShell
+            activeId={shellActiveId(vistaId)}
+            items={submenuItems}
+            onNavigate={navegarModulo}
+            onVolverDashboard={volverMenu}
+            onVolverInicio={onVolver}
+            apiOnline={apiOnline}
+            title={navItem?.label ?? meta.title}
+            subtitle={navItem?.subtitle ?? meta.subtitle}
+            asideLogo={<MenuAppIcon id="ingresos_ventas" />}
+            navAriaLabel="Módulos de ingresos por ventas"
+          >
+            {content}
+          </VentasHubShell>
+        </div>
+      );
+    },
+    [apiOnline, navegarModulo, onVolver, submenuItems, volverMenu]
+  );
+
+  if (isSimuladorVistaId(vista) && puedeSimular) {
+    return wrapModule(
+      vista,
+      <SimuladorVentas
+        embedded
+        seccion={SIMULADOR_SECCION[vista]}
+        user={user}
+        catalogos={catalogos}
+        apiOnline={apiOnline}
+        onError={onError}
+        onSuccess={onSuccess}
+        onVolverDashboard={volverMenu}
+      />
+    );
+  }
+
+  if (vista === "rubros" && puedeVerRegistros) {
+    return wrapModule(
+      "rubros",
       <VentaRubros
-        puedeEditar={puedeEditar}
+        embedded
+        puedeEditar={puedeEditarRubros}
         apiOnline={apiOnline}
         onError={onError}
         onSuccess={(m) => onSuccess(m)}
@@ -100,9 +228,11 @@ export default function IngresosVentas({
     );
   }
 
-  if (vista === "ventas_ganado") {
-    return (
+  if (vista === "ventas_ganado" && puedeVerRegistros) {
+    return wrapModule(
+      "ventas_ganado",
       <VentasGanadoCerradas
+        embedded
         puedeEditar={puedeEditar}
         apiOnline={apiOnline}
         onError={onError}
@@ -112,9 +242,11 @@ export default function IngresosVentas({
     );
   }
 
-  if (vista === "ventas_agricultura") {
-    return (
+  if (vista === "ventas_agricultura" && puedeVerRegistros) {
+    return wrapModule(
+      "ventas_agricultura",
       <VentasAgricultura
+        embedded
         catalogos={catalogos}
         user={user}
         apiOnline={apiOnline}
@@ -125,9 +257,11 @@ export default function IngresosVentas({
     );
   }
 
-  if (vista === "ventas_arrendamientos") {
-    return (
+  if (vista === "ventas_arrendamientos" && puedeVerRegistros) {
+    return wrapModule(
+      "ventas_arrendamientos",
       <VentasArrendamientos
+        embedded
         catalogos={catalogos}
         modo="ingresos"
         user={user}
@@ -140,31 +274,15 @@ export default function IngresosVentas({
   }
 
   return (
-    <div className="subseccion-panel configuracion-hub">
-      <button type="button" className="subseccion-back" onClick={onVolver}>
-        ‹ Volver al inicio
-      </button>
-      <div className="card configuracion-hub-card">
-        <div className="form-header">
-          <PageModuleHeadRow
-            icon={{ source: "app", id: "ingresos_ventas" }}
-            title="Ingresos por ventas"
-            subtitle="Ganado, agricultura, arrendamientos y catálogo de rubros de ingresos."
-          />
-        </div>
-        <nav className="app-grid" aria-label="Ingresos por ventas">
-          {SUBMENU.map((item) => (
-            <HubMenuCard
-              key={item.id}
-              label={item.label}
-              subtitle={item.subtitle}
-              theme={HUB_ICON_THEMES[item.icon]}
-              icon={<HubMenuIcon id={item.icon} />}
-              onClick={() => setVista(item.id)}
-            />
-          ))}
-        </nav>
-      </div>
+    <div className="ventas-module-page ventas-ingresos-hub-page">
+      <VentasIngresosHub
+        apiOnline={apiOnline}
+        resumen={resumen}
+        items={dashboardItems}
+        puedeSimular={puedeSimular}
+        onNavigate={navegarModulo}
+        onVolverInicio={onVolver}
+      />
     </div>
   );
 }

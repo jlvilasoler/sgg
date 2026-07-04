@@ -7,6 +7,7 @@ interface Props {
   onSuccess: (msg: string) => void;
   onVolver: () => void;
   puedeEditar?: boolean;
+  embedded?: boolean;
 }
 
 export default function VentaRubros({
@@ -15,6 +16,7 @@ export default function VentaRubros({
   onSuccess,
   onVolver,
   puedeEditar = true,
+  embedded = false,
 }: Props) {
   return (
     <SubRubroListado
@@ -23,6 +25,8 @@ export default function VentaRubros({
       onSuccess={onSuccess}
       onVolver={onVolver}
       puedeEditar={puedeEditar}
+      embedded={embedded}
+      hubLayout={embedded}
       volverLabel="a Ingresos por ventas"
       rubrosApi={VENTAS_RUBROS_API}
       copy={VENTAS_RUBROS_COPY}
