@@ -1252,7 +1252,7 @@ export interface EmpresaCuentaForm {
 
 export interface EmpresaCuentaCreateResult {
   cuenta: EmpresaCuenta;
-  admin_invite_sent?: boolean;
+  admin_password_temporal?: string;
 }
 
 export interface CuentaControlResumen {

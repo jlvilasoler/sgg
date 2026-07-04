@@ -160,11 +160,9 @@ const MAX_SESSIONS_PER_USER = 5;
 const MAX_ACCOUNT_LOGIN_ATTEMPTS = 5;
 const ACCOUNT_LOCKOUT_MS = 15 * 60 * 1000;
 
+const DEFAULT_ADMIN_EMAIL = "jlvilasoler@gmail.com";
+const DEFAULT_ADMIN_PASSWORD = "Admin123";
 const LEGACY_ADMIN_EMAIL = "admin@scg.local";
-
-function isProductionEnv(): boolean {
-  return process.env.NODE_ENV === "production" || process.env.VERCEL === "1";
-}
 
 /** Hash fijo para igualar tiempo de respuesta cuando el email no existe. */
 const DUMMY_PASSWORD_HASH = bcrypt.hashSync(
@@ -736,7 +734,10 @@ export async function initAuthTables(db: Db): Promise<void> {
   await purgeExpiredSessions(db);
   await seedAdminIfEmpty(db);
   await migrateLegacyAdmin(db);
-  if (process.env.SCG_ADMIN_SYNC_ON_START === "1") {
+  // En Vercel no re-sincronizar admin en cada cold start (invalidaba sesiones).
+  if (process.env.VERCEL !== "1") {
+    await syncPrimaryAdminCredentials(db);
+  } else if (process.env.SCG_ADMIN_SYNC_ON_START === "1") {
     await syncPrimaryAdminCredentials(db);
   }
 }
@@ -988,36 +989,10 @@ export async function updateRolePermissions(
 }
 
 function primaryAdminCredentials(): { email: string; password: string } {
-  const email = process.env.SCG_ADMIN_EMAIL?.trim();
-  const password = process.env.SCG_ADMIN_PASSWORD?.trim();
-
-  if (isProductionEnv()) {
-    if (!email || !password) {
-      throw new Error(
-        "[SGG Auth] SCG_ADMIN_EMAIL y SCG_ADMIN_PASSWORD son obligatorios en producción"
-      );
-    }
-    if (password.length < 12) {
-      throw new Error(
-        "[SGG Auth] SCG_ADMIN_PASSWORD debe tener al menos 12 caracteres en producción"
-      );
-    }
-    return { email, password };
-  }
-
-  if (email && password) {
-    return { email, password };
-  }
-
-  const devEmail = email || "admin-dev@localhost.local";
-  const devPassword = password || crypto.randomBytes(18).toString("base64url");
-  console.warn(
-    `[SGG Auth] Desarrollo: admin=${devEmail}. Configurá SCG_ADMIN_EMAIL y SCG_ADMIN_PASSWORD en server/.env para credenciales fijas.`
-  );
-  if (!password) {
-    console.warn(`[SGG Auth] Desarrollo: contraseña generada para el seed inicial (solo si la DB está vacía).`);
-  }
-  return { email: devEmail, password: devPassword };
+  return {
+    email: (process.env.SCG_ADMIN_EMAIL?.trim() || DEFAULT_ADMIN_EMAIL).trim(),
+    password: (process.env.SCG_ADMIN_PASSWORD || DEFAULT_ADMIN_PASSWORD).trim(),
+  };
 }
 
 async function seedAdminIfEmpty(db: Db): Promise<void> {

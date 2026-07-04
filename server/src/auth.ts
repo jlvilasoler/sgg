@@ -1306,13 +1306,13 @@ export function registerAuthRoutes(app: Express): void {
       }
 
       const db = getDb();
+      const tempPassword = authDb.generateInitialPassword();
 
-      const { empresa, adminUser } = await db.transaction(async (tx) => {
+      const empresa = await db.transaction(async (tx) => {
         const created = await empresasCuenta.insertEmpresaCuenta(tx, {
           nombre,
           activo,
         });
-        const tempPassword = authDb.generateInitialPassword();
         const adminUser = await authDb.insertUser(tx, {
           email: adminEmail,
           nombre: created.nombre,
@@ -1330,29 +1330,8 @@ export function registerAuthRoutes(app: Express): void {
           nombre: opNombre,
           activo: true,
         });
-        return {
-          empresa: (await empresasCuenta.getEmpresaCuentaById(tx, withAdmin.id))!,
-          adminUser,
-        };
+        return (await empresasCuenta.getEmpresaCuentaById(tx, withAdmin.id))!;
       });
-
-      let adminInviteSent = false;
-      if (adminUser) {
-        try {
-          const rawToken = await authDb.createPasswordResetToken(db, adminUser.id, {
-            ip: clientIp(req),
-          });
-          const resetUrl = buildPasswordResetUrl(rawToken);
-          await sendPasswordResetEmail({
-            to: adminEmail,
-            nombre: adminUser.nombre,
-            resetUrl,
-          });
-          adminInviteSent = true;
-        } catch (mailErr) {
-          console.error("[SGG Auth] No se pudo enviar invitación al admin de cuenta:", mailErr);
-        }
-      }
 
       await authDb.recordAuthEvent(getDb(), "empresa_cuenta_created", {
         email: req.user!.email,
@@ -1366,7 +1345,7 @@ export function registerAuthRoutes(app: Express): void {
       res.status(201).json({
         ok: true,
         data: empresa,
-        admin_invite_sent: adminInviteSent,
+        admin_password_temporal: tempPassword,
       });
     } catch (e) {
       res.status(400).json({

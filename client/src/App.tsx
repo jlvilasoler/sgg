@@ -183,12 +183,13 @@ export default function App() {
     } else if (health.online && !health.ready) {
       const startedAt = dbBootStartedRef.current ?? Date.now();
       dbBootStartedRef.current = startedAt;
-      const detail =
+      setBootError(
         health.detail ||
-        health.error ||
-        "El servidor está iniciando la base de datos. En producción puede tardar hasta un minuto en el primer acceso.";
-      setBootError(detail);
-      if (health.detail || Date.now() - startedAt >= DB_BOOT_TIMEOUT_MS) {
+          health.hint ||
+          health.error ||
+          "El servidor está iniciando la base de datos. En producción puede tardar hasta un minuto en el primer acceso."
+      );
+      if (health.detail || health.hint || health.error || Date.now() - startedAt >= DB_BOOT_TIMEOUT_MS) {
         setBootBlocked(true);
       }
     } else if (!health.online) {

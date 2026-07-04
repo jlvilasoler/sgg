@@ -161,6 +161,7 @@ export interface ApiHealthStatus {
   ready: boolean;
   error?: string;
   detail?: string;
+  hint?: string;
 }
 
 export async function checkApiHealth(timeoutMs = 8000): Promise<ApiHealthStatus> {
@@ -170,23 +171,36 @@ export async function checkApiHealth(timeoutMs = 8000): Promise<ApiHealthStatus>
       cache: "no-store",
       signal: AbortSignal.timeout(timeoutMs),
     });
-    let json: { ok?: boolean; ready?: boolean; error?: string; detail?: string };
+    let json: { ok?: boolean; ready?: boolean; error?: string; detail?: string; hint?: string };
     try {
       json = (await res.json()) as {
         ok?: boolean;
         ready?: boolean;
         error?: string;
         detail?: string;
+        hint?: string;
       };
     } catch {
       return { online: false, ready: false };
     }
     if (json.ok !== true) {
-      return { online: false, ready: false, error: json.error, detail: json.detail };
+      return {
+        online: false,
+        ready: false,
+        error: json.error,
+        detail: json.detail,
+        hint: json.hint,
+      };
     }
     const ready = json.ready === true;
     if (!ready) {
-      return { online: true, ready: false, error: json.error, detail: json.detail };
+      return {
+        online: true,
+        ready: false,
+        error: json.error,
+        detail: json.detail,
+        hint: json.hint,
+      };
     }
     return { online: true, ready: true };
   } catch {
@@ -3665,14 +3679,14 @@ export async function crearEmpresaCuenta(
 ): Promise<EmpresaCuentaCreateResult> {
   const json = await request<{
     data: EmpresaCuenta;
-    admin_invite_sent?: boolean;
+    admin_password_temporal?: string;
   }>("/empresas-cuenta", {
     method: "POST",
     body: JSON.stringify(data),
   });
   return {
     cuenta: json.data,
-    admin_invite_sent: json.admin_invite_sent,
+    admin_password_temporal: json.admin_password_temporal,
   };
 }
 
