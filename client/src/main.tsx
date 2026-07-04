@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import "toastr/build/toastr.min.css";
 import App from "./App";
 import "./index.css";
+import "./chat-interno-hub.css";
 import "./responsive.css";
 
 createRoot(document.getElementById("root")!).render(

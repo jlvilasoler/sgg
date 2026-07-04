@@ -39,6 +39,7 @@ interface Props {
   onError: (msg: string) => void;
   onVolver: () => void;
   refreshKey?: number;
+  embedded?: boolean;
 }
 
 export default function StockGanaderaSalidas({
@@ -46,6 +47,7 @@ export default function StockGanaderaSalidas({
   onError,
   onVolver,
   refreshKey = 0,
+  embedded = false,
 }: Props) {
   const [rows, setRows] = useState<StockGanaderaDispositivo[]>([]);
   const [busqueda, setBusqueda] = useState("");
@@ -190,329 +192,408 @@ export default function StockGanaderaSalidas({
     );
   }
 
+  const salidasSubtitle = (
+    <>
+      Dispositivos dados de baja: muertes, ventas, frigorífico y extraviados.
+      {mostrarCargaVacia
+        ? " Cargando…"
+        : loading
+          ? ` ${rowsFiltradas.length} salida(s) según los filtros · actualizando…`
+          : rowsFiltradas.length === 0
+            ? " No hay salidas registradas."
+            : ` ${rowsFiltradas.length} salida(s) según los filtros.`}
+      {!mostrarCargaVacia && bajasReparadas > 0
+        ? ` Se sincronizaron ${bajasReparadas} baja(s) pendiente(s) desde ventas cerradas.`
+        : ""}
+    </>
+  );
+
+  const hubSalidasStatus = mostrarCargaVacia
+    ? "Cargando salidas…"
+    : loading
+      ? `${rowsFiltradas.length} salida(s) según filtros · actualizando…`
+      : rowsFiltradas.length === 0
+        ? "No hay salidas registradas."
+        : `${rowsFiltradas.length} salida(s) según filtros.${bajasReparadas > 0 ? ` Se sincronizaron ${bajasReparadas} baja(s) desde ventas cerradas.` : ""}`;
+
+  const salidasKpiFilters = [
+    { estado: "MUERTO" as const, kicker: "Muertes", count: stats.muertos, modifier: "muerto" },
+    { estado: "VENDIDO" as const, kicker: "Ventas", count: stats.vendidos, modifier: "vendido" },
+    {
+      estado: "FRIGORIFICO" as const,
+      kicker: "Frigorífico",
+      count: stats.frigorifico,
+      modifier: "frigorifico",
+    },
+    { estado: "PERDIDO" as const, kicker: "Extraviados", count: stats.perdidos, modifier: "perdido" },
+  ] as const;
+
+  const hubSalidasKpiStrip = embedded && apiOnline ? (
+    <section className="sg-hub-kpi-strip stock-salidas-kpi-strip sg-module-kpi-strip" aria-label="Resumen salidas">
+      <article className="sg-hub-kpi sg-hub-kpi--dark">
+        <div className="sg-hub-kpi-top">
+          <div>
+            <p className="sg-hub-kpi-kicker">Total salidas</p>
+            <p className="sg-hub-kpi-value">{mostrarCargaVacia ? "—" : stats.total}</p>
+          </div>
+        </div>
+        <p className="sg-hub-kpi-hint">Fuera del stock activo</p>
+      </article>
+      {salidasKpiFilters.map(({ estado, kicker, count, modifier }) => (
+        <button
+          key={estado}
+          type="button"
+          className={`sg-hub-kpi stock-salidas-kpi-btn stock-salidas-kpi-btn--${modifier}${
+            filtroEstado === estado ? " is-active" : ""
+          }`}
+          disabled={mostrarCargaVacia || count === 0}
+          onClick={() => setFiltroEstado((v) => (v === estado ? "" : estado))}
+        >
+          <div className="sg-hub-kpi-top">
+            <div>
+              <p className="sg-hub-kpi-kicker">{kicker}</p>
+              <p className="sg-hub-kpi-value">{mostrarCargaVacia ? "—" : count}</p>
+            </div>
+          </div>
+          <p className="sg-hub-kpi-hint">Clic para filtrar</p>
+        </button>
+      ))}
+    </section>
+  ) : null;
+
+  const resumenCards = (
+    <div className="stock-dash-grid stock-dash-grid--salidas">
+      <div className="stock-dash-card stock-dash-card--total">
+        <span className="stock-dash-label">Total salidas</span>
+        <span className="stock-dash-valor">{mostrarCargaVacia ? "—" : stats.total}</span>
+        <span className="stock-dash-hint">Fuera del stock activo</span>
+      </div>
+      <button
+        type="button"
+        className={`stock-dash-card stock-dash-card--muerto${
+          filtroEstado === "MUERTO" ? " is-active" : ""
+        }`}
+        onClick={() => setFiltroEstado((v) => (v === "MUERTO" ? "" : "MUERTO"))}
+        disabled={mostrarCargaVacia || stats.muertos === 0}
+      >
+        <span className="stock-dash-label">Muertes</span>
+        <span className="stock-dash-valor stock-dash-valor--muerto">
+          {mostrarCargaVacia ? "—" : stats.muertos}
+        </span>
+        <span className="stock-dash-hint">Clic para filtrar</span>
+      </button>
+      <button
+        type="button"
+        className={`stock-dash-card stock-dash-card--vendido${
+          filtroEstado === "VENDIDO" ? " is-active" : ""
+        }`}
+        onClick={() => setFiltroEstado((v) => (v === "VENDIDO" ? "" : "VENDIDO"))}
+        disabled={mostrarCargaVacia || stats.vendidos === 0}
+      >
+        <span className="stock-dash-label">Ventas</span>
+        <span className="stock-dash-valor stock-dash-valor--vendido">
+          {mostrarCargaVacia ? "—" : stats.vendidos}
+        </span>
+        <span className="stock-dash-hint">Clic para filtrar</span>
+      </button>
+      <button
+        type="button"
+        className={`stock-dash-card stock-dash-card--frigorifico${
+          filtroEstado === "FRIGORIFICO" ? " is-active" : ""
+        }`}
+        onClick={() => setFiltroEstado((v) => (v === "FRIGORIFICO" ? "" : "FRIGORIFICO"))}
+        disabled={mostrarCargaVacia || stats.frigorifico === 0}
+      >
+        <span className="stock-dash-label">Frigorífico</span>
+        <span className="stock-dash-valor stock-dash-valor--frigorifico">
+          {mostrarCargaVacia ? "—" : stats.frigorifico}
+        </span>
+        <span className="stock-dash-hint">Clic para filtrar</span>
+      </button>
+      <button
+        type="button"
+        className={`stock-dash-card stock-dash-card--perdido${
+          filtroEstado === "PERDIDO" ? " is-active" : ""
+        }`}
+        onClick={() => setFiltroEstado((v) => (v === "PERDIDO" ? "" : "PERDIDO"))}
+        disabled={mostrarCargaVacia || stats.perdidos === 0}
+      >
+        <span className="stock-dash-label">Extraviados</span>
+        <span className="stock-dash-valor stock-dash-valor--perdido">
+          {mostrarCargaVacia ? "—" : stats.perdidos}
+        </span>
+        <span className="stock-dash-hint">Clic para filtrar</span>
+      </button>
+    </div>
+  );
+
+  const filtersBar = (
+    <div className={`filters mayusculas-auto${embedded ? " stock-salidas-filters-box" : ""}`}>
+      <div className="field">
+        <label htmlFor="salidas-estado">Motivo</label>
+        <select
+          id="salidas-estado"
+          value={filtroEstado}
+          onChange={(e) => setFiltroEstado(e.target.value as FiltroEstado)}
+        >
+          <option value="">Todos</option>
+          <option value="MUERTO">Muerte</option>
+          <option value="VENDIDO">Venta</option>
+          <option value="FRIGORIFICO">Frigorífico</option>
+          <option value="PERDIDO">Extraviado</option>
+        </select>
+      </div>
+      <div className="field">
+        <label htmlFor="salidas-baja-mes">Mes baja</label>
+        <select
+          id="salidas-baja-mes"
+          value={bajaMes}
+          onChange={(e) => setBajaMes(e.target.value ? Number(e.target.value) : "")}
+        >
+          <option value="">Todos</option>
+          {MESES_NACIMIENTO.map((m) => (
+            <option key={m.value} value={m.value}>
+              {m.label}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className="field">
+        <label htmlFor="salidas-baja-anio">Año baja</label>
+        <select
+          id="salidas-baja-anio"
+          value={bajaAnio}
+          onChange={(e) => setBajaAnio(e.target.value ? Number(e.target.value) : "")}
+        >
+          <option value="">Todos</option>
+          {aniosBaja.map((y) => (
+            <option key={y} value={y}>
+              {y}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className="field flex-grow">
+        <label htmlFor="salidas-busq">Buscar EID / VID</label>
+        <input
+          id="salidas-busq"
+          type="search"
+          placeholder="EID, caravana visual…"
+          value={busqueda}
+          onChange={(e) => setBusqueda(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && load()}
+        />
+      </div>
+      <button
+        type="button"
+        className={embedded ? "sg-hub-cta" : "btn btn-primary"}
+        onClick={load}
+      >
+        Buscar
+      </button>
+    </div>
+  );
+
+  const dataTable = (
+    <div
+      className={`table-wrap table-wrap-stock-pro${
+        embedded ? " stock-salidas-table-box" : ""
+      }`}
+    >
+      <table className="data-table stock-ganadera-table stock-table-pro stock-salidas-table">
+        <thead>
+          <tr>
+            <th
+              className="stock-th stock-th--cabana"
+              aria-label="Selección de cabaña"
+              title="Selección de cabaña"
+            />
+            <th className="stock-th stock-th--num">EID</th>
+            <th className="stock-th">VID</th>
+            <th className="stock-th">Empresa</th>
+            <th className="stock-th">Generación</th>
+            <th className="stock-th">Grupo</th>
+            <th className="stock-th">Sexo</th>
+            <th className="stock-th stock-th--estado">Motivo</th>
+            <th className="stock-th stock-th--baja">Fecha baja</th>
+            <th className="stock-th stock-th--edad">Edad a la baja</th>
+          </tr>
+        </thead>
+        <tbody>
+          {mostrarCargaVacia ? (
+            <tr>
+              <td colSpan={10} className="empty">
+                Cargando…
+              </td>
+            </tr>
+          ) : !apiOnline ? (
+            <tr>
+              <td colSpan={10} className="empty">
+                API no conectada
+              </td>
+            </tr>
+          ) : rowsPagina.length === 0 ? (
+            <tr>
+              <td colSpan={10} className="empty">
+                Sin salidas para los filtros aplicados.
+              </td>
+            </tr>
+          ) : (
+            rowsPagina.map((d) => {
+              const mesesBaja = calcularMesesEntreFechas(
+                d.nacimiento_mes,
+                d.nacimiento_anio,
+                d.baja_mes,
+                d.baja_anio
+              );
+              return (
+                <tr
+                  key={d.clave}
+                  className={`stock-ganadera-row stock-table-pro-row stock-salidas-row${
+                    d.cabana_premium ? " stock-table-pro-row--seleccion-cabana" : ""
+                  }`}
+                >
+                  <td className="stock-td stock-td--cabana">
+                    <IconoSeleccionCabanaEstrella
+                      activo={d.cabana_premium}
+                      nombreCabana={d.nombre_cabana}
+                      soloLectura
+                    />
+                  </td>
+                  <td className="stock-td stock-td--num stock-td--eid">{d.eid || "—"}</td>
+                  <td className="stock-td stock-td--vid">
+                    <span className="stock-ganadera-row-eid">
+                      <IconoDispositivoWifi className="stock-ganadera-row-icon" />
+                      <button
+                        type="button"
+                        className="stock-ganadera-link stock-table-pro-link"
+                        onClick={() => setEditarDispositivo(d)}
+                        title="Ver / editar caravana"
+                      >
+                        {d.vid || "—"}
+                      </button>
+                    </span>
+                  </td>
+                  <td className="stock-td stock-td--muted">
+                    {fmtEmpresaOperativa(d.empresa, empresas)}
+                  </td>
+                  <td className="stock-td stock-td--muted">{fmtGrupo(d.grupo)}</td>
+                  <td className="stock-td stock-td--muted">{fmtGrupoLibre(d.grupo_libre)}</td>
+                  <td className={`stock-td stock-td--sexo ${claseCeldaSexo(d.sexo)}`}>
+                    {fmtSexo(d.sexo)}
+                  </td>
+                  <td className="stock-td stock-td--estado">
+                    <BadgeEstadoDispositivo estado={d.estado} />
+                  </td>
+                  <td className="stock-td stock-td--baja">
+                    <span className="stock-salidas-baja-label">{etiquetaFechaBaja(d.estado)}:</span>{" "}
+                    <strong>{fmtNacimiento(d.baja_mes, d.baja_anio)}</strong>
+                  </td>
+                  <td className="stock-td stock-td--edad">
+                    {mesesBaja !== null ? (
+                      <>
+                        <StockGanaderaEdadMiniTimeline
+                          sexo={d.sexo}
+                          nacimientoMes={d.nacimiento_mes}
+                          nacimientoAnio={d.nacimiento_anio}
+                          estado={d.estado}
+                          bajaMes={d.baja_mes}
+                          bajaAnio={d.baja_anio}
+                        />
+                        <span className="stock-salidas-edad-meses">{mesesBaja} m</span>
+                      </>
+                    ) : (
+                      "—"
+                    )}
+                  </td>
+                </tr>
+              );
+            })
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+
+  const pagination =
+    !mostrarCargaVacia && apiOnline && rowsFiltradas.length > 0 ? (
+      <TablePagination
+        total={rowsFiltradas.length}
+        page={pageSafe}
+        pageSize={pageSize}
+        onPageChange={setPage}
+        onPageSizeChange={(size) => {
+          setPageSize(size);
+          setPage(1);
+        }}
+      />
+    ) : null;
+
+  const panel = embedded ? (
+    <div className="stock-salidas-hub-workspace">
+      {!apiOnline ? (
+        <div className="stock-import-offline" role="status">
+          Conectá la API (puerto 3001) para consultar salidas del sistema.
+        </div>
+      ) : null}
+
+      {hubSalidasKpiStrip}
+
+      {apiOnline ? (
+        <p className="stock-salidas-hub-status muted" role="status">
+          {hubSalidasStatus}
+        </p>
+      ) : null}
+
+      <section className="stock-salidas-hub-box stock-salidas-hub-box--listado" aria-label="Listado de salidas">
+        <header className="stock-salidas-hub-head-box stock-salidas-hub-head-box--panel">
+          <div>
+            <p className="sg-hub-panel-kicker">Listado</p>
+            <h2 className="stock-salidas-hub-title">Salidas del stock</h2>
+            <p className="stock-salidas-hub-sub muted">
+              Filtrá por motivo, fecha de baja o buscá por EID / VID.
+            </p>
+          </div>
+        </header>
+        {filtersBar}
+        {dataTable}
+        {pagination}
+      </section>
+    </div>
+  ) : (
+    <div className="card">
+      <div className="form-header">
+        <PageModuleHeadRow
+          icon={{ source: "hub", id: "stock_salidas" }}
+          title="Salidas del sistema"
+          subtitle={salidasSubtitle}
+        />
+      </div>
+
+      {apiOnline && (
+        <section className="stock-dash stock-dash--salidas" aria-label="Resumen de salidas">
+          <div className="stock-dash-head">
+            <h3 className="stock-dash-title">Resumen</h3>
+            <p className="stock-dash-sub">Bajas registradas en el stock ganadero</p>
+          </div>
+          {resumenCards}
+        </section>
+      )}
+
+      {filtersBar}
+      {dataTable}
+      {pagination}
+    </div>
+  );
+
+  if (embedded) return panel;
+
   return (
     <div className="subseccion-panel">
       <button type="button" className="subseccion-back" onClick={onVolver}>
         ‹ Volver a Stock Ganadero
       </button>
-
-      <div className="card">
-        <div className="form-header">
-          <PageModuleHeadRow
-            icon={{ source: "hub", id: "stock_salidas" }}
-            title="Salidas del sistema"
-            subtitle={
-              <>
-                Dispositivos dados de baja: muertes, ventas, frigorífico y extraviados.
-                {mostrarCargaVacia
-                  ? " Cargando…"
-                  : loading
-                    ? ` ${rowsFiltradas.length} salida(s) según los filtros · actualizando…`
-                    : rowsFiltradas.length === 0
-                      ? " No hay salidas registradas."
-                      : ` ${rowsFiltradas.length} salida(s) según los filtros.`}
-                {!mostrarCargaVacia && bajasReparadas > 0
-                  ? ` Se sincronizaron ${bajasReparadas} baja(s) pendiente(s) desde ventas cerradas.`
-                  : ""}
-              </>
-            }
-          />
-        </div>
-
-        {apiOnline && (
-          <section
-            className="stock-dash stock-dash--salidas"
-            aria-label="Resumen de salidas"
-          >
-            <div className="stock-dash-head">
-              <h3 className="stock-dash-title">Resumen</h3>
-              <p className="stock-dash-sub">Bajas registradas en el stock ganadero</p>
-            </div>
-            <div className="stock-dash-grid stock-dash-grid--salidas">
-              <div className="stock-dash-card stock-dash-card--total">
-                <span className="stock-dash-label">Total salidas</span>
-                <span className="stock-dash-valor">
-                  {mostrarCargaVacia ? "—" : stats.total}
-                </span>
-                <span className="stock-dash-hint">Fuera del stock activo</span>
-              </div>
-              <button
-                type="button"
-                className={`stock-dash-card stock-dash-card--muerto${
-                  filtroEstado === "MUERTO" ? " is-active" : ""
-                }`}
-                onClick={() =>
-                  setFiltroEstado((v) => (v === "MUERTO" ? "" : "MUERTO"))
-                }
-                disabled={mostrarCargaVacia || stats.muertos === 0}
-              >
-                <span className="stock-dash-label">Muertes</span>
-                <span className="stock-dash-valor stock-dash-valor--muerto">
-                  {mostrarCargaVacia ? "—" : stats.muertos}
-                </span>
-                <span className="stock-dash-hint">Clic para filtrar</span>
-              </button>
-              <button
-                type="button"
-                className={`stock-dash-card stock-dash-card--vendido${
-                  filtroEstado === "VENDIDO" ? " is-active" : ""
-                }`}
-                onClick={() =>
-                  setFiltroEstado((v) => (v === "VENDIDO" ? "" : "VENDIDO"))
-                }
-                disabled={mostrarCargaVacia || stats.vendidos === 0}
-              >
-                <span className="stock-dash-label">Ventas</span>
-                <span className="stock-dash-valor stock-dash-valor--vendido">
-                  {mostrarCargaVacia ? "—" : stats.vendidos}
-                </span>
-                <span className="stock-dash-hint">Clic para filtrar</span>
-              </button>
-              <button
-                type="button"
-                className={`stock-dash-card stock-dash-card--frigorifico${
-                  filtroEstado === "FRIGORIFICO" ? " is-active" : ""
-                }`}
-                onClick={() =>
-                  setFiltroEstado((v) =>
-                    v === "FRIGORIFICO" ? "" : "FRIGORIFICO"
-                  )
-                }
-                disabled={mostrarCargaVacia || stats.frigorifico === 0}
-              >
-                <span className="stock-dash-label">Frigorífico</span>
-                <span className="stock-dash-valor stock-dash-valor--frigorifico">
-                  {mostrarCargaVacia ? "—" : stats.frigorifico}
-                </span>
-                <span className="stock-dash-hint">Clic para filtrar</span>
-              </button>
-              <button
-                type="button"
-                className={`stock-dash-card stock-dash-card--perdido${
-                  filtroEstado === "PERDIDO" ? " is-active" : ""
-                }`}
-                onClick={() =>
-                  setFiltroEstado((v) => (v === "PERDIDO" ? "" : "PERDIDO"))
-                }
-                disabled={mostrarCargaVacia || stats.perdidos === 0}
-              >
-                <span className="stock-dash-label">Extraviados</span>
-                <span className="stock-dash-valor stock-dash-valor--perdido">
-                  {mostrarCargaVacia ? "—" : stats.perdidos}
-                </span>
-                <span className="stock-dash-hint">Clic para filtrar</span>
-              </button>
-            </div>
-          </section>
-        )}
-
-        <div className="filters mayusculas-auto">
-          <div className="field">
-            <label htmlFor="salidas-estado">Motivo</label>
-            <select
-              id="salidas-estado"
-              value={filtroEstado}
-              onChange={(e) =>
-                setFiltroEstado(e.target.value as FiltroEstado)
-              }
-            >
-              <option value="">Todos</option>
-              <option value="MUERTO">Muerte</option>
-              <option value="VENDIDO">Venta</option>
-              <option value="FRIGORIFICO">Frigorífico</option>
-              <option value="PERDIDO">Extraviado</option>
-            </select>
-          </div>
-          <div className="field">
-            <label htmlFor="salidas-baja-mes">Mes baja</label>
-            <select
-              id="salidas-baja-mes"
-              value={bajaMes}
-              onChange={(e) =>
-                setBajaMes(e.target.value ? Number(e.target.value) : "")
-              }
-            >
-              <option value="">Todos</option>
-              {MESES_NACIMIENTO.map((m) => (
-                <option key={m.value} value={m.value}>
-                  {m.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="field">
-            <label htmlFor="salidas-baja-anio">Año baja</label>
-            <select
-              id="salidas-baja-anio"
-              value={bajaAnio}
-              onChange={(e) =>
-                setBajaAnio(e.target.value ? Number(e.target.value) : "")
-              }
-            >
-              <option value="">Todos</option>
-              {aniosBaja.map((y) => (
-                <option key={y} value={y}>
-                  {y}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="field flex-grow">
-            <label htmlFor="salidas-busq">Buscar EID / VID</label>
-            <input
-              id="salidas-busq"
-              type="search"
-              placeholder="EID, caravana visual…"
-              value={busqueda}
-              onChange={(e) => setBusqueda(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && load()}
-            />
-          </div>
-          <button type="button" className="btn btn-primary" onClick={load}>
-            Buscar
-          </button>
-        </div>
-
-        <div className="table-wrap table-wrap-stock-pro">
-          <table className="data-table stock-ganadera-table stock-table-pro stock-salidas-table">
-            <thead>
-              <tr>
-                <th
-                  className="stock-th stock-th--cabana"
-                  aria-label="Selección de cabaña"
-                  title="Selección de cabaña"
-                />
-                <th className="stock-th stock-th--num">EID</th>
-                <th className="stock-th">VID</th>
-                <th className="stock-th">Empresa</th>
-                <th className="stock-th">Generación</th>
-                <th className="stock-th">Grupo</th>
-                <th className="stock-th">Sexo</th>
-                <th className="stock-th stock-th--estado">Motivo</th>
-                <th className="stock-th stock-th--baja">Fecha baja</th>
-                <th className="stock-th stock-th--edad">Edad a la baja</th>
-              </tr>
-            </thead>
-            <tbody>
-              {mostrarCargaVacia ? (
-                <tr>
-                  <td colSpan={10} className="empty">
-                    Cargando…
-                  </td>
-                </tr>
-              ) : !apiOnline ? (
-                <tr>
-                  <td colSpan={10} className="empty">
-                    API no conectada
-                  </td>
-                </tr>
-              ) : rowsPagina.length === 0 ? (
-                <tr>
-                  <td colSpan={10} className="empty">
-                    Sin salidas para los filtros aplicados.
-                  </td>
-                </tr>
-              ) : (
-                rowsPagina.map((d) => {
-                  const mesesBaja = calcularMesesEntreFechas(
-                    d.nacimiento_mes,
-                    d.nacimiento_anio,
-                    d.baja_mes,
-                    d.baja_anio
-                  );
-                  return (
-                    <tr
-                      key={d.clave}
-                      className={`stock-ganadera-row stock-table-pro-row stock-salidas-row${
-                        d.cabana_premium ? " stock-table-pro-row--seleccion-cabana" : ""
-                      }`}
-                    >
-                      <td className="stock-td stock-td--cabana">
-                        <IconoSeleccionCabanaEstrella
-                          activo={d.cabana_premium}
-                          nombreCabana={d.nombre_cabana}
-                          soloLectura
-                        />
-                      </td>
-                      <td className="stock-td stock-td--num stock-td--eid">
-                        {d.eid || "—"}
-                      </td>
-                      <td className="stock-td stock-td--vid">
-                        <span className="stock-ganadera-row-eid">
-                          <IconoDispositivoWifi className="stock-ganadera-row-icon" />
-                          <button
-                            type="button"
-                            className="stock-ganadera-link stock-table-pro-link"
-                            onClick={() => setEditarDispositivo(d)}
-                            title="Ver / editar caravana"
-                          >
-                            {d.vid || "—"}
-                          </button>
-                        </span>
-                      </td>
-                      <td className="stock-td stock-td--muted">
-                        {fmtEmpresaOperativa(d.empresa, empresas)}
-                      </td>
-                      <td className="stock-td stock-td--muted">
-                        {fmtGrupo(d.grupo)}
-                      </td>
-                      <td className="stock-td stock-td--muted">
-                        {fmtGrupoLibre(d.grupo_libre)}
-                      </td>
-                      <td
-                        className={`stock-td stock-td--sexo ${claseCeldaSexo(d.sexo)}`}
-                      >
-                        {fmtSexo(d.sexo)}
-                      </td>
-                      <td className="stock-td stock-td--estado">
-                        <BadgeEstadoDispositivo estado={d.estado} />
-                      </td>
-                      <td className="stock-td stock-td--baja">
-                        <span className="stock-salidas-baja-label">
-                          {etiquetaFechaBaja(d.estado)}:
-                        </span>{" "}
-                        <strong>{fmtNacimiento(d.baja_mes, d.baja_anio)}</strong>
-                      </td>
-                      <td className="stock-td stock-td--edad">
-                        {mesesBaja !== null ? (
-                          <>
-                            <StockGanaderaEdadMiniTimeline
-                              sexo={d.sexo}
-                              nacimientoMes={d.nacimiento_mes}
-                              nacimientoAnio={d.nacimiento_anio}
-                              estado={d.estado}
-                              bajaMes={d.baja_mes}
-                              bajaAnio={d.baja_anio}
-                            />
-                            <span className="stock-salidas-edad-meses">
-                              {mesesBaja} m
-                            </span>
-                          </>
-                        ) : (
-                          "—"
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {!mostrarCargaVacia && apiOnline && rowsFiltradas.length > 0 && (
-          <TablePagination
-            total={rowsFiltradas.length}
-            page={pageSafe}
-            pageSize={pageSize}
-            onPageChange={setPage}
-            onPageSizeChange={(size) => {
-              setPageSize(size);
-              setPage(1);
-            }}
-          />
-        )}
-      </div>
+      {panel}
     </div>
   );
 }

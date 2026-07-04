@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { fetchStockGanaderoResumen } from "../../api";
 import { useHeaderBackStep } from "../../header-back";
 import type { AuthUser } from "../../types";
@@ -11,6 +11,7 @@ import StockGanaderoListado from "./StockGanaderoListado";
 import StockGanaderoCabanaSeleccion from "./StockGanaderoCabanaSeleccion";
 import StockGanaderoSanidad from "./StockGanaderoSanidad";
 import StockGanaderoHub, { type StockGanaderoHubItem } from "./StockGanaderoHub";
+import StockGanaderoHubShell from "./StockGanaderoHubShell";
 
 type VistaStock =
   | "menu"
@@ -31,7 +32,7 @@ interface Props {
   onVolver: () => void;
 }
 
-const SUBMENU: StockGanaderoHubItem[] = [
+export const STOCK_GANADERO_SUBMENU: StockGanaderoHubItem[] = [
   {
     id: "importar",
     label: "Alta de Dispositivo",
@@ -76,6 +77,46 @@ const SUBMENU: StockGanaderoHubItem[] = [
   },
 ];
 
+const MODULE_META: Record<
+  Exclude<VistaStock, "menu">,
+  { title: string; subtitle: string; navId?: string }
+> = {
+  importar: {
+    title: "Alta de Dispositivo",
+    subtitle:
+      "Cargá el export del bastón o lector RFID, o ingresá lecturas una a una. Cada registro guarda fecha, hora y condición del animal.",
+  },
+  importar_baja: {
+    title: "Baja de Dispositivo",
+    subtitle: "Importá un archivo TXT de bajas o registrá salidas manualmente por caravana.",
+  },
+  listado: {
+    title: "Lecturas importadas",
+    subtitle: "Consultá, filtrá y gestioná las importaciones EID de la cuenta.",
+  },
+  historial: {
+    title: "Historial de importaciones",
+    subtitle: "Lotes importados, filas procesadas y acciones sobre cada archivo.",
+    navId: "listado",
+  },
+  ganadera: {
+    title: "Dispositivos EID",
+    subtitle: "Stock activo, filtros por estado y detalle de cada caravana.",
+  },
+  salidas: {
+    title: "Salidas del sistema",
+    subtitle: "Muertes, ventas, frigorífico y extraviados fuera del stock activo.",
+  },
+  cabana: {
+    title: "Selección Animales de Cabaña",
+    subtitle: "Marcá animales activos con un nombre de identificación para la selección de cabaña.",
+  },
+  sanidad: {
+    title: "Sanidad",
+    subtitle: "Seleccioná animales por grupo y registrá el mismo control sanitario en todos a la vez.",
+  },
+};
+
 export default function StockGanadero({
   apiOnline,
   currentUser,
@@ -105,9 +146,44 @@ export default function StockGanadero({
   const volverMenu = useCallback(() => setVista("menu"), []);
   useHeaderBackStep(vista !== "menu", volverMenu, "Stock Ganadero");
 
+  const navegarModulo = useCallback((id: string) => {
+    setVista(id as Exclude<VistaStock, "menu" | "historial">);
+  }, []);
+
+  const wrapModule = useCallback(
+    (
+      vistaId: Exclude<VistaStock, "menu">,
+      content: ReactNode,
+      options?: { headerActions?: ReactNode },
+    ) => {
+      const meta = MODULE_META[vistaId];
+      const activeNavId = meta.navId ?? vistaId;
+      return (
+        <div className="stock-ganadero-module-page">
+          <StockGanaderoHubShell
+            activeId={activeNavId}
+            items={STOCK_GANADERO_SUBMENU}
+            onNavigate={navegarModulo}
+            onVolverDashboard={volverMenu}
+            onVolverInicio={onVolver}
+            apiOnline={apiOnline}
+            title={meta.title}
+            subtitle={meta.subtitle}
+            headerActions={options?.headerActions}
+          >
+            {content}
+          </StockGanaderoHubShell>
+        </div>
+      );
+    },
+    [apiOnline, navegarModulo, onVolver, volverMenu],
+  );
+
   if (vista === "importar") {
-    return (
+    return wrapModule(
+      "importar",
       <StockGanaderoImportar
+        embedded
         apiOnline={apiOnline}
         currentUser={currentUser}
         onImported={() => {
@@ -117,13 +193,15 @@ export default function StockGanadero({
         onError={onError}
         onSuccess={onSuccess}
         onVolver={volverMenu}
-      />
+      />,
     );
   }
 
   if (vista === "importar_baja") {
-    return (
+    return wrapModule(
+      "importar_baja",
       <StockGanaderoImportarBaja
+        embedded
         apiOnline={apiOnline}
         onImported={() => {
           setListRefresh((k) => k + 1);
@@ -132,13 +210,15 @@ export default function StockGanadero({
         onError={onError}
         onSuccess={onSuccess}
         onVolver={volverMenu}
-      />
+      />,
     );
   }
 
   if (vista === "historial") {
-    return (
+    return wrapModule(
+      "historial",
       <StockGanaderoHistorial
+        embedded
         apiOnline={apiOnline}
         refreshKey={listRefresh}
         onError={onError}
@@ -151,7 +231,14 @@ export default function StockGanadero({
           setListLoteFilter(String(loteId));
           setVista("listado");
         }}
-      />
+      />,
+      {
+        headerActions: (
+          <button type="button" className="sg-hub-cta sg-hub-cta--ghost" onClick={() => setVista("listado")}>
+            ‹ Lecturas importadas
+          </button>
+        ),
+      },
     );
   }
 
@@ -164,48 +251,63 @@ export default function StockGanadero({
         onError={onError}
         onSuccess={onSuccess}
         onVolver={volverMenu}
+        hubNav={{
+          items: STOCK_GANADERO_SUBMENU,
+          activeId: "ganadera",
+          onNavigate: navegarModulo,
+          onVolverDashboard: volverMenu,
+          onVolverInicio: onVolver,
+        }}
       />
     );
   }
 
   if (vista === "salidas") {
-    return (
+    return wrapModule(
+      "salidas",
       <StockGanaderaSalidas
+        embedded
         apiOnline={apiOnline}
         refreshKey={listRefresh}
         onError={onError}
         onVolver={volverMenu}
-      />
+      />,
     );
   }
 
   if (vista === "cabana") {
-    return (
+    return wrapModule(
+      "cabana",
       <StockGanaderoCabanaSeleccion
+        embedded
         apiOnline={apiOnline}
         currentUser={currentUser}
         onError={onError}
         onSuccess={onSuccess}
         onVolver={volverMenu}
-      />
+      />,
     );
   }
 
   if (vista === "sanidad") {
-    return (
+    return wrapModule(
+      "sanidad",
       <StockGanaderoSanidad
+        embedded
         apiOnline={apiOnline}
         currentUser={currentUser}
         onError={onError}
         onSuccess={onSuccess}
         onVolver={volverMenu}
-      />
+      />,
     );
   }
 
   if (vista === "listado") {
-    return (
+    return wrapModule(
+      "listado",
       <StockGanaderoListado
+        embedded
         key={listRefresh}
         apiOnline={apiOnline}
         refreshKey={listRefresh}
@@ -214,7 +316,7 @@ export default function StockGanadero({
         onSuccess={(m) => onSuccess(m)}
         onVolver={volverMenu}
         onVerHistorial={() => setVista("historial")}
-      />
+      />,
     );
   }
 
@@ -223,8 +325,8 @@ export default function StockGanadero({
       <StockGanaderoHub
         apiOnline={apiOnline}
         resumen={resumen}
-        items={SUBMENU}
-        onNavigate={(id) => setVista(id as Exclude<VistaStock, "menu" | "historial">)}
+        items={STOCK_GANADERO_SUBMENU}
+        onNavigate={navegarModulo}
         onVolverInicio={onVolver}
       />
     </div>

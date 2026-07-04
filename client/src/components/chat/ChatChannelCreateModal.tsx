@@ -54,7 +54,7 @@ export default function ChatChannelCreateModal({
       }}
     >
       <div
-        className="usuarios-form-modal chat-channel-create-modal"
+        className="usuarios-form-modal chat-channel-create-modal chat-hub-modal"
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
@@ -66,7 +66,7 @@ export default function ChatChannelCreateModal({
               <ChatChannelIcon />
             </span>
             <div className="usuarios-form-modal-head-main">
-              <p className="usuarios-form-modal-kicker">Chat · Canales</p>
+              <p className="usuarios-form-modal-kicker sg-hub-panel-kicker">Chat · Canales</p>
               <h2 id={titleId} className="usuarios-form-modal-title">
                 Nuevo canal
               </h2>
@@ -132,7 +132,7 @@ export default function ChatChannelCreateModal({
         <footer className="usuarios-form-modal-footer">
           <button
             type="button"
-            className="btn btn-secondary usuarios-form-modal-cancel"
+            className="sg-hub-cta sg-hub-cta--ghost usuarios-form-modal-cancel"
             disabled={busy}
             onClick={onClose}
           >
@@ -140,7 +140,7 @@ export default function ChatChannelCreateModal({
           </button>
           <button
             type="button"
-            className="btn btn-accent"
+            className="sg-hub-cta"
             disabled={busy || !canSubmit}
             onClick={onSubmit}
           >

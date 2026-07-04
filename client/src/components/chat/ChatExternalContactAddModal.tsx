@@ -52,7 +52,7 @@ export default function ChatExternalContactAddModal({
       }}
     >
       <div
-        className="usuarios-form-modal chat-external-add-modal"
+        className="usuarios-form-modal chat-external-add-modal chat-hub-modal"
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
@@ -64,7 +64,7 @@ export default function ChatExternalContactAddModal({
               <ChatExternalPeopleIcon />
             </span>
             <div className="usuarios-form-modal-head-main">
-              <p className="usuarios-form-modal-kicker">Chat · Otras cuentas</p>
+              <p className="usuarios-form-modal-kicker sg-hub-panel-kicker">Chat · Otras cuentas</p>
               <h2 id={titleId} className="usuarios-form-modal-title">
                 Agregar contacto
               </h2>
@@ -131,7 +131,7 @@ export default function ChatExternalContactAddModal({
         <footer className="usuarios-form-modal-footer">
           <button
             type="button"
-            className="btn btn-secondary usuarios-form-modal-cancel"
+            className="sg-hub-cta sg-hub-cta--ghost usuarios-form-modal-cancel"
             disabled={busy}
             onClick={onClose}
           >
@@ -139,7 +139,7 @@ export default function ChatExternalContactAddModal({
           </button>
           <button
             type="button"
-            className="btn btn-accent"
+            className="sg-hub-cta"
             disabled={busy || !email.trim()}
             onClick={onSubmit}
           >

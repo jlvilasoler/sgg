@@ -286,7 +286,7 @@ export default function StockControlSanitarioProductoFichaModal({
 
   return createPortal(
     <div
-      className="stock-control-sanitario-overlay stock-producto-ficha-overlay"
+      className="stock-control-sanitario-overlay stock-producto-ficha-overlay stock-producto-ficha-overlay--hub"
       role="dialog"
       aria-modal="true"
       aria-labelledby="stock-producto-ficha-title"
@@ -294,15 +294,15 @@ export default function StockControlSanitarioProductoFichaModal({
         if (e.target === e.currentTarget && !guardando) onClose();
       }}
     >
-      <div className="stock-producto-ficha-modal">
+      <div className="stock-producto-ficha-modal stock-producto-ficha-modal--hub">
         <div className="stock-producto-ficha-accent" aria-hidden />
-        <header className="stock-producto-ficha-head">
+        <header className="stock-producto-ficha-head stock-producto-ficha-hub-head-box">
           <div className="stock-producto-ficha-head-brand">
             <span className="stock-producto-ficha-head-icon" aria-hidden>
               <PillBottle size={26} strokeWidth={2} />
             </span>
             <div className="stock-producto-ficha-head-copy">
-              <p className="stock-producto-ficha-kicker">Ficha del producto</p>
+              <p className="sg-hub-panel-kicker">Ficha del producto</p>
               <h2 id="stock-producto-ficha-title">{titulo}</h2>
               <div className="stock-producto-ficha-head-meta">
                 {String(form.especie ?? "").trim() ? (
@@ -368,31 +368,37 @@ export default function StockControlSanitarioProductoFichaModal({
             <p className="muted">Cargando ficha técnica…</p>
           </div>
         ) : (
-          <div className="stock-producto-ficha-body">
+          <div className="stock-producto-ficha-body stock-producto-ficha-hub-workspace">
             {!editando && tieneDetalles ? (
-              <nav className="stock-producto-ficha-tabs" aria-label="Secciones de la ficha">
-                <button
-                  type="button"
-                  className={`stock-producto-ficha-tab${vistaFicha === "resumen" ? " is-active" : ""}`}
-                  onClick={() => setVistaFicha("resumen")}
-                >
-                  Resumen
-                </button>
-                <button
-                  type="button"
-                  className={`stock-producto-ficha-tab${vistaFicha === "detalles" ? " is-active" : ""}`}
-                  onClick={() => setVistaFicha("detalles")}
-                >
-                  Detalles técnicos
-                  {detalleSecciones.length > 0 ? (
-                    <span className="stock-producto-ficha-tab-count">{detalleSecciones.length}</span>
-                  ) : null}
-                </button>
+              <nav
+                className="stock-producto-ficha-hub-box stock-producto-ficha-hub-tabs-box"
+                aria-label="Secciones de la ficha"
+              >
+                <div className="stock-producto-ficha-tabs">
+                  <button
+                    type="button"
+                    className={`stock-producto-ficha-tab${vistaFicha === "resumen" ? " is-active" : ""}`}
+                    onClick={() => setVistaFicha("resumen")}
+                  >
+                    Resumen
+                  </button>
+                  <button
+                    type="button"
+                    className={`stock-producto-ficha-tab${vistaFicha === "detalles" ? " is-active" : ""}`}
+                    onClick={() => setVistaFicha("detalles")}
+                  >
+                    Detalles técnicos
+                    {detalleSecciones.length > 0 ? (
+                      <span className="stock-producto-ficha-tab-count">{detalleSecciones.length}</span>
+                    ) : null}
+                  </button>
+                </div>
               </nav>
             ) : null}
 
             {(editando || vistaFicha === "resumen") && (
               <>
+                <div className="stock-producto-ficha-hub-box">
                 <div className="stock-producto-ficha-hero">
                   <div className="stock-producto-ficha-hero-foto">
                     <div className="stock-producto-ficha-foto-frame stock-producto-ficha-foto-frame--compact">
@@ -488,7 +494,9 @@ export default function StockControlSanitarioProductoFichaModal({
                     </div>
                   </div>
                 </div>
+                </div>
 
+                <div className="stock-producto-ficha-hub-box">
                 <div className="stock-producto-ficha-resumen-grid">
                   <div className="stock-producto-ficha-espera-grid">
                     <CampoEspera
@@ -528,11 +536,15 @@ export default function StockControlSanitarioProductoFichaModal({
                     )}
                   </div>
                 </div>
+                </div>
               </>
             )}
 
             {(editando || vistaFicha === "detalles") && (
-              <section className="stock-producto-ficha-detalles-panel" aria-label="Detalles técnicos">
+              <section
+                className="stock-producto-ficha-hub-box stock-producto-ficha-detalles-panel"
+                aria-label="Detalles técnicos"
+              >
                 {editando ? (
                   <div className="stock-producto-ficha-prose-card">
                     <label htmlFor="producto-ficha-detalles" className="stock-producto-ficha-prose-label">

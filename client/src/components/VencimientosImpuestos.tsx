@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useMemo, useState, lazy, Suspense, type ReactNode } from "react";
-import { PageModuleHeadRow } from "./PageModuleHead";
+import { Settings } from "lucide-react";
 import VencimientosImpuestosOnboarding from "./VencimientosImpuestosOnboarding";
 import VencImpProximosCarousel from "./VencImpProximosCarousel";
 import VencImpInfoTip from "./VencImpInfoTip";
+import VencImpHubSidebarGuide from "./VencImpHubSidebarGuide";
+import { MenuAppIcon } from "./icons/MenuAppIcons";
+import { SgHubKpi, SgMiniBars } from "./stock/SgHubUi";
 
 const VencImpCalendarioModal = lazy(() => import("./VencImpCalendarioModal"));
 import type {
@@ -90,42 +93,87 @@ function bannerProximoKicker(semaforo: ReturnType<typeof semaforoVencimientoCuot
   return "Próximo";
 }
 
-function VencImpBannerProximo({
-  escudoSrc,
-  escudoClassName,
-  titulo,
-  fecha,
-  fechaLabel,
-  diasRestantes,
-}: {
+interface BannerProximoTarjeta {
+  key: string;
   escudoSrc: string;
   escudoClassName?: string;
   titulo: string;
+  subtitulo?: string;
   fecha: string;
   fechaLabel: string;
   diasRestantes: number;
-}) {
+}
+
+function listarProximosBanner<T extends { fecha: string; fechaLabel: string; diasRestantes: number }>(
+  cuotas: T[],
+  mapItem: (cuota: T) => Pick<BannerProximoTarjeta, "key" | "escudoSrc" | "escudoClassName" | "titulo" | "subtitulo">,
+): BannerProximoTarjeta[] {
+  if (cuotas.length === 0) return [];
+  const fechaMin = cuotas[0].fecha;
+  return cuotas
+    .filter((c) => c.fecha === fechaMin)
+    .map((c) => ({
+      ...mapItem(c),
+      fecha: c.fecha,
+      fechaLabel: c.fechaLabel,
+      diasRestantes: c.diasRestantes,
+    }));
+}
+
+function VencImpBannerProximo({ tarjeta }: { tarjeta: BannerProximoTarjeta }) {
+  const { fecha, fechaLabel, diasRestantes, titulo, subtitulo, escudoSrc, escudoClassName } = tarjeta;
   const semaforo = semaforoVencimientoCuota(fecha);
   const escudoCls = ["venc-imp-banner-next-escudo", escudoClassName].filter(Boolean).join(" ");
+  const ariaParts = [titulo, subtitulo, fechaLabel, diasRestantesLabel(diasRestantes)].filter(Boolean);
 
   return (
     <div
       className={`venc-imp-banner-next venc-imp-banner-next--${semaforo.nivel}`}
       role="status"
-      aria-label={`${titulo} · ${fechaLabel} · ${diasRestantesLabel(diasRestantes)}`}
+      aria-label={ariaParts.join(" · ")}
     >
       <span className="venc-imp-banner-next-accent" aria-hidden />
-      <img src={escudoSrc} alt="" className={escudoCls} />
+      <img src={escudoSrc} alt="" className={escudoCls} loading="lazy" decoding="async" />
       <div className="venc-imp-banner-next-body">
         <span className="venc-imp-banner-next-label">
           <span className="venc-imp-banner-next-dot" aria-hidden />
           {bannerProximoKicker(semaforo, diasRestantes)}
         </span>
         <strong>{titulo}</strong>
+        {subtitulo && subtitulo !== titulo ? (
+          <span className="venc-imp-banner-next-sub">{subtitulo}</span>
+        ) : null}
         <span className="venc-imp-banner-next-fecha">{fechaLabel}</span>
         <span className="venc-imp-banner-next-dias">{diasRestantesLabel(diasRestantes)}</span>
       </div>
     </div>
+  );
+}
+
+function VencImpUserContextBanner({
+  ariaLabel,
+  proximos,
+  children,
+}: {
+  ariaLabel: string;
+  proximos: BannerProximoTarjeta[];
+  children: ReactNode;
+}) {
+  return (
+    <section className="venc-imp-user-banner venc-imp-user-banner--pro venc-imp-user-banner--modern" aria-label={ariaLabel}>
+      <div className="venc-imp-user-banner-shell">
+        <div className="venc-imp-user-banner-info-main">{children}</div>
+        {proximos.length > 0 && (
+          <div className="venc-imp-user-banner-proximos-wrap">
+            {proximos.map((tarjeta) => (
+              <div key={tarjeta.key} className="venc-imp-user-banner-proximo-box">
+                <VencImpBannerProximo tarjeta={tarjeta} />
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </section>
   );
 }
 
@@ -139,14 +187,48 @@ interface SemaforoStats {
 function VencImpStatsStrip({
   loading,
   stats,
-  inline = false,
+  variant = "legacy",
 }: {
   loading: boolean;
   stats: SemaforoStats | null;
-  inline?: boolean;
+  variant?: "legacy" | "hub";
 }) {
   if (!stats && !loading) return null;
   const val = (n: number) => (loading ? "—" : String(n));
+
+  if (variant === "hub") {
+    return (
+      <section className="sg-hub-kpi-strip venc-imp-hub-kpi-strip" aria-label="Estado de vencimientos">
+        <SgHubKpi
+          variant="dark"
+          kicker="Próximo"
+          value={stats ? val(stats.rojo) : "—"}
+          hint="Vencimientos en los próximos días."
+          bars={<SgMiniBars highlight="last" />}
+        />
+        <SgHubKpi
+          kicker="A preparar"
+          value={stats ? val(stats.amarillo) : "—"}
+          hint="Cuotas que conviene planificar con anticipación."
+          bars={<SgMiniBars highlight="mid" />}
+        />
+        <SgHubKpi
+          kicker={SEMAFORO_VENCIMIENTO_LABEL.verde}
+          value={stats ? val(stats.verde) : "—"}
+          hint="Vencimientos con margen amplio."
+          bars={<SgMiniBars />}
+        />
+        <SgHubKpi
+          variant="dark"
+          kicker="Cuotas visibles"
+          value={stats ? val(stats.total) : "—"}
+          hint="Total de vencimientos en el calendario activo."
+          bars={<SgMiniBars highlight="last" />}
+        />
+      </section>
+    );
+  }
+
   const items = [
     { key: "rojo", value: stats ? val(stats.rojo) : "—", label: "Próximo", tone: "rojo" as const },
     { key: "amarillo", value: stats ? val(stats.amarillo) : "—", label: "A preparar", tone: "amarillo" as const },
@@ -154,11 +236,7 @@ function VencImpStatsStrip({
     { key: "total", value: stats ? val(stats.total) : "—", label: "Cuotas visibles", tone: "total" as const },
   ];
   return (
-    <div
-      className={`venc-imp-stats-strip${inline ? " venc-imp-stats-strip--inline" : ""}`}
-      role="status"
-      aria-label="Estado de vencimientos"
-    >
+    <div className="venc-imp-stats-strip" role="status" aria-label="Estado de vencimientos">
       {items.map((item) => (
         <div key={item.key} className={`venc-imp-stat venc-imp-stat--${item.tone}`}>
           <span className="venc-imp-stat-dot" aria-hidden />
@@ -170,48 +248,49 @@ function VencImpStatsStrip({
   );
 }
 
-function VencImpSectionHead({
+function VencImpProximosSection({
+  ariaLabel,
   kicker,
   title,
   subtitle,
   count,
-  actions,
+  itemCount,
+  carouselAriaLabel,
+  emptyMessage,
+  children,
 }: {
+  ariaLabel: string;
   kicker: string;
   title: string;
   subtitle?: string;
   count?: number;
-  actions?: ReactNode;
+  itemCount: number;
+  carouselAriaLabel: string;
+  emptyMessage: string;
+  children: ReactNode;
 }) {
   return (
-    <header className="venc-imp-section-head">
-      <div className="venc-imp-section-head-main">
+    <section className="venc-imp-section venc-imp-proximos-section" aria-label={ariaLabel}>
+      <div className="venc-imp-proximos-head-box">
         <p className="venc-imp-section-kicker">{kicker}</p>
-        <h2 className="venc-imp-section-title">{title}</h2>
-        {subtitle && <p className="venc-imp-section-sub">{subtitle}</p>}
+        <div className="venc-imp-proximos-head-row">
+          <div className="venc-imp-proximos-head-main">
+            <h2 className="venc-imp-section-title">{title}</h2>
+            {subtitle ? <p className="venc-imp-section-sub">{subtitle}</p> : null}
+          </div>
+          {count != null ? <span className="venc-imp-section-count">{count}</span> : null}
+        </div>
       </div>
-      <div className="venc-imp-section-head-side">
-        {count != null && <span className="venc-imp-section-count">{count}</span>}
-        {actions}
+      <div className="venc-imp-proximos-carousel-box">
+        <VencImpProximosCarousel
+          itemCount={itemCount}
+          ariaLabel={carouselAriaLabel}
+          emptyMessage={emptyMessage}
+        >
+          {children}
+        </VencImpProximosCarousel>
       </div>
-    </header>
-  );
-}
-
-function VencImpSemaforoLeyenda() {
-  return (
-    <ul className="venc-imp-aside-leyenda" aria-label="Leyenda semáforo">
-      <li>
-        <span className="venc-imp-semaforo-dot venc-imp-semaforo-dot--rojo" aria-hidden /> Próximo
-      </li>
-      <li>
-        <span className="venc-imp-semaforo-dot venc-imp-semaforo-dot--amarillo" aria-hidden /> A preparar
-      </li>
-      <li>
-        <span className="venc-imp-semaforo-dot venc-imp-semaforo-dot--verde" aria-hidden />{" "}
-        {SEMAFORO_VENCIMIENTO_LABEL.verde}
-      </li>
-    </ul>
+    </section>
   );
 }
 
@@ -504,7 +583,15 @@ export default function VencimientosImpuestos({ apiOnline, currentUser, onError 
     return { rojo, amarillo, verde, total: cuotasFuturas.length };
   }, [cuotasFuturas]);
 
-  const proximaCuota = cuotasFuturas[0] ?? null;
+  const proximoBannerRural = useMemo(
+    () =>
+      listarProximosBanner(cuotasFuturas, (c) => ({
+        key: `${c.configId}-${c.cuota}`,
+        escudoSrc: escudoDepartamentoSrc(c.configId),
+        titulo: c.configLabel,
+      })),
+    [cuotasFuturas],
+  );
 
   const configPorId = useMemo(() => {
     const map = new Map<ContribucionRuralJurisdiccionId, ContribucionRuralJurisdiccionConfig>();
@@ -750,86 +837,58 @@ export default function VencimientosImpuestos({ apiOnline, currentUser, onError 
     [abrirCalendarioRural, abrirCalendarioPatente, abrirCalendarioBps, abrirCalendarioPrimaria],
   );
 
-  const proximaCuotaPatente = cuotasPatenteFuturas[0] ?? null;
-  const proximaCuotaTotal = cuotasConsolidadas[0] ?? null;
+  const proximoBannerPatente = useMemo(
+    () =>
+      listarProximosBanner(cuotasPatenteFuturas, (c) => ({
+        key: `patente-${c.cuota}`,
+        escudoSrc: "/logo-sucive.svg",
+        escudoClassName: "venc-imp-banner-next-escudo--patente",
+        titulo: "Patente SUCIVE",
+      })),
+    [cuotasPatenteFuturas],
+  );
+
+  const proximoBannerTotal = useMemo(
+    () =>
+      listarProximosBanner(cuotasConsolidadas, (c) => ({
+        key: c.key,
+        escudoSrc: c.escudoSrc,
+        escudoClassName: c.escudoClassName,
+        titulo: c.titulo,
+        subtitulo: c.impuestoLabel,
+      })),
+    [cuotasConsolidadas],
+  );
+
+  const proximoBannerBps = useMemo(
+    () =>
+      listarProximosBanner(cuotasBpsFuturas, (c) => ({
+        key: `bps-${c.cuota}`,
+        escudoSrc: "/logo-bps-compact.svg",
+        escudoClassName: "venc-imp-banner-next-escudo--bps",
+        titulo: "BPS Caja rural",
+      })),
+    [cuotasBpsFuturas],
+  );
+
+  const proximoBannerPrimaria = useMemo(
+    () =>
+      listarProximosBanner(cuotasPrimariaFuturas, (c) => ({
+        key: `primaria-${c.cuota}`,
+        escudoSrc: "/logo-dgi-compact.svg",
+        escudoClassName: "venc-imp-banner-next-escudo--dgi",
+        titulo: "Primaria rural",
+      })),
+    [cuotasPrimariaFuturas],
+  );
+
+  const impuestoActivoLabel =
+    opcionesImpuesto.find((op) => op.id === tipoImpuesto)?.label ?? "Vencimientos Impuestos";
 
   const totalPanel =
     tipoImpuesto === "total" && totalListo ? (
-      <div className="venc-imp-workspace venc-imp-workspace--pro">
-        <div className="card venc-imp-shell venc-imp-shell--total">
-          <div className="venc-imp-shell-layout">
-            <aside className="venc-imp-aside" aria-label="Guía vista total">
-              <div className="venc-imp-aside-block">
-                <h3 className="venc-imp-aside-title">Vista total</h3>
-                <p className="venc-imp-aside-note">
-                  Todos los vencimientos de los impuestos configurados en una sola línea de tiempo,
-                  ordenados del más cercano al más lejano.
-                </p>
-              </div>
-              <div className="venc-imp-aside-block">
-                <h4 className="venc-imp-aside-subtitle">Semáforo</h4>
-                <VencImpSemaforoLeyenda />
-              </div>
-              <div className="venc-imp-aside-block">
-                <h4 className="venc-imp-aside-subtitle">Impuestos incluidos</h4>
-                <div className="venc-imp-aside-chips">
-                  {ruralListo &&
-                    configsCuenta.map((config) => (
-                      <span key={config.id} className="venc-imp-banner-chip">
-                        <img
-                          src={escudoDepartamentoSrc(config.id)}
-                          alt=""
-                          className="venc-imp-banner-chip-escudo"
-                          loading="lazy"
-                          decoding="async"
-                        />
-                        {config.label}
-                      </span>
-                    ))}
-                  {patenteListo && (
-                    <span className="venc-imp-banner-chip">
-                      <img
-                        src="/logo-sucive.svg"
-                        alt=""
-                        className="venc-imp-banner-chip-escudo"
-                        loading="lazy"
-                        decoding="async"
-                      />
-                      Patente SUCIVE
-                    </span>
-                  )}
-                  {bpsListo && (
-                    <span className="venc-imp-banner-chip">
-                      <img
-                        src="/logo-bps-compact.svg"
-                        alt=""
-                        className="venc-imp-banner-chip-escudo venc-imp-banner-chip-escudo--bps"
-                        loading="lazy"
-                        decoding="async"
-                      />
-                      BPS Caja rural
-                    </span>
-                  )}
-                  {primariaListo && (
-                    <span className="venc-imp-banner-chip">
-                      <img
-                        src="/logo-dgi-compact.svg"
-                        alt=""
-                        className="venc-imp-banner-chip-escudo venc-imp-banner-chip-escudo--dgi"
-                        loading="lazy"
-                        decoding="async"
-                      />
-                      Primaria (DGI)
-                    </span>
-                  )}
-                </div>
-              </div>
-            </aside>
-
-            <div className="venc-imp-shell-main">
-              <section className="venc-imp-user-banner venc-imp-user-banner--pro venc-imp-user-banner--total" aria-label="Vista total de vencimientos">
-                <div className="venc-imp-user-banner-glow" aria-hidden />
-                <div className="venc-imp-user-banner-main">
+      <div className="venc-imp-hub-panel sg-hub-panel">
+            <VencImpUserContextBanner ariaLabel="Vista total de vencimientos" proximos={proximoBannerTotal}>
                   <div className="venc-imp-brand-row">
                     <img
                       src="/icon-venc-imp-total.svg"
@@ -841,43 +900,25 @@ export default function VencimientosImpuestos({ apiOnline, currentUser, onError 
                       <p className="venc-imp-onboard-kicker">Todos los impuestos</p>
                       <p className="venc-imp-user-banner-text">
                         <strong>Vista consolidada</strong>
-                        <span className="venc-imp-user-banner-deptos">
-                          {" "}
-                          · {cuotasConsolidadas.length}{" "}
-                          {cuotasConsolidadas.length === 1 ? "vencimiento" : "vencimientos"} en el calendario
-                        </span>
+                      </p>
+                      <p className="venc-imp-user-banner-deptos">
+                        {cuotasConsolidadas.length}{" "}
+                        {cuotasConsolidadas.length === 1 ? "vencimiento" : "vencimientos"} en el calendario
                       </p>
                     </div>
                   </div>
-                </div>
-                <div className="venc-imp-user-banner-side">
-                  {proximaCuotaTotal && (
-                    <VencImpBannerProximo
-                      escudoSrc={proximaCuotaTotal.escudoSrc}
-                      escudoClassName={proximaCuotaTotal.escudoClassName}
-                      titulo={proximaCuotaTotal.titulo}
-                      fecha={proximaCuotaTotal.fecha}
-                      fechaLabel={proximaCuotaTotal.fechaLabel}
-                      diasRestantes={proximaCuotaTotal.diasRestantes}
-                    />
-                  )}
-                </div>
-              </section>
+            </VencImpUserContextBanner>
 
-              <section className="card venc-imp-section" aria-label="Próximos vencimientos consolidados">
-                <VencImpSectionHead
-                  kicker="Vista consolidada"
-                  title="Próximos vencimientos"
-                  subtitle="Contribución rural, patente, BPS y Primaria · del más cercano al más lejano"
-                  count={cuotasConsolidadas.length}
-                />
-
-                <div className="venc-imp-proximos-body">
-                  <VencImpProximosCarousel
-                    itemCount={cuotasConsolidadas.length}
-                    ariaLabel="Próximos vencimientos de todos los impuestos"
-                    emptyMessage={mensajeProximosVacios("total")}
-                  >
+              <VencImpProximosSection
+                ariaLabel="Próximos vencimientos consolidados"
+                kicker="Vista consolidada"
+                title="Próximos vencimientos"
+                subtitle="Contribución rural, patente, BPS y Primaria · del más cercano al más lejano"
+                count={cuotasConsolidadas.length}
+                itemCount={cuotasConsolidadas.length}
+                carouselAriaLabel="Próximos vencimientos de todos los impuestos"
+                emptyMessage={mensajeProximosVacios("total")}
+              >
                     {cuotasConsolidadas.map((item) => {
                       const semaforo = semaforoVencimientoCuota(item.fecha);
                       const escudoCls = ["venc-imp-proximo-escudo", item.escudoClassName]
@@ -919,93 +960,38 @@ export default function VencimientosImpuestos({ apiOnline, currentUser, onError 
                         </button>
                       );
                     })}
-                  </VencImpProximosCarousel>
-                </div>
-              </section>
-            </div>
-          </div>
-        </div>
+              </VencImpProximosSection>
       </div>
     ) : null;
 
   const patentePanel =
     tipoImpuesto === "patente" && patenteListo && patenteStore && patenteConfig ? (
-      <div className="venc-imp-workspace venc-imp-workspace--pro">
-        <div className="card venc-imp-shell">
-          <div className="venc-imp-shell-layout">
-            <aside className="venc-imp-aside" aria-label="Guía patente SUCIVE">
-              <div className="venc-imp-aside-block">
-                <h3 className="venc-imp-aside-title">Patente SUCIVE</h3>
-                <p className="venc-imp-aside-note">
-                  Vencimientos de patente de rodados según el calendario nacional SUCIVE.
-                </p>
-              </div>
-              <div className="venc-imp-aside-block">
-                <h4 className="venc-imp-aside-subtitle">Semáforo</h4>
-                <VencImpSemaforoLeyenda />
-              </div>
-              <div className="venc-imp-aside-block">
-                <h4 className="venc-imp-aside-subtitle">Calendario</h4>
-                <div className="venc-imp-aside-chips">
-                  <span className="venc-imp-banner-chip">
-                    <img
-                      src="/logo-sucive.svg"
-                      alt=""
-                      className="venc-imp-banner-chip-escudo"
-                      loading="lazy"
-                      decoding="async"
-                    />
-                    Nacional {patenteStore.calendario.anio}
-                  </span>
-                </div>
-              </div>
-            </aside>
-
-            <div className="venc-imp-shell-main">
-              <section className="venc-imp-user-banner venc-imp-user-banner--pro" aria-label="Patente SUCIVE">
-                <div className="venc-imp-user-banner-glow" aria-hidden />
-                <div className="venc-imp-user-banner-main">
+      <div className="venc-imp-hub-panel sg-hub-panel">
+              <VencImpUserContextBanner ariaLabel="Patente SUCIVE" proximos={proximoBannerPatente}>
                   <div className="venc-imp-brand-row">
                     <img src="/logo-sucive.svg" alt="" className="venc-imp-brand-icon-img" aria-hidden />
                     <div>
                       <p className="venc-imp-onboard-kicker">Patente SUCIVE</p>
                       <p className="venc-imp-user-banner-text">
                         <strong>{MODALIDAD_PAGO_LABEL[modalidadPatente]}</strong>
-                        <span className="venc-imp-user-banner-deptos">
-                          {" "}· calendario nacional · ejercicio {patenteStore.calendario.anio}
-                        </span>
+                      </p>
+                      <p className="venc-imp-user-banner-deptos">
+                        calendario nacional · ejercicio {patenteStore.calendario.anio}
                       </p>
                     </div>
                   </div>
-                </div>
-                <div className="venc-imp-user-banner-side">
-                  {proximaCuotaPatente && (
-                    <VencImpBannerProximo
-                      escudoSrc="/logo-sucive.svg"
-                      escudoClassName="venc-imp-banner-next-escudo--patente"
-                      titulo="Patente SUCIVE"
-                      fecha={proximaCuotaPatente.fecha}
-                      fechaLabel={proximaCuotaPatente.fechaLabel}
-                      diasRestantes={proximaCuotaPatente.diasRestantes}
-                    />
-                  )}
-                </div>
-              </section>
+              </VencImpUserContextBanner>
 
-              <section className="card venc-imp-section" aria-label="Próximos vencimientos patente">
-                <VencImpSectionHead
-                  kicker="Calendario SUCIVE"
-                  title="Próximos vencimientos"
-                  subtitle={`${MODALIDAD_PAGO_LABEL[modalidadPatente]} · calendario nacional · ejercicio ${patenteStore.calendario.anio}`}
-                  count={cuotasPatenteFuturas.length}
-                />
-
-                <div className="venc-imp-proximos-body">
-                  <VencImpProximosCarousel
-                    itemCount={cuotasPatenteFuturas.length}
-                    ariaLabel="Próximos vencimientos patente"
-                    emptyMessage={mensajeProximosVacios("patente")}
-                  >
+              <VencImpProximosSection
+                ariaLabel="Próximos vencimientos patente"
+                kicker="Calendario SUCIVE"
+                title="Próximos vencimientos"
+                subtitle={`${MODALIDAD_PAGO_LABEL[modalidadPatente]} · calendario nacional · ejercicio ${patenteStore.calendario.anio}`}
+                count={cuotasPatenteFuturas.length}
+                itemCount={cuotasPatenteFuturas.length}
+                carouselAriaLabel="Próximos vencimientos patente"
+                emptyMessage={mensajeProximosVacios("patente")}
+              >
                     {cuotasPatenteFuturas.map((item) => {
                       const semaforo = semaforoVencimientoCuota(item.fecha);
                       return (
@@ -1047,95 +1033,38 @@ export default function VencimientosImpuestos({ apiOnline, currentUser, onError 
                         </button>
                       );
                     })}
-                  </VencImpProximosCarousel>
-                </div>
-              </section>
-            </div>
-          </div>
-        </div>
+              </VencImpProximosSection>
       </div>
     ) : null;
 
-  const proximaCuotaBps = cuotasBpsFuturas[0] ?? null;
-
   const bpsPanel =
     tipoImpuesto === "bps" && bpsListo && bpsStore && bpsConfig ? (
-      <div className="venc-imp-workspace venc-imp-workspace--pro">
-        <div className="card venc-imp-shell">
-          <div className="venc-imp-shell-layout">
-            <aside className="venc-imp-aside" aria-label="Guía BPS Caja rural">
-              <div className="venc-imp-aside-block">
-                <h3 className="venc-imp-aside-title">BPS Caja rural</h3>
-                <p className="venc-imp-aside-note">
-                  Aportes de seguridad social del personal rural según el calendario nacional BPS.
-                </p>
-              </div>
-              <div className="venc-imp-aside-block">
-                <h4 className="venc-imp-aside-subtitle">Semáforo</h4>
-                <VencImpSemaforoLeyenda />
-              </div>
-              <div className="venc-imp-aside-block">
-                <h4 className="venc-imp-aside-subtitle">Calendario</h4>
-                <div className="venc-imp-aside-chips">
-                  <span className="venc-imp-banner-chip">
-                    <img
-                      src="/logo-bps-compact.svg"
-                      alt=""
-                      className="venc-imp-banner-chip-escudo venc-imp-banner-chip-escudo--bps"
-                      loading="lazy"
-                      decoding="async"
-                    />
-                    Nacional {bpsStore.calendario.anio}
-                  </span>
-                </div>
-              </div>
-            </aside>
-
-            <div className="venc-imp-shell-main">
-              <section className="venc-imp-user-banner venc-imp-user-banner--pro" aria-label="BPS Caja rural">
-                <div className="venc-imp-user-banner-glow" aria-hidden />
-                <div className="venc-imp-user-banner-main">
+      <div className="venc-imp-hub-panel sg-hub-panel">
+              <VencImpUserContextBanner ariaLabel="BPS Caja rural" proximos={proximoBannerBps}>
                   <div className="venc-imp-brand-row">
                     <img src="/logo-bps-compact.svg" alt="" className="venc-imp-brand-icon-img venc-imp-brand-icon-img--bps" aria-hidden />
                     <div>
                       <p className="venc-imp-onboard-kicker">BPS Caja rural</p>
                       <p className="venc-imp-user-banner-text">
                         <strong>3 cuatrimestres</strong>
-                        <span className="venc-imp-user-banner-deptos">
-                          {" "}· calendario nacional · ejercicio {bpsStore.calendario.anio}
-                        </span>
+                      </p>
+                      <p className="venc-imp-user-banner-deptos">
+                        calendario nacional · ejercicio {bpsStore.calendario.anio}
                       </p>
                     </div>
                   </div>
-                </div>
-                <div className="venc-imp-user-banner-side">
-                  {proximaCuotaBps && (
-                    <VencImpBannerProximo
-                      escudoSrc="/logo-bps-compact.svg"
-                      escudoClassName="venc-imp-banner-next-escudo--bps"
-                      titulo="BPS Caja rural"
-                      fecha={proximaCuotaBps.fecha}
-                      fechaLabel={proximaCuotaBps.fechaLabel}
-                      diasRestantes={proximaCuotaBps.diasRestantes}
-                    />
-                  )}
-                </div>
-              </section>
+              </VencImpUserContextBanner>
 
-              <section className="card venc-imp-section" aria-label="Próximos vencimientos BPS">
-                <VencImpSectionHead
-                  kicker="Calendario BPS"
-                  title="Próximos vencimientos"
-                  subtitle={`3 cuatrimestres · calendario nacional · ejercicio ${bpsStore.calendario.anio}`}
-                  count={cuotasBpsFuturas.length}
-                />
-
-                <div className="venc-imp-proximos-body">
-                  <VencImpProximosCarousel
-                    itemCount={cuotasBpsFuturas.length}
-                    ariaLabel="Próximos vencimientos BPS Caja rural"
-                    emptyMessage={mensajeProximosVacios("bps")}
-                  >
+              <VencImpProximosSection
+                ariaLabel="Próximos vencimientos BPS"
+                kicker="Calendario BPS"
+                title="Próximos vencimientos"
+                subtitle={`3 cuatrimestres · calendario nacional · ejercicio ${bpsStore.calendario.anio}`}
+                count={cuotasBpsFuturas.length}
+                itemCount={cuotasBpsFuturas.length}
+                carouselAriaLabel="Próximos vencimientos BPS Caja rural"
+                emptyMessage={mensajeProximosVacios("bps")}
+              >
                     {cuotasBpsFuturas.map((item) => {
                       const semaforo = semaforoVencimientoCuota(item.fecha);
                       return (
@@ -1175,16 +1104,10 @@ export default function VencimientosImpuestos({ apiOnline, currentUser, onError 
                         </button>
                       );
                     })}
-                  </VencImpProximosCarousel>
-                </div>
-              </section>
-            </div>
-          </div>
-        </div>
+              </VencImpProximosSection>
       </div>
     ) : null;
 
-  const proximaCuotaPrimaria = cuotasPrimariaFuturas[0] ?? null;
   const djPrimaria =
     regimenPrimaria === "con_explotacion" && primariaStore
       ? {
@@ -1196,65 +1119,8 @@ export default function VencimientosImpuestos({ apiOnline, currentUser, onError 
 
   const primariaPanel =
     tipoImpuesto === "primaria" && primariaListo && primariaStore && primariaConfig ? (
-      <div className="venc-imp-workspace venc-imp-workspace--pro">
-        <div className="card venc-imp-shell">
-          <div className="venc-imp-shell-layout">
-            <aside className="venc-imp-aside" aria-label="Guía Impuesto Primaria rural">
-              <div className="venc-imp-aside-block">
-                <h3 className="venc-imp-aside-title">Primaria rural (DGI)</h3>
-                <p className="venc-imp-aside-note">
-                  Impuesto de Enseñanza Primaria sobre padrones rurales. Tres cuotas anuales según
-                  calendario nacional DGI.
-                </p>
-              </div>
-              <div className="venc-imp-aside-block">
-                <h4 className="venc-imp-aside-subtitle">Régimen</h4>
-                <p className="venc-imp-aside-note">{REGIMEN_PRIMARIA_RURAL_LABEL[regimenPrimaria]}</p>
-              </div>
-              {djPrimaria && djPrimaria.diasRestantes >= 0 && (
-                <div className="venc-imp-aside-block venc-imp-aside-block--alert">
-                  <h4 className="venc-imp-aside-subtitle">Declaración jurada</h4>
-                  <p className="venc-imp-aside-note">
-                    <strong>{djPrimaria.fechaLabel}</strong>
-                    <br />
-                    {diasRestantesLabel(djPrimaria.diasRestantes)}
-                  </p>
-                </div>
-              )}
-              <div className="venc-imp-aside-block">
-                <h4 className="venc-imp-aside-subtitle">Semáforo</h4>
-                <VencImpSemaforoLeyenda />
-              </div>
-              <div className="venc-imp-aside-block">
-                <h4 className="venc-imp-aside-subtitle">Enlaces DGI</h4>
-                <ul className="venc-imp-aside-links">
-                  <li>
-                    <a href={primariaStore.calendario.fuenteUrl} target="_blank" rel="noopener noreferrer">
-                      Vencimientos
-                    </a>
-                  </li>
-                  <li>
-                    <a
-                      href={primariaStore.calendario.fuenteUrlPadrones}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      Padrones rurales
-                    </a>
-                  </li>
-                  <li>
-                    <a href={primariaStore.calendario.fuenteUrlDj} target="_blank" rel="noopener noreferrer">
-                      Declaración jurada
-                    </a>
-                  </li>
-                </ul>
-              </div>
-            </aside>
-
-            <div className="venc-imp-shell-main">
-              <section className="venc-imp-user-banner venc-imp-user-banner--pro" aria-label="Impuesto Primaria rural">
-                <div className="venc-imp-user-banner-glow" aria-hidden />
-                <div className="venc-imp-user-banner-main">
+      <div className="venc-imp-hub-panel sg-hub-panel">
+              <VencImpUserContextBanner ariaLabel="Impuesto Primaria rural" proximos={proximoBannerPrimaria}>
                   <div className="venc-imp-brand-row">
                     <img
                       src="/logo-dgi-compact.svg"
@@ -1276,42 +1142,24 @@ export default function VencimientosImpuestos({ apiOnline, currentUser, onError 
                       </div>
                       <p className="venc-imp-user-banner-text">
                         <strong>{REGIMEN_PRIMARIA_RURAL_LABEL[regimenPrimaria]}</strong>
-                        <span className="venc-imp-user-banner-deptos">
-                          {" "}
-                          · 3 cuotas · calendario nacional · ejercicio {primariaStore.calendario.anio}
-                        </span>
+                      </p>
+                      <p className="venc-imp-user-banner-deptos">
+                        3 cuotas · calendario nacional · ejercicio {primariaStore.calendario.anio}
                       </p>
                     </div>
                   </div>
-                </div>
-                <div className="venc-imp-user-banner-side">
-                  {proximaCuotaPrimaria && (
-                    <VencImpBannerProximo
-                      escudoSrc="/logo-dgi-compact.svg"
-                      escudoClassName="venc-imp-banner-next-escudo--dgi"
-                      titulo="Primaria rural"
-                      fecha={proximaCuotaPrimaria.fecha}
-                      fechaLabel={proximaCuotaPrimaria.fechaLabel}
-                      diasRestantes={proximaCuotaPrimaria.diasRestantes}
-                    />
-                  )}
-                </div>
-              </section>
+              </VencImpUserContextBanner>
 
-              <section className="card venc-imp-section" aria-label="Próximos vencimientos Primaria">
-                <VencImpSectionHead
-                  kicker="Calendario DGI"
-                  title="Próximos vencimientos"
-                  subtitle={`${REGIMEN_PRIMARIA_RURAL_LABEL[regimenPrimaria]} · ejercicio ${primariaStore.calendario.anio}`}
-                  count={cuotasPrimariaFuturas.length}
-                />
-
-                <div className="venc-imp-proximos-body">
-                  <VencImpProximosCarousel
-                    itemCount={cuotasPrimariaFuturas.length}
-                    ariaLabel="Próximos vencimientos Impuesto Primaria rural"
-                    emptyMessage={mensajeProximosVacios("primaria")}
-                  >
+              <VencImpProximosSection
+                ariaLabel="Próximos vencimientos Primaria"
+                kicker="Calendario DGI"
+                title="Próximos vencimientos"
+                subtitle={`${REGIMEN_PRIMARIA_RURAL_LABEL[regimenPrimaria]} · ejercicio ${primariaStore.calendario.anio}`}
+                count={cuotasPrimariaFuturas.length}
+                itemCount={cuotasPrimariaFuturas.length}
+                carouselAriaLabel="Próximos vencimientos Impuesto Primaria rural"
+                emptyMessage={mensajeProximosVacios("primaria")}
+              >
                     {cuotasPrimariaFuturas.map((item) => {
                       const semaforo = semaforoVencimientoCuota(item.fecha);
                       return (
@@ -1351,108 +1199,96 @@ export default function VencimientosImpuestos({ apiOnline, currentUser, onError 
                         </button>
                       );
                     })}
-                  </VencImpProximosCarousel>
-                </div>
-              </section>
+              </VencImpProximosSection>
+      </div>
+    ) : null;
+
+  const ruralPanel =
+    ruralListo && tipoImpuesto === "rural" ? (
+      <div className="venc-imp-hub-panel sg-hub-panel">
+        <VencImpUserContextBanner ariaLabel="Contribución rural" proximos={proximoBannerRural}>
+            <div className="venc-imp-brand-row">
+              <img
+                src="/icon-venc-imp-total.svg"
+                alt=""
+                className="venc-imp-brand-icon-img"
+                aria-hidden
+              />
+              <div>
+                <p className="venc-imp-onboard-kicker">Contribución rural</p>
+                <p className="venc-imp-user-banner-text">
+                  <strong>{MODALIDAD_PAGO_LABEL[modalidadRural]}</strong>
+                </p>
+                {configsCuenta.length > 0 && (
+                  <p className="venc-imp-user-banner-deptos">
+                    {configsCuenta.length === 1
+                      ? configsCuenta[0].label
+                      : `${configsCuenta.length} departamentos · ${configsCuenta.map((c) => c.label).join(", ")}`}
+                  </p>
+                )}
+              </div>
             </div>
-          </div>
-        </div>
+        </VencImpUserContextBanner>
+
+        <VencImpProximosSection
+          ariaLabel="Próximos vencimientos"
+          kicker="Contribución rural"
+          title="Próximos vencimientos"
+          subtitle={`${MODALIDAD_PAGO_LABEL[modalidadRural]} · del más cercano al más lejano`}
+          count={cuotasFuturas.length}
+          itemCount={cuotasFuturas.length}
+          carouselAriaLabel="Próximos vencimientos contribución rural"
+          emptyMessage={mensajeProximosVacios("rural")}
+        >
+              {cuotasFuturas.map((item) => {
+                const semaforo = semaforoVencimientoCuota(item.fecha);
+                return (
+                  <button
+                    type="button"
+                    key={`${item.configId}-${item.cuota}-${item.fecha}`}
+                    className={`venc-imp-proximo-card venc-imp-proximo-card--pro venc-imp-proximo-card--${semaforo.nivel}`}
+                    role="listitem"
+                    onClick={() => abrirCalendarioRural(item.configId)}
+                    aria-label={`Ver calendario completo de ${item.configLabel} · ${item.fechaLabel}`}
+                  >
+                    <span className="venc-imp-proximo-accent" aria-hidden />
+                    <div className="venc-imp-proximo-top">
+                      <img
+                        src={escudoDepartamentoSrc(item.configId)}
+                        alt=""
+                        className="venc-imp-proximo-escudo"
+                        loading="lazy"
+                        decoding="async"
+                      />
+                      <div className="venc-imp-proximo-meta">
+                        <p className="venc-imp-proximo-depto">{item.configLabel}</p>
+                        <p className="venc-imp-proximo-plazo">{diasRestantesLabel(item.diasRestantes)}</p>
+                      </div>
+                    </div>
+                    <p className="venc-imp-proximo-cuota">
+                      {modalidadRural === "contado"
+                        ? "Pago contado anual"
+                        : `Cuota ${item.cuota}ª · ${item.planLabel}`}
+                    </p>
+                    <p className="venc-imp-proximo-fecha">{item.fechaLabel}</p>
+                    <span className={`venc-imp-semaforo-badge venc-imp-semaforo-badge--${semaforo.nivel}`}>
+                      <span
+                        className={`venc-imp-semaforo-dot venc-imp-semaforo-dot--${semaforo.nivel}`}
+                        aria-hidden
+                      />
+                      {semaforo.label}
+                    </span>
+                  </button>
+                );
+              })}
+        </VencImpProximosSection>
       </div>
     ) : null;
 
   return (
     <div
-      className={`vencimientos-impuestos-page${onboardingFullscreen ? " vencimientos-impuestos-page--onboarding" : ""}`}
+      className={`vencimientos-impuestos-page${onboardingFullscreen ? " vencimientos-impuestos-page--onboarding" : " venc-imp-hub-page"}`}
     >
-      {!onboardingFullscreen && (
-        <div className="card venc-imp-filters-card">
-          <header className="venc-imp-head">
-            <div className="venc-imp-head-main">
-              <PageModuleHeadRow
-                icon={{ source: "app", id: "vencimientos_impuestos" }}
-                title="Vencimientos Impuestos"
-                subtitle="Contribución rural, patente SUCIVE, BPS Caja rural e Impuesto Primaria (DGI)"
-                titleClassName="venc-imp-head-title"
-                subClassName="venc-imp-head-sub"
-              />
-            </div>
-            {puedeConfigurar && (
-              <div className="venc-imp-head-actions">
-                <button
-                  type="button"
-                  className="btn venc-imp-filters-btn venc-imp-filters-btn--ghost"
-                  onClick={abrirPreferencias}
-                  title="Preferencias compartidas de la cuenta: los cambios aplican a todos los usuarios"
-                >
-                  Preferencias de la cuenta
-                </button>
-              </div>
-            )}
-          </header>
-
-          {mostrarBarraFiltros && (
-            <div className="venc-imp-controls">
-              <div className="venc-imp-filters-bar">
-                {opcionesImpuesto.length > 0 && (
-                  <div className="venc-imp-field venc-imp-field--impuesto">
-                    <span className="venc-imp-field-label" id="venc-imp-tipo-label">
-                      Impuesto
-                    </span>
-                    <div
-                      className="venc-imp-impuesto-pick"
-                      role="group"
-                      aria-labelledby="venc-imp-tipo-label"
-                    >
-                      {opcionesImpuesto.map((op) => (
-                        <button
-                          key={op.id}
-                          type="button"
-                          className={`venc-imp-impuesto-pick-btn${tipoImpuesto === op.id ? " is-active" : ""}`}
-                          onClick={() => {
-                            if (mostrarSelectorImpuesto) setTipoImpuesto(op.id);
-                          }}
-                          aria-pressed={tipoImpuesto === op.id}
-                        >
-                          {op.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                <VencImpStatsStrip loading={loading} stats={heroStats} inline />
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {loading && (
-        <div className="venc-imp-skeleton" aria-busy="true" aria-label="Cargando calendarios">
-          <div className="venc-imp-skeleton-line venc-imp-skeleton-line--banner" />
-          <div className="venc-imp-skeleton-kpis">
-            <div className="venc-imp-skeleton-line venc-imp-skeleton-line--kpi" />
-            <div className="venc-imp-skeleton-line venc-imp-skeleton-line--kpi" />
-            <div className="venc-imp-skeleton-line venc-imp-skeleton-line--kpi" />
-          </div>
-          <div className="venc-imp-skeleton-cards">
-            <div className="venc-imp-skeleton-line venc-imp-skeleton-line--card" />
-            <div className="venc-imp-skeleton-line venc-imp-skeleton-line--card" />
-            <div className="venc-imp-skeleton-line venc-imp-skeleton-line--card" />
-            <div className="venc-imp-skeleton-line venc-imp-skeleton-line--card" />
-          </div>
-        </div>
-      )}
-
-      {configPendienteLector && (
-        <p className="venc-imp-empty venc-imp-empty--cuenta-pendiente" role="status">
-          La configuración de vencimientos de esta cuenta aún no fue realizada. Un{" "}
-          <strong>Administrador</strong> o <strong>Gestor</strong> (N1 o N2) con permiso de edición
-          debe completar el asistente inicial una sola vez. Cuando esté lista, todos los usuarios de la
-          cuenta verán aquí los mismos vencimientos.
-        </p>
-      )}
-
       {setupPendiente && store && patenteStore && bpsStore && primariaStore && (
         <VencimientosImpuestosOnboarding
           store={store}
@@ -1472,149 +1308,158 @@ export default function VencimientosImpuestos({ apiOnline, currentUser, onError 
         />
       )}
 
-      {!setupPendiente && !configPendienteLector && totalPanel}
-
-      {!setupPendiente && !configPendienteLector && patentePanel}
-
-      {!setupPendiente && !configPendienteLector && bpsPanel}
-
-      {!setupPendiente && !configPendienteLector && primariaPanel}
-
-      {ruralListo && tipoImpuesto === "rural" && !setupPendiente && (
-        <div className="venc-imp-workspace venc-imp-workspace--pro">
-          <div className="card venc-imp-shell">
-            <div className="venc-imp-shell-layout">
-              <aside className="venc-imp-aside" aria-label="Guía contribución rural">
-                <div className="venc-imp-aside-block">
-                  <h3 className="venc-imp-aside-title">Contribución rural</h3>
-                  <p className="venc-imp-aside-note">
-                    Vencimientos por departamento según la modalidad configurada en su cuenta.
-                  </p>
-                </div>
-                <div className="venc-imp-aside-block">
-                  <h4 className="venc-imp-aside-subtitle">Semáforo</h4>
-                  <VencImpSemaforoLeyenda />
-                </div>
-                <div className="venc-imp-aside-block">
-                  <h4 className="venc-imp-aside-subtitle">Departamentos</h4>
-                  <div className="venc-imp-aside-chips">
-                    {configsCuenta.map((config) => (
-                      <span key={config.id} className="venc-imp-banner-chip">
-                        <img
-                          src={escudoDepartamentoSrc(config.id)}
-                          alt=""
-                          className="venc-imp-banner-chip-escudo"
-                          loading="lazy"
-                          decoding="async"
-                        />
-                        {config.label}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </aside>
-
-              <div className="venc-imp-shell-main">
-                <section className="venc-imp-user-banner venc-imp-user-banner--pro" aria-label="Contribución rural">
-                  <div className="venc-imp-user-banner-glow" aria-hidden />
-                  <div className="venc-imp-user-banner-main">
-                    <div className="venc-imp-brand-row">
-                      <span className="venc-imp-brand-icon" aria-hidden>
-                        📅
-                      </span>
-                      <div>
-                        <p className="venc-imp-onboard-kicker">Contribución rural</p>
-                        <p className="venc-imp-user-banner-text">
-                          <strong>{MODALIDAD_PAGO_LABEL[modalidadRural]}</strong>
-                          {configsCuenta.length > 0 && (
-                            <span className="venc-imp-user-banner-deptos">
-                              {" "}
-                              ·{" "}
-                              {configsCuenta.length === 1
-                                ? configsCuenta[0].label
-                                : `${configsCuenta.length} departamentos · ${configsCuenta.map((c) => c.label).join(", ")}`}
-                            </span>
-                          )}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="venc-imp-user-banner-side">
-                    {proximaCuota && (
-                      <VencImpBannerProximo
-                        escudoSrc={escudoDepartamentoSrc(proximaCuota.configId)}
-                        titulo={proximaCuota.configLabel}
-                        fecha={proximaCuota.fecha}
-                        fechaLabel={proximaCuota.fechaLabel}
-                        diasRestantes={proximaCuota.diasRestantes}
-                      />
-                    )}
-                  </div>
-                </section>
-
-                <section className="card venc-imp-section" aria-label="Próximos vencimientos">
-                  <VencImpSectionHead
-                    kicker="Contribución rural"
-                    title="Próximos vencimientos"
-                    subtitle={`${MODALIDAD_PAGO_LABEL[modalidadRural]} · del más cercano al más lejano`}
-                    count={cuotasFuturas.length}
-                  />
-
-                  <div className="venc-imp-proximos-body">
-                    <VencImpProximosCarousel
-                      itemCount={cuotasFuturas.length}
-                      ariaLabel="Próximos vencimientos contribución rural"
-                      emptyMessage={mensajeProximosVacios("rural")}
-                    >
-                      {cuotasFuturas.map((item) => {
-                          const semaforo = semaforoVencimientoCuota(item.fecha);
-                          return (
-                            <button
-                              type="button"
-                              key={`${item.configId}-${item.cuota}-${item.fecha}`}
-                              className={`venc-imp-proximo-card venc-imp-proximo-card--pro venc-imp-proximo-card--${semaforo.nivel}`}
-                              role="listitem"
-                              onClick={() => abrirCalendarioRural(item.configId)}
-                              aria-label={`Ver calendario completo de ${item.configLabel} · ${item.fechaLabel}`}
-                            >
-                              <span className="venc-imp-proximo-accent" aria-hidden />
-                              <div className="venc-imp-proximo-top">
-                                <img
-                                  src={escudoDepartamentoSrc(item.configId)}
-                                  alt=""
-                                  className="venc-imp-proximo-escudo"
-                                  loading="lazy"
-                                  decoding="async"
-                                />
-                                <div className="venc-imp-proximo-meta">
-                                  <p className="venc-imp-proximo-depto">{item.configLabel}</p>
-                                  <p className="venc-imp-proximo-plazo">{diasRestantesLabel(item.diasRestantes)}</p>
-                                </div>
-                              </div>
-                              <p className="venc-imp-proximo-cuota">
-                                {modalidadRural === "contado"
-                                  ? "Pago contado anual"
-                                  : `Cuota ${item.cuota}ª · ${item.planLabel}`}
-                              </p>
-                              <p className="venc-imp-proximo-fecha">{item.fechaLabel}</p>
-                              <span
-                                className={`venc-imp-semaforo-badge venc-imp-semaforo-badge--${semaforo.nivel}`}
-                              >
-                                <span
-                                  className={`venc-imp-semaforo-dot venc-imp-semaforo-dot--${semaforo.nivel}`}
-                                  aria-hidden
-                                />
-                                {semaforo.label}
-                              </span>
-                            </button>
-                          );
-                      })}
-                    </VencImpProximosCarousel>
-                  </div>
-                </section>
+      {!onboardingFullscreen && (
+        <div className="sg-hub venc-imp-hub">
+          <aside className="sg-hub-aside sg-hub-aside--venc" aria-label="Navegación Vencimientos Impuestos">
+            <div className="sg-hub-aside-brand">
+              <span className="sg-hub-aside-logo venc-imp-hub-aside-logo" aria-hidden>
+                <MenuAppIcon id="vencimientos_impuestos" />
+              </span>
+              <div>
+                <p className="sg-hub-aside-kicker">SCG · Módulo</p>
+                <p className="sg-hub-aside-title">Vencimientos</p>
               </div>
             </div>
-          </div>
+
+            {opcionesImpuesto.length > 0 && (
+              <nav className="sg-hub-aside-nav" aria-label="Impuestos configurados">
+                <p className="sg-hub-aside-nav-label">Impuestos</p>
+                {opcionesImpuesto.map((op) => (
+                  <button
+                    key={op.id}
+                    type="button"
+                    className={`sg-hub-nav-item${tipoImpuesto === op.id ? " is-active" : ""}`}
+                    onClick={() => {
+                      if (mostrarSelectorImpuesto || op.id === tipoImpuesto) setTipoImpuesto(op.id);
+                    }}
+                    aria-pressed={tipoImpuesto === op.id}
+                    disabled={!mostrarSelectorImpuesto && op.id !== tipoImpuesto}
+                  >
+                    <span className="sg-hub-nav-copy">
+                      <span>{op.label}</span>
+                    </span>
+                  </button>
+                ))}
+              </nav>
+            )}
+
+            {mostrarBarraFiltros && (
+              <VencImpHubSidebarGuide
+                tipoImpuesto={tipoImpuesto}
+                ruralListo={!!ruralListo}
+                patenteListo={!!patenteListo}
+                bpsListo={!!bpsListo}
+                primariaListo={!!primariaListo}
+                configsCuenta={configsCuenta}
+                patenteAnio={patenteStore?.calendario.anio}
+                bpsAnio={bpsStore?.calendario.anio}
+                primariaAnio={primariaStore?.calendario.anio}
+                regimenPrimaria={regimenPrimaria}
+                djPrimaria={djPrimaria}
+                primariaFuenteUrls={
+                  primariaStore
+                    ? {
+                        vencimientos: primariaStore.calendario.fuenteUrl,
+                        padrones: primariaStore.calendario.fuenteUrlPadrones,
+                        dj: primariaStore.calendario.fuenteUrlDj,
+                      }
+                    : undefined
+                }
+              />
+            )}
+
+            {puedeConfigurar && (
+              <div className="sg-hub-aside-foot">
+                <button
+                  type="button"
+                  className="sg-hub-nav-item sg-hub-nav-item--muted"
+                  onClick={abrirPreferencias}
+                  title="Preferencias compartidas de la cuenta: los cambios aplican a todos los usuarios"
+                >
+                  <Settings size={16} aria-hidden />
+                  Preferencias de la cuenta
+                </button>
+              </div>
+            )}
+          </aside>
+
+          <main className="sg-hub-main">
+            <header className="sg-hub-main-head">
+              <div>
+                <h1 className="sg-hub-main-title">{impuestoActivoLabel}</h1>
+                <p className="sg-hub-main-sub">
+                  Contribución rural, patente SUCIVE, BPS Caja rural e Impuesto Primaria (DGI).
+                </p>
+              </div>
+              <div className="sg-hub-main-actions">
+                <span
+                  className={`sg-hub-status${apiOnline ? " sg-hub-status--online" : ""}`}
+                  role="status"
+                >
+                  {apiOnline ? "API conectada" : "Sin conexión API"}
+                </span>
+              </div>
+            </header>
+
+            {mostrarBarraFiltros && (
+              <VencImpStatsStrip loading={loading} stats={heroStats} variant="hub" />
+            )}
+
+            {loading && (
+              <div className="venc-imp-skeleton venc-imp-skeleton--hub" aria-busy="true" aria-label="Cargando calendarios">
+                <div className="venc-imp-skeleton-line venc-imp-skeleton-line--banner" />
+                <div className="venc-imp-skeleton-kpis">
+                  <div className="venc-imp-skeleton-line venc-imp-skeleton-line--kpi" />
+                  <div className="venc-imp-skeleton-line venc-imp-skeleton-line--kpi" />
+                  <div className="venc-imp-skeleton-line venc-imp-skeleton-line--kpi" />
+                </div>
+                <div className="venc-imp-skeleton-cards">
+                  <div className="venc-imp-skeleton-line venc-imp-skeleton-line--card" />
+                  <div className="venc-imp-skeleton-line venc-imp-skeleton-line--card" />
+                  <div className="venc-imp-skeleton-line venc-imp-skeleton-line--card" />
+                  <div className="venc-imp-skeleton-line venc-imp-skeleton-line--card" />
+                </div>
+              </div>
+            )}
+
+            {configPendienteLector && (
+              <p className="venc-imp-empty venc-imp-empty--cuenta-pendiente" role="status">
+                La configuración de vencimientos de esta cuenta aún no fue realizada. Un{" "}
+                <strong>Administrador</strong> o <strong>Gestor</strong> (N1 o N2) con permiso de edición
+                debe completar el asistente inicial una sola vez. Cuando esté lista, todos los usuarios de la
+                cuenta verán aquí los mismos vencimientos.
+              </p>
+            )}
+
+            {!setupPendiente && !configPendienteLector && (
+              <div className="venc-imp-hub-workspace">
+                {totalPanel}
+                {patentePanel}
+                {bpsPanel}
+                {primariaPanel}
+                {ruralPanel}
+              </div>
+            )}
+
+            {!ruralListo &&
+              cuentaConfigurada &&
+              departamentosCuenta.length === 0 &&
+              patenteListo &&
+              tipoImpuesto !== "patente" && (
+                <section
+                  className="venc-imp-user-banner venc-imp-user-banner--patente venc-imp-hub-panel sg-hub-panel"
+                  aria-label="Configuración de la cuenta"
+                >
+                  <div className="venc-imp-user-banner-main">
+                    <p className="venc-imp-user-banner-kicker">Calendario de la cuenta</p>
+                    <p className="venc-imp-user-banner-text">
+                      <strong>Patente SUCIVE</strong>
+                    </p>
+                    <p className="venc-imp-user-banner-deptos">{MODALIDAD_PAGO_LABEL[modalidadPatente]}</p>
+                  </div>
+                </section>
+              )}
+          </main>
         </div>
       )}
 
@@ -1629,21 +1474,6 @@ export default function VencimientosImpuestos({ apiOnline, currentUser, onError 
           />
         </Suspense>
       )}
-
-      {!ruralListo &&
-        cuentaConfigurada &&
-        departamentosCuenta.length === 0 &&
-        patenteListo &&
-        tipoImpuesto !== "patente" && (
-          <section className="venc-imp-user-banner venc-imp-user-banner--patente" aria-label="Configuración de la cuenta">
-            <div className="venc-imp-user-banner-main">
-              <p className="venc-imp-user-banner-kicker">Calendario de la cuenta</p>
-              <p className="venc-imp-user-banner-text">
-                <strong>Patente SUCIVE</strong> · {MODALIDAD_PAGO_LABEL[modalidadPatente]}
-              </p>
-            </div>
-          </section>
-        )}
     </div>
   );
 }

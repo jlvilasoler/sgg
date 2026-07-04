@@ -1,9 +1,14 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Bell, LayoutGrid, Search } from "lucide-react";
+import { useMemo } from "react";
+import { Bell } from "lucide-react";
 import type { HubIconId } from "../icons/HubMenuIcons";
 import { HUB_ICON_THEMES, HubMenuIcon } from "../icons/HubMenuIcons";
 import { StockGanaderoModuleIcon } from "./StockControlSanitarioSectionTitle";
 import { SgHubKpi, SgMiniBars } from "./SgHubUi";
+import StockGanaderoHubNav from "./StockGanaderoHubNav";
+import {
+  StockGanaderoHubAsideSearchField,
+  useStockGanaderoAsideSearch,
+} from "./StockGanaderoHubAsideSearch";
 
 export interface StockGanaderoHubItem {
   id: string;
@@ -26,21 +31,6 @@ interface Props {
   onVolverInicio: () => void;
 }
 
-function normalizarBusquedaModulo(texto: string): string {
-  return texto
-    .normalize("NFD")
-    .replace(/\p{Diacritic}/gu, "")
-    .toLowerCase()
-    .trim();
-}
-
-function coincideModuloHub(item: StockGanaderoHubItem, consulta: string): boolean {
-  const q = normalizarBusquedaModulo(consulta);
-  if (!q) return true;
-  const blob = normalizarBusquedaModulo(`${item.label} ${item.subtitle} ${item.id}`);
-  return blob.includes(q);
-}
-
 export default function StockGanaderoHub({
   apiOnline,
   resumen,
@@ -48,35 +38,14 @@ export default function StockGanaderoHub({
   onNavigate,
   onVolverInicio,
 }: Props) {
-  const [busquedaModulos, setBusquedaModulos] = useState("");
-  const busquedaInputRef = useRef<HTMLInputElement>(null);
-  const atajoBusqueda = useMemo(() => {
-    if (typeof navigator === "undefined") return "Ctrl+F";
-    return /Mac|iPhone|iPad/i.test(navigator.platform) ? "⌘F" : "Ctrl+F";
-  }, []);
-
-  const consultaActiva = busquedaModulos.trim().length > 0;
-  const itemsFiltrados = useMemo(
-    () => items.filter((item) => coincideModuloHub(item, busquedaModulos)),
-    [items, busquedaModulos],
-  );
-  const mostrarDashboard = !consultaActiva || normalizarBusquedaModulo("dashboard").includes(normalizarBusquedaModulo(busquedaModulos));
-
-  const enfocarBusqueda = useCallback(() => {
-    busquedaInputRef.current?.focus();
-    busquedaInputRef.current?.select();
-  }, []);
-
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "f") {
-        e.preventDefault();
-        enfocarBusqueda();
-      }
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [enfocarBusqueda]);
+  const {
+    busquedaModulos,
+    setBusquedaModulos,
+    busquedaInputRef,
+    consultaActiva,
+    itemsFiltrados,
+    mostrarDashboard,
+  } = useStockGanaderoAsideSearch(items);
 
   const primaryIds = new Set(["ganadera", "importar", "sanidad", "salidas"]);
   const primaryItems = items.filter((i) => primaryIds.has(i.id));
@@ -95,54 +64,24 @@ export default function StockGanaderoHub({
           </div>
         </div>
 
-        <label className="sg-hub-aside-search">
-          <Search size={15} aria-hidden />
-          <input
-            ref={busquedaInputRef}
-            type="search"
-            className="sg-hub-aside-search-input"
-            placeholder="Buscar en módulos…"
-            value={busquedaModulos}
-            onChange={(e) => setBusquedaModulos(e.target.value)}
-            aria-label="Buscar módulos en la barra lateral"
-          />
-          <kbd className="sg-hub-aside-kbd" aria-hidden>
-            {atajoBusqueda}
-          </kbd>
-        </label>
+        <StockGanaderoHubAsideSearchField
+          value={busquedaModulos}
+          onChange={setBusquedaModulos}
+          inputRef={busquedaInputRef}
+        />
 
-        <nav className="sg-hub-aside-nav">
-          <p className="sg-hub-aside-nav-label">
-            {consultaActiva ? `Resultados (${itemsFiltrados.length})` : "Principal"}
-          </p>
-          {mostrarDashboard ? (
-            <button type="button" className="sg-hub-nav-item is-active">
-              <LayoutGrid size={18} aria-hidden />
-              Dashboard
-            </button>
-          ) : null}
-          {itemsFiltrados.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              className="sg-hub-nav-item"
-              onClick={() => onNavigate(item.id)}
-            >
-              <span className="sg-hub-nav-icon" aria-hidden>
-                <HubMenuIcon id={item.icon} />
-              </span>
-              <span className="sg-hub-nav-copy">
-                <span>{item.label}</span>
-                {consultaActiva ? (
-                  <small className="sg-hub-nav-sub">{item.subtitle}</small>
-                ) : null}
-              </span>
-            </button>
-          ))}
-          {consultaActiva && !mostrarDashboard && itemsFiltrados.length === 0 ? (
-            <p className="sg-hub-aside-nav-empty">Ningún módulo coincide con la búsqueda.</p>
-          ) : null}
-        </nav>
+        <StockGanaderoHubNav
+          items={itemsFiltrados}
+          activeId="menu"
+          onNavigate={onNavigate}
+          onVolverDashboard={() => {}}
+          showDashboard={mostrarDashboard}
+          showSubtitles={consultaActiva}
+          navLabel={consultaActiva ? `Resultados (${itemsFiltrados.length})` : "Principal"}
+        />
+        {consultaActiva && !mostrarDashboard && itemsFiltrados.length === 0 ? (
+          <p className="sg-hub-aside-nav-empty">Ningún módulo coincide con la búsqueda.</p>
+        ) : null}
 
         <div className="sg-hub-aside-foot">
           <button type="button" className="sg-hub-nav-item sg-hub-nav-item--muted" onClick={onVolverInicio}>

@@ -71,6 +71,7 @@ interface Props {
   onError: (msg: string) => void;
   onSuccess: (msg: string, title?: string) => void;
   onVolver: () => void;
+  embedded?: boolean;
 }
 
 interface GrupoRapido {
@@ -339,6 +340,7 @@ export default function StockGanaderoSanidad({
   onError,
   onSuccess,
   onVolver,
+  embedded = false,
 }: Props) {
   const [rows, setRows] = useState<StockGanaderaDispositivo[]>([]);
   const [loading, setLoading] = useState(true);
@@ -596,23 +598,58 @@ export default function StockGanaderoSanidad({
     }
   };
 
-  return (
-    <div className="subseccion-panel stock-sanidad-page">
-      <button type="button" className="subseccion-back" onClick={onVolver}>
-        ‹ Volver a Stock Ganadero
-      </button>
-
-      <div className="card stock-sanidad-card">
-        <div className="form-header">
-          <PageModuleHeadRow
-            icon={{ source: "hub", id: "stock_sanidad" }}
-            title="Sanidad"
-            subtitle="Seleccioná animales por grupo y registrá el mismo control sanitario en todos a la vez."
-          />
+  const hubKpiStrip = embedded ? (
+    <section className="sg-hub-kpi-strip sg-module-kpi-strip" aria-label="Resumen sanidad">
+      <article className="sg-hub-kpi sg-hub-kpi--dark">
+        <div className="sg-hub-kpi-top">
+          <div>
+            <p className="sg-hub-kpi-kicker">Seleccionados</p>
+            <p className="sg-hub-kpi-value">{loading ? "—" : seleccionados.length}</p>
+          </div>
         </div>
+        <p className="sg-hub-kpi-hint">Animales que recibirán el mismo control.</p>
+      </article>
+      <article className="sg-hub-kpi">
+        <div className="sg-hub-kpi-top">
+          <div>
+            <p className="sg-hub-kpi-kicker">Activos en stock</p>
+            <p className="sg-hub-kpi-value">{loading ? "—" : rows.length}</p>
+          </div>
+        </div>
+        <p className="sg-hub-kpi-hint">
+          {filteredRows.length !== rows.length
+            ? `${filteredRows.length} coinciden con la búsqueda.`
+            : "Dispositivos EID activos disponibles."}
+        </p>
+      </article>
+      <article className="sg-hub-kpi">
+        <div className="sg-hub-kpi-top">
+          <div>
+            <p className="sg-hub-kpi-kicker">Grupos activos</p>
+            <p className="sg-hub-kpi-value">{gruposSeleccionados.length}</p>
+          </div>
+        </div>
+        <p className="sg-hub-kpi-hint">Filtros rápidos aplicados a la selección.</p>
+      </article>
+    </section>
+  ) : null;
 
-        <div className="stock-sanidad-layout">
-          <section className="stock-sanidad-seleccion" aria-label="Selección de animales">
+  const layoutInner = (
+    <>
+          <section
+            className={`stock-sanidad-seleccion${embedded ? " stock-sanidad-hub-box" : ""}`}
+            aria-label="Selección de animales"
+          >
+            {embedded ? (
+              <header className="stock-sanidad-hub-head-box">
+                <p className="sg-hub-panel-kicker">Selección</p>
+                <h2 className="stock-sanidad-hub-title">Animales y grupos</h2>
+                <p className="stock-sanidad-hub-sub muted">
+                  Buscá por EID, VID, grupo o cabaña y sumá grupos completos al registro masivo.
+                </p>
+              </header>
+            ) : null}
+
             <div className="stock-sanidad-toolbar">
               <input
                 type="search"
@@ -653,7 +690,11 @@ export default function StockGanaderoSanidad({
             </div>
 
             <section className="stock-sanidad-grupos-filtros" aria-label="Sumar por grupo">
-              <div className="stock-sanidad-grupos-rapidos stock-sanidad-panel stock-sanidad-panel--grupos">
+              <div
+                className={`stock-sanidad-grupos-rapidos${
+                  embedded ? " stock-sanidad-grupos-rapidos--hub" : " stock-sanidad-panel stock-sanidad-panel--grupos"
+                }`}
+              >
                   <StockSanidadGrupoCarousel
                     categorias={grupoCategorias}
                     disabled={!apiOnline || guardando}
@@ -689,17 +730,43 @@ export default function StockGanaderoSanidad({
                   ) : null}
                 </div>
             </section>
-          </section>
+            </section>
 
-          <StockSanidadHistorialDashboard
-            apiOnline={apiOnline}
-            claves={clavesSeleccionadas}
-            refreshKey={historialRefreshKey}
-            empresasOperativas={empresasOperativas}
-            onError={onError}
-          />
+          {embedded ? (
+            <div className="stock-sanidad-hub-box stock-sanidad-hub-box--historial">
+              <StockSanidadHistorialDashboard
+                apiOnline={apiOnline}
+                claves={clavesSeleccionadas}
+                refreshKey={historialRefreshKey}
+                empresasOperativas={empresasOperativas}
+                onError={onError}
+              />
+            </div>
+          ) : (
+            <StockSanidadHistorialDashboard
+              apiOnline={apiOnline}
+              claves={clavesSeleccionadas}
+              refreshKey={historialRefreshKey}
+              empresasOperativas={empresasOperativas}
+              onError={onError}
+            />
+          )}
 
-          <section className="stock-sanidad-registro" aria-label="Registro sanitario">
+          <section
+            className={`stock-sanidad-registro${embedded ? " stock-sanidad-registro--hub" : ""}`}
+            aria-label="Registro sanitario"
+          >
+            {embedded ? (
+              <div className="stock-sanidad-hub-box stock-sanidad-hub-box--registro-head">
+                <header className="stock-sanidad-hub-head-box stock-sanidad-hub-head-box--panel">
+                  <p className="sg-hub-panel-kicker">Registro</p>
+                  <h2 className="stock-sanidad-hub-title">Datos del control</h2>
+                  <p className="stock-sanidad-hub-sub muted">
+                    Mismo producto y fechas para todos; categoría e ID se completan desde cada ficha.
+                  </p>
+                </header>
+              </div>
+            ) : null}
             <form
               className="stock-sanidad-form"
               onSubmit={(e) => {
@@ -707,13 +774,16 @@ export default function StockGanaderoSanidad({
                 void guardarMasivo();
               }}
             >
-              <div className="stock-sanidad-form-head">
+              <div className="stock-sanidad-hub-box stock-sanidad-hub-box--registro-form">
+              <div className={`stock-sanidad-form-head${embedded ? " stock-sanidad-form-head--hub" : ""}`}>
+                {!embedded ? (
                 <div>
                   <h3 className="stock-sanidad-form-title">Datos del control</h3>
                   <p className="stock-sanidad-form-hint muted">
                     Mismo producto y fechas para todos; categoría e ID se completan desde cada ficha.
                   </p>
                 </div>
+                ) : null}
                 <div className="stock-sanidad-form-actions stock-sanidad-form-actions--head">
                   <button
                     type="button"
@@ -737,19 +807,21 @@ export default function StockGanaderoSanidad({
                 </div>
               </div>
 
-              <div className="stock-sanidad-form-body stock-sanidad-form-body--band">
-                <StockControlSanitarioRegistroForm
-                  idPrefix="sanidad"
-                  bandLayout
-                  form={form}
-                  guardando={guardando}
-                  apiOnline={apiOnline}
-                  modulo="ganadero"
-                  onPatch={patchForm}
-                  onError={onError}
-                  onFichaSaved={(msg) => onSuccess(msg)}
-                  currentUser={currentUser}
-                />
+              <div className="stock-sanidad-form-fields-box">
+                <div className="stock-sanidad-form-body stock-sanidad-form-body--band">
+                  <StockControlSanitarioRegistroForm
+                    idPrefix="sanidad"
+                    bandLayout
+                    form={form}
+                    guardando={guardando}
+                    apiOnline={apiOnline}
+                    modulo="ganadero"
+                    onPatch={patchForm}
+                    onError={onError}
+                    onFichaSaved={(msg) => onSuccess(msg)}
+                    currentUser={currentUser}
+                  />
+                </div>
               </div>
 
               {progreso && (
@@ -765,10 +837,23 @@ export default function StockGanaderoSanidad({
                   </span>
                 </div>
               )}
+              </div>
             </form>
           </section>
 
-          <section className="stock-sanidad-listado" aria-label="Listado de animales">
+          <section
+            className={`stock-sanidad-listado${embedded ? " stock-sanidad-hub-box" : ""}`}
+            aria-label="Listado de animales"
+          >
+            {embedded ? (
+              <header className="stock-sanidad-hub-head-box">
+                <p className="sg-hub-panel-kicker">Listado</p>
+                <h2 className="stock-sanidad-hub-title">Animales activos</h2>
+                <p className="stock-sanidad-hub-sub muted">
+                  Marcá filas o usá la casilla de la cabecera para seleccionar la página completa.
+                </p>
+              </header>
+            ) : null}
             <div className="table-wrap table-wrap-stock-pro stock-sanidad-table-wrap">
               <table className="data-table stock-ganadera-table stock-table-pro stock-sanidad-table-pro">
                 <thead>
@@ -936,8 +1021,37 @@ export default function StockGanaderoSanidad({
               />
             )}
           </section>
-        </div>
+    </>
+  );
+
+  const panel = embedded ? (
+    <>
+      {hubKpiStrip}
+      <div className="stock-sanidad-hub-workspace">
+        <div className="stock-sanidad-layout stock-sanidad-layout--hub">{layoutInner}</div>
       </div>
+    </>
+  ) : (
+    <div className="card stock-sanidad-card">
+      <div className="form-header">
+        <PageModuleHeadRow
+          icon={{ source: "hub", id: "stock_sanidad" }}
+          title="Sanidad"
+          subtitle="Seleccioná animales por grupo y registrá el mismo control sanitario en todos a la vez."
+        />
+      </div>
+      <div className="stock-sanidad-layout">{layoutInner}</div>
+    </div>
+  );
+
+  if (embedded) return panel;
+
+  return (
+    <div className="subseccion-panel stock-sanidad-page">
+      <button type="button" className="subseccion-back" onClick={onVolver}>
+        ‹ Volver a Stock Ganadero
+      </button>
+      {panel}
     </div>
   );
 }

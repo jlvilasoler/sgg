@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { MessageSquare } from "lucide-react";
 import {
   agregarChatContactoExterno,
   buscarChatMensajes,
@@ -932,13 +933,23 @@ export default function ChatInterno({
   let lastDay = "";
 
   return (
-    <div className={`chat-interno chat-interno--${variant}`}>
+    <div className={`chat-interno chat-interno--hub chat-interno--${variant}`}>
       <aside
-        className={`chat-interno-sidebar${sidebarOpen ? " chat-interno-sidebar--open" : ""}`}
+        className={`chat-interno-sidebar chat-interno-hub-aside${sidebarOpen ? " chat-interno-sidebar--open" : ""}`}
         aria-label="Conversaciones"
       >
-        <div className="chat-interno-sidebar-head">
-          <h2>{variant === "panel" ? "Chats" : "Mensajes"}</h2>
+        <div className="chat-interno-sidebar-head chat-interno-hub-brand">
+          <div className="chat-interno-hub-brand-main">
+            <span className="chat-interno-hub-brand-icon" aria-hidden>
+              <MessageSquare size={18} strokeWidth={1.75} />
+            </span>
+            <div>
+              <p className="chat-interno-hub-kicker">SGG · Chat</p>
+              <h2 className="chat-interno-hub-brand-title">
+                {variant === "panel" ? "Chats" : "Mensajes"}
+              </h2>
+            </div>
+          </div>
           {isPanel && (
             panelPickedChat ? (
               <button
@@ -1098,8 +1109,10 @@ export default function ChatInterno({
       </aside>
 
       {(variant !== "panel" || panelPickedChat) && (
-      <section className="chat-interno-main">
-        <header className="chat-interno-main-head">
+      <section className="chat-interno-main chat-interno-hub-main">
+        <div className="chat-interno-hub-workspace">
+          <div className="chat-interno-hub-conversation">
+        <header className="chat-interno-main-head chat-interno-hub-head">
           <button
             type="button"
             className="chat-interno-menu-btn"
@@ -1145,12 +1158,16 @@ export default function ChatInterno({
                     }}
                     autoFocus
                   />
-                  <button type="button" className="btn btn-sm btn-primary" onClick={() => void guardarRenombre()}>
+                  <button
+                    type="button"
+                    className="sg-hub-cta chat-interno-hub-btn-sm"
+                    onClick={() => void guardarRenombre()}
+                  >
                     Guardar
                   </button>
                   <button
                     type="button"
-                    className="btn btn-sm btn-ghost"
+                    className="sg-hub-cta sg-hub-cta--ghost chat-interno-hub-btn-sm"
                     onClick={() => setRenamingChannelId(null)}
                   >
                     Cancelar
@@ -1174,7 +1191,7 @@ export default function ChatInterno({
             </div>
           </div>
           {variant === "page" && onClose && (
-            <button type="button" className="btn btn-ghost btn-sm" onClick={onClose}>
+            <button type="button" className="sg-hub-cta sg-hub-cta--ghost chat-interno-hub-back" onClick={onClose}>
               Volver
             </button>
           )}
@@ -1539,6 +1556,8 @@ export default function ChatInterno({
         <p className="chat-interno-compose-hint muted">
           Enter para enviar · Shift+Enter para nueva línea · Máx. 12 MB por archivo
         </p>
+          </div>
+        </div>
       </section>
       )}
 

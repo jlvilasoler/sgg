@@ -19494,8 +19494,11 @@ button.sg-kpi-card:disabled {
 }
 
 .bn-ui .vencimientos-impuestos-page .venc-imp-user-banner-deptos {
+  margin: 0.15rem 0 0;
   color: var(--bn-muted);
   font-weight: 500;
+  font-size: 0.82rem;
+  line-height: 1.4;
 }
 
 .bn-ui .vencimientos-impuestos-page .venc-imp-onboard-btn--ghost {
@@ -20852,38 +20855,27 @@ button.sg-kpi-card:disabled {
 }
 
 .bn-ui .vencimientos-impuestos-page .venc-imp-proximo-accent {
-  position: absolute;
-  inset: 0 0 auto 0;
-  height: 3px;
-  border-radius: var(--venc-imp-radius-lg) var(--venc-imp-radius-lg) 0 0;
-  background: var(--bn-border);
+  display: none;
 }
 
 .bn-ui .vencimientos-impuestos-page .venc-imp-proximo-card--pro.venc-imp-proximo-card--rojo {
-  border-color: color-mix(in srgb, #dc2626 35%, var(--bn-border));
-  background: color-mix(in srgb, #dc2626 5%, var(--bn-bg));
+  border: 2px solid #fee2e2;
+  background: #fef2f2;
+  animation: venc-imp-proximo-card-rojo-blink 2s ease-in-out infinite;
 }
 
-.bn-ui .vencimientos-impuestos-page .venc-imp-proximo-card--pro.venc-imp-proximo-card--rojo .venc-imp-proximo-accent {
-  background: #dc2626;
+.bn-ui .vencimientos-impuestos-page .venc-imp-proximo-card--pro.venc-imp-proximo-card--rojo .venc-imp-semaforo-dot--rojo {
+  animation: venc-imp-banner-next-dot-blink 2s ease-in-out infinite;
 }
 
 .bn-ui .vencimientos-impuestos-page .venc-imp-proximo-card--pro.venc-imp-proximo-card--amarillo {
-  border-color: color-mix(in srgb, #ca8a04 32%, var(--bn-border));
-  background: color-mix(in srgb, #eab308 6%, var(--bn-bg));
-}
-
-.bn-ui .vencimientos-impuestos-page .venc-imp-proximo-card--pro.venc-imp-proximo-card--amarillo .venc-imp-proximo-accent {
-  background: #ca8a04;
+  border: 2px solid #fef9c3;
+  background: #fefce8;
 }
 
 .bn-ui .vencimientos-impuestos-page .venc-imp-proximo-card--pro.venc-imp-proximo-card--verde {
-  border-color: color-mix(in srgb, #16a34a 28%, var(--bn-border));
-  background: color-mix(in srgb, #16a34a 5%, var(--bn-bg));
-}
-
-.bn-ui .vencimientos-impuestos-page .venc-imp-proximo-card--pro.venc-imp-proximo-card--verde .venc-imp-proximo-accent {
-  background: #16a34a;
+  border: 2px solid #dcfce7;
+  background: #f0fdf4;
 }
 
 .bn-ui .vencimientos-impuestos-page button.venc-imp-proximo-card {
@@ -21892,13 +21884,43 @@ button.sg-kpi-card:disabled {
   overflow: hidden;
 }
 
+.page-main.bn-ui:has(.vencimientos-impuestos-page--onboarding) {
+  max-width: none;
+  width: 100%;
+  padding-left: max(0.45rem, env(safe-area-inset-left, 0px));
+  padding-right: max(0.45rem, env(safe-area-inset-right, 0px));
+  background: #f3f2ed;
+}
+
+@media (min-width: 900px) {
+  .page-main.bn-ui:has(.vencimientos-impuestos-page--onboarding) {
+    padding-left: max(0.65rem, env(safe-area-inset-left, 0px));
+    padding-right: max(0.65rem, env(safe-area-inset-right, 0px));
+  }
+}
+
 .bn-ui .vencimientos-impuestos-page--onboarding {
   flex: 1;
+  width: 100%;
+  max-width: none;
   min-height: 0;
   max-height: 100%;
   overflow: hidden;
   justify-content: flex-start;
   padding: 0;
+  --sg-hub-sidebar: #1a211a;
+  --sg-hub-sidebar-soft: #242d24;
+  --sg-hub-sidebar-text: rgba(248, 246, 240, 0.92);
+  --sg-hub-sidebar-muted: rgba(248, 246, 240, 0.55);
+  --sg-hub-workspace: #f3f2ed;
+  --sg-hub-surface: #ffffff;
+  --sg-hub-accent: #7cb342;
+  --sg-hub-accent-soft: rgba(124, 179, 66, 0.16);
+  --sg-hub-radius-xl: 1.25rem;
+  --sg-hub-radius-lg: 1rem;
+  --sg-hub-radius-md: 0.65rem;
+  --sg-hub-radius-card: 1.35rem;
+  --sg-hub-shadow: 0 18px 48px rgba(20, 28, 20, 0.1);
 }
 
 .venc-imp-loading {
@@ -22128,7 +22150,10 @@ button.sg-kpi-card:disabled {
 }
 
 .venc-imp-user-banner-deptos {
+  margin: 0.15rem 0 0;
   font-weight: 500;
+  font-size: 0.82rem;
+  line-height: 1.4;
   color: var(--muted);
 }
 
@@ -22138,21 +22163,21 @@ button.sg-kpi-card:disabled {
   min-height: 0;
   max-height: 100%;
   display: flex;
-  justify-content: center;
-  align-items: flex-start;
+  flex-direction: column;
+  align-items: stretch;
   margin-top: 0;
   overflow: hidden;
-  padding: 0 0.75rem;
+  padding: 0;
 }
 
 .venc-imp-onboard-shell {
-  --venc-imp-onboard-h: min(calc(38rem + 2.5cm), 100%);
-  width: min(100%, calc(68rem + 4.5cm));
-  height: var(--venc-imp-onboard-h);
+  flex: 1;
+  width: 100%;
+  height: 100%;
   max-height: 100%;
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(13rem, calc(17rem + 2cm)) minmax(0, 1fr);
+  grid-template-columns: minmax(13rem, 17rem) minmax(0, 1fr);
   gap: 1.25rem;
   align-items: stretch;
 }
@@ -22351,7 +22376,7 @@ button.sg-kpi-card:disabled {
   scrollbar-color: color-mix(in srgb, var(--header-green) 35%, transparent) transparent;
 }
 
-.venc-imp-onboard-panel-body > :is(h3, h4, p, label, .venc-imp-onboard-selection, .venc-imp-onboard-deptos-meta) {
+.venc-imp-onboard-panel-body > :is(h3, h4, p, label, .venc-imp-onboard-selection, .venc-imp-onboard-deptos-meta, .venc-imp-onboard-deptos-box, .venc-imp-onboard-search-box, .venc-imp-onboard-intro-box) {
   margin: 0;
 }
 
@@ -22390,6 +22415,33 @@ button.sg-kpi-card:disabled {
   margin: 0;
 }
 
+.venc-imp-onboard-head-box,
+.venc-imp-onboard-intro-box,
+.venc-imp-onboard-search-box,
+.venc-imp-onboard-deptos-box {
+  padding: 0.75rem 0.85rem 0.8rem;
+  border: 1px solid color-mix(in srgb, var(--bn-border) 88%, #fff);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--bn-border) 6%, #fff);
+}
+
+.venc-imp-onboard-head-box {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  width: 100%;
+}
+
+.venc-imp-onboard-head-box > :is(p, h2) {
+  margin: 0;
+}
+
+.venc-imp-onboard-intro-box {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
 .venc-imp-onboard-search-label {
   font-size: 0.68rem;
   font-weight: 700;
@@ -22422,6 +22474,14 @@ button.sg-kpi-card:disabled {
   font-size: 0.72rem;
   font-weight: 600;
   color: var(--bn-muted);
+}
+
+.venc-imp-onboard-deptos-box {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  flex: 1;
+  min-height: 0;
 }
 
 .venc-imp-onboard-deptos {
@@ -22470,8 +22530,8 @@ button.sg-kpi-card:disabled {
 
 .venc-imp-onboard-depto-escudo {
   flex-shrink: 0;
-  width: 1.25rem;
-  height: 1.25rem;
+  width: 1.5rem;
+  height: 1.5rem;
   object-fit: contain;
   object-position: center;
 }
@@ -22694,7 +22754,6 @@ button.sg-kpi-card:disabled {
 @media (max-width: 860px) {
   .venc-imp-onboard-shell {
     grid-template-columns: 1fr;
-    --venc-imp-onboard-h: auto;
     min-height: min(calc(38rem + 2.5cm), calc(100vh - 10rem));
     height: auto;
   }
@@ -22727,10 +22786,6 @@ button.sg-kpi-card:disabled {
 }
 
 @media (max-width: 520px) {
-  .venc-imp-onboard {
-    padding-inline: 0.35rem;
-  }
-
   .venc-imp-onboard-card {
     padding: 1.05rem 1rem 1rem;
   }
@@ -39502,6 +39557,272 @@ button.sg-kpi-card:disabled {
   backdrop-filter: blur(6px);
 }
 
+/* —— Ficha producto · hub (portal, sin .bn-ui) —— */
+.stock-producto-ficha-overlay--hub {
+  background: rgba(26, 33, 26, 0.48);
+  backdrop-filter: blur(6px);
+}
+
+.stock-producto-ficha-modal--hub {
+  --sg-hub-workspace: #f3f2ed;
+  --sg-hub-surface: #ffffff;
+  --sg-hub-accent: #7cb342;
+  --sg-hub-accent-soft: rgba(124, 179, 66, 0.16);
+  --sg-hub-radius-md: 0.65rem;
+  --sg-hub-radius-lg: 1rem;
+  --sg-hub-radius-card: 1.25rem;
+  --bn-border: #e2e8e0;
+  --bn-text: #1a211a;
+  --bn-muted: #64748b;
+  background: var(--sg-hub-workspace);
+  border: 1px solid var(--bn-border);
+  border-radius: var(--sg-hub-radius-card);
+  box-shadow: 0 24px 64px rgba(20, 28, 20, 0.2);
+}
+
+.stock-producto-ficha-modal--hub .stock-producto-ficha-accent {
+  height: 3px;
+  background: linear-gradient(
+    90deg,
+    #5a8f2a 0%,
+    var(--sg-hub-accent) 50%,
+    #9ccc65 100%
+  );
+  border-radius: var(--sg-hub-radius-card) var(--sg-hub-radius-card) 0 0;
+}
+
+.stock-producto-ficha-modal--hub .stock-producto-ficha-head {
+  margin: 0.85rem 0.85rem 0;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid var(--bn-border);
+  border-radius: var(--sg-hub-radius-md);
+  background: var(--sg-hub-surface);
+  box-shadow: 0 2px 10px rgba(30, 35, 41, 0.04);
+}
+
+.stock-producto-ficha-modal--hub .stock-producto-ficha-head-icon {
+  width: 2.85rem;
+  height: 2.85rem;
+  border-radius: 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--sg-hub-accent) 28%, var(--bn-border));
+  background: var(--sg-hub-accent-soft);
+  color: #5a8f2a;
+  box-shadow: none;
+}
+
+.stock-producto-ficha-modal--hub .sg-hub-panel-kicker {
+  margin: 0 0 0.2rem;
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sg-hub-accent);
+}
+
+.stock-producto-ficha-modal--hub .stock-producto-ficha-head h2 {
+  color: var(--bn-text);
+  font-size: clamp(1.2rem, 2vw, 1.5rem);
+}
+
+.stock-producto-ficha-modal--hub .stock-producto-ficha-badge {
+  color: #3f6212;
+  background: color-mix(in srgb, var(--sg-hub-accent) 14%, var(--sg-hub-surface));
+  border-color: color-mix(in srgb, var(--sg-hub-accent) 28%, var(--bn-border));
+}
+
+.stock-producto-ficha-modal--hub .stock-producto-ficha-meta {
+  color: var(--bn-muted);
+}
+
+.stock-producto-ficha-modal--hub .stock-producto-ficha-btn-edit {
+  padding: 0.45rem 0.9rem;
+  border: 1px solid var(--bn-border);
+  border-radius: 999px;
+  background: var(--sg-hub-surface);
+  color: var(--bn-text);
+  font-size: 0.82rem;
+  font-weight: 650;
+  box-shadow: none;
+}
+
+.stock-producto-ficha-modal--hub .stock-producto-ficha-btn-edit:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--sg-hub-accent) 40%, var(--bn-border));
+  background: var(--sg-hub-surface);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.stock-producto-ficha-modal--hub .stock-producto-ficha-btn-ghost {
+  border-radius: 999px;
+  border-color: var(--bn-border);
+  font-weight: 650;
+}
+
+.stock-producto-ficha-modal--hub .stock-producto-ficha-btn-ghost:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--sg-hub-accent) 35%, var(--bn-border));
+}
+
+.stock-producto-ficha-modal--hub .stock-producto-ficha-btn-save {
+  border: none;
+  border-radius: 999px;
+  background: linear-gradient(
+    135deg,
+    #2d3a2d 0%,
+    color-mix(in srgb, #2d3a2d 75%, var(--sg-hub-accent)) 100%
+  );
+  box-shadow: 0 4px 14px rgba(26, 33, 26, 0.22);
+  font-weight: 650;
+}
+
+.stock-producto-ficha-modal--hub .stock-producto-ficha-btn-save:hover:not(:disabled) {
+  filter: none;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(26, 33, 26, 0.28);
+}
+
+.stock-producto-ficha-modal--hub .stock-producto-ficha-close {
+  border-radius: 0.55rem;
+  border-color: var(--bn-border);
+}
+
+.stock-producto-ficha-modal--hub .stock-producto-ficha-close:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--sg-hub-accent) 40%, var(--bn-border));
+  color: #5a8f2a;
+}
+
+.stock-producto-ficha-modal--hub .stock-producto-ficha-loading {
+  padding: 2.5rem 1.5rem 3rem;
+}
+
+.stock-producto-ficha-modal--hub .stock-producto-ficha-loading-pulse {
+  background: linear-gradient(145deg, var(--sg-hub-accent-soft), rgba(124, 179, 66, 0.35));
+}
+
+.stock-producto-ficha-modal--hub .stock-producto-ficha-hub-workspace {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.75rem 0.85rem 0.85rem;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.stock-producto-ficha-modal--hub .stock-producto-ficha-hub-box {
+  min-width: 0;
+  padding: 0.75rem 0.85rem 0.8rem;
+  border: 1px solid var(--bn-border);
+  border-radius: var(--sg-hub-radius-md);
+  background: var(--sg-hub-surface);
+  box-shadow: 0 2px 10px rgba(30, 35, 41, 0.04);
+}
+
+.stock-producto-ficha-modal--hub .stock-producto-ficha-hub-tabs-box {
+  padding: 0.45rem 0.65rem 0;
+}
+
+.stock-producto-ficha-modal--hub .stock-producto-ficha-tabs {
+  padding: 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--bn-border) 88%, transparent);
+  background: transparent;
+  position: static;
+}
+
+.stock-producto-ficha-modal--hub .stock-producto-ficha-tab:hover {
+  color: #5a8f2a;
+}
+
+.stock-producto-ficha-modal--hub .stock-producto-ficha-tab.is-active {
+  color: var(--bn-text);
+  border-bottom-color: var(--sg-hub-accent);
+}
+
+.stock-producto-ficha-modal--hub .stock-producto-ficha-tab-count {
+  color: #3f6212;
+  background: var(--sg-hub-accent-soft);
+}
+
+.stock-producto-ficha-modal--hub .stock-producto-ficha-hero {
+  padding: 0;
+  background: transparent;
+  border-bottom: none;
+}
+
+.stock-producto-ficha-modal--hub .stock-producto-ficha-chip {
+  color: #3f6212;
+  background: color-mix(in srgb, var(--sg-hub-accent) 12%, var(--sg-hub-surface));
+  border-color: color-mix(in srgb, var(--sg-hub-accent) 24%, var(--bn-border));
+}
+
+.stock-producto-ficha-modal--hub .stock-producto-ficha-chip--muted {
+  color: var(--bn-muted);
+  background: color-mix(in srgb, var(--sg-hub-workspace) 55%, #fff);
+  border-color: var(--bn-border);
+}
+
+.stock-producto-ficha-modal--hub .stock-producto-ficha-campo {
+  border-color: color-mix(in srgb, var(--bn-border) 92%, transparent);
+  background: color-mix(in srgb, var(--sg-hub-workspace) 40%, #fff);
+}
+
+.stock-producto-ficha-modal--hub .stock-producto-ficha-campo:hover {
+  border-color: color-mix(in srgb, var(--sg-hub-accent) 28%, var(--bn-border));
+}
+
+.stock-producto-ficha-modal--hub .stock-producto-ficha-campo:focus-within {
+  border-color: color-mix(in srgb, var(--sg-hub-accent) 45%, var(--bn-border));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--sg-hub-accent) 16%, transparent);
+}
+
+.stock-producto-ficha-modal--hub .stock-producto-ficha-resumen-grid {
+  padding: 0;
+  background: transparent;
+  gap: 0.65rem;
+}
+
+.stock-producto-ficha-modal--hub .stock-producto-ficha-prose-card {
+  border-color: color-mix(in srgb, var(--bn-border) 92%, transparent);
+  border-radius: var(--sg-hub-radius-md);
+  box-shadow: none;
+}
+
+.stock-producto-ficha-modal--hub .stock-producto-ficha-prose-card:focus-within {
+  border-color: color-mix(in srgb, var(--sg-hub-accent) 45%, var(--bn-border));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--sg-hub-accent) 16%, transparent);
+}
+
+.stock-producto-ficha-modal--hub .stock-producto-ficha-prose-label {
+  color: var(--bn-muted);
+}
+
+.stock-producto-ficha-modal--hub .stock-producto-ficha-detalles-panel {
+  padding: 0.75rem 0.85rem 0.8rem;
+  border-top: none;
+  background: var(--sg-hub-surface);
+}
+
+.stock-producto-ficha-modal--hub .stock-producto-ficha-detalle-block.is-open {
+  border-color: color-mix(in srgb, var(--sg-hub-accent) 32%, var(--bn-border));
+  box-shadow: 0 2px 8px rgba(124, 179, 66, 0.08);
+}
+
+.stock-producto-ficha-modal--hub .stock-producto-ficha-detalle-trigger {
+  background: color-mix(in srgb, var(--sg-hub-workspace) 35%, #fff);
+}
+
+.stock-producto-ficha-modal--hub .stock-producto-ficha-detalle-trigger:hover {
+  background: color-mix(in srgb, var(--sg-hub-accent) 8%, var(--sg-hub-surface));
+}
+
+.stock-producto-ficha-modal--hub .stock-producto-ficha-detalle-title {
+  color: var(--bn-text);
+}
+
+.stock-producto-ficha-modal--hub .stock-producto-ficha-input:focus,
+.stock-producto-ficha-modal--hub .stock-producto-ficha-textarea:focus {
+  border-color: color-mix(in srgb, var(--sg-hub-accent) 45%, var(--bn-border));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--sg-hub-accent) 16%, transparent);
+}
+
 @media (max-width: 860px) {
   .stock-producto-ficha-hero {
     grid-template-columns: 1fr;
@@ -43148,6 +43469,1297 @@ button.sg-kpi-card:disabled {
   box-shadow: 0 6px 18px rgba(26, 33, 26, 0.28);
 }
 
+.bn-ui .sg-hub-cta--ghost {
+  background: var(--sg-hub-surface);
+  color: var(--bn-text);
+  border: 1px solid var(--bn-border);
+  box-shadow: none;
+}
+
+.bn-ui .sg-hub-cta--ghost:hover {
+  border-color: color-mix(in srgb, var(--sg-hub-accent) 40%, var(--bn-border));
+  transform: none;
+  box-shadow: none;
+}
+
+/* Stock Ganadero · módulos con shell hub compartido */
+.bn-ui .stock-ganadero-module-page {
+  --sg-hub-sidebar: #1a211a;
+  --sg-hub-sidebar-soft: #242d24;
+  --sg-hub-sidebar-text: rgba(248, 246, 240, 0.92);
+  --sg-hub-sidebar-muted: rgba(248, 246, 240, 0.55);
+  --sg-hub-workspace: #f3f2ed;
+  --sg-hub-surface: #ffffff;
+  --sg-hub-accent: #7cb342;
+  --sg-hub-accent-soft: rgba(124, 179, 66, 0.16);
+  --sg-hub-radius-xl: 1.25rem;
+  --sg-hub-radius-lg: 1rem;
+  --sg-hub-radius-md: 0.65rem;
+  --sg-hub-radius-card: 1.35rem;
+  --sg-hub-shadow: 0 18px 48px rgba(20, 28, 20, 0.1);
+  min-height: min(42rem, calc(100dvh - 11rem));
+  width: 100%;
+  max-width: none;
+}
+
+.page-main.bn-ui:has(.stock-ganadero-module-page) {
+  max-width: none;
+  width: 100%;
+  padding-left: max(0.45rem, env(safe-area-inset-left, 0px));
+  padding-right: max(0.45rem, env(safe-area-inset-right, 0px));
+}
+
+@media (min-width: 900px) {
+  .page-main.bn-ui:has(.stock-ganadero-module-page) {
+    padding-left: max(0.65rem, env(safe-area-inset-left, 0px));
+    padding-right: max(0.65rem, env(safe-area-inset-right, 0px));
+  }
+}
+
+.bn-ui .stock-ganadero-module-page .sg-hub--module {
+  width: 100%;
+}
+
+.bn-ui .sg-hub-aside--module {
+  gap: 0.85rem;
+}
+
+.bn-ui .sg-hub-main--module {
+  gap: 0.85rem;
+  min-width: 0;
+}
+
+.bn-ui .sg-module-panel {
+  border-radius: var(--sg-hub-radius-card);
+  padding: 1rem 1.05rem 1.05rem;
+}
+
+.bn-ui .sg-module-panel-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem 1rem;
+  margin-bottom: 0.85rem;
+}
+
+.bn-ui .sg-module-panel-meta {
+  margin: 0 0 0.85rem;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--bn-muted);
+}
+
+.bn-ui .sg-module-kpi-strip {
+  margin-bottom: 0.15rem;
+}
+
+.bn-ui .stock-ganadero-module-page .stock-dash {
+  border-radius: var(--sg-hub-radius-card);
+  border: 1px solid var(--bn-border);
+  background: var(--sg-hub-surface);
+  box-shadow: 0 2px 10px rgba(30, 35, 41, 0.04);
+  padding: 0.85rem 1rem;
+  margin-bottom: 0.85rem;
+}
+
+.bn-ui .stock-ganadero-module-page .stock-dash-card {
+  border-radius: var(--sg-hub-radius-md);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-import-sidebar,
+.bn-ui .stock-ganadero-module-page .stock-facet-sidebar {
+  border-radius: var(--sg-hub-radius-md);
+  background: color-mix(in srgb, var(--sg-hub-sidebar-soft) 18%, var(--bn-bg));
+}
+
+/* —— Stock Ganadero · Sanidad hub —— */
+.bn-ui .stock-ganadero-module-page .stock-sanidad-hub-workspace {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  width: 100%;
+  min-width: 0;
+}
+
+.bn-ui .stock-ganadero-module-page .stock-sanidad-layout--hub {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding: 0;
+}
+
+.bn-ui .stock-ganadero-module-page .stock-sanidad-hub-box {
+  min-width: 0;
+  padding: 0.75rem 0.85rem 0.8rem;
+  border: 1px solid var(--bn-border);
+  border-radius: var(--sg-hub-radius-md);
+  background: var(--sg-hub-surface);
+  box-shadow: 0 2px 10px rgba(30, 35, 41, 0.04);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-sanidad-hub-head-box {
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.65rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--bn-border) 88%, transparent);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-sanidad-hub-head-box .sg-hub-panel-kicker {
+  margin: 0 0 0.2rem;
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sg-hub-accent);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-sanidad-hub-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--bn-text);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-sanidad-hub-sub {
+  margin: 0.2rem 0 0;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.bn-ui .stock-ganadero-module-page .stock-sanidad-seleccion-bar {
+  background: color-mix(in srgb, var(--sg-hub-accent) 8%, var(--sg-hub-surface));
+  border: 1px solid color-mix(in srgb, var(--sg-hub-accent) 22%, var(--bn-border));
+  border-radius: var(--sg-hub-radius-md);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-sanidad-seleccion-bar strong {
+  color: #3f6212;
+}
+
+.bn-ui .stock-ganadero-module-page .stock-sanidad-busqueda {
+  border-color: var(--bn-border);
+  border-radius: var(--sg-hub-radius-md);
+  background: var(--sg-hub-surface);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-sanidad-busqueda:focus {
+  outline: none;
+  border-color: color-mix(in srgb, var(--sg-hub-accent) 45%, var(--bn-border));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--sg-hub-accent) 16%, transparent);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-sanidad-panel {
+  background: var(--sg-hub-workspace);
+  border: 1px solid color-mix(in srgb, var(--bn-border) 92%, transparent);
+  border-radius: var(--sg-hub-radius-md);
+  box-shadow: none;
+}
+
+.bn-ui .stock-ganadero-module-page .stock-sanidad-panel-title,
+.bn-ui .stock-ganadero-module-page .stock-sanidad-grupo-column-title {
+  color: var(--bn-muted);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-sanidad-grupos-rapidos--hub {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  padding: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+}
+
+.bn-ui .stock-ganadero-module-page .stock-sanidad-grupo-column {
+  border: 1px solid var(--bn-border);
+  background: var(--sg-hub-surface);
+  border-radius: var(--sg-hub-radius-md);
+  box-shadow: 0 1px 4px rgba(20, 28, 20, 0.04);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-sanidad-grupo-chip {
+  border-color: color-mix(in srgb, var(--bn-border) 92%, transparent);
+  background: var(--sg-hub-surface);
+  color: var(--bn-text);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-sanidad-grupo-chip:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--sg-hub-accent) 8%, var(--sg-hub-surface));
+  border-color: color-mix(in srgb, var(--sg-hub-accent) 35%, var(--bn-border));
+  box-shadow: none;
+  transform: none;
+}
+
+.bn-ui .stock-ganadero-module-page .stock-sanidad-grupo-chip.is-active {
+  background: color-mix(in srgb, var(--sg-hub-accent) 18%, #fff);
+  border-color: color-mix(in srgb, var(--sg-hub-accent) 45%, var(--bn-border));
+  color: #365314;
+  font-weight: 650;
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--sg-hub-accent) 14%, transparent);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-sanidad-grupo-chip.is-active:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--sg-hub-accent) 24%, #fff);
+  border-color: color-mix(in srgb, var(--sg-hub-accent) 50%, var(--bn-border));
+  transform: none;
+}
+
+.bn-ui .stock-ganadero-module-page .stock-sanidad-grupo-chip-count {
+  background: color-mix(in srgb, var(--sg-hub-accent) 14%, var(--sg-hub-workspace));
+  color: #3f6212;
+  box-shadow: none;
+}
+
+.bn-ui .stock-ganadero-module-page .stock-sanidad-grupo-chip.is-active .stock-sanidad-grupo-chip-count {
+  background: color-mix(in srgb, var(--sg-hub-accent) 28%, #fff);
+  color: #365314;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--sg-hub-accent) 22%, transparent);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-sanidad-grupos-activos {
+  margin-top: 0;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--bn-border) 92%, transparent);
+  border-radius: var(--sg-hub-radius-md);
+  background: var(--sg-hub-workspace);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-sanidad-grupos-activos-label {
+  color: #4d7c0f;
+}
+
+.bn-ui .stock-ganadero-module-page .stock-sanidad-grupos-activos-chip {
+  border: 1px solid color-mix(in srgb, var(--sg-hub-accent) 35%, var(--bn-border));
+  background: var(--sg-hub-surface);
+  color: #365314;
+  box-shadow: 0 1px 3px rgba(20, 28, 20, 0.05);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-sanidad-grupos-activos-chip:hover {
+  background: color-mix(in srgb, var(--sg-hub-accent) 10%, var(--sg-hub-surface));
+  border-color: color-mix(in srgb, var(--sg-hub-accent) 48%, var(--bn-border));
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--sg-hub-accent) 12%, transparent);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-sanidad-grupos-activos-chip-cat {
+  color: #4d7c0f;
+  opacity: 1;
+}
+
+.bn-ui .stock-ganadero-module-page .stock-sanidad-grupos-activos-chip-label {
+  color: #365314;
+}
+
+.bn-ui .stock-ganadero-module-page .stock-sanidad-grupos-activos-chip .stock-sanidad-grupo-chip-count {
+  background: color-mix(in srgb, var(--sg-hub-accent) 20%, var(--sg-hub-workspace));
+  color: #3f6212;
+  box-shadow: none;
+}
+
+.bn-ui .stock-ganadero-module-page .stock-sanidad-grupos-activos-chip-remove {
+  color: #4d7c0f;
+  opacity: 0.75;
+}
+
+.bn-ui .stock-ganadero-module-page .stock-sanidad-panel-head-icon {
+  background: var(--sg-hub-accent-soft);
+  color: #3f6212;
+  box-shadow: none;
+}
+
+.bn-ui .stock-ganadero-module-page .stock-sanidad-grupos-carousel-btn {
+  border-color: var(--bn-border);
+  background: var(--sg-hub-surface);
+  color: var(--bn-text);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-sanidad-grupos-carousel-btn:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--sg-hub-accent) 45%, var(--bn-border));
+  background: color-mix(in srgb, var(--sg-hub-accent) 10%, var(--sg-hub-surface));
+  color: #3f6212;
+}
+
+.bn-ui .stock-ganadero-module-page .stock-sanidad-hub-box--historial .stock-sanidad-dash {
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.bn-ui .stock-ganadero-module-page .stock-sanidad-dash-head {
+  border-bottom-color: color-mix(in srgb, var(--bn-border) 88%, transparent);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-sanidad-dash-head-icon,
+.bn-ui .stock-ganadero-module-page .stock-sanidad-dash-empty-icon {
+  background: var(--sg-hub-accent-soft);
+  color: #3f6212;
+}
+
+.bn-ui .stock-ganadero-module-page .stock-sanidad-dash-title,
+.bn-ui .stock-ganadero-module-page .stock-sanidad-dash-empty-title {
+  color: var(--bn-text);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-sanidad-dash-kpi {
+  border-color: color-mix(in srgb, var(--bn-border) 92%, transparent);
+  background: var(--sg-hub-workspace);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-sanidad-dash-kpi strong {
+  color: #3f6212;
+}
+
+.bn-ui .stock-ganadero-module-page .stock-sanidad-dash-bar-fill--producto {
+  background: linear-gradient(90deg, #84cc16, var(--sg-hub-accent));
+}
+
+.bn-ui .stock-ganadero-module-page .stock-sanidad-dash-bar-fill--motivo {
+  background: linear-gradient(90deg, #a3a3a3, #737373);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-sanidad-dash-timeline-card {
+  border-color: color-mix(in srgb, var(--bn-border) 92%, transparent);
+  background: var(--sg-hub-workspace);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-sanidad-dash-timeline-nav-btn {
+  border-color: var(--bn-border);
+  background: var(--sg-hub-surface);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-sanidad-registro--hub {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.bn-ui .stock-ganadero-module-page .stock-sanidad-hub-box--registro-head .stock-sanidad-hub-head-box--panel {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.bn-ui .stock-ganadero-module-page .stock-sanidad-hub-box--registro-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  background: var(--sg-hub-workspace);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-sanidad-hub-box--registro-form .stock-sanidad-form-head--hub {
+  margin: 0;
+  padding-bottom: 0.65rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--bn-border) 88%, transparent);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-sanidad-form-fields-box {
+  padding: 0.75rem 0.85rem;
+  border: 1px solid color-mix(in srgb, var(--bn-border) 92%, transparent);
+  border-radius: var(--sg-hub-radius-md);
+  background: var(--sg-hub-surface);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-sanidad-form-fields-box .stock-sanidad-form-body--band {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.bn-ui .stock-ganadero-module-page .stock-sanidad-hub-box--registro-form .stock-sanidad-form-body--band .stock-sanidad-form-section--admin,
+.bn-ui .stock-ganadero-module-page .stock-sanidad-hub-box--registro-form .stock-sanidad-form-body--band .stock-sanidad-form-section--producto,
+.bn-ui .stock-ganadero-module-page .stock-sanidad-hub-box--registro-form .stock-sanidad-form-body--band .stock-sanidad-form-section--controles,
+.bn-ui .stock-ganadero-module-page .stock-sanidad-form-fields-box .stock-sanidad-form-body--band .stock-sanidad-form-section--admin,
+.bn-ui .stock-ganadero-module-page .stock-sanidad-form-fields-box .stock-sanidad-form-body--band .stock-sanidad-form-section--producto,
+.bn-ui .stock-ganadero-module-page .stock-sanidad-form-fields-box .stock-sanidad-form-body--band .stock-sanidad-form-section--controles {
+  border-color: color-mix(in srgb, var(--bn-border) 92%, transparent);
+  background: var(--sg-hub-workspace);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-sanidad-registro {
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.bn-ui .stock-ganadero-module-page .stock-sanidad-form-head--hub {
+  justify-content: flex-end;
+  margin: 0 0 0.75rem;
+  padding: 0;
+  border: none;
+}
+
+.bn-ui .stock-ganadero-module-page .stock-sanidad-form-title {
+  color: var(--bn-text);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-sanidad-form-body--band .stock-sanidad-form-section--admin,
+.bn-ui .stock-ganadero-module-page .stock-sanidad-form-body--band .stock-sanidad-form-section--producto,
+.bn-ui .stock-ganadero-module-page .stock-sanidad-form-body--band .stock-sanidad-form-section--controles {
+  border-color: color-mix(in srgb, var(--bn-border) 92%, transparent);
+  background: var(--sg-hub-workspace);
+  border-radius: var(--sg-hub-radius-md);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-sanidad-form .stock-control-sanitario-section-head {
+  color: var(--bn-text);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-sanidad-listado .table-wrap-stock-pro.stock-sanidad-table-wrap {
+  border-color: var(--bn-border);
+  border-radius: var(--sg-hub-radius-md);
+  box-shadow: none;
+}
+
+.bn-ui .stock-ganadero-module-page .stock-sanidad-listado .stock-table-pro-row--selected td {
+  background: color-mix(in srgb, var(--sg-hub-accent) 12%, var(--sg-hub-surface));
+}
+
+.bn-ui .stock-ganadero-module-page .stock-sanidad-listado .stock-table-pro-row--selected:hover td {
+  background: color-mix(in srgb, var(--sg-hub-accent) 18%, var(--sg-hub-surface));
+}
+
+/* —— Stock Ganadero · Selección cabaña hub —— */
+.bn-ui .stock-ganadero-module-page .stock-cabana-hub-workspace {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  width: 100%;
+  min-width: 0;
+}
+
+.bn-ui .stock-ganadero-module-page .stock-cabana-hub-box {
+  min-width: 0;
+  padding: 0.75rem 0.85rem 0.8rem;
+  border: 1px solid var(--bn-border);
+  border-radius: var(--sg-hub-radius-md);
+  background: var(--sg-hub-surface);
+  box-shadow: 0 2px 10px rgba(30, 35, 41, 0.04);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-cabana-hub-head-box {
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.65rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--bn-border) 88%, transparent);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-cabana-hub-head-box--panel {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.85rem;
+  padding-bottom: 0.65rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--bn-border) 88%, transparent);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-cabana-hub-head-box .sg-hub-panel-kicker {
+  margin: 0 0 0.2rem;
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sg-hub-accent);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-cabana-hub-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--bn-text);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-cabana-hub-sub {
+  margin: 0.2rem 0 0;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.bn-ui .stock-ganadero-module-page .stock-cabana-hub-note {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.bn-ui .stock-ganadero-module-page .stock-cabana-hub-box--form .stock-cabana-form-grid {
+  gap: 0.85rem;
+}
+
+.bn-ui .stock-ganadero-module-page .stock-cabana-hub-box--form {
+  background: var(--sg-hub-workspace);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-cabana-form-fields-box {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid color-mix(in srgb, var(--bn-border) 92%, transparent);
+  border-radius: var(--sg-hub-radius-md);
+  background: var(--sg-hub-surface);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-cabana-seleccion--hub {
+  padding: 0.75rem 0.85rem;
+  border-radius: var(--sg-hub-radius-md);
+  background: color-mix(in srgb, var(--sg-hub-accent) 8%, var(--sg-hub-surface));
+  border: 1px solid color-mix(in srgb, var(--sg-hub-accent) 22%, var(--bn-border));
+}
+
+.bn-ui .stock-ganadero-module-page .stock-cabana-seleccion--hub .stock-baja-manual-kicker {
+  color: #4d7c0f;
+}
+
+.bn-ui .stock-ganadero-module-page .stock-cabana-acciones--hub {
+  padding-top: 0.5rem;
+  border-top: 1px solid color-mix(in srgb, var(--bn-border) 88%, transparent);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-cabana-count--hub {
+  color: #3f6212;
+  background: var(--sg-hub-accent-soft);
+  border-color: color-mix(in srgb, var(--sg-hub-accent) 28%, var(--bn-border));
+}
+
+.bn-ui .stock-ganadero-module-page .stock-cabana-row--guardado {
+  border-left-color: var(--sg-hub-accent);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-cabana-row-name--premium {
+  color: #4d7c0f;
+}
+
+.bn-ui .stock-ganadero-module-page .stock-cabana-row--pendiente {
+  background: color-mix(in srgb, var(--sg-hub-accent) 6%, var(--sg-hub-surface));
+  border-color: color-mix(in srgb, var(--sg-hub-accent) 24%, var(--bn-border));
+}
+
+.bn-ui .stock-ganadero-module-page .stock-cabana-row {
+  border-radius: var(--sg-hub-radius-md);
+  border-color: color-mix(in srgb, var(--bn-border) 92%, transparent);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-cabana-row:hover {
+  border-color: color-mix(in srgb, var(--sg-hub-accent) 28%, var(--bn-border));
+  background: color-mix(in srgb, var(--sg-hub-accent) 4%, var(--sg-hub-surface));
+}
+
+.bn-ui .stock-ganadero-module-page .stock-cabana-empty-state {
+  border-radius: var(--sg-hub-radius-md);
+  border-color: color-mix(in srgb, var(--bn-border) 92%, transparent);
+  background: var(--sg-hub-workspace);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-cabana-empty-icon {
+  color: var(--sg-hub-accent);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-cabana-panel-foot {
+  margin-top: 0.75rem;
+  padding-top: 0.65rem;
+  border-top: 1px solid color-mix(in srgb, var(--bn-border) 88%, transparent);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-cabana-hub-box .stock-baja-manual-input,
+.bn-ui .stock-ganadero-module-page .stock-cabana-hub-box .stock-buscador-caravana-input {
+  border-color: var(--bn-border);
+  border-radius: var(--sg-hub-radius-md);
+  background: var(--sg-hub-surface);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-cabana-hub-box .stock-baja-manual-input:focus,
+.bn-ui .stock-ganadero-module-page .stock-cabana-hub-box .stock-buscador-caravana--cabana .stock-buscador-caravana-input:focus {
+  border-color: color-mix(in srgb, var(--sg-hub-accent) 45%, var(--bn-border));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--sg-hub-accent) 16%, transparent);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-cabana-hub-box .stock-buscador-caravana--cabana .stock-buscador-caravana-opcion:hover {
+  background: color-mix(in srgb, var(--sg-hub-accent) 8%, var(--sg-hub-surface));
+}
+
+.bn-ui .stock-ganadero-module-page .stock-cabana-hub-box .stock-import-spec-label {
+  color: var(--bn-muted);
+  font-size: 0.72rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.bn-ui .stock-ganadero-module-page .stock-cabana-btn-quitar {
+  color: #b45309;
+}
+
+/* —— Stock Ganadero · Salidas hub —— */
+.bn-ui .stock-ganadero-module-page .stock-salidas-hub-workspace {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  width: 100%;
+  min-width: 0;
+}
+
+.bn-ui .stock-ganadero-module-page .stock-salidas-hub-box {
+  min-width: 0;
+  padding: 0.75rem 0.85rem 0.8rem;
+  border: 1px solid var(--bn-border);
+  border-radius: var(--sg-hub-radius-md);
+  background: var(--sg-hub-surface);
+  box-shadow: 0 2px 10px rgba(30, 35, 41, 0.04);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-salidas-hub-head-box {
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.65rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--bn-border) 88%, transparent);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-salidas-hub-head-box--panel {
+  margin-bottom: 0.85rem;
+}
+
+.bn-ui .stock-ganadero-module-page .stock-salidas-hub-head-box .sg-hub-panel-kicker {
+  margin: 0 0 0.2rem;
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sg-hub-accent);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-salidas-hub-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--bn-text);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-salidas-hub-sub {
+  margin: 0.2rem 0 0;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.bn-ui .stock-ganadero-module-page .stock-salidas-hub-meta {
+  margin: 0 0 0.85rem;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.bn-ui .stock-ganadero-module-page .stock-salidas-hub-status {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.bn-ui .stock-ganadero-module-page .stock-salidas-kpi-strip {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+@media (max-width: 1100px) {
+  .bn-ui .stock-ganadero-module-page .stock-salidas-kpi-strip {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 700px) {
+  .bn-ui .stock-ganadero-module-page .stock-salidas-kpi-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.bn-ui .stock-ganadero-module-page .stock-salidas-kpi-btn {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  width: 100%;
+  padding: 1rem 1.05rem 0.9rem;
+  border: 1px solid var(--bn-border);
+  border-radius: var(--sg-hub-radius-card, var(--sg-hub-radius-xl));
+  background: var(--sg-hub-surface);
+  box-shadow: 0 2px 10px rgba(30, 35, 41, 0.04);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.12s ease;
+}
+
+.bn-ui .stock-ganadero-module-page .stock-salidas-kpi-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(30, 35, 41, 0.07);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-salidas-kpi-btn:disabled {
+  opacity: 0.62;
+  cursor: default;
+}
+
+.bn-ui .stock-ganadero-module-page .stock-salidas-kpi-btn.is-active {
+  border-color: color-mix(in srgb, var(--sg-hub-accent) 45%, var(--bn-border));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--sg-hub-accent) 14%, transparent);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-salidas-kpi-btn--muerto.is-active {
+  border-color: color-mix(in srgb, #4b5563 45%, var(--bn-border));
+  box-shadow: 0 0 0 2px color-mix(in srgb, #4b5563 14%, transparent);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-salidas-kpi-btn--vendido.is-active {
+  border-color: color-mix(in srgb, #1d4ed8 40%, var(--bn-border));
+  box-shadow: 0 0 0 2px color-mix(in srgb, #1d4ed8 12%, transparent);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-salidas-kpi-btn--frigorifico.is-active {
+  border-color: color-mix(in srgb, #b45309 40%, var(--bn-border));
+  box-shadow: 0 0 0 2px color-mix(in srgb, #b45309 12%, transparent);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-salidas-kpi-btn--perdido.is-active {
+  border-color: color-mix(in srgb, #7c3aed 40%, var(--bn-border));
+  box-shadow: 0 0 0 2px color-mix(in srgb, #7c3aed 12%, transparent);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-salidas-kpi-btn--muerto .sg-hub-kpi-value {
+  color: #4b5563;
+}
+
+.bn-ui .stock-ganadero-module-page .stock-salidas-kpi-btn--vendido .sg-hub-kpi-value {
+  color: #1d4ed8;
+}
+
+.bn-ui .stock-ganadero-module-page .stock-salidas-kpi-btn--frigorifico .sg-hub-kpi-value {
+  color: #b45309;
+}
+
+.bn-ui .stock-ganadero-module-page .stock-salidas-kpi-btn--perdido .sg-hub-kpi-value {
+  color: #7c3aed;
+}
+
+.bn-ui .stock-ganadero-module-page .stock-salidas-hub-box--listado {
+  background: var(--sg-hub-surface);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-salidas-filters-box,
+.bn-ui .stock-ganadero-module-page .stock-salidas-filters--hub {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.65rem 0.75rem;
+  margin-bottom: 0.85rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid color-mix(in srgb, var(--bn-border) 92%, transparent);
+  border-radius: var(--sg-hub-radius-md);
+  background: color-mix(in srgb, var(--sg-hub-workspace) 45%, var(--sg-hub-surface));
+}
+
+.bn-ui .stock-ganadero-module-page .stock-salidas-filters-box .field label,
+.bn-ui .stock-ganadero-module-page .stock-salidas-filters--hub .field label {
+  font-size: 0.72rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--bn-muted);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-salidas-filters-box select,
+.bn-ui .stock-ganadero-module-page .stock-salidas-filters-box input,
+.bn-ui .stock-ganadero-module-page .stock-salidas-filters--hub select,
+.bn-ui .stock-ganadero-module-page .stock-salidas-filters--hub input {
+  border-color: var(--bn-border);
+  border-radius: var(--sg-hub-radius-md);
+  background: var(--sg-hub-surface);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-salidas-filters-box select:focus,
+.bn-ui .stock-ganadero-module-page .stock-salidas-filters-box input:focus,
+.bn-ui .stock-ganadero-module-page .stock-salidas-filters--hub select:focus,
+.bn-ui .stock-ganadero-module-page .stock-salidas-filters--hub input:focus {
+  outline: none;
+  border-color: color-mix(in srgb, var(--sg-hub-accent) 45%, var(--bn-border));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--sg-hub-accent) 16%, transparent);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-salidas-table-box,
+.bn-ui .stock-ganadero-module-page .stock-salidas-table-wrap--hub {
+  border: 1px solid var(--bn-border);
+  border-radius: var(--sg-hub-radius-md);
+  overflow: hidden;
+  box-shadow: none;
+}
+
+.bn-ui .stock-ganadero-module-page .stock-salidas-hub-box--listado .table-pagination {
+  margin-top: 0.75rem;
+  padding-top: 0.65rem;
+  border-top: 1px solid color-mix(in srgb, var(--bn-border) 88%, transparent);
+}
+
+/* —— Stock Ganadero · Lecturas hub —— */
+.bn-ui .stock-ganadero-module-page .stock-lecturas-hub-workspace {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  width: 100%;
+  min-width: 0;
+}
+
+.bn-ui .stock-ganadero-module-page .stock-lecturas-hub-box {
+  min-width: 0;
+  padding: 0.75rem 0.85rem 0.8rem;
+  border: 1px solid var(--bn-border);
+  border-radius: var(--sg-hub-radius-md);
+  background: var(--sg-hub-surface);
+  box-shadow: 0 2px 10px rgba(30, 35, 41, 0.04);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-lecturas-hub-head-box {
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.65rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--bn-border) 88%, transparent);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-lecturas-hub-head-box--panel {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.85rem;
+  margin-bottom: 0.85rem;
+}
+
+.bn-ui .stock-ganadero-module-page .stock-lecturas-hub-head-main {
+  min-width: 0;
+}
+
+.bn-ui .stock-ganadero-module-page .stock-lecturas-hub-head-box .sg-hub-panel-kicker {
+  margin: 0 0 0.2rem;
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sg-hub-accent);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-lecturas-hub-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--bn-text);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-lecturas-hub-sub {
+  margin: 0.2rem 0 0;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.bn-ui .stock-ganadero-module-page .stock-lecturas-hub-status {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.bn-ui .stock-ganadero-module-page .stock-lecturas-kpi-strip {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@media (max-width: 860px) {
+  .bn-ui .stock-ganadero-module-page .stock-lecturas-kpi-strip {
+    grid-template-columns: 1fr;
+  }
+}
+
+.bn-ui .stock-ganadero-module-page .stock-lecturas-kpi-btn {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  width: 100%;
+  padding: 1rem 1.05rem 0.9rem;
+  border: 1px solid var(--bn-border);
+  border-radius: var(--sg-hub-radius-card, var(--sg-hub-radius-xl));
+  background: var(--sg-hub-surface);
+  box-shadow: 0 2px 10px rgba(30, 35, 41, 0.04);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.12s ease;
+}
+
+.bn-ui .stock-ganadero-module-page .stock-lecturas-kpi-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(30, 35, 41, 0.07);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-lecturas-kpi-btn:disabled {
+  opacity: 0.62;
+  cursor: default;
+}
+
+.bn-ui .stock-ganadero-module-page .stock-lecturas-kpi-btn.is-active {
+  border-color: color-mix(in srgb, var(--sg-hub-accent) 45%, var(--bn-border));
+  background: var(--sg-hub-accent-soft);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--sg-hub-accent) 14%, transparent);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-lecturas-kpi-btn--repetidos.is-active .sg-hub-kpi-value {
+  color: #3f6212;
+}
+
+.bn-ui .stock-ganadero-module-page .stock-lecturas-hub-box--listado {
+  background: var(--sg-hub-surface);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-lecturas-filters-box {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.65rem 0.75rem;
+  margin-bottom: 0.85rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid color-mix(in srgb, var(--bn-border) 92%, transparent);
+  border-radius: var(--sg-hub-radius-md);
+  background: color-mix(in srgb, var(--sg-hub-workspace) 45%, var(--sg-hub-surface));
+}
+
+.bn-ui .stock-ganadero-module-page .stock-lecturas-filters-box .field label {
+  font-size: 0.72rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--bn-muted);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-lecturas-filters-box select,
+.bn-ui .stock-ganadero-module-page .stock-lecturas-filters-box input {
+  border-color: var(--bn-border);
+  border-radius: var(--sg-hub-radius-md);
+  background: var(--sg-hub-surface);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-lecturas-filters-box select:focus,
+.bn-ui .stock-ganadero-module-page .stock-lecturas-filters-box input:focus {
+  outline: none;
+  border-color: color-mix(in srgb, var(--sg-hub-accent) 45%, var(--bn-border));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--sg-hub-accent) 16%, transparent);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-lecturas-table-box {
+  border: 1px solid var(--bn-border);
+  border-radius: var(--sg-hub-radius-md);
+  overflow: hidden;
+  box-shadow: none;
+}
+
+.bn-ui .stock-ganadero-module-page .stock-lecturas-repetidos-filtro--hub {
+  margin-bottom: 0.75rem;
+  padding: 0.55rem 0.65rem;
+  border-radius: var(--sg-hub-radius-md);
+  border: 1px solid color-mix(in srgb, var(--sg-hub-accent) 22%, var(--bn-border));
+  background: color-mix(in srgb, var(--sg-hub-accent) 8%, var(--sg-hub-surface));
+}
+
+.bn-ui .stock-ganadero-module-page .stock-lecturas-repetidos-detalle--hub {
+  margin-bottom: 0.85rem;
+  padding: 0.55rem 0.65rem;
+  border-radius: var(--sg-hub-radius-md);
+  border: 1px solid color-mix(in srgb, var(--bn-border) 92%, transparent);
+  background: color-mix(in srgb, var(--sg-hub-workspace) 35%, var(--sg-hub-surface));
+}
+
+.bn-ui .stock-ganadero-module-page .stock-lecturas-hub-box--listado .table-pagination {
+  margin-top: 0.75rem;
+  padding-top: 0.65rem;
+  border-top: 1px solid color-mix(in srgb, var(--bn-border) 88%, transparent);
+}
+
+/* —— Stock Ganadero · Baja / Alta hub —— */
+.bn-ui .stock-ganadero-module-page .stock-baja-hub-workspace,
+.bn-ui .stock-ganadero-module-page .stock-alta-hub-workspace {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  width: 100%;
+  min-width: 0;
+}
+
+.bn-ui .stock-ganadero-module-page .stock-baja-hub-box,
+.bn-ui .stock-ganadero-module-page .stock-alta-hub-box {
+  min-width: 0;
+  padding: 0.75rem 0.85rem 0.8rem;
+  border: 1px solid var(--bn-border);
+  border-radius: var(--sg-hub-radius-md);
+  background: var(--sg-hub-surface);
+  box-shadow: 0 2px 10px rgba(30, 35, 41, 0.04);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-baja-hub-head-box,
+.bn-ui .stock-ganadero-module-page .stock-alta-hub-head-box {
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.65rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--bn-border) 88%, transparent);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-baja-hub-head-box .sg-hub-panel-kicker,
+.bn-ui .stock-ganadero-module-page .stock-alta-hub-head-box .sg-hub-panel-kicker {
+  margin: 0 0 0.2rem;
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sg-hub-accent);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-baja-hub-title,
+.bn-ui .stock-ganadero-module-page .stock-alta-hub-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--bn-text);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-baja-hub-sub,
+.bn-ui .stock-ganadero-module-page .stock-alta-hub-sub {
+  margin: 0.2rem 0 0;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.bn-ui .stock-ganadero-module-page .stock-baja-hub-note,
+.bn-ui .stock-ganadero-module-page .stock-alta-hub-note {
+  margin: 0.65rem 0 0;
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.bn-ui .stock-ganadero-module-page .stock-import-chips--hub {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.15rem;
+}
+
+.bn-ui .stock-ganadero-module-page .stock-import-chip--hub {
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 650;
+  color: #3f6212;
+  background: color-mix(in srgb, var(--sg-hub-accent) 12%, var(--sg-hub-surface));
+  border: 1px solid color-mix(in srgb, var(--sg-hub-accent) 24%, var(--bn-border));
+}
+
+.bn-ui .stock-ganadero-module-page .stock-baja-hub-box--main,
+.bn-ui .stock-ganadero-module-page .stock-alta-hub-box--main {
+  background: var(--sg-hub-surface);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-baja-hub-tabs-box,
+.bn-ui .stock-ganadero-module-page .stock-alta-hub-tabs-box {
+  margin-bottom: 0.75rem;
+  padding: 0.35rem;
+  border: 1px solid color-mix(in srgb, var(--bn-border) 92%, transparent);
+  border-radius: var(--sg-hub-radius-md);
+  background: color-mix(in srgb, var(--sg-hub-workspace) 50%, var(--sg-hub-surface));
+}
+
+.bn-ui .stock-ganadero-module-page .stock-import-tabs--hub {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  gap: 0.25rem;
+  border-bottom: none;
+  background: transparent;
+}
+
+.bn-ui .stock-ganadero-module-page .stock-import-tabs--hub .stock-import-tab {
+  border-bottom: 2px solid transparent;
+  border-radius: var(--sg-hub-radius-sm);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-import-tabs--hub .stock-import-tab.is-active {
+  color: #3f6212;
+  font-weight: 650;
+  border-bottom-color: var(--sg-hub-accent);
+  background: var(--sg-hub-accent-soft);
+  box-shadow: 0 1px 2px rgba(30, 35, 41, 0.05);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-import-tabs--hub .stock-import-tab:hover:not(.is-active) {
+  color: #5a8f2a;
+  background: color-mix(in srgb, var(--sg-hub-accent) 10%, var(--sg-hub-surface));
+}
+
+.bn-ui .stock-ganadero-module-page .stock-import-tab-badge--hub {
+  color: #3f6212;
+  background: var(--sg-hub-accent-soft);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-baja-form-fields-box,
+.bn-ui .stock-ganadero-module-page .stock-alta-form-fields-box {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid color-mix(in srgb, var(--bn-border) 92%, transparent);
+  border-radius: var(--sg-hub-radius-md);
+  background: color-mix(in srgb, var(--sg-hub-workspace) 45%, var(--sg-hub-surface));
+}
+
+.bn-ui .stock-ganadero-module-page .stock-baja-form-fields-box .field label,
+.bn-ui .stock-ganadero-module-page .stock-alta-form-fields-box .field label {
+  font-size: 0.72rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--bn-muted);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-baja-form-fields-box .stock-import-select,
+.bn-ui .stock-ganadero-module-page .stock-baja-form-fields-box .stock-import-date,
+.bn-ui .stock-ganadero-module-page .stock-baja-form-fields-box .stock-import-text,
+.bn-ui .stock-ganadero-module-page .stock-baja-form-fields-box .stock-import-textarea,
+.bn-ui .stock-ganadero-module-page .stock-baja-form-fields-box .stock-buscador-caravana-input,
+.bn-ui .stock-ganadero-module-page .stock-alta-form-fields-box .stock-import-select,
+.bn-ui .stock-ganadero-module-page .stock-alta-form-fields-box .stock-import-raza-select,
+.bn-ui .stock-ganadero-module-page .stock-alta-form-fields-box .stock-import-raza-otra,
+.bn-ui .stock-ganadero-module-page .stock-alta-form-fields-box input[type="date"],
+.bn-ui .stock-ganadero-module-page .stock-alta-form-fields-box input[type="time"],
+.bn-ui .stock-ganadero-module-page .stock-alta-form-fields-box input[type="text"] {
+  border-color: var(--bn-border);
+  border-radius: var(--sg-hub-radius-md);
+  background: var(--sg-hub-surface);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-baja-form-fields-box .stock-import-select:focus,
+.bn-ui .stock-ganadero-module-page .stock-baja-form-fields-box .stock-import-date:focus,
+.bn-ui .stock-ganadero-module-page .stock-baja-form-fields-box .stock-import-text:focus,
+.bn-ui .stock-ganadero-module-page .stock-baja-form-fields-box .stock-import-textarea:focus,
+.bn-ui .stock-ganadero-module-page .stock-baja-form-fields-box .stock-buscador-caravana--baja .stock-buscador-caravana-input:focus,
+.bn-ui .stock-ganadero-module-page .stock-alta-form-fields-box .stock-import-select:focus,
+.bn-ui .stock-ganadero-module-page .stock-alta-form-fields-box .stock-import-raza-select:focus,
+.bn-ui .stock-ganadero-module-page .stock-alta-form-fields-box .stock-import-raza-otra:focus,
+.bn-ui .stock-ganadero-module-page .stock-alta-form-fields-box input[type="date"]:focus,
+.bn-ui .stock-ganadero-module-page .stock-alta-form-fields-box input[type="time"]:focus,
+.bn-ui .stock-ganadero-module-page .stock-alta-form-fields-box input[type="text"]:focus {
+  outline: none;
+  border-color: color-mix(in srgb, var(--sg-hub-accent) 45%, var(--bn-border));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--sg-hub-accent) 16%, transparent);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-alta-form-fields-box .stock-import-form-grid {
+  gap: 0.85rem;
+}
+
+.bn-ui .stock-ganadero-module-page .stock-alta-form-fields-box .stock-dropzone--hub {
+  margin-top: 0;
+}
+
+.bn-ui .stock-ganadero-module-page .stock-dropzone--hub {
+  border-color: color-mix(in srgb, var(--bn-border) 92%, transparent);
+  border-radius: var(--sg-hub-radius-md);
+  background: color-mix(in srgb, var(--sg-hub-workspace) 55%, #fff);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-dropzone--hub:hover:not(.has-file),
+.bn-ui .stock-ganadero-module-page .stock-dropzone--hub.is-dragover {
+  border-color: color-mix(in srgb, var(--sg-hub-accent) 40%, var(--bn-border));
+  background: color-mix(in srgb, var(--sg-hub-accent) 6%, var(--sg-hub-surface));
+}
+
+.bn-ui .stock-ganadero-module-page .stock-import-seleccion-activa--hub {
+  padding: 0.55rem 0.65rem;
+  border-radius: var(--sg-hub-radius-md);
+  background: color-mix(in srgb, var(--sg-hub-accent) 8%, var(--sg-hub-surface));
+  border: 1px solid color-mix(in srgb, var(--sg-hub-accent) 22%, var(--bn-border));
+}
+
+.bn-ui .stock-ganadero-module-page .stock-import-form-actions--hub {
+  padding-top: 0.65rem;
+  border-top: 1px solid color-mix(in srgb, var(--bn-border) 88%, transparent);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-import-pane-foot--hub {
+  margin-top: 0.75rem;
+  padding-top: 0.65rem;
+  border-top: 1px solid color-mix(in srgb, var(--bn-border) 88%, transparent);
+  justify-content: flex-end;
+}
+
+.bn-ui .stock-ganadero-module-page .stock-baja-hub-box--queue,
+.bn-ui .stock-ganadero-module-page .stock-alta-hub-box--queue {
+  margin-top: 0.75rem;
+  padding: 0.65rem 0.75rem;
+  background: color-mix(in srgb, var(--sg-hub-workspace) 45%, #fff);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-baja-hub-box--queue .stock-import-queue-head,
+.bn-ui .stock-ganadero-module-page .stock-alta-hub-box--queue .stock-import-queue-head {
+  align-items: flex-start;
+  margin-bottom: 0.55rem;
+}
+
+.bn-ui .stock-ganadero-module-page .stock-baja-hub-box--queue .stock-import-queue-head .sg-hub-panel-kicker,
+.bn-ui .stock-ganadero-module-page .stock-alta-hub-box--queue .stock-import-queue-head .sg-hub-panel-kicker {
+  margin: 0 0 0.15rem;
+}
+
+.bn-ui .stock-ganadero-module-page .stock-baja-queue-count,
+.bn-ui .stock-ganadero-module-page .stock-alta-queue-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.5rem;
+  height: 1.5rem;
+  padding: 0 0.4rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #3f6212;
+  background: var(--sg-hub-accent-soft);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-import-undo--hub {
+  padding: 0.55rem 0.65rem;
+  border-radius: var(--sg-hub-radius-md);
+  border: 1px solid color-mix(in srgb, var(--bn-border) 92%, transparent);
+  background: color-mix(in srgb, var(--sg-hub-workspace) 35%, var(--sg-hub-surface));
+}
+
+.bn-ui .stock-ganadero-module-page .stock-baja-hub-box--main .stock-import-numero-item {
+  border-radius: var(--sg-hub-radius-md);
+  border-color: color-mix(in srgb, var(--bn-border) 92%, transparent);
+}
+
+.bn-ui .stock-ganadero-module-page .stock-baja-hub-box--main .stock-import-numero-item--confirmada {
+  border-color: color-mix(in srgb, var(--sg-hub-accent) 28%, var(--bn-border));
+  background: color-mix(in srgb, var(--sg-hub-accent) 6%, var(--sg-hub-surface));
+}
+
+.bn-ui .stock-ganadero-module-page .stock-baja-hub-box--main .stock-import-numero-check {
+  color: var(--sg-hub-accent);
+}
+
+.bn-ui .sg-hub-aside--filters .sg-hub-aside-nav {
+  padding-bottom: 0.35rem;
+  border-bottom: 1px solid rgba(248, 246, 240, 0.1);
+  margin-bottom: 0.15rem;
+}
+
 /* KPI strip */
 .bn-ui .sg-hub-kpi-strip {
   display: grid;
@@ -44361,5 +45973,1100 @@ button.sg-kpi-card:disabled {
 
   .bn-ui .sg-devices-filtros-mobile-btn {
     order: 1;
+  }
+}
+
+/* —— Vencimientos Impuestos · Hub dashboard (eco workspace · verde) —— */
+.bn-ui .venc-imp-hub-page {
+  --sg-hub-sidebar: #1a211a;
+  --sg-hub-sidebar-soft: #242d24;
+  --sg-hub-sidebar-text: rgba(248, 246, 240, 0.92);
+  --sg-hub-sidebar-muted: rgba(248, 246, 240, 0.55);
+  --sg-hub-workspace: #f3f2ed;
+  --sg-hub-surface: #ffffff;
+  --sg-hub-accent: #7cb342;
+  --sg-hub-accent-soft: rgba(124, 179, 66, 0.16);
+  --sg-hub-gold: var(--bn-gold, #f0b90b);
+  --sg-hub-radius-xl: 1.25rem;
+  --sg-hub-radius-lg: 1rem;
+  --sg-hub-radius-md: 0.65rem;
+  --sg-hub-radius-card: 1.35rem;
+  --sg-hub-shadow: 0 18px 48px rgba(20, 28, 20, 0.1);
+  --venc-imp-radius-lg: var(--sg-hub-radius-card);
+  --venc-imp-radius-md: var(--sg-hub-radius-md);
+  --venc-imp-radius-sm: 0.45rem;
+  --venc-imp-kicker: var(--sg-hub-sidebar-muted);
+  --venc-imp-title: var(--bn-text);
+  min-height: min(42rem, calc(100dvh - 11rem));
+  width: 100%;
+  max-width: none;
+}
+
+.page-main.bn-ui:has(.venc-imp-hub-page) {
+  max-width: none;
+  width: 100%;
+  padding-left: max(0.45rem, env(safe-area-inset-left, 0px));
+  padding-right: max(0.45rem, env(safe-area-inset-right, 0px));
+}
+
+@media (min-width: 900px) {
+  .page-main.bn-ui:has(.venc-imp-hub-page) {
+    padding-left: max(0.65rem, env(safe-area-inset-left, 0px));
+    padding-right: max(0.65rem, env(safe-area-inset-right, 0px));
+  }
+}
+
+.bn-ui .venc-imp-hub-page .sg-hub {
+  width: 100%;
+}
+
+.bn-ui .venc-imp-hub-page .sg-hub-aside--venc {
+  gap: 0.95rem;
+}
+
+.bn-ui .venc-imp-hub-aside-logo {
+  color: #d9f99d;
+  background: rgba(124, 179, 66, 0.22);
+  border: 1px solid rgba(217, 249, 157, 0.18);
+}
+
+.bn-ui .venc-imp-hub-aside-guide {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  margin-top: 0.15rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid rgba(248, 246, 240, 0.1);
+  overflow: auto;
+  min-height: 0;
+}
+
+.bn-ui .venc-imp-hub-aside-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.bn-ui .venc-imp-hub-aside-block--alert {
+  padding: 0.55rem 0.65rem;
+  border-radius: var(--sg-hub-radius-md);
+  background: rgba(124, 179, 66, 0.12);
+  border: 1px solid rgba(217, 249, 157, 0.14);
+}
+
+.bn-ui .venc-imp-hub-aside-title {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--sg-hub-sidebar-text);
+}
+
+.bn-ui .venc-imp-hub-aside-subtitle {
+  margin: 0;
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--sg-hub-sidebar-muted);
+}
+
+.bn-ui .venc-imp-hub-aside-note {
+  margin: 0;
+  font-size: 0.72rem;
+  line-height: 1.45;
+  color: var(--sg-hub-sidebar-muted);
+}
+
+.bn-ui .venc-imp-hub-aside-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.bn-ui .venc-imp-hub-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.22rem 0.45rem 0.22rem 0.3rem;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--sg-hub-sidebar-text);
+  background: var(--sg-hub-sidebar-soft);
+  border: 1px solid rgba(248, 246, 240, 0.08);
+}
+
+.bn-ui .venc-imp-hub-chip-escudo {
+  width: 1rem;
+  height: 1rem;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.bn-ui .venc-imp-hub-chip-escudo--bps {
+  width: auto;
+  height: 0.95rem;
+  max-width: 2.5rem;
+}
+
+.bn-ui .venc-imp-hub-chip-escudo--dgi {
+  width: auto;
+  height: 0.95rem;
+  max-width: 2.2rem;
+}
+
+.bn-ui .venc-imp-hub-aside-leyenda {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.72rem;
+  color: var(--sg-hub-sidebar-muted);
+}
+
+.bn-ui .venc-imp-hub-aside-leyenda li {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.bn-ui .venc-imp-hub-aside-links {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.bn-ui .venc-imp-hub-aside-links a {
+  font-size: 0.72rem;
+  color: #d9f99d;
+  text-decoration: none;
+}
+
+.bn-ui .venc-imp-hub-aside-links a:hover {
+  text-decoration: underline;
+}
+
+.bn-ui .venc-imp-hub-page .sg-hub-main {
+  gap: 0.95rem;
+}
+
+.bn-ui .venc-imp-hub-kpi-strip {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+@media (max-width: 1100px) {
+  .bn-ui .venc-imp-hub-kpi-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .bn-ui .venc-imp-hub-kpi-strip {
+    grid-template-columns: 1fr;
+  }
+}
+
+.bn-ui .venc-imp-hub-workspace {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  min-width: 0;
+}
+
+.bn-ui .venc-imp-hub-page .venc-imp-hub-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+}
+
+.bn-ui .venc-imp-hub-page .venc-imp-hub-panel .venc-imp-user-banner--pro:not(.venc-imp-user-banner--modern) {
+  border-radius: var(--sg-hub-radius-card);
+  border: 1px solid var(--bn-border);
+  box-shadow: 0 2px 12px rgba(30, 35, 41, 0.05);
+}
+
+.bn-ui .venc-imp-hub-page .venc-imp-hub-panel .venc-imp-section {
+  border-radius: var(--sg-hub-radius-card);
+  border: 1px solid var(--bn-border);
+  box-shadow: 0 2px 12px rgba(30, 35, 41, 0.05);
+  overflow: hidden;
+}
+
+.bn-ui .venc-imp-hub-page .venc-imp-skeleton--hub {
+  border-radius: var(--sg-hub-radius-card);
+  border: 1px solid var(--bn-border);
+  background: var(--sg-hub-surface);
+  padding: 1rem;
+}
+
+.bn-ui .venc-imp-hub-page .sg-hub-nav-item.is-active {
+  background: color-mix(in srgb, var(--sg-hub-accent) 24%, transparent);
+  border-color: rgba(217, 249, 157, 0.2);
+  color: #f8f6f0;
+}
+
+.bn-ui .venc-imp-hub-page .sg-hub-kpi--dark {
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--sg-hub-sidebar) 92%, #000) 0%,
+    color-mix(in srgb, var(--sg-hub-sidebar-soft) 88%, #000) 100%
+  );
+}
+
+.bn-ui .venc-imp-hub-page .sg-hub-kpi--dark .sg-hub-mini-bar--active {
+  background: var(--sg-hub-accent);
+}
+
+.bn-ui .venc-imp-hub-page .sg-hub-status--online::before {
+  background: var(--sg-hub-accent);
+}
+
+/* Banner contextual del impuesto activo */
+.bn-ui .venc-imp-hub-page .venc-imp-user-banner--modern {
+  padding: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+}
+
+.bn-ui .venc-imp-hub-page .venc-imp-user-banner-shell {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 0.85rem;
+  width: 100%;
+  padding: 0.85rem 0.95rem;
+  border: 1px solid var(--bn-border);
+  border-radius: var(--sg-hub-radius-md);
+  background: var(--sg-hub-surface);
+  box-shadow: 0 2px 10px rgba(30, 35, 41, 0.04);
+}
+
+.bn-ui .venc-imp-hub-page .venc-imp-user-banner-info-main {
+  flex: 1 1 14rem;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+}
+
+.bn-ui .venc-imp-hub-page .venc-imp-user-banner-proximos-wrap {
+  display: flex;
+  flex: 1 1 min(100%, 24rem);
+  flex-wrap: wrap;
+  align-items: stretch;
+  justify-content: flex-end;
+  gap: 0.65rem;
+  min-width: min(100%, 16rem);
+  margin-left: auto;
+}
+
+.bn-ui .venc-imp-hub-page .venc-imp-user-banner-proximo-box {
+  flex: 1 1 min(100%, 14.5rem);
+  display: flex;
+  align-items: stretch;
+  min-width: min(100%, 13rem);
+  max-width: min(100%, 16.5rem);
+  padding: 0;
+  border: none;
+  border-radius: var(--sg-hub-radius-md);
+  background: transparent;
+}
+
+.bn-ui .venc-imp-hub-page .venc-imp-user-banner-proximo-box .venc-imp-banner-next {
+  width: 100%;
+  min-width: 0;
+}
+
+.bn-ui .venc-imp-hub-page .venc-imp-user-banner-proximo-box .venc-imp-banner-next-sub {
+  color: rgba(248, 246, 240, 0.62);
+}
+
+.bn-ui .venc-imp-hub-page .venc-imp-hub-panel .venc-imp-user-banner--pro:not(.venc-imp-user-banner--modern) {
+  background: var(--sg-hub-surface);
+  border: 1px solid var(--bn-border);
+  box-shadow: 0 2px 12px rgba(20, 28, 20, 0.06);
+  padding: 1.05rem 1.15rem;
+}
+
+.bn-ui .venc-imp-hub-page .venc-imp-hub-panel .venc-imp-user-banner--modern {
+  border-left: none;
+}
+
+.bn-ui .venc-imp-hub-page .venc-imp-user-banner-proximo-box .venc-imp-banner-next-escudo {
+  width: 2rem;
+  height: 2rem;
+  padding: 0.18rem;
+  border-radius: var(--sg-hub-radius-md);
+  background: color-mix(in srgb, #fff 10%, transparent);
+  border: 1px solid color-mix(in srgb, #fff 14%, transparent);
+  object-fit: contain;
+}
+
+.bn-ui .venc-imp-hub-page .venc-imp-user-banner-proximo-box .venc-imp-banner-next-escudo--bps {
+  width: auto;
+  height: 1.85rem;
+  max-width: 5rem;
+  min-width: 3.25rem;
+}
+
+.bn-ui .venc-imp-hub-page .venc-imp-user-banner--pro .venc-imp-onboard-kicker {
+  color: var(--sg-hub-accent);
+  font-weight: 700;
+}
+
+.bn-ui .venc-imp-hub-page .venc-imp-brand-icon-img {
+  width: 2.5rem;
+  padding: 0.35rem;
+  border-radius: var(--sg-hub-radius-md);
+  background: var(--sg-hub-accent-soft);
+  border: 1px solid color-mix(in srgb, var(--sg-hub-accent) 22%, var(--bn-border));
+}
+
+/* Próximo vencimiento — tarjetas modo oscuro en banner */
+.bn-ui .venc-imp-hub-page .venc-imp-user-banner-proximo-box .venc-imp-banner-next {
+  min-width: 0;
+  padding: 0.62rem 0.72rem 0.65rem;
+  border-radius: var(--sg-hub-radius-md);
+  box-shadow: 0 4px 14px rgba(10, 14, 10, 0.22);
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--sg-hub-sidebar) 94%, #000) 0%,
+    color-mix(in srgb, var(--sg-hub-sidebar-soft) 90%, #000) 100%
+  );
+  color: rgba(248, 246, 240, 0.95);
+}
+
+.bn-ui .venc-imp-hub-page .venc-imp-user-banner-proximo-box .venc-imp-banner-next-accent {
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: auto;
+  width: auto;
+  height: 3px;
+}
+
+.bn-ui .venc-imp-hub-page .venc-imp-user-banner-proximo-box .venc-imp-banner-next-sub {
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.bn-ui .venc-imp-hub-page .venc-imp-user-banner-proximo-box .venc-imp-banner-next--rojo {
+  --venc-imp-banner-glow: #dc2626;
+  border: 1px solid color-mix(in srgb, #dc2626 38%, var(--sg-hub-sidebar));
+  animation: venc-imp-banner-next-blink-dark 1.75s ease-in-out infinite;
+}
+
+.bn-ui .venc-imp-hub-page .venc-imp-user-banner-proximo-box .venc-imp-banner-next--rojo .venc-imp-banner-next-dot {
+  animation: venc-imp-banner-next-dot-blink 1.75s ease-in-out infinite;
+}
+
+.bn-ui .venc-imp-hub-page .venc-imp-user-banner-proximo-box .venc-imp-banner-next--rojo .venc-imp-banner-next-accent {
+  background: #dc2626;
+}
+
+.bn-ui .venc-imp-hub-page .venc-imp-user-banner-proximo-box .venc-imp-banner-next--rojo .venc-imp-banner-next-label,
+.bn-ui .venc-imp-hub-page .venc-imp-user-banner-proximo-box .venc-imp-banner-next--rojo .venc-imp-banner-next-dias {
+  color: #fecaca;
+}
+
+.bn-ui .venc-imp-hub-page .venc-imp-user-banner-proximo-box .venc-imp-banner-next--rojo strong,
+.bn-ui .venc-imp-hub-page .venc-imp-user-banner-proximo-box .venc-imp-banner-next--rojo .venc-imp-banner-next-fecha {
+  color: rgba(248, 246, 240, 0.92);
+}
+
+.bn-ui .venc-imp-hub-page .venc-imp-user-banner-proximo-box .venc-imp-banner-next--amarillo {
+  --venc-imp-banner-glow: #ca8a04;
+  border-color: color-mix(in srgb, #ca8a04 42%, var(--sg-hub-sidebar));
+}
+
+.bn-ui .venc-imp-hub-page .venc-imp-user-banner-proximo-box .venc-imp-banner-next--amarillo .venc-imp-banner-next-accent {
+  background: #ca8a04;
+}
+
+.bn-ui .venc-imp-hub-page .venc-imp-user-banner-proximo-box .venc-imp-banner-next--amarillo .venc-imp-banner-next-label,
+.bn-ui .venc-imp-hub-page .venc-imp-user-banner-proximo-box .venc-imp-banner-next--amarillo .venc-imp-banner-next-dias {
+  color: #fde68a;
+}
+
+.bn-ui .venc-imp-hub-page .venc-imp-user-banner-proximo-box .venc-imp-banner-next--amarillo strong,
+.bn-ui .venc-imp-hub-page .venc-imp-user-banner-proximo-box .venc-imp-banner-next--amarillo .venc-imp-banner-next-fecha {
+  color: rgba(248, 246, 240, 0.92);
+}
+
+.bn-ui .venc-imp-hub-page .venc-imp-user-banner-proximo-box .venc-imp-banner-next--verde {
+  --venc-imp-banner-glow: var(--sg-hub-accent);
+  border-color: color-mix(in srgb, var(--sg-hub-accent) 45%, var(--sg-hub-sidebar));
+}
+
+.bn-ui .venc-imp-hub-page .venc-imp-user-banner-proximo-box .venc-imp-banner-next--verde .venc-imp-banner-next-accent {
+  background: var(--sg-hub-accent);
+}
+
+.bn-ui .venc-imp-hub-page .venc-imp-user-banner-proximo-box .venc-imp-banner-next--verde .venc-imp-banner-next-label,
+.bn-ui .venc-imp-hub-page .venc-imp-user-banner-proximo-box .venc-imp-banner-next--verde .venc-imp-banner-next-dias {
+  color: #d9f99d;
+}
+
+.bn-ui .venc-imp-hub-page .venc-imp-user-banner-proximo-box .venc-imp-banner-next--verde strong,
+.bn-ui .venc-imp-hub-page .venc-imp-user-banner-proximo-box .venc-imp-banner-next--verde .venc-imp-banner-next-fecha {
+  color: rgba(248, 246, 240, 0.92);
+}
+
+@keyframes venc-imp-banner-next-blink-dark {
+  0%,
+  100% {
+    border-color: color-mix(in srgb, var(--venc-imp-banner-glow) 38%, var(--sg-hub-sidebar));
+    box-shadow:
+      0 4px 14px rgba(10, 14, 10, 0.22),
+      0 2px 8px color-mix(in srgb, var(--venc-imp-banner-glow) 14%, transparent);
+  }
+  50% {
+    border-color: color-mix(in srgb, var(--venc-imp-banner-glow) 68%, var(--sg-hub-sidebar));
+    box-shadow:
+      0 0 0 2px color-mix(in srgb, var(--venc-imp-banner-glow) 22%, transparent),
+      0 6px 20px color-mix(in srgb, var(--venc-imp-banner-glow) 28%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bn-ui .venc-imp-hub-page .venc-imp-user-banner-proximo-box .venc-imp-banner-next--rojo {
+    animation: none;
+  }
+
+  .bn-ui .venc-imp-hub-page .venc-imp-user-banner-proximo-box .venc-imp-banner-next--rojo .venc-imp-banner-next-dot {
+    animation: none;
+  }
+}
+
+/* Sección carrusel — layout moderno con subcontenedores */
+.bn-ui .venc-imp-hub-page .venc-imp-hub-panel .venc-imp-proximos-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+}
+
+.bn-ui .venc-imp-hub-page .venc-imp-proximos-head-box,
+.bn-ui .venc-imp-hub-page .venc-imp-proximos-carousel-box {
+  padding: 0.75rem 0.85rem 0.8rem;
+  border: 1px solid var(--bn-border);
+  border-radius: var(--sg-hub-radius-md);
+}
+
+.bn-ui .venc-imp-hub-page .venc-imp-proximos-head-box {
+  background: var(--sg-hub-surface);
+  box-shadow: 0 2px 10px rgba(30, 35, 41, 0.04);
+}
+
+.bn-ui .venc-imp-hub-page .venc-imp-proximos-head-box .venc-imp-section-kicker {
+  margin: 0 0 0.2rem;
+  font-size: 0.64rem;
+  color: var(--bn-muted);
+}
+
+.bn-ui .venc-imp-hub-page .venc-imp-proximos-head-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.85rem 1rem;
+}
+
+.bn-ui .venc-imp-hub-page .venc-imp-proximos-head-main {
+  min-width: 0;
+  flex: 1;
+}
+
+.bn-ui .venc-imp-hub-page .venc-imp-proximos-head-box .venc-imp-section-title {
+  margin: 0;
+  font-size: 1.08rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.bn-ui .venc-imp-hub-page .venc-imp-proximos-head-box .venc-imp-section-sub {
+  margin: 0.28rem 0 0;
+  max-width: none;
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.bn-ui .venc-imp-hub-page .venc-imp-proximos-carousel-box {
+  background: var(--sg-hub-workspace);
+  min-height: 11.95rem;
+}
+
+.bn-ui .venc-imp-hub-page .venc-imp-proximos-carousel-box .venc-imp-proximos-carousel {
+  margin-top: 0;
+}
+
+.bn-ui .venc-imp-hub-page .venc-imp-proximos-carousel-fade::before {
+  background: linear-gradient(90deg, var(--sg-hub-workspace) 30%, transparent);
+}
+
+.bn-ui .venc-imp-hub-page .venc-imp-proximos-carousel-fade::after {
+  background: linear-gradient(270deg, var(--sg-hub-workspace) 30%, transparent);
+}
+
+.bn-ui .venc-imp-hub-page .venc-imp-hub-panel .venc-imp-section:not(.venc-imp-proximos-section) {
+  background: var(--sg-hub-surface);
+  border: 1px solid var(--bn-border);
+  box-shadow: 0 2px 12px rgba(20, 28, 20, 0.05);
+  padding: 1rem 1.05rem 1.05rem;
+}
+
+.bn-ui .venc-imp-hub-page .venc-imp-section-head {
+  margin-bottom: 0.95rem;
+  padding-bottom: 0.8rem;
+  border-bottom: 1px solid var(--bn-border-soft);
+}
+
+.bn-ui .venc-imp-hub-page .venc-imp-section-kicker {
+  font-size: 0.64rem;
+  color: var(--bn-muted);
+}
+
+.bn-ui .venc-imp-hub-page .venc-imp-section-title {
+  font-size: 1.08rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.bn-ui .venc-imp-hub-page .venc-imp-section-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.85rem;
+  height: 1.85rem;
+  padding: 0 0.45rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--sg-hub-sidebar);
+  background: color-mix(in srgb, var(--sg-hub-accent) 18%, var(--sg-hub-surface));
+  border: 1px solid color-mix(in srgb, var(--sg-hub-accent) 28%, var(--bn-border));
+}
+
+/* Tarjetas del carrusel */
+.bn-ui .venc-imp-hub-page .venc-imp-proximo-card--pro {
+  flex: 0 0 min(14.75rem, 82vw);
+  min-height: 10rem;
+  padding: 0.75rem 0.85rem 0.8rem;
+  background: var(--sg-hub-surface);
+  border-radius: var(--sg-hub-radius-md);
+  border: 1px solid var(--bn-border);
+  box-shadow: 0 2px 8px rgba(20, 28, 20, 0.04);
+  transition:
+    border-color 0.16s ease,
+    box-shadow 0.16s ease,
+    transform 0.12s ease;
+}
+
+.bn-ui .venc-imp-hub-page .venc-imp-proximo-top {
+  gap: 0.65rem;
+  margin-bottom: 0.55rem;
+}
+
+.bn-ui .venc-imp-hub-page .venc-imp-proximo-escudo {
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0.2rem;
+  border-radius: var(--sg-hub-radius-md);
+  background: var(--sg-hub-workspace);
+  border-color: var(--bn-border);
+}
+
+.bn-ui .venc-imp-hub-page .venc-imp-proximo-escudo.venc-imp-proximo-escudo--bps {
+  height: 2rem;
+  max-width: 5.5rem;
+  min-width: 3.5rem;
+}
+
+.bn-ui .venc-imp-hub-page .venc-imp-proximo-impuesto {
+  margin: 0;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--bn-muted);
+}
+
+.bn-ui .venc-imp-hub-page .venc-imp-proximos-carousel-btn {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  border-color: var(--bn-border);
+  background: var(--sg-hub-surface);
+  color: var(--bn-text);
+  box-shadow: 0 1px 4px rgba(20, 28, 20, 0.05);
+}
+
+.bn-ui .venc-imp-hub-page .venc-imp-proximos-carousel-btn:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--sg-hub-accent) 45%, var(--bn-border));
+  background: color-mix(in srgb, var(--sg-hub-accent) 10%, var(--sg-hub-surface));
+  color: #3f6212;
+}
+
+.bn-ui .venc-imp-hub-page .venc-imp-proximo-card--pro:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--sg-hub-accent) 35%, var(--bn-border));
+  box-shadow: 0 10px 24px rgba(20, 28, 20, 0.08);
+}
+
+.bn-ui .venc-imp-hub-page .venc-imp-proximo-card--pro .venc-imp-proximo-accent {
+  display: none;
+}
+
+.bn-ui .venc-imp-hub-page .venc-imp-proximo-card--pro.venc-imp-proximo-card--rojo {
+  border: 2px solid #fee2e2;
+  background: #fef2f2;
+  box-shadow: 0 2px 8px color-mix(in srgb, #dc2626 8%, transparent);
+  animation: venc-imp-proximo-card-rojo-blink 2s ease-in-out infinite;
+}
+
+.bn-ui .venc-imp-hub-page .venc-imp-proximo-card--pro.venc-imp-proximo-card--rojo .venc-imp-semaforo-dot--rojo {
+  animation: venc-imp-banner-next-dot-blink 2s ease-in-out infinite;
+}
+
+.bn-ui .venc-imp-hub-page .venc-imp-proximo-card--pro.venc-imp-proximo-card--rojo:hover {
+  border-color: #fecaca;
+  background: #fee2e2;
+  box-shadow: 0 8px 20px color-mix(in srgb, #dc2626 12%, transparent);
+}
+
+.bn-ui .venc-imp-hub-page .venc-imp-proximo-card--pro.venc-imp-proximo-card--amarillo {
+  border: 2px solid #fef9c3;
+  background: #fefce8;
+  box-shadow: 0 2px 8px color-mix(in srgb, #ca8a04 8%, transparent);
+}
+
+.bn-ui .venc-imp-hub-page .venc-imp-proximo-card--pro.venc-imp-proximo-card--amarillo:hover {
+  border-color: #fef08a;
+  background: #fef9c3;
+  box-shadow: 0 8px 20px color-mix(in srgb, #ca8a04 12%, transparent);
+}
+
+.bn-ui .venc-imp-hub-page .venc-imp-proximo-card--pro.venc-imp-proximo-card--verde {
+  border: 2px solid #dcfce7;
+  background: #f0fdf4;
+  box-shadow: 0 2px 8px color-mix(in srgb, #16a34a 8%, transparent);
+}
+
+.bn-ui .venc-imp-hub-page .venc-imp-proximo-card--pro.venc-imp-proximo-card--verde:hover {
+  border-color: #bbf7d0;
+  background: #dcfce7;
+  box-shadow: 0 8px 20px color-mix(in srgb, #16a34a 12%, transparent);
+}
+
+@keyframes venc-imp-proximo-card-rojo-blink {
+  0%,
+  100% {
+    border-color: #fee2e2;
+    background: #fef2f2;
+    box-shadow: 0 2px 8px color-mix(in srgb, #dc2626 6%, transparent);
+  }
+  50% {
+    border-color: #fecaca;
+    background: #fee2e2;
+    box-shadow:
+      0 0 0 2px color-mix(in srgb, #dc2626 10%, transparent),
+      0 4px 14px color-mix(in srgb, #dc2626 14%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bn-ui .vencimientos-impuestos-page .venc-imp-proximo-card--pro.venc-imp-proximo-card--rojo,
+  .bn-ui .venc-imp-hub-page .venc-imp-proximo-card--pro.venc-imp-proximo-card--rojo {
+    animation: none;
+  }
+
+  .bn-ui .vencimientos-impuestos-page .venc-imp-proximo-card--pro.venc-imp-proximo-card--rojo .venc-imp-semaforo-dot--rojo,
+  .bn-ui .venc-imp-hub-page .venc-imp-proximo-card--pro.venc-imp-proximo-card--rojo .venc-imp-semaforo-dot--rojo {
+    animation: none;
+  }
+}
+
+.bn-ui .venc-imp-hub-page .venc-imp-proximo-card--rojo .venc-imp-proximo-impuesto,
+.bn-ui .venc-imp-hub-page .venc-imp-proximo-card--rojo .venc-imp-proximo-cuota,
+.bn-ui .venc-imp-hub-page .venc-imp-proximo-card--rojo .venc-imp-proximo-fecha {
+  color: #7f1d1d;
+}
+
+.bn-ui .venc-imp-hub-page .venc-imp-proximo-card--rojo .venc-imp-proximo-depto {
+  color: var(--bn-text);
+}
+
+.bn-ui .venc-imp-hub-page .venc-imp-proximo-card--amarillo .venc-imp-proximo-depto {
+  color: var(--bn-text);
+}
+
+.bn-ui .venc-imp-hub-page .venc-imp-proximo-card--verde .venc-imp-proximo-depto {
+  color: var(--bn-text);
+}
+
+.bn-ui .venc-imp-hub-page .venc-imp-proximo-card--rojo .venc-imp-proximo-escudo,
+.bn-ui .venc-imp-hub-page .venc-imp-proximo-card--amarillo .venc-imp-proximo-escudo,
+.bn-ui .venc-imp-hub-page .venc-imp-proximo-card--verde .venc-imp-proximo-escudo {
+  background: var(--sg-hub-workspace);
+  border-color: var(--bn-border);
+}
+
+.bn-ui .venc-imp-hub-page .venc-imp-proximo-card--rojo .venc-imp-semaforo-badge {
+  background: color-mix(in srgb, #dc2626 12%, #fff);
+  color: #b91c1c;
+}
+
+.bn-ui .venc-imp-hub-page .venc-imp-proximo-card--amarillo .venc-imp-semaforo-badge {
+  background: color-mix(in srgb, #eab308 18%, #fff);
+  color: #854d0e;
+}
+
+.bn-ui .venc-imp-hub-page .venc-imp-proximo-card--verde .venc-imp-semaforo-badge {
+  background: color-mix(in srgb, #16a34a 12%, #fff);
+  color: #15803d;
+}
+
+.bn-ui .venc-imp-hub-page .venc-imp-proximo-depto {
+  font-weight: 700;
+  color: var(--bn-text);
+}
+
+.bn-ui .venc-imp-hub-page .venc-imp-proximo-plazo {
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.bn-ui .venc-imp-hub-page .venc-imp-proximo-card--rojo .venc-imp-proximo-plazo {
+  color: #991b1b;
+}
+
+.bn-ui .venc-imp-hub-page .venc-imp-proximo-card--amarillo .venc-imp-proximo-plazo {
+  color: #854d0e;
+}
+
+.bn-ui .venc-imp-hub-page .venc-imp-proximo-card--verde .venc-imp-proximo-plazo {
+  color: #15803d;
+}
+
+.bn-ui .venc-imp-hub-page .venc-imp-semaforo-badge {
+  margin-top: auto;
+  font-size: 0.68rem;
+  font-weight: 650;
+}
+
+.bn-ui .venc-imp-hub-page .venc-imp-proximos-track-wrap::before {
+  background: linear-gradient(90deg, var(--sg-hub-workspace), transparent);
+}
+
+.bn-ui .venc-imp-hub-page .venc-imp-proximos-track-wrap::after {
+  background: linear-gradient(270deg, var(--sg-hub-workspace), transparent);
+}
+
+.bn-ui .venc-imp-hub-page .venc-imp-proximos-track-wrap::after {
+  background: linear-gradient(270deg, var(--sg-hub-workspace), transparent);
+}
+
+/* —— Vencimientos · Onboarding hub (eco verde) —— */
+.bn-ui .venc-imp-onboard-hub {
+  padding: 0;
+  width: 100%;
+}
+
+.bn-ui .venc-imp-onboard-shell--hub {
+  width: 100%;
+  max-width: none;
+  height: min(calc(100dvh - 8.5rem), 52rem);
+  max-height: 100%;
+  min-height: min(36rem, calc(100dvh - 9rem));
+  grid-template-columns: minmax(13.5rem, 15.5rem) minmax(0, 1fr);
+  gap: 0;
+  border-radius: var(--sg-hub-radius-xl);
+  border: 1px solid color-mix(in srgb, var(--sg-hub-sidebar) 12%, var(--bn-border));
+  box-shadow: var(--sg-hub-shadow);
+  overflow: hidden;
+  background: var(--sg-hub-workspace);
+}
+
+.bn-ui .venc-imp-onboard-hub .venc-imp-onboard-aside.sg-hub-aside {
+  padding: 1.35rem 1rem 1.15rem;
+  border-radius: 0;
+  box-shadow: none;
+  background: linear-gradient(
+    180deg,
+    var(--sg-hub-sidebar) 0%,
+    color-mix(in srgb, var(--sg-hub-sidebar) 88%, #000) 100%
+  );
+}
+
+.bn-ui .venc-imp-onboard-hub .venc-imp-onboard-aside-lead {
+  font-size: 0.72rem;
+  line-height: 1.5;
+  color: var(--sg-hub-sidebar-muted);
+  opacity: 1;
+}
+
+.bn-ui .venc-imp-onboard-hub .venc-imp-onboard-steps {
+  gap: 0.35rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid rgba(248, 246, 240, 0.1);
+}
+
+.bn-ui .venc-imp-onboard-hub .venc-imp-onboard-step {
+  padding: 0.55rem 0.65rem;
+  border-radius: var(--sg-hub-radius-md);
+  color: var(--sg-hub-sidebar-muted);
+}
+
+.bn-ui .venc-imp-onboard-hub .venc-imp-onboard-step--active {
+  background: color-mix(in srgb, var(--sg-hub-accent) 24%, transparent);
+  color: var(--sg-hub-sidebar-text);
+}
+
+.bn-ui .venc-imp-onboard-hub .venc-imp-onboard-step--done {
+  color: color-mix(in srgb, var(--sg-hub-sidebar-text) 78%, transparent);
+}
+
+.bn-ui .venc-imp-onboard-hub .venc-imp-onboard-step--skip {
+  opacity: 0.45;
+}
+
+.bn-ui .venc-imp-onboard-hub .venc-imp-onboard-step-num {
+  width: 1.45rem;
+  height: 1.45rem;
+  font-size: 0.68rem;
+  background: rgba(248, 246, 240, 0.08);
+  border-color: rgba(248, 246, 240, 0.14);
+  color: var(--sg-hub-sidebar-text);
+}
+
+.bn-ui .venc-imp-onboard-hub .venc-imp-onboard-step--active .venc-imp-onboard-step-num {
+  background: var(--sg-hub-accent);
+  border-color: transparent;
+  color: #1a211a;
+}
+
+.bn-ui .venc-imp-onboard-hub .venc-imp-onboard-step--done .venc-imp-onboard-step-num {
+  background: color-mix(in srgb, var(--sg-hub-accent) 55%, var(--sg-hub-sidebar-soft));
+  border-color: transparent;
+  color: #f8f6f0;
+}
+
+.bn-ui .venc-imp-onboard-hub .venc-imp-onboard-step-text strong {
+  font-size: 0.78rem;
+}
+
+.bn-ui .venc-imp-onboard-hub .venc-imp-onboard-step-text small {
+  font-size: 0.66rem;
+  opacity: 1;
+  color: var(--sg-hub-sidebar-muted);
+}
+
+.bn-ui .venc-imp-onboard-card--hub {
+  height: 100%;
+  min-height: 0;
+  padding: 1.25rem 1.35rem 1.2rem;
+  background: var(--sg-hub-workspace);
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  gap: 0.85rem;
+}
+
+.bn-ui .venc-imp-onboard-workspace {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  padding: 1rem 1.05rem 1.05rem;
+  border-radius: var(--sg-hub-radius-lg);
+  border: 1px solid var(--bn-border);
+  background: var(--sg-hub-surface);
+  box-shadow: 0 2px 10px rgba(30, 35, 41, 0.04);
+}
+
+.bn-ui .venc-imp-onboard-workspace .venc-imp-onboard-panel {
+  flex: 1;
+  min-height: 0;
+}
+
+.bn-ui .venc-imp-onboard-workspace .venc-imp-onboard-depto {
+  background: var(--sg-hub-surface);
+}
+
+.bn-ui .venc-imp-onboard-workspace .venc-imp-onboard-intro-box,
+.bn-ui .venc-imp-onboard-workspace .venc-imp-onboard-deptos-box,
+.bn-ui .venc-imp-onboard-workspace .venc-imp-onboard-search-box {
+  border-color: var(--bn-border);
+  border-radius: var(--sg-hub-radius-md);
+  background: var(--sg-hub-workspace);
+}
+
+.bn-ui .venc-imp-onboard-workspace .venc-imp-onboard-modalidad,
+.bn-ui .venc-imp-onboard-workspace .venc-imp-onboard-selection-chip {
+  background: var(--sg-hub-workspace);
+}
+
+.bn-ui .venc-imp-onboard-workspace .venc-imp-onboard-search-box .venc-imp-onboard-search input {
+  background: var(--sg-hub-surface);
+}
+
+.bn-ui .venc-imp-onboard-head--hub {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+  width: 100%;
+}
+
+.bn-ui .venc-imp-onboard-head-box {
+  border-color: var(--bn-border);
+  border-radius: var(--sg-hub-radius-md);
+  background: var(--sg-hub-surface);
+  box-shadow: 0 2px 10px rgba(30, 35, 41, 0.04);
+}
+
+.bn-ui .venc-imp-onboard-head-box .sg-hub-main-sub {
+  max-width: none;
+}
+
+.bn-ui .venc-imp-onboard-head--hub .sg-hub-panel-kicker {
+  margin-bottom: 0.2rem;
+}
+
+.bn-ui .venc-imp-onboard-head--hub .venc-imp-onboard-head-title {
+  font-size: 1.35rem;
+  margin: 0;
+}
+
+.bn-ui .venc-imp-onboard-hub .venc-imp-onboard-panel h3,
+.bn-ui .venc-imp-onboard-hub .venc-imp-onboard-head-title {
+  color: var(--bn-text);
+}
+
+.bn-ui .venc-imp-onboard-hub .venc-imp-onboard-kicker {
+  color: var(--bn-muted);
+}
+
+.bn-ui .venc-imp-onboard-hub .venc-imp-onboard-depto {
+  border-radius: var(--sg-hub-radius-md);
+  border-color: var(--bn-border);
+  background: var(--sg-hub-surface);
+}
+
+.bn-ui .venc-imp-onboard-hub .venc-imp-onboard-depto--active {
+  border-color: color-mix(in srgb, var(--sg-hub-accent) 45%, var(--bn-border));
+  background: color-mix(in srgb, var(--sg-hub-accent) 10%, var(--sg-hub-surface));
+}
+
+.bn-ui .venc-imp-onboard-hub .venc-imp-onboard-depto-check {
+  background: var(--sg-hub-accent);
+  color: #1a211a;
+}
+
+.bn-ui .venc-imp-onboard-hub .venc-imp-onboard-modalidad {
+  border-radius: var(--sg-hub-radius-md);
+  border-color: var(--bn-border);
+  background: var(--sg-hub-surface);
+}
+
+.bn-ui .venc-imp-onboard-hub .venc-imp-onboard-modalidad--active {
+  border-color: color-mix(in srgb, var(--sg-hub-accent) 42%, var(--bn-border));
+  background: color-mix(in srgb, var(--sg-hub-accent) 8%, var(--sg-hub-surface));
+  box-shadow: 0 2px 10px rgba(20, 28, 20, 0.05);
+}
+
+.bn-ui .venc-imp-onboard-hub .venc-imp-onboard-modalidad-icon {
+  background: var(--sg-hub-accent-soft);
+  color: #4d7c0f;
+}
+
+.bn-ui .venc-imp-onboard-hub .venc-imp-onboard-modalidad-title {
+  color: var(--bn-text);
+}
+
+.bn-ui .venc-imp-onboard-hub .venc-imp-onboard-plan--active {
+  border-color: color-mix(in srgb, var(--sg-hub-accent) 45%, var(--bn-border));
+  background: color-mix(in srgb, var(--sg-hub-accent) 12%, var(--sg-hub-surface));
+  color: #3f6212;
+}
+
+.bn-ui .venc-imp-onboard-hub .venc-imp-onboard-search input {
+  border-radius: var(--sg-hub-radius-md);
+  border-color: var(--bn-border);
+  background: var(--sg-hub-surface);
+}
+
+.bn-ui .venc-imp-onboard-hub .venc-imp-onboard-search input:focus {
+  border-color: color-mix(in srgb, var(--sg-hub-accent) 50%, var(--bn-border));
+  box-shadow: 0 0 0 2px var(--sg-hub-accent-soft);
+}
+
+.bn-ui .venc-imp-onboard-hub .venc-imp-onboard-selection-chip {
+  border-radius: 999px;
+  background: var(--sg-hub-surface);
+}
+
+.bn-ui .venc-imp-onboard-hub .venc-imp-onboard-actions {
+  border-top-color: var(--bn-border-soft);
+}
+
+.bn-ui .vencimientos-impuestos-page--onboarding .venc-imp-onboard-hub .venc-imp-onboard-btn--primary,
+.bn-ui .vencimientos-impuestos-page--onboarding .venc-imp-onboard-hub .sg-hub-cta {
+  min-width: 8.5rem;
+  border-radius: var(--sg-hub-radius-md);
+  background: linear-gradient(
+    145deg,
+    var(--sg-hub-sidebar) 0%,
+    color-mix(in srgb, var(--sg-hub-sidebar) 75%, var(--sg-hub-accent)) 100%
+  );
+  border-color: transparent;
+  color: #f8f6f0;
+}
+
+.bn-ui .vencimientos-impuestos-page--onboarding .venc-imp-onboard-hub .venc-imp-onboard-btn:not(.sg-hub-cta) {
+  border-radius: var(--sg-hub-radius-md);
+  background: var(--sg-hub-surface);
+}
+
+@media (max-width: 860px) {
+  .bn-ui .venc-imp-onboard-shell--hub {
+    grid-template-columns: 1fr;
+    height: auto;
+    min-height: min(calc(100dvh - 8rem), 52rem);
+  }
+
+  .bn-ui .venc-imp-onboard-hub .venc-imp-onboard-aside.sg-hub-aside {
+    order: -1;
+  }
+
+  .bn-ui .venc-imp-onboard-hub .venc-imp-onboard-steps {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .bn-ui .venc-imp-onboard-hub .venc-imp-onboard-step {
+    flex: 1 1 9rem;
+  }
+}
+
+@media (min-width: 1100px) {
+  .venc-imp-onboard-deptos {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1400px) {
+  .venc-imp-onboard-deptos {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
   }
 }

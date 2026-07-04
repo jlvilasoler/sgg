@@ -28,6 +28,12 @@ import StockGanaderaEditarPanel from "./StockGanaderaEditarModal";
 import StockGanaderaHistorialCambiosPanel from "./StockGanaderaHistorialCambiosPanel";
 import StockGanaderaFiltrosSidebar from "./StockGanaderaFiltrosSidebar";
 import { StockGanaderoModuleIcon } from "./StockControlSanitarioSectionTitle";
+import StockGanaderoHubNav from "./StockGanaderoHubNav";
+import type { StockGanaderoHubItem } from "./StockGanaderoHub";
+import {
+  StockGanaderoHubAsideSearchField,
+  useStockGanaderoAsideSearch,
+} from "./StockGanaderoHubAsideSearch";
 import type { CategoriaFiltroKey, EdadFiltroKey } from "./stock-ganadera-utils";
 import {
   CATEGORIA_FILTRO_HEMBRA,
@@ -152,6 +158,13 @@ interface Props {
   onSuccess?: (msg: string) => void;
   onVolver: () => void;
   refreshKey?: number;
+  hubNav?: {
+    items: StockGanaderoHubItem[];
+    activeId: string;
+    onNavigate: (id: string) => void;
+    onVolverDashboard: () => void;
+    onVolverInicio?: () => void;
+  };
 }
 
 export default function StockGanadera({
@@ -161,7 +174,18 @@ export default function StockGanadera({
   onSuccess,
   onVolver,
   refreshKey = 0,
+  hubNav,
 }: Props) {
+  const hubNavItems = hubNav?.items ?? [];
+  const {
+    busquedaModulos,
+    setBusquedaModulos,
+    busquedaInputRef,
+    consultaActiva,
+    itemsFiltrados,
+    mostrarDashboard,
+  } = useStockGanaderoAsideSearch(hubNavItems);
+
   const esAdmin = currentUser?.rol === "admin";
   const cacheScope = currentUser ? stockGanaderaCacheScope(currentUser) : "";
   const filtrosInicialesKey = filtrosCacheKey({});
@@ -864,6 +888,27 @@ export default function StockGanadera({
             </div>
           </div>
 
+          {hubNav ? (
+            <>
+              <StockGanaderoHubAsideSearchField
+                value={busquedaModulos}
+                onChange={setBusquedaModulos}
+                inputRef={busquedaInputRef}
+              />
+              <StockGanaderoHubNav
+                items={itemsFiltrados}
+                activeId={hubNav.activeId}
+                onNavigate={hubNav.onNavigate}
+                onVolverDashboard={hubNav.onVolverDashboard}
+                showDashboard={mostrarDashboard}
+                showSubtitles={consultaActiva}
+                navLabel={consultaActiva ? `Resultados (${itemsFiltrados.length})` : "Principal"}
+              />
+              {consultaActiva && !mostrarDashboard && itemsFiltrados.length === 0 ? (
+                <p className="sg-hub-aside-nav-empty">Ningún módulo coincide con la búsqueda.</p>
+              ) : null}
+            </>
+          ) : (
           <button
             type="button"
             className="sg-hub-nav-item sg-hub-nav-item--muted sg-hub-nav-item--back"
@@ -871,6 +916,7 @@ export default function StockGanadera({
           >
             ‹ Volver al dashboard
           </button>
+          )}
 
           {apiOnline ? (
             <StockGanaderaFiltrosSidebar
@@ -936,6 +982,18 @@ export default function StockGanadera({
           ) : (
             <p className="sg-hub-aside-offline">Conectá la API para filtrar dispositivos.</p>
           )}
+
+          {hubNav?.onVolverInicio ? (
+            <div className="sg-hub-aside-foot">
+              <button
+                type="button"
+                className="sg-hub-nav-item sg-hub-nav-item--muted"
+                onClick={hubNav.onVolverInicio}
+              >
+                ‹ Volver al inicio
+              </button>
+            </div>
+          ) : null}
         </aside>
 
         <main className="sg-hub-main sg-hub-main--devices">

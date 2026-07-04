@@ -17,6 +17,7 @@ import {
   planesDisponibles,
 } from "../utils/contribucion-rural-view";
 import { escudoDepartamentoSrc } from "../utils/escudos-departamentos";
+import { MenuAppIcon } from "./icons/MenuAppIcons";
 
 interface Props {
   store: ContribucionRuralCalendariosStore;
@@ -175,21 +176,21 @@ export default function VencimientosImpuestosOnboarding({
 
   return (
     <div
-      className="venc-imp-onboard"
+      className="venc-imp-onboard venc-imp-onboard-hub"
       role="dialog"
       aria-modal="true"
       aria-labelledby="venc-imp-onboard-title"
     >
-      <div className="venc-imp-onboard-shell">
-        <aside className="venc-imp-onboard-aside">
-          <div className="venc-imp-onboard-brand">
-            <span className="venc-imp-onboard-brand-icon" aria-hidden>
-              📅
+      <div className="venc-imp-onboard-shell sg-hub venc-imp-onboard-shell--hub">
+        <aside className="venc-imp-onboard-aside sg-hub-aside" aria-label="Pasos de configuración">
+          <div className="sg-hub-aside-brand">
+            <span className="sg-hub-aside-logo venc-imp-hub-aside-logo" aria-hidden>
+              <MenuAppIcon id="vencimientos_impuestos" />
             </span>
             <div>
-              <p className="venc-imp-onboard-brand-kicker">Vencimientos Impuestos</p>
-              <p className="venc-imp-onboard-brand-title">
-                {modoEdicion ? "Preferencias de la cuenta" : "Configuración de la cuenta"}
+              <p className="sg-hub-aside-kicker">SCG · Módulo</p>
+              <p className="sg-hub-aside-title">
+                {modoEdicion ? "Preferencias" : "Vencimientos"}
               </p>
             </div>
           </div>
@@ -235,85 +236,105 @@ export default function VencimientosImpuestosOnboarding({
               </span>
             </li>
           </ol>
+          {onDismiss && (
+            <div className="sg-hub-aside-foot">
+              <button
+                type="button"
+                className="sg-hub-nav-item sg-hub-nav-item--muted"
+                onClick={onDismiss}
+              >
+                Cancelar y volver
+              </button>
+            </div>
+          )}
         </aside>
 
-        <div className="venc-imp-onboard-card">
-          <header className="venc-imp-onboard-head">
-            <p className="venc-imp-onboard-kicker">
-              {modoEdicion
-                ? "Preferencias de la cuenta"
-                : `Configuración inicial de la cuenta · Paso ${paso} de ${TOTAL_PASOS}`}
-            </p>
-            <h2 id="venc-imp-onboard-title">
-              {modoEdicion
-                ? "Ajustá el calendario de vencimientos"
-                : "Definamos los vencimientos de la cuenta"}
-            </h2>
-            <p className="venc-imp-onboard-lead">
-              {modoEdicion
-                ? "Los cambios aplican a toda la cuenta y se reflejan en contribución rural, patente SUCIVE, BPS Caja rural e Impuesto Primaria (DGI)."
-                : "Estos parámetros son compartidos: todos los usuarios de la cuenta verán el mismo calendario. Podés modificarlos después desde Preferencias de la cuenta en este módulo."}
-            </p>
+        <div className="venc-imp-onboard-card sg-hub-main venc-imp-onboard-card--hub">
+          <header className="venc-imp-onboard-head sg-hub-main-head venc-imp-onboard-head--hub">
+            <div className="venc-imp-onboard-head-box">
+              <p className="venc-imp-onboard-kicker sg-hub-panel-kicker">
+                {modoEdicion
+                  ? "Preferencias de la cuenta"
+                  : `Configuración inicial de la cuenta · Paso ${paso} de ${TOTAL_PASOS}`}
+              </p>
+              <h2 id="venc-imp-onboard-title" className="sg-hub-main-title venc-imp-onboard-head-title">
+                {modoEdicion
+                  ? "Ajustá el calendario de vencimientos"
+                  : "Definamos los vencimientos de la cuenta"}
+              </h2>
+              <p className="venc-imp-onboard-lead sg-hub-main-sub">
+                {modoEdicion
+                  ? "Los cambios aplican a toda la cuenta y se reflejan en contribución rural, patente SUCIVE, BPS Caja rural e Impuesto Primaria (DGI)."
+                  : "Estos parámetros son compartidos: todos los usuarios de la cuenta verán el mismo calendario. Podés modificarlos después desde Preferencias de la cuenta en este módulo."}
+              </p>
+            </div>
           </header>
 
+          <div className="venc-imp-onboard-workspace sg-hub-panel">
           {paso === 1 && (
             <section className="venc-imp-onboard-panel" aria-labelledby="venc-imp-onboard-p1">
               <div className="venc-imp-onboard-panel-body">
-                <h3 id="venc-imp-onboard-p1">¿Dónde están sus establecimientos?</h3>
-                <p className="venc-imp-onboard-hint">
-                  Seleccioná los departamentos con predios rurales. Si solo le interesa la patente de
-                  vehículos, puede omitir este paso.
-                </p>
+                <div className="venc-imp-onboard-intro-box">
+                  <h3 id="venc-imp-onboard-p1">¿Dónde están sus establecimientos?</h3>
+                  <p className="venc-imp-onboard-hint">
+                    Seleccioná los departamentos con predios rurales. Si solo le interesa la patente de
+                    vehículos, puede omitir este paso.
+                  </p>
+                </div>
 
-                <label className="venc-imp-onboard-search">
-                  <span className="venc-imp-onboard-search-label">Buscar departamento</span>
-                  <input
-                    type="search"
-                    value={busqueda}
-                    placeholder="Ej.: Rivera, Salto, Canelones…"
-                    onChange={(e) => setBusqueda(e.target.value)}
-                    autoFocus
-                  />
-                </label>
+                <div className="venc-imp-onboard-search-box">
+                  <label className="venc-imp-onboard-search">
+                    <span className="venc-imp-onboard-search-label">Buscar departamento</span>
+                    <input
+                      type="search"
+                      value={busqueda}
+                      placeholder="Ej.: Rivera, Salto, Canelones…"
+                      onChange={(e) => setBusqueda(e.target.value)}
+                      autoFocus
+                    />
+                  </label>
+                </div>
 
-                <p className="venc-imp-onboard-deptos-meta">
-                  {seleccionados.length > 0
-                    ? `${seleccionados.length} seleccionado${seleccionados.length === 1 ? "" : "s"} · `
-                    : ""}
-                  {departamentos.length} disponible{departamentos.length === 1 ? "" : "s"}
-                </p>
+                <div className="venc-imp-onboard-deptos-box">
+                  <p className="venc-imp-onboard-deptos-meta">
+                    {seleccionados.length > 0
+                      ? `${seleccionados.length} seleccionado${seleccionados.length === 1 ? "" : "s"} · `
+                      : ""}
+                    {departamentos.length} disponible{departamentos.length === 1 ? "" : "s"}
+                  </p>
 
-                <div
-                  className="venc-imp-onboard-deptos"
-                  role="listbox"
-                  aria-label="Departamentos"
-                  aria-multiselectable="true"
-                >
-                  {departamentos.map((config) => {
-                    const activo = seleccionSet.has(config.id);
-                    return (
-                      <button
-                        key={config.id}
-                        type="button"
-                        role="option"
-                        aria-selected={activo}
-                        className={`venc-imp-onboard-depto${activo ? " venc-imp-onboard-depto--active" : ""}`}
-                        onClick={() => toggleDepartamento(config.id)}
-                      >
-                        <img
-                          className="venc-imp-onboard-depto-escudo"
-                          src={escudoDepartamentoSrc(config.id)}
-                          alt=""
-                          width={20}
-                          height={20}
-                          loading="lazy"
-                          decoding="async"
-                        />
-                        <span className="venc-imp-onboard-depto-name">{config.label}</span>
-                        {activo && <span className="venc-imp-onboard-depto-check" aria-hidden>✓</span>}
-                      </button>
-                    );
-                  })}
+                  <div
+                    className="venc-imp-onboard-deptos"
+                    role="listbox"
+                    aria-label="Departamentos"
+                    aria-multiselectable="true"
+                  >
+                    {departamentos.map((config) => {
+                      const activo = seleccionSet.has(config.id);
+                      return (
+                        <button
+                          key={config.id}
+                          type="button"
+                          role="option"
+                          aria-selected={activo}
+                          className={`venc-imp-onboard-depto${activo ? " venc-imp-onboard-depto--active" : ""}`}
+                          onClick={() => toggleDepartamento(config.id)}
+                        >
+                          <img
+                            className="venc-imp-onboard-depto-escudo"
+                            src={escudoDepartamentoSrc(config.id)}
+                            alt=""
+                            width={24}
+                            height={24}
+                            loading="lazy"
+                            decoding="async"
+                          />
+                          <span className="venc-imp-onboard-depto-name">{config.label}</span>
+                          {activo && <span className="venc-imp-onboard-depto-check" aria-hidden>✓</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
 
@@ -323,7 +344,7 @@ export default function VencimientosImpuestosOnboarding({
                 </button>
                 <button
                   type="button"
-                  className="venc-imp-onboard-btn venc-imp-onboard-btn--primary"
+                  className="venc-imp-onboard-btn venc-imp-onboard-btn--primary sg-hub-cta"
                   disabled={!puedeContinuarPaso1}
                   onClick={continuarDesdePaso1}
                 >
@@ -440,7 +461,7 @@ export default function VencimientosImpuestosOnboarding({
                 </button>
                 <button
                   type="button"
-                  className="venc-imp-onboard-btn venc-imp-onboard-btn--primary"
+                  className="venc-imp-onboard-btn venc-imp-onboard-btn--primary sg-hub-cta"
                   disabled={!puedeContinuarPaso2}
                   onClick={() => {
                     if (modalidadRural) setModalidadPatente(modalidadRural);
@@ -564,7 +585,7 @@ export default function VencimientosImpuestosOnboarding({
                 </button>
                 <button
                   type="button"
-                  className="venc-imp-onboard-btn venc-imp-onboard-btn--primary"
+                  className="venc-imp-onboard-btn venc-imp-onboard-btn--primary sg-hub-cta"
                   onClick={() => setPaso(4)}
                 >
                   Continuar
@@ -640,7 +661,7 @@ export default function VencimientosImpuestosOnboarding({
                 </button>
                 <button
                   type="button"
-                  className="venc-imp-onboard-btn venc-imp-onboard-btn--primary"
+                  className="venc-imp-onboard-btn venc-imp-onboard-btn--primary sg-hub-cta"
                   onClick={() => setPaso(5)}
                 >
                   Continuar
@@ -757,7 +778,7 @@ export default function VencimientosImpuestosOnboarding({
                 </button>
                 <button
                   type="button"
-                  className="venc-imp-onboard-btn venc-imp-onboard-btn--primary"
+                  className="venc-imp-onboard-btn venc-imp-onboard-btn--primary sg-hub-cta"
                   disabled={!puedeFinalizar || saving}
                   onClick={() => {
                     if (!puedeFinalizar) return;
@@ -783,6 +804,7 @@ export default function VencimientosImpuestosOnboarding({
               </footer>
             </section>
           )}
+          </div>
         </div>
       </div>
     </div>
