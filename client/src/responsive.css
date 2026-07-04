@@ -465,7 +465,7 @@ body {
 
 /* —— Login —— */
 @media (max-width: 640px) {
-  .auth-login-page {
+  .auth-login-page:not(.auth-login-page--split) {
     padding: max(1rem, env(safe-area-inset-top, 0)) 0.75rem
       max(1rem, env(safe-area-inset-bottom, 0));
     min-height: 100dvh;
