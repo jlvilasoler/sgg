@@ -106,3 +106,21 @@ export function setHomeActividadCache(
     /* quota / modo privado */
   }
 }
+
+export function clearHomeNotasCache(): void {
+  notasMemory.clear();
+  try {
+    sessionStorage.removeItem(NOTAS_STORAGE_KEY);
+  } catch {
+    /* noop */
+  }
+}
+
+export function clearHomeActividadCache(): void {
+  actividadMemory.clear();
+  try {
+    sessionStorage.removeItem(ACTIVIDAD_STORAGE_KEY);
+  } catch {
+    /* noop */
+  }
+}

@@ -174,7 +174,7 @@ export default function ArquitecturaSistema({
     setSavingEmpresa(true);
     try {
       const opNombre = operativaForm.nombre.trim();
-      const { cuenta: created, admin_password_temporal } = await crearEmpresaCuenta({
+      const { cuenta: created, admin_invite_sent } = await crearEmpresaCuenta({
         nombre: nombreCompleto,
         activo: true,
         admin_email: adminEmail,
@@ -188,9 +188,9 @@ export default function ArquitecturaSistema({
       setEmpresaForm(emptyEmpresaForm());
       closeNuevaEmpresa();
       onSuccess(
-        admin_password_temporal
-          ? `Cuenta ${created.nombre} creada con empresa ${opNombre}. Admin ${adminEmail} — contraseña inicial: ${admin_password_temporal}`
-          : `Cuenta ${created.nombre} creada con empresa ${opNombre} · administrador ${adminEmail}`
+        admin_invite_sent
+          ? `Cuenta ${created.nombre} creada. Se envió al admin ${adminEmail} un enlace para establecer su contraseña.`
+          : `Cuenta ${created.nombre} creada con empresa ${opNombre} · administrador ${adminEmail}. Configurá email (Resend/SMTP) para enviar la invitación automáticamente.`
       );
     } catch (err) {
       onError(err instanceof Error ? err.message : "Error al crear cuenta");

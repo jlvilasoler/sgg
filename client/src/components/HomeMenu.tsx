@@ -14,7 +14,7 @@ import { normalizarBusquedaModulo } from "./hub/sg-hub-search";
 import { SgHubKpi, SgMiniBars } from "./stock/SgHubUi";
 import { prefetchVencimientosImpuestos } from "../utils/vencimientos-impuestos-cache";
 import { useVencImpProximosBadge } from "../hooks/useVencImpProximosBadge";
-import { buildExpectedHomeInsights, useHomeDashboard } from "../hooks/useHomeDashboard";
+import { buildExpectedHomeInsights, useHomeDashboard, type HomeInsight } from "../hooks/useHomeDashboard";
 import {
   formatFechaRelativa,
   saludoPorHora,
@@ -25,6 +25,8 @@ import HomeNotasBoard from "./home/HomeNotasBoard";
 import HomeNotaModal from "./home/HomeNotaModal";
 
 export type ScreenId = "home" | TabId;
+
+const GASTOS_KPI_IDS = new Set(["gastos-mes", "gastos-anio"]);
 
 export interface MenuApp {
   id: TabId;
@@ -149,6 +151,7 @@ export default function HomeMenu({ user, apiOnline, onOpen }: Props) {
 
   const {
     loadingInsights,
+    insightsReady,
     loadingNotas,
     loadingVenc,
     loadingActividad,
@@ -179,12 +182,29 @@ export default function HomeMenu({ user, apiOnline, onOpen }: Props) {
     user.cuenta_actividad_nombre?.trim() || user.empresa_nombre?.trim() || "tu cuenta";
 
   const kpis = insights;
+  const showKpiSkeleton = loadingInsights && !insightsReady;
 
-  const expectedKpiSlots = useMemo(() => buildExpectedHomeInsights(user).length, [user]);
+  const kpisTop = useMemo(
+    () => kpis.filter((item) => !GASTOS_KPI_IDS.has(item.id)),
+    [kpis]
+  );
+  const kpisGastos = useMemo(
+    () => kpis.filter((item) => GASTOS_KPI_IDS.has(item.id)),
+    [kpis]
+  );
 
-  const kpiStripCols = expectedKpiSlots;
+  const expectedTopKpiSlots = useMemo(
+    () => buildExpectedHomeInsights(user).filter((item) => !GASTOS_KPI_IDS.has(item.id)).length,
+    [user]
+  );
+  const expectedGastosKpiSlots = useMemo(
+    () => buildExpectedHomeInsights(user).filter((item) => GASTOS_KPI_IDS.has(item.id)).length,
+    [user]
+  );
 
-  const kpiVariant = (item: (typeof insights)[number], index: number): "dark" | "light" => {
+  const kpiStripCols = expectedTopKpiSlots;
+
+  const kpiVariant = (item: HomeInsight, index: number): "dark" | "light" => {
     if (item.id === "stock-ganado-activo" || item.id === "ganado-por-vender") {
       return index <= 1 ? "dark" : "light";
     }
@@ -192,7 +212,7 @@ export default function HomeMenu({ user, apiOnline, onOpen }: Props) {
     return "light";
   };
 
-  const kpiTrend = (item: (typeof insights)[number]): string | undefined => {
+  const kpiTrend = (item: HomeInsight): string | undefined => {
     if (item.id === "stock-ganado-activo") return "En stock";
     if (item.id === "ganado-por-vender") return "Pendiente de venta";
     if (item.id === "arrendamientos-por-recibir") return "Por cobrar";
@@ -201,6 +221,30 @@ export default function HomeMenu({ user, apiOnline, onOpen }: Props) {
     if (item.id === "gastos-anio") return "Ejercicio en curso";
     return undefined;
   };
+
+  const renderKpiCards = (items: HomeInsight[], indexOffset = 0) =>
+    items.map((item, index) => (
+      <button
+        key={item.id}
+        type="button"
+        className="home-hub-kpi-btn"
+        onClick={() => onOpen(item.tab)}
+        aria-label={`${item.label}: ${item.value}. ${item.hint}`}
+      >
+        <SgHubKpi
+          variant={kpiVariant(item, indexOffset + index)}
+          kicker={item.label}
+          value={item.value}
+          hint={item.hint}
+          trend={kpiTrend(item)}
+          bars={
+            <SgMiniBars
+              highlight={indexOffset + index === kpis.length - 1 ? "last" : "mid"}
+            />
+          }
+        />
+      </button>
+    ));
 
   return (
     <div className="sg-module-page home-module-page">
@@ -282,10 +326,10 @@ export default function HomeMenu({ user, apiOnline, onOpen }: Props) {
             </div>
           </header>
 
-          {expectedKpiSlots > 0 ? (
+          {expectedTopKpiSlots > 0 ? (
             <section
-              className="sg-hub-kpi-strip home-hub-kpi-strip"
-              aria-label="Indicadores"
+              className="sg-hub-kpi-strip home-hub-kpi-strip home-hub-kpi-strip--primary"
+              aria-label="Indicadores operativos"
               aria-busy={loadingInsights}
               style={
                 {
@@ -293,25 +337,38 @@ export default function HomeMenu({ user, apiOnline, onOpen }: Props) {
                 } as CSSProperties
               }
             >
-              {kpis.map((item, index) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  className="home-hub-kpi-btn"
-                  onClick={() => onOpen(item.tab)}
-                  aria-label={`${item.label}: ${item.value}. ${item.hint}`}
-                >
-                  <SgHubKpi
-                    variant={kpiVariant(item, index)}
-                    kicker={item.label}
-                    value={item.value}
-                    hint={item.hint}
-                    trend={kpiTrend(item)}
-                    bars={<SgMiniBars highlight={index === kpis.length - 1 ? "last" : "mid"} />}
-                  />
-                </button>
-              ))}
+              {showKpiSkeleton
+                ? Array.from({ length: expectedTopKpiSlots }, (_, index) => (
+                    <div key={`kpi-skeleton-${index}`} className="home-hub-kpi-skeleton" aria-hidden />
+                  ))
+                : renderKpiCards(kpisTop)}
             </section>
+          ) : null}
+
+          {expectedGastosKpiSlots > 0 ? (
+            <div className="home-hub-gastos-kpi-row">
+              <section
+                className="sg-hub-kpi-strip home-hub-kpi-strip home-hub-kpi-strip--gastos"
+                aria-label="Gastos"
+                aria-busy={loadingInsights}
+                style={
+                  {
+                    "--home-hub-kpi-cols": String(expectedGastosKpiSlots),
+                  } as CSSProperties
+                }
+              >
+                {showKpiSkeleton
+                  ? Array.from({ length: expectedGastosKpiSlots }, (_, index) => (
+                      <div
+                        key={`kpi-gastos-skeleton-${index}`}
+                        className="home-hub-kpi-skeleton"
+                        aria-hidden
+                      />
+                    ))
+                  : renderKpiCards(kpisGastos, kpisTop.length)}
+              </section>
+              <div className="home-hub-gastos-kpi-row__side" aria-hidden />
+            </div>
           ) : null}
 
           <div className="sg-hub-panels home-hub-panels">

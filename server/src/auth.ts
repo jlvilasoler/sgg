@@ -24,7 +24,9 @@ import { listOnlineUsers, listRecentlyOfflineUsers, listStaleOfflineUsers, markU
 import {
   artificialLoginDelay,
   clientIp,
+  clientSafeErrorDetail,
   getAllowedClientOrigins,
+  hitPasswordChangeRateLimit,
   isValidSessionTokenFormat,
   loginRateLimiter,
   PASSWORD_POLICY_HINT,
@@ -58,6 +60,26 @@ const avatarUpload = multer({
 });
 
 const IS_PROD = process.env.NODE_ENV === "production";
+
+async function canViewUserProfilePhoto(
+  viewer: UserPublic,
+  targetUserId: number
+): Promise<boolean> {
+  if (viewer.id === targetUserId) return true;
+  if (viewer.es_super_admin) return true;
+
+  const db = getDb();
+  const target = await authDb.getUserById(db, targetUserId);
+  if (!target?.activo) return false;
+
+  const viewerCuenta = await empresasCuenta.resolveCuentaMadreIdForUser(db, viewer);
+  const targetCuenta = await empresasCuenta.resolveCuentaMadreIdForUser(db, target);
+  return (
+    viewerCuenta != null &&
+    targetCuenta != null &&
+    viewerCuenta === targetCuenta
+  );
+}
 
 const PUBLIC_PATHS = new Set(["/api/health", "/api/auth/login"]);
 
@@ -457,14 +479,14 @@ export function registerAuthRoutes(app: Express): void {
           ok: false,
           error: "Base de datos saturada",
           hint: dbCapacityHint(),
-          detail: e instanceof Error ? e.message : String(e),
+          ...(clientSafeErrorDetail(e) ? { detail: clientSafeErrorDetail(e) } : {}),
         });
         return;
       }
       res.status(500).json({
         ok: false,
         error: "Error al iniciar sesión",
-        detail: e instanceof Error ? e.message : String(e),
+        ...(clientSafeErrorDetail(e) ? { detail: clientSafeErrorDetail(e) } : {}),
       });
     }
   });
@@ -627,6 +649,16 @@ export function registerAuthRoutes(app: Express): void {
     }
 
     try {
+      const rate = hitPasswordChangeRateLimit(user.id);
+      if (rate.blocked) {
+        res.setHeader("Retry-After", String(rate.retryAfterSec));
+        res.status(429).json({
+          ok: false,
+          error: "Demasiados intentos. Esperá unos minutos e intentá de nuevo.",
+        });
+        return;
+      }
+
       const actual = String(req.body?.password_actual ?? "").slice(0, 128);
       const nueva = String(req.body?.password_nueva ?? "").slice(0, 128);
       await authDb.changeOwnPassword(getDb(), user.id, actual, nueva);
@@ -661,6 +693,10 @@ export function registerAuthRoutes(app: Express): void {
     const target = await authDb.getUserById(getDb(), userId);
     if (!target?.activo) {
       res.status(404).json({ ok: false, error: "Usuario no encontrado" });
+      return;
+    }
+    if (!(await canViewUserProfilePhoto(user, userId))) {
+      res.status(403).json({ ok: false, error: "No autorizado" });
       return;
     }
     const image = await loadUserAvatarImage(getDb(), userId);
@@ -1270,13 +1306,13 @@ export function registerAuthRoutes(app: Express): void {
       }
 
       const db = getDb();
-      const tempPassword = authDb.generateInitialPassword();
 
-      const empresa = await db.transaction(async (tx) => {
+      const { empresa, adminUser } = await db.transaction(async (tx) => {
         const created = await empresasCuenta.insertEmpresaCuenta(tx, {
           nombre,
           activo,
         });
+        const tempPassword = authDb.generateInitialPassword();
         const adminUser = await authDb.insertUser(tx, {
           email: adminEmail,
           nombre: created.nombre,
@@ -1294,8 +1330,29 @@ export function registerAuthRoutes(app: Express): void {
           nombre: opNombre,
           activo: true,
         });
-        return (await empresasCuenta.getEmpresaCuentaById(tx, withAdmin.id))!;
+        return {
+          empresa: (await empresasCuenta.getEmpresaCuentaById(tx, withAdmin.id))!,
+          adminUser,
+        };
       });
+
+      let adminInviteSent = false;
+      if (adminUser) {
+        try {
+          const rawToken = await authDb.createPasswordResetToken(db, adminUser.id, {
+            ip: clientIp(req),
+          });
+          const resetUrl = buildPasswordResetUrl(rawToken);
+          await sendPasswordResetEmail({
+            to: adminEmail,
+            nombre: adminUser.nombre,
+            resetUrl,
+          });
+          adminInviteSent = true;
+        } catch (mailErr) {
+          console.error("[SGG Auth] No se pudo enviar invitación al admin de cuenta:", mailErr);
+        }
+      }
 
       await authDb.recordAuthEvent(getDb(), "empresa_cuenta_created", {
         email: req.user!.email,
@@ -1309,7 +1366,7 @@ export function registerAuthRoutes(app: Express): void {
       res.status(201).json({
         ok: true,
         data: empresa,
-        admin_password_temporal: tempPassword,
+        admin_invite_sent: adminInviteSent,
       });
     } catch (e) {
       res.status(400).json({

@@ -44,15 +44,9 @@ export default function LoginScreen({ apiOnline, onLogin, onError, onForgotPassw
       }
       footer={
         import.meta.env.DEV ? (
-          <>
-            <p>
-              Acceso administrador: <strong>jlvilasoler@gmail.com</strong> /{" "}
-              <strong>Admin123</strong>
-            </p>
-            <p className="auth-login-foot-hint">
-              Solo visible en desarrollo. Cambiá la contraseña en producción.
-            </p>
-          </>
+          <p className="auth-login-foot-hint">
+            Desarrollo local: configurá SCG_ADMIN_EMAIL y SCG_ADMIN_PASSWORD en server/.env
+          </p>
         ) : (
           <p className="auth-login-foot-hint">
             Acceso restringido. Contactá al administrador del sistema.

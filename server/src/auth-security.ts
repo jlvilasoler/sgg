@@ -307,6 +307,38 @@ export function loginRateLimiter(
   next();
 }
 
+const passwordChangeBuckets = new Map<string, RateBucket>();
+const PASSWORD_CHANGE_WINDOW_MS = 15 * 60 * 1000;
+const PASSWORD_CHANGE_MAX = 5;
+
+export function hitPasswordChangeRateLimit(
+  userId: number
+): { blocked: boolean; retryAfterSec: number } {
+  return hitRateLimit(
+    passwordChangeBuckets,
+    `pwd:${userId}`,
+    PASSWORD_CHANGE_WINDOW_MS,
+    PASSWORD_CHANGE_MAX
+  );
+}
+
+/** Detalle de error solo en desarrollo; en producción respuesta genérica. */
+export function clientSafeErrorDetail(
+  err: unknown,
+  fallback = "Error interno del servidor"
+): string | undefined {
+  if (IS_PROD || process.env.VERCEL === "1") return undefined;
+  return err instanceof Error ? err.message : String(err);
+}
+
+export function clientSafeErrorMessage(
+  err: unknown,
+  fallback = "Error interno del servidor"
+): string {
+  if (IS_PROD || process.env.VERCEL === "1") return fallback;
+  return err instanceof Error ? err.message : fallback;
+}
+
 export async function artificialLoginDelay(): Promise<void> {
   const ms = 350 + Math.floor(Math.random() * 250);
   await new Promise((resolve) => setTimeout(resolve, ms));

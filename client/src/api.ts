@@ -3665,14 +3665,14 @@ export async function crearEmpresaCuenta(
 ): Promise<EmpresaCuentaCreateResult> {
   const json = await request<{
     data: EmpresaCuenta;
-    admin_password_temporal?: string;
+    admin_invite_sent?: boolean;
   }>("/empresas-cuenta", {
     method: "POST",
     body: JSON.stringify(data),
   });
   return {
     cuenta: json.data,
-    admin_password_temporal: json.admin_password_temporal,
+    admin_invite_sent: json.admin_invite_sent,
   };
 }
 

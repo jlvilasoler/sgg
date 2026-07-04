@@ -122,6 +122,19 @@ export function getRecentHomeModules(userId: number): TabId[] {
   }
 }
 
+export function clearHomeRecentModulesCache(): void {
+  try {
+    const keys: string[] = [];
+    for (let i = 0; i < localStorage.length; i += 1) {
+      const key = localStorage.key(i);
+      if (key?.startsWith(`${RECENT_STORAGE_KEY}:`)) keys.push(key);
+    }
+    keys.forEach((key) => localStorage.removeItem(key));
+  } catch {
+    /* noop */
+  }
+}
+
 export function screenFromActividadDetalle(detalle: string | null): TabId | null {
   if (!detalle?.trim()) return null;
   const legacy = detalle.match(/^Accedió a:\s*(.+)$/i);

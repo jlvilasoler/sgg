@@ -9,6 +9,7 @@ import {
   CONTRIBUCION_RURAL_JURISDICCION_ORDER,
   shiftJurisdiccionDatesToYear,
 } from "../types/contribucion-rural";
+import { safeExternalHref, safeExternalHostname } from "../utils/safe-url";
 
 interface Props {
   store: ContribucionRuralCalendariosStore;
@@ -43,17 +44,11 @@ function updateCuotaFecha(
 }
 
 function FuenteLink({ url }: { url: string }) {
-  const trimmed = url.trim();
-  if (!trimmed) return null;
-  let label = trimmed;
-  try {
-    label = new URL(trimmed).hostname.replace(/^www\./, "");
-  } catch {
-    /* usar url cruda */
-  }
+  const href = safeExternalHref(url);
+  if (!href) return null;
   return (
-    <a href={trimmed} target="_blank" rel="noopener noreferrer" className="venc-imp-form-link">
-      Abrir {label}
+    <a href={href} target="_blank" rel="noopener noreferrer" className="venc-imp-form-link">
+      Abrir {safeExternalHostname(url)}
     </a>
   );
 }

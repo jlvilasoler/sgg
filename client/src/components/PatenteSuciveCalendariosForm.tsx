@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import type { CuotaPatenteSucive, PatenteSuciveCalendariosStore } from "../types/patente-sucive";
 import { shiftPatenteCalendarioToYear } from "../types/patente-sucive";
+import { safeExternalHref } from "../utils/safe-url";
 
 interface Props {
   store: PatenteSuciveCalendariosStore;
@@ -21,10 +22,10 @@ function updateCuotaFecha(
 }
 
 function FuenteLink({ url, label }: { url: string; label: string }) {
-  const trimmed = url.trim();
-  if (!trimmed) return null;
+  const href = safeExternalHref(url);
+  if (!href) return null;
   return (
-    <a href={trimmed} target="_blank" rel="noopener noreferrer" className="venc-imp-form-link">
+    <a href={href} target="_blank" rel="noopener noreferrer" className="venc-imp-form-link">
       {label}
     </a>
   );

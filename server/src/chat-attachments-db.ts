@@ -30,7 +30,6 @@ const FILE_MIMES = new Set([
   "application/x-zip-compressed",
   "application/x-rar-compressed",
   "application/vnd.rar",
-  "application/octet-stream",
 ]);
 
 const MIME_EXT: Record<string, string> = {

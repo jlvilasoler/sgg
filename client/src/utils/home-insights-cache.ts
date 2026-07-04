@@ -10,6 +10,7 @@ export type HomeInsightCacheItem = {
 };
 
 const STORAGE_KEY = "scg-home-insights-cache-v2";
+const CACHE_TTL_MS = 5 * 60 * 1000;
 
 type CachedPayload = {
   key: string;
@@ -44,6 +45,7 @@ export function getHomeInsightsCache(userId: number): HomeInsightCacheItem[] {
 
   const stored = readStorage();
   if (!stored || stored.key !== key) return [];
+  if (Date.now() - stored.savedAt > CACHE_TTL_MS) return [];
 
   memory.set(key, stored.items);
   return stored.items;
@@ -62,5 +64,14 @@ export function setHomeInsightsCache(userId: number, items: HomeInsightCacheItem
     sessionStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
   } catch {
     /* quota / modo privado */
+  }
+}
+
+export function clearHomeInsightsCache(): void {
+  memory.clear();
+  try {
+    sessionStorage.removeItem(STORAGE_KEY);
+  } catch {
+    /* noop */
   }
 }

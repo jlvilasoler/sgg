@@ -18,6 +18,7 @@ import {
   registerAuthRoutes,
   securityHeaders,
 } from "./auth.js";
+import { clientSafeErrorDetail, clientSafeErrorMessage } from "./auth-security.js";
 import { registerChatRoutes } from "./chat.js";
 import { PARES_DIVISA, type ParDivisa } from "./divisas-db.js";
 import { parseDivisasBuffer, parseDivisasText } from "./parse-divisas-file.js";
@@ -239,7 +240,9 @@ app.get("/api/health", async (_req, res) => {
       database: "postgres",
       ready: false,
       error: "Base de datos no disponible",
-      detail: lastDbInitError,
+      ...(clientSafeErrorDetail(lastDbInitError)
+        ? { detail: clientSafeErrorDetail(lastDbInitError) }
+        : {}),
     });
     return;
   }
@@ -265,7 +268,9 @@ app.post("/api/health/retry-init", async (_req, res) => {
     ok: true,
     ready: false,
     error: "Base de datos no disponible",
-    detail: lastDbInitError,
+    ...(clientSafeErrorDetail(lastDbInitError)
+      ? { detail: clientSafeErrorDetail(lastDbInitError) }
+      : {}),
   });
 });
 
@@ -6756,13 +6761,13 @@ app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
       ok: false,
       error: "Base de datos saturada",
       hint: dbCapacityHint(),
-      detail: err instanceof Error ? err.message : String(err),
+      ...(clientSafeErrorDetail(err) ? { detail: clientSafeErrorDetail(err) } : {}),
     });
     return;
   }
   res.status(500).json({
     ok: false,
-    error: err instanceof Error ? err.message : "Error interno del servidor",
+    error: clientSafeErrorMessage(err),
   });
 });
 

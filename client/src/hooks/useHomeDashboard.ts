@@ -50,7 +50,7 @@ export interface HomeInsight {
 }
 
 const FETCH_TIMEOUT_MS = 18_000;
-const INSIGHTS_TIMEOUT_MS = 10_000;
+const INSIGHTS_TIMEOUT_MS = 30_000;
 const PANEL_TIMEOUT_MS = 10_000;
 const HOME_NOTAS_PREVIEW_LIMIT = 8;
 const HOME_ACTIVIDAD_MODO = "cuenta" as const;
@@ -91,13 +91,15 @@ function ejercicioActualRango(): { desde: string; hasta: string; ejercicioLabel:
 }
 
 function totalGastosUsdResumen(resumen: {
-  por_empresa: { total_saldo_usd: number }[];
-  por_rubro: { total_saldo_usd: number }[];
+  por_empresa?: { total_saldo_usd: number }[];
+  por_rubro?: { total_saldo_usd: number }[];
 }): number {
-  if (resumen.por_empresa.length > 0) {
-    return resumen.por_empresa.reduce((s, e) => s + (Number(e.total_saldo_usd) || 0), 0);
+  const porEmpresa = resumen.por_empresa ?? [];
+  const porRubro = resumen.por_rubro ?? [];
+  if (porEmpresa.length > 0) {
+    return porEmpresa.reduce((s, e) => s + (Number(e.total_saldo_usd) || 0), 0);
   }
-  return resumen.por_rubro.reduce((s, r) => s + (Number(r.total_saldo_usd) || 0), 0);
+  return porRubro.reduce((s, r) => s + (Number(r.total_saldo_usd) || 0), 0);
 }
 
 function formatEntero(n: number): string {
@@ -250,6 +252,17 @@ export function useHomeDashboard(user: AuthUser, apiOnline: boolean) {
   );
   const [loadingInsights, setLoadingInsights] = useState(
     () => apiOnline && getHomeInsightsCache(userId).length === 0
+  );
+  const [insightsReady, setInsightsReady] = useState(false);
+
+  const permissionsKey = useMemo(
+    () =>
+      [
+        user.rol,
+        [...(user.permisos ?? [])].sort().join(","),
+        user.es_super_admin ? "1" : "0",
+      ].join("|"),
+    [user.rol, user.permisos, user.es_super_admin]
   );
 
   useEffect(() => {
@@ -405,87 +418,103 @@ export function useHomeDashboard(user: AuthUser, apiOnline: boolean) {
     const cached = getHomeInsightsCache(userId);
     if (cached.length > 0) {
       setExtraInsights(cached);
-      setLoadingInsights(false);
     }
 
-    const jobs: Promise<void>[] = [];
+    const jobs: Promise<HomeInsight | HomeInsight[] | null>[] = [];
 
-    const mergeInsight = (insight: HomeInsight) => {
-      if (cancelled) return;
-      setExtraInsights((prev) => {
-        const next = ordenarInsightsHome([...prev.filter((i) => i.id !== insight.id), insight]);
-        setHomeInsightsCache(userId, next);
-        return next;
-      });
-      setLoadingInsights(false);
-    };
+    const runJob = (
+      id: string,
+      promise: Promise<HomeInsight>
+    ): Promise<HomeInsight | null> =>
+      withTimeout(promise, INSIGHTS_TIMEOUT_MS)
+        .then((insight) => insight)
+        .catch((err) => {
+          if (import.meta.env.DEV) {
+            console.warn(`[home-insights] ${id}:`, err);
+          }
+          return null;
+        });
+
+    const runJobs = (
+      id: string,
+      promise: Promise<HomeInsight[]>
+    ): Promise<HomeInsight[] | null> =>
+      withTimeout(promise, INSIGHTS_TIMEOUT_MS)
+        .then((insights) => insights)
+        .catch((err) => {
+          if (import.meta.env.DEV) {
+            console.warn(`[home-insights] ${id}:`, err);
+          }
+          return null;
+        });
 
     if (canAccessScreen(user, "registro") || canAccessScreen(user, "listado")) {
       const { desde, hasta } = mesActualRango();
-      const { desde: desdeEjercicio, hasta: hastaEjercicio, ejercicioLabel } = ejercicioActualRango();
+      const { desde: desdeEjercicio, hasta: hastaEjercicio, ejercicioLabel } =
+        ejercicioActualRango();
       jobs.push(
-        withTimeout(
+        runJobs(
+          "gastos",
           Promise.all([
             fetchResumen({ fecha_desde: desde, fecha_hasta: hasta }),
             fetchResumen({ fecha_desde: desdeEjercicio, fecha_hasta: hastaEjercicio }),
-          ]),
-          INSIGHTS_TIMEOUT_MS
-        )
-          .then(([resumenMes, resumenAnio]) => {
+          ]).then(([resumenMes, resumenAnio]) => {
             const totalMes = totalGastosUsdResumen(resumenMes);
             const totalAnio = totalGastosUsdResumen(resumenAnio);
-            mergeInsight({
-              id: "gastos-mes",
-              tab: "listado",
-              label: "Gastos del mes",
-              value: formatUsd(totalMes),
-              hint: "Monto incluye UYU y BRL",
-              tone: "default",
-            });
-            mergeInsight({
-              id: "gastos-anio",
-              tab: "listado",
-              label: "Gastos del año",
-              value: formatUsd(totalAnio),
-              hint: `${ejercicioLabel} · UYU y BRL en USD`,
-              tone: "default",
-            });
+            return [
+              {
+                id: "gastos-mes",
+                tab: "listado" as TabId,
+                label: "Gastos del mes",
+                value: formatUsd(totalMes),
+                hint: "Monto incluye UYU y BRL",
+                tone: "default" as const,
+              },
+              {
+                id: "gastos-anio",
+                tab: "listado" as TabId,
+                label: "Gastos del año",
+                value: formatUsd(totalAnio),
+                hint: `${ejercicioLabel} · UYU y BRL en USD`,
+                tone: "default" as const,
+              },
+            ];
           })
-          .catch(() => undefined)
+        )
       );
     }
 
     if (canAccessScreen(user, "stock_ganadero")) {
       jobs.push(
-        withTimeout(fetchStockGanaderoResumen(), INSIGHTS_TIMEOUT_MS)
-          .then((resumen) => {
-            mergeInsight({
-              id: "stock-ganado-activo",
-              tab: "stock_ganadero",
-              label: "Ganado activo",
-              value: formatEntero(resumen.dispositivos),
-              hint:
-                resumen.lotes > 0
-                  ? `${formatEntero(resumen.lotes)} lote(s) · dispositivos vivos`
-                  : "Dispositivos activos en stock",
-              tone: "ok",
-            });
-          })
-          .catch(() => undefined)
+        runJob(
+          "stock-ganado-activo",
+          fetchStockGanaderoResumen().then((resumen) => ({
+            id: "stock-ganado-activo",
+            tab: "stock_ganadero",
+            label: "Ganado activo",
+            value: formatEntero(resumen.dispositivos),
+            hint:
+              resumen.lotes > 0
+                ? `${formatEntero(resumen.lotes)} lote(s) · dispositivos vivos`
+                : "Dispositivos activos en stock",
+            tone: "ok" as const,
+          }))
+        )
       );
     }
 
     if (canAccessSimuladorVentaGanado(user)) {
       jobs.push(
-        withTimeout(fetchSimulacionesVentaGanado({ limit: 300 }), INSIGHTS_TIMEOUT_MS)
-          .then((rows) => {
+        runJob(
+          "ganado-por-vender",
+          fetchSimulacionesVentaGanado({ limit: 120 }).then((rows) => {
             const pendientes = rows.filter((r) => !r.venta_realizada);
             const animales = pendientes.reduce(
               (s, r) => s + (r.dispositivos_count || r.cantidad_animales || 0),
               0
             );
             const usd = pendientes.reduce((s, r) => s + (r.total_usd || 0), 0);
-            mergeInsight({
+            return {
               id: "ganado-por-vender",
               tab: "simulador_venta_ganado",
               label: "Ganado por vender",
@@ -494,20 +523,21 @@ export function useHomeDashboard(user: AuthUser, apiOnline: boolean) {
                 pendientes.length > 0
                   ? `${pendientes.length} operación(es) · ${formatUsd(usd)} estimado`
                   : "Sin operaciones pendientes",
-              tone: "accent",
-            });
+              tone: "accent" as const,
+            };
           })
-          .catch(() => undefined)
+        )
       );
     }
 
     if (canAccessIngresosVentasModulo(user)) {
       jobs.push(
-        withTimeout(fetchVentasArrendamientos(), INSIGHTS_TIMEOUT_MS)
-          .then((rows) => {
+        runJob(
+          "arrendamientos-por-recibir",
+          fetchVentasArrendamientos().then((rows) => {
             const pendientes = rows.filter((r) => !r.venta_realizada);
             const usd = pendientes.reduce((s, r) => s + (r.total_usd || 0), 0);
-            mergeInsight({
+            return {
               id: "arrendamientos-por-recibir",
               tab: "ingresos_ventas",
               label: "Arrendamientos",
@@ -516,18 +546,16 @@ export function useHomeDashboard(user: AuthUser, apiOnline: boolean) {
                 pendientes.length > 0
                   ? `${pendientes.length} contrato(s) por recibir`
                   : "Sin cobros pendientes",
-              tone: "ok",
-            });
+              tone: "ok" as const,
+            };
           })
-          .catch(() => undefined)
-      );
-
-      jobs.push(
-        withTimeout(fetchVentasAgricultura(), INSIGHTS_TIMEOUT_MS)
-          .then((rows) => {
+        ),
+        runJob(
+          "agricultura-por-recibir",
+          fetchVentasAgricultura().then((rows) => {
             const pendientes = rows.filter((r) => !r.venta_realizada);
             const usd = pendientes.reduce((s, r) => s + (r.importe_usd || 0), 0);
-            mergeInsight({
+            return {
               id: "agricultura-por-recibir",
               tab: "ingresos_ventas",
               label: "Agricultura",
@@ -536,32 +564,45 @@ export function useHomeDashboard(user: AuthUser, apiOnline: boolean) {
                 pendientes.length > 0
                   ? `${pendientes.length} venta(s) por recibir`
                   : "Sin ventas pendientes",
-              tone: "ok",
-            });
+              tone: "ok" as const,
+            };
           })
-          .catch(() => undefined)
+        )
       );
     }
 
     if (jobs.length === 0) {
       setLoadingInsights(false);
-      return () => {
-        cancelled = true;
-      };
+      setInsightsReady(true);
+      return;
     }
 
-    if (cached.length === 0) {
-      setLoadingInsights(true);
-    }
+    setLoadingInsights(true);
+    setInsightsReady(false);
 
-    void Promise.allSettled(jobs).then(() => {
-      if (!cancelled) setLoadingInsights(false);
+    void Promise.all(jobs).then((results) => {
+      if (cancelled) return;
+      const loaded = results.flatMap((item) => {
+        if (item == null) return [];
+        return Array.isArray(item) ? item : [item];
+      });
+      if (loaded.length > 0) {
+        setExtraInsights((prev) => {
+          const byId = new Map(prev.map((item) => [item.id, item]));
+          for (const item of loaded) byId.set(item.id, item);
+          const next = ordenarInsightsHome([...byId.values()]);
+          setHomeInsightsCache(userId, next);
+          return next;
+        });
+      }
+      setLoadingInsights(false);
+      setInsightsReady(true);
     });
 
     return () => {
       cancelled = true;
     };
-  }, [apiOnline, user, userId]);
+  }, [apiOnline, userId, permissionsKey]);
 
   const insights = useMemo(
     () => mergeInsightsWithExpected(user, extraInsights),
@@ -600,6 +641,7 @@ export function useHomeDashboard(user: AuthUser, apiOnline: boolean) {
 
   return {
     loadingInsights,
+    insightsReady,
     loadingNotas,
     loadingVenc,
     loadingActividad,

@@ -421,6 +421,26 @@ body {
   gap: 0.55rem;
 }
 
+.home-hub-gastos-kpi-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.65fr) minmax(11rem, 1fr);
+  gap: 0.75rem;
+  align-items: stretch;
+  margin-top: -0.15rem;
+}
+
+.home-hub-gastos-kpi-row__side {
+  min-width: 0;
+}
+
+.home-hub-kpi-strip--gastos.sg-hub-kpi-strip {
+  grid-template-columns: repeat(var(--home-hub-kpi-cols, 2), minmax(0, 1fr));
+}
+
+.home-hub-kpi-strip--primary.sg-hub-kpi-strip {
+  margin-bottom: 0.15rem;
+}
+
 .bn-ui .home-module-page .home-hub-kpi-strip.sg-hub-kpi-strip {
   grid-template-columns: repeat(var(--home-hub-kpi-cols, 4), minmax(0, 1fr));
 }
@@ -804,7 +824,7 @@ body {
 .home-hub-notes-board {
   position: relative;
   margin-top: 0.2rem;
-  min-height: 11.5rem;
+  min-height: 13rem;
   padding: 0.55rem 0.35rem 0.35rem;
   border-radius: 0.85rem;
   background:
@@ -839,8 +859,8 @@ body {
 .home-hub-notes-board-add {
   position: absolute;
   right: 0.5rem;
-  bottom: 0.45rem;
-  z-index: 3;
+  bottom: 0.65rem;
+  z-index: 4;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -992,7 +1012,7 @@ body {
 
 .home-hub-note-skeleton {
   width: 100%;
-  min-height: 7.35rem;
+  min-height: 9.25rem;
   border-radius: 2px 3px 14px 2px;
   background: linear-gradient(
     110deg,
@@ -1076,9 +1096,9 @@ body {
   display: flex;
   flex-direction: column;
   width: 100%;
-  min-height: 7.35rem;
+  min-height: 9.25rem;
   margin: 0;
-  padding: 1.05rem 0.8rem 0.7rem;
+  padding: 1.1rem 0.8rem 0.75rem;
   border: none;
   border-radius: 2px 3px 14px 2px;
   text-align: left;
@@ -1255,7 +1275,7 @@ body {
   line-height: 1.45;
   color: rgba(40, 38, 32, 0.72);
   display: -webkit-box;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 4;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }

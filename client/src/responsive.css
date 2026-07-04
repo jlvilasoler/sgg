@@ -1062,6 +1062,19 @@ textarea {
 }
 
 @media (max-width: 720px) {
+  .bn-ui .home-module-page .home-hub-kpi-strip--gastos.sg-hub-kpi-strip {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    overflow: visible;
+    flex-wrap: wrap;
+  }
+
+  .bn-ui .home-hub-kpi-strip--gastos .home-hub-kpi-btn {
+    flex: initial;
+    min-width: 0;
+    scroll-snap-align: unset;
+  }
+
   .bn-ui .home-module-page .home-hub-kpi-strip.sg-hub-kpi-strip {
     display: flex;
     flex-wrap: nowrap;
@@ -1110,6 +1123,14 @@ textarea {
 
   .home-hub-panels.home-hub-panels {
     gap: 0.75rem;
+  }
+
+  .home-hub-gastos-kpi-row {
+    grid-template-columns: 1fr;
+  }
+
+  .home-hub-gastos-kpi-row__side {
+    display: none;
   }
 }
 

@@ -13,8 +13,7 @@ import {
 } from "./api";
 import { DEFAULT_CATALOGOS } from "./constants";
 import { pushRecentHomeModule } from "./utils/home-quick-modules";
-import { clearStockGanaderaPageCache } from "./components/stock/stock-ganadera-page-cache";
-import { clearStockEquinaPageCache } from "./components/stock-equino/stock-equina-page-cache";
+import { clearAllSessionCaches } from "./utils/clear-session-caches";
 import type { AuthUser, Catalogos, Presupuesto as PresupuestoRow } from "./types";
 import type { TabId } from "./components/Header";
 import HomeMenu, { type ScreenId } from "./components/HomeMenu";
@@ -44,6 +43,7 @@ import MiCuentaPanel from "./components/MiCuentaModal";
 import ConfirmDialogHost from "./components/ConfirmDialogHost";
 import { HeaderBackProvider } from "./header-back";
 import {
+  canAccessArquitecturaSistema,
   canAccessChat,
   canAccessScreen,
   actividadModoPorDefecto,
@@ -346,8 +346,7 @@ export default function App() {
     if (userId != null) clearVencImpLoginAlertStorage(userId);
     setVencImpProximosCount(0);
     setUser(null);
-    clearStockGanaderaPageCache();
-    clearStockEquinaPageCache();
+    clearAllSessionCaches();
     navHistoryRef.current = [];
     setNavHistory([]);
     setScreen("home");
@@ -643,7 +642,7 @@ export default function App() {
               />
               );
             })()}
-            {screen === "panel_admin_sitio" && user && (
+            {screen === "panel_admin_sitio" && user && canAccessArquitecturaSistema(user) && (
               <ArquitecturaSistema
                 apiOnline={apiOnline}
                 titulo="Administración del sitio"

@@ -9,6 +9,7 @@ function configureToastr() {
   toastr.options = {
     closeButton: true,
     debug: false,
+    escapeHtml: true,
     newestOnTop: true,
     progressBar: true,
     positionClass: "toast-top-right",
