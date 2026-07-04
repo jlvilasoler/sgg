@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useRef } from "react";
 import LogoSgg from "./LogoSgg";
 import UserAvatar from "./UserAvatar";
 import { APP_FULL_NAME, APP_NAME } from "../brand";
@@ -27,27 +27,6 @@ export default function MainHeader({
   onOpenCuenta,
 }: Props) {
   const headerRef = useRef<HTMLElement>(null);
-
-  const syncToastOffset = useCallback(() => {
-    const el = headerRef.current;
-    const gap = 12;
-    const offset = el ? el.getBoundingClientRect().height + gap : 16;
-    document.documentElement.style.setProperty("--toast-top-offset", `${offset}px`);
-  }, []);
-
-  useEffect(() => {
-    const el = headerRef.current;
-    if (!el) return;
-    syncToastOffset();
-    const ro = new ResizeObserver(() => syncToastOffset());
-    ro.observe(el);
-    window.addEventListener("resize", syncToastOffset);
-    return () => {
-      ro.disconnect();
-      window.removeEventListener("resize", syncToastOffset);
-      document.documentElement.style.setProperty("--toast-top-offset", "1rem");
-    };
-  }, [syncToastOffset]);
 
   const avatar = user.avatar ?? { tipo: "iniciales" as const, url: null };
 

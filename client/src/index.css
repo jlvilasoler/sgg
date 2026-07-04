@@ -6410,9 +6410,9 @@ a.gasto-acciones-item {
 }
 
 #toast-container.toast-top-right {
-  top: var(--toast-top-offset) !important;
+  top: calc(var(--app-top-chrome, var(--toast-top-offset, 1rem)) + 0.75rem) !important;
   right: 1rem !important;
-  max-height: calc(100vh - var(--toast-top-offset) - 1rem);
+  max-height: calc(100vh - var(--app-top-chrome, var(--toast-top-offset, 1rem)) - 1.75rem);
   overflow-y: auto;
   overflow-x: hidden;
   scrollbar-width: thin;

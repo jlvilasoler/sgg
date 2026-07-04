@@ -21,7 +21,10 @@ function measureAppTopChrome() {
 
 export function useAppTopChrome(enabled: boolean) {
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled) {
+      document.documentElement.style.removeProperty("--app-top-chrome");
+      return;
+    }
 
     let frame = 0;
     const scheduleMeasure = () => {
@@ -52,6 +55,7 @@ export function useAppTopChrome(enabled: boolean) {
       mutationObserver.disconnect();
       window.removeEventListener("resize", scheduleMeasure);
       window.removeEventListener("load", scheduleMeasure);
+      document.documentElement.style.removeProperty("--app-top-chrome");
     };
   }, [enabled]);
 }
