@@ -1,4 +1,3 @@
-import { useMemo } from "react";
 import { Bell } from "lucide-react";
 import type { HubIconId } from "../icons/HubMenuIcons";
 import { HUB_ICON_THEMES, HubMenuIcon } from "../icons/HubMenuIcons";
