@@ -100,6 +100,8 @@ import type {
   BrouTransferenciaParsed,
   ComprobanteLeido,
   DetectarCamposDocumentoResult,
+  Nota,
+  NotaInput,
 } from "./types";
 import type {
   ContribucionRuralCalendariosStore,
@@ -1468,10 +1470,12 @@ export async function restaurarStockGanaderaDesdeBackup(): Promise<{
 }
 
 export async function importStockGanaderoFile(
-  file: File
+  file: File,
+  empresa: string
 ): Promise<{ message: string; lote_id: number; insertados: number }> {
   const form = new FormData();
   form.append("file", file);
+  form.append("empresa", empresa);
   let res: Response;
   try {
     res = await fetch(`${API}/stock-ganadero/import/file`, {
@@ -2047,10 +2051,12 @@ export async function restaurarStockEquinaDesdeBackup(): Promise<{
 }
 
 export async function importStockEquinoFile(
-  file: File
+  file: File,
+  empresa: string
 ): Promise<{ message: string; lote_id: number; insertados: number }> {
   const form = new FormData();
   form.append("file", file);
+  form.append("empresa", empresa);
   let res: Response;
   try {
     res = await fetch(`${API}/stock-equino/import/file`, {
@@ -3767,6 +3773,7 @@ export async function fetchAuthActividad(filters?: {
   offset?: number;
   ambito?: ActividadAmbito;
   cuentaId?: number;
+  feed?: "home";
 }): Promise<{
   items: AuthActividadLog[];
   total: number;
@@ -3781,6 +3788,7 @@ export async function fetchAuthActividad(filters?: {
   if (filters?.cuentaId != null && Number.isFinite(filters.cuentaId)) {
     params.set("cuenta_id", String(filters.cuentaId));
   }
+  if (filters?.feed === "home") params.set("feed", "home");
   const q = params.toString();
   const json = await request<{
     data: AuthActividadLog[];
@@ -4097,4 +4105,33 @@ export async function saveVencimientosImpuestosPreferencias(
     { method: "PUT", body: JSON.stringify(input) },
   );
   return json.data;
+}
+
+export async function fetchNotas(options?: { limit?: number }): Promise<Nota[]> {
+  const q =
+    options?.limit != null && options.limit > 0
+      ? `?limit=${Math.min(Math.floor(options.limit), 50)}`
+      : "";
+  const json = await request<{ ok: true; data: Nota[] }>(`/notas${q}`);
+  return json.data;
+}
+
+export async function createNota(input: NotaInput = {}): Promise<Nota> {
+  const json = await request<{ ok: true; data: Nota }>("/notas", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+  return json.data;
+}
+
+export async function updateNota(id: number, input: NotaInput): Promise<Nota> {
+  const json = await request<{ ok: true; data: Nota }>(`/notas/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(input),
+  });
+  return json.data;
+}
+
+export async function deleteNota(id: number): Promise<void> {
+  await request<{ ok: true }>(`/notas/${id}`, { method: "DELETE" });
 }

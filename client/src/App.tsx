@@ -12,6 +12,7 @@ import {
   retryDbInit,
 } from "./api";
 import { DEFAULT_CATALOGOS } from "./constants";
+import { pushRecentHomeModule } from "./utils/home-quick-modules";
 import { clearStockGanaderaPageCache } from "./components/stock/stock-ganadera-page-cache";
 import { clearStockEquinaPageCache } from "./components/stock-equino/stock-equina-page-cache";
 import type { AuthUser, Catalogos, Presupuesto as PresupuestoRow } from "./types";
@@ -37,6 +38,7 @@ import DocumentosDigitales from "./components/DocumentosDigitales";
 import VencimientosImpuestos from "./components/VencimientosImpuestos";
 import ChatPanel from "./components/ChatPanel";
 import ChatInterno from "./components/ChatInterno";
+import Notas from "./components/Notas";
 import ChatExternalRequestHost from "./components/chat/ChatExternalRequestHost";
 import MiCuentaPanel from "./components/MiCuentaModal";
 import ConfirmDialogHost from "./components/ConfirmDialogHost";
@@ -88,6 +90,7 @@ export default function App() {
   const [forgotEmail, setForgotEmail] = useState("");
   const hadUserRef = useRef(false);
   const freshLoginRef = useRef(false);
+  const sessionUserIdRef = useRef<number | null>(null);
   const dbBootStartedRef = useRef<number | null>(null);
   const screenRef = useRef<ScreenId>("home");
   const navHistoryRef = useRef<ScreenId[]>([]);
@@ -100,9 +103,37 @@ export default function App() {
     showToast(msg, ok, title);
   }, []);
 
+  const trackPantalla = useCallback(
+    (pantalla: string, recordRecent = true) => {
+      registrarPantallaActividad(pantalla);
+      if (recordRecent && user?.id) pushRecentHomeModule(user.id, pantalla);
+    },
+    [user?.id]
+  );
+
   const runVencimientosLoginAlert = useCallback(async (userId: number, force = false) => {
     await notifyVencimientosProximosOnLogin(userId, { force });
   }, []);
+
+  const resetToHomeScreen = useCallback(() => {
+    navHistoryRef.current = [];
+    setNavHistory([]);
+    setScreen("home");
+    setEditRow(null);
+    setChatOpen(false);
+    setCuentaOpen(false);
+  }, []);
+
+  useEffect(() => {
+    if (!user) {
+      sessionUserIdRef.current = null;
+      return;
+    }
+    if (sessionUserIdRef.current === user.id) return;
+    sessionUserIdRef.current = user.id;
+    resetToHomeScreen();
+    registrarPantallaActividad("home");
+  }, [user?.id, resetToHomeScreen]);
 
   useEffect(() => {
     if (!user || !apiOnline) return;
@@ -225,12 +256,8 @@ export default function App() {
   }, [notify]);
 
   const goHome = () => {
-    navHistoryRef.current = [];
-    setNavHistory([]);
-    setScreen("home");
-    setEditRow(null);
-    setChatOpen(false);
-    registrarPantallaActividad("home");
+    resetToHomeScreen();
+    trackPantalla("home");
   };
 
   const goBackScreen = () => {
@@ -242,7 +269,7 @@ export default function App() {
     setNavHistory(next);
     setScreen(prev);
     if (prev !== "registro") setEditRow(null);
-    registrarPantallaActividad(prev);
+    trackPantalla(prev);
   };
 
   const pushNavHistory = () => {
@@ -261,7 +288,7 @@ export default function App() {
     pushNavHistory();
     setScreen("chat");
     setEditRow(null);
-    registrarPantallaActividad("chat");
+    trackPantalla("chat");
   };
 
   const volverDesdeChat = () => {
@@ -285,15 +312,14 @@ export default function App() {
     if (screenRef.current !== id) pushNavHistory();
     setScreen(id);
     if (id !== "registro") setEditRow(null);
-    registrarPantallaActividad(id);
+    trackPantalla(id);
   };
 
   const onLogin = (u: AuthUser) => {
     freshLoginRef.current = true;
+    sessionUserIdRef.current = null;
     setUser(u);
-    navHistoryRef.current = [];
-    setNavHistory([]);
-    setScreen("home");
+    resetToHomeScreen();
     void (async () => {
       try {
         const c = await fetchCatalogos();
@@ -339,7 +365,7 @@ export default function App() {
     if (screenRef.current !== "registro") pushNavHistory();
     setEditRow(row);
     setScreen("registro");
-    registrarPantallaActividad("registro");
+    trackPantalla("registro");
   };
 
   if (bootBlocked) {
@@ -481,7 +507,9 @@ export default function App() {
             />
           </main>
         ) : screen === "home" ? (
-          <HomeMenu user={user} onOpen={navigate} />
+          <main className="page-main bn-ui">
+            <HomeMenu user={user} apiOnline={apiOnline} onOpen={navigate} />
+          </main>
         ) : (
           <main className="layout-frame page-main bn-ui">
             {(screen === "registro" || screen === "listado" || screen === "resumen") && (
@@ -635,6 +663,15 @@ export default function App() {
             )}
             {screen === "chat" && user && (
               <ChatInterno user={user} variant="page" onClose={volverDesdeChat} />
+            )}
+            {screen === "notas" && user && (
+              <Notas
+                apiOnline={apiOnline}
+                currentUser={user}
+                onVolver={goHome}
+                onError={(m) => notify(m, false)}
+                onSuccess={(m) => notify(m, true)}
+              />
             )}
           </main>
         )}

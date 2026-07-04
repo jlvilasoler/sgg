@@ -15,9 +15,11 @@ import { getDb, empresasCuenta, stockAuditoria } from "./database.js";
 import { summarizeCuentasControlPlataforma } from "./plataforma-cuentas-control-db.js";
 import {
   attachApiActivityLogger,
+  formatNavegacionDetalle,
   PANTALLA_LABELS,
   recordUserActivity,
 } from "./user-activity.js";
+import { listHomeFeedActivity } from "./home-actividad-feed.js";
 import { listOnlineUsers, listRecentlyOfflineUsers, listStaleOfflineUsers, markUserPresenceDisconnected, touchUserPresence } from "./user-presence.js";
 import {
   artificialLoginDelay,
@@ -1039,6 +1041,7 @@ export function registerAuthRoutes(app: Express): void {
       const offset = req.query.offset ? Number(req.query.offset) : undefined;
       const ambito = parseActividadAmbito(req.query.ambito);
       const cuentaId = parseActividadCuentaId(req.query.cuenta_id);
+      const feedHome = String(req.query.feed ?? "").trim().toLowerCase() === "home";
       const scopeResult = await authDb.resolveAuthAuditLogScope(
         getDb(),
         actor,
@@ -1050,13 +1053,22 @@ export function registerAuthRoutes(app: Express): void {
         res.status(403).json({ ok: false, error: scopeResult.error });
         return;
       }
-      const page = await authDb.listAuthAuditLog(getDb(), {
+      const baseFilters = {
         email: scopeResult.filters.email,
         scope: scopeResult.filters.scope,
-        evento,
-        limite: Number.isFinite(limite) ? limite : undefined,
-        offset: Number.isFinite(offset) ? offset : undefined,
-      });
+      };
+      const page = feedHome
+        ? await listHomeFeedActivity(
+            getDb(),
+            baseFilters,
+            Number.isFinite(limite) ? limite! : 7
+          )
+        : await authDb.listAuthAuditLog(getDb(), {
+            ...baseFilters,
+            evento,
+            limite: Number.isFinite(limite) ? limite : undefined,
+            offset: Number.isFinite(offset) ? offset : undefined,
+          });
       res.json({
         ok: true,
         data: ocultarIpActividad(actor, page.rows),
@@ -1085,7 +1097,7 @@ export function registerAuthRoutes(app: Express): void {
       }
       const label = PANTALLA_LABELS[pantalla] ?? pantalla;
       touchUserPresence(user, { ip: clientIp(req), pantalla: label });
-      await recordUserActivity(user, "navegacion", `Accedió a: ${label}`, {
+      await recordUserActivity(user, "navegacion", formatNavegacionDetalle(label), {
         ip: clientIp(req),
         userAgent: req.headers["user-agent"],
       });

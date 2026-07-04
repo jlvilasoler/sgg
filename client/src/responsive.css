@@ -117,6 +117,9 @@ textarea {
   .main-header-back-btn,
   .sg-devices-filtros-mobile-btn,
   .sg-devices-search-btn,
+  .notas-list-item,
+  .notas-icon-btn,
+  .notas-select-link,
   .table-pagination-nav button {
     min-height: var(--touch-min);
   }
@@ -732,7 +735,10 @@ textarea {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .bn-ui .sg-hub-kpi-strip:not(.sg-devices-kpi-filters):not(.sg-devices-kpi-summary) {
+  .bn-ui
+    .sg-hub-kpi-strip:not(.sg-devices-kpi-filters):not(.sg-devices-kpi-summary):not(
+      .home-hub-kpi-strip
+    ) {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -887,6 +893,359 @@ textarea {
   .bn-ui .sg-hub-embedded .stock-import-form-actions--hub .sg-hub-cta {
     width: 100%;
     justify-content: center;
+  }
+}
+
+/* —— Notas: móvil y tablet —— */
+@media (max-width: 900px) {
+  .bn-ui .notas-module-page .notas-shell {
+    grid-template-columns: 1fr;
+    min-height: min(
+      72dvh,
+      calc(
+        100dvh - var(--app-top-chrome, 9.5rem) - var(--app-footer-height, 3.15rem) -
+          env(safe-area-inset-bottom, 0) - 2.5rem
+      )
+    );
+  }
+
+  .bn-ui .notas-module-page .notas-shell .notas-editor {
+    display: none;
+  }
+
+  .bn-ui .notas-module-page .notas-shell.notas-shell--editor-open .notas-sidebar {
+    display: none;
+  }
+
+  .bn-ui .notas-module-page .notas-shell.notas-shell--editor-open .notas-editor {
+    display: flex;
+    min-height: 0;
+  }
+
+  .bn-ui .notas-module-page .notas-sidebar,
+  .bn-ui .notas-module-page .notas-editor {
+    min-height: 0;
+  }
+
+  .notas-back-list {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    flex-shrink: 0;
+  }
+
+  .notas-header-actions {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .notas-header-actions .btn {
+    flex: 1 1 auto;
+    min-width: 0;
+    justify-content: center;
+  }
+
+  .notas-search-wrap {
+    padding: 0.6rem 0.65rem;
+  }
+
+  .notas-list {
+    padding: 0.25rem;
+  }
+
+  .notas-list-item {
+    padding: 0.75rem 0.7rem;
+  }
+
+  .notas-editor-toolbar {
+    gap: 0.45rem;
+    padding: 0.55rem 0.65rem;
+  }
+
+  .notas-readonly-banner {
+    flex: 1 1 100%;
+    order: 3;
+    font-size: 0.78rem;
+  }
+
+  .notas-color-picker {
+    flex: 1 1 100%;
+    order: 2;
+    justify-content: flex-start;
+  }
+
+  .notas-editor-actions {
+    margin-left: auto;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .notas-title-input {
+    font-size: 1.25rem;
+    padding: 0.85rem 0.85rem 0.3rem;
+  }
+
+  .notas-body-input {
+    min-height: min(42dvh, 320px);
+    padding-bottom: max(1rem, env(safe-area-inset-bottom, 0));
+  }
+
+  .notas-share-panel {
+    padding: 0.55rem 0.65rem;
+  }
+
+  .notas-share-panel-list {
+    --notas-share-chip-width: calc(50% - 0.2rem);
+    max-height: none;
+  }
+
+  .notas-select-footer {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    padding-bottom: max(0.85rem, env(safe-area-inset-bottom, 0));
+  }
+
+  .notas-select-delete-btn {
+    min-height: var(--touch-min, 2.75rem);
+  }
+}
+
+@media (max-width: 520px) {
+  .notas-header-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .notas-header-actions .btn {
+    width: 100%;
+  }
+
+  .notas-share-panel-list {
+    --notas-share-chip-width: 100%;
+  }
+
+  .notas-select-header {
+    grid-template-columns: auto 1fr auto;
+    gap: 0.35rem;
+    padding: 0.55rem 0.6rem;
+  }
+
+  .notas-select-status {
+    font-size: 0.74rem;
+  }
+
+  .notas-edit-link {
+    min-height: var(--touch-min, 2.75rem);
+    padding: 0.35rem 0.15rem;
+  }
+}
+
+/* —— Inicio hub: responsive —— */
+@media (min-width: 721px) {
+  .bn-ui .home-module-page .home-hub-kpi-strip.sg-hub-kpi-strip {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 10.25rem), 1fr));
+  }
+}
+
+@media (min-width: 901px) and (max-width: 1200px) {
+  .bn-ui .home-module-page .home-hub-kpi-strip.sg-hub-kpi-strip {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr));
+  }
+}
+
+@media (min-width: 1201px) {
+  .bn-ui .home-module-page .home-hub-kpi-strip.sg-hub-kpi-strip {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 10.5rem), 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .bn-ui .home-module-page .home-hub-kpi-strip.sg-hub-kpi-strip {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x proximity;
+    scrollbar-width: thin;
+    -webkit-overflow-scrolling: touch;
+    gap: 0.55rem;
+    padding-bottom: 0.2rem;
+    margin-inline: -0.15rem;
+    padding-inline: 0.15rem;
+  }
+
+  .bn-ui .home-hub-kpi-strip .home-hub-kpi-btn {
+    flex: 0 0 min(42vw, 11rem);
+    min-width: 9rem;
+    scroll-snap-align: start;
+  }
+
+  .bn-ui .home-hub-kpi-strip .sg-hub-kpi {
+    padding: 0.65rem 0.72rem 0.58rem;
+  }
+
+  .bn-ui .home-hub-kpi-strip .sg-hub-kpi-hint {
+    white-space: normal;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    text-overflow: unset;
+  }
+
+  .bn-ui .home-hub-kpi-strip .sg-hub-mini-bars {
+    width: 2.85rem;
+    height: 1.75rem;
+  }
+}
+
+@media (max-width: 1100px) {
+  .home-hub-col--side {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+    gap: 0.75rem;
+  }
+
+  .home-hub-panels.home-hub-panels {
+    gap: 0.75rem;
+  }
+}
+
+@media (max-width: 900px) {
+  .bn-ui .home-module-page > .sg-hub {
+    min-height: 0;
+  }
+
+  .bn-ui .home-module-page .sg-hub-main--module {
+    padding-bottom: max(1.15rem, env(safe-area-inset-bottom, 0));
+  }
+
+  .bn-ui .home-module-page .sg-hub-main-title {
+    font-size: 1.4rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .home-hub-panel-head-row {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 0.45rem 0.65rem;
+  }
+
+  .home-hub-panel-head-row > div:first-child {
+    flex: 1 1 10rem;
+    min-width: 0;
+  }
+
+  .home-hub-panel-head-row .home-hub-link {
+    flex: 0 0 auto;
+    align-self: center;
+    min-height: var(--touch-min);
+    padding: 0.35rem 0.2rem;
+  }
+
+  .home-hub-modules-hint {
+    font-size: 0.74rem;
+  }
+
+  .home-hub-empty {
+    font-size: 0.82rem;
+    line-height: 1.45;
+  }
+
+  .home-hub-notes-list {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+
+  .home-hub-notes-board {
+    min-height: auto;
+    padding-bottom: 3rem;
+  }
+
+  .home-hub-venc-proximos .venc-imp-user-banner-proximos-wrap {
+    grid-template-columns: 1fr;
+  }
+
+  .home-hub-venc-proximos .venc-imp-user-banner-proximo-box:only-child {
+    grid-column: auto;
+  }
+
+  .bn-ui .home-module-page .home-hub-venc-proximos .home-venc-proximo-titulo {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: unset;
+    line-height: 1.25;
+  }
+
+  .bn-ui .home-module-page .home-hub-venc-proximos .home-venc-proximo-body {
+    min-height: 0;
+  }
+
+  .bn-ui .home-module-page .home-hub-venc-proximos .home-venc-proximo-banner .venc-imp-banner-next-escudo {
+    width: 1.85rem;
+    height: 1.85rem;
+  }
+}
+
+@media (min-width: 641px) and (max-width: 900px) {
+  .home-hub-notes-list {
+    grid-template-columns: repeat(auto-fill, minmax(8.75rem, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .home-hub-kpi-btn,
+  .home-hub-link,
+  .home-cmd-activity-item,
+  .home-hub-notes-board-add,
+  .home-hub-note-card,
+  .home-hub-notes-cta {
+    min-height: var(--touch-min);
+  }
+
+  .home-cmd-activity-item {
+    padding: 0.72rem 0.75rem;
+  }
+
+  .home-cmd-activity-text {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  .home-cmd-activity-meta {
+    font-size: 0.7rem;
+  }
+
+  .home-hub-panel--quick .sg-hub-module-card {
+    padding: 0.72rem 0.8rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .bn-ui .home-module-page .sg-hub-main--module {
+    padding-inline: max(0.75rem, env(safe-area-inset-left, 0))
+      max(0.75rem, env(safe-area-inset-right, 0));
+  }
+
+  .bn-ui .home-hub-kpi-strip .home-hub-kpi-btn {
+    flex-basis: min(78vw, 11rem);
+  }
+
+  .home-nota-modal-overlay {
+    padding: max(0.65rem, env(safe-area-inset-top, 0))
+      max(0.65rem, env(safe-area-inset-right, 0))
+      max(0.65rem, env(safe-area-inset-bottom, 0))
+      max(0.65rem, env(safe-area-inset-left, 0));
+  }
+}
+
+@media (min-width: 901px) and (max-width: 1100px) {
+  .bn-ui .notas-module-page .notas-shell {
+    grid-template-columns: minmax(200px, 250px) minmax(0, 1fr);
   }
 }
 

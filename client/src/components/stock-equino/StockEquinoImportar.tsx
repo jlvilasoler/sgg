@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useId, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useId, useRef, useState, type FormEvent } from "react";
 import {
   deleteStockEquinoLote,
   fetchEmpresasOperativasStock,
@@ -262,13 +262,17 @@ export default function StockEquinoImportar({
   );
 
   const importarArchivo = async () => {
+    if (form.empresa === EMPRESA_PENDIENTE) {
+      onError("Seleccioná la empresa de los animales del archivo");
+      return;
+    }
     if (!file) {
       onError("Seleccioná un archivo .txt, .csv o .xlsx");
       return;
     }
     setImporting(true);
     try {
-      const r = await importStockEquinoFile(file);
+      const r = await importStockEquinoFile(file, form.empresa);
       onSuccess(r.message, "Importación completada");
       setUltimaImportacionArchivo({
         id: r.lote_id,
@@ -509,15 +513,31 @@ export default function StockEquinoImportar({
       </div>
     ) : null;
 
+  const empresaArchivoField = (
+    <div className="field stock-import-field stock-import-field--empresa">
+      <label htmlFor={`${formId}-empresa-archivo`}>Empresa</label>
+      <SelectEmpresaDispositivo
+        id={`${formId}-empresa-archivo`}
+        empresas={empresas}
+        value={form.empresa}
+        requiereSeleccion
+        onChange={(empresa) => setForm((p) => ({ ...p, empresa }))}
+        disabled={!apiOnline || importing}
+      />
+    </div>
+  );
+
   const archivoPane = (
     <section className="stock-import-pane" aria-label="Importar desde archivo">
       {embedded ? (
         <div className="stock-alta-form-fields-box">
+          {empresaArchivoField}
           {dropzone}
           {undoBlock}
         </div>
       ) : (
         <>
+          {empresaArchivoField}
           {dropzone}
           {undoBlock}
         </>
@@ -527,7 +547,9 @@ export default function StockEquinoImportar({
         <button
           type="button"
           className={btnPrimary}
-          disabled={!apiOnline || importing || !file}
+          disabled={
+            !apiOnline || importing || !file || form.empresa === EMPRESA_PENDIENTE
+          }
           onClick={() => void importarArchivo()}
         >
           {importing ? (

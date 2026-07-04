@@ -1384,3 +1384,35 @@ export interface ChatUnreadSummary {
   total: number;
   general: number;
 }
+
+export const NOTA_COLORES = ["default", "yellow", "green", "blue", "pink", "purple"] as const;
+export type NotaColor = (typeof NOTA_COLORES)[number];
+
+export interface NotaCompartido {
+  id: number;
+  nombre: string;
+}
+
+export interface Nota {
+  id: number;
+  usuario_id: number;
+  cuenta_id: number | null;
+  titulo: string;
+  contenido: string;
+  fijada: boolean;
+  compartida: boolean;
+  color: NotaColor;
+  autor_nombre: string;
+  compartidos_con: NotaCompartido[];
+  creado_en: string;
+  actualizado_en: string;
+}
+
+export interface NotaInput {
+  titulo?: string;
+  contenido?: string;
+  fijada?: boolean;
+  compartida?: boolean;
+  compartidos_con?: number[];
+  color?: NotaColor;
+}

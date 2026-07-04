@@ -187,6 +187,26 @@ function IconChat({ className }: IconProps) {
   );
 }
 
+function IconNotas({ className }: IconProps) {
+  return (
+    <IconShell className={className}>
+      <path
+        d="M7 4.5h10l2 2V19a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V5.5a1 1 0 0 1 1-1Z"
+        {...stroke}
+      />
+      <path d="M15 4.5V7h2.5" {...stroke} />
+      <path d="M8.5 10.5h7M8.5 13.5h7M8.5 16.5h5" {...stroke} strokeWidth="1.4" />
+      <path
+        d="M16.75 15.25h2.75l-1 1 .4 1.35-1.15-.7-1.15.7.4-1.35-1-1Z"
+        fill="currentColor"
+        fillOpacity="0.22"
+        stroke="currentColor"
+        strokeWidth="1.1"
+      />
+    </IconShell>
+  );
+}
+
 function IconPanelAdminSitio({ className }: IconProps) {
   return (
     <IconShell className={className}>
@@ -248,6 +268,7 @@ const ICONS: Record<TabId, (props: IconProps) => ReactNode> = {
   stock_equino: IconStockEquino,
   stock_movimientos: IconStockMovimientos,
   registro_actividad: IconRegistroActividad,
+  notas: IconNotas,
   usuarios: IconUsuarios,
   panel_admin_sitio: IconPanelAdminSitio,
   chat: IconChat,
@@ -335,6 +356,11 @@ export const MENU_APP_THEMES: Record<TabId, MenuAppTheme> = {
     accent: "#0891b2",
     accentSoft: "linear-gradient(145deg, #ecfeff 0%, #cffafe 52%, #a5f3fc 100%)",
     accentGlow: "rgba(8, 145, 178, 0.28)",
+  },
+  notas: {
+    accent: "#ca8a04",
+    accentSoft: "linear-gradient(145deg, #fefce8 0%, #fef9c3 52%, #fde68a 100%)",
+    accentGlow: "rgba(202, 138, 4, 0.28)",
   },
   usuarios: {
     accent: "#4f46e5",

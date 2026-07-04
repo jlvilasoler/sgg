@@ -228,13 +228,15 @@
 
 .bn-ui .presupuesto-module-page .presupuesto-form--hub .form-actions .btn-primary {
   border-radius: 999px;
-  background: linear-gradient(
-    135deg,
-    var(--sg-hub-sidebar, #1a211a) 0%,
-    color-mix(in srgb, var(--sg-hub-sidebar, #1a211a) 75%, var(--sg-hub-accent)) 100%
-  ) !important;
+  background: #2d6a4f !important;
+  color: #fff !important;
   font-weight: 650;
-  box-shadow: 0 4px 14px rgba(26, 33, 26, 0.22);
+  box-shadow: 0 4px 14px rgba(45, 106, 79, 0.35);
+}
+
+.bn-ui .presupuesto-module-page .presupuesto-form--hub .form-actions .btn-primary:hover:not(:disabled) {
+  background: #245a42 !important;
+  color: #fff !important;
 }
 
 .bn-ui .presupuesto-module-page .presupuesto-form--hub .listado-pro-shell {

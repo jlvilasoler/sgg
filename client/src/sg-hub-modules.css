@@ -85,6 +85,23 @@
   box-shadow: none;
 }
 
+.bn-ui .notas-module-page .sg-hub-main--module {
+  min-height: 0;
+}
+
+.bn-ui .notas-module-page .sg-hub-embedded.notas-workspace {
+  margin: 0;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.bn-ui .home-module-page > .sg-hub {
+  flex: 1 1 auto;
+  min-height: 100%;
+}
+
 .bn-ui .sg-hub-main--module .sg-hub-embedded .usuarios-actividad--hub {
   margin: 0;
 }

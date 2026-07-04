@@ -8,7 +8,7 @@ import {
   canVerIpEnActividad,
   canVerUsuariosOnlineActividad,
 } from "../utils/auth-permissions";
-import UserAvatar from "./UserAvatar";
+import { formatActividadDetalle } from "../utils/format-actividad-detalle";
 import SgHubShell from "./hub/SgHubShell";
 import { MenuAppIcon } from "./icons/MenuAppIcons";
 import type { SgHubItem } from "./hub/SgHubTypes";
@@ -612,7 +612,9 @@ export default function UsuariosActividad({
                       {labelEvento(row.evento)}
                     </span>
                   </td>
-                  <td className="usuarios-act-detalle">{row.detalle || "—"}</td>
+                  <td className="usuarios-act-detalle">
+                    {formatActividadDetalle(row.detalle, row.evento)}
+                  </td>
                   {puedeVerIp ? (
                     <td className="muted small-cell">{row.ip || "—"}</td>
                   ) : null}

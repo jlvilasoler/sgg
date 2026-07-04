@@ -193,6 +193,24 @@ export function parseStockGanaderoText(text: string): StockGanaderoRowInput[] {
   return out;
 }
 
+/** Aplica empresa del formulario a filas de archivo que no traen empresa. */
+export function applyDefaultEmpresaToStockRows(
+  rows: StockGanaderoRowInput[],
+  empresaDefault: string
+): StockGanaderoRowInput[] {
+  const def = String(empresaDefault ?? "")
+    .trim()
+    .toUpperCase();
+  const fallback = /^[A-Z0-9_]+$/.test(def) ? def : "";
+  return rows.map((r) => {
+    const rowEmp = String(r.empresa ?? "")
+      .trim()
+      .toUpperCase();
+    const empresa = /^[A-Z0-9_]+$/.test(rowEmp) ? rowEmp : fallback;
+    return { ...r, empresa };
+  });
+}
+
 /** Normaliza filas enviadas desde carga manual (formulario). */
 export function normalizeStockGanaderoRows(
   raw: Array<{

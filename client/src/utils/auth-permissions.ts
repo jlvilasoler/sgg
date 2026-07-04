@@ -36,6 +36,7 @@ const SCREEN_MODULO: Record<TabId, Modulo> = {
   stock_equino: "stock",
   stock_movimientos: "usuarios",
   registro_actividad: "usuarios",
+  notas: "chat",
   usuarios: "usuarios",
   panel_admin_sitio: "usuarios",
   chat: "chat",
@@ -52,6 +53,18 @@ export function canAccessUsuarioActividad(user: AuthUser | null): boolean {
     canAccessActividadCuenta(user) ||
     canAccessActividadPropia(user)
   );
+}
+
+/** Cuenta madre del usuario (actividad compartida entre integrantes del equipo). */
+export function resolveCuentaActividadId(user: AuthUser | null): number | undefined {
+  if (!user) return undefined;
+  const id = user.cuenta_actividad_id ?? user.empresa_id;
+  return id != null && id > 0 ? id : undefined;
+}
+
+/** Panel «Últimos guardados» en Inicio: cualquier integrante de una cuenta. */
+export function canAccessHomeActividadCuenta(user: AuthUser | null): boolean {
+  return resolveCuentaActividadId(user) != null;
 }
 
 /** Superadministrador de plataforma (SCG_ADMIN_EMAIL): actividad global de todas las cuentas. */
@@ -75,6 +88,7 @@ export type ActividadVistaModo = "total" | "cuenta" | "propio";
 
 /** Vista por defecto si se abre actividad fuera del hub de Usuarios. */
 export function actividadModoPorDefecto(user: AuthUser | null): ActividadVistaModo {
+  if (resolveCuentaActividadId(user) != null) return "cuenta";
   if (canAccessActividadCuenta(user)) return "cuenta";
   return "propio";
 }
@@ -221,6 +235,7 @@ export function moduloForScreen(screen: TabId): Modulo {
 export function canAccessScreen(user: AuthUser | null, screen: TabId): boolean {
   if (!user) return false;
   if (screen === "registro_actividad") return true;
+  if (screen === "notas") return true;
   if (screen === "usuarios") return false;
   if (screen === "documentos_digitales") return canAccessDocumentosDigitales(user);
   if (screen === "panel_admin_sitio") return canAccessArquitecturaSistema(user);

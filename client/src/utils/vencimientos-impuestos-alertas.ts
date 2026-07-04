@@ -14,7 +14,7 @@ import {
   parseFechaLocal,
   semaforoVencimientoCuota,
 } from "./contribucion-rural-common";
-import { consolidarCuotasVencimientos } from "./vencimientos-impuestos-total";
+import { consolidarCuotasVencimientos, type VencImpCuotaConsolidada } from "./vencimientos-impuestos-total";
 import type { VencimientosImpuestosBootstrap } from "./vencimientos-impuestos-cache";
 
 export interface VencImpLoginAlertItem {
@@ -59,9 +59,9 @@ function cuotasNacionalesFuturas(
   );
 }
 
-export function buildVencimientosProximosLoginAlert(
+function consolidadasDesdeBootstrap(
   bootstrap: VencimientosImpuestosBootstrap,
-): VencImpLoginAlert | null {
+): VencImpCuotaConsolidada[] | null {
   const prefs = bootstrap.preferencias;
   if (!prefs?.onboarding_completado) return null;
 
@@ -98,7 +98,7 @@ export function buildVencimientosProximosLoginAlert(
     ? primariaComoCalendarioConfig(bootstrap.primaria, regimenPrimaria)
     : null;
 
-  const consolidadas = consolidarCuotasVencimientos({
+  return consolidarCuotasVencimientos({
     rural: cuotasRural,
     modalidadRural,
     patente: cuotasNacionalesFuturas(patenteConfig, modalidadPatente),
@@ -106,6 +106,25 @@ export function buildVencimientosProximosLoginAlert(
     bps: cuotasNacionalesFuturas(bpsConfig, "cuotas"),
     primaria: cuotasNacionalesFuturas(primariaConfig, "cuotas"),
   });
+}
+
+/** Próximos vencimientos urgentes (semáforo rojo) para el inicio. */
+export function buildVencimientosProximosHome(
+  bootstrap: VencimientosImpuestosBootstrap,
+  limit = 4,
+): VencImpCuotaConsolidada[] {
+  const consolidadas = consolidadasDesdeBootstrap(bootstrap);
+  if (!consolidadas?.length) return [];
+  return consolidadas
+    .filter((item) => semaforoVencimientoCuota(item.fecha).nivel === "rojo")
+    .slice(0, limit);
+}
+
+export function buildVencimientosProximosLoginAlert(
+  bootstrap: VencimientosImpuestosBootstrap,
+): VencImpLoginAlert | null {
+  const consolidadas = consolidadasDesdeBootstrap(bootstrap);
+  if (!consolidadas?.length) return null;
 
   const proximos = consolidadas.filter(
     (item) => semaforoVencimientoCuota(item.fecha).nivel === "rojo",

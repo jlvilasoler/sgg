@@ -38,7 +38,13 @@ import {
   auditSimuladorPatch,
 } from "./simulador-venta-audit.js";
 import { normalizarTituloRubro } from "./text-normalize.js";
-import { parseStockGanaderoBuffer, parseStockGanaderoFile, parseStockGanaderoText, normalizeStockGanaderoRows } from "./parse-stock-ganadero-txt.js";
+import {
+  parseStockGanaderoBuffer,
+  parseStockGanaderoFile,
+  parseStockGanaderoText,
+  normalizeStockGanaderoRows,
+  applyDefaultEmpresaToStockRows,
+} from "./parse-stock-ganadero-txt.js";
 import type { DispositivoMetaPatch, StockGanaderoFilters } from "./stock-ganadero-db.js";
 import type { StockEquinoFilters } from "./stock-equino-db.js";
 import { parseTipoBaja, tipoBajaDesdeEstadoImport, type TipoBaja } from "./stock-ganadero-db.js";
@@ -73,6 +79,9 @@ import * as patenteSucive from "./patente-sucive-calendarios-db.js";
 import * as bpsCajaRural from "./bps-caja-rural-calendarios-db.js";
 import * as primariaRural from "./primaria-rural-calendarios-db.js";
 import * as vencImpPrefs from "./vencimientos-impuestos-prefs-db.js";
+import * as notasDb from "./notas-db.js";
+import { recordUserActivity } from "./user-activity.js";
+import { clientIp } from "./auth-security.js";
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -947,6 +956,116 @@ app.put("/api/vencimientos-impuestos/preferencias", async (req, res) => {
       ok: false,
       error: e instanceof Error ? e.message : "Preferencias inválidas",
     });
+  }
+});
+
+function notaCompartidaConEquipo(nota: {
+  compartida?: boolean | number;
+  compartidos_con?: { id: number }[];
+}): boolean {
+  return Boolean(Number(nota.compartida ?? 0)) || (nota.compartidos_con?.length ?? 0) > 0;
+}
+
+async function logNotaCompartidaActividad(
+  user: UserPublic,
+  accion: "creó" | "editó" | "eliminó",
+  titulo: string,
+  req: Request
+): Promise<void> {
+  const label = titulo.trim() || "Sin título";
+  const verbo = accion === "creó" ? "Creó" : accion === "editó" ? "Editó" : "Eliminó";
+  await recordUserActivity(
+    user,
+    "accion",
+    `${verbo} una nota compartida con el equipo: «${label.slice(0, 80)}»`,
+    { ip: clientIp(req), userAgent: req.headers["user-agent"] }
+  );
+}
+
+app.get("/api/notas", async (req, res) => {
+  if (!req.user) {
+    res.status(401).json({ ok: false, error: "No autenticado" });
+    return;
+  }
+  const cuentaId = await cuentaIdParaInsert(req.user);
+  const limitRaw = Number(req.query.limit);
+  const limit =
+    Number.isFinite(limitRaw) && limitRaw > 0 ? Math.min(Math.floor(limitRaw), 50) : undefined;
+  const data = await notasDb.listNotasVisibles(db.getDb(), req.user.id, cuentaId, limit);
+  res.json({ ok: true, data });
+});
+
+app.post("/api/notas", async (req, res) => {
+  if (!req.user) {
+    res.status(401).json({ ok: false, error: "No autenticado" });
+    return;
+  }
+  try {
+    const body = req.body as notasDb.NotaInput;
+    const cuentaId = await cuentaIdParaInsert(req.user);
+    const data = await notasDb.createNota(db.getDb(), req.user.id, cuentaId, body);
+    if (notaCompartidaConEquipo(data)) {
+      await logNotaCompartidaActividad(req.user, "creó", data.titulo, req);
+    }
+    res.status(201).json({ ok: true, data });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: (e as Error).message });
+  }
+});
+
+app.get("/api/notas/:id", async (req, res) => {
+  if (!req.user) {
+    res.status(401).json({ ok: false, error: "No autenticado" });
+    return;
+  }
+  const id = Number(req.params.id);
+  const cuentaId = await cuentaIdParaInsert(req.user);
+  const data = await notasDb.getNotaVisible(db.getDb(), id, req.user.id, cuentaId);
+  if (!data) {
+    res.status(404).json({ ok: false, error: "Nota no encontrada" });
+    return;
+  }
+  res.json({ ok: true, data });
+});
+
+app.put("/api/notas/:id", async (req, res) => {
+  if (!req.user) {
+    res.status(401).json({ ok: false, error: "No autenticado" });
+    return;
+  }
+  try {
+    const id = Number(req.params.id);
+    const body = req.body as notasDb.NotaInput;
+    const cuentaId = await cuentaIdParaInsert(req.user);
+    const data = await notasDb.updateNota(db.getDb(), id, req.user.id, cuentaId, body);
+    if (notaCompartidaConEquipo(data)) {
+      await logNotaCompartidaActividad(req.user, "editó", data.titulo, req);
+    }
+    res.json({ ok: true, data });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: (e as Error).message });
+  }
+});
+
+app.delete("/api/notas/:id", async (req, res) => {
+  if (!req.user) {
+    res.status(401).json({ ok: false, error: "No autenticado" });
+    return;
+  }
+  try {
+    const id = Number(req.params.id);
+    const prev = await notasDb.getNotaPropia(db.getDb(), id, req.user.id);
+    if (!prev) {
+      res.status(404).json({ ok: false, error: "Nota no encontrada" });
+      return;
+    }
+    await notasDb.deleteNota(db.getDb(), id, req.user.id);
+    if (notaCompartidaConEquipo(prev)) {
+      await logNotaCompartidaActividad(req.user, "eliminó", prev.titulo, req);
+    }
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: (e as Error).message });
   }
 });
 
@@ -3068,7 +3187,14 @@ app.post("/api/stock-ganadero/import/file", upload.single("file"), async (req, r
       res.status(400).json({ ok: false, error: "Seleccioná un archivo .txt, .csv o .xlsx" });
       return;
     }
-    const rows = await parseStockGanaderoFile(file.buffer, file.originalname || "import.txt");
+    if (!Object.prototype.hasOwnProperty.call(req.body ?? {}, "empresa")) {
+      res.status(400).json({ ok: false, error: "Seleccioná la empresa de los animales del archivo" });
+      return;
+    }
+    const empresaDefault = String((req.body as { empresa?: string }).empresa ?? "").trim();
+    let rows = await parseStockGanaderoFile(file.buffer, file.originalname || "import.txt");
+    rows = applyDefaultEmpresaToStockRows(rows, empresaDefault);
+    await assertStockImportRowsEmpresas(req.user!, rows);
     const cuentaId = await cuentaIdParaInsert(req.user!);
     const result = await db.stockGanadero.importRows(
       file.originalname || "import.txt",
@@ -4169,7 +4295,14 @@ app.post("/api/stock-equino/import/file", upload.single("file"), async (req, res
       res.status(400).json({ ok: false, error: "Seleccioná un archivo .txt, .csv o .xlsx" });
       return;
     }
-    const rows = await parseStockGanaderoFile(file.buffer, file.originalname || "import.txt");
+    if (!Object.prototype.hasOwnProperty.call(req.body ?? {}, "empresa")) {
+      res.status(400).json({ ok: false, error: "Seleccioná la empresa de los animales del archivo" });
+      return;
+    }
+    const empresaDefault = String((req.body as { empresa?: string }).empresa ?? "").trim();
+    let rows = await parseStockGanaderoFile(file.buffer, file.originalname || "import.txt");
+    rows = applyDefaultEmpresaToStockRows(rows, empresaDefault);
+    await assertStockImportRowsEmpresas(req.user!, rows);
     const cuentaId = await cuentaIdParaInsert(req.user!);
     const result = await db.stockEquino.importRows(
       file.originalname || "import.txt",
