@@ -13,6 +13,7 @@ import SgHubShell from "./hub/SgHubShell";
 import { MenuAppIcon } from "./icons/MenuAppIcons";
 import type { SgHubItem } from "./hub/SgHubTypes";
 import TablePagination, { type PageSize } from "./TablePagination";
+import UserAvatar from "./UserAvatar";
 
 const ACTIVIDAD_HUB_ITEMS: SgHubItem[] = [
   {
