@@ -141,17 +141,7 @@ export async function initVentasAgriculturaTable(db: Db): Promise<void> {
   await migrateCultivoLibre(db);
 }
 
-async function migrateCultivoLibre(db: Db): Promise<void> {
-  for (const [legacy, nombre] of [
-    ["TRIGO", "Trigo"],
-    ["SOJA", "Soja"],
-    ["MAIZ", "Maíz"],
-    ["COLZA", "Colza"],
-  ] as const) {
-    await db
-      .prepare("UPDATE VENTAS_AGRICULTURA SET cultivo = @nombre WHERE cultivo = @legacy")
-      .run({ legacy, nombre });
-  }
+async function dropCultivoCheckConstraints(db: Db): Promise<void> {
   for (const stmt of [
     "ALTER TABLE VENTAS_AGRICULTURA DROP CONSTRAINT IF EXISTS ventas_agricultura_cultivo_check",
     "ALTER TABLE VENTAS_AGRICULTURA DROP CONSTRAINT IF EXISTS ventas_agricultura_cultivo_check1",
@@ -161,6 +151,40 @@ async function migrateCultivoLibre(db: Db): Promise<void> {
     } catch {
       /* ignore */
     }
+  }
+  const rows = (await db
+    .prepare(
+      `SELECT con.conname
+       FROM pg_constraint con
+       JOIN pg_class rel ON rel.oid = con.conrelid
+       JOIN pg_attribute att ON att.attrelid = rel.oid AND att.attnum = ANY (con.conkey)
+       WHERE rel.relname = 'ventas_agricultura'
+         AND att.attname = 'cultivo'
+         AND con.contype = 'c'`
+    )
+    .all()) as { conname: string }[];
+  for (const row of rows) {
+    try {
+      await db
+        .prepare(`ALTER TABLE VENTAS_AGRICULTURA DROP CONSTRAINT IF EXISTS ${row.conname}`)
+        .run();
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
+async function migrateCultivoLibre(db: Db): Promise<void> {
+  await dropCultivoCheckConstraints(db);
+  for (const [legacy, nombre] of [
+    ["TRIGO", "Trigo"],
+    ["SOJA", "Soja"],
+    ["MAIZ", "Maíz"],
+    ["COLZA", "Colza"],
+  ] as const) {
+    await db
+      .prepare("UPDATE VENTAS_AGRICULTURA SET cultivo = @nombre WHERE cultivo = @legacy")
+      .run({ legacy, nombre });
   }
 }
 
