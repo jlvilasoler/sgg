@@ -75,6 +75,8 @@ interface Props {
   hayFacetasActivas: boolean;
   mobileOpen: boolean;
   onMobileClose: () => void;
+  embedded?: boolean;
+  tone?: "light" | "dark";
 }
 
 const SEXO_OPCIONES = [
@@ -184,7 +186,13 @@ export default function StockGanaderaFiltrosSidebar({
   hayFacetasActivas,
   mobileOpen,
   onMobileClose,
+  embedded = false,
+  tone = "light",
 }: Props) {
+  const Shell = embedded ? "div" : "aside";
+  const toneClass = tone === "dark" ? " stock-facet-sidebar--eco-dark" : "";
+  const embeddedClass = embedded ? " stock-facet-sidebar--embedded" : "";
+
   return (
     <>
       {mobileOpen ? (
@@ -195,8 +203,8 @@ export default function StockGanaderaFiltrosSidebar({
           onClick={onMobileClose}
         />
       ) : null}
-      <aside
-        className={`stock-facet-sidebar${mobileOpen ? " is-open" : ""}`}
+      <Shell
+        className={`stock-facet-sidebar${toneClass}${embeddedClass}${mobileOpen ? " is-open" : ""}`}
         aria-label="Filtros"
       >
         <div className="stock-facet-sidebar-head">
@@ -433,7 +441,7 @@ export default function StockGanaderaFiltrosSidebar({
             ))}
           </FacetGroup>
         ) : null}
-      </aside>
+      </Shell>
     </>
   );
 }

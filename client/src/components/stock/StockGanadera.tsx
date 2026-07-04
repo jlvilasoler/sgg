@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { RefreshCw, Search, SlidersHorizontal } from "lucide-react";
 import {
   deleteStockGanaderaDispositivos,
   fetchEmpresasOperativasStock,
@@ -19,7 +20,7 @@ import TablePagination, {
 import BadgeEstadoDispositivo from "./BadgeEstadoDispositivo";
 import IconoDispositivoWifi from "./IconoDispositivoWifi";
 import IconoSeleccionCabanaEstrella from "./IconoSeleccionCabanaEstrella";
-import { PageModuleHeadRow } from "../PageModuleHead";
+import { SgHubKpi, SgMiniBars } from "./SgHubUi";
 import StockGanaderaDashKpi from "./StockGanaderaDashKpi";
 import StockGanaderaBulkPanel from "./StockGanaderaBulkPanel";
 import StockGanaderaDetalle from "./StockGanaderaDetalle";
@@ -409,14 +410,9 @@ export default function StockGanadera({
   const muertesCount = resumenKpis.muertos.length;
   const extraviadosCount = resumenKpis.perdidos.length;
 
-  const sexoTotal = useMemo(() => contarSexoDispositivos(statsRows), [statsRows]);
   const sexoSalidas = useMemo(
     () => contarSexoDispositivos(resumenKpis.salidas),
     [resumenKpis.salidas]
-  );
-  const sexoActivos = useMemo(
-    () => contarSexoDispositivos(resumenKpis.activos),
-    [resumenKpis.activos]
   );
   const sexoVentas = useMemo(
     () => contarSexoDispositivos(resumenKpis.vendidos),
@@ -855,139 +851,31 @@ export default function StockGanadera({
   }
 
   return (
-    <div className="subseccion-panel">
-      <button type="button" className="subseccion-back" onClick={onVolver}>
-        ‹ Volver a Stock Ganadero
-      </button>
-
-      <div className="card">
-        <div className="form-header">
-          <PageModuleHeadRow
-            icon={{ source: "app", id: "stock_ganadero" }}
-            title="Stock Ganadero"
-            subtitle={
-              mostrarCargaVacia
-                ? "Cargando…"
-                : loading
-                  ? `${filteredRows.length} dispositivo(s) según los filtros aplicados · actualizando…`
-                  : filteredRows.length === 0
-                    ? rows.length === 0
-                      ? "No hay dispositivos (EID) registrados. Importá lecturas para armar el stock."
-                      : "Ningún dispositivo coincide con los filtros."
-                    : `${filteredRows.length} dispositivo(s) según los filtros aplicados`
-            }
-          />
-        </div>
-
-        {apiOnline && (
-          <section className="stock-dash stock-dash--pro" aria-label="Resumen de dispositivos">
-            <div className="stock-dash-head sg-kpi-board-head">
-              <div>
-                <h3 className="stock-dash-title sg-kpi-board-title">Resumen</h3>
-                <p className="stock-dash-sub sg-kpi-board-desc">
-                  Caravanas electrónicas únicas en la base
-                </p>
-              </div>
+    <div className="stock-ganadero-devices-page">
+      <div className="sg-hub sg-hub--devices">
+        <aside className="sg-hub-aside sg-hub-aside--filters" aria-label="Filtros Stock Ganadero">
+          <div className="sg-hub-aside-brand">
+            <span className="sg-hub-aside-logo" aria-hidden>
+              🐄
+            </span>
+            <div>
+              <p className="sg-hub-aside-kicker">SGG · Dispositivos</p>
+              <p className="sg-hub-aside-title">Stock Ganadero</p>
             </div>
-            <div className="sg-kpi-grid">
-              <StockGanaderaDashKpi
-                label="Total dispositivos"
-                value={totalDispositivosCount}
-                hint={`${activosCount} activos · ${salidasCount} salidas del sistema`}
-                variant="total"
-                sexoStats={sexoTotal}
-                loading={kpisCargando}
-              />
-              <StockGanaderaDashKpi
-                label="Dispositivos activos"
-                value={activosCount}
-                hint="En stock hoy (sin bajas)"
-                variant="activos"
-                sexoStats={sexoActivos}
-                loading={kpisCargando}
-              />
-              <StockGanaderaDashKpi
-                label="Salidas del sistema"
-                value={salidasCount}
-                hint={salidasHint}
-                variant="salida"
-                sexoStats={sexoSalidas}
-                loading={kpisCargando}
-                active={filtroSalidasSistema}
-                disabled={salidasCount === 0}
-                onClick={() => {
-                  setFiltroVentasCerradas(false);
-                  setFiltroEstado(new Set());
-                  setFiltroSalidasSistema((v) => !v);
-                }}
-              />
-              <StockGanaderaDashKpi
-                label="Ventas"
-                value={ventasCount}
-                hint={
-                  ventasSimuladorCount > 0
-                    ? `${ventasSimuladorCount} desde el simulador de ventas`
-                    : "Animales registrados como vendidos"
-                }
-                variant="vendido"
-                sexoStats={sexoVentas}
-                loading={kpisCargando}
-                active={filtroEstado.size === 1 && filtroEstado.has("VENDIDO")}
-                disabled={ventasCount === 0}
-                onClick={() => {
-                  setFiltroSalidasSistema(false);
-                  setFiltroVentasCerradas(false);
-                  setFiltroEstado((prev) => {
-                    const soloVendido = prev.size === 1 && prev.has("VENDIDO");
-                    return soloVendido
-                      ? new Set()
-                      : new Set<DispositivoEstado>(["VENDIDO"]);
-                  });
-                }}
-              />
-              <StockGanaderaDashKpi
-                label="Muertes"
-                value={muertesCount}
-                hint="Registradas en salidas del sistema"
-                variant="muerto"
-                sexoStats={sexoMuertes}
-                loading={kpisCargando}
-                active={filtroEstado.size === 1 && filtroEstado.has("MUERTO")}
-                disabled={muertesCount === 0}
-                onClick={() => {
-                  setFiltroVentasCerradas(false);
-                  setFiltroSalidasSistema(false);
-                  setFiltroEstado((prev) => {
-                    const soloMuerto = prev.size === 1 && prev.has("MUERTO");
-                    return soloMuerto ? new Set() : new Set<DispositivoEstado>(["MUERTO"]);
-                  });
-                }}
-              />
-              <StockGanaderaDashKpi
-                label="Extraviados"
-                value={extraviadosCount}
-                hint="Registrados como extraviados en salidas"
-                variant="extraviado"
-                sexoStats={sexoExtraviados}
-                loading={kpisCargando}
-                active={filtroEstado.size === 1 && filtroEstado.has("PERDIDO")}
-                disabled={extraviadosCount === 0}
-                onClick={() => {
-                  setFiltroVentasCerradas(false);
-                  setFiltroSalidasSistema(false);
-                  setFiltroEstado((prev) => {
-                    const soloPerdido = prev.size === 1 && prev.has("PERDIDO");
-                    return soloPerdido ? new Set() : new Set<DispositivoEstado>(["PERDIDO"]);
-                  });
-                }}
-              />
-            </div>
-          </section>
-        )}
+          </div>
 
-        <div className="stock-ganadera-layout">
-          {apiOnline && (
+          <button
+            type="button"
+            className="sg-hub-nav-item sg-hub-nav-item--muted sg-hub-nav-item--back"
+            onClick={onVolver}
+          >
+            ‹ Volver al dashboard
+          </button>
+
+          {apiOnline ? (
             <StockGanaderaFiltrosSidebar
+              embedded
+              tone="dark"
               empresaOpciones={empresaOpciones}
               fechaDesde={fechaDesde}
               fechaHasta={fechaHasta}
@@ -1045,25 +933,183 @@ export default function StockGanadera({
               mobileOpen={filtrosMobileOpen}
               onMobileClose={() => setFiltrosMobileOpen(false)}
             />
+          ) : (
+            <p className="sg-hub-aside-offline">Conectá la API para filtrar dispositivos.</p>
           )}
+        </aside>
 
-          <div className="stock-ganadera-main">
-            <div className="stock-ganadera-search-bar mayusculas-auto">
+        <main className="sg-hub-main sg-hub-main--devices">
+          <header className="sg-hub-main-head sg-devices-head">
+            <div>
+              <h1 className="sg-hub-main-title">Dispositivos EID</h1>
+              <p className="sg-hub-main-sub">
+                {mostrarCargaVacia
+                  ? "Cargando caravanas electrónicas…"
+                  : loading
+                    ? `${filteredRows.length} dispositivo(s) según filtros · actualizando…`
+                    : filteredRows.length === 0
+                      ? rows.length === 0
+                        ? "No hay dispositivos registrados. Importá lecturas para armar el stock."
+                        : "Ningún dispositivo coincide con los filtros aplicados."
+                      : `${filteredRows.length} dispositivo(s) según los filtros aplicados`}
+              </p>
+            </div>
+            <div className="sg-hub-main-actions">
+              <span
+                className={`sg-hub-status${apiOnline ? " sg-hub-status--online" : ""}`}
+                role="status"
+              >
+                {apiOnline ? "API conectada" : "Sin conexión API"}
+              </span>
               <button
                 type="button"
-                className="stock-ganadera-filtros-mobile-btn"
+                className="sg-hub-icon-btn"
+                aria-label="Actualizar listado"
+                disabled={!apiOnline || loading}
+                onClick={() => void load()}
+              >
+                <RefreshCw size={17} className={loading ? "sg-spin" : undefined} />
+              </button>
+            </div>
+          </header>
+
+          {apiOnline && (
+            <>
+              <section className="sg-hub-kpi-strip sg-devices-kpi-hero" aria-label="Indicadores rápidos">
+                <SgHubKpi
+                  variant="dark"
+                  kicker="Total dispositivos"
+                  value={kpisCargando ? "…" : totalDispositivosCount}
+                  trend={
+                    !kpisCargando && totalDispositivosCount > 0
+                      ? `${activosCount} activos · ${salidasCount} salidas`
+                      : undefined
+                  }
+                  hint="Caravanas electrónicas únicas en la base."
+                  bars={<SgMiniBars highlight="last" />}
+                />
+                <SgHubKpi
+                  kicker="Dispositivos activos"
+                  value={kpisCargando ? "…" : activosCount}
+                  hint="En stock hoy (sin bajas registradas)."
+                  bars={<SgMiniBars highlight="mid" />}
+                />
+                <SgHubKpi
+                  kicker="Salidas del sistema"
+                  value={kpisCargando ? "…" : salidasCount}
+                  hint={salidasHint}
+                  bars={<SgMiniBars />}
+                />
+              </section>
+
+              <section
+                className="sg-hub-panel sg-devices-kpi-panel"
+                aria-label="Resumen detallado por estado"
+              >
+                <div className="sg-hub-panel-head">
+                  <div>
+                    <p className="sg-hub-panel-kicker">Filtrar por estado</p>
+                    <h2 className="sg-hub-panel-title">Desglose del stock</h2>
+                  </div>
+                </div>
+                <div className="sg-kpi-grid sg-kpi-grid--devices">
+                  <StockGanaderaDashKpi
+                    label="Salidas del sistema"
+                    value={salidasCount}
+                    hint={salidasHint}
+                    variant="salida"
+                    sexoStats={sexoSalidas}
+                    loading={kpisCargando}
+                    active={filtroSalidasSistema}
+                    disabled={salidasCount === 0}
+                    onClick={() => {
+                      setFiltroVentasCerradas(false);
+                      setFiltroEstado(new Set());
+                      setFiltroSalidasSistema((v) => !v);
+                    }}
+                  />
+                  <StockGanaderaDashKpi
+                    label="Ventas"
+                    value={ventasCount}
+                    hint={
+                      ventasSimuladorCount > 0
+                        ? `${ventasSimuladorCount} desde el simulador de ventas`
+                        : "Animales registrados como vendidos"
+                    }
+                    variant="vendido"
+                    sexoStats={sexoVentas}
+                    loading={kpisCargando}
+                    active={filtroEstado.size === 1 && filtroEstado.has("VENDIDO")}
+                    disabled={ventasCount === 0}
+                    onClick={() => {
+                      setFiltroSalidasSistema(false);
+                      setFiltroVentasCerradas(false);
+                      setFiltroEstado((prev) => {
+                        const soloVendido = prev.size === 1 && prev.has("VENDIDO");
+                        return soloVendido
+                          ? new Set()
+                          : new Set<DispositivoEstado>(["VENDIDO"]);
+                      });
+                    }}
+                  />
+                  <StockGanaderaDashKpi
+                    label="Muertes"
+                    value={muertesCount}
+                    hint="Registradas en salidas del sistema"
+                    variant="muerto"
+                    sexoStats={sexoMuertes}
+                    loading={kpisCargando}
+                    active={filtroEstado.size === 1 && filtroEstado.has("MUERTO")}
+                    disabled={muertesCount === 0}
+                    onClick={() => {
+                      setFiltroVentasCerradas(false);
+                      setFiltroSalidasSistema(false);
+                      setFiltroEstado((prev) => {
+                        const soloMuerto = prev.size === 1 && prev.has("MUERTO");
+                        return soloMuerto ? new Set() : new Set<DispositivoEstado>(["MUERTO"]);
+                      });
+                    }}
+                  />
+                  <StockGanaderaDashKpi
+                    label="Extraviados"
+                    value={extraviadosCount}
+                    hint="Registrados como extraviados en salidas"
+                    variant="extraviado"
+                    sexoStats={sexoExtraviados}
+                    loading={kpisCargando}
+                    active={filtroEstado.size === 1 && filtroEstado.has("PERDIDO")}
+                    disabled={extraviadosCount === 0}
+                    onClick={() => {
+                      setFiltroVentasCerradas(false);
+                      setFiltroSalidasSistema(false);
+                      setFiltroEstado((prev) => {
+                        const soloPerdido = prev.size === 1 && prev.has("PERDIDO");
+                        return soloPerdido ? new Set() : new Set<DispositivoEstado>(["PERDIDO"]);
+                      });
+                    }}
+                  />
+                </div>
+              </section>
+            </>
+          )}
+
+          <section className="sg-hub-panel sg-hub-panel--devices-table" aria-label="Listado de dispositivos">
+            <div className="sg-devices-search-bar mayusculas-auto">
+              <button
+                type="button"
+                className="sg-devices-filtros-mobile-btn"
                 onClick={() => setFiltrosMobileOpen(true)}
                 aria-label="Abrir filtros"
               >
+                <SlidersHorizontal size={16} aria-hidden />
                 Filtros
                 {hayFacetasActivas ? (
-                  <span className="stock-ganadera-filtros-badge" aria-hidden />
+                  <span className="sg-devices-filtros-badge" aria-hidden />
                 ) : null}
               </button>
-              <div className="stock-ganadera-search-field">
-                <label htmlFor="ganadera-busq" className="sr-only">
-                  Buscar EID / VID
-                </label>
+              <label className="sg-devices-search-field">
+                <Search size={17} className="sg-devices-search-icon" aria-hidden />
+                <span className="sr-only">Buscar EID / VID</span>
                 <input
                   id="ganadera-busq"
                   type="search"
@@ -1071,8 +1117,13 @@ export default function StockGanadera({
                   value={busqueda}
                   onChange={(e) => setBusqueda(e.target.value)}
                 />
-              </div>
-              <button type="button" className="btn btn-primary" onClick={() => void load()}>
+              </label>
+              <button
+                type="button"
+                className="sg-hub-cta sg-devices-search-btn"
+                onClick={() => void load()}
+                disabled={!apiOnline}
+              >
                 Buscar
               </button>
             </div>
@@ -1082,7 +1133,7 @@ export default function StockGanadera({
               fechaDesde ||
               fechaHasta ||
               filtroUltimaLecturaMes.size > 0) && (
-              <div className="stock-ganadera-chips" aria-label="Filtros activos">
+              <div className="sg-devices-chips" aria-label="Filtros activos">
                 {busqueda.trim() ? (
                   <span className="stock-ganadera-chip">
                     Búsqueda: {busqueda.trim()}
@@ -1470,19 +1521,21 @@ export default function StockGanadera({
             </div>
 
             {(!mostrarCargaVacia) && apiOnline && filteredRows.length > 0 && (
-              <TablePagination
-                total={filteredRows.length}
-                page={pageSafe}
-                pageSize={pageSize}
-                onPageChange={setPage}
-                onPageSizeChange={(size) => {
-                  setPageSize(size);
-                  setPage(1);
-                }}
-              />
+              <div className="sg-devices-pagination">
+                <TablePagination
+                  total={filteredRows.length}
+                  page={pageSafe}
+                  pageSize={pageSize}
+                  onPageChange={setPage}
+                  onPageSizeChange={(size) => {
+                    setPageSize(size);
+                    setPage(1);
+                  }}
+                />
+              </div>
             )}
-          </div>
-        </div>
+          </section>
+        </main>
       </div>
     </div>
   );

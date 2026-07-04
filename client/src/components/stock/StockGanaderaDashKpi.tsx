@@ -18,6 +18,7 @@ interface Props {
   loading?: boolean;
   active?: boolean;
   disabled?: boolean;
+  hero?: boolean;
   onClick?: () => void;
 }
 
@@ -100,11 +101,13 @@ export default function StockGanaderaDashKpi({
   loading = false,
   active = false,
   disabled = false,
+  hero = false,
   onClick,
 }: Props) {
   const className = [
     "sg-kpi-card",
     `sg-kpi-card--${variant}`,
+    hero ? "sg-kpi-card--hero" : "",
     active ? "is-active" : "",
     onClick ? "sg-kpi-card--clickable" : "",
   ]

@@ -2,9 +2,6 @@ import { useCallback, useEffect, useState } from "react";
 import { fetchStockGanaderoResumen } from "../../api";
 import { useHeaderBackStep } from "../../header-back";
 import type { AuthUser } from "../../types";
-import { HubMenuCard } from "../HubMenuCard";
-import type { HubIconId } from "../icons/HubMenuIcons";
-import { HUB_ICON_THEMES, HubMenuIcon } from "../icons/HubMenuIcons";
 import StockGanadera from "./StockGanadera";
 import StockGanaderaSalidas from "./StockGanaderaSalidas";
 import StockGanaderoHistorial from "./StockGanaderoHistorial";
@@ -13,7 +10,7 @@ import StockGanaderoImportarBaja from "./StockGanaderoImportarBaja";
 import StockGanaderoListado from "./StockGanaderoListado";
 import StockGanaderoCabanaSeleccion from "./StockGanaderoCabanaSeleccion";
 import StockGanaderoSanidad from "./StockGanaderoSanidad";
-import { PageModuleHeadRow } from "../PageModuleHead";
+import StockGanaderoHub, { type StockGanaderoHubItem } from "./StockGanaderoHub";
 
 type VistaStock =
   | "menu"
@@ -34,12 +31,7 @@ interface Props {
   onVolver: () => void;
 }
 
-const SUBMENU: {
-  id: Exclude<VistaStock, "menu" | "historial">;
-  label: string;
-  subtitle: string;
-  icon: HubIconId;
-}[] = [
+const SUBMENU: StockGanaderoHubItem[] = [
   {
     id: "importar",
     label: "Alta de Dispositivo",
@@ -227,43 +219,14 @@ export default function StockGanadero({
   }
 
   return (
-    <div className="subseccion-panel configuracion-hub">
-      <button type="button" className="subseccion-back" onClick={onVolver}>
-        ‹ Volver al inicio
-      </button>
-      <div className="card configuracion-hub-card">
-        <div className="form-header">
-          <PageModuleHeadRow
-            icon={{ source: "app", id: "stock_ganadero" }}
-            title="Stock Ganadero"
-            subtitle={
-              <>
-                Importá lecturas electrónicas (EID) desde archivos .txt del lector.
-                {apiOnline && resumen.registros > 0 && (
-                  <>
-                    {" "}
-                    Actualmente: <strong>{resumen.dispositivos}</strong> dispositivo(s) activo(s),{" "}
-                    <strong>{resumen.registros}</strong> lectura(s) en{" "}
-                    <strong>{resumen.lotes}</strong> importación(es).
-                  </>
-                )}
-              </>
-            }
-          />
-        </div>
-        <nav className="app-grid" aria-label="Stock Ganadero">
-          {SUBMENU.map((item) => (
-            <HubMenuCard
-              key={item.id}
-              label={item.label}
-              subtitle={item.subtitle}
-              theme={HUB_ICON_THEMES[item.icon]}
-              icon={<HubMenuIcon id={item.icon} />}
-              onClick={() => setVista(item.id)}
-            />
-          ))}
-        </nav>
-      </div>
+    <div className="stock-ganadero-hub-page">
+      <StockGanaderoHub
+        apiOnline={apiOnline}
+        resumen={resumen}
+        items={SUBMENU}
+        onNavigate={(id) => setVista(id as Exclude<VistaStock, "menu" | "historial">)}
+        onVolverInicio={onVolver}
+      />
     </div>
   );
 }
