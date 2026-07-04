@@ -20,7 +20,6 @@ import TablePagination, {
 import BadgeEstadoDispositivo from "./BadgeEstadoDispositivo";
 import IconoDispositivoWifi from "./IconoDispositivoWifi";
 import IconoSeleccionCabanaEstrella from "./IconoSeleccionCabanaEstrella";
-import { SgHubKpi, SgMiniBars } from "./SgHubUi";
 import StockGanaderaDashKpi from "./StockGanaderaDashKpi";
 import StockGanaderaBulkPanel from "./StockGanaderaBulkPanel";
 import StockGanaderaDetalle from "./StockGanaderaDetalle";
@@ -28,6 +27,7 @@ import StockGanaderaEdadMiniTimeline from "./StockGanaderaEdadMiniTimeline";
 import StockGanaderaEditarPanel from "./StockGanaderaEditarModal";
 import StockGanaderaHistorialCambiosPanel from "./StockGanaderaHistorialCambiosPanel";
 import StockGanaderaFiltrosSidebar from "./StockGanaderaFiltrosSidebar";
+import { StockGanaderoModuleIcon } from "./StockControlSanitarioSectionTitle";
 import type { CategoriaFiltroKey, EdadFiltroKey } from "./stock-ganadera-utils";
 import {
   CATEGORIA_FILTRO_HEMBRA,
@@ -856,7 +856,7 @@ export default function StockGanadera({
         <aside className="sg-hub-aside sg-hub-aside--filters" aria-label="Filtros Stock Ganadero">
           <div className="sg-hub-aside-brand">
             <span className="sg-hub-aside-logo" aria-hidden>
-              🐄
+              <StockGanaderoModuleIcon size={20} strokeWidth={1.75} />
             </span>
             <div>
               <p className="sg-hub-aside-kicker">SGG · Dispositivos</p>
@@ -974,123 +974,131 @@ export default function StockGanadera({
           </header>
 
           {apiOnline && (
-            <>
-              <section className="sg-hub-kpi-strip sg-devices-kpi-hero" aria-label="Indicadores rápidos">
-                <SgHubKpi
-                  variant="dark"
-                  kicker="Total dispositivos"
-                  value={kpisCargando ? "…" : totalDispositivosCount}
+            <section className="sg-hub-panel sg-devices-dashboard" aria-label="Resumen del stock">
+              <div className="sg-hub-panel-head">
+                <div>
+                  <p className="sg-hub-panel-kicker">Indicadores</p>
+                  <h2 className="sg-hub-panel-title">Resumen del stock</h2>
+                </div>
+              </div>
+
+              <div className="sg-hub-kpi-strip sg-devices-kpi-summary">
+                <StockGanaderaDashKpi
+                  label="Total dispositivos"
+                  value={totalDispositivosCount}
+                  hint="Caravanas electrónicas únicas en la base."
+                  variant="total"
                   trend={
                     !kpisCargando && totalDispositivosCount > 0
                       ? `${activosCount} activos · ${salidasCount} salidas`
                       : undefined
                   }
-                  hint="Caravanas electrónicas únicas en la base."
-                  bars={<SgMiniBars highlight="last" />}
+                  showSexo={false}
+                  barsHighlight="last"
+                  loading={kpisCargando}
                 />
-                <SgHubKpi
-                  kicker="Dispositivos activos"
-                  value={kpisCargando ? "…" : activosCount}
+                <StockGanaderaDashKpi
+                  label="Dispositivos activos"
+                  value={activosCount}
                   hint="En stock hoy (sin bajas registradas)."
-                  bars={<SgMiniBars highlight="mid" />}
+                  variant="activos"
+                  showSexo={false}
+                  barsHighlight="mid"
+                  loading={kpisCargando}
                 />
-                <SgHubKpi
-                  kicker="Salidas del sistema"
-                  value={kpisCargando ? "…" : salidasCount}
+                <StockGanaderaDashKpi
+                  label="Salidas del sistema"
+                  value={salidasCount}
                   hint={salidasHint}
-                  bars={<SgMiniBars />}
+                  variant="salida"
+                  showSexo={false}
+                  loading={kpisCargando}
                 />
-              </section>
+              </div>
 
-              <section
-                className="sg-hub-panel sg-devices-kpi-panel"
-                aria-label="Resumen detallado por estado"
-              >
-                <div className="sg-hub-panel-head">
-                  <div>
-                    <p className="sg-hub-panel-kicker">Filtrar por estado</p>
-                    <h2 className="sg-hub-panel-title">Desglose del stock</h2>
-                  </div>
-                </div>
-                <div className="sg-kpi-grid sg-kpi-grid--devices">
-                  <StockGanaderaDashKpi
-                    label="Salidas del sistema"
-                    value={salidasCount}
-                    hint={salidasHint}
-                    variant="salida"
-                    sexoStats={sexoSalidas}
-                    loading={kpisCargando}
-                    active={filtroSalidasSistema}
-                    disabled={salidasCount === 0}
-                    onClick={() => {
-                      setFiltroVentasCerradas(false);
-                      setFiltroEstado(new Set());
-                      setFiltroSalidasSistema((v) => !v);
-                    }}
-                  />
-                  <StockGanaderaDashKpi
-                    label="Ventas"
-                    value={ventasCount}
-                    hint={
-                      ventasSimuladorCount > 0
-                        ? `${ventasSimuladorCount} desde el simulador de ventas`
-                        : "Animales registrados como vendidos"
-                    }
-                    variant="vendido"
-                    sexoStats={sexoVentas}
-                    loading={kpisCargando}
-                    active={filtroEstado.size === 1 && filtroEstado.has("VENDIDO")}
-                    disabled={ventasCount === 0}
-                    onClick={() => {
-                      setFiltroSalidasSistema(false);
-                      setFiltroVentasCerradas(false);
-                      setFiltroEstado((prev) => {
-                        const soloVendido = prev.size === 1 && prev.has("VENDIDO");
-                        return soloVendido
-                          ? new Set()
-                          : new Set<DispositivoEstado>(["VENDIDO"]);
-                      });
-                    }}
-                  />
-                  <StockGanaderaDashKpi
-                    label="Muertes"
-                    value={muertesCount}
-                    hint="Registradas en salidas del sistema"
-                    variant="muerto"
-                    sexoStats={sexoMuertes}
-                    loading={kpisCargando}
-                    active={filtroEstado.size === 1 && filtroEstado.has("MUERTO")}
-                    disabled={muertesCount === 0}
-                    onClick={() => {
-                      setFiltroVentasCerradas(false);
-                      setFiltroSalidasSistema(false);
-                      setFiltroEstado((prev) => {
-                        const soloMuerto = prev.size === 1 && prev.has("MUERTO");
-                        return soloMuerto ? new Set() : new Set<DispositivoEstado>(["MUERTO"]);
-                      });
-                    }}
-                  />
-                  <StockGanaderaDashKpi
-                    label="Extraviados"
-                    value={extraviadosCount}
-                    hint="Registrados como extraviados en salidas"
-                    variant="extraviado"
-                    sexoStats={sexoExtraviados}
-                    loading={kpisCargando}
-                    active={filtroEstado.size === 1 && filtroEstado.has("PERDIDO")}
-                    disabled={extraviadosCount === 0}
-                    onClick={() => {
-                      setFiltroVentasCerradas(false);
-                      setFiltroSalidasSistema(false);
-                      setFiltroEstado((prev) => {
-                        const soloPerdido = prev.size === 1 && prev.has("PERDIDO");
-                        return soloPerdido ? new Set() : new Set<DispositivoEstado>(["PERDIDO"]);
-                      });
-                    }}
-                  />
-                </div>
-              </section>
-            </>
+              <div className="sg-devices-kpi-divider">
+                <p className="sg-devices-kpi-divider-label">Filtrar por estado</p>
+                <span className="sg-devices-kpi-divider-line" aria-hidden />
+              </div>
+
+              <div className="sg-hub-kpi-strip sg-devices-kpi-filters">
+                <StockGanaderaDashKpi
+                  label="Salidas del sistema"
+                  value={salidasCount}
+                  hint={salidasHint}
+                  variant="salida"
+                  sexoStats={sexoSalidas}
+                  loading={kpisCargando}
+                  active={filtroSalidasSistema}
+                  disabled={salidasCount === 0}
+                  onClick={() => {
+                    setFiltroVentasCerradas(false);
+                    setFiltroEstado(new Set());
+                    setFiltroSalidasSistema((v) => !v);
+                  }}
+                />
+                <StockGanaderaDashKpi
+                  label="Ventas"
+                  value={ventasCount}
+                  hint={
+                    ventasSimuladorCount > 0
+                      ? `${ventasSimuladorCount} desde el simulador de ventas`
+                      : "Animales registrados como vendidos"
+                  }
+                  variant="vendido"
+                  sexoStats={sexoVentas}
+                  loading={kpisCargando}
+                  active={filtroEstado.size === 1 && filtroEstado.has("VENDIDO")}
+                  disabled={ventasCount === 0}
+                  onClick={() => {
+                    setFiltroSalidasSistema(false);
+                    setFiltroVentasCerradas(false);
+                    setFiltroEstado((prev) => {
+                      const soloVendido = prev.size === 1 && prev.has("VENDIDO");
+                      return soloVendido
+                        ? new Set()
+                        : new Set<DispositivoEstado>(["VENDIDO"]);
+                    });
+                  }}
+                />
+                <StockGanaderaDashKpi
+                  label="Muertes"
+                  value={muertesCount}
+                  hint="Registradas en salidas del sistema"
+                  variant="muerto"
+                  sexoStats={sexoMuertes}
+                  loading={kpisCargando}
+                  active={filtroEstado.size === 1 && filtroEstado.has("MUERTO")}
+                  disabled={muertesCount === 0}
+                  onClick={() => {
+                    setFiltroVentasCerradas(false);
+                    setFiltroSalidasSistema(false);
+                    setFiltroEstado((prev) => {
+                      const soloMuerto = prev.size === 1 && prev.has("MUERTO");
+                      return soloMuerto ? new Set() : new Set<DispositivoEstado>(["MUERTO"]);
+                    });
+                  }}
+                />
+                <StockGanaderaDashKpi
+                  label="Extraviados"
+                  value={extraviadosCount}
+                  hint="Registrados como extraviados en salidas"
+                  variant="extraviado"
+                  sexoStats={sexoExtraviados}
+                  loading={kpisCargando}
+                  active={filtroEstado.size === 1 && filtroEstado.has("PERDIDO")}
+                  disabled={extraviadosCount === 0}
+                  onClick={() => {
+                    setFiltroVentasCerradas(false);
+                    setFiltroSalidasSistema(false);
+                    setFiltroEstado((prev) => {
+                      const soloPerdido = prev.size === 1 && prev.has("PERDIDO");
+                      return soloPerdido ? new Set() : new Set<DispositivoEstado>(["PERDIDO"]);
+                    });
+                  }}
+                />
+              </div>
+            </section>
           )}
 
           <section className="sg-hub-panel sg-hub-panel--devices-table" aria-label="Listado de dispositivos">
