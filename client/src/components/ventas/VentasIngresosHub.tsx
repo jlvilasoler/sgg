@@ -12,7 +12,6 @@ export interface VentasIngresosResumen {
   ganado: number;
   agricultura: number;
   arrendamientos: number;
-  rubros: number;
 }
 
 interface Props {
@@ -209,19 +208,7 @@ export default function VentasIngresosHub({
                   <p>Consultá totales, filtros y detalle de cada operación cerrada.</p>
                 </div>
               </li>
-              <li>
-                <span className="sg-hub-flow-num">3</span>
-                <div>
-                  <strong>Rubros</strong>
-                  <p>Mantené el catálogo de rubros e ítems para clasificar ingresos.</p>
-                </div>
-              </li>
             </ol>
-            <p className="sg-hub-panel-note muted">
-              {apiOnline
-                ? `${resumen.rubros} sub-rubro(s) en el catálogo de ingresos.`
-                : "Conectá la API para ver el resumen del catálogo."}
-            </p>
           </section>
         </div>
       </main>

@@ -9,8 +9,19 @@ import {
   canVerUsuariosOnlineActividad,
 } from "../utils/auth-permissions";
 import UserAvatar from "./UserAvatar";
-import { PageModuleHeadRow } from "./PageModuleHead";
+import SgHubShell from "./hub/SgHubShell";
+import { MenuAppIcon } from "./icons/MenuAppIcons";
+import type { SgHubItem } from "./hub/SgHubTypes";
 import TablePagination, { type PageSize } from "./TablePagination";
+
+const ACTIVIDAD_HUB_ITEMS: SgHubItem[] = [
+  {
+    id: "actividad",
+    label: "Historial",
+    subtitle: "Accesos y acciones en el sistema",
+    icon: "usuarios_permisos_rol",
+  },
+];
 
 const EVENTO_LABELS: Record<string, string> = {
   login_ok: "Inicio de sesión",
@@ -654,57 +665,52 @@ export default function UsuariosActividad({
   }
 
   return (
-    <div className="subseccion-panel usuarios-actividad usuarios-actividad--hub">
-      <button type="button" className="subseccion-back" onClick={onVolver}>
-        ‹ {volverLabel}
-      </button>
+    <div className="sg-module-page actividad-module-page">
+      <SgHubShell
+        activeId="actividad"
+        items={ACTIVIDAD_HUB_ITEMS}
+        onNavigate={() => undefined}
+        onVolverDashboard={() => undefined}
+        onVolverInicio={onVolver}
+        apiOnline={apiOnline}
+        title={titulo}
+        subtitle={subtituloAmbito ? `${subtituloAmbito} · ${subtitulo}` : subtitulo}
+        asideKicker="SGG · Auditoría"
+        asideTitle="Registro de actividad"
+        asideLogo={<MenuAppIcon id="registro_actividad" />}
+        navAriaLabel="Registro de actividad"
+        showDashboardInNav={false}
+      >
+        <div className="sg-hub-embedded usuarios-actividad usuarios-actividad--hub">
+          <div className="usuarios-actividad-hub-workspace">
+            {hubKpiStrip}
 
-      <div className="usuarios-actividad-hub-workspace">
-        <header className="usuarios-actividad-hub-page-head">
-          <PageModuleHeadRow
-            icon={{ source: "app", id: "registro_actividad" }}
-            title={titulo}
-            subtitle={
-              subtituloAmbito ? `${subtituloAmbito} · ${subtitulo}` : subtitulo
-            }
-            titleClassName="listado-pro-head-title"
-            subClassName="listado-pro-head-sub"
-            textClassName="listado-pro-head-text"
-          />
-          <span
-            className={`sg-hub-status${apiOnline ? " sg-hub-status--online" : ""}`}
-            role="status"
-          >
-            {apiOnline ? "API conectada" : "Sin conexión API"}
-          </span>
-        </header>
-
-        {hubKpiStrip}
-
-        <p className="usuarios-actividad-hub-status muted" role="status">
-          {subtituloAmbito ? `${subtituloAmbito} · ` : ""}
-          {subtitulo}
-        </p>
-
-        {seccionOnline}
-
-        <section
-          className="usuarios-actividad-hub-box usuarios-actividad-hub-box--listado"
-          aria-label="Historial de actividad"
-        >
-          <header className="usuarios-actividad-hub-head-box">
-            <p className="sg-hub-panel-kicker">Historial</p>
-            <h2 className="usuarios-actividad-hub-title">Registro de actividad</h2>
-            <p className="usuarios-actividad-hub-sub muted">
-              Filtrá por usuario, tipo de evento o cuenta y consultá el detalle de cada acción.
+            <p className="usuarios-actividad-hub-status muted" role="status">
+              {subtituloAmbito ? `${subtituloAmbito} · ` : ""}
+              {subtitulo}
             </p>
-          </header>
 
-          {filtersBar}
-          {dataTable}
-          {pagination}
-        </section>
-      </div>
+            {seccionOnline}
+
+            <section
+              className="usuarios-actividad-hub-box usuarios-actividad-hub-box--listado"
+              aria-label="Historial de actividad"
+            >
+              <header className="usuarios-actividad-hub-head-box">
+                <p className="sg-hub-panel-kicker">Historial</p>
+                <h2 className="usuarios-actividad-hub-title">Registro de actividad</h2>
+                <p className="usuarios-actividad-hub-sub muted">
+                  Filtrá por usuario, tipo de evento o cuenta y consultá el detalle de cada acción.
+                </p>
+              </header>
+
+              {filtersBar}
+              {dataTable}
+              {pagination}
+            </section>
+          </div>
+        </div>
+      </SgHubShell>
     </div>
   );
 }

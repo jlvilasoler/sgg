@@ -69,6 +69,8 @@ interface Props {
   hayFacetasActivas: boolean;
   mobileOpen: boolean;
   onMobileClose: () => void;
+  embedded?: boolean;
+  tone?: "light" | "dark";
 }
 
 const SEXO_OPCIONES = [
@@ -174,7 +176,13 @@ export default function StockEquinaFiltrosSidebar({
   hayFacetasActivas,
   mobileOpen,
   onMobileClose,
+  embedded = false,
+  tone = "light",
 }: Props) {
+  const Shell = embedded ? "div" : "aside";
+  const toneClass = tone === "dark" ? " stock-facet-sidebar--eco-dark" : "";
+  const embeddedClass = embedded ? " stock-facet-sidebar--embedded" : "";
+
   return (
     <>
       {mobileOpen ? (
@@ -185,8 +193,8 @@ export default function StockEquinaFiltrosSidebar({
           onClick={onMobileClose}
         />
       ) : null}
-      <aside
-        className={`stock-facet-sidebar${mobileOpen ? " is-open" : ""}`}
+      <Shell
+        className={`stock-facet-sidebar${toneClass}${embeddedClass}${mobileOpen ? " is-open" : ""}`}
         aria-label="Filtros"
       >
         <div className="stock-facet-sidebar-head">
@@ -404,7 +412,7 @@ export default function StockEquinaFiltrosSidebar({
             ))}
           </FacetGroup>
         ) : null}
-      </aside>
+      </Shell>
     </>
   );
 }

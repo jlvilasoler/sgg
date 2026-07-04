@@ -1,80 +1,77 @@
-import { useEffect, useState } from "react";
-import { HubMenuCard } from "../HubMenuCard";
-import { useHeaderBackContext } from "../../header-back";
-import { MENU_APP_THEMES, MenuAppIcon } from "../icons/MenuAppIcons";
-import { PageModuleHeadRow } from "../PageModuleHead";
+import { useCallback, useState } from "react";
+import { useHeaderBackStep } from "../../header-back";
+import SgHubModuleGrid from "../hub/SgHubModuleGrid";
+import SgHubShell from "../hub/SgHubShell";
+import { MenuAppIcon } from "../icons/MenuAppIcons";
+import type { SegmentoPreciosGanado } from "../../types";
 import PreciosGanadoPanel from "./PreciosGanadoPanel";
 import {
-  PRECIOS_GANADO_SEGMENTOS,
-  type PreciosGanadoSegmentoConfig,
-} from "./precios-ganado-config";
-import type { SegmentoPreciosGanado } from "../../types";
+  PRECIOS_GANADO_HUB_ITEMS,
+  preciosGanadoHubMeta,
+} from "./precios-ganado-hub-items";
+import { PRECIOS_GANADO_SEGMENTOS } from "./precios-ganado-config";
 
 interface Props {
   apiOnline: boolean;
   onError: (msg: string) => void;
   onSuccess: (msg: string) => void;
+  onVolver: () => void;
 }
 
-const REPOSICION_THEME = {
-  accent: "#15803d",
-  accentSoft: "linear-gradient(145deg, #f0fdf4 0%, #bbf7d0 45%, #86efac 100%)",
-  accentGlow: "rgba(21, 128, 61, 0.28)",
-} as const;
+export default function PreciosGanado({ apiOnline, onError, onSuccess, onVolver }: Props) {
+  const [vista, setVista] = useState<SegmentoPreciosGanado | "menu">("menu");
 
-export default function PreciosGanado({ apiOnline, onError, onSuccess }: Props) {
-  const [segmento, setSegmento] = useState<SegmentoPreciosGanado | null>(null);
-  const headerBack = useHeaderBackContext();
+  const volverMenu = useCallback(() => setVista("menu"), []);
+  useHeaderBackStep(vista !== "menu", volverMenu, "Precios de Ganado");
 
-  useEffect(() => {
-    if (!headerBack) return;
-    if (segmento) {
-      const cfg = PRECIOS_GANADO_SEGMENTOS.find((s) => s.id === segmento);
-      headerBack.setStep({
-        onBack: () => setSegmento(null),
-        destinationLabel: cfg?.titulo ?? "Precios de Ganado",
-      });
-    } else {
-      headerBack.setStep(null);
-    }
-    return () => headerBack.setStep(null);
-  }, [segmento, headerBack]);
+  const config =
+    vista !== "menu"
+      ? PRECIOS_GANADO_SEGMENTOS.find((s) => s.id === vista)
+      : undefined;
 
-  if (segmento) {
-    const config = PRECIOS_GANADO_SEGMENTOS.find(
-      (s) => s.id === segmento
-    ) as PreciosGanadoSegmentoConfig;
-    return (
-      <PreciosGanadoPanel
-        config={config}
-        apiOnline={apiOnline}
-        onError={onError}
-        onSuccess={onSuccess}
-      />
-    );
-  }
+  const meta =
+    vista === "menu"
+      ? {
+          title: "Dashboard",
+          subtitle: "Cotizaciones de gordo y reposición en USD por kilogramo.",
+        }
+      : preciosGanadoHubMeta(vista) ?? { title: "Precios de Ganado", subtitle: "" };
 
   return (
-    <div className="proveedores-hub">
-      <header className="module-hub-head">
-        <PageModuleHeadRow
-          icon={{ source: "app", id: "precios_ganado" }}
-          title="Precios de Ganado"
-          subtitle="Cotizaciones de gordo y reposición en USD por kilogramo"
-        />
-      </header>
-      <nav className="app-grid app-grid-2" aria-label="Tipos de precios de ganado">
-        {PRECIOS_GANADO_SEGMENTOS.map((s) => (
-          <HubMenuCard
-            key={s.id}
-            label={s.titulo}
-            subtitle={s.subtitulo}
-            theme={s.icon === "gordo" ? MENU_APP_THEMES.precios_ganado : REPOSICION_THEME}
-            icon={<MenuAppIcon id="precios_ganado" />}
-            onClick={() => setSegmento(s.id)}
+    <div className="sg-module-page precios-ganado-module-page">
+      <SgHubShell
+        activeId={vista}
+        items={PRECIOS_GANADO_HUB_ITEMS}
+        onNavigate={(id) => setVista(id as SegmentoPreciosGanado)}
+        onVolverDashboard={volverMenu}
+        onVolverInicio={onVolver}
+        apiOnline={apiOnline}
+        title={meta.title}
+        subtitle={meta.subtitle}
+        asideKicker="SGG · Mercado"
+        asideTitle="Precios de Ganado"
+        asideLogo={<MenuAppIcon id="precios_ganado" />}
+        navAriaLabel="Segmentos de precios de ganado"
+      >
+        {vista === "menu" ? (
+          <div className="sg-hub-panels">
+            <SgHubModuleGrid
+              items={PRECIOS_GANADO_HUB_ITEMS}
+              onSelect={(id) => setVista(id as SegmentoPreciosGanado)}
+              title="Segmentos"
+              kicker="Cotizaciones ACG"
+            />
+          </div>
+        ) : config ? (
+          <PreciosGanadoPanel
+            embedded
+            config={config}
+            apiOnline={apiOnline}
+            onError={onError}
+            onSuccess={onSuccess}
           />
-        ))}
-      </nav>
+        ) : null}
+      </SgHubShell>
     </div>
   );
 }

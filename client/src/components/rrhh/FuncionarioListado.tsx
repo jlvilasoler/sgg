@@ -12,6 +12,7 @@ interface Props {
   onError: (msg: string) => void;
   onSuccess: (msg: string) => void;
   onVolver: () => void;
+  embedded?: boolean;
 }
 
 export default function FuncionarioListado({
@@ -22,6 +23,7 @@ export default function FuncionarioListado({
   onError,
   onSuccess,
   onVolver,
+  embedded = false,
 }: Props) {
   const [rows, setRows] = useState<Funcionario[]>([]);
   const [refreshing, setRefreshing] = useState(true);
@@ -95,10 +97,12 @@ export default function FuncionarioListado({
       : "No hay funcionarios registrados todavía.";
 
   return (
-    <div className="subseccion-panel">
-      <button type="button" className="subseccion-back" onClick={onVolver}>
-        ‹ Volver a Recursos Humanos
-      </button>
+    <div className={`subseccion-panel${embedded ? " sg-hub-embedded" : ""}`}>
+      {!embedded ? (
+        <button type="button" className="subseccion-back" onClick={onVolver}>
+          ‹ Volver a Recursos Humanos
+        </button>
+      ) : null}
 
       <div className="listado-pro rrhh-func-listado">
         <div className={`listado-pro-shell${refreshing && hasData ? " listado-pro-shell--refreshing" : ""}`}>

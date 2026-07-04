@@ -402,6 +402,17 @@ export function dispositivoActivoEnStock(
   return true;
 }
 
+export function filtrarDispositivosActivosStock<T extends { estado: DispositivoEstado; clave: string }>(
+  rows: ReadonlyArray<T>,
+  clavesVentasCerradas?: ReadonlySet<string>
+): T[] {
+  return rows.filter((d) => dispositivoActivoEnStock(d, clavesVentasCerradas));
+}
+
+export function fmtRaza(raza: string | null | undefined): string {
+  return String(raza ?? "").trim() || "—";
+}
+
 /** Estados que aparecen en Salidas del sistema (fuera del stock activo). */
 export const ESTADOS_SALIDA_SISTEMA: ReadonlySet<DispositivoEstado> = new Set([
   "MUERTO",

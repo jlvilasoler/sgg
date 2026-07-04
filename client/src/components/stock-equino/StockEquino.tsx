@@ -1,22 +1,17 @@
-﻿import { useCallback, useEffect, useState } from "react";
+﻿import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { fetchStockEquinoResumen } from "../../api";
 import { useHeaderBackStep } from "../../header-back";
 import type { AuthUser } from "../../types";
-import { HubMenuCard } from "../HubMenuCard";
-import type { HubIconId } from "../icons/HubMenuIcons";
-import { HUB_ICON_THEMES, HubMenuIcon } from "../icons/HubMenuIcons";
 import StockEquina from "./StockEquina";
 import StockEquinaSalidas from "./StockEquinaSalidas";
 import StockEquinoHistorial from "./StockEquinoHistorial";
 import StockEquinoImportar from "./StockEquinoImportar";
 import StockEquinoImportarBaja from "./StockEquinoImportarBaja";
 import StockEquinoListado from "./StockEquinoListado";
+import StockEquinoSanidad from "./StockEquinoSanidad";
+import StockEquinoHub, { type StockEquinoHubItem } from "./StockEquinoHub";
+import StockEquinoHubShell from "./StockEquinoHubShell";
 import { clearStockEquinaPageCache } from "./stock-equina-page-cache";
-import UnderConstructionModal from "../UnderConstructionModal";
-import { PageModuleHeadRow } from "../PageModuleHead";
-
-/** Desactivar cuando el módulo esté listo para producción. */
-const STOCK_EQUINO_EN_CONSTRUCCION = true;
 
 type VistaStock =
   | "menu"
@@ -25,7 +20,8 @@ type VistaStock =
   | "listado"
   | "historial"
   | "equina"
-  | "salidas";
+  | "salidas"
+  | "sanidad";
 
 interface Props {
   apiOnline: boolean;
@@ -35,12 +31,7 @@ interface Props {
   onVolver: () => void;
 }
 
-const SUBMENU: {
-  id: Exclude<VistaStock, "menu" | "historial">;
-  label: string;
-  subtitle: string;
-  icon: HubIconId;
-}[] = [
+export const STOCK_EQUINO_SUBMENU: StockEquinoHubItem[] = [
   {
     id: "importar",
     label: "Alta de Dispositivo",
@@ -71,18 +62,51 @@ const SUBMENU: {
     subtitle: "Muertes, ventas y frigorífico registradas",
     icon: "stock_salidas",
   },
+  {
+    id: "sanidad",
+    label: "Sanidad",
+    subtitle: "Controles sanitarios por grupos, categorías o selección múltiple",
+    icon: "stock_sanidad",
+  },
 ];
 
-export default function StockEquino(props: Props) {
-  if (STOCK_EQUINO_EN_CONSTRUCCION) {
-    return (
-      <UnderConstructionModal sectionName="Stock Equino" onClose={props.onVolver} />
-    );
-  }
-  return <StockEquinoPanel {...props} />;
-}
+const MODULE_META: Record<
+  Exclude<VistaStock, "menu">,
+  { title: string; subtitle: string; navId?: string }
+> = {
+  importar: {
+    title: "Alta de Dispositivo",
+    subtitle:
+      "Cargá el export del bastón o lector RFID, o ingresá lecturas una a una. Cada registro guarda fecha, hora y condición del equino.",
+  },
+  importar_baja: {
+    title: "Baja de Dispositivo",
+    subtitle: "Importá un archivo TXT de bajas o registrá salidas manualmente por caravana.",
+  },
+  listado: {
+    title: "Lecturas importadas",
+    subtitle: "Consultá, filtrá y gestioná las importaciones EID de la cuenta.",
+  },
+  historial: {
+    title: "Historial de importaciones",
+    subtitle: "Lotes importados, filas procesadas y acciones sobre cada archivo.",
+    navId: "listado",
+  },
+  equina: {
+    title: "Dispositivos EID",
+    subtitle: "Stock equino activo, filtros por estado y detalle de cada caravana.",
+  },
+  salidas: {
+    title: "Salidas del sistema",
+    subtitle: "Muertes, ventas, frigorífico y extraviados fuera del stock activo.",
+  },
+  sanidad: {
+    title: "Sanidad",
+    subtitle: "Seleccioná equinos por grupo y registrá el mismo control sanitario en todos a la vez.",
+  },
+};
 
-function StockEquinoPanel({
+export default function StockEquino({
   apiOnline,
   currentUser,
   onError,
@@ -111,55 +135,104 @@ function StockEquinoPanel({
   const volverMenu = useCallback(() => setVista("menu"), []);
   useHeaderBackStep(vista !== "menu", volverMenu, "Stock Equino");
 
+  const navegarModulo = useCallback((id: string) => {
+    setVista(id as Exclude<VistaStock, "menu" | "historial">);
+  }, []);
+
+  const bumpRefresh = useCallback(() => {
+    clearStockEquinaPageCache();
+    setListRefresh((k) => k + 1);
+  }, []);
+
+  const wrapModule = useCallback(
+    (
+      vistaId: Exclude<VistaStock, "menu">,
+      content: ReactNode,
+      options?: { headerActions?: ReactNode },
+    ) => {
+      const meta = MODULE_META[vistaId];
+      const activeNavId = meta.navId ?? vistaId;
+      return (
+        <div className="sg-module-page stock-equino-module-page">
+          <StockEquinoHubShell
+            activeId={activeNavId}
+            items={STOCK_EQUINO_SUBMENU}
+            onNavigate={navegarModulo}
+            onVolverDashboard={volverMenu}
+            onVolverInicio={onVolver}
+            apiOnline={apiOnline}
+            title={meta.title}
+            subtitle={meta.subtitle}
+            headerActions={options?.headerActions}
+          >
+            {content}
+          </StockEquinoHubShell>
+        </div>
+      );
+    },
+    [apiOnline, navegarModulo, onVolver, volverMenu],
+  );
+
   if (vista === "importar") {
-    return (
+    return wrapModule(
+      "importar",
       <StockEquinoImportar
+        embedded
         apiOnline={apiOnline}
         currentUser={currentUser}
         onImported={() => {
-          clearStockEquinaPageCache();
-          setListRefresh((k) => k + 1);
+          bumpRefresh();
           setVista("listado");
         }}
         onError={onError}
         onSuccess={onSuccess}
         onVolver={volverMenu}
-      />
+      />,
     );
   }
 
   if (vista === "importar_baja") {
-    return (
+    return wrapModule(
+      "importar_baja",
       <StockEquinoImportarBaja
+        embedded
         apiOnline={apiOnline}
         onImported={() => {
-          clearStockEquinaPageCache();
-          setListRefresh((k) => k + 1);
+          bumpRefresh();
           setVista("equina");
         }}
         onError={onError}
         onSuccess={onSuccess}
         onVolver={volverMenu}
-      />
+      />,
     );
   }
 
   if (vista === "historial") {
-    return (
+    return wrapModule(
+      "historial",
       <StockEquinoHistorial
+        embedded
         apiOnline={apiOnline}
         refreshKey={listRefresh}
         onError={onError}
         onSuccess={(m) => {
           onSuccess(m);
-          setListRefresh((k) => k + 1);
+          bumpRefresh();
         }}
         onVolver={() => setVista("listado")}
         onVerLecturas={(loteId) => {
           setListLoteFilter(String(loteId));
           setVista("listado");
         }}
-      />
+      />,
+      {
+        headerActions: (
+          <button type="button" className="sg-hub-cta sg-hub-cta--ghost" onClick={() => setVista("listado")}>
+            ‹ Lecturas importadas
+          </button>
+        ),
+      },
     );
   }
 
@@ -172,24 +245,49 @@ function StockEquinoPanel({
         onError={onError}
         onSuccess={onSuccess}
         onVolver={volverMenu}
+        hubNav={{
+          items: STOCK_EQUINO_SUBMENU,
+          activeId: "equina",
+          onNavigate: navegarModulo,
+          onVolverDashboard: volverMenu,
+          onVolverInicio: onVolver,
+        }}
       />
     );
   }
 
   if (vista === "salidas") {
-    return (
+    return wrapModule(
+      "salidas",
       <StockEquinaSalidas
+        embedded
         apiOnline={apiOnline}
         refreshKey={listRefresh}
         onError={onError}
         onVolver={volverMenu}
-      />
+      />,
+    );
+  }
+
+  if (vista === "sanidad") {
+    return wrapModule(
+      "sanidad",
+      <StockEquinoSanidad
+        embedded
+        apiOnline={apiOnline}
+        currentUser={currentUser}
+        onError={onError}
+        onSuccess={onSuccess}
+        onVolver={volverMenu}
+      />,
     );
   }
 
   if (vista === "listado") {
-    return (
+    return wrapModule(
+      "listado",
       <StockEquinoListado
+        embedded
         key={listRefresh}
         apiOnline={apiOnline}
         refreshKey={listRefresh}
@@ -198,48 +296,19 @@ function StockEquinoPanel({
         onSuccess={(m) => onSuccess(m)}
         onVolver={volverMenu}
         onVerHistorial={() => setVista("historial")}
-      />
+      />,
     );
   }
 
   return (
-    <div className="subseccion-panel configuracion-hub">
-      <button type="button" className="subseccion-back" onClick={onVolver}>
-        ‹ Volver al inicio
-      </button>
-      <div className="card configuracion-hub-card">
-        <div className="form-header">
-          <PageModuleHeadRow
-            icon={{ source: "app", id: "stock_equino" }}
-            title="Stock Equino"
-            subtitle={
-              <>
-                Importá lecturas electrónicas (EID) desde archivos .txt del lector.
-                {apiOnline && resumen.registros > 0 && (
-                  <>
-                    {" "}
-                    Actualmente: <strong>{resumen.dispositivos}</strong> dispositivo(s) activo(s),{" "}
-                    <strong>{resumen.registros}</strong> lectura(s) en{" "}
-                    <strong>{resumen.lotes}</strong> importación(es).
-                  </>
-                )}
-              </>
-            }
-          />
-        </div>
-        <nav className="app-grid" aria-label="Stock Equino">
-          {SUBMENU.map((item) => (
-            <HubMenuCard
-              key={item.id}
-              label={item.label}
-              subtitle={item.subtitle}
-              theme={HUB_ICON_THEMES[item.icon]}
-              icon={<HubMenuIcon id={item.icon} />}
-              onClick={() => setVista(item.id)}
-            />
-          ))}
-        </nav>
-      </div>
+    <div className="sg-module-page stock-equino-hub-page">
+      <StockEquinoHub
+        apiOnline={apiOnline}
+        resumen={resumen}
+        items={STOCK_EQUINO_SUBMENU}
+        onNavigate={navegarModulo}
+        onVolverInicio={onVolver}
+      />
     </div>
   );
 }

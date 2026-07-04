@@ -22,6 +22,7 @@ interface Props {
   onError: (msg: string) => void;
   onSuccess: (msg: string) => void;
   onVolver: () => void;
+  embedded?: boolean;
 }
 
 const empty = (): FuncionarioFormData => ({
@@ -50,6 +51,7 @@ export default function FuncionarioForm({
   onError,
   onSuccess,
   onVolver,
+  embedded = false,
 }: Props) {
   const [form, setForm] = useState<FuncionarioFormData>(empty);
   const editId = editFuncionario?.id ?? null;
@@ -134,10 +136,12 @@ export default function FuncionarioForm({
   };
 
   return (
-    <div className="subseccion-panel">
-      <button type="button" className="subseccion-back" onClick={onVolver}>
-        ‹ Volver a funcionarios
-      </button>
+    <div className={`subseccion-panel${embedded ? " sg-hub-embedded" : ""}`}>
+      {!embedded ? (
+        <button type="button" className="subseccion-back" onClick={onVolver}>
+          ‹ Volver a funcionarios
+        </button>
+      ) : null}
       <div className="card">
         <div className="form-header">
           <PageModuleHeadRow

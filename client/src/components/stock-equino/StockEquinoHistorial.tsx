@@ -18,6 +18,7 @@ interface Props {
   onVolver: () => void;
   onVerLecturas: (loteId: number) => void;
   refreshKey?: number;
+  embedded?: boolean;
 }
 
 function fmtImportado(iso: string): string {
@@ -35,6 +36,7 @@ export default function StockEquinoHistorial({
   onVolver,
   onVerLecturas,
   refreshKey = 0,
+  embedded = false,
 }: Props) {
   const [lotes, setLotes] = useState<StockEquinoLote[]>([]);
   const [loading, setLoading] = useState(true);
@@ -92,13 +94,9 @@ export default function StockEquinoHistorial({
     }
   };
 
-  return (
-    <div className="subseccion-panel">
-      <button type="button" className="subseccion-back" onClick={onVolver}>
-        ‹ Volver a lecturas importadas
-      </button>
-
-      <div className="card">
+  const panel = (
+      <div className={`${embedded ? "sg-hub-panel sg-module-panel" : "card"}`}>
+        {!embedded && (
         <div className="form-header">
           <PageModuleHeadRow
             icon={{ source: "hub", id: "stock_lecturas" }}
@@ -112,6 +110,16 @@ export default function StockEquinoHistorial({
             }
           />
         </div>
+        )}
+        {embedded && (
+          <p className="sg-module-panel-meta" role="status">
+            {loading
+              ? "Cargando…"
+              : lotes.length === 0
+                ? "Aún no hay archivos importados."
+                : `${lotes.length} archivo(s) — ${totalFilas} lectura(s) en total`}
+          </p>
+        )}
 
         <div className="table-wrap">
           <table className="data-table stock-historial-table">
@@ -186,6 +194,16 @@ export default function StockEquinoHistorial({
           />
         )}
       </div>
+  );
+
+  if (embedded) return panel;
+
+  return (
+    <div className="subseccion-panel">
+      <button type="button" className="subseccion-back" onClick={onVolver}>
+        ‹ Volver a lecturas importadas
+      </button>
+      {panel}
     </div>
   );
 }

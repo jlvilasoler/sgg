@@ -29,6 +29,7 @@ interface Props {
   onError: (msg: string) => void;
   onSuccess: (msg: string) => void;
   onVolver: () => void;
+  embedded?: boolean;
 }
 
 export default function DivisasHistorial({
@@ -37,6 +38,7 @@ export default function DivisasHistorial({
   onError,
   onSuccess,
   onVolver,
+  embedded = false,
 }: Props) {
   const { par } = config;
   const [fechaDesde, setFechaDesde] = useState("");
@@ -172,10 +174,12 @@ export default function DivisasHistorial({
   };
 
   return (
-    <div className="subseccion-panel">
-      <button type="button" className="subseccion-back" onClick={onVolver}>
-        ‹ Volver a Divisas
-      </button>
+    <div className={`subseccion-panel${embedded ? " sg-hub-embedded" : ""}`}>
+      {!embedded ? (
+        <button type="button" className="subseccion-back" onClick={onVolver}>
+          ‹ Volver a Divisas
+        </button>
+      ) : null}
 
       {indicadores?.ultimo && (
         <DivisasKpiCards

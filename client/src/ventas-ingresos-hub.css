@@ -408,12 +408,19 @@
   --sg-hub-radius-lg: 1rem;
   --sg-hub-radius-md: 0.65rem;
   --sg-hub-radius-card: 1.35rem;
-  min-height: min(42rem, calc(100dvh - 11rem));
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: calc(100dvh - 11rem);
   width: 100%;
   max-width: none;
 }
 
 .page-main.bn-ui:has(.ventas-module-page) {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
   max-width: none;
   width: 100%;
   padding-left: max(0.45rem, env(safe-area-inset-left, 0px));
@@ -425,6 +432,22 @@
     padding-left: max(0.65rem, env(safe-area-inset-left, 0px));
     padding-right: max(0.65rem, env(safe-area-inset-right, 0px));
   }
+}
+
+.layout-content:has(.ventas-module-page) {
+  display: flex;
+  flex-direction: column;
+}
+
+.bn-ui .ventas-module-page > .sg-hub {
+  flex: 1 1 auto;
+  min-height: 100%;
+  align-items: stretch;
+}
+
+.bn-ui .ventas-module-page .sg-hub-aside {
+  align-self: stretch;
+  min-height: 100%;
 }
 
 .bn-ui .ventas-module-page .sg-hub--module {

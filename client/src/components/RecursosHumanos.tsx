@@ -1,13 +1,13 @@
-import { useCallback, useEffect, useState } from "react";
-import { HubMenuCard } from "./HubMenuCard";
-import { useHeaderBackContext } from "../header-back";
-import type { HubIconId } from "./icons/HubMenuIcons";
-import { HUB_ICON_THEMES, HubMenuIcon } from "./icons/HubMenuIcons";
+import { useCallback, useState } from "react";
+import { useHeaderBackStep } from "../header-back";
+import type { Catalogos, Funcionario } from "../types";
+import SgHubModuleGrid from "./hub/SgHubModuleGrid";
+import SgHubShell from "./hub/SgHubShell";
+import { MenuAppIcon } from "./icons/MenuAppIcons";
 import FuncionarioForm from "./rrhh/FuncionarioForm";
 import FuncionarioListado from "./rrhh/FuncionarioListado";
 import SueldosJornales from "./rrhh/SueldosJornales";
-import type { Catalogos, Funcionario } from "../types";
-import { PageModuleHeadRow } from "./PageModuleHead";
+import { RRHH_HUB_ITEMS, RRHH_HUB_META } from "./rrhh/rrhh-hub-items";
 
 type VistaRRHH = "menu" | "funcionarios" | "funcionario-form" | "sueldos";
 
@@ -20,26 +20,6 @@ interface Props {
   onVolver: () => void;
   onEditGasto?: (id: number) => void;
 }
-
-const SUBMENU: {
-  id: "funcionarios" | "sueldos";
-  label: string;
-  subtitle: string;
-  icon: HubIconId;
-}[] = [
-  {
-    id: "funcionarios",
-    label: "Funcionarios",
-    subtitle: "Datos personales y cuenta bancaria",
-    icon: "rrhh_funcionarios",
-  },
-  {
-    id: "sueldos",
-    label: "Sueldos y Jornales",
-    subtitle: "Pagos por cédula y resumen de gastos",
-    icon: "rrhh_sueldos",
-  },
-];
 
 export default function RecursosHumanos({
   catalogos,
@@ -60,125 +40,61 @@ export default function RecursosHumanos({
     setEditFuncionario(null);
   }, []);
 
-  const headerBack = useHeaderBackContext();
-  const setHeaderBackStep = headerBack?.setStep;
-  useEffect(() => {
-    if (!setHeaderBackStep) return;
-    if (vista === "menu") {
-      setHeaderBackStep(null);
-      return;
-    }
-    if (vista === "funcionario-form") {
-      setHeaderBackStep({
-        onBack: () => {
-          setEditFuncionario(null);
-          setVista("funcionarios");
-        },
-        destinationLabel: "Funcionarios",
-      });
-      return () => setHeaderBackStep(null);
-    }
-    setHeaderBackStep({
-      onBack: volverMenu,
-      destinationLabel: "Recursos Humanos",
-    });
-    return () => setHeaderBackStep(null);
-  }, [vista, volverMenu, setHeaderBackStep]);
+  const volverFuncionarios = useCallback(() => {
+    setEditFuncionario(null);
+    setVista("funcionarios");
+  }, []);
 
-  if (vista === "funcionario-form") {
-    return (
-      <FuncionarioForm
-        key={editFuncionario?.id ?? "nuevo"}
-        apiOnline={apiOnline}
-        editFuncionario={editFuncionario}
-        onSaved={() => {
-          setListRefresh((k) => k + 1);
-          onCatalogosChanged();
-          setVista("funcionarios");
-          setEditFuncionario(null);
-        }}
-        onCancel={() => {
-          setEditFuncionario(null);
-          setVista("funcionarios");
-        }}
-        onError={onError}
-        onSuccess={onSuccess}
-        onVolver={() => {
-          setEditFuncionario(null);
-          setVista("funcionarios");
-        }}
-      />
-    );
-  }
+  const shellActiveId =
+    vista === "funcionario-form" ? "funcionarios" : vista === "menu" ? "menu" : vista;
 
-  if (vista === "funcionarios") {
-    return (
-      <FuncionarioListado
-        key={listRefresh}
-        apiOnline={apiOnline}
-        onNuevo={() => {
-          setEditFuncionario(null);
-          setVista("funcionario-form");
-        }}
-        onEdit={(f) => {
-          setEditFuncionario(f);
-          setVista("funcionario-form");
-        }}
-        onVerPagos={(cedula) => {
-          setCedulaSueldos(cedula);
-          setVista("sueldos");
-        }}
-        onError={onError}
-        onSuccess={(m) => {
-          onSuccess(m);
-          onCatalogosChanged();
-        }}
-        onVolver={volverMenu}
-      />
-    );
-  }
+  const meta =
+    vista === "menu"
+      ? {
+          title: "Dashboard",
+          subtitle:
+            "Base de funcionarios y colaboradores, vinculada a los gastos del sistema por cédula.",
+        }
+      : vista === "funcionario-form"
+        ? RRHH_HUB_META["funcionario-form"]
+        : RRHH_HUB_META[vista as "funcionarios" | "sueldos"];
 
-  if (vista === "sueldos") {
-    return (
-      <SueldosJornales
-        catalogos={catalogos}
-        apiOnline={apiOnline}
-        cedulaInicial={cedulaSueldos}
-        onError={onError}
-        onEditGasto={onEditGasto}
-        onVolver={volverMenu}
-      />
-    );
-  }
+  useHeaderBackStep(
+    vista !== "menu",
+    vista === "funcionario-form" ? volverFuncionarios : volverMenu,
+    vista === "funcionario-form" ? "Funcionarios" : "Recursos Humanos"
+  );
 
   return (
-    <div className="subseccion-panel rrhh-hub">
-      <button type="button" className="subseccion-back" onClick={onVolver}>
-        ‹ Volver al inicio
-      </button>
-      <div className="card rrhh-hub-card">
-        <div className="form-header">
-          <PageModuleHeadRow
-            icon={{ source: "app", id: "recursos_humanos" }}
-            title="Recursos Humanos"
-            subtitle={
-              <>
-                Base de <strong>funcionarios y colaboradores</strong>, vinculada a los{" "}
-                <strong>gastos</strong> del sistema por cédula de identidad.
-              </>
-            }
-          />
-        </div>
-        <nav className="app-grid app-grid-2" aria-label="Recursos Humanos">
-          {SUBMENU.map((item) => (
-            <HubMenuCard
-              key={item.id}
-              label={item.label}
-              subtitle={item.subtitle}
-              theme={HUB_ICON_THEMES[item.icon]}
-              icon={<HubMenuIcon id={item.icon} />}
-              onClick={() => {
-                if (item.id === "funcionarios") {
+    <div className="sg-module-page rrhh-module-page">
+      <SgHubShell
+        activeId={shellActiveId}
+        items={RRHH_HUB_ITEMS}
+        onNavigate={(id: string) => {
+          if (id === "funcionarios") {
+            setEditFuncionario(null);
+            setVista("funcionarios");
+          } else if (id === "sueldos") {
+            setCedulaSueldos("");
+            setVista("sueldos");
+          }
+        }}
+        onVolverDashboard={volverMenu}
+        onVolverInicio={onVolver}
+        apiOnline={apiOnline}
+        title={meta.title}
+        subtitle={meta.subtitle}
+        asideKicker="SGG · Personal"
+        asideTitle="Recursos Humanos"
+        asideLogo={<MenuAppIcon id="recursos_humanos" />}
+        navAriaLabel="Módulos de Recursos Humanos"
+      >
+        {vista === "menu" ? (
+          <div className="sg-hub-panels">
+            <SgHubModuleGrid
+              items={RRHH_HUB_ITEMS}
+              onSelect={(id: string) => {
+                if (id === "funcionarios") {
                   setEditFuncionario(null);
                   setVista("funcionarios");
                 } else {
@@ -186,10 +102,62 @@ export default function RecursosHumanos({
                   setVista("sueldos");
                 }
               }}
+              title="Módulos"
+              kicker="Gestión de personal"
             />
-          ))}
-        </nav>
-      </div>
+          </div>
+        ) : vista === "funcionario-form" ? (
+          <FuncionarioForm
+            key={editFuncionario?.id ?? "nuevo"}
+            embedded
+            apiOnline={apiOnline}
+            editFuncionario={editFuncionario}
+            onSaved={() => {
+              setListRefresh((k) => k + 1);
+              onCatalogosChanged();
+              volverFuncionarios();
+            }}
+            onCancel={volverFuncionarios}
+            onError={onError}
+            onSuccess={onSuccess}
+            onVolver={volverFuncionarios}
+          />
+        ) : vista === "funcionarios" ? (
+          <FuncionarioListado
+            key={listRefresh}
+            embedded
+            apiOnline={apiOnline}
+            onNuevo={() => {
+              setEditFuncionario(null);
+              setVista("funcionario-form");
+            }}
+            onEdit={(f) => {
+              setEditFuncionario(f);
+              setVista("funcionario-form");
+            }}
+            onVerPagos={(cedula) => {
+              setCedulaSueldos(cedula);
+              setVista("sueldos");
+            }}
+            onError={onError}
+            onSuccess={(m) => {
+              onSuccess(m);
+              onCatalogosChanged();
+            }}
+            onVolver={volverMenu}
+          />
+        ) : (
+          <SueldosJornales
+            embedded
+            catalogos={catalogos}
+            apiOnline={apiOnline}
+            cedulaInicial={cedulaSueldos}
+            onError={onError}
+            onEditGasto={onEditGasto}
+            onVolver={volverMenu}
+          />
+        )}
+      </SgHubShell>
     </div>
   );
 }

@@ -24,12 +24,6 @@ export const INGRESOS_VENTAS_REGISTRO_ITEMS: VentasHubItem[] = [
     subtitle: "Arrendamientos, medianería y uso de campos",
     icon: "ventas_arrendamientos",
   },
-  {
-    id: "rubros",
-    label: "Rubros ingresos por ventas",
-    subtitle: "Rubros, sub-rubros e ítems del catálogo",
-    icon: "ventas_rubros",
-  },
 ];
 
 export const SIMULADOR_NAV_CHILDREN: VentasHubItem[] = [

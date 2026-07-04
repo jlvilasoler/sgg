@@ -22,6 +22,7 @@ interface Props {
   onError: (msg: string) => void;
   onSuccess: (msg: string, title?: string) => void;
   onVolver: () => void;
+  embedded?: boolean;
 }
 
 type ModoImport = "archivo" | "manual";
@@ -144,6 +145,7 @@ export default function StockEquinoImportar({
   onError,
   onSuccess,
   onVolver,
+  embedded = false,
 }: Props) {
   const formId = useId();
   const [modo, setModo] = useState<ModoImport>("archivo");
@@ -367,13 +369,9 @@ export default function StockEquinoImportar({
     }
   };
 
-  return (
-    <div className="subseccion-panel">
-      <button type="button" className="subseccion-back" onClick={onVolver}>
-        ‹ Volver a Stock Equino
-      </button>
-
-      <div className="card stock-import-shell">
+  const panel = (
+      <div className={embedded ? "sg-hub-panel sg-module-panel" : "card stock-import-shell"}>
+        {!embedded && (
         <div className="form-header stock-import-head">
           <PageModuleHeadRow
             icon={{ source: "hub", id: "stock_alta" }}
@@ -381,6 +379,7 @@ export default function StockEquinoImportar({
             subtitle="Cargá el export del bastón o lector RFID, o ingresá lecturas una a una. Cada registro guarda fecha, hora y condición del animal."
           />
         </div>
+        )}
 
         {!apiOnline && (
           <div className="stock-import-offline" role="status">
@@ -738,6 +737,16 @@ export default function StockEquinoImportar({
           </div>
         </div>
       </div>
+  );
+
+  if (embedded) return panel;
+
+  return (
+    <div className="subseccion-panel">
+      <button type="button" className="subseccion-back" onClick={onVolver}>
+        ‹ Volver a Stock Equino
+      </button>
+      {panel}
     </div>
   );
 }

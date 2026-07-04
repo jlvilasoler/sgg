@@ -20,6 +20,7 @@ interface Props {
   apiOnline: boolean;
   onError: (msg: string) => void;
   onSuccess: (msg: string) => void;
+  embedded?: boolean;
 }
 
 function fmtSemanaRango(s: SemanaPreciosGanado): string {
@@ -42,6 +43,7 @@ export default function PreciosGanadoPanel({
   apiOnline,
   onError,
   onSuccess,
+  embedded = false,
 }: Props) {
   const [fechaDesde, setFechaDesde] = useState("");
   const [fechaHasta, setFechaHasta] = useState("");
@@ -159,7 +161,7 @@ export default function PreciosGanadoPanel({
   };
 
   return (
-    <div className="subseccion-panel">
+    <div className={`subseccion-panel${embedded ? " sg-hub-embedded" : ""}`}>
       <div className="precios-ganado-ultimos">
         <PreciosGanadoKpiCards
           config={config}

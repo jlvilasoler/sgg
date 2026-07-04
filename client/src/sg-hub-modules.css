@@ -1,0 +1,91 @@
+/* Layout compartido: sidebar a altura completa en todos los módulos hub */
+.layout-content:has(.sg-module-page) {
+  display: flex;
+  flex-direction: column;
+}
+
+.page-main.bn-ui:has(.sg-module-page) {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  max-width: none;
+  width: 100%;
+  padding-left: max(0.45rem, env(safe-area-inset-left, 0px));
+  padding-right: max(0.45rem, env(safe-area-inset-right, 0px));
+}
+
+@media (min-width: 900px) {
+  .page-main.bn-ui:has(.sg-module-page) {
+    padding-left: max(0.65rem, env(safe-area-inset-left, 0px));
+    padding-right: max(0.65rem, env(safe-area-inset-right, 0px));
+  }
+}
+
+.bn-ui .sg-module-page {
+  --sg-hub-sidebar: #1a211a;
+  --sg-hub-sidebar-soft: #242d24;
+  --sg-hub-sidebar-text: rgba(248, 246, 240, 0.92);
+  --sg-hub-sidebar-muted: rgba(248, 246, 240, 0.55);
+  --sg-hub-workspace: #f3f2ed;
+  --sg-hub-surface: #ffffff;
+  --sg-hub-accent: #7cb342;
+  --sg-hub-accent-soft: rgba(124, 179, 66, 0.16);
+  --sg-hub-radius-xl: 1.25rem;
+  --sg-hub-radius-lg: 1rem;
+  --sg-hub-radius-md: 0.65rem;
+  --sg-hub-radius-card: 1.35rem;
+  --sg-hub-shadow: 0 18px 48px rgba(20, 28, 20, 0.1);
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: calc(100dvh - 11rem);
+  width: 100%;
+  max-width: none;
+}
+
+.bn-ui .sg-module-page > .sg-hub {
+  flex: 1 1 auto;
+  min-height: 100%;
+  align-items: stretch;
+}
+
+.bn-ui .sg-module-page .sg-hub-aside {
+  align-self: stretch;
+  min-height: 100%;
+}
+
+/* Contenido embebido: ocultar cabeceras legacy duplicadas */
+.bn-ui .sg-hub-main--module .sg-hub-embedded .subseccion-back,
+.bn-ui .sg-hub-main--module .sg-hub-embedded > .subseccion-panel > .subseccion-back,
+.bn-ui .sg-hub-main--module .sg-hub-embedded .module-hub-head,
+.bn-ui .sg-hub-main--module .sg-hub-embedded .form-header .page-module-head-row,
+.bn-ui .sg-hub-main--module .sg-hub-embedded .listado-pro-head {
+  display: none;
+}
+
+.bn-ui .sg-hub-main--module .sg-hub-embedded .subseccion-panel,
+.bn-ui .sg-hub-main--module .sg-hub-embedded.subseccion-panel {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  margin: 0;
+}
+
+.bn-ui .sg-hub-main--module .sg-hub-embedded .card,
+.bn-ui .sg-hub-main--module .sg-hub-embedded .rrhh-hub-card,
+.bn-ui .sg-hub-main--module .sg-hub-embedded .proveedores-hub-card {
+  background: var(--sg-hub-surface);
+  border: 1px solid color-mix(in srgb, var(--bn-border, #eaecef) 92%, transparent);
+  border-radius: var(--sg-hub-radius-md);
+  box-shadow: none;
+}
+
+.bn-ui .sg-hub-main--module .sg-hub-embedded .usuarios-actividad--hub {
+  margin: 0;
+}
+
+.bn-ui .sg-module-page .sg-hub-panels {
+  margin-top: 0;
+}

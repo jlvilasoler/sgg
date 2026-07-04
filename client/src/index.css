@@ -43110,15 +43110,35 @@ button.sg-kpi-card:disabled {
   --sg-hub-radius-md: 0.65rem;
   --sg-hub-radius-card: 1.35rem;
   --sg-hub-shadow: 0 18px 48px rgba(20, 28, 20, 0.1);
-}
-
-.bn-ui .stock-ganadero-hub-page {
-  min-height: min(42rem, calc(100dvh - 11rem));
+}.bn-ui .stock-ganadero-hub-page,
+.bn-ui .stock-equino-hub-page{
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: calc(100dvh - 11rem);
+}.layout-content:has(.stock-ganadero-hub-page),
+.layout-content:has(.stock-equino-hub-page){
+  display: flex;
+  flex-direction: column;
+}.bn-ui .stock-ganadero-hub-page > .sg-hub,
+.bn-ui .stock-equino-hub-page > .sg-hub{
+  flex: 1 1 auto;
+  min-height: 100%;
+  align-items: stretch;
+  width: 100%;
+}.bn-ui .stock-ganadero-hub-page .sg-hub-aside,
+.bn-ui .stock-equino-hub-page .sg-hub-aside{
+  align-self: stretch;
+  min-height: 100%;
 }
 
 /* Más ancho útil en hub y dispositivos EID */
 .page-main.bn-ui:has(.stock-ganadero-hub-page),
 .page-main.bn-ui:has(.stock-ganadero-devices-page) {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
   max-width: none;
   width: 100%;
   padding-left: max(0.45rem, env(safe-area-inset-left, 0px));
@@ -43131,16 +43151,14 @@ button.sg-kpi-card:disabled {
     padding-left: max(0.65rem, env(safe-area-inset-left, 0px));
     padding-right: max(0.65rem, env(safe-area-inset-right, 0px));
   }
-}
-
-.bn-ui .stock-ganadero-devices-page,
-.bn-ui .stock-ganadero-hub-page {
+}.bn-ui .stock-ganadero-devices-page,
+.bn-ui .stock-equino-devices-page,
+.bn-ui .stock-ganadero-hub-page,
+.bn-ui .stock-equino-hub-page{
   width: 100%;
   max-width: none;
-}
-
-.bn-ui .stock-ganadero-devices-page .sg-hub--devices,
-.bn-ui .stock-ganadero-hub-page .sg-hub {
+}.bn-ui .stock-ganadero-devices-page .sg-hub--devices,
+.bn-ui .stock-equino-devices-page .sg-hub--devices{
   width: 100%;
 }
 
@@ -43497,12 +43515,18 @@ button.sg-kpi-card:disabled {
   --sg-hub-radius-md: 0.65rem;
   --sg-hub-radius-card: 1.35rem;
   --sg-hub-shadow: 0 18px 48px rgba(20, 28, 20, 0.1);
-  min-height: min(42rem, calc(100dvh - 11rem));
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: calc(100dvh - 11rem);
   width: 100%;
   max-width: none;
-}
-
-.page-main.bn-ui:has(.stock-ganadero-module-page) {
+}.page-main.bn-ui:has(.stock-ganadero-module-page),
+.page-main.bn-ui:has(.stock-equino-module-page){
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
   max-width: none;
   width: 100%;
   padding-left: max(0.45rem, env(safe-area-inset-left, 0px));
@@ -43514,9 +43538,21 @@ button.sg-kpi-card:disabled {
     padding-left: max(0.65rem, env(safe-area-inset-left, 0px));
     padding-right: max(0.65rem, env(safe-area-inset-right, 0px));
   }
-}
-
-.bn-ui .stock-ganadero-module-page .sg-hub--module {
+}.layout-content:has(.stock-ganadero-module-page),
+.layout-content:has(.stock-equino-module-page){
+  display: flex;
+  flex-direction: column;
+}.bn-ui .stock-ganadero-module-page > .sg-hub,
+.bn-ui .stock-equino-module-page > .sg-hub{
+  flex: 1 1 auto;
+  min-height: 100%;
+  align-items: stretch;
+}.bn-ui .stock-ganadero-module-page .sg-hub-aside,
+.bn-ui .stock-equino-module-page .sg-hub-aside{
+  align-self: stretch;
+  min-height: 100%;
+}.bn-ui .stock-ganadero-module-page .sg-hub--module,
+.bn-ui .stock-equino-module-page .sg-hub--module{
   width: 100%;
 }
 
@@ -43552,23 +43588,21 @@ button.sg-kpi-card:disabled {
 
 .bn-ui .sg-module-kpi-strip {
   margin-bottom: 0.15rem;
-}
-
-.bn-ui .stock-ganadero-module-page .stock-dash {
+}.bn-ui .stock-ganadero-module-page .stock-dash,
+.bn-ui .stock-equino-module-page .stock-dash{
   border-radius: var(--sg-hub-radius-card);
   border: 1px solid var(--bn-border);
   background: var(--sg-hub-surface);
   box-shadow: 0 2px 10px rgba(30, 35, 41, 0.04);
   padding: 0.85rem 1rem;
   margin-bottom: 0.85rem;
-}
-
-.bn-ui .stock-ganadero-module-page .stock-dash-card {
+}.bn-ui .stock-ganadero-module-page .stock-dash-card,
+.bn-ui .stock-equino-module-page .stock-dash-card{
   border-radius: var(--sg-hub-radius-md);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-import-sidebar,
-.bn-ui .stock-ganadero-module-page .stock-facet-sidebar {
+}.bn-ui .stock-ganadero-module-page .stock-import-sidebar,
+.bn-ui .stock-equino-module-page .stock-import-sidebar,
+.bn-ui .stock-ganadero-module-page .stock-facet-sidebar,
+.bn-ui .stock-equino-module-page .stock-facet-sidebar{
   border-radius: var(--sg-hub-radius-md);
   background: color-mix(in srgb, var(--sg-hub-sidebar-soft) 18%, var(--bn-bg));
 }
@@ -43580,88 +43614,76 @@ button.sg-kpi-card:disabled {
   gap: 0.85rem;
   width: 100%;
   min-width: 0;
-}
-
-.bn-ui .stock-ganadero-module-page .stock-sanidad-layout--hub {
+}.bn-ui .stock-ganadero-module-page .stock-sanidad-layout--hub,
+.bn-ui .stock-equino-module-page .stock-sanidad-layout--hub{
   display: flex;
   flex-direction: column;
   gap: 0.85rem;
   padding: 0;
-}
-
-.bn-ui .stock-ganadero-module-page .stock-sanidad-hub-box {
+}.bn-ui .stock-ganadero-module-page .stock-sanidad-hub-box,
+.bn-ui .stock-equino-module-page .stock-sanidad-hub-box{
   min-width: 0;
   padding: 0.75rem 0.85rem 0.8rem;
   border: 1px solid var(--bn-border);
   border-radius: var(--sg-hub-radius-md);
   background: var(--sg-hub-surface);
   box-shadow: 0 2px 10px rgba(30, 35, 41, 0.04);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-sanidad-hub-head-box {
+}.bn-ui .stock-ganadero-module-page .stock-sanidad-hub-head-box,
+.bn-ui .stock-equino-module-page .stock-sanidad-hub-head-box{
   margin-bottom: 0.75rem;
   padding-bottom: 0.65rem;
   border-bottom: 1px solid color-mix(in srgb, var(--bn-border) 88%, transparent);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-sanidad-hub-head-box .sg-hub-panel-kicker {
+}.bn-ui .stock-ganadero-module-page .stock-sanidad-hub-head-box .sg-hub-panel-kicker,
+.bn-ui .stock-equino-module-page .stock-sanidad-hub-head-box .sg-hub-panel-kicker{
   margin: 0 0 0.2rem;
   font-size: 0.64rem;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--sg-hub-accent);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-sanidad-hub-title {
+}.bn-ui .stock-ganadero-module-page .stock-sanidad-hub-title,
+.bn-ui .stock-equino-module-page .stock-sanidad-hub-title{
   margin: 0;
   font-size: 1.05rem;
   font-weight: 700;
   letter-spacing: -0.02em;
   color: var(--bn-text);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-sanidad-hub-sub {
+}.bn-ui .stock-ganadero-module-page .stock-sanidad-hub-sub,
+.bn-ui .stock-equino-module-page .stock-sanidad-hub-sub{
   margin: 0.2rem 0 0;
   font-size: 0.82rem;
   line-height: 1.45;
-}
-
-.bn-ui .stock-ganadero-module-page .stock-sanidad-seleccion-bar {
+}.bn-ui .stock-ganadero-module-page .stock-sanidad-seleccion-bar,
+.bn-ui .stock-equino-module-page .stock-sanidad-seleccion-bar{
   background: color-mix(in srgb, var(--sg-hub-accent) 8%, var(--sg-hub-surface));
   border: 1px solid color-mix(in srgb, var(--sg-hub-accent) 22%, var(--bn-border));
   border-radius: var(--sg-hub-radius-md);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-sanidad-seleccion-bar strong {
+}.bn-ui .stock-ganadero-module-page .stock-sanidad-seleccion-bar strong,
+.bn-ui .stock-equino-module-page .stock-sanidad-seleccion-bar strong{
   color: #3f6212;
-}
-
-.bn-ui .stock-ganadero-module-page .stock-sanidad-busqueda {
+}.bn-ui .stock-ganadero-module-page .stock-sanidad-busqueda,
+.bn-ui .stock-equino-module-page .stock-sanidad-busqueda{
   border-color: var(--bn-border);
   border-radius: var(--sg-hub-radius-md);
   background: var(--sg-hub-surface);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-sanidad-busqueda:focus {
+}.bn-ui .stock-ganadero-module-page .stock-sanidad-busqueda:focus,
+.bn-ui .stock-equino-module-page .stock-sanidad-busqueda:focus{
   outline: none;
   border-color: color-mix(in srgb, var(--sg-hub-accent) 45%, var(--bn-border));
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--sg-hub-accent) 16%, transparent);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-sanidad-panel {
+}.bn-ui .stock-ganadero-module-page .stock-sanidad-panel,
+.bn-ui .stock-equino-module-page .stock-sanidad-panel{
   background: var(--sg-hub-workspace);
   border: 1px solid color-mix(in srgb, var(--bn-border) 92%, transparent);
   border-radius: var(--sg-hub-radius-md);
   box-shadow: none;
-}
-
-.bn-ui .stock-ganadero-module-page .stock-sanidad-panel-title,
-.bn-ui .stock-ganadero-module-page .stock-sanidad-grupo-column-title {
+}.bn-ui .stock-ganadero-module-page .stock-sanidad-panel-title,
+.bn-ui .stock-equino-module-page .stock-sanidad-panel-title,
+.bn-ui .stock-ganadero-module-page .stock-sanidad-grupo-column-title,
+.bn-ui .stock-equino-module-page .stock-sanidad-grupo-column-title{
   color: var(--bn-muted);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-sanidad-grupos-rapidos--hub {
+}.bn-ui .stock-ganadero-module-page .stock-sanidad-grupos-rapidos--hub,
+.bn-ui .stock-equino-module-page .stock-sanidad-grupos-rapidos--hub{
   display: flex;
   flex-direction: column;
   gap: 0.65rem;
@@ -43669,168 +43691,141 @@ button.sg-kpi-card:disabled {
   border: none;
   background: transparent;
   box-shadow: none;
-}
-
-.bn-ui .stock-ganadero-module-page .stock-sanidad-grupo-column {
+}.bn-ui .stock-ganadero-module-page .stock-sanidad-grupo-column,
+.bn-ui .stock-equino-module-page .stock-sanidad-grupo-column{
   border: 1px solid var(--bn-border);
   background: var(--sg-hub-surface);
   border-radius: var(--sg-hub-radius-md);
   box-shadow: 0 1px 4px rgba(20, 28, 20, 0.04);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-sanidad-grupo-chip {
+}.bn-ui .stock-ganadero-module-page .stock-sanidad-grupo-chip,
+.bn-ui .stock-equino-module-page .stock-sanidad-grupo-chip{
   border-color: color-mix(in srgb, var(--bn-border) 92%, transparent);
   background: var(--sg-hub-surface);
   color: var(--bn-text);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-sanidad-grupo-chip:hover:not(:disabled) {
+}.bn-ui .stock-ganadero-module-page .stock-sanidad-grupo-chip:hover:not(:disabled),
+.bn-ui .stock-equino-module-page .stock-sanidad-grupo-chip:hover:not(:disabled){
   background: color-mix(in srgb, var(--sg-hub-accent) 8%, var(--sg-hub-surface));
   border-color: color-mix(in srgb, var(--sg-hub-accent) 35%, var(--bn-border));
   box-shadow: none;
   transform: none;
-}
-
-.bn-ui .stock-ganadero-module-page .stock-sanidad-grupo-chip.is-active {
+}.bn-ui .stock-ganadero-module-page .stock-sanidad-grupo-chip.is-active,
+.bn-ui .stock-equino-module-page .stock-sanidad-grupo-chip.is-active{
   background: color-mix(in srgb, var(--sg-hub-accent) 18%, #fff);
   border-color: color-mix(in srgb, var(--sg-hub-accent) 45%, var(--bn-border));
   color: #365314;
   font-weight: 650;
   box-shadow: 0 2px 8px color-mix(in srgb, var(--sg-hub-accent) 14%, transparent);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-sanidad-grupo-chip.is-active:hover:not(:disabled) {
+}.bn-ui .stock-ganadero-module-page .stock-sanidad-grupo-chip.is-active:hover:not(:disabled),
+.bn-ui .stock-equino-module-page .stock-sanidad-grupo-chip.is-active:hover:not(:disabled){
   background: color-mix(in srgb, var(--sg-hub-accent) 24%, #fff);
   border-color: color-mix(in srgb, var(--sg-hub-accent) 50%, var(--bn-border));
   transform: none;
-}
-
-.bn-ui .stock-ganadero-module-page .stock-sanidad-grupo-chip-count {
+}.bn-ui .stock-ganadero-module-page .stock-sanidad-grupo-chip-count,
+.bn-ui .stock-equino-module-page .stock-sanidad-grupo-chip-count{
   background: color-mix(in srgb, var(--sg-hub-accent) 14%, var(--sg-hub-workspace));
   color: #3f6212;
   box-shadow: none;
-}
-
-.bn-ui .stock-ganadero-module-page .stock-sanidad-grupo-chip.is-active .stock-sanidad-grupo-chip-count {
+}.bn-ui .stock-ganadero-module-page .stock-sanidad-grupo-chip.is-active .stock-sanidad-grupo-chip-count,
+.bn-ui .stock-equino-module-page .stock-sanidad-grupo-chip.is-active .stock-sanidad-grupo-chip-count{
   background: color-mix(in srgb, var(--sg-hub-accent) 28%, #fff);
   color: #365314;
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--sg-hub-accent) 22%, transparent);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-sanidad-grupos-activos {
+}.bn-ui .stock-ganadero-module-page .stock-sanidad-grupos-activos,
+.bn-ui .stock-equino-module-page .stock-sanidad-grupos-activos{
   margin-top: 0;
   padding: 0.65rem 0.75rem;
   border: 1px solid color-mix(in srgb, var(--bn-border) 92%, transparent);
   border-radius: var(--sg-hub-radius-md);
   background: var(--sg-hub-workspace);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-sanidad-grupos-activos-label {
+}.bn-ui .stock-ganadero-module-page .stock-sanidad-grupos-activos-label,
+.bn-ui .stock-equino-module-page .stock-sanidad-grupos-activos-label{
   color: #4d7c0f;
-}
-
-.bn-ui .stock-ganadero-module-page .stock-sanidad-grupos-activos-chip {
+}.bn-ui .stock-ganadero-module-page .stock-sanidad-grupos-activos-chip,
+.bn-ui .stock-equino-module-page .stock-sanidad-grupos-activos-chip{
   border: 1px solid color-mix(in srgb, var(--sg-hub-accent) 35%, var(--bn-border));
   background: var(--sg-hub-surface);
   color: #365314;
   box-shadow: 0 1px 3px rgba(20, 28, 20, 0.05);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-sanidad-grupos-activos-chip:hover {
+}.bn-ui .stock-ganadero-module-page .stock-sanidad-grupos-activos-chip:hover,
+.bn-ui .stock-equino-module-page .stock-sanidad-grupos-activos-chip:hover{
   background: color-mix(in srgb, var(--sg-hub-accent) 10%, var(--sg-hub-surface));
   border-color: color-mix(in srgb, var(--sg-hub-accent) 48%, var(--bn-border));
   box-shadow: 0 2px 8px color-mix(in srgb, var(--sg-hub-accent) 12%, transparent);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-sanidad-grupos-activos-chip-cat {
+}.bn-ui .stock-ganadero-module-page .stock-sanidad-grupos-activos-chip-cat,
+.bn-ui .stock-equino-module-page .stock-sanidad-grupos-activos-chip-cat{
   color: #4d7c0f;
   opacity: 1;
-}
-
-.bn-ui .stock-ganadero-module-page .stock-sanidad-grupos-activos-chip-label {
+}.bn-ui .stock-ganadero-module-page .stock-sanidad-grupos-activos-chip-label,
+.bn-ui .stock-equino-module-page .stock-sanidad-grupos-activos-chip-label{
   color: #365314;
-}
-
-.bn-ui .stock-ganadero-module-page .stock-sanidad-grupos-activos-chip .stock-sanidad-grupo-chip-count {
+}.bn-ui .stock-ganadero-module-page .stock-sanidad-grupos-activos-chip .stock-sanidad-grupo-chip-count,
+.bn-ui .stock-equino-module-page .stock-sanidad-grupos-activos-chip .stock-sanidad-grupo-chip-count{
   background: color-mix(in srgb, var(--sg-hub-accent) 20%, var(--sg-hub-workspace));
   color: #3f6212;
   box-shadow: none;
-}
-
-.bn-ui .stock-ganadero-module-page .stock-sanidad-grupos-activos-chip-remove {
+}.bn-ui .stock-ganadero-module-page .stock-sanidad-grupos-activos-chip-remove,
+.bn-ui .stock-equino-module-page .stock-sanidad-grupos-activos-chip-remove{
   color: #4d7c0f;
   opacity: 0.75;
-}
-
-.bn-ui .stock-ganadero-module-page .stock-sanidad-panel-head-icon {
+}.bn-ui .stock-ganadero-module-page .stock-sanidad-panel-head-icon,
+.bn-ui .stock-equino-module-page .stock-sanidad-panel-head-icon{
   background: var(--sg-hub-accent-soft);
   color: #3f6212;
   box-shadow: none;
-}
-
-.bn-ui .stock-ganadero-module-page .stock-sanidad-grupos-carousel-btn {
+}.bn-ui .stock-ganadero-module-page .stock-sanidad-grupos-carousel-btn,
+.bn-ui .stock-equino-module-page .stock-sanidad-grupos-carousel-btn{
   border-color: var(--bn-border);
   background: var(--sg-hub-surface);
   color: var(--bn-text);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-sanidad-grupos-carousel-btn:hover:not(:disabled) {
+}.bn-ui .stock-ganadero-module-page .stock-sanidad-grupos-carousel-btn:hover:not(:disabled),
+.bn-ui .stock-equino-module-page .stock-sanidad-grupos-carousel-btn:hover:not(:disabled){
   border-color: color-mix(in srgb, var(--sg-hub-accent) 45%, var(--bn-border));
   background: color-mix(in srgb, var(--sg-hub-accent) 10%, var(--sg-hub-surface));
   color: #3f6212;
-}
-
-.bn-ui .stock-ganadero-module-page .stock-sanidad-hub-box--historial .stock-sanidad-dash {
+}.bn-ui .stock-ganadero-module-page .stock-sanidad-hub-box--historial .stock-sanidad-dash,
+.bn-ui .stock-equino-module-page .stock-sanidad-hub-box--historial .stock-sanidad-dash{
   padding: 0;
   border: none;
   border-radius: 0;
   background: transparent;
   box-shadow: none;
-}
-
-.bn-ui .stock-ganadero-module-page .stock-sanidad-dash-head {
+}.bn-ui .stock-ganadero-module-page .stock-sanidad-dash-head,
+.bn-ui .stock-equino-module-page .stock-sanidad-dash-head{
   border-bottom-color: color-mix(in srgb, var(--bn-border) 88%, transparent);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-sanidad-dash-head-icon,
-.bn-ui .stock-ganadero-module-page .stock-sanidad-dash-empty-icon {
+}.bn-ui .stock-ganadero-module-page .stock-sanidad-dash-head-icon,
+.bn-ui .stock-equino-module-page .stock-sanidad-dash-head-icon,
+.bn-ui .stock-ganadero-module-page .stock-sanidad-dash-empty-icon,
+.bn-ui .stock-equino-module-page .stock-sanidad-dash-empty-icon{
   background: var(--sg-hub-accent-soft);
   color: #3f6212;
-}
-
-.bn-ui .stock-ganadero-module-page .stock-sanidad-dash-title,
-.bn-ui .stock-ganadero-module-page .stock-sanidad-dash-empty-title {
+}.bn-ui .stock-ganadero-module-page .stock-sanidad-dash-title,
+.bn-ui .stock-equino-module-page .stock-sanidad-dash-title,
+.bn-ui .stock-ganadero-module-page .stock-sanidad-dash-empty-title,
+.bn-ui .stock-equino-module-page .stock-sanidad-dash-empty-title{
   color: var(--bn-text);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-sanidad-dash-kpi {
+}.bn-ui .stock-ganadero-module-page .stock-sanidad-dash-kpi,
+.bn-ui .stock-equino-module-page .stock-sanidad-dash-kpi{
   border-color: color-mix(in srgb, var(--bn-border) 92%, transparent);
   background: var(--sg-hub-workspace);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-sanidad-dash-kpi strong {
+}.bn-ui .stock-ganadero-module-page .stock-sanidad-dash-kpi strong,
+.bn-ui .stock-equino-module-page .stock-sanidad-dash-kpi strong{
   color: #3f6212;
-}
-
-.bn-ui .stock-ganadero-module-page .stock-sanidad-dash-bar-fill--producto {
+}.bn-ui .stock-ganadero-module-page .stock-sanidad-dash-bar-fill--producto,
+.bn-ui .stock-equino-module-page .stock-sanidad-dash-bar-fill--producto{
   background: linear-gradient(90deg, #84cc16, var(--sg-hub-accent));
-}
-
-.bn-ui .stock-ganadero-module-page .stock-sanidad-dash-bar-fill--motivo {
+}.bn-ui .stock-ganadero-module-page .stock-sanidad-dash-bar-fill--motivo,
+.bn-ui .stock-equino-module-page .stock-sanidad-dash-bar-fill--motivo{
   background: linear-gradient(90deg, #a3a3a3, #737373);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-sanidad-dash-timeline-card {
+}.bn-ui .stock-ganadero-module-page .stock-sanidad-dash-timeline-card,
+.bn-ui .stock-equino-module-page .stock-sanidad-dash-timeline-card{
   border-color: color-mix(in srgb, var(--bn-border) 92%, transparent);
   background: var(--sg-hub-workspace);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-sanidad-dash-timeline-nav-btn {
+}.bn-ui .stock-ganadero-module-page .stock-sanidad-dash-timeline-nav-btn,
+.bn-ui .stock-equino-module-page .stock-sanidad-dash-timeline-nav-btn{
   border-color: var(--bn-border);
   background: var(--sg-hub-surface);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-sanidad-registro--hub {
+}.bn-ui .stock-ganadero-module-page .stock-sanidad-registro--hub,
+.bn-ui .stock-equino-module-page .stock-sanidad-registro--hub{
   display: flex;
   flex-direction: column;
   gap: 0.65rem;
@@ -43839,92 +43834,85 @@ button.sg-kpi-card:disabled {
   border-radius: 0;
   background: transparent;
   box-shadow: none;
-}
-
-.bn-ui .stock-ganadero-module-page .stock-sanidad-hub-box--registro-head .stock-sanidad-hub-head-box--panel {
+}.bn-ui .stock-ganadero-module-page .stock-sanidad-hub-box--registro-head .stock-sanidad-hub-head-box--panel,
+.bn-ui .stock-equino-module-page .stock-sanidad-hub-box--registro-head .stock-sanidad-hub-head-box--panel{
   margin-bottom: 0;
   padding-bottom: 0;
   border-bottom: none;
-}
-
-.bn-ui .stock-ganadero-module-page .stock-sanidad-hub-box--registro-form {
+}.bn-ui .stock-ganadero-module-page .stock-sanidad-hub-box--registro-form,
+.bn-ui .stock-equino-module-page .stock-sanidad-hub-box--registro-form{
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
   background: var(--sg-hub-workspace);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-sanidad-hub-box--registro-form .stock-sanidad-form-head--hub {
+}.bn-ui .stock-ganadero-module-page .stock-sanidad-hub-box--registro-form .stock-sanidad-form-head--hub,
+.bn-ui .stock-equino-module-page .stock-sanidad-hub-box--registro-form .stock-sanidad-form-head--hub{
   margin: 0;
   padding-bottom: 0.65rem;
   border-bottom: 1px solid color-mix(in srgb, var(--bn-border) 88%, transparent);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-sanidad-form-fields-box {
+}.bn-ui .stock-ganadero-module-page .stock-sanidad-form-fields-box,
+.bn-ui .stock-equino-module-page .stock-sanidad-form-fields-box{
   padding: 0.75rem 0.85rem;
   border: 1px solid color-mix(in srgb, var(--bn-border) 92%, transparent);
   border-radius: var(--sg-hub-radius-md);
   background: var(--sg-hub-surface);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-sanidad-form-fields-box .stock-sanidad-form-body--band {
+}.bn-ui .stock-ganadero-module-page .stock-sanidad-form-fields-box .stock-sanidad-form-body--band,
+.bn-ui .stock-equino-module-page .stock-sanidad-form-fields-box .stock-sanidad-form-body--band{
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-}
-
-.bn-ui .stock-ganadero-module-page .stock-sanidad-hub-box--registro-form .stock-sanidad-form-body--band .stock-sanidad-form-section--admin,
+}.bn-ui .stock-ganadero-module-page .stock-sanidad-hub-box--registro-form .stock-sanidad-form-body--band .stock-sanidad-form-section--admin,
+.bn-ui .stock-equino-module-page .stock-sanidad-hub-box--registro-form .stock-sanidad-form-body--band .stock-sanidad-form-section--admin,
 .bn-ui .stock-ganadero-module-page .stock-sanidad-hub-box--registro-form .stock-sanidad-form-body--band .stock-sanidad-form-section--producto,
+.bn-ui .stock-equino-module-page .stock-sanidad-hub-box--registro-form .stock-sanidad-form-body--band .stock-sanidad-form-section--producto,
 .bn-ui .stock-ganadero-module-page .stock-sanidad-hub-box--registro-form .stock-sanidad-form-body--band .stock-sanidad-form-section--controles,
+.bn-ui .stock-equino-module-page .stock-sanidad-hub-box--registro-form .stock-sanidad-form-body--band .stock-sanidad-form-section--controles,
 .bn-ui .stock-ganadero-module-page .stock-sanidad-form-fields-box .stock-sanidad-form-body--band .stock-sanidad-form-section--admin,
+.bn-ui .stock-equino-module-page .stock-sanidad-form-fields-box .stock-sanidad-form-body--band .stock-sanidad-form-section--admin,
 .bn-ui .stock-ganadero-module-page .stock-sanidad-form-fields-box .stock-sanidad-form-body--band .stock-sanidad-form-section--producto,
-.bn-ui .stock-ganadero-module-page .stock-sanidad-form-fields-box .stock-sanidad-form-body--band .stock-sanidad-form-section--controles {
+.bn-ui .stock-equino-module-page .stock-sanidad-form-fields-box .stock-sanidad-form-body--band .stock-sanidad-form-section--producto,
+.bn-ui .stock-ganadero-module-page .stock-sanidad-form-fields-box .stock-sanidad-form-body--band .stock-sanidad-form-section--controles,
+.bn-ui .stock-equino-module-page .stock-sanidad-form-fields-box .stock-sanidad-form-body--band .stock-sanidad-form-section--controles{
   border-color: color-mix(in srgb, var(--bn-border) 92%, transparent);
   background: var(--sg-hub-workspace);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-sanidad-registro {
+}.bn-ui .stock-ganadero-module-page .stock-sanidad-registro,
+.bn-ui .stock-equino-module-page .stock-sanidad-registro{
   padding: 0;
   border: none;
   border-radius: 0;
   background: transparent;
   box-shadow: none;
-}
-
-.bn-ui .stock-ganadero-module-page .stock-sanidad-form-head--hub {
+}.bn-ui .stock-ganadero-module-page .stock-sanidad-form-head--hub,
+.bn-ui .stock-equino-module-page .stock-sanidad-form-head--hub{
   justify-content: flex-end;
   margin: 0 0 0.75rem;
   padding: 0;
   border: none;
-}
-
-.bn-ui .stock-ganadero-module-page .stock-sanidad-form-title {
+}.bn-ui .stock-ganadero-module-page .stock-sanidad-form-title,
+.bn-ui .stock-equino-module-page .stock-sanidad-form-title{
   color: var(--bn-text);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-sanidad-form-body--band .stock-sanidad-form-section--admin,
+}.bn-ui .stock-ganadero-module-page .stock-sanidad-form-body--band .stock-sanidad-form-section--admin,
+.bn-ui .stock-equino-module-page .stock-sanidad-form-body--band .stock-sanidad-form-section--admin,
 .bn-ui .stock-ganadero-module-page .stock-sanidad-form-body--band .stock-sanidad-form-section--producto,
-.bn-ui .stock-ganadero-module-page .stock-sanidad-form-body--band .stock-sanidad-form-section--controles {
+.bn-ui .stock-equino-module-page .stock-sanidad-form-body--band .stock-sanidad-form-section--producto,
+.bn-ui .stock-ganadero-module-page .stock-sanidad-form-body--band .stock-sanidad-form-section--controles,
+.bn-ui .stock-equino-module-page .stock-sanidad-form-body--band .stock-sanidad-form-section--controles{
   border-color: color-mix(in srgb, var(--bn-border) 92%, transparent);
   background: var(--sg-hub-workspace);
   border-radius: var(--sg-hub-radius-md);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-sanidad-form .stock-control-sanitario-section-head {
+}.bn-ui .stock-ganadero-module-page .stock-sanidad-form .stock-control-sanitario-section-head,
+.bn-ui .stock-equino-module-page .stock-sanidad-form .stock-control-sanitario-section-head{
   color: var(--bn-text);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-sanidad-listado .table-wrap-stock-pro.stock-sanidad-table-wrap {
+}.bn-ui .stock-ganadero-module-page .stock-sanidad-listado .table-wrap-stock-pro.stock-sanidad-table-wrap,
+.bn-ui .stock-equino-module-page .stock-sanidad-listado .table-wrap-stock-pro.stock-sanidad-table-wrap{
   border-color: var(--bn-border);
   border-radius: var(--sg-hub-radius-md);
   box-shadow: none;
-}
-
-.bn-ui .stock-ganadero-module-page .stock-sanidad-listado .stock-table-pro-row--selected td {
+}.bn-ui .stock-ganadero-module-page .stock-sanidad-listado .stock-table-pro-row--selected td,
+.bn-ui .stock-equino-module-page .stock-sanidad-listado .stock-table-pro-row--selected td{
   background: color-mix(in srgb, var(--sg-hub-accent) 12%, var(--sg-hub-surface));
-}
-
-.bn-ui .stock-ganadero-module-page .stock-sanidad-listado .stock-table-pro-row--selected:hover td {
+}.bn-ui .stock-ganadero-module-page .stock-sanidad-listado .stock-table-pro-row--selected:hover td,
+.bn-ui .stock-equino-module-page .stock-sanidad-listado .stock-table-pro-row--selected:hover td{
   background: color-mix(in srgb, var(--sg-hub-accent) 18%, var(--sg-hub-surface));
 }
 
@@ -43935,24 +43923,21 @@ button.sg-kpi-card:disabled {
   gap: 0.85rem;
   width: 100%;
   min-width: 0;
-}
-
-.bn-ui .stock-ganadero-module-page .stock-cabana-hub-box {
+}.bn-ui .stock-ganadero-module-page .stock-cabana-hub-box,
+.bn-ui .stock-equino-module-page .stock-cabana-hub-box{
   min-width: 0;
   padding: 0.75rem 0.85rem 0.8rem;
   border: 1px solid var(--bn-border);
   border-radius: var(--sg-hub-radius-md);
   background: var(--sg-hub-surface);
   box-shadow: 0 2px 10px rgba(30, 35, 41, 0.04);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-cabana-hub-head-box {
+}.bn-ui .stock-ganadero-module-page .stock-cabana-hub-head-box,
+.bn-ui .stock-equino-module-page .stock-cabana-hub-head-box{
   margin-bottom: 0.75rem;
   padding-bottom: 0.65rem;
   border-bottom: 1px solid color-mix(in srgb, var(--bn-border) 88%, transparent);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-cabana-hub-head-box--panel {
+}.bn-ui .stock-ganadero-module-page .stock-cabana-hub-head-box--panel,
+.bn-ui .stock-equino-module-page .stock-cabana-hub-head-box--panel{
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -43960,46 +43945,39 @@ button.sg-kpi-card:disabled {
   margin-bottom: 0.85rem;
   padding-bottom: 0.65rem;
   border-bottom: 1px solid color-mix(in srgb, var(--bn-border) 88%, transparent);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-cabana-hub-head-box .sg-hub-panel-kicker {
+}.bn-ui .stock-ganadero-module-page .stock-cabana-hub-head-box .sg-hub-panel-kicker,
+.bn-ui .stock-equino-module-page .stock-cabana-hub-head-box .sg-hub-panel-kicker{
   margin: 0 0 0.2rem;
   font-size: 0.64rem;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--sg-hub-accent);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-cabana-hub-title {
+}.bn-ui .stock-ganadero-module-page .stock-cabana-hub-title,
+.bn-ui .stock-equino-module-page .stock-cabana-hub-title{
   margin: 0;
   font-size: 1.05rem;
   font-weight: 700;
   letter-spacing: -0.02em;
   color: var(--bn-text);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-cabana-hub-sub {
+}.bn-ui .stock-ganadero-module-page .stock-cabana-hub-sub,
+.bn-ui .stock-equino-module-page .stock-cabana-hub-sub{
   margin: 0.2rem 0 0;
   font-size: 0.82rem;
   line-height: 1.45;
-}
-
-.bn-ui .stock-ganadero-module-page .stock-cabana-hub-note {
+}.bn-ui .stock-ganadero-module-page .stock-cabana-hub-note,
+.bn-ui .stock-equino-module-page .stock-cabana-hub-note{
   margin: 0;
   font-size: 0.82rem;
   line-height: 1.5;
-}
-
-.bn-ui .stock-ganadero-module-page .stock-cabana-hub-box--form .stock-cabana-form-grid {
+}.bn-ui .stock-ganadero-module-page .stock-cabana-hub-box--form .stock-cabana-form-grid,
+.bn-ui .stock-equino-module-page .stock-cabana-hub-box--form .stock-cabana-form-grid{
   gap: 0.85rem;
-}
-
-.bn-ui .stock-ganadero-module-page .stock-cabana-hub-box--form {
+}.bn-ui .stock-ganadero-module-page .stock-cabana-hub-box--form,
+.bn-ui .stock-equino-module-page .stock-cabana-hub-box--form{
   background: var(--sg-hub-workspace);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-cabana-form-fields-box {
+}.bn-ui .stock-ganadero-module-page .stock-cabana-form-fields-box,
+.bn-ui .stock-equino-module-page .stock-cabana-form-fields-box{
   display: flex;
   flex-direction: column;
   gap: 0.85rem;
@@ -44007,95 +43985,80 @@ button.sg-kpi-card:disabled {
   border: 1px solid color-mix(in srgb, var(--bn-border) 92%, transparent);
   border-radius: var(--sg-hub-radius-md);
   background: var(--sg-hub-surface);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-cabana-seleccion--hub {
+}.bn-ui .stock-ganadero-module-page .stock-cabana-seleccion--hub,
+.bn-ui .stock-equino-module-page .stock-cabana-seleccion--hub{
   padding: 0.75rem 0.85rem;
   border-radius: var(--sg-hub-radius-md);
   background: color-mix(in srgb, var(--sg-hub-accent) 8%, var(--sg-hub-surface));
   border: 1px solid color-mix(in srgb, var(--sg-hub-accent) 22%, var(--bn-border));
-}
-
-.bn-ui .stock-ganadero-module-page .stock-cabana-seleccion--hub .stock-baja-manual-kicker {
+}.bn-ui .stock-ganadero-module-page .stock-cabana-seleccion--hub .stock-baja-manual-kicker,
+.bn-ui .stock-equino-module-page .stock-cabana-seleccion--hub .stock-baja-manual-kicker{
   color: #4d7c0f;
-}
-
-.bn-ui .stock-ganadero-module-page .stock-cabana-acciones--hub {
+}.bn-ui .stock-ganadero-module-page .stock-cabana-acciones--hub,
+.bn-ui .stock-equino-module-page .stock-cabana-acciones--hub{
   padding-top: 0.5rem;
   border-top: 1px solid color-mix(in srgb, var(--bn-border) 88%, transparent);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-cabana-count--hub {
+}.bn-ui .stock-ganadero-module-page .stock-cabana-count--hub,
+.bn-ui .stock-equino-module-page .stock-cabana-count--hub{
   color: #3f6212;
   background: var(--sg-hub-accent-soft);
   border-color: color-mix(in srgb, var(--sg-hub-accent) 28%, var(--bn-border));
-}
-
-.bn-ui .stock-ganadero-module-page .stock-cabana-row--guardado {
+}.bn-ui .stock-ganadero-module-page .stock-cabana-row--guardado,
+.bn-ui .stock-equino-module-page .stock-cabana-row--guardado{
   border-left-color: var(--sg-hub-accent);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-cabana-row-name--premium {
+}.bn-ui .stock-ganadero-module-page .stock-cabana-row-name--premium,
+.bn-ui .stock-equino-module-page .stock-cabana-row-name--premium{
   color: #4d7c0f;
-}
-
-.bn-ui .stock-ganadero-module-page .stock-cabana-row--pendiente {
+}.bn-ui .stock-ganadero-module-page .stock-cabana-row--pendiente,
+.bn-ui .stock-equino-module-page .stock-cabana-row--pendiente{
   background: color-mix(in srgb, var(--sg-hub-accent) 6%, var(--sg-hub-surface));
   border-color: color-mix(in srgb, var(--sg-hub-accent) 24%, var(--bn-border));
-}
-
-.bn-ui .stock-ganadero-module-page .stock-cabana-row {
+}.bn-ui .stock-ganadero-module-page .stock-cabana-row,
+.bn-ui .stock-equino-module-page .stock-cabana-row{
   border-radius: var(--sg-hub-radius-md);
   border-color: color-mix(in srgb, var(--bn-border) 92%, transparent);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-cabana-row:hover {
+}.bn-ui .stock-ganadero-module-page .stock-cabana-row:hover,
+.bn-ui .stock-equino-module-page .stock-cabana-row:hover{
   border-color: color-mix(in srgb, var(--sg-hub-accent) 28%, var(--bn-border));
   background: color-mix(in srgb, var(--sg-hub-accent) 4%, var(--sg-hub-surface));
-}
-
-.bn-ui .stock-ganadero-module-page .stock-cabana-empty-state {
+}.bn-ui .stock-ganadero-module-page .stock-cabana-empty-state,
+.bn-ui .stock-equino-module-page .stock-cabana-empty-state{
   border-radius: var(--sg-hub-radius-md);
   border-color: color-mix(in srgb, var(--bn-border) 92%, transparent);
   background: var(--sg-hub-workspace);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-cabana-empty-icon {
+}.bn-ui .stock-ganadero-module-page .stock-cabana-empty-icon,
+.bn-ui .stock-equino-module-page .stock-cabana-empty-icon{
   color: var(--sg-hub-accent);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-cabana-panel-foot {
+}.bn-ui .stock-ganadero-module-page .stock-cabana-panel-foot,
+.bn-ui .stock-equino-module-page .stock-cabana-panel-foot{
   margin-top: 0.75rem;
   padding-top: 0.65rem;
   border-top: 1px solid color-mix(in srgb, var(--bn-border) 88%, transparent);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-cabana-hub-box .stock-baja-manual-input,
-.bn-ui .stock-ganadero-module-page .stock-cabana-hub-box .stock-buscador-caravana-input {
+}.bn-ui .stock-ganadero-module-page .stock-cabana-hub-box .stock-baja-manual-input,
+.bn-ui .stock-equino-module-page .stock-cabana-hub-box .stock-baja-manual-input,
+.bn-ui .stock-ganadero-module-page .stock-cabana-hub-box .stock-buscador-caravana-input,
+.bn-ui .stock-equino-module-page .stock-cabana-hub-box .stock-buscador-caravana-input{
   border-color: var(--bn-border);
   border-radius: var(--sg-hub-radius-md);
   background: var(--sg-hub-surface);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-cabana-hub-box .stock-baja-manual-input:focus,
-.bn-ui .stock-ganadero-module-page .stock-cabana-hub-box .stock-buscador-caravana--cabana .stock-buscador-caravana-input:focus {
+}.bn-ui .stock-ganadero-module-page .stock-cabana-hub-box .stock-baja-manual-input:focus,
+.bn-ui .stock-equino-module-page .stock-cabana-hub-box .stock-baja-manual-input:focus,
+.bn-ui .stock-ganadero-module-page .stock-cabana-hub-box .stock-buscador-caravana--cabana .stock-buscador-caravana-input:focus,
+.bn-ui .stock-equino-module-page .stock-cabana-hub-box .stock-buscador-caravana--cabana .stock-buscador-caravana-input:focus{
   border-color: color-mix(in srgb, var(--sg-hub-accent) 45%, var(--bn-border));
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--sg-hub-accent) 16%, transparent);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-cabana-hub-box .stock-buscador-caravana--cabana .stock-buscador-caravana-opcion:hover {
+}.bn-ui .stock-ganadero-module-page .stock-cabana-hub-box .stock-buscador-caravana--cabana .stock-buscador-caravana-opcion:hover,
+.bn-ui .stock-equino-module-page .stock-cabana-hub-box .stock-buscador-caravana--cabana .stock-buscador-caravana-opcion:hover{
   background: color-mix(in srgb, var(--sg-hub-accent) 8%, var(--sg-hub-surface));
-}
-
-.bn-ui .stock-ganadero-module-page .stock-cabana-hub-box .stock-import-spec-label {
+}.bn-ui .stock-ganadero-module-page .stock-cabana-hub-box .stock-import-spec-label,
+.bn-ui .stock-equino-module-page .stock-cabana-hub-box .stock-import-spec-label{
   color: var(--bn-muted);
   font-size: 0.72rem;
   font-weight: 650;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-}
-
-.bn-ui .stock-ganadero-module-page .stock-cabana-btn-quitar {
+}.bn-ui .stock-ganadero-module-page .stock-cabana-btn-quitar,
+.bn-ui .stock-equino-module-page .stock-cabana-btn-quitar{
   color: #b45309;
 }
 
@@ -44106,63 +44069,54 @@ button.sg-kpi-card:disabled {
   gap: 0.85rem;
   width: 100%;
   min-width: 0;
-}
-
-.bn-ui .stock-ganadero-module-page .stock-salidas-hub-box {
+}.bn-ui .stock-ganadero-module-page .stock-salidas-hub-box,
+.bn-ui .stock-equino-module-page .stock-salidas-hub-box{
   min-width: 0;
   padding: 0.75rem 0.85rem 0.8rem;
   border: 1px solid var(--bn-border);
   border-radius: var(--sg-hub-radius-md);
   background: var(--sg-hub-surface);
   box-shadow: 0 2px 10px rgba(30, 35, 41, 0.04);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-salidas-hub-head-box {
+}.bn-ui .stock-ganadero-module-page .stock-salidas-hub-head-box,
+.bn-ui .stock-equino-module-page .stock-salidas-hub-head-box{
   margin-bottom: 0.75rem;
   padding-bottom: 0.65rem;
   border-bottom: 1px solid color-mix(in srgb, var(--bn-border) 88%, transparent);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-salidas-hub-head-box--panel {
+}.bn-ui .stock-ganadero-module-page .stock-salidas-hub-head-box--panel,
+.bn-ui .stock-equino-module-page .stock-salidas-hub-head-box--panel{
   margin-bottom: 0.85rem;
-}
-
-.bn-ui .stock-ganadero-module-page .stock-salidas-hub-head-box .sg-hub-panel-kicker {
+}.bn-ui .stock-ganadero-module-page .stock-salidas-hub-head-box .sg-hub-panel-kicker,
+.bn-ui .stock-equino-module-page .stock-salidas-hub-head-box .sg-hub-panel-kicker{
   margin: 0 0 0.2rem;
   font-size: 0.64rem;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--sg-hub-accent);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-salidas-hub-title {
+}.bn-ui .stock-ganadero-module-page .stock-salidas-hub-title,
+.bn-ui .stock-equino-module-page .stock-salidas-hub-title{
   margin: 0;
   font-size: 1.05rem;
   font-weight: 700;
   letter-spacing: -0.02em;
   color: var(--bn-text);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-salidas-hub-sub {
+}.bn-ui .stock-ganadero-module-page .stock-salidas-hub-sub,
+.bn-ui .stock-equino-module-page .stock-salidas-hub-sub{
   margin: 0.2rem 0 0;
   font-size: 0.82rem;
   line-height: 1.45;
-}
-
-.bn-ui .stock-ganadero-module-page .stock-salidas-hub-meta {
+}.bn-ui .stock-ganadero-module-page .stock-salidas-hub-meta,
+.bn-ui .stock-equino-module-page .stock-salidas-hub-meta{
   margin: 0 0 0.85rem;
   font-size: 0.82rem;
   line-height: 1.45;
-}
-
-.bn-ui .stock-ganadero-module-page .stock-salidas-hub-status {
+}.bn-ui .stock-ganadero-module-page .stock-salidas-hub-status,
+.bn-ui .stock-equino-module-page .stock-salidas-hub-status{
   margin: 0;
   font-size: 0.82rem;
   line-height: 1.45;
-}
-
-.bn-ui .stock-ganadero-module-page .stock-salidas-kpi-strip {
+}.bn-ui .stock-ganadero-module-page .stock-salidas-kpi-strip,
+.bn-ui .stock-equino-module-page .stock-salidas-kpi-strip{
   grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 
@@ -44176,9 +44130,8 @@ button.sg-kpi-card:disabled {
   .bn-ui .stock-ganadero-module-page .stock-salidas-kpi-strip {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-}
-
-.bn-ui .stock-ganadero-module-page .stock-salidas-kpi-btn {
+}.bn-ui .stock-ganadero-module-page .stock-salidas-kpi-btn,
+.bn-ui .stock-equino-module-page .stock-salidas-kpi-btn{
   display: flex;
   flex-direction: column;
   gap: 0.55rem;
@@ -44195,65 +44148,53 @@ button.sg-kpi-card:disabled {
     border-color 0.15s ease,
     box-shadow 0.15s ease,
     transform 0.12s ease;
-}
-
-.bn-ui .stock-ganadero-module-page .stock-salidas-kpi-btn:hover:not(:disabled) {
+}.bn-ui .stock-ganadero-module-page .stock-salidas-kpi-btn:hover:not(:disabled),
+.bn-ui .stock-equino-module-page .stock-salidas-kpi-btn:hover:not(:disabled){
   transform: translateY(-1px);
   box-shadow: 0 4px 14px rgba(30, 35, 41, 0.07);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-salidas-kpi-btn:disabled {
+}.bn-ui .stock-ganadero-module-page .stock-salidas-kpi-btn:disabled,
+.bn-ui .stock-equino-module-page .stock-salidas-kpi-btn:disabled{
   opacity: 0.62;
   cursor: default;
-}
-
-.bn-ui .stock-ganadero-module-page .stock-salidas-kpi-btn.is-active {
+}.bn-ui .stock-ganadero-module-page .stock-salidas-kpi-btn.is-active,
+.bn-ui .stock-equino-module-page .stock-salidas-kpi-btn.is-active{
   border-color: color-mix(in srgb, var(--sg-hub-accent) 45%, var(--bn-border));
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--sg-hub-accent) 14%, transparent);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-salidas-kpi-btn--muerto.is-active {
+}.bn-ui .stock-ganadero-module-page .stock-salidas-kpi-btn--muerto.is-active,
+.bn-ui .stock-equino-module-page .stock-salidas-kpi-btn--muerto.is-active{
   border-color: color-mix(in srgb, #4b5563 45%, var(--bn-border));
   box-shadow: 0 0 0 2px color-mix(in srgb, #4b5563 14%, transparent);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-salidas-kpi-btn--vendido.is-active {
+}.bn-ui .stock-ganadero-module-page .stock-salidas-kpi-btn--vendido.is-active,
+.bn-ui .stock-equino-module-page .stock-salidas-kpi-btn--vendido.is-active{
   border-color: color-mix(in srgb, #1d4ed8 40%, var(--bn-border));
   box-shadow: 0 0 0 2px color-mix(in srgb, #1d4ed8 12%, transparent);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-salidas-kpi-btn--frigorifico.is-active {
+}.bn-ui .stock-ganadero-module-page .stock-salidas-kpi-btn--frigorifico.is-active,
+.bn-ui .stock-equino-module-page .stock-salidas-kpi-btn--frigorifico.is-active{
   border-color: color-mix(in srgb, #b45309 40%, var(--bn-border));
   box-shadow: 0 0 0 2px color-mix(in srgb, #b45309 12%, transparent);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-salidas-kpi-btn--perdido.is-active {
+}.bn-ui .stock-ganadero-module-page .stock-salidas-kpi-btn--perdido.is-active,
+.bn-ui .stock-equino-module-page .stock-salidas-kpi-btn--perdido.is-active{
   border-color: color-mix(in srgb, #7c3aed 40%, var(--bn-border));
   box-shadow: 0 0 0 2px color-mix(in srgb, #7c3aed 12%, transparent);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-salidas-kpi-btn--muerto .sg-hub-kpi-value {
+}.bn-ui .stock-ganadero-module-page .stock-salidas-kpi-btn--muerto .sg-hub-kpi-value,
+.bn-ui .stock-equino-module-page .stock-salidas-kpi-btn--muerto .sg-hub-kpi-value{
   color: #4b5563;
-}
-
-.bn-ui .stock-ganadero-module-page .stock-salidas-kpi-btn--vendido .sg-hub-kpi-value {
+}.bn-ui .stock-ganadero-module-page .stock-salidas-kpi-btn--vendido .sg-hub-kpi-value,
+.bn-ui .stock-equino-module-page .stock-salidas-kpi-btn--vendido .sg-hub-kpi-value{
   color: #1d4ed8;
-}
-
-.bn-ui .stock-ganadero-module-page .stock-salidas-kpi-btn--frigorifico .sg-hub-kpi-value {
+}.bn-ui .stock-ganadero-module-page .stock-salidas-kpi-btn--frigorifico .sg-hub-kpi-value,
+.bn-ui .stock-equino-module-page .stock-salidas-kpi-btn--frigorifico .sg-hub-kpi-value{
   color: #b45309;
-}
-
-.bn-ui .stock-ganadero-module-page .stock-salidas-kpi-btn--perdido .sg-hub-kpi-value {
+}.bn-ui .stock-ganadero-module-page .stock-salidas-kpi-btn--perdido .sg-hub-kpi-value,
+.bn-ui .stock-equino-module-page .stock-salidas-kpi-btn--perdido .sg-hub-kpi-value{
   color: #7c3aed;
-}
-
-.bn-ui .stock-ganadero-module-page .stock-salidas-hub-box--listado {
+}.bn-ui .stock-ganadero-module-page .stock-salidas-hub-box--listado,
+.bn-ui .stock-equino-module-page .stock-salidas-hub-box--listado{
   background: var(--sg-hub-surface);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-salidas-filters-box,
-.bn-ui .stock-ganadero-module-page .stock-salidas-filters--hub {
+}.bn-ui .stock-ganadero-module-page .stock-salidas-filters-box,
+.bn-ui .stock-equino-module-page .stock-salidas-filters-box,
+.bn-ui .stock-ganadero-module-page .stock-salidas-filters--hub,
+.bn-ui .stock-equino-module-page .stock-salidas-filters--hub{
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
@@ -44263,44 +44204,47 @@ button.sg-kpi-card:disabled {
   border: 1px solid color-mix(in srgb, var(--bn-border) 92%, transparent);
   border-radius: var(--sg-hub-radius-md);
   background: color-mix(in srgb, var(--sg-hub-workspace) 45%, var(--sg-hub-surface));
-}
-
-.bn-ui .stock-ganadero-module-page .stock-salidas-filters-box .field label,
-.bn-ui .stock-ganadero-module-page .stock-salidas-filters--hub .field label {
+}.bn-ui .stock-ganadero-module-page .stock-salidas-filters-box .field label,
+.bn-ui .stock-equino-module-page .stock-salidas-filters-box .field label,
+.bn-ui .stock-ganadero-module-page .stock-salidas-filters--hub .field label,
+.bn-ui .stock-equino-module-page .stock-salidas-filters--hub .field label{
   font-size: 0.72rem;
   font-weight: 650;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--bn-muted);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-salidas-filters-box select,
+}.bn-ui .stock-ganadero-module-page .stock-salidas-filters-box select,
+.bn-ui .stock-equino-module-page .stock-salidas-filters-box select,
 .bn-ui .stock-ganadero-module-page .stock-salidas-filters-box input,
+.bn-ui .stock-equino-module-page .stock-salidas-filters-box input,
 .bn-ui .stock-ganadero-module-page .stock-salidas-filters--hub select,
-.bn-ui .stock-ganadero-module-page .stock-salidas-filters--hub input {
+.bn-ui .stock-equino-module-page .stock-salidas-filters--hub select,
+.bn-ui .stock-ganadero-module-page .stock-salidas-filters--hub input,
+.bn-ui .stock-equino-module-page .stock-salidas-filters--hub input{
   border-color: var(--bn-border);
   border-radius: var(--sg-hub-radius-md);
   background: var(--sg-hub-surface);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-salidas-filters-box select:focus,
+}.bn-ui .stock-ganadero-module-page .stock-salidas-filters-box select:focus,
+.bn-ui .stock-equino-module-page .stock-salidas-filters-box select:focus,
 .bn-ui .stock-ganadero-module-page .stock-salidas-filters-box input:focus,
+.bn-ui .stock-equino-module-page .stock-salidas-filters-box input:focus,
 .bn-ui .stock-ganadero-module-page .stock-salidas-filters--hub select:focus,
-.bn-ui .stock-ganadero-module-page .stock-salidas-filters--hub input:focus {
+.bn-ui .stock-equino-module-page .stock-salidas-filters--hub select:focus,
+.bn-ui .stock-ganadero-module-page .stock-salidas-filters--hub input:focus,
+.bn-ui .stock-equino-module-page .stock-salidas-filters--hub input:focus{
   outline: none;
   border-color: color-mix(in srgb, var(--sg-hub-accent) 45%, var(--bn-border));
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--sg-hub-accent) 16%, transparent);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-salidas-table-box,
-.bn-ui .stock-ganadero-module-page .stock-salidas-table-wrap--hub {
+}.bn-ui .stock-ganadero-module-page .stock-salidas-table-box,
+.bn-ui .stock-equino-module-page .stock-salidas-table-box,
+.bn-ui .stock-ganadero-module-page .stock-salidas-table-wrap--hub,
+.bn-ui .stock-equino-module-page .stock-salidas-table-wrap--hub{
   border: 1px solid var(--bn-border);
   border-radius: var(--sg-hub-radius-md);
   overflow: hidden;
   box-shadow: none;
-}
-
-.bn-ui .stock-ganadero-module-page .stock-salidas-hub-box--listado .table-pagination {
+}.bn-ui .stock-ganadero-module-page .stock-salidas-hub-box--listado .table-pagination,
+.bn-ui .stock-equino-module-page .stock-salidas-hub-box--listado .table-pagination{
   margin-top: 0.75rem;
   padding-top: 0.65rem;
   border-top: 1px solid color-mix(in srgb, var(--bn-border) 88%, transparent);
@@ -44313,65 +44257,56 @@ button.sg-kpi-card:disabled {
   gap: 0.85rem;
   width: 100%;
   min-width: 0;
-}
-
-.bn-ui .stock-ganadero-module-page .stock-lecturas-hub-box {
+}.bn-ui .stock-ganadero-module-page .stock-lecturas-hub-box,
+.bn-ui .stock-equino-module-page .stock-lecturas-hub-box{
   min-width: 0;
   padding: 0.75rem 0.85rem 0.8rem;
   border: 1px solid var(--bn-border);
   border-radius: var(--sg-hub-radius-md);
   background: var(--sg-hub-surface);
   box-shadow: 0 2px 10px rgba(30, 35, 41, 0.04);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-lecturas-hub-head-box {
+}.bn-ui .stock-ganadero-module-page .stock-lecturas-hub-head-box,
+.bn-ui .stock-equino-module-page .stock-lecturas-hub-head-box{
   margin-bottom: 0.75rem;
   padding-bottom: 0.65rem;
   border-bottom: 1px solid color-mix(in srgb, var(--bn-border) 88%, transparent);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-lecturas-hub-head-box--panel {
+}.bn-ui .stock-ganadero-module-page .stock-lecturas-hub-head-box--panel,
+.bn-ui .stock-equino-module-page .stock-lecturas-hub-head-box--panel{
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 0.85rem;
   margin-bottom: 0.85rem;
-}
-
-.bn-ui .stock-ganadero-module-page .stock-lecturas-hub-head-main {
+}.bn-ui .stock-ganadero-module-page .stock-lecturas-hub-head-main,
+.bn-ui .stock-equino-module-page .stock-lecturas-hub-head-main{
   min-width: 0;
-}
-
-.bn-ui .stock-ganadero-module-page .stock-lecturas-hub-head-box .sg-hub-panel-kicker {
+}.bn-ui .stock-ganadero-module-page .stock-lecturas-hub-head-box .sg-hub-panel-kicker,
+.bn-ui .stock-equino-module-page .stock-lecturas-hub-head-box .sg-hub-panel-kicker{
   margin: 0 0 0.2rem;
   font-size: 0.64rem;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--sg-hub-accent);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-lecturas-hub-title {
+}.bn-ui .stock-ganadero-module-page .stock-lecturas-hub-title,
+.bn-ui .stock-equino-module-page .stock-lecturas-hub-title{
   margin: 0;
   font-size: 1.05rem;
   font-weight: 700;
   letter-spacing: -0.02em;
   color: var(--bn-text);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-lecturas-hub-sub {
+}.bn-ui .stock-ganadero-module-page .stock-lecturas-hub-sub,
+.bn-ui .stock-equino-module-page .stock-lecturas-hub-sub{
   margin: 0.2rem 0 0;
   font-size: 0.82rem;
   line-height: 1.45;
-}
-
-.bn-ui .stock-ganadero-module-page .stock-lecturas-hub-status {
+}.bn-ui .stock-ganadero-module-page .stock-lecturas-hub-status,
+.bn-ui .stock-equino-module-page .stock-lecturas-hub-status{
   margin: 0;
   font-size: 0.82rem;
   line-height: 1.45;
-}
-
-.bn-ui .stock-ganadero-module-page .stock-lecturas-kpi-strip {
+}.bn-ui .stock-ganadero-module-page .stock-lecturas-kpi-strip,
+.bn-ui .stock-equino-module-page .stock-lecturas-kpi-strip{
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
@@ -44379,9 +44314,8 @@ button.sg-kpi-card:disabled {
   .bn-ui .stock-ganadero-module-page .stock-lecturas-kpi-strip {
     grid-template-columns: 1fr;
   }
-}
-
-.bn-ui .stock-ganadero-module-page .stock-lecturas-kpi-btn {
+}.bn-ui .stock-ganadero-module-page .stock-lecturas-kpi-btn,
+.bn-ui .stock-equino-module-page .stock-lecturas-kpi-btn{
   display: flex;
   flex-direction: column;
   gap: 0.55rem;
@@ -44398,33 +44332,27 @@ button.sg-kpi-card:disabled {
     border-color 0.15s ease,
     box-shadow 0.15s ease,
     transform 0.12s ease;
-}
-
-.bn-ui .stock-ganadero-module-page .stock-lecturas-kpi-btn:hover:not(:disabled) {
+}.bn-ui .stock-ganadero-module-page .stock-lecturas-kpi-btn:hover:not(:disabled),
+.bn-ui .stock-equino-module-page .stock-lecturas-kpi-btn:hover:not(:disabled){
   transform: translateY(-1px);
   box-shadow: 0 4px 14px rgba(30, 35, 41, 0.07);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-lecturas-kpi-btn:disabled {
+}.bn-ui .stock-ganadero-module-page .stock-lecturas-kpi-btn:disabled,
+.bn-ui .stock-equino-module-page .stock-lecturas-kpi-btn:disabled{
   opacity: 0.62;
   cursor: default;
-}
-
-.bn-ui .stock-ganadero-module-page .stock-lecturas-kpi-btn.is-active {
+}.bn-ui .stock-ganadero-module-page .stock-lecturas-kpi-btn.is-active,
+.bn-ui .stock-equino-module-page .stock-lecturas-kpi-btn.is-active{
   border-color: color-mix(in srgb, var(--sg-hub-accent) 45%, var(--bn-border));
   background: var(--sg-hub-accent-soft);
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--sg-hub-accent) 14%, transparent);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-lecturas-kpi-btn--repetidos.is-active .sg-hub-kpi-value {
+}.bn-ui .stock-ganadero-module-page .stock-lecturas-kpi-btn--repetidos.is-active .sg-hub-kpi-value,
+.bn-ui .stock-equino-module-page .stock-lecturas-kpi-btn--repetidos.is-active .sg-hub-kpi-value{
   color: #3f6212;
-}
-
-.bn-ui .stock-ganadero-module-page .stock-lecturas-hub-box--listado {
+}.bn-ui .stock-ganadero-module-page .stock-lecturas-hub-box--listado,
+.bn-ui .stock-equino-module-page .stock-lecturas-hub-box--listado{
   background: var(--sg-hub-surface);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-lecturas-filters-box {
+}.bn-ui .stock-ganadero-module-page .stock-lecturas-filters-box,
+.bn-ui .stock-equino-module-page .stock-lecturas-filters-box{
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
@@ -44434,54 +44362,49 @@ button.sg-kpi-card:disabled {
   border: 1px solid color-mix(in srgb, var(--bn-border) 92%, transparent);
   border-radius: var(--sg-hub-radius-md);
   background: color-mix(in srgb, var(--sg-hub-workspace) 45%, var(--sg-hub-surface));
-}
-
-.bn-ui .stock-ganadero-module-page .stock-lecturas-filters-box .field label {
+}.bn-ui .stock-ganadero-module-page .stock-lecturas-filters-box .field label,
+.bn-ui .stock-equino-module-page .stock-lecturas-filters-box .field label{
   font-size: 0.72rem;
   font-weight: 650;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--bn-muted);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-lecturas-filters-box select,
-.bn-ui .stock-ganadero-module-page .stock-lecturas-filters-box input {
+}.bn-ui .stock-ganadero-module-page .stock-lecturas-filters-box select,
+.bn-ui .stock-equino-module-page .stock-lecturas-filters-box select,
+.bn-ui .stock-ganadero-module-page .stock-lecturas-filters-box input,
+.bn-ui .stock-equino-module-page .stock-lecturas-filters-box input{
   border-color: var(--bn-border);
   border-radius: var(--sg-hub-radius-md);
   background: var(--sg-hub-surface);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-lecturas-filters-box select:focus,
-.bn-ui .stock-ganadero-module-page .stock-lecturas-filters-box input:focus {
+}.bn-ui .stock-ganadero-module-page .stock-lecturas-filters-box select:focus,
+.bn-ui .stock-equino-module-page .stock-lecturas-filters-box select:focus,
+.bn-ui .stock-ganadero-module-page .stock-lecturas-filters-box input:focus,
+.bn-ui .stock-equino-module-page .stock-lecturas-filters-box input:focus{
   outline: none;
   border-color: color-mix(in srgb, var(--sg-hub-accent) 45%, var(--bn-border));
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--sg-hub-accent) 16%, transparent);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-lecturas-table-box {
+}.bn-ui .stock-ganadero-module-page .stock-lecturas-table-box,
+.bn-ui .stock-equino-module-page .stock-lecturas-table-box{
   border: 1px solid var(--bn-border);
   border-radius: var(--sg-hub-radius-md);
   overflow: hidden;
   box-shadow: none;
-}
-
-.bn-ui .stock-ganadero-module-page .stock-lecturas-repetidos-filtro--hub {
+}.bn-ui .stock-ganadero-module-page .stock-lecturas-repetidos-filtro--hub,
+.bn-ui .stock-equino-module-page .stock-lecturas-repetidos-filtro--hub{
   margin-bottom: 0.75rem;
   padding: 0.55rem 0.65rem;
   border-radius: var(--sg-hub-radius-md);
   border: 1px solid color-mix(in srgb, var(--sg-hub-accent) 22%, var(--bn-border));
   background: color-mix(in srgb, var(--sg-hub-accent) 8%, var(--sg-hub-surface));
-}
-
-.bn-ui .stock-ganadero-module-page .stock-lecturas-repetidos-detalle--hub {
+}.bn-ui .stock-ganadero-module-page .stock-lecturas-repetidos-detalle--hub,
+.bn-ui .stock-equino-module-page .stock-lecturas-repetidos-detalle--hub{
   margin-bottom: 0.85rem;
   padding: 0.55rem 0.65rem;
   border-radius: var(--sg-hub-radius-md);
   border: 1px solid color-mix(in srgb, var(--bn-border) 92%, transparent);
   background: color-mix(in srgb, var(--sg-hub-workspace) 35%, var(--sg-hub-surface));
-}
-
-.bn-ui .stock-ganadero-module-page .stock-lecturas-hub-box--listado .table-pagination {
+}.bn-ui .stock-ganadero-module-page .stock-lecturas-hub-box--listado .table-pagination,
+.bn-ui .stock-equino-module-page .stock-lecturas-hub-box--listado .table-pagination{
   margin-top: 0.75rem;
   padding-top: 0.65rem;
   border-top: 1px solid color-mix(in srgb, var(--bn-border) 88%, transparent);
@@ -44495,66 +44418,64 @@ button.sg-kpi-card:disabled {
   gap: 0.85rem;
   width: 100%;
   min-width: 0;
-}
-
-.bn-ui .stock-ganadero-module-page .stock-baja-hub-box,
-.bn-ui .stock-ganadero-module-page .stock-alta-hub-box {
+}.bn-ui .stock-ganadero-module-page .stock-baja-hub-box,
+.bn-ui .stock-equino-module-page .stock-baja-hub-box,
+.bn-ui .stock-ganadero-module-page .stock-alta-hub-box,
+.bn-ui .stock-equino-module-page .stock-alta-hub-box{
   min-width: 0;
   padding: 0.75rem 0.85rem 0.8rem;
   border: 1px solid var(--bn-border);
   border-radius: var(--sg-hub-radius-md);
   background: var(--sg-hub-surface);
   box-shadow: 0 2px 10px rgba(30, 35, 41, 0.04);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-baja-hub-head-box,
-.bn-ui .stock-ganadero-module-page .stock-alta-hub-head-box {
+}.bn-ui .stock-ganadero-module-page .stock-baja-hub-head-box,
+.bn-ui .stock-equino-module-page .stock-baja-hub-head-box,
+.bn-ui .stock-ganadero-module-page .stock-alta-hub-head-box,
+.bn-ui .stock-equino-module-page .stock-alta-hub-head-box{
   margin-bottom: 0.75rem;
   padding-bottom: 0.65rem;
   border-bottom: 1px solid color-mix(in srgb, var(--bn-border) 88%, transparent);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-baja-hub-head-box .sg-hub-panel-kicker,
-.bn-ui .stock-ganadero-module-page .stock-alta-hub-head-box .sg-hub-panel-kicker {
+}.bn-ui .stock-ganadero-module-page .stock-baja-hub-head-box .sg-hub-panel-kicker,
+.bn-ui .stock-equino-module-page .stock-baja-hub-head-box .sg-hub-panel-kicker,
+.bn-ui .stock-ganadero-module-page .stock-alta-hub-head-box .sg-hub-panel-kicker,
+.bn-ui .stock-equino-module-page .stock-alta-hub-head-box .sg-hub-panel-kicker{
   margin: 0 0 0.2rem;
   font-size: 0.64rem;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--sg-hub-accent);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-baja-hub-title,
-.bn-ui .stock-ganadero-module-page .stock-alta-hub-title {
+}.bn-ui .stock-ganadero-module-page .stock-baja-hub-title,
+.bn-ui .stock-equino-module-page .stock-baja-hub-title,
+.bn-ui .stock-ganadero-module-page .stock-alta-hub-title,
+.bn-ui .stock-equino-module-page .stock-alta-hub-title{
   margin: 0;
   font-size: 1.05rem;
   font-weight: 700;
   letter-spacing: -0.02em;
   color: var(--bn-text);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-baja-hub-sub,
-.bn-ui .stock-ganadero-module-page .stock-alta-hub-sub {
+}.bn-ui .stock-ganadero-module-page .stock-baja-hub-sub,
+.bn-ui .stock-equino-module-page .stock-baja-hub-sub,
+.bn-ui .stock-ganadero-module-page .stock-alta-hub-sub,
+.bn-ui .stock-equino-module-page .stock-alta-hub-sub{
   margin: 0.2rem 0 0;
   font-size: 0.82rem;
   line-height: 1.45;
-}
-
-.bn-ui .stock-ganadero-module-page .stock-baja-hub-note,
-.bn-ui .stock-ganadero-module-page .stock-alta-hub-note {
+}.bn-ui .stock-ganadero-module-page .stock-baja-hub-note,
+.bn-ui .stock-equino-module-page .stock-baja-hub-note,
+.bn-ui .stock-ganadero-module-page .stock-alta-hub-note,
+.bn-ui .stock-equino-module-page .stock-alta-hub-note{
   margin: 0.65rem 0 0;
   font-size: 0.82rem;
   line-height: 1.5;
-}
-
-.bn-ui .stock-ganadero-module-page .stock-import-chips--hub {
+}.bn-ui .stock-ganadero-module-page .stock-import-chips--hub,
+.bn-ui .stock-equino-module-page .stock-import-chips--hub{
   display: flex;
   flex-wrap: wrap;
   gap: 0.35rem;
   margin-top: 0.15rem;
-}
-
-.bn-ui .stock-ganadero-module-page .stock-import-chip--hub {
+}.bn-ui .stock-ganadero-module-page .stock-import-chip--hub,
+.bn-ui .stock-equino-module-page .stock-import-chip--hub{
   padding: 0.2rem 0.55rem;
   border-radius: 999px;
   font-size: 0.68rem;
@@ -44562,55 +44483,50 @@ button.sg-kpi-card:disabled {
   color: #3f6212;
   background: color-mix(in srgb, var(--sg-hub-accent) 12%, var(--sg-hub-surface));
   border: 1px solid color-mix(in srgb, var(--sg-hub-accent) 24%, var(--bn-border));
-}
-
-.bn-ui .stock-ganadero-module-page .stock-baja-hub-box--main,
-.bn-ui .stock-ganadero-module-page .stock-alta-hub-box--main {
+}.bn-ui .stock-ganadero-module-page .stock-baja-hub-box--main,
+.bn-ui .stock-equino-module-page .stock-baja-hub-box--main,
+.bn-ui .stock-ganadero-module-page .stock-alta-hub-box--main,
+.bn-ui .stock-equino-module-page .stock-alta-hub-box--main{
   background: var(--sg-hub-surface);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-baja-hub-tabs-box,
-.bn-ui .stock-ganadero-module-page .stock-alta-hub-tabs-box {
+}.bn-ui .stock-ganadero-module-page .stock-baja-hub-tabs-box,
+.bn-ui .stock-equino-module-page .stock-baja-hub-tabs-box,
+.bn-ui .stock-ganadero-module-page .stock-alta-hub-tabs-box,
+.bn-ui .stock-equino-module-page .stock-alta-hub-tabs-box{
   margin-bottom: 0.75rem;
   padding: 0.35rem;
   border: 1px solid color-mix(in srgb, var(--bn-border) 92%, transparent);
   border-radius: var(--sg-hub-radius-md);
   background: color-mix(in srgb, var(--sg-hub-workspace) 50%, var(--sg-hub-surface));
-}
-
-.bn-ui .stock-ganadero-module-page .stock-import-tabs--hub {
+}.bn-ui .stock-ganadero-module-page .stock-import-tabs--hub,
+.bn-ui .stock-equino-module-page .stock-import-tabs--hub{
   margin-bottom: 0;
   padding-bottom: 0;
   gap: 0.25rem;
   border-bottom: none;
   background: transparent;
-}
-
-.bn-ui .stock-ganadero-module-page .stock-import-tabs--hub .stock-import-tab {
+}.bn-ui .stock-ganadero-module-page .stock-import-tabs--hub .stock-import-tab,
+.bn-ui .stock-equino-module-page .stock-import-tabs--hub .stock-import-tab{
   border-bottom: 2px solid transparent;
   border-radius: var(--sg-hub-radius-sm);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-import-tabs--hub .stock-import-tab.is-active {
+}.bn-ui .stock-ganadero-module-page .stock-import-tabs--hub .stock-import-tab.is-active,
+.bn-ui .stock-equino-module-page .stock-import-tabs--hub .stock-import-tab.is-active{
   color: #3f6212;
   font-weight: 650;
   border-bottom-color: var(--sg-hub-accent);
   background: var(--sg-hub-accent-soft);
   box-shadow: 0 1px 2px rgba(30, 35, 41, 0.05);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-import-tabs--hub .stock-import-tab:hover:not(.is-active) {
+}.bn-ui .stock-ganadero-module-page .stock-import-tabs--hub .stock-import-tab:hover:not(.is-active),
+.bn-ui .stock-equino-module-page .stock-import-tabs--hub .stock-import-tab:hover:not(.is-active){
   color: #5a8f2a;
   background: color-mix(in srgb, var(--sg-hub-accent) 10%, var(--sg-hub-surface));
-}
-
-.bn-ui .stock-ganadero-module-page .stock-import-tab-badge--hub {
+}.bn-ui .stock-ganadero-module-page .stock-import-tab-badge--hub,
+.bn-ui .stock-equino-module-page .stock-import-tab-badge--hub{
   color: #3f6212;
   background: var(--sg-hub-accent-soft);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-baja-form-fields-box,
-.bn-ui .stock-ganadero-module-page .stock-alta-form-fields-box {
+}.bn-ui .stock-ganadero-module-page .stock-baja-form-fields-box,
+.bn-ui .stock-equino-module-page .stock-baja-form-fields-box,
+.bn-ui .stock-ganadero-module-page .stock-alta-form-fields-box,
+.bn-ui .stock-equino-module-page .stock-alta-form-fields-box{
   display: flex;
   flex-direction: column;
   gap: 0.85rem;
@@ -44618,108 +44534,120 @@ button.sg-kpi-card:disabled {
   border: 1px solid color-mix(in srgb, var(--bn-border) 92%, transparent);
   border-radius: var(--sg-hub-radius-md);
   background: color-mix(in srgb, var(--sg-hub-workspace) 45%, var(--sg-hub-surface));
-}
-
-.bn-ui .stock-ganadero-module-page .stock-baja-form-fields-box .field label,
-.bn-ui .stock-ganadero-module-page .stock-alta-form-fields-box .field label {
+}.bn-ui .stock-ganadero-module-page .stock-baja-form-fields-box .field label,
+.bn-ui .stock-equino-module-page .stock-baja-form-fields-box .field label,
+.bn-ui .stock-ganadero-module-page .stock-alta-form-fields-box .field label,
+.bn-ui .stock-equino-module-page .stock-alta-form-fields-box .field label{
   font-size: 0.72rem;
   font-weight: 650;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--bn-muted);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-baja-form-fields-box .stock-import-select,
+}.bn-ui .stock-ganadero-module-page .stock-baja-form-fields-box .stock-import-select,
+.bn-ui .stock-equino-module-page .stock-baja-form-fields-box .stock-import-select,
 .bn-ui .stock-ganadero-module-page .stock-baja-form-fields-box .stock-import-date,
+.bn-ui .stock-equino-module-page .stock-baja-form-fields-box .stock-import-date,
 .bn-ui .stock-ganadero-module-page .stock-baja-form-fields-box .stock-import-text,
+.bn-ui .stock-equino-module-page .stock-baja-form-fields-box .stock-import-text,
 .bn-ui .stock-ganadero-module-page .stock-baja-form-fields-box .stock-import-textarea,
+.bn-ui .stock-equino-module-page .stock-baja-form-fields-box .stock-import-textarea,
 .bn-ui .stock-ganadero-module-page .stock-baja-form-fields-box .stock-buscador-caravana-input,
+.bn-ui .stock-equino-module-page .stock-baja-form-fields-box .stock-buscador-caravana-input,
 .bn-ui .stock-ganadero-module-page .stock-alta-form-fields-box .stock-import-select,
+.bn-ui .stock-equino-module-page .stock-alta-form-fields-box .stock-import-select,
 .bn-ui .stock-ganadero-module-page .stock-alta-form-fields-box .stock-import-raza-select,
+.bn-ui .stock-equino-module-page .stock-alta-form-fields-box .stock-import-raza-select,
 .bn-ui .stock-ganadero-module-page .stock-alta-form-fields-box .stock-import-raza-otra,
+.bn-ui .stock-equino-module-page .stock-alta-form-fields-box .stock-import-raza-otra,
 .bn-ui .stock-ganadero-module-page .stock-alta-form-fields-box input[type="date"],
+.bn-ui .stock-equino-module-page .stock-alta-form-fields-box input[type="date"],
 .bn-ui .stock-ganadero-module-page .stock-alta-form-fields-box input[type="time"],
-.bn-ui .stock-ganadero-module-page .stock-alta-form-fields-box input[type="text"] {
+.bn-ui .stock-equino-module-page .stock-alta-form-fields-box input[type="time"],
+.bn-ui .stock-ganadero-module-page .stock-alta-form-fields-box input[type="text"],
+.bn-ui .stock-equino-module-page .stock-alta-form-fields-box input[type="text"]{
   border-color: var(--bn-border);
   border-radius: var(--sg-hub-radius-md);
   background: var(--sg-hub-surface);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-baja-form-fields-box .stock-import-select:focus,
+}.bn-ui .stock-ganadero-module-page .stock-baja-form-fields-box .stock-import-select:focus,
+.bn-ui .stock-equino-module-page .stock-baja-form-fields-box .stock-import-select:focus,
 .bn-ui .stock-ganadero-module-page .stock-baja-form-fields-box .stock-import-date:focus,
+.bn-ui .stock-equino-module-page .stock-baja-form-fields-box .stock-import-date:focus,
 .bn-ui .stock-ganadero-module-page .stock-baja-form-fields-box .stock-import-text:focus,
+.bn-ui .stock-equino-module-page .stock-baja-form-fields-box .stock-import-text:focus,
 .bn-ui .stock-ganadero-module-page .stock-baja-form-fields-box .stock-import-textarea:focus,
+.bn-ui .stock-equino-module-page .stock-baja-form-fields-box .stock-import-textarea:focus,
 .bn-ui .stock-ganadero-module-page .stock-baja-form-fields-box .stock-buscador-caravana--baja .stock-buscador-caravana-input:focus,
+.bn-ui .stock-equino-module-page .stock-baja-form-fields-box .stock-buscador-caravana--baja .stock-buscador-caravana-input:focus,
 .bn-ui .stock-ganadero-module-page .stock-alta-form-fields-box .stock-import-select:focus,
+.bn-ui .stock-equino-module-page .stock-alta-form-fields-box .stock-import-select:focus,
 .bn-ui .stock-ganadero-module-page .stock-alta-form-fields-box .stock-import-raza-select:focus,
+.bn-ui .stock-equino-module-page .stock-alta-form-fields-box .stock-import-raza-select:focus,
 .bn-ui .stock-ganadero-module-page .stock-alta-form-fields-box .stock-import-raza-otra:focus,
+.bn-ui .stock-equino-module-page .stock-alta-form-fields-box .stock-import-raza-otra:focus,
 .bn-ui .stock-ganadero-module-page .stock-alta-form-fields-box input[type="date"]:focus,
+.bn-ui .stock-equino-module-page .stock-alta-form-fields-box input[type="date"]:focus,
 .bn-ui .stock-ganadero-module-page .stock-alta-form-fields-box input[type="time"]:focus,
-.bn-ui .stock-ganadero-module-page .stock-alta-form-fields-box input[type="text"]:focus {
+.bn-ui .stock-equino-module-page .stock-alta-form-fields-box input[type="time"]:focus,
+.bn-ui .stock-ganadero-module-page .stock-alta-form-fields-box input[type="text"]:focus,
+.bn-ui .stock-equino-module-page .stock-alta-form-fields-box input[type="text"]:focus{
   outline: none;
   border-color: color-mix(in srgb, var(--sg-hub-accent) 45%, var(--bn-border));
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--sg-hub-accent) 16%, transparent);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-alta-form-fields-box .stock-import-form-grid {
+}.bn-ui .stock-ganadero-module-page .stock-alta-form-fields-box .stock-import-form-grid,
+.bn-ui .stock-equino-module-page .stock-alta-form-fields-box .stock-import-form-grid{
   gap: 0.85rem;
-}
-
-.bn-ui .stock-ganadero-module-page .stock-alta-form-fields-box .stock-dropzone--hub {
+}.bn-ui .stock-ganadero-module-page .stock-alta-form-fields-box .stock-dropzone--hub,
+.bn-ui .stock-equino-module-page .stock-alta-form-fields-box .stock-dropzone--hub{
   margin-top: 0;
-}
-
-.bn-ui .stock-ganadero-module-page .stock-dropzone--hub {
+}.bn-ui .stock-ganadero-module-page .stock-dropzone--hub,
+.bn-ui .stock-equino-module-page .stock-dropzone--hub{
   border-color: color-mix(in srgb, var(--bn-border) 92%, transparent);
   border-radius: var(--sg-hub-radius-md);
   background: color-mix(in srgb, var(--sg-hub-workspace) 55%, #fff);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-dropzone--hub:hover:not(.has-file),
-.bn-ui .stock-ganadero-module-page .stock-dropzone--hub.is-dragover {
+}.bn-ui .stock-ganadero-module-page .stock-dropzone--hub:hover:not(.has-file),
+.bn-ui .stock-equino-module-page .stock-dropzone--hub:hover:not(.has-file),
+.bn-ui .stock-ganadero-module-page .stock-dropzone--hub.is-dragover,
+.bn-ui .stock-equino-module-page .stock-dropzone--hub.is-dragover{
   border-color: color-mix(in srgb, var(--sg-hub-accent) 40%, var(--bn-border));
   background: color-mix(in srgb, var(--sg-hub-accent) 6%, var(--sg-hub-surface));
-}
-
-.bn-ui .stock-ganadero-module-page .stock-import-seleccion-activa--hub {
+}.bn-ui .stock-ganadero-module-page .stock-import-seleccion-activa--hub,
+.bn-ui .stock-equino-module-page .stock-import-seleccion-activa--hub{
   padding: 0.55rem 0.65rem;
   border-radius: var(--sg-hub-radius-md);
   background: color-mix(in srgb, var(--sg-hub-accent) 8%, var(--sg-hub-surface));
   border: 1px solid color-mix(in srgb, var(--sg-hub-accent) 22%, var(--bn-border));
-}
-
-.bn-ui .stock-ganadero-module-page .stock-import-form-actions--hub {
+}.bn-ui .stock-ganadero-module-page .stock-import-form-actions--hub,
+.bn-ui .stock-equino-module-page .stock-import-form-actions--hub{
   padding-top: 0.65rem;
   border-top: 1px solid color-mix(in srgb, var(--bn-border) 88%, transparent);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-import-pane-foot--hub {
+}.bn-ui .stock-ganadero-module-page .stock-import-pane-foot--hub,
+.bn-ui .stock-equino-module-page .stock-import-pane-foot--hub{
   margin-top: 0.75rem;
   padding-top: 0.65rem;
   border-top: 1px solid color-mix(in srgb, var(--bn-border) 88%, transparent);
   justify-content: flex-end;
-}
-
-.bn-ui .stock-ganadero-module-page .stock-baja-hub-box--queue,
-.bn-ui .stock-ganadero-module-page .stock-alta-hub-box--queue {
+}.bn-ui .stock-ganadero-module-page .stock-baja-hub-box--queue,
+.bn-ui .stock-equino-module-page .stock-baja-hub-box--queue,
+.bn-ui .stock-ganadero-module-page .stock-alta-hub-box--queue,
+.bn-ui .stock-equino-module-page .stock-alta-hub-box--queue{
   margin-top: 0.75rem;
   padding: 0.65rem 0.75rem;
   background: color-mix(in srgb, var(--sg-hub-workspace) 45%, #fff);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-baja-hub-box--queue .stock-import-queue-head,
-.bn-ui .stock-ganadero-module-page .stock-alta-hub-box--queue .stock-import-queue-head {
+}.bn-ui .stock-ganadero-module-page .stock-baja-hub-box--queue .stock-import-queue-head,
+.bn-ui .stock-equino-module-page .stock-baja-hub-box--queue .stock-import-queue-head,
+.bn-ui .stock-ganadero-module-page .stock-alta-hub-box--queue .stock-import-queue-head,
+.bn-ui .stock-equino-module-page .stock-alta-hub-box--queue .stock-import-queue-head{
   align-items: flex-start;
   margin-bottom: 0.55rem;
-}
-
-.bn-ui .stock-ganadero-module-page .stock-baja-hub-box--queue .stock-import-queue-head .sg-hub-panel-kicker,
-.bn-ui .stock-ganadero-module-page .stock-alta-hub-box--queue .stock-import-queue-head .sg-hub-panel-kicker {
+}.bn-ui .stock-ganadero-module-page .stock-baja-hub-box--queue .stock-import-queue-head .sg-hub-panel-kicker,
+.bn-ui .stock-equino-module-page .stock-baja-hub-box--queue .stock-import-queue-head .sg-hub-panel-kicker,
+.bn-ui .stock-ganadero-module-page .stock-alta-hub-box--queue .stock-import-queue-head .sg-hub-panel-kicker,
+.bn-ui .stock-equino-module-page .stock-alta-hub-box--queue .stock-import-queue-head .sg-hub-panel-kicker{
   margin: 0 0 0.15rem;
-}
-
-.bn-ui .stock-ganadero-module-page .stock-baja-queue-count,
-.bn-ui .stock-ganadero-module-page .stock-alta-queue-count {
+}.bn-ui .stock-ganadero-module-page .stock-baja-queue-count,
+.bn-ui .stock-equino-module-page .stock-baja-queue-count,
+.bn-ui .stock-ganadero-module-page .stock-alta-queue-count,
+.bn-ui .stock-equino-module-page .stock-alta-queue-count{
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -44731,26 +44659,22 @@ button.sg-kpi-card:disabled {
   font-weight: 700;
   color: #3f6212;
   background: var(--sg-hub-accent-soft);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-import-undo--hub {
+}.bn-ui .stock-ganadero-module-page .stock-import-undo--hub,
+.bn-ui .stock-equino-module-page .stock-import-undo--hub{
   padding: 0.55rem 0.65rem;
   border-radius: var(--sg-hub-radius-md);
   border: 1px solid color-mix(in srgb, var(--bn-border) 92%, transparent);
   background: color-mix(in srgb, var(--sg-hub-workspace) 35%, var(--sg-hub-surface));
-}
-
-.bn-ui .stock-ganadero-module-page .stock-baja-hub-box--main .stock-import-numero-item {
+}.bn-ui .stock-ganadero-module-page .stock-baja-hub-box--main .stock-import-numero-item,
+.bn-ui .stock-equino-module-page .stock-baja-hub-box--main .stock-import-numero-item{
   border-radius: var(--sg-hub-radius-md);
   border-color: color-mix(in srgb, var(--bn-border) 92%, transparent);
-}
-
-.bn-ui .stock-ganadero-module-page .stock-baja-hub-box--main .stock-import-numero-item--confirmada {
+}.bn-ui .stock-ganadero-module-page .stock-baja-hub-box--main .stock-import-numero-item--confirmada,
+.bn-ui .stock-equino-module-page .stock-baja-hub-box--main .stock-import-numero-item--confirmada{
   border-color: color-mix(in srgb, var(--sg-hub-accent) 28%, var(--bn-border));
   background: color-mix(in srgb, var(--sg-hub-accent) 6%, var(--sg-hub-surface));
-}
-
-.bn-ui .stock-ganadero-module-page .stock-baja-hub-box--main .stock-import-numero-check {
+}.bn-ui .stock-ganadero-module-page .stock-baja-hub-box--main .stock-import-numero-check,
+.bn-ui .stock-equino-module-page .stock-baja-hub-box--main .stock-import-numero-check{
   color: var(--sg-hub-accent);
 }
 

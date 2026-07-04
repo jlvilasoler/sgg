@@ -26,6 +26,7 @@ import ResetPasswordScreen from "./components/ResetPasswordScreen";
 import UsuariosActividad from "./components/UsuariosActividad";
 import ArquitecturaSistema from "./components/ArquitecturaSistema";
 import FormGasto from "./components/FormGasto";
+import PresupuestoHub from "./components/presupuesto/PresupuestoHub";
 import Listado from "./components/Listado";
 import Resumen from "./components/Resumen";
 import Configuracion from "./components/Configuracion";
@@ -487,32 +488,46 @@ export default function App() {
         ) : (
           <main className="layout-frame page-main bn-ui">
             {screen === "registro" && (
-              <FormGasto
-                catalogos={catalogos}
-                currentUser={user}
-                editRow={editRow}
+              <PresupuestoHub
+                vista="registro"
+                onNavigate={navigate}
+                onVolver={goHome}
                 apiOnline={apiOnline}
-                onSaved={onSaved}
-                onCancelEdit={() => setEditRow(null)}
-                onEdit={onEdit}
-                onCatalogosChanged={refreshCatalogos}
-                onError={(m) => notify(m, false)}
-                onSuccess={(m, t) => notify(m, true, t)}
-              />
+              >
+                <FormGasto
+                  catalogos={catalogos}
+                  currentUser={user}
+                  editRow={editRow}
+                  apiOnline={apiOnline}
+                  onSaved={onSaved}
+                  onCancelEdit={() => setEditRow(null)}
+                  onEdit={onEdit}
+                  onCatalogosChanged={refreshCatalogos}
+                  onError={(m) => notify(m, false)}
+                  onSuccess={(m, t) => notify(m, true, t)}
+                />
+              </PresupuestoHub>
             )}
             {screen === "listado" && (
-              <Listado
-                key={listKey}
-                catalogos={catalogos}
+              <PresupuestoHub
+                vista="listado"
+                onNavigate={navigate}
+                onVolver={goHome}
                 apiOnline={apiOnline}
-                onEdit={onEdit}
-                onDeleted={() => {
-                  notify("Registro eliminado");
-                  setListKey((k) => k + 1);
-                }}
-                onError={(m) => notify(m, false)}
-                onSuccess={(m) => notify(m, true)}
-              />
+              >
+                <Listado
+                  key={listKey}
+                  catalogos={catalogos}
+                  apiOnline={apiOnline}
+                  onEdit={onEdit}
+                  onDeleted={() => {
+                    notify("Registro eliminado");
+                    setListKey((k) => k + 1);
+                  }}
+                  onError={(m) => notify(m, false)}
+                  onSuccess={(m) => notify(m, true)}
+                />
+              </PresupuestoHub>
             )}
             {screen === "vencimientos_impuestos" && (
               <VencimientosImpuestos
@@ -522,12 +537,19 @@ export default function App() {
               />
             )}
             {screen === "resumen" && (
-              <Resumen
-                catalogos={catalogos}
-                currentUser={user}
+              <PresupuestoHub
+                vista="resumen"
+                onNavigate={navigate}
+                onVolver={goHome}
                 apiOnline={apiOnline}
-                onError={(m) => notify(m, false)}
-              />
+              >
+                <Resumen
+                  catalogos={catalogos}
+                  currentUser={user}
+                  apiOnline={apiOnline}
+                  onError={(m) => notify(m, false)}
+                />
+              </PresupuestoHub>
             )}
             {screen === "configuracion" && (
               <Configuracion
@@ -544,6 +566,7 @@ export default function App() {
                 apiOnline={apiOnline}
                 onError={(m) => notify(m, false)}
                 onSuccess={(m) => notify(m, true)}
+                onVolver={goHome}
               />
             )}
             {screen === "precios_ganado" && (
@@ -551,6 +574,7 @@ export default function App() {
                 apiOnline={apiOnline}
                 onError={(m) => notify(m, false)}
                 onSuccess={(m) => notify(m, true)}
+                onVolver={goHome}
               />
             )}
             {screen === "simulador_venta_ganado" && user && (

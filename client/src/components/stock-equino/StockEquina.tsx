@@ -1,4 +1,5 @@
 ﻿import { useCallback, useEffect, useMemo, useState } from "react";
+import { RefreshCw } from "lucide-react";
 import {
   deleteStockEquinaDispositivos,
   fetchEmpresasOperativasStock,
@@ -17,7 +18,13 @@ import TablePagination, {
 import BadgeEstadoDispositivo from "../stock/BadgeEstadoDispositivo";
 import IconoDispositivoWifi from "../stock/IconoDispositivoWifi";
 import IconoSeleccionCabanaEstrella from "../stock/IconoSeleccionCabanaEstrella";
-import { PageModuleHeadRow } from "../PageModuleHead";
+import { StockEquinoModuleIcon } from "../stock/StockControlSanitarioSectionTitle";
+import StockEquinoHubNav from "./StockEquinoHubNav";
+import type { StockEquinoHubItem } from "./StockEquinoHub";
+import {
+  StockEquinoHubAsideSearchField,
+  useStockEquinoAsideSearch,
+} from "./StockEquinoHubAsideSearch";
 import StockEquinaDashKpi from "./StockEquinaDashKpi";
 import StockEquinaBulkPanel from "./StockEquinaBulkPanel";
 import StockEquinaDetalle from "./StockEquinaDetalle";
@@ -135,6 +142,13 @@ interface Props {
   onSuccess?: (msg: string) => void;
   onVolver: () => void;
   refreshKey?: number;
+  hubNav?: {
+    items: StockEquinoHubItem[];
+    activeId: string;
+    onNavigate: (id: string) => void;
+    onVolverDashboard: () => void;
+    onVolverInicio?: () => void;
+  };
 }
 
 export default function StockEquina({
@@ -144,7 +158,18 @@ export default function StockEquina({
   onSuccess,
   onVolver,
   refreshKey = 0,
+  hubNav,
 }: Props) {
+  const hubNavItems = hubNav?.items ?? [];
+  const {
+    busquedaModulos,
+    setBusquedaModulos,
+    busquedaInputRef,
+    consultaActiva,
+    itemsFiltrados,
+    mostrarDashboard,
+  } = useStockEquinoAsideSearch(hubNavItems);
+
   const esAdmin = currentUser?.rol === "admin";
   const cacheScope = currentUser ? stockEquinaCacheScope(currentUser) : "";
   const filtrosInicialesKey = filtrosCacheKey({});
@@ -767,32 +792,160 @@ export default function StockEquina({
   }
 
   return (
-    <div className="subseccion-panel">
-      <button type="button" className="subseccion-back" onClick={onVolver}>
-        ‹ Volver a Stock Equino
-      </button>
+    <div className="stock-equino-devices-page">
+      <div className="sg-hub sg-hub--devices">
+        <aside className="sg-hub-aside sg-hub-aside--filters" aria-label="Filtros Stock Equino">
+          <div className="sg-hub-aside-brand">
+            <span className="sg-hub-aside-logo" aria-hidden>
+              <StockEquinoModuleIcon size={20} strokeWidth={1.75} />
+            </span>
+            <div>
+              <p className="sg-hub-aside-kicker">SGG · Dispositivos</p>
+              <p className="sg-hub-aside-title">Stock Equino</p>
+            </div>
+          </div>
 
-      <div className="card">
-        <div className="form-header">
-          <PageModuleHeadRow
-            icon={{ source: "app", id: "stock_equino" }}
-            title="Stock Equino"
-            subtitle={
-              mostrarCargaVacia
-                ? "Cargando…"
-                : loading
-                  ? `${filteredRows.length} dispositivo(s) según los filtros aplicados · actualizando…`
-                  : filteredRows.length === 0
-                    ? rows.length === 0
-                      ? "No hay dispositivos (EID) registrados. Importá lecturas para armar el stock."
-                      : "Ningún dispositivo coincide con los filtros."
-                    : `${filteredRows.length} dispositivo(s) según los filtros aplicados`
-            }
-          />
-        </div>
+          {hubNav ? (
+            <>
+              <StockEquinoHubAsideSearchField
+                value={busquedaModulos}
+                onChange={setBusquedaModulos}
+                inputRef={busquedaInputRef}
+              />
+              <StockEquinoHubNav
+                items={itemsFiltrados}
+                activeId={hubNav.activeId}
+                onNavigate={hubNav.onNavigate}
+                onVolverDashboard={hubNav.onVolverDashboard}
+                showDashboard={mostrarDashboard}
+                showSubtitles={consultaActiva}
+                navLabel={consultaActiva ? `Resultados (${itemsFiltrados.length})` : "Principal"}
+              />
+              {consultaActiva && !mostrarDashboard && itemsFiltrados.length === 0 ? (
+                <p className="sg-hub-aside-nav-empty">Ningún módulo coincide con la búsqueda.</p>
+              ) : null}
+            </>
+          ) : (
+            <button
+              type="button"
+              className="sg-hub-nav-item sg-hub-nav-item--muted sg-hub-nav-item--back"
+              onClick={onVolver}
+            >
+              ‹ Volver al dashboard
+            </button>
+          )}
 
-        {apiOnline && (
-          <section className="stock-dash stock-dash--pro" aria-label="Resumen de dispositivos">
+          {apiOnline ? (
+            <StockEquinaFiltrosSidebar
+              embedded
+              tone="dark"
+              empresaOpciones={empresaOpciones}
+              fechaDesde={fechaDesde}
+              fechaHasta={fechaHasta}
+              onFechaDesde={setFechaDesde}
+              onFechaHasta={setFechaHasta}
+              filtroUltimaLecturaMes={filtroUltimaLecturaMes}
+              onToggleUltimaLecturaMes={(k) =>
+                setFiltroUltimaLecturaMes((p) => toggleSet(p, k))
+              }
+              onLimpiarUltimaLectura={() => {
+                setFechaDesde("");
+                setFechaHasta("");
+                setFiltroUltimaLecturaMes(new Set());
+              }}
+              ultimaLecturaMesOpciones={ultimaLecturaMesOpciones}
+              filtroSexo={filtroSexo}
+              filtroEmpresa={filtroEmpresa}
+              filtroEstado={filtroEstado}
+              filtroEdad={filtroEdad}
+              filtroGrupoLibre={filtroGrupoLibre}
+              filtroRaza={filtroRaza}
+              filtroGeneracion={filtroGeneracion}
+              filtroCategoria={filtroCategoria}
+              filtroSinFechaNac={filtroSinFechaNac}
+              grupoLibreOpciones={grupoLibreOpciones}
+              razaOpciones={razaOpciones}
+              generacionOpciones={generacionOpciones}
+              onToggleSexo={(k) => setFiltroSexo((p) => toggleSet(p, k))}
+              onToggleEmpresa={(k) => setFiltroEmpresa((p) => toggleSet(p, k))}
+              onToggleEstado={(e) => setFiltroEstado((p) => toggleSet(p, e))}
+              onToggleEdad={(k) => setFiltroEdad((p) => toggleSet(p, k))}
+              onToggleGrupoLibre={(k) => setFiltroGrupoLibre((p) => toggleSet(p, k))}
+              onToggleRaza={(k) => setFiltroRaza((p) => toggleSet(p, k))}
+              onToggleGeneracion={(k) => setFiltroGeneracion((p) => toggleSet(p, k))}
+              onToggleCategoria={(k) => setFiltroCategoria((p) => toggleSet(p, k))}
+              onToggleSinFechaNac={() =>
+                setFiltroSinFechaNac((p) => toggleSet(p, SIN_FECHA_NAC_FILTRO_KEY))
+              }
+              onLimpiarSexo={() => setFiltroSexo(new Set())}
+              onLimpiarEmpresa={() => setFiltroEmpresa(new Set())}
+              onLimpiarEstado={() => setFiltroEstado(new Set())}
+              onLimpiarEdad={() => setFiltroEdad(new Set())}
+              onLimpiarGrupoLibre={() => setFiltroGrupoLibre(new Set())}
+              onLimpiarRaza={() => setFiltroRaza(new Set())}
+              onLimpiarGeneracion={() => setFiltroGeneracion(new Set())}
+              onLimpiarCategoria={() => setFiltroCategoria(new Set())}
+              onLimpiarSinFechaNac={() => setFiltroSinFechaNac(new Set())}
+              counts={facetCounts}
+              onLimpiarFacetas={limpiarFacetas}
+              hayFacetasActivas={hayFacetasActivas}
+              mobileOpen={filtrosMobileOpen}
+              onMobileClose={() => setFiltrosMobileOpen(false)}
+            />
+          ) : (
+            <p className="sg-hub-aside-offline">Conectá la API para filtrar dispositivos.</p>
+          )}
+
+          {hubNav?.onVolverInicio ? (
+            <div className="sg-hub-aside-foot">
+              <button
+                type="button"
+                className="sg-hub-nav-item sg-hub-nav-item--muted"
+                onClick={hubNav.onVolverInicio}
+              >
+                ‹ Volver al inicio
+              </button>
+            </div>
+          ) : null}
+        </aside>
+
+        <main className="sg-hub-main sg-hub-main--devices">
+          <header className="sg-hub-main-head sg-devices-head">
+            <div>
+              <h1 className="sg-hub-main-title">Dispositivos EID</h1>
+              <p className="sg-hub-main-sub">
+                {mostrarCargaVacia
+                  ? "Cargando caravanas electrónicas…"
+                  : loading
+                    ? `${filteredRows.length} dispositivo(s) según filtros · actualizando…`
+                    : filteredRows.length === 0
+                      ? rows.length === 0
+                        ? "No hay dispositivos equinos registrados. Importá lecturas para armar el stock."
+                        : "Ningún dispositivo coincide con los filtros aplicados."
+                      : `${filteredRows.length} dispositivo(s) según los filtros aplicados`}
+              </p>
+            </div>
+            <div className="sg-hub-main-actions">
+              <span
+                className={`sg-hub-status${apiOnline ? " sg-hub-status--online" : ""}`}
+                role="status"
+              >
+                {apiOnline ? "API conectada" : "Sin conexión API"}
+              </span>
+              <button
+                type="button"
+                className="sg-hub-icon-btn"
+                aria-label="Actualizar listado"
+                disabled={!apiOnline || loading}
+                onClick={() => void load()}
+              >
+                <RefreshCw size={17} className={loading ? "sg-spin" : undefined} />
+              </button>
+            </div>
+          </header>
+
+          {apiOnline && (
+            <section className="stock-dash stock-dash--pro" aria-label="Resumen de dispositivos">
             <div className="stock-dash-head sg-kpi-board-head">
               <div>
                 <h3 className="stock-dash-title sg-kpi-board-title">Resumen</h3>
@@ -896,64 +1049,6 @@ export default function StockEquina({
             </div>
           </section>
         )}
-
-        <div className="stock-equina-layout">
-          {apiOnline && (
-            <StockEquinaFiltrosSidebar
-              empresaOpciones={empresaOpciones}
-              fechaDesde={fechaDesde}
-              fechaHasta={fechaHasta}
-              onFechaDesde={setFechaDesde}
-              onFechaHasta={setFechaHasta}
-              filtroUltimaLecturaMes={filtroUltimaLecturaMes}
-              onToggleUltimaLecturaMes={(k) =>
-                setFiltroUltimaLecturaMes((p) => toggleSet(p, k))
-              }
-              onLimpiarUltimaLectura={() => {
-                setFechaDesde("");
-                setFechaHasta("");
-                setFiltroUltimaLecturaMes(new Set());
-              }}
-              ultimaLecturaMesOpciones={ultimaLecturaMesOpciones}
-              filtroSexo={filtroSexo}
-              filtroEmpresa={filtroEmpresa}
-              filtroEstado={filtroEstado}
-              filtroEdad={filtroEdad}
-              filtroGrupoLibre={filtroGrupoLibre}
-              filtroRaza={filtroRaza}
-              filtroGeneracion={filtroGeneracion}
-              filtroCategoria={filtroCategoria}
-              filtroSinFechaNac={filtroSinFechaNac}
-              grupoLibreOpciones={grupoLibreOpciones}
-              razaOpciones={razaOpciones}
-              generacionOpciones={generacionOpciones}
-              onToggleSexo={(k) => setFiltroSexo((p) => toggleSet(p, k))}
-              onToggleEmpresa={(k) => setFiltroEmpresa((p) => toggleSet(p, k))}
-              onToggleEstado={(e) => setFiltroEstado((p) => toggleSet(p, e))}
-              onToggleEdad={(k) => setFiltroEdad((p) => toggleSet(p, k))}
-              onToggleGrupoLibre={(k) => setFiltroGrupoLibre((p) => toggleSet(p, k))}
-              onToggleRaza={(k) => setFiltroRaza((p) => toggleSet(p, k))}
-              onToggleGeneracion={(k) => setFiltroGeneracion((p) => toggleSet(p, k))}
-              onToggleCategoria={(k) => setFiltroCategoria((p) => toggleSet(p, k))}
-              onToggleSinFechaNac={() =>
-                setFiltroSinFechaNac((p) => toggleSet(p, SIN_FECHA_NAC_FILTRO_KEY))
-              }
-              onLimpiarSexo={() => setFiltroSexo(new Set())}
-              onLimpiarEmpresa={() => setFiltroEmpresa(new Set())}
-              onLimpiarEstado={() => setFiltroEstado(new Set())}
-              onLimpiarEdad={() => setFiltroEdad(new Set())}
-              onLimpiarGrupoLibre={() => setFiltroGrupoLibre(new Set())}
-              onLimpiarRaza={() => setFiltroRaza(new Set())}
-              onLimpiarGeneracion={() => setFiltroGeneracion(new Set())}
-              onLimpiarCategoria={() => setFiltroCategoria(new Set())}
-              onLimpiarSinFechaNac={() => setFiltroSinFechaNac(new Set())}
-              counts={facetCounts}
-              onLimpiarFacetas={limpiarFacetas}
-              hayFacetasActivas={hayFacetasActivas}
-              mobileOpen={filtrosMobileOpen}
-              onMobileClose={() => setFiltrosMobileOpen(false)}
-            />
-          )}
 
           <div className="stock-equina-main">
             <div className="stock-equina-search-bar mayusculas-auto">
@@ -1318,7 +1413,7 @@ export default function StockEquina({
               />
             )}
           </div>
-        </div>
+        </main>
       </div>
     </div>
   );

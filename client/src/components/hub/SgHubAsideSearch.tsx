@@ -1,0 +1,74 @@
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { Search } from "lucide-react";
+import type { SgHubItem } from "./SgHubTypes";
+import { filtrarModulosHub, mostrarDashboardEnBusquedaModulos } from "./sg-hub-search";
+
+interface SearchFieldProps {
+  value: string;
+  onChange: (value: string) => void;
+  inputRef: RefObject<HTMLInputElement | null>;
+  placeholder?: string;
+}
+
+export function SgHubAsideSearchField({
+  value,
+  onChange,
+  inputRef,
+  placeholder = "Buscar en módulos…",
+}: SearchFieldProps) {
+  return (
+    <label className="sg-hub-aside-search">
+      <Search size={15} aria-hidden />
+      <input
+        ref={inputRef}
+        type="search"
+        className="sg-hub-aside-search-input"
+        placeholder={placeholder}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        aria-label="Buscar módulos en la barra lateral"
+      />
+    </label>
+  );
+}
+
+export function useSgHubAsideSearch(items: SgHubItem[]) {
+  const [busquedaModulos, setBusquedaModulos] = useState("");
+  const busquedaInputRef = useRef<HTMLInputElement>(null);
+
+  const consultaActiva = busquedaModulos.trim().length > 0;
+  const itemsFiltrados = useMemo(
+    () => filtrarModulosHub(items, busquedaModulos),
+    [items, busquedaModulos]
+  );
+  const mostrarDashboard = useMemo(
+    () => mostrarDashboardEnBusquedaModulos(busquedaModulos),
+    [busquedaModulos]
+  );
+
+  const enfocarBusqueda = useCallback(() => {
+    busquedaInputRef.current?.focus();
+    busquedaInputRef.current?.select();
+  }, []);
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "f") {
+        e.preventDefault();
+        enfocarBusqueda();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [enfocarBusqueda]);
+
+  return {
+    busquedaModulos,
+    setBusquedaModulos,
+    busquedaInputRef,
+    consultaActiva,
+    itemsFiltrados,
+    mostrarDashboard,
+    enfocarBusqueda,
+  };
+}

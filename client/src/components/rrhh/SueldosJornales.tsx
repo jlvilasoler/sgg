@@ -13,6 +13,7 @@ interface Props {
   onError: (msg: string) => void;
   onEditGasto?: (presupuestoId: number) => void;
   onVolver: () => void;
+  embedded?: boolean;
 }
 
 const VINCULO_LABEL: Record<VinculoPago, string> = {
@@ -36,6 +37,7 @@ export default function SueldosJornales({
   onError,
   onEditGasto,
   onVolver,
+  embedded = false,
 }: Props) {
   const [cedula, setCedula] = useState(cedulaInicial);
   const [fechaDesde, setFechaDesde] = useState("");
@@ -91,10 +93,12 @@ export default function SueldosJornales({
   const f = resumen?.funcionario;
 
   return (
-    <div className="subseccion-panel">
-      <button type="button" className="subseccion-back" onClick={onVolver}>
-        ‹ Volver a Recursos Humanos
-      </button>
+    <div className={`subseccion-panel${embedded ? " sg-hub-embedded" : ""}`}>
+      {!embedded ? (
+        <button type="button" className="subseccion-back" onClick={onVolver}>
+          ‹ Volver a Recursos Humanos
+        </button>
+      ) : null}
 
       <div className="card">
         <div className="form-header">

@@ -3,19 +3,16 @@ import {
   fetchVentasAgricultura,
   fetchVentasArrendamientos,
   fetchVentasGanadoCerradas,
-  fetchVentaSubRubros,
 } from "../../api";
 import type { AuthUser, Catalogos } from "../../types";
 import {
   canAccessIngresosVentasModulo,
   canAccessSimuladorVentaGanado,
-  canManageVentaRubros,
   canWriteIngresosVentas,
 } from "../../utils/auth-permissions";
 import { useHeaderBackStep } from "../../header-back";
 import { MenuAppIcon } from "../icons/MenuAppIcons";
 import SimuladorVentas, { type SimuladorSeccionId } from "../simulador-venta/SimuladorVentas";
-import VentaRubros from "./VentaRubros";
 import VentasGanadoCerradas from "./VentasGanadoCerradas";
 import VentasAgricultura from "./VentasAgricultura";
 import VentasArrendamientos from "./VentasArrendamientos";
@@ -33,7 +30,6 @@ import {
 export type VistaIngresosVentas =
   | "menu"
   | SimuladorVistaId
-  | "rubros"
   | "ventas_ganado"
   | "ventas_agricultura"
   | "ventas_arrendamientos";
@@ -87,10 +83,6 @@ const MODULE_META: Record<
     title: "Ingresos por arrendamientos",
     subtitle: "Arrendamientos, medianería y acuerdos de uso de campos.",
   },
-  rubros: {
-    title: "Rubros ingresos por ventas",
-    subtitle: "Catálogo de rubros, sub-rubros e ítems para clasificar ingresos.",
-  },
 };
 
 function vistaInicialPermitida(
@@ -125,8 +117,6 @@ export default function IngresosVentas({
   const puedeSimular = canAccessSimuladorVentaGanado(user);
   const puedeVerRegistros = canAccessIngresosVentasModulo(user);
   const puedeEditar = canWriteIngresosVentas(user);
-  const puedeEditarRubros = canManageVentaRubros(user);
-
   const [vista, setVista] = useState<VistaIngresosVentas>(() =>
     vistaInicialPermitida(user, initialVista)
   );
@@ -134,7 +124,6 @@ export default function IngresosVentas({
     ganado: 0,
     agricultura: 0,
     arrendamientos: 0,
-    rubros: 0,
   });
 
   const volverMenu = useCallback(() => setVista("menu"), []);
@@ -142,16 +131,15 @@ export default function IngresosVentas({
 
   useEffect(() => {
     if (!apiOnline || !puedeVerRegistros) {
-      setResumen({ ganado: 0, agricultura: 0, arrendamientos: 0, rubros: 0 });
+      setResumen({ ganado: 0, agricultura: 0, arrendamientos: 0 });
       return;
     }
     Promise.all([
       fetchVentasGanadoCerradas().then((r) => r.length).catch(() => 0),
       fetchVentasAgricultura().then((r) => r.length).catch(() => 0),
       fetchVentasArrendamientos().then((r) => r.length).catch(() => 0),
-      fetchVentaSubRubros(false).then((r) => r.length).catch(() => 0),
-    ]).then(([ganado, agricultura, arrendamientos, rubros]) => {
-      setResumen({ ganado, agricultura, arrendamientos, rubros });
+    ]).then(([ganado, agricultura, arrendamientos]) => {
+      setResumen({ ganado, agricultura, arrendamientos });
     });
   }, [apiOnline, vista, puedeVerRegistros]);
 
@@ -177,7 +165,7 @@ export default function IngresosVentas({
       const meta = MODULE_META[vistaId];
       const navItem = findVentasHubItem(submenuItems, vistaId);
       return (
-        <div className="ventas-module-page">
+        <div className="sg-module-page ventas-module-page">
           <VentasHubShell
             activeId={shellActiveId(vistaId)}
             items={submenuItems}
@@ -210,20 +198,6 @@ export default function IngresosVentas({
         onError={onError}
         onSuccess={onSuccess}
         onVolverDashboard={volverMenu}
-      />
-    );
-  }
-
-  if (vista === "rubros" && puedeVerRegistros) {
-    return wrapModule(
-      "rubros",
-      <VentaRubros
-        embedded
-        puedeEditar={puedeEditarRubros}
-        apiOnline={apiOnline}
-        onError={onError}
-        onSuccess={(m) => onSuccess(m)}
-        onVolver={volverMenu}
       />
     );
   }
@@ -274,7 +248,7 @@ export default function IngresosVentas({
   }
 
   return (
-    <div className="ventas-module-page ventas-ingresos-hub-page">
+    <div className="sg-module-page ventas-module-page ventas-ingresos-hub-page">
       <VentasIngresosHub
         apiOnline={apiOnline}
         resumen={resumen}

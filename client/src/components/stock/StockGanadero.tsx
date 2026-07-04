@@ -159,7 +159,7 @@ export default function StockGanadero({
       const meta = MODULE_META[vistaId];
       const activeNavId = meta.navId ?? vistaId;
       return (
-        <div className="stock-ganadero-module-page">
+        <div className="sg-module-page stock-ganadero-module-page">
           <StockGanaderoHubShell
             activeId={activeNavId}
             items={STOCK_GANADERO_SUBMENU}
@@ -321,7 +321,7 @@ export default function StockGanadero({
   }
 
   return (
-    <div className="stock-ganadero-hub-page">
+    <div className="sg-module-page stock-ganadero-hub-page">
       <StockGanaderoHub
         apiOnline={apiOnline}
         resumen={resumen}
