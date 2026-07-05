@@ -78,6 +78,11 @@ import * as stockControlSanitario from "./stock-control-sanitario-db.js";
 import * as contribRural from "./contribucion-rural-calendarios-db.js";
 import * as patenteSucive from "./patente-sucive-calendarios-db.js";
 import * as bpsCajaRural from "./bps-caja-rural-calendarios-db.js";
+import {
+  OPERATIVA_TAREA_ESTADOS,
+  type OperativaTareaEstado,
+  type OperativaTareaListFilters,
+} from "./operativa-tareas-db.js";
 import * as primariaRural from "./primaria-rural-calendarios-db.js";
 import * as vencImpPrefs from "./vencimientos-impuestos-prefs-db.js";
 import * as notasDb from "./notas-db.js";
@@ -3304,12 +3309,7 @@ app.get("/api/operativa-tareas", async (req, res) => {
       return;
     }
     const q = req.query;
-    const filters: {
-      desde?: string;
-      hasta?: string;
-      asignado_user_id?: number;
-      estado?: string;
-    } = {};
+    const filters: OperativaTareaListFilters = {};
     if (typeof q.desde === "string" && q.desde.trim()) filters.desde = q.desde.trim();
     if (typeof q.hasta === "string" && q.hasta.trim()) filters.hasta = q.hasta.trim();
     if (q.asignado_user_id != null) {
@@ -3317,7 +3317,10 @@ app.get("/api/operativa-tareas", async (req, res) => {
       if (Number.isFinite(n) && n > 0) filters.asignado_user_id = n;
     }
     if (typeof q.estado === "string" && q.estado.trim()) {
-      filters.estado = q.estado.trim();
+      const rawEstado = q.estado.trim();
+      if ((OPERATIVA_TAREA_ESTADOS as readonly string[]).includes(rawEstado)) {
+        filters.estado = rawEstado as OperativaTareaEstado;
+      }
     }
     const items = await db.operativaTareas.list(cuentaId, filters);
     res.json({ ok: true, data: items });

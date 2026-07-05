@@ -390,7 +390,7 @@ export async function createOperativaTarea(
       ? Math.max(0, Math.floor(Number(input.ganado_cantidad)))
       : null;
   const ganadoDetalle = String(input.ganado_detalle ?? "").trim().slice(0, 500);
-  const completadoEn = estado === "hecha" ? new Date().toISOString() : null;
+  const completadoEn = null;
 
   const inserted = (await db
     .prepare(
