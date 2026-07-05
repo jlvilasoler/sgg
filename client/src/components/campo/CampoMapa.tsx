@@ -18,6 +18,7 @@ import {
 } from "../../api";
 import type { CampoMapaElemento, CampoMapaElementoTipo, CampoPotreroMapa, StockGanaderaDispositivo } from "../../types";
 import { hubAsideKicker } from "../../brand";
+import { normalizarPotrero } from "../stock/stock-ganadera-utils";
 import {
   computeDistanceMeters,
   computeHectareas,
@@ -74,6 +75,7 @@ import {
 } from "./campo-mapa-draft";
 import {
   emptyCampoMapaDispositivosMetadata,
+  enrichCampoMapaDispositivosFromStock,
   mergeCampoMapaMetadata,
   parseCampoMapaDispositivosMetadata,
   type CampoMapaDispositivosMetadata,
@@ -224,6 +226,7 @@ export default function CampoMapa({
   const [stockGanadero, setStockGanadero] = useState<StockGanaderaDispositivo[]>([]);
   const [stockEquino, setStockEquino] = useState<StockGanaderaDispositivo[]>([]);
   const [dispositivosModalOpen, setDispositivosModalOpen] = useState(false);
+  const [editingSelectionContent, setEditingSelectionContent] = useState(false);
   const [modalDispositivos, setModalDispositivos] = useState<CampoMapaDispositivosMetadata>(
     emptyCampoMapaDispositivosMetadata(),
   );
@@ -394,6 +397,20 @@ export default function CampoMapa({
     }
   }, [apiOnline, onError]);
 
+  const enrichDispositivosForFeature = useCallback(
+    (nombre: string, metaRaw: string | undefined | null): CampoMapaDispositivosMetadata => {
+      const base = parseCampoMapaDispositivosMetadata(metaRaw);
+      return enrichCampoMapaDispositivosFromStock(
+        nombre,
+        base,
+        stockGanadero,
+        stockEquino,
+        normalizarPotrero,
+      );
+    },
+    [stockEquino, stockGanadero],
+  );
+
   useEffect(() => {
     void refreshData();
   }, [refreshData]);
@@ -412,7 +429,7 @@ export default function CampoMapa({
     setEditNombre(item.nombre);
     setEditNotas(item.notas);
     const metaRaw = selectedPotrero?.metadata ?? selectedElemento?.metadata;
-    const dispositivos = parseCampoMapaDispositivosMetadata(metaRaw);
+    const dispositivos = enrichDispositivosForFeature(item.nombre, metaRaw);
     setEditDispositivos(dispositivos);
     editDispositivosPrevRef.current = dispositivos;
     editNombrePrevRef.current = item.nombre;
@@ -422,7 +439,33 @@ export default function CampoMapa({
       const target = saveTargetFromElemento(selectedElemento.tipo);
       if (target) setEditSaveTarget(target);
     }
-  }, [selectedPotrero, selectedElemento]);
+  }, [enrichDispositivosForFeature, selectedPotrero, selectedElemento]);
+
+  useEffect(() => {
+    setEditingSelectionContent(false);
+    setDispositivosModalOpen(false);
+  }, [selection]);
+
+  const dispositivosVinculadosCount =
+    editDispositivos.dispositivos_ganadero.length + editDispositivos.dispositivos_equino.length;
+
+  const startEditingSelectionContent = useCallback(() => {
+    setEditingSelectionContent(true);
+  }, []);
+
+  const cancelEditingSelectionContent = useCallback(() => {
+    setEditingSelectionContent(false);
+    setDispositivosModalOpen(false);
+    const item = selectedPotrero ?? selectedElemento;
+    if (!item) return;
+    setEditNombre(item.nombre);
+    setEditNotas(item.notas);
+    const metaRaw = selectedPotrero?.metadata ?? selectedElemento?.metadata;
+    const dispositivos = enrichDispositivosForFeature(item.nombre, metaRaw);
+    setEditDispositivos(dispositivos);
+    editDispositivosPrevRef.current = dispositivos;
+    editNombrePrevRef.current = item.nombre;
+  }, [enrichDispositivosForFeature, selectedElemento, selectedPotrero]);
 
   const clearSketchOverlay = useCallback(() => {
     sketchPolylineRef.current?.remove();
@@ -463,43 +506,13 @@ export default function CampoMapa({
     clearDraftOverlay();
   }, [cancelPotreroShapeEdit, clearDraftOverlay, clearSketchOverlay]);
 
-  const openDispositivosModalFor = useCallback(
-    (kind: "potrero" | "elemento", id: number) => {
-      if (kind === "potrero") {
-        selectPotrero(id);
-        const item = potreros.find((p) => p.id === id) ?? null;
-        if (!supportsDispositivosEnMapa(item, null)) return;
-        setModalDispositivos(parseCampoMapaDispositivosMetadata(item?.metadata));
-        setDispositivosModalOpen(true);
-        return;
-      }
-      selectElemento(id);
-      const item = elementos.find((e) => e.id === id) ?? null;
-      if (!supportsDispositivosEnMapa(null, item)) return;
-      setModalDispositivos(parseCampoMapaDispositivosMetadata(item?.metadata));
-      setDispositivosModalOpen(true);
-    },
-    [elementos, potreros, selectElemento, selectPotrero],
-  );
-
   const handleMapFeatureClick = useCallback(
     (kind: "potrero" | "elemento", id: number) => {
       mapRef.current?.closePopup();
-      if (activeTool === "navegar" && !pendingDraft && !potreroShapeEdit) {
-        openDispositivosModalFor(kind, id);
-        return;
-      }
       if (kind === "potrero") selectPotrero(id);
       else selectElemento(id);
     },
-    [
-      activeTool,
-      openDispositivosModalFor,
-      pendingDraft,
-      potreroShapeEdit,
-      selectElemento,
-      selectPotrero,
-    ],
+    [selectElemento, selectPotrero],
   );
 
   const moveVertexAt = useCallback((index: number, point: MapLatLng) => {
@@ -1227,6 +1240,7 @@ export default function CampoMapa({
         );
         editDispositivosPrevRef.current = editDispositivos;
         editNombrePrevRef.current = editNombre;
+        setEditingSelectionContent(false);
         onSuccess("Potrero actualizado.");
         return;
       }
@@ -1242,6 +1256,7 @@ export default function CampoMapa({
             .map((item) => (item.id === updated.id ? updated : item))
             .sort((a, b) => a.nombre.localeCompare(b.nombre)),
         );
+        setEditingSelectionContent(false);
         onSuccess("Elemento actualizado.");
         return;
       }
@@ -1277,6 +1292,7 @@ export default function CampoMapa({
         setSelection({ kind: "potrero", id: created.id });
         editDispositivosPrevRef.current = editDispositivos;
         editNombrePrevRef.current = editNombre;
+        setEditingSelectionContent(false);
         onSuccess("Guardado como potrero.");
         return;
       }
@@ -1305,6 +1321,7 @@ export default function CampoMapa({
             .sort((a, b) => a.nombre.localeCompare(b.nombre)),
         );
         setSelection({ kind: "elemento", id: updated.id });
+        setEditingSelectionContent(false);
         onSuccess(`Guardado como ${saveTargetLabel(editSaveTarget).toLowerCase()}.`);
         return;
       }
@@ -1324,6 +1341,7 @@ export default function CampoMapa({
         [...prev, created].sort((a, b) => a.nombre.localeCompare(b.nombre)),
       );
       setSelection({ kind: "elemento", id: created.id });
+      setEditingSelectionContent(false);
       onSuccess(`Guardado como ${saveTargetLabel(editSaveTarget).toLowerCase()}.`);
     } catch (e) {
       onError(e instanceof Error ? e.message : "No se pudo actualizar.");
@@ -1702,9 +1720,57 @@ export default function CampoMapa({
         </div>
       ) : null}
 
-      {puedeEditar && (selectedPotrero || selectedElemento) && !pendingDraft && !potreroShapeEdit ? (
+      {puedeEditar &&
+      (selectedPotrero || selectedElemento) &&
+      !pendingDraft &&
+      !potreroShapeEdit &&
+      !editingSelectionContent ? (
+        <div className="campo-mapa-aside-form campo-mapa-aside-preview">
+          <p className="campo-mapa-aside-label">
+            {selectedPotrero ? "Potrero seleccionado" : "Elemento seleccionado"}
+          </p>
+          <p className="campo-mapa-aside-preview-name">
+            {selectedPotrero?.nombre ?? selectedElemento?.nombre}
+          </p>
+          {selectedPotrero?.hectareas != null ? (
+            <p className="campo-mapa-aside-hint">
+              Superficie: {formatHectareas(selectedPotrero.hectareas)}
+            </p>
+          ) : null}
+          {selectedElemento && !selectedPotrero ? (
+            <p className="campo-mapa-aside-hint">{ELEMENTO_TIPO_LABELS[selectedElemento.tipo]}</p>
+          ) : null}
+          {supportsDispositivosEnMapa(selectedPotrero, selectedElemento) ? (
+            <>
+              <p className="campo-mapa-aside-hint">
+                Dispositivos vinculados: <strong>{dispositivosVinculadosCount}</strong>
+              </p>
+              <p className="campo-mapa-aside-hint campo-mapa-aside-hint--soft">
+                Se vinculan automáticamente desde Stock según el potrero asignado a cada animal.
+              </p>
+            </>
+          ) : null}
+          <button
+            type="button"
+            className="campo-mapa-aside-btn campo-mapa-aside-btn--primary"
+            onClick={startEditingSelectionContent}
+            disabled={saving}
+          >
+            <Pencil size={15} aria-hidden />
+            Editar contenido
+          </button>
+        </div>
+      ) : null}
+
+      {puedeEditar &&
+      (selectedPotrero || selectedElemento) &&
+      !pendingDraft &&
+      !potreroShapeEdit &&
+      editingSelectionContent ? (
         <div className="campo-mapa-aside-form">
-          <p className="campo-mapa-aside-label">Editar en el mapa</p>
+          <p className="campo-mapa-aside-label">
+            {selectedPotrero ? "Editar potrero" : "Editar elemento"}
+          </p>
           {selectedPotrero?.hectareas != null ? (
             <p className="campo-mapa-aside-hint">
               Superficie: {formatHectareas(selectedPotrero.hectareas)}
@@ -1763,6 +1829,14 @@ export default function CampoMapa({
               disabled={saving}
             >
               Guardar cambios
+            </button>
+            <button
+              type="button"
+              className="campo-mapa-aside-btn"
+              onClick={cancelEditingSelectionContent}
+              disabled={saving}
+            >
+              Volver
             </button>
             <button
               type="button"

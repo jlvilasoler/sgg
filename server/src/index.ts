@@ -4590,6 +4590,7 @@ app.patch("/api/stock-equino/dispositivos/:clave", async (req, res) => {
       typeof body.observaciones === "string" ? body.observaciones : "";
     const grupo_libre =
       typeof body.grupo_libre === "string" ? body.grupo_libre : "";
+    const potrero = typeof body.potrero === "string" ? body.potrero : "";
     const estado = String(body.estado ?? "VIVO").toUpperCase() as
       | "VIVO"
       | "MUERTO"
@@ -4618,6 +4619,7 @@ app.patch("/api/stock-equino/dispositivos/:clave", async (req, res) => {
         empresa,
         grupo: "",
         grupo_libre,
+        potrero,
         nacimiento_mes,
         nacimiento_anio,
         observaciones,

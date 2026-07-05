@@ -5,6 +5,8 @@ import { labelCategoriaSalidaDispositivo } from "./stock-equina-categoria.js";
 import { dispositivoClave, eidClave, splitEidVid } from "./stock-ganadero-id.js";
 import * as stockFoto from "./stock-dispositivo-foto-db.js";
 import * as stockControlSanitario from "./stock-control-sanitario-db.js";
+import * as potreroDb from "./stock-ganadero-potrero-db.js";
+import { syncStockDispositivoPotreroEnMapa } from "./campo-mapa-sync-stock-db.js";
 
 export { dispositivoClave, eidClave, splitEidVid } from "./stock-ganadero-id.js";
 
@@ -135,6 +137,7 @@ export async function initStockEquinoTables(db: Db): Promise<void> {
   await migrateFechasSlashLatam(db);
   await migrateStockEquinoDispositivoHistorial(db);
   await migrateHistorialAutorColumns(db);
+  await potreroDb.migrateEquinoPotreroColumn(db);
 }
 
 async function ensureStockEquinoBaseTables(db: Db): Promise<void> {
@@ -575,6 +578,7 @@ export interface DispositivoMetaInput {
   empresa: DispositivoEmpresa;
   grupo: string;
   grupo_libre: string;
+  potrero: string;
   nacimiento_mes: number | null;
   nacimiento_anio: number | null;
   observaciones: string;
@@ -616,6 +620,7 @@ interface DispositivoMetaRow {
   empresa: string;
   grupo: string;
   grupo_libre: string;
+  potrero: string;
   edad: number | null;
   nacimiento_mes: number | null;
   nacimiento_anio: number | null;
@@ -632,7 +637,7 @@ async function mapMetaDispositivos(
 ): Promise<Map<string, DispositivoMetaGuardada>> {
   const rows = (await db
     .prepare(
-      `SELECT clave, sexo, empresa, grupo, grupo_libre, edad, nacimiento_mes, nacimiento_anio, observaciones, estado, tipo_baja, numero_guia, baja_mes, baja_anio
+      `SELECT clave, sexo, empresa, grupo, grupo_libre, potrero, edad, nacimiento_mes, nacimiento_anio, observaciones, estado, tipo_baja, numero_guia, baja_mes, baja_anio
        FROM STOCK_EQUINO_DISPOSITIVO`
     )
     .all()) as DispositivoMetaRow[];
@@ -689,6 +694,7 @@ function normalizarMetaDispositivo(row: Partial<DispositivoMetaRow>): Dispositiv
     empresa,
     grupo,
     grupo_libre: normalizarGrupoLibre(row.grupo_libre),
+    potrero: potreroDb.normalizarPotrero(row.potrero),
     nacimiento_mes: mes,
     nacimiento_anio: anio,
     observaciones: String(row.observaciones ?? "").trim(),
@@ -713,6 +719,7 @@ async function enrichDispositivosWithMeta(
     d.empresa = info?.empresa ?? "";
     d.grupo = info?.grupo ?? "";
     d.grupo_libre = info?.grupo_libre ?? "";
+    d.potrero = info?.potrero ?? "";
     d.edad = info?.edad ?? null;
     d.nacimiento_mes = info?.nacimiento_mes ?? null;
     d.nacimiento_anio = info?.nacimiento_anio ?? null;
@@ -855,10 +862,11 @@ export async function saveStockEquinaDispositivo(
     ? normalizarNumeroGuia(input.numero_guia)
     : "";
   const eidGuardar = eid.trim() || claveNorm;
+  const potrero = potreroDb.normalizarPotrero(input.potrero);
 
   const anteriorRow = (await db
     .prepare(
-      `SELECT sexo, empresa, grupo, grupo_libre, nacimiento_mes, nacimiento_anio, observaciones, estado, tipo_baja, numero_guia, baja_mes, baja_anio
+      `SELECT sexo, empresa, grupo, grupo_libre, potrero, nacimiento_mes, nacimiento_anio, observaciones, estado, tipo_baja, numero_guia, baja_mes, baja_anio
        FROM STOCK_EQUINO_DISPOSITIVO WHERE clave = ?`
     )
     .get(claveNorm)) as Partial<DispositivoMetaRow> | undefined;
@@ -870,6 +878,7 @@ export async function saveStockEquinaDispositivo(
     empresa,
     grupo,
     grupo_libre,
+    potrero,
     nacimiento_mes: nacimiento.nacimiento_mes,
     nacimiento_anio: nacimiento.nacimiento_anio,
     observaciones,
@@ -883,9 +892,9 @@ export async function saveStockEquinaDispositivo(
 
   await db.prepare(
     `INSERT INTO STOCK_EQUINO_DISPOSITIVO (
-       clave, eid, sexo, empresa, grupo, grupo_libre, edad, nacimiento_mes, nacimiento_anio, observaciones, estado, tipo_baja, numero_guia, baja_mes, baja_anio, actualizado_en
+       clave, eid, sexo, empresa, grupo, grupo_libre, potrero, edad, nacimiento_mes, nacimiento_anio, observaciones, estado, tipo_baja, numero_guia, baja_mes, baja_anio, actualizado_en
      ) VALUES (
-       @clave, @eid, @sexo, @empresa, @grupo, @grupo_libre, @edad, @nacimiento_mes, @nacimiento_anio, @observaciones, @estado, @tipo_baja, @numero_guia, @baja_mes, @baja_anio,
+       @clave, @eid, @sexo, @empresa, @grupo, @grupo_libre, @potrero, @edad, @nacimiento_mes, @nacimiento_anio, @observaciones, @estado, @tipo_baja, @numero_guia, @baja_mes, @baja_anio,
        datetime('now', 'localtime')
      )
      ON CONFLICT(clave) DO UPDATE SET
@@ -893,6 +902,7 @@ export async function saveStockEquinaDispositivo(
        empresa = excluded.empresa,
        grupo = excluded.grupo,
        grupo_libre = excluded.grupo_libre,
+       potrero = excluded.potrero,
        edad = excluded.edad,
        nacimiento_mes = excluded.nacimiento_mes,
        nacimiento_anio = excluded.nacimiento_anio,
@@ -911,6 +921,7 @@ export async function saveStockEquinaDispositivo(
     empresa,
     grupo,
     grupo_libre,
+    potrero,
     edad,
     nacimiento_mes: nacimiento.nacimiento_mes,
     nacimiento_anio: nacimiento.nacimiento_anio,
@@ -922,6 +933,21 @@ export async function saveStockEquinaDispositivo(
     baja_anio: baja.baja_anio,
   });
 
+  const cuentaId = await potreroDb.getCuentaIdPorEmpresaCodigo(db, empresa);
+  await potreroDb.ensurePotreroEnCatalogo(db, cuentaId, potrero);
+
+  const prevPotrero = anterior?.potrero ?? "";
+  if (prevPotrero !== potrero) {
+    await syncStockDispositivoPotreroEnMapa(
+      db,
+      cuentaId,
+      claveNorm,
+      "equino",
+      potrero,
+      prevPotrero,
+    );
+  }
+
   await registrarHistorialCambiosDispositivo(db, claveNorm, anterior, nuevo, autor);
 
   return {
@@ -929,6 +955,7 @@ export async function saveStockEquinaDispositivo(
     empresa,
     grupo,
     grupo_libre,
+    potrero,
     edad,
     nacimiento_mes: nacimiento.nacimiento_mes,
     nacimiento_anio: nacimiento.nacimiento_anio,
@@ -957,6 +984,7 @@ function mergeMetaConPatch(
     empresa: prev?.empresa ?? "",
     grupo: prev?.grupo ?? "",
     grupo_libre: prev?.grupo_libre ?? "",
+    potrero: prev?.potrero ?? "",
     nacimiento_mes: prev?.nacimiento_mes ?? null,
     nacimiento_anio: prev?.nacimiento_anio ?? null,
     observaciones: prev?.observaciones ?? "",
@@ -969,6 +997,7 @@ function mergeMetaConPatch(
   if (patch.sexo !== undefined) merged.sexo = patch.sexo;
   if (patch.empresa !== undefined) merged.empresa = patch.empresa;
   if (patch.grupo_libre !== undefined) merged.grupo_libre = patch.grupo_libre;
+  if (patch.potrero !== undefined) merged.potrero = patch.potrero;
   if (patch.nacimiento_mes !== undefined) merged.nacimiento_mes = patch.nacimiento_mes;
   if (patch.nacimiento_anio !== undefined) merged.nacimiento_anio = patch.nacimiento_anio;
   if (patch.observaciones !== undefined) merged.observaciones = patch.observaciones;
@@ -1817,6 +1846,7 @@ async function aplicarBajaDispositivo(
     empresa: anterior?.empresa ?? "",
     grupo: anterior?.grupo ?? "",
     grupo_libre: anterior?.grupo_libre ?? "",
+    potrero: anterior?.potrero ?? "",
     nacimiento_mes,
     nacimiento_anio,
     observaciones,
@@ -2347,6 +2377,7 @@ export async function updateStockEquinaDispositivoSexo(
       empresa: anterior?.empresa ?? "",
       grupo: anterior?.grupo ?? "",
       grupo_libre: anterior?.grupo_libre ?? "",
+      potrero: anterior?.potrero ?? "",
       edad: anterior?.edad ?? null,
       nacimiento_mes: anterior?.nacimiento_mes ?? null,
       nacimiento_anio: anterior?.nacimiento_anio ?? null,
@@ -2627,6 +2658,7 @@ export interface StockEquinaDispositivo {
   empresa: DispositivoEmpresa;
   grupo: string;
   grupo_libre: string;
+  potrero: string;
   edad: number | null;
   nacimiento_mes: number | null;
   nacimiento_anio: number | null;
@@ -2796,6 +2828,7 @@ function buildDispositivosFromRegistros(
         empresa: "",
         grupo: "",
         grupo_libre: "",
+        potrero: "",
         edad: null,
         nacimiento_mes: null,
         nacimiento_anio: null,
@@ -3107,6 +3140,10 @@ export const HISTORIAL_AUTOR_SISTEMA: HistorialAutor = {
   origen: "SISTEMA",
 };
 
+function fmtHistorialPotrero(v: string): string {
+  return v.trim() || "—";
+}
+
 function fmtHistorialSexo(v: DispositivoSexo): string {
   return v || "—";
 }
@@ -3297,6 +3334,7 @@ async function registrarHistorialCambiosDispositivo(
   const prevEmpresa = fmtHistorialEmpresa(anterior?.empresa ?? "");
   const prevGrupo = fmtHistorialGrupo(anterior?.grupo ?? "");
   const prevGrupoLibre = fmtHistorialGrupoLibre(anterior?.grupo_libre ?? "");
+  const prevPotrero = fmtHistorialPotrero(anterior?.potrero ?? "");
   const prevSexo = fmtHistorialSexo(anterior?.sexo ?? "");
   const prevNac = fmtHistorialNacimiento(
     anterior?.nacimiento_mes ?? null,
@@ -3317,6 +3355,7 @@ async function registrarHistorialCambiosDispositivo(
   const nextEmpresa = fmtHistorialEmpresa(nuevo.empresa);
   const nextGrupo = fmtHistorialGrupo(nuevo.grupo);
   const nextGrupoLibre = fmtHistorialGrupoLibre(nuevo.grupo_libre);
+  const nextPotrero = fmtHistorialPotrero(nuevo.potrero);
   const nextSexo = fmtHistorialSexo(nuevo.sexo);
   const nextNac = fmtHistorialNacimiento(
     nuevo.nacimiento_mes,
@@ -3343,6 +3382,16 @@ async function registrarHistorialCambiosDispositivo(
     "Grupo",
     prevGrupoLibre,
     nextGrupoLibre,
+    undefined,
+    autor
+  );
+  await insertHistorialFila(
+    db,
+    clave,
+    "potrero",
+    "Potrero",
+    prevPotrero,
+    nextPotrero,
     undefined,
     autor
   );

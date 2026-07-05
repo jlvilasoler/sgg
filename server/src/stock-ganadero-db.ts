@@ -7,6 +7,7 @@ import { dispositivoClave, eidClave, splitEidVid, coincideBusquedaDispositivo } 
 import * as stockFoto from "./stock-dispositivo-foto-db.js";
 import * as stockControlSanitario from "./stock-control-sanitario-db.js";
 import * as potreroDb from "./stock-ganadero-potrero-db.js";
+import { syncStockDispositivoPotreroEnMapa } from "./campo-mapa-sync-stock-db.js";
 import * as grupoDb from "./stock-ganadero-grupo-db.js";
 
 export { dispositivoClave, eidClave, splitEidVid } from "./stock-ganadero-id.js";
@@ -1028,6 +1029,18 @@ export async function saveStockGanaderaDispositivo(
   const cuentaId = await potreroDb.getCuentaIdPorEmpresaCodigo(db, empresa);
   await potreroDb.ensurePotreroEnCatalogo(db, cuentaId, potrero);
   await grupoDb.ensureGrupoEnCatalogo(db, cuentaId, grupo_libre);
+
+  const prevPotrero = anterior?.potrero ?? "";
+  if (prevPotrero !== potrero) {
+    await syncStockDispositivoPotreroEnMapa(
+      db,
+      cuentaId,
+      claveNorm,
+      "ganadero",
+      potrero,
+      prevPotrero,
+    );
+  }
 
   await registrarHistorialCambiosDispositivo(db, claveNorm, anterior, nuevo, autor);
 

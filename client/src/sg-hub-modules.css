@@ -77,6 +77,35 @@ body:has(.layout-content :is(.sg-module-page, .venc-imp-hub-page)) {
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--sg-hub-sidebar-muted) 70%, transparent) transparent;
+}
+
+.bn-ui :is(.sg-module-page, .venc-imp-hub-page) .sg-hub-aside::-webkit-scrollbar {
+  width: 6px;
+}
+
+.bn-ui :is(.sg-module-page, .venc-imp-hub-page) .sg-hub-aside::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.bn-ui :is(.sg-module-page, .venc-imp-hub-page) .sg-hub-aside::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--sg-hub-sidebar-muted) 75%, transparent);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.bn-ui :is(.sg-module-page, .venc-imp-hub-page) .sg-hub-aside::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--sg-hub-sidebar-text) 40%, transparent);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.bn-ui :is(.sg-module-page, .venc-imp-hub-page) .sg-hub-aside::-webkit-scrollbar-button {
+  display: none;
+  height: 0;
+  width: 0;
 }
 
 .bn-ui :is(.sg-module-page, .venc-imp-hub-page) > .sg-hub > .sg-hub-main {

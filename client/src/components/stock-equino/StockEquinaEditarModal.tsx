@@ -17,6 +17,7 @@ import SelectEmpresaDispositivo, {
   EMPRESA_PENDIENTE,
 } from "../stock/SelectEmpresaDispositivo";
 import SelectSexoDispositivo from "../stock/SelectSexoDispositivo";
+import SelectPotreroDispositivo from "../stock/SelectPotreroDispositivo";
 import StockEquinaEvolucionTimeline from "./StockEquinaEvolucionTimeline";
 import StockDispositivoFotoCard, {
   stockFotoMetaFromDispositivo,
@@ -33,6 +34,7 @@ import {
   requiereFechaBaja,
   resolverFechaBajaFormulario,
 } from "./stock-equina-utils";
+import { normalizarPotrero } from "../stock/stock-ganadera-utils";
 
 interface Props {
   dispositivo: StockEquinaDispositivo;
@@ -74,6 +76,7 @@ export default function StockEquinaEditarPanel({
   );
   const [observaciones, setObservaciones] = useState(dispositivo.observaciones ?? "");
   const [grupoLibre, setGrupoLibre] = useState(dispositivo.grupo_libre ?? "");
+  const [potrero, setPotrero] = useState(dispositivo.potrero ?? "");
   const [estado, setEstado] = useState<DispositivoEstado>(
     normalizarEstadoDispositivo(dispositivo.estado)
   );
@@ -93,6 +96,7 @@ export default function StockEquinaEditarPanel({
     setNacimientoAnio(d.nacimiento_anio);
     setObservaciones(d.observaciones ?? "");
     setGrupoLibre(d.grupo_libre ?? "");
+    setPotrero(d.potrero ?? "");
     setEstado(normalizarEstadoDispositivo(d.estado));
     setBajaMes(d.baja_mes);
     setBajaAnio(d.baja_anio);
@@ -155,6 +159,7 @@ export default function StockEquinaEditarPanel({
     empresa !== (dispositivo.empresa ?? "") ||
     grupoActual !== (dispositivo.grupo ?? "").trim().toUpperCase() ||
     normalizarGrupoLibre(grupoLibre) !== normalizarGrupoLibre(dispositivo.grupo_libre ?? "") ||
+    normalizarPotrero(potrero) !== normalizarPotrero(dispositivo.potrero ?? "") ||
     sexo !== (dispositivo.sexo ?? "") ||
     nacimientoMes !== dispositivo.nacimiento_mes ||
     nacimientoAnio !== dispositivo.nacimiento_anio ||
@@ -183,6 +188,7 @@ export default function StockEquinaEditarPanel({
           empresa,
           grupo: grupoActual,
           grupo_libre: normalizarGrupoLibre(grupoLibre),
+          potrero: normalizarPotrero(potrero),
           nacimiento_mes: nacimientoMes,
           nacimiento_anio: nacimientoAnio,
           observaciones: observaciones.trim(),
@@ -345,6 +351,22 @@ export default function StockEquinaEditarPanel({
                       value={sexo}
                       disabled={camposDeshabilitados}
                       onChange={setSexo}
+                    />
+                  </div>
+                </div>
+
+                <div className="stock-editar-ficha-zone stock-editar-ficha-zone--potrero">
+                  <div className="stock-editar-ficha-cell">
+                    <StockEditarFichaLabel icon="potrero" htmlFor="edit-equina-potrero">
+                      Potrero
+                    </StockEditarFichaLabel>
+                    <SelectPotreroDispositivo
+                      id="edit-equina-potrero"
+                      value={potrero}
+                      onChange={setPotrero}
+                      disabled={camposDeshabilitados}
+                      apiOnline={apiOnline}
+                      onError={onError}
                     />
                   </div>
                 </div>

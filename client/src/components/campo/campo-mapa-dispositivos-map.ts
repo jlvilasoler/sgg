@@ -1,6 +1,6 @@
 import L from "leaflet";
 import type { CampoMapaElemento, CampoPotreroMapa, StockGanaderaDispositivo } from "../../types";
-import { etiquetaCaravana } from "../stock/stock-ganadera-utils";
+import { etiquetaCaravana, normalizarPotrero } from "../stock/stock-ganadera-utils";
 import {
   centroidOfPaths,
   openRingFromGeoJson,
@@ -18,7 +18,7 @@ export interface CampoMapaDispositivoMarker {
 }
 
 function normalizeNombre(value: string): string {
-  return value.trim().toLowerCase();
+  return normalizarPotrero(value).toLowerCase();
 }
 
 function pointInPolygon(point: MapLatLng, ring: MapLatLng[]): boolean {

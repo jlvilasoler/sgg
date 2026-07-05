@@ -12,10 +12,13 @@ interface Props {
   potreroNombre?: string;
 }
 
-function deviceLabel(d: StockGanaderaDispositivo): string {
-  const numero = etiquetaCaravana(d);
+function deviceNumeroLabel(d: StockGanaderaDispositivo): string {
+  return etiquetaCaravana(d);
+}
+
+function devicePotreroLabel(d: StockGanaderaDispositivo): string | null {
   const potrero = d.potrero?.trim();
-  return potrero ? `${numero} · ${potrero}` : numero;
+  return potrero || null;
 }
 
 export default function CampoMapaDispositivosPicker({
@@ -128,7 +131,16 @@ export default function CampoMapaDispositivosPicker({
                   onChange={() => toggle("ganadero", d.clave)}
                   disabled={disabled}
                 />
-                <span>{deviceLabel(d)}</span>
+                <span className="campo-mapa-dispositivos-picker-item-text">
+                  <span className="campo-mapa-dispositivos-picker-item-num">
+                    {deviceNumeroLabel(d)}
+                  </span>
+                  {devicePotreroLabel(d) ? (
+                    <span className="campo-mapa-dispositivos-picker-item-potrero">
+                      {devicePotreroLabel(d)}
+                    </span>
+                  ) : null}
+                </span>
               </label>
             </li>
           ))}
@@ -147,7 +159,16 @@ export default function CampoMapaDispositivosPicker({
                   onChange={() => toggle("equino", d.clave)}
                   disabled={disabled}
                 />
-                <span>{deviceLabel(d)}</span>
+                <span className="campo-mapa-dispositivos-picker-item-text">
+                  <span className="campo-mapa-dispositivos-picker-item-num">
+                    {deviceNumeroLabel(d)}
+                  </span>
+                  {devicePotreroLabel(d) ? (
+                    <span className="campo-mapa-dispositivos-picker-item-potrero">
+                      {devicePotreroLabel(d)}
+                    </span>
+                  ) : null}
+                </span>
               </label>
             </li>
           ))}

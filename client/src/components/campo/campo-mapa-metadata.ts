@@ -49,3 +49,33 @@ export function mergeCampoMapaMetadata(
     dispositivos_equino: dispositivos.dispositivos_equino,
   };
 }
+
+export function enrichCampoMapaDispositivosFromStock(
+  featureNombre: string,
+  meta: CampoMapaDispositivosMetadata,
+  ganadero: { clave: string; potrero?: string | null }[],
+  equino: { clave: string; potrero?: string | null }[],
+  normalizarPotrero: (value: string | null | undefined) => string,
+): CampoMapaDispositivosMetadata {
+  const nombreKey = normalizarPotrero(featureNombre).toLowerCase();
+  if (!nombreKey) return meta;
+
+  const ganaderoSet = new Set(meta.dispositivos_ganadero);
+  const equinoSet = new Set(meta.dispositivos_equino);
+
+  for (const d of ganadero) {
+    if (normalizarPotrero(d.potrero).toLowerCase() === nombreKey) {
+      ganaderoSet.add(d.clave);
+    }
+  }
+  for (const d of equino) {
+    if (normalizarPotrero(d.potrero).toLowerCase() === nombreKey) {
+      equinoSet.add(d.clave);
+    }
+  }
+
+  return {
+    dispositivos_ganadero: [...ganaderoSet],
+    dispositivos_equino: [...equinoSet],
+  };
+}

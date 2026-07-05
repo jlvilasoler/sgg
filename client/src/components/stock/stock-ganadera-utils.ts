@@ -48,8 +48,8 @@ export function etiquetaCaravana(d: {
   const vid = d.vid?.trim();
   if (vid && eid) return `${vid} · EID ${eid}`;
   if (vid) return vid;
-  if (eid) return eid;
-  return d.clave;
+  if (eid) return `EID ${eid}`;
+  return d.clave?.trim() || "—";
 }
 
 /** Coincide búsqueda por EID, VID o sufijo numérico de la caravana. */
