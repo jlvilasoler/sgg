@@ -38,7 +38,7 @@ export default function DivisasHub({
         apiOnline={apiOnline}
         title={title}
         subtitle={subtitle}
-        asideKicker="SGG · Finanzas"
+        asideKicker="SAG"
         asideTitle="Divisas"
         asideLogo={<MenuAppIcon id="divisas" />}
         navAriaLabel="Monedas en divisas"

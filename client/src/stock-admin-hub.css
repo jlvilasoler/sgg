@@ -1,0 +1,191 @@
+/* —— Administración Stock (Ganadero / Equino) en hub Config —— */
+
+.stock-admin-workspace {
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+}
+
+.stock-admin-denied {
+  margin: 0;
+  padding: 1rem 1.05rem;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  color: var(--bn-muted, #707a8a);
+}
+
+.stock-admin-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  width: 100%;
+  align-items: stretch;
+}
+
+.stock-admin-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-width: 0;
+  min-height: 100%;
+  padding: 1.15rem 1.2rem 1.2rem;
+  border-radius: var(--sg-hub-radius-lg, 1rem);
+  border: 1px solid color-mix(in srgb, var(--bn-border, #eaecef) 92%, transparent);
+  background: var(--sg-hub-surface, #ffffff);
+  box-shadow: 0 2px 10px rgba(30, 35, 41, 0.04);
+}
+
+.stock-admin-card--recover {
+  border-color: color-mix(in srgb, #7cb342 28%, var(--bn-border, #eaecef));
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, #7cb342 7%, #ffffff) 0%,
+    var(--sg-hub-surface, #ffffff) 42%
+  );
+}
+
+.stock-admin-card--wipe {
+  border-color: color-mix(in srgb, #dc2626 24%, var(--bn-border, #eaecef));
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, #dc2626 5%, #ffffff) 0%,
+    var(--sg-hub-surface, #ffffff) 42%
+  );
+}
+
+.stock-admin-card-head {
+  margin-bottom: 0.65rem;
+}
+
+.stock-admin-card--recover .sg-hub-panel-kicker {
+  color: color-mix(in srgb, #166534 72%, var(--bn-muted));
+}
+
+.stock-admin-card--wipe .sg-hub-panel-kicker {
+  color: color-mix(in srgb, #991b1b 72%, var(--bn-muted));
+}
+
+.stock-admin-card-title {
+  margin: 0.12rem 0 0;
+  font-size: 1.08rem;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+}
+
+.stock-admin-card--recover .stock-admin-card-title {
+  color: #166534;
+}
+
+.stock-admin-card--wipe .stock-admin-card-title {
+  color: #991b1b;
+}
+
+.stock-admin-card-desc {
+  margin: 0 0 1rem;
+  font-size: 0.84rem;
+  line-height: 1.5;
+  color: var(--bn-muted, #707a8a);
+}
+
+.stock-admin-card-desc strong {
+  color: var(--bn-text, #1e2329);
+  font-weight: 650;
+}
+
+.stock-admin-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+  width: 100%;
+  margin: 0 0 1rem;
+}
+
+.stock-admin-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+  padding: 0.72rem 0.8rem;
+  border-radius: 0.65rem;
+  border: 1px solid color-mix(in srgb, var(--bn-border, #eaecef) 92%, transparent);
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.stock-admin-stat-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--bn-muted, #707a8a);
+}
+
+.stock-admin-stat-value {
+  font-size: 1.2rem;
+  font-weight: 750;
+  line-height: 1.2;
+  color: var(--bn-text, #1e2329);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.stock-admin-stat-value--date {
+  font-size: 0.92rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.stock-admin-card-foot {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.65rem;
+  margin-top: auto;
+  padding-top: 0.85rem;
+  border-top: 1px solid color-mix(in srgb, var(--bn-border, #eaecef) 88%, transparent);
+}
+
+.stock-admin-card-foot .btn {
+  min-height: 2.45rem;
+  padding-inline: 1rem;
+}
+
+.stock-admin-hint {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: var(--bn-muted, #707a8a);
+  max-width: 36rem;
+}
+
+.bn-ui .sg-hub-main--module .sg-hub-embedded .stock-admin-workspace {
+  width: 100%;
+  max-width: none;
+}
+
+@media (max-width: 960px) {
+  .stock-admin-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .stock-admin-stats {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .stock-admin-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 420px) {
+  .stock-admin-card {
+    padding: 1rem 0.95rem 1.05rem;
+  }
+
+  .stock-admin-card-foot .btn {
+    width: 100%;
+    justify-content: center;
+  }
+}

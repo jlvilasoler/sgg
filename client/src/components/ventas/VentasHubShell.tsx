@@ -37,7 +37,7 @@ export default function VentasHubShell({
   subtitle,
   headerActions,
   sidebarExtra,
-  asideKicker = "SGG · Ventas",
+  asideKicker = "SAG",
   asideTitle = "Ingresos por ventas",
   asideLogo,
   navAriaLabel,

@@ -38,7 +38,7 @@ export default function PresupuestoHub({
         apiOnline={apiOnline}
         title={title}
         subtitle={subtitle}
-        asideKicker="SGG · Presupuesto y gastos"
+        asideKicker="SAG"
         asideTitle="Presupuesto y gastos"
         asideLogo={<MenuAppIcon id="registro" />}
         navAriaLabel="Módulos de presupuesto"

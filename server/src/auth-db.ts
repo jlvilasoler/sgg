@@ -498,18 +498,13 @@ export async function resolveAuthAuditLogScope(
     if (cuentaIdFilter != null && cuentaIdFilter !== cuentaPropia) {
       return { ok: false, error: "Sin permiso para ver actividad de otra cuenta" };
     }
-    const emailsIn = await listUserEmailsForCuentaMadre(db, cuentaPropia);
-    if (emailQuery) {
-      const normalized = normalizeEmail(emailQuery);
-      if (!emailsIn.includes(normalized)) {
-        return { ok: false, error: "Usuario fuera de su cuenta" };
-      }
-      return {
-        ok: true,
-        filters: { email: emailQuery, scope: { emails_in: emailsIn } },
-      };
+    if (emailQuery && normalizeEmail(emailQuery) !== normalizeEmail(actor.email)) {
+      return { ok: false, error: "Solo puede ver su propia actividad" };
     }
-    return { ok: true, filters: { scope: { emails_in: emailsIn } } };
+    return {
+      ok: true,
+      filters: { scope: { email_exacto: normalizeEmail(actor.email) } },
+    };
   }
 
   if (actor.rol !== "admin") {

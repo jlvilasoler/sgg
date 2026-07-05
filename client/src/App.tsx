@@ -41,6 +41,8 @@ import Notas from "./components/Notas";
 import ChatExternalRequestHost from "./components/chat/ChatExternalRequestHost";
 import MiCuentaPanel from "./components/MiCuentaModal";
 import ConfirmDialogHost from "./components/ConfirmDialogHost";
+import AppBootScreen from "./components/AppBootScreen";
+import { ChatExternalRequestsProvider } from "./context/ChatExternalRequestsContext";
 import { HeaderBackProvider } from "./header-back";
 import {
   canAccessArquitecturaSistema,
@@ -48,6 +50,7 @@ import {
   canAccessScreen,
   actividadModoPorDefecto,
   actividadTituloPorModo,
+  type ActividadVistaModo,
 } from "./utils/auth-permissions";
 import { showToast } from "./utils/toast";
 import { clearVencImpLoginAlertStorage } from "./utils/vencimientos-impuestos-alertas";
@@ -88,6 +91,9 @@ export default function App() {
   const [authView, setAuthView] = useState<"login" | "forgot">("login");
   const [resetToken, setResetToken] = useState<string | null>(parseResetTokenFromUrl);
   const [forgotEmail, setForgotEmail] = useState("");
+  const [actividadModoOverride, setActividadModoOverride] = useState<ActividadVistaModo | null>(
+    null
+  );
   const hadUserRef = useRef(false);
   const freshLoginRef = useRef(false);
   const sessionUserIdRef = useRef<number | null>(null);
@@ -122,6 +128,7 @@ export default function App() {
     setEditRow(null);
     setChatOpen(false);
     setCuentaOpen(false);
+    setActividadModoOverride(null);
   }, []);
 
   useEffect(() => {
@@ -297,7 +304,7 @@ export default function App() {
     else goHome();
   };
 
-  const navigate = (id: TabId) => {
+  const navigate = (id: TabId, opts?: { actividadModo?: ActividadVistaModo }) => {
     if (!user) {
       notify("No tenés permiso para acceder a ese módulo", false);
       return;
@@ -309,6 +316,13 @@ export default function App() {
     if (!canAccessScreen(user, id)) {
       notify("No tenés permiso para acceder a ese módulo", false);
       return;
+    }
+    if (id === "registro_actividad" && opts?.actividadModo) {
+      setActividadModoOverride(opts.actividadModo);
+    } else if (id !== "registro_actividad") {
+      setActividadModoOverride(null);
+    } else {
+      setActividadModoOverride(null);
     }
     if (screenRef.current !== id) pushNavHistory();
     setScreen(id);
@@ -370,32 +384,31 @@ export default function App() {
 
   if (bootBlocked) {
     return (
-      <div className="loading-screen loading-screen--blocked">
-        <p>No se pudo iniciar la base de datos</p>
-        <p className="muted">
-          El servidor respondió, pero la base todavía no quedó lista. Puede ser un arranque en frío de
-          Supabase o un problema con la conexión.
-        </p>
-        {bootError ? <code>{bootError}</code> : null}
-        <button type="button" className="btn btn-primary" onClick={retryBoot}>
+      <AppBootScreen
+        title="No se pudo iniciar la base de datos"
+        subtitle="El servidor respondió, pero la base todavía no quedó lista. Puede ser un arranque en frío de Supabase o un problema con la conexión."
+        busy={false}
+      >
+        {bootError ? <code className="app-boot-code">{bootError}</code> : null}
+        <button type="button" className="btn btn-primary app-boot-retry" onClick={retryBoot}>
           Reintentar
         </button>
-      </div>
+      </AppBootScreen>
     );
   }
 
   if (booting || !authChecked) {
     return (
-      <div className="loading-screen">
-        <p>Cargando SAG...</p>
-        <p className="muted">
-          {bootPhase === "db"
+      <AppBootScreen
+        title="Cargando SAG…"
+        subtitle={
+          bootPhase === "db"
             ? "Iniciando base de datos…"
             : import.meta.env.DEV
               ? "Conectando con la API local…"
-              : "Conectando con el servidor…"}
-        </p>
-      </div>
+              : "Conectando con el servidor…"
+        }
+      />
     );
   }
 
@@ -457,8 +470,10 @@ export default function App() {
     );
   }
 
-  return (
-    <HeaderBackProvider>
+  const chatAccess = user != null && canAccessChat(user);
+
+  const appBody = (
+    <>
       <div className="app-shell">
         <div id="app-chrome-top" className="app-chrome-top">
           <MainHeaderNav
@@ -488,9 +503,10 @@ export default function App() {
 
       <div className="layout-content">
         {cuentaOpen ? (
-          <main className="layout-frame page-main bn-ui">
+          <main className="page-main bn-ui">
             <MiCuentaPanel
               user={user}
+              apiOnline={apiOnline}
               onVolver={() => setCuentaOpen(false)}
               onUserUpdated={setUser}
               onPasswordChanged={(msg) => {
@@ -549,6 +565,7 @@ export default function App() {
                 onSuccess={(m, t) => notify(m, true, t)}
                 onCatalogosChanged={refreshCatalogos}
                 onVolver={goHome}
+                onOpenMiPerfil={() => setCuentaOpen(true)}
               />
             )}
             {screen === "divisas" && (
@@ -628,7 +645,7 @@ export default function App() {
               />
             )}
             {screen === "registro_actividad" && user && (() => {
-              const modo = actividadModoPorDefecto(user);
+              const modo = actividadModoOverride ?? actividadModoPorDefecto(user);
               const { titulo, subtituloAmbito } = actividadTituloPorModo(user, modo);
               return (
               <UsuariosActividad
@@ -700,17 +717,28 @@ export default function App() {
         }}
       />
 
-      {user && canAccessChat(user) && (
-        <ChatExternalRequestHost
+      <ConfirmDialogHost />
+      </div>
+    </>
+  );
+
+  return (
+    <HeaderBackProvider>
+      {chatAccess ? (
+        <ChatExternalRequestsProvider
+          key={user.id}
+          userId={user.id}
           enabled
           onAccepted={(_requesterId, requesterNombre) => {
             showToast(`Autorizaste a ${requesterNombre}. Ya pueden chatear.`, true);
           }}
-        />
+        >
+          {appBody}
+          <ChatExternalRequestHost />
+        </ChatExternalRequestsProvider>
+      ) : (
+        appBody
       )}
-
-      <ConfirmDialogHost />
-    </div>
     </HeaderBackProvider>
   );
 }

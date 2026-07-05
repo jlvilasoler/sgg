@@ -1,5 +1,6 @@
 import type { TabId } from "../components/Header";
-import type { AuthUser, Modulo } from "../types";
+import type { ActividadAmbito } from "../api";
+import type { AuthActividadLog, AuthUser, Modulo } from "../types";
 import { ROL_LABELS, ROL_LABELS_DETALLE, ROL_DESCRIPCION } from "../types";
 
 export { ROL_LABELS, ROL_LABELS_DETALLE, ROL_DESCRIPCION };
@@ -88,7 +89,7 @@ export type ActividadVistaModo = "total" | "cuenta" | "propio";
 
 /** Vista por defecto si se abre actividad fuera del hub de Usuarios. */
 export function actividadModoPorDefecto(user: AuthUser | null): ActividadVistaModo {
-  if (resolveCuentaActividadId(user) != null) return "cuenta";
+  if (!user) return "propio";
   if (canAccessActividadCuenta(user)) return "cuenta";
   return "propio";
 }
@@ -103,7 +104,7 @@ export function actividadTituloPorModo(
     "Cuenta";
   if (modo === "total") {
     return {
-      titulo: "Registro de actividad SAG total",
+      titulo: "Registro de actividad SAG",
       subtituloAmbito: "Todas las cuentas y usuarios de la plataforma",
     };
   }
@@ -127,6 +128,84 @@ export function canFiltrarActividadPorUsuario(user: AuthUser | null): boolean {
 /** Admin de cuenta o super-admin en vista total/cuenta: ve usuarios en línea de su ámbito. */
 export function canVerUsuariosOnlineActividad(user: AuthUser | null): boolean {
   return user?.rol === "admin";
+}
+
+export type HomeActividadPanelConfig = {
+  id: "cuenta" | "propio" | "total";
+  cacheKey: string;
+  fetchParams: {
+    ambito?: ActividadAmbito;
+    cuentaId?: number;
+    email?: string;
+    feed: "home";
+  };
+  kicker: string;
+  title: string;
+  emptyText: string;
+  verTodoModo: ActividadVistaModo;
+  variant: "default" | "global";
+};
+
+export type HomeActividadPanelState = HomeActividadPanelConfig & {
+  items: AuthActividadLog[];
+  loading: boolean;
+};
+
+/** Paneles de «Últimos guardados» en Inicio según rol. */
+export function listHomeActividadPanels(user: AuthUser | null): HomeActividadPanelConfig[] {
+  if (!user) return [];
+
+  const panels: HomeActividadPanelConfig[] = [];
+  const cuentaId = resolveCuentaActividadId(user);
+  const cuentaNombre =
+    user.cuenta_actividad_nombre?.trim() || user.empresa_nombre?.trim() || "tu cuenta";
+
+  if (user.rol === "admin" && (cuentaId != null || user.es_super_admin)) {
+    if (cuentaId != null || !user.es_super_admin) {
+      panels.push({
+        id: "cuenta",
+        cacheKey: `cuenta:${cuentaId ?? "x"}`,
+        fetchParams: {
+          ambito: "cuenta",
+          ...(cuentaId != null ? { cuentaId } : {}),
+          feed: "home",
+        },
+        kicker: "Actividad de cuenta",
+        title: "Últimos guardados",
+        emptyText: `Todavía no hay cargas recientes del equipo en ${cuentaNombre} (gastos, stock, RRHH, ventas o notas compartidas).`,
+        verTodoModo: "cuenta",
+        variant: "default",
+      });
+    }
+  } else if (resolveCuentaActividadId(user) != null || user.rol !== "admin") {
+    panels.push({
+      id: "propio",
+      cacheKey: "propio",
+      fetchParams: { email: user.email, feed: "home" },
+      kicker: "Mi actividad",
+      title: "Últimos guardados",
+      emptyText:
+        "Todavía no hay cargas recientes tuyas (gastos, stock, RRHH, ventas o notas compartidas).",
+      verTodoModo: "propio",
+      variant: "default",
+    });
+  }
+
+  if (canAccessActividadSagTotal(user)) {
+    panels.push({
+      id: "total",
+      cacheKey: "total",
+      fetchParams: { ambito: "total", feed: "home" },
+      kicker: "Plataforma SAG",
+      title: "Actividad en todas las cuentas",
+      emptyText:
+        "Todavía no hay cargas recientes en ninguna cuenta de la plataforma (gastos, stock, RRHH, ventas o notas).",
+      verTodoModo: "total",
+      variant: "global",
+    });
+  }
+
+  return panels;
 }
 
 export function canAccessArquitecturaSistema(user: AuthUser | null): boolean {

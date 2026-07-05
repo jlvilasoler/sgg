@@ -188,7 +188,7 @@ export default function VencimientosImpuestosOnboarding({
               <MenuAppIcon id="vencimientos_impuestos" />
             </span>
             <div>
-              <p className="sg-hub-aside-kicker">SCG · Módulo</p>
+              <p className="sg-hub-aside-kicker">SAG</p>
               <p className="sg-hub-aside-title">
                 {modoEdicion ? "Preferencias" : "Vencimientos"}
               </p>

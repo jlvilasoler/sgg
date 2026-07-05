@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import type { AuthUser } from "../../types";
 import SgHubModuleGrid from "../hub/SgHubModuleGrid";
 import SgHubShell from "../hub/SgHubShell";
@@ -20,6 +20,7 @@ interface Props {
   onNavigate: (id: string) => void;
   onVolverDashboard: () => void;
   onVolverInicio?: () => void;
+  onOpenMiPerfil?: () => void;
   title?: string;
   subtitle?: string;
   children?: ReactNode;
@@ -35,6 +36,7 @@ export default function ConfigHubView({
   onNavigate,
   onVolverDashboard,
   onVolverInicio,
+  onOpenMiPerfil,
   title,
   subtitle,
   children,
@@ -47,18 +49,29 @@ export default function ConfigHubView({
   const isDashboard =
     activeId === "menu" || activeId === "cuenta_hub" || activeId === "sag_hub";
 
+  const handleNavigate = useCallback(
+    (id: string) => {
+      if (id === "mi_perfil") {
+        onOpenMiPerfil?.();
+        return;
+      }
+      onNavigate(id);
+    },
+    [onNavigate, onOpenMiPerfil]
+  );
+
   return (
     <div className="sg-module-page config-module-page">
       <SgHubShell
         activeId={activeId}
         items={items}
-        onNavigate={onNavigate}
+        onNavigate={handleNavigate}
         onVolverDashboard={onVolverDashboard}
         onVolverInicio={onVolverInicio}
         apiOnline={apiOnline}
         title={title ?? meta.title}
         subtitle={subtitle ?? meta.subtitle}
-        asideKicker="SGG · Config"
+        asideKicker="SAG"
         asideTitle="Configuración"
         asideLogo={<MenuAppIcon id="configuracion" />}
         navAriaLabel="Módulos de configuración"
@@ -67,7 +80,7 @@ export default function ConfigHubView({
           <div className="sg-hub-panels">
             <SgHubModuleGrid
               items={items}
-              onSelect={onNavigate}
+              onSelect={handleNavigate}
               title={
                 activeId === "sag_hub"
                   ? "Administración SAG"

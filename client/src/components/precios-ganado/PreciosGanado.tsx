@@ -48,7 +48,7 @@ export default function PreciosGanado({ apiOnline, onError, onSuccess, onVolver 
         apiOnline={apiOnline}
         title={meta.title}
         subtitle={meta.subtitle}
-        asideKicker="SGG · Mercado"
+        asideKicker="SAG"
         asideTitle="Precios de Ganado"
         asideLogo={<MenuAppIcon id="precios_ganado" />}
         navAriaLabel="Segmentos de precios de ganado"

@@ -640,11 +640,13 @@ textarea {
 
 /* —— Footer + safe areas —— */
 .app-footer {
-  padding-bottom: max(0.65rem, env(safe-area-inset-bottom, 0));
+  padding-bottom: max(0.55rem, env(safe-area-inset-bottom, 0));
 }
 
-.app-footer--dock .app-footer-chat-group {
-  bottom: calc(env(safe-area-inset-bottom, 0) + 0.35rem);
+@media (max-width: 640px) {
+  .app-footer-inner {
+    gap: 0.5rem 0.65rem;
+  }
 }
 
 /* —— Hub modules: móvil y tablet —— */

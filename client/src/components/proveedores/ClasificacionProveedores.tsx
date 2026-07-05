@@ -66,6 +66,7 @@ interface Props {
   onError: (msg: string) => void;
   onSuccess: (msg: string) => void;
   onVolver: () => void;
+  volverLabel?: string;
 }
 
 function subRubrosDelRubro(catalogo: RubrosCatalogoGasto, rubro: string): string[] {
@@ -86,6 +87,7 @@ export default function ClasificacionProveedores({
   onError,
   onSuccess,
   onVolver,
+  volverLabel = "Volver a Configuración",
 }: Props) {
   const [catalogRows, setCatalogRows] = useState<Proveedor[]>([]);
   const [rubrosCatalogo, setRubrosCatalogo] = useState<RubrosCatalogoGasto>({
@@ -248,7 +250,7 @@ export default function ClasificacionProveedores({
   return (
     <div className="subseccion-panel">
       <button type="button" className="subseccion-back" onClick={onVolver}>
-        ‹ Volver a Configuración
+        ‹ {volverLabel}
       </button>
 
       <div className="card">

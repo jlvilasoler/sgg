@@ -1,163 +1,163 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  aceptarChatSolicitudExterna,
-  fetchChatExternalRequests,
-  rechazarChatSolicitudExterna,
-} from "../../api";
-import type { ChatExternalRequest } from "../../types";
-import { invalidateChatSidebarCache } from "../../utils/chat-sidebar-cache";
-import { playChatNotificationSound } from "../../utils/chat-notification-sound";
+import { useEffect, useId } from "react";
+import { createPortal } from "react-dom";
+import { MessageCircle, MoreHorizontal } from "lucide-react";
+import { useChatExternalRequests } from "../../context/ChatExternalRequestsContext";
 import UserAvatar from "../UserAvatar";
 
-interface Props {
-  enabled: boolean;
-  onAccepted?: (requesterId: number, requesterNombre: string) => void;
-}
+export default function ChatExternalRequestHost() {
+  const titleId = useId();
+  const {
+    popupRequest,
+    pending,
+    busy,
+    error,
+    snooze,
+    accept,
+    reject,
+    showNextPopup,
+    clearError,
+  } = useChatExternalRequests();
 
-export default function ChatExternalRequestHost({ enabled, onAccepted }: Props) {
-  const [requests, setRequests] = useState<ChatExternalRequest[]>([]);
-  const [active, setActive] = useState<ChatExternalRequest | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const knownIdsRef = useRef<Set<number>>(new Set());
-  const initializedRef = useRef(false);
-
-  const refresh = useCallback(async () => {
-    if (!enabled) return;
-    try {
-      const list = await fetchChatExternalRequests();
-      setRequests(list);
-
-      if (!initializedRef.current) {
-        list.forEach((r) => knownIdsRef.current.add(r.id));
-        initializedRef.current = true;
-        if (list.length > 0) setActive((prev) => prev ?? list[0]);
-        return;
-      }
-
-      const nuevas = list.filter((r) => !knownIdsRef.current.has(r.id));
-      if (nuevas.length > 0) {
-        playChatNotificationSound();
-        setActive(nuevas[0]);
-      }
-      list.forEach((r) => knownIdsRef.current.add(r.id));
-      knownIdsRef.current.forEach((id) => {
-        if (!list.some((r) => r.id === id)) knownIdsRef.current.delete(id);
-      });
-
-      setActive((prev) => {
-        if (prev && list.some((r) => r.id === prev.id)) return prev;
-        return list[0] ?? null;
-      });
-    } catch {
-      /* silencioso en polling */
-    }
-  }, [enabled]);
+  const active = popupRequest;
 
   useEffect(() => {
-    if (!enabled) {
-      setRequests([]);
-      setActive(null);
-      initializedRef.current = false;
-      knownIdsRef.current.clear();
-      return;
-    }
-    void refresh();
-    const id = window.setInterval(() => void refresh(), 15000);
-    return () => window.clearInterval(id);
-  }, [enabled, refresh]);
+    if (!active) return;
+    clearError();
+  }, [active?.id, clearError]);
 
-  const closeModal = () => {
-    setActive(null);
-    setError(null);
-  };
+  useEffect(() => {
+    if (!active) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !busy) snooze(active.id);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [active, busy, snooze]);
 
-  const accept = async () => {
-    if (!active || busy) return;
-    setBusy(true);
-    setError(null);
-    try {
-      const result = await aceptarChatSolicitudExterna(active.id);
-      invalidateChatSidebarCache();
-      onAccepted?.(result.requester_id, result.requester_nombre);
-      const remaining = requests.filter((r) => r.id !== active.id);
-      setRequests(remaining);
-      knownIdsRef.current.delete(active.id);
-      setActive(remaining[0] ?? null);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "No se pudo aceptar");
-    } finally {
-      setBusy(false);
-    }
-  };
+  if (!active) return null;
 
-  const reject = async () => {
-    if (!active || busy) return;
-    setBusy(true);
-    setError(null);
-    try {
-      await rechazarChatSolicitudExterna(active.id);
-      const remaining = requests.filter((r) => r.id !== active.id);
-      setRequests(remaining);
-      knownIdsRef.current.delete(active.id);
-      setActive(remaining[0] ?? null);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "No se pudo rechazar");
-    } finally {
-      setBusy(false);
-    }
-  };
+  const hasMore = pending.filter((r) => r.id !== active.id).length > 0;
 
-  if (!enabled || !active) return null;
-
-  return (
-    <div className="chat-external-request-overlay" role="presentation">
+  return createPortal(
+    <div
+      className="fb-request-overlay"
+      role="presentation"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget && !busy) snooze(active.id);
+      }}
+    >
       <div
-        className="chat-external-request-modal"
+        className="fb-request-popover"
         role="dialog"
         aria-modal="true"
-        aria-labelledby="chat-external-request-title"
+        aria-labelledby={titleId}
+        onMouseDown={(e) => e.stopPropagation()}
       >
-        <h3 id="chat-external-request-title">Solicitud de contacto en el chat</h3>
-        <p className="chat-external-request-lead">
-          <strong>{active.requester_nombre}</strong> ({active.requester_cuenta}) quiere
-          agregarte para chatear entre cuentas.
-        </p>
-        <div className="chat-external-request-user">
-          <UserAvatar
-            nombre={active.requester_nombre}
-            avatar={active.requester_avatar}
-            variant="chat-channel"
-          />
-          <div>
-            <p className="chat-external-request-name">{active.requester_nombre}</p>
-            <p className="chat-external-request-cuenta">{active.requester_cuenta}</p>
+        <header className="fb-request-popover-head">
+          <h2 id={titleId} className="fb-request-popover-title">
+            Solicitudes de contacto
+          </h2>
+          {hasMore ? (
+            <button
+              type="button"
+              className="fb-request-see-all"
+              disabled={busy}
+              onClick={showNextPopup}
+            >
+              Ver todas ({pending.length})
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="fb-request-head-close"
+              disabled={busy}
+              onClick={() => snooze(active.id)}
+              aria-label="Cerrar"
+            >
+              ×
+            </button>
+          )}
+        </header>
+
+        <article className="fb-request-item">
+          <div className="fb-request-item-top">
+            <div className="fb-request-avatar-wrap">
+              <UserAvatar
+                nombre={active.requester_nombre}
+                avatar={active.requester_avatar}
+                variant="list"
+                className="fb-request-avatar"
+              />
+              <span className="fb-request-avatar-badge" aria-hidden>
+                <MessageCircle size={11} strokeWidth={2.5} />
+              </span>
+            </div>
+
+            <div className="fb-request-copy">
+              <p className="fb-request-text">
+                <strong>{active.requester_nombre}</strong> quiere conectarse contigo para
+                chatear entre cuentas.
+              </p>
+              <p className="fb-request-meta">{active.requester_cuenta}</p>
+            </div>
+
+            <button
+              type="button"
+              className="fb-request-menu"
+              disabled={busy}
+              onClick={() => snooze(active.id)}
+              aria-label="Más opciones"
+            >
+              <MoreHorizontal size={20} strokeWidth={2} />
+            </button>
           </div>
-        </div>
-        {requests.length > 1 && (
-          <p className="chat-external-request-more">
-            {requests.length - 1} solicitud{requests.length - 1 === 1 ? "" : "es"} más pendiente
-            {requests.length - 1 === 1 ? "" : "s"}.
+
+          {error && (
+            <p className="fb-request-error" role="alert">
+              {error}
+            </p>
+          )}
+
+          <div className="fb-request-actions">
+            <button
+              type="button"
+              className="fb-request-btn fb-request-btn--confirm"
+              disabled={busy}
+              onClick={() => void accept(active.id)}
+            >
+              {busy ? "…" : "Confirmar"}
+            </button>
+            <button
+              type="button"
+              className="fb-request-btn fb-request-btn--delete"
+              disabled={busy}
+              onClick={() => void reject(active.id)}
+            >
+              Eliminar
+            </button>
+          </div>
+        </article>
+
+        {hasMore && (
+          <p className="fb-request-queue-hint">
+            {pending.length - 1} solicitud{pending.length - 1 === 1 ? "" : "es"} más · usá{" "}
+            <strong>Ver todas</strong> para revisarlas
           </p>
         )}
-        {error && <p className="chat-external-request-error">{error}</p>}
-        <div className="chat-external-request-actions">
-          <button type="button" className="btn btn-secondary" disabled={busy} onClick={() => void reject()}>
-            Rechazar
-          </button>
-          <button type="button" className="btn btn-primary" disabled={busy} onClick={() => void accept()}>
-            {busy ? "…" : "Autorizar"}
-          </button>
-        </div>
+
         <button
           type="button"
-          className="chat-external-request-later"
+          className="fb-request-snooze"
           disabled={busy}
-          onClick={closeModal}
+          onClick={() => snooze(active.id)}
         >
           Decidir después
         </button>
+        <p className="fb-request-snooze-hint">
+          La solicitud quedará en <strong>Mi cuenta</strong> para que la revises más tarde.
+        </p>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

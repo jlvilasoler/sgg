@@ -1316,7 +1316,7 @@ export default function VencimientosImpuestos({ apiOnline, currentUser, onError 
                 <MenuAppIcon id="vencimientos_impuestos" />
               </span>
               <div>
-                <p className="sg-hub-aside-kicker">SCG · Módulo</p>
+                <p className="sg-hub-aside-kicker">SAG</p>
                 <p className="sg-hub-aside-title">Vencimientos</p>
               </div>
             </div>

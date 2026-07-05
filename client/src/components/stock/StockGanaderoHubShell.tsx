@@ -36,7 +36,7 @@ export default function StockGanaderoHubShell({
   subtitle,
   headerActions,
   sidebarExtra,
-  asideKicker = "SGG · Módulo",
+  asideKicker = "SAG",
   asideTitle = "Stock Ganadero",
   children,
   className = "",

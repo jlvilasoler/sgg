@@ -115,3 +115,279 @@
 .divisas-hub-table-box .table-pagination {
   padding: 0 0.95rem 0.85rem;
 }
+
+/* —— Dashboard divisas —— */
+.divisas-hub-dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  width: 100%;
+  min-width: 0;
+}
+
+.divisas-hub-kpi-strip {
+  margin-bottom: 0.1rem;
+}
+
+.bn-ui .divisas-module-page .divisas-hub-kpi-strip.sg-hub-kpi-strip {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+@media (max-width: 1080px) {
+  .bn-ui .divisas-module-page .divisas-hub-kpi-strip.sg-hub-kpi-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .bn-ui .divisas-module-page .divisas-hub-kpi-strip.sg-hub-kpi-strip {
+    grid-template-columns: 1fr;
+  }
+}
+
+.divisas-dashboard-chart-panel {
+  width: 100%;
+}
+
+.divisas-dashboard-chart-header {
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+}
+
+.divisas-dashboard-chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  margin-left: auto;
+}
+
+.divisas-dashboard-chart-legend-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem 0.45rem;
+  font-size: 0.82rem;
+}
+
+.divisas-dashboard-chart-legend-dot {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  flex-shrink: 0;
+  align-self: center;
+}
+
+.divisas-dashboard-chart-legend-label {
+  font-weight: 650;
+  color: var(--bn-text, #1e2329);
+}
+
+.divisas-dashboard-chart-legend-item strong {
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.divisas-hub-dashboard-panels {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+  gap: 0.85rem;
+  align-items: start;
+}
+
+.divisas-hub-panel-head-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.divisas-hub-novedades-hint {
+  margin: 0.25rem 0 0;
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.divisas-hub-novedades-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.divisas-hub-novedades-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  width: 100%;
+  padding: 0.65rem 0.7rem;
+  border: 1px solid color-mix(in srgb, var(--bn-border, #eaecef) 88%, transparent);
+  border-radius: var(--sg-hub-radius-md);
+  background: var(--sg-hub-surface, #fff);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.divisas-hub-novedades-item:hover {
+  border-color: color-mix(in srgb, var(--sg-hub-accent) 28%, var(--bn-border, #eaecef));
+  box-shadow: 0 2px 8px rgba(30, 35, 41, 0.05);
+}
+
+.divisas-hub-novedades-item--latest {
+  border-color: color-mix(in srgb, var(--sg-hub-accent) 35%, var(--bn-border, #eaecef));
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--sg-hub-accent-soft) 40%, #fff) 0%,
+    var(--sg-hub-surface, #fff) 70%
+  );
+}
+
+.divisas-hub-novedades-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.55rem;
+  border: 1px solid;
+  flex-shrink: 0;
+}
+
+.divisas-hub-novedades-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.divisas-hub-novedades-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.5rem;
+}
+
+.divisas-hub-novedades-title {
+  font-size: 0.88rem;
+  font-weight: 650;
+  line-height: 1.35;
+  color: var(--bn-text, #1e2329);
+}
+
+.divisas-hub-novedades-badge {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--sg-hub-accent) 14%, #fff);
+  color: var(--sg-hub-accent, #7cb342);
+}
+
+.divisas-hub-novedades-meta {
+  font-size: 0.78rem;
+  color: var(--bn-muted, #707a8a);
+  line-height: 1.35;
+}
+
+.divisas-hub-novedades-foot {
+  font-size: 0.76rem;
+  color: var(--bn-muted, #707a8a);
+}
+
+.divisas-hub-novedades-empty {
+  padding: 0.5rem 0 0.25rem;
+}
+
+.divisas-hub-novedades-empty-text {
+  margin: 0;
+  font-size: 0.86rem;
+  line-height: 1.45;
+  color: var(--bn-muted, #707a8a);
+}
+
+.divisas-hub-novedades-skeleton-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.divisas-hub-novedades-skeleton-row {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.65rem 0.7rem;
+  border-radius: var(--sg-hub-radius-md);
+  background: color-mix(in srgb, var(--sg-hub-workspace) 35%, #fff);
+}
+
+.divisas-hub-novedades-skeleton-icon {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.55rem;
+  background: linear-gradient(
+    90deg,
+    rgba(124, 179, 66, 0.06) 0%,
+    rgba(124, 179, 66, 0.14) 50%,
+    rgba(124, 179, 66, 0.06) 100%
+  );
+  background-size: 200% 100%;
+  animation: divisas-hub-shimmer 1.2s ease-in-out infinite;
+}
+
+.divisas-hub-novedades-skeleton-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  flex: 1;
+}
+
+.divisas-hub-novedades-skeleton-lines span {
+  display: block;
+  height: 0.55rem;
+  border-radius: 0.25rem;
+  background: linear-gradient(
+    90deg,
+    rgba(124, 179, 66, 0.06) 0%,
+    rgba(124, 179, 66, 0.14) 50%,
+    rgba(124, 179, 66, 0.06) 100%
+  );
+  background-size: 200% 100%;
+  animation: divisas-hub-shimmer 1.2s ease-in-out infinite;
+}
+
+.divisas-hub-novedades-skeleton-lines span:first-child {
+  width: 72%;
+}
+
+.divisas-hub-novedades-skeleton-lines span:last-child {
+  width: 48%;
+}
+
+@keyframes divisas-hub-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@media (max-width: 900px) {
+  .divisas-hub-dashboard-panels {
+    grid-template-columns: 1fr;
+  }
+
+  .divisas-dashboard-chart-legend {
+    margin-left: 0;
+    width: 100%;
+  }
+}

@@ -36,7 +36,7 @@ export default function StockEquinoHubShell({
   subtitle,
   headerActions,
   sidebarExtra,
-  asideKicker = "SGG · Dispositivos",
+  asideKicker = "SAG",
   asideTitle = "Stock Equino",
   children,
   className = "",

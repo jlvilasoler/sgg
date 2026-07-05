@@ -1,10 +1,10 @@
 import { useCallback, useState } from "react";
 import { useHeaderBackStep } from "../header-back";
-import SgHubModuleGrid from "./hub/SgHubModuleGrid";
 import { DIVISAS_MONEDAS, type DivisasMonedaId } from "./divisas/divisas-config";
 import DivisasHistorial from "./divisas/DivisasHistorial";
 import DivisasHub from "./divisas/DivisasHub";
-import { DIVISAS_HUB_ITEMS, divisasHubMeta } from "./divisas/divisas-hub-items";
+import DivisasHubDashboard from "./divisas/DivisasHubDashboard";
+import { divisasHubMeta } from "./divisas/divisas-hub-items";
 
 interface Props {
   apiOnline: boolean;
@@ -39,14 +39,10 @@ export default function Divisas({ apiOnline, onError, onSuccess, onVolver }: Pro
       embedded={vista !== "menu"}
     >
       {vista === "menu" ? (
-        <div className="sg-hub-panels">
-          <SgHubModuleGrid
-            items={DIVISAS_HUB_ITEMS}
-            onSelect={(id) => setVista(id as DivisasMonedaId)}
-            title="Monedas"
-            kicker="Tipos de cambio"
-          />
-        </div>
+        <DivisasHubDashboard
+          apiOnline={apiOnline}
+          onNavigate={(id) => setVista(id)}
+        />
       ) : (
         <DivisasHistorial
           key={vista}

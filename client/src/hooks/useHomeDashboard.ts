@@ -11,11 +11,11 @@ import {
 import type { AuthActividadLog, AuthUser, Nota } from "../types";
 import type { TabId } from "../components/Header";
 import {
-  canAccessHomeActividadCuenta,
   canAccessIngresosVentasModulo,
   canAccessScreen,
   canAccessSimuladorVentaGanado,
-  resolveCuentaActividadId,
+  listHomeActividadPanels,
+  type HomeActividadPanelState,
 } from "../utils/auth-permissions";
 import { buildVencimientosProximosHome } from "../utils/vencimientos-impuestos-alertas";
 import {
@@ -53,7 +53,6 @@ const FETCH_TIMEOUT_MS = 18_000;
 const INSIGHTS_TIMEOUT_MS = 30_000;
 const PANEL_TIMEOUT_MS = 10_000;
 const HOME_NOTAS_PREVIEW_LIMIT = 8;
-const HOME_ACTIVIDAD_MODO = "cuenta" as const;
 const HOME_ACTIVIDAD_PREVIEW_LIMIT = 7;
 
 function withTimeout<T>(promise: Promise<T>, ms = FETCH_TIMEOUT_MS): Promise<T> {
@@ -224,8 +223,25 @@ export function useHomeDashboard(user: AuthUser, apiOnline: boolean) {
   const userId = user.id;
   const puedeNotas = canAccessScreen(user, "notas");
   const puedeVencimientos = canAccessScreen(user, "vencimientos_impuestos");
-  const puedeActividad = canAccessHomeActividadCuenta(user);
-  const cuentaActividadId = resolveCuentaActividadId(user);
+  const actividadPanelConfigs = useMemo(() => listHomeActividadPanels(user), [
+    user.id,
+    user.rol,
+    user.email,
+    user.es_super_admin,
+    user.es_admin_plataforma,
+    user.cuenta_actividad_id,
+    user.empresa_id,
+    user.cuenta_actividad_nombre,
+    user.empresa_nombre,
+  ]);
+  const puedeActividad = actividadPanelConfigs.length > 0;
+
+  const [actividadPanels, setActividadPanels] = useState<HomeActividadPanelState[]>(() =>
+    actividadPanelConfigs.map((panel) => {
+      const cached = getHomeActividadCache(userId, panel.cacheKey, panel.fetchParams.cuentaId);
+      return { ...panel, items: cached, loading: cached.length === 0 };
+    })
+  );
 
   const [notas, setNotas] = useState<Nota[]>(() => getHomeNotasCache(userId));
   const [loadingNotas, setLoadingNotas] = useState(
@@ -236,14 +252,6 @@ export function useHomeDashboard(user: AuthUser, apiOnline: boolean) {
   const [loadingVenc, setLoadingVenc] = useState(
     () => puedeVencimientos && proximosDesdeCache().length === 0
   );
-
-  const [actividad, setActividad] = useState<AuthActividadLog[]>(() =>
-    getHomeActividadCache(userId, HOME_ACTIVIDAD_MODO, cuentaActividadId)
-  );
-  const [loadingActividad, setLoadingActividad] = useState(() => {
-    if (!puedeActividad) return false;
-    return getHomeActividadCache(userId, HOME_ACTIVIDAD_MODO, cuentaActividadId).length === 0;
-  });
 
   const [recentScreens, setRecentScreens] = useState<TabId[]>(() => getRecentHomeModules(userId));
 
@@ -335,46 +343,60 @@ export function useHomeDashboard(user: AuthUser, apiOnline: boolean) {
   }, [apiOnline, puedeVencimientos, userId]);
 
   useEffect(() => {
-    if (!apiOnline || !puedeActividad || !cuentaActividadId) {
-      setActividad([]);
-      setLoadingActividad(false);
+    if (!apiOnline || actividadPanelConfigs.length === 0) {
+      setActividadPanels([]);
       return;
     }
 
     let cancelled = false;
-    const cached = getHomeActividadCache(userId, HOME_ACTIVIDAD_MODO, cuentaActividadId);
-    if (cached.length > 0) {
-      setActividad(cached);
-      setLoadingActividad(false);
-    } else {
-      setLoadingActividad(true);
-    }
 
-    void withTimeout(
-      fetchAuthActividad({
-        limite: HOME_ACTIVIDAD_PREVIEW_LIMIT,
-        ambito: HOME_ACTIVIDAD_MODO,
-        cuentaId: cuentaActividadId,
-        feed: "home",
-      }),
-      PANEL_TIMEOUT_MS
-    )
-      .then((result) => {
-        if (cancelled) return;
-        setActividad(result.items);
-        setHomeActividadCache(userId, HOME_ACTIVIDAD_MODO, cuentaActividadId, result.items);
+    setActividadPanels((prev) =>
+      actividadPanelConfigs.map((panel) => {
+        const cached = getHomeActividadCache(userId, panel.cacheKey, panel.fetchParams.cuentaId);
+        const prevPanel = prev.find((p) => p.id === panel.id);
+        return {
+          ...panel,
+          items: cached.length > 0 ? cached : (prevPanel?.items ?? []),
+          loading: cached.length === 0,
+        };
       })
-      .catch(() => {
-        if (!cancelled && cached.length === 0) setActividad([]);
+    );
+
+    void Promise.all(
+      actividadPanelConfigs.map(async (panel) => {
+        const cached = getHomeActividadCache(userId, panel.cacheKey, panel.fetchParams.cuentaId);
+        try {
+          const result = await withTimeout(
+            fetchAuthActividad({
+              limite: HOME_ACTIVIDAD_PREVIEW_LIMIT,
+              ...panel.fetchParams,
+            }),
+            PANEL_TIMEOUT_MS
+          );
+          if (cancelled) return;
+          setHomeActividadCache(userId, panel.cacheKey, panel.fetchParams.cuentaId, result.items);
+          setActividadPanels((prev) =>
+            prev.map((p) =>
+              p.id === panel.id ? { ...p, items: result.items, loading: false } : p
+            )
+          );
+        } catch {
+          if (cancelled) return;
+          setActividadPanels((prev) =>
+            prev.map((p) =>
+              p.id === panel.id
+                ? { ...p, items: cached.length > 0 ? cached : p.items, loading: false }
+                : p
+            )
+          );
+        }
       })
-      .finally(() => {
-        if (!cancelled) setLoadingActividad(false);
-      });
+    );
 
     return () => {
       cancelled = true;
     };
-  }, [apiOnline, puedeActividad, userId, cuentaActividadId]);
+  }, [apiOnline, userId, actividadPanelConfigs]);
 
   useEffect(() => {
     const local = getRecentHomeModules(userId);
@@ -644,12 +666,11 @@ export function useHomeDashboard(user: AuthUser, apiOnline: boolean) {
     insightsReady,
     loadingNotas,
     loadingVenc,
-    loadingActividad,
     notasDestacadas,
     applyNotaHome,
     removeNotaHome,
     proximosVenc,
-    actividad,
+    actividadPanels,
     insights,
     recentScreens,
     puedeNotas,

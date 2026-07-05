@@ -329,7 +329,7 @@ export default function StockEquino({
         title={meta.title}
         subtitle={meta.subtitle}
         headerActions={headerActions}
-        asideKicker="SGG · Dispositivos"
+        asideKicker="SAG"
       >
         {vista === "menu" ? body : <div className="sg-hub-embedded">{body}</div>}
       </StockEquinoHubShell>

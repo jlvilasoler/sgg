@@ -1,28 +1,46 @@
-/* Layout compartido: sidebar a altura completa en todos los módulos hub */
-.layout-content:has(.sg-module-page) {
-  display: flex;
-  flex-direction: column;
+/* Sin scroll de página en módulos hub: el scroll queda en el área principal */
+html:has(.layout-content :is(.sg-module-page, .venc-imp-hub-page)),
+body:has(.layout-content :is(.sg-module-page, .venc-imp-hub-page)) {
+  overflow: hidden;
+  height: 100%;
 }
 
-.page-main.bn-ui:has(.sg-module-page) {
+/* Layout compartido: sidebar a altura completa en todos los módulos hub */
+.app-shell:has(.layout-content :is(.sg-module-page, .venc-imp-hub-page)) {
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
+}
+
+.layout-content:has(:is(.sg-module-page, .venc-imp-hub-page)) {
   display: flex;
   flex-direction: column;
-  flex: 1;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.page-main.bn-ui:has(:is(.sg-module-page, .venc-imp-hub-page)) {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
   min-height: 0;
   max-width: none;
   width: 100%;
+  overflow: hidden;
   padding-left: max(0.45rem, env(safe-area-inset-left, 0px));
   padding-right: max(0.45rem, env(safe-area-inset-right, 0px));
 }
 
 @media (min-width: 900px) {
-  .page-main.bn-ui:has(.sg-module-page) {
+  .page-main.bn-ui:has(:is(.sg-module-page, .venc-imp-hub-page)) {
     padding-left: max(0.65rem, env(safe-area-inset-left, 0px));
     padding-right: max(0.65rem, env(safe-area-inset-right, 0px));
   }
 }
 
-.bn-ui .sg-module-page {
+.bn-ui .sg-module-page,
+.bn-ui .venc-imp-hub-page {
   --sg-hub-sidebar: #1a211a;
   --sg-hub-sidebar-soft: #242d24;
   --sg-hub-sidebar-text: rgba(248, 246, 240, 0.92);
@@ -39,23 +57,38 @@
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
-  min-height: calc(
-    100dvh - var(--app-top-chrome, 9.5rem) - var(--app-footer-height, 3.15rem) -
-      env(safe-area-inset-bottom, 0)
-  );
+  min-height: 0;
+  max-height: 100%;
   width: 100%;
   max-width: none;
+  overflow: hidden;
 }
 
-.bn-ui .sg-module-page > .sg-hub {
+.bn-ui :is(.sg-module-page, .venc-imp-hub-page) > .sg-hub {
   flex: 1 1 auto;
-  min-height: 100%;
+  min-height: 0;
+  max-height: 100%;
   align-items: stretch;
+  overflow: hidden;
 }
 
-.bn-ui .sg-module-page .sg-hub-aside {
+.bn-ui :is(.sg-module-page, .venc-imp-hub-page) .sg-hub-aside {
   align-self: stretch;
-  min-height: 100%;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.bn-ui :is(.sg-module-page, .venc-imp-hub-page) > .sg-hub > .sg-hub-main {
+  min-height: 0;
+}
+
+.bn-ui :is(.sg-module-page, .venc-imp-hub-page) .sg-hub-main--module {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
 }
 
 /* Contenido embebido: ocultar cabeceras legacy duplicadas */
@@ -99,7 +132,8 @@
 
 .bn-ui .home-module-page > .sg-hub {
   flex: 1 1 auto;
-  min-height: 100%;
+  min-height: 0;
+  max-height: 100%;
 }
 
 .bn-ui .sg-hub-main--module .sg-hub-embedded .usuarios-actividad--hub {

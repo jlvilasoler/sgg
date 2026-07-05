@@ -59,6 +59,7 @@ interface Props {
   onSuccess: (msg: string, title?: string) => void;
   onCatalogosChanged: () => void;
   onVolver: () => void;
+  onOpenMiPerfil?: () => void;
 }
 
 function nombreCuentaConfig(user: AuthUser | null | undefined): string {
@@ -76,6 +77,7 @@ export default function Configuracion({
   onSuccess,
   onCatalogosChanged,
   onVolver,
+  onOpenMiPerfil,
 }: Props) {
   const [modulo, setModulo] = useState<ModuloConfig>("menu");
   const esSuperAdmin = Boolean(currentUser?.es_super_admin);
@@ -107,11 +109,12 @@ export default function Configuracion({
         onNavigate={(id) => setModulo(id as ModuloConfig)}
         onVolverDashboard={() => volverConfigDashboard(activeId)}
         onVolverInicio={onVolver}
+        onOpenMiPerfil={onOpenMiPerfil}
       >
         {content}
       </ConfigHubView>
     ),
-    [esSuperAdmin, cuentaNombre, apiOnline, currentUser, onVolver, volverConfigDashboard]
+    [esSuperAdmin, cuentaNombre, apiOnline, currentUser, onVolver, volverConfigDashboard, onOpenMiPerfil]
   );
 
   const headerBackLabel = useMemo(() => {
@@ -140,7 +143,7 @@ export default function Configuracion({
       modulo === "clasificacion_proveedores" &&
       !canAccessClasificacionProveedores(currentUser ?? null)
     ) {
-      setModulo(esSuperAdmin ? "cuenta_hub" : "menu");
+      setModulo(esSuperAdmin ? "sag_hub" : "menu");
     }
     if (
       (modulo === "stock_ganadero" || modulo === "stock_equino") &&
@@ -209,6 +212,7 @@ export default function Configuracion({
         apiOnline={apiOnline}
         onError={onError}
         onSuccess={onSuccess}
+        volverLabel="Volver a Configuración SAG"
         onVolver={() => volverConfigDashboard("clasificacion_proveedores")}
       />
     );
@@ -312,7 +316,8 @@ export default function Configuracion({
         apiOnline={apiOnline}
         currentUser={currentUser}
         modo="total"
-        titulo="Registro de actividad SAG total"
+        embedded
+        titulo="Registro de actividad SAG"
         subtituloAmbito="Todas las cuentas y usuarios de la plataforma"
         volverLabel="Volver a Configuración SAG"
         onError={onError}
@@ -394,6 +399,7 @@ export default function Configuracion({
       onNavigate={(id) => setModulo(id as ModuloConfig)}
       onVolverDashboard={() => setModulo("menu")}
       onVolverInicio={onVolver}
+      onOpenMiPerfil={onOpenMiPerfil}
     />
   );
 }

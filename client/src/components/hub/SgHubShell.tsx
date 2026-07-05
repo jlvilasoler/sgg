@@ -36,7 +36,7 @@ export default function SgHubShell({
   subtitle,
   headerActions,
   sidebarExtra,
-  asideKicker = "SGG · Módulo",
+  asideKicker = "SAG",
   asideTitle = "Módulo",
   asideLogo,
   navAriaLabel,

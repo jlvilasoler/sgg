@@ -944,7 +944,7 @@ export default function ChatInterno({
               <MessageSquare size={18} strokeWidth={1.75} />
             </span>
             <div>
-              <p className="chat-interno-hub-kicker">SGG · Chat</p>
+              <p className="chat-interno-hub-kicker">SAG · Chat</p>
               <h2 className="chat-interno-hub-brand-title">
                 {variant === "panel" ? "Chats" : "Mensajes"}
               </h2>

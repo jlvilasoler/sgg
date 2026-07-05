@@ -59,6 +59,8 @@ interface Props {
   onError: (msg: string) => void;
   onVolver: () => void;
   volverLabel?: string;
+  /** Sin shell propio: contenido dentro de otro hub (p. ej. Configuración SAG). */
+  embedded?: boolean;
 }
 
 function fmtFecha(iso: string): { fecha: string; hora: string } {
@@ -182,6 +184,7 @@ export default function UsuariosActividad({
   onError,
   onVolver,
   volverLabel = "Volver al menú",
+  embedded = false,
 }: Props) {
   const puedeVerIp = canVerIpEnActividad(currentUser);
   const esActividadTotalPlataforma =
@@ -643,28 +646,78 @@ export default function UsuariosActividad({
     ) : null;
 
   if (modo === "total" && !canAccessActividadSagTotal(currentUser)) {
+    const restricted = (
+      <div className="usuarios-actividad-hub-workspace">
+        <div className="usuarios-actividad-hub-box usuarios-actividad-restricted-box">
+          <header className="usuarios-actividad-hub-head-box">
+            <p className="sg-hub-panel-kicker">Acceso</p>
+            <h2 className="usuarios-actividad-hub-title">Acceso restringido</h2>
+            <p className="usuarios-actividad-hub-sub">
+              El registro de actividad global solo está disponible para el superadministrador
+              de plataforma.
+            </p>
+          </header>
+          <button type="button" className="sg-hub-cta sg-hub-cta--ghost" onClick={onVolver}>
+            {volverLabel}
+          </button>
+        </div>
+      </div>
+    );
+
+    if (embedded) {
+      return (
+        <div className="sg-hub-embedded usuarios-actividad usuarios-actividad--hub">
+          {restricted}
+        </div>
+      );
+    }
+
     return (
       <div className="subseccion-panel usuarios-actividad usuarios-actividad--hub">
         <button type="button" className="subseccion-back" onClick={onVolver}>
           ‹ {volverLabel}
         </button>
-        <div className="usuarios-actividad-hub-workspace">
-          <div className="usuarios-actividad-hub-box usuarios-actividad-restricted-box">
-            <header className="usuarios-actividad-hub-head-box">
-              <p className="sg-hub-panel-kicker">Acceso</p>
-              <h2 className="usuarios-actividad-hub-title">Acceso restringido</h2>
-              <p className="usuarios-actividad-hub-sub">
-                El registro de actividad global solo está disponible para el superadministrador
-                de plataforma.
-              </p>
-            </header>
-            <button type="button" className="sg-hub-cta sg-hub-cta--ghost" onClick={onVolver}>
-              {volverLabel}
-            </button>
-          </div>
-        </div>
+        {restricted}
       </div>
     );
+  }
+
+  const workspace = (
+    <div className="sg-hub-embedded usuarios-actividad usuarios-actividad--hub">
+      <div className="usuarios-actividad-hub-workspace">
+        {hubKpiStrip}
+
+        {!embedded ? (
+          <p className="usuarios-actividad-hub-status muted" role="status">
+            {subtituloAmbito ? `${subtituloAmbito} · ` : ""}
+            {subtitulo}
+          </p>
+        ) : null}
+
+        {seccionOnline}
+
+        <section
+          className="usuarios-actividad-hub-box usuarios-actividad-hub-box--listado"
+          aria-label="Historial de actividad"
+        >
+          <header className="usuarios-actividad-hub-head-box">
+            <p className="sg-hub-panel-kicker">Historial</p>
+            <h2 className="usuarios-actividad-hub-title">Registro de actividad</h2>
+            <p className="usuarios-actividad-hub-sub muted">
+              Filtrá por usuario, tipo de evento o cuenta y consultá el detalle de cada acción.
+            </p>
+          </header>
+
+          {filtersBar}
+          {dataTable}
+          {pagination}
+        </section>
+      </div>
+    </div>
+  );
+
+  if (embedded) {
+    return workspace;
   }
 
   return (
@@ -678,41 +731,13 @@ export default function UsuariosActividad({
         apiOnline={apiOnline}
         title={titulo}
         subtitle={subtituloAmbito ? `${subtituloAmbito} · ${subtitulo}` : subtitulo}
-        asideKicker="SGG · Auditoría"
+        asideKicker="SAG · Auditoría"
         asideTitle="Registro de actividad"
         asideLogo={<MenuAppIcon id="registro_actividad" />}
         navAriaLabel="Registro de actividad"
         showDashboardInNav={false}
       >
-        <div className="sg-hub-embedded usuarios-actividad usuarios-actividad--hub">
-          <div className="usuarios-actividad-hub-workspace">
-            {hubKpiStrip}
-
-            <p className="usuarios-actividad-hub-status muted" role="status">
-              {subtituloAmbito ? `${subtituloAmbito} · ` : ""}
-              {subtitulo}
-            </p>
-
-            {seccionOnline}
-
-            <section
-              className="usuarios-actividad-hub-box usuarios-actividad-hub-box--listado"
-              aria-label="Historial de actividad"
-            >
-              <header className="usuarios-actividad-hub-head-box">
-                <p className="sg-hub-panel-kicker">Historial</p>
-                <h2 className="usuarios-actividad-hub-title">Registro de actividad</h2>
-                <p className="usuarios-actividad-hub-sub muted">
-                  Filtrá por usuario, tipo de evento o cuenta y consultá el detalle de cada acción.
-                </p>
-              </header>
-
-              {filtersBar}
-              {dataTable}
-              {pagination}
-            </section>
-          </div>
-        </div>
+        {workspace}
       </SgHubShell>
     </div>
   );

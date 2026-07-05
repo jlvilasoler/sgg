@@ -1,0 +1,189 @@
+/* —— Mi cuenta · hub workspace —— */
+
+.mi-cuenta-module-page {
+  --sg-hub-workspace: #f3f2ed;
+  --sg-hub-surface: #ffffff;
+  --sg-hub-accent: #7cb342;
+  --sg-hub-accent-soft: rgba(124, 179, 66, 0.16);
+  --sg-hub-radius-md: 0.65rem;
+  --sg-hub-radius-card: 1.35rem;
+}
+
+.mi-cuenta-hub-workspace {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  width: 100%;
+  min-width: 0;
+}
+
+.bn-ui .mi-cuenta-module-page .sg-hub-main--module {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.mi-cuenta-hub-workspace--chat {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.bn-ui .mi-cuenta-module-page.mi-cuenta-module-page--chat > .sg-hub {
+  min-height: 0;
+}
+
+.bn-ui .mi-cuenta-module-page.mi-cuenta-module-page--chat .sg-hub-main--module {
+  overflow: hidden;
+}
+
+.bn-ui .mi-cuenta-module-page .sg-hub-panel.mi-cuenta-panel {
+  padding: 1rem 1.05rem 1.1rem;
+}
+
+.mi-cuenta-module-page .mi-cuenta-perfil {
+  padding: 0;
+  border: none;
+  background: transparent;
+  border-bottom: none;
+}
+
+.mi-cuenta-module-page .mi-cuenta-block {
+  padding: 0;
+  border: none;
+  background: transparent;
+}
+
+.mi-cuenta-module-page .mi-cuenta-block-head {
+  margin-bottom: 0.85rem;
+  max-width: none;
+}
+
+.mi-cuenta-module-page .mi-cuenta-pw-form {
+  display: grid;
+  gap: 0.75rem;
+  max-width: 28rem;
+}
+
+.mi-cuenta-module-page .mi-cuenta-page-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+  margin-top: 1rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid color-mix(in srgb, var(--bn-border, #eaecef) 92%, transparent);
+}
+
+.mi-cuenta-module-page .mi-cuenta-page-foot-note {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  max-width: 22rem;
+}
+
+.mi-cuenta-module-page .mi-cuenta-page-foot-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-left: auto;
+}
+
+.mi-cuenta-module-page .mi-cuenta-empty-panel {
+  padding: 1.25rem 1.05rem;
+}
+
+.mi-cuenta-module-page .mi-cuenta-empty-text {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  color: var(--bn-muted, #707a8a);
+}
+
+.mi-cuenta-module-page .mi-cuenta-chat-panel {
+  max-width: 100%;
+  width: 100%;
+}
+
+.mi-cuenta-module-page .mi-cuenta-chat-cards-box {
+  width: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 1rem 1.05rem;
+  border-radius: var(--sg-hub-radius-md);
+  border: 1px solid color-mix(in srgb, var(--bn-border, #eaecef) 92%, transparent);
+  background: var(--sg-hub-surface, #ffffff);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 65%, transparent);
+}
+
+.mi-cuenta-module-page .mi-cuenta-chat-cards-box .mi-cuenta-chat-panel {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr));
+  gap: 0.75rem;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  align-content: start;
+  overscroll-behavior: contain;
+}
+
+.mi-cuenta-module-page .mi-cuenta-chat-cards-box .mi-cuenta-chat-card {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.mi-cuenta-module-page .mi-cuenta-chat-cards-box .mi-cuenta-chat-card-btns {
+  margin-top: auto;
+}
+
+.mi-cuenta-module-page .mi-cuenta-block--chat.sg-hub-panel,
+.mi-cuenta-module-page .mi-cuenta-block--pw.sg-hub-panel,
+.mi-cuenta-module-page .mi-cuenta-empty-panel {
+  width: 100%;
+  max-width: 100%;
+  align-self: stretch;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--sg-hub-surface, #ffffff);
+}
+
+.mi-cuenta-module-page .mi-cuenta-block--chat .mi-cuenta-block-head {
+  flex-shrink: 0;
+}
+
+@media (max-width: 640px) {
+  .mi-cuenta-module-page .mi-cuenta-perfil {
+    grid-template-columns: 1fr;
+    justify-items: start;
+  }
+
+  .mi-cuenta-module-page .mi-cuenta-perfil-body {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .mi-cuenta-module-page .mi-cuenta-perfil-tools {
+    align-items: flex-start;
+  }
+
+  .mi-cuenta-module-page .mi-cuenta-perfil-hint {
+    text-align: left;
+  }
+
+  .mi-cuenta-module-page .mi-cuenta-page-foot-actions {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .mi-cuenta-module-page .mi-cuenta-page-foot-actions .btn {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+}

@@ -37,7 +37,7 @@ export default function NotasHub({
         title={title}
         subtitle={subtitle}
         headerActions={headerActions}
-        asideKicker="SGG · Productividad"
+        asideKicker="SAG · Productividad"
         asideTitle="Notas"
         asideLogo={<MenuAppIcon id="notas" />}
         navAriaLabel="Vistas de notas"

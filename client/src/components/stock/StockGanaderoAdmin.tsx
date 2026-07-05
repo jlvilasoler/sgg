@@ -8,7 +8,6 @@ import {
 import type { AuthUser } from "../../types";
 import { confirmAction } from "../../utils/confirm";
 import { clearStockGanaderaPageCache } from "./stock-ganadera-page-cache";
-import { PageModuleHeadRow } from "../PageModuleHead";
 
 interface Props {
   apiOnline: boolean;
@@ -36,7 +35,6 @@ export default function StockGanaderoAdmin({
   currentUser,
   onError,
   onSuccess,
-  onVolver,
 }: Props) {
   const esAdmin = currentUser?.rol === "admin";
   const [loading, setLoading] = useState(false);
@@ -158,140 +156,146 @@ export default function StockGanaderoAdmin({
   };
 
   return (
-    <div className="subseccion-panel">
-      <button type="button" className="subseccion-back" onClick={onVolver}>
-        ‹ Volver a Configuración
-      </button>
+    <div className="stock-admin-workspace">
+      {!esAdmin ? (
+        <p className="stock-admin-denied sg-hub-panel" role="status">
+          Solo los administradores pueden administrar la base de Stock Ganadero.
+        </p>
+      ) : (
+        <div className="stock-admin-grid">
+          <section
+            className="stock-admin-card stock-admin-card--recover"
+            aria-label="Recuperar base eliminada"
+          >
+            <header className="stock-admin-card-head">
+              <p className="sg-hub-panel-kicker">Respaldo automático</p>
+              <h3 className="stock-admin-card-title">Recuperar la Base</h3>
+            </header>
+            <p className="stock-admin-card-desc">
+              Restaura dispositivos, lecturas e historial del{" "}
+              <strong>último borrado total</strong>. Se usa el respaldo que se
+              guarda antes de cada eliminación.
+            </p>
 
-      <div className="card">
-        <div className="form-header">
-          <PageModuleHeadRow
-            icon={{ source: "app", id: "stock_ganadero" }}
-            title="Administración de Stock Ganadero"
-            subtitle="Herramientas de administración para la base de dispositivos EID."
-          />
+            <div className="stock-admin-stats" role="list">
+              <div className="stock-admin-stat" role="listitem">
+                <span className="stock-admin-stat-label">Respaldo</span>
+                <strong className="stock-admin-stat-value">
+                  {loading ? "…" : backup.disponible ? "Disponible" : "—"}
+                </strong>
+              </div>
+              <div className="stock-admin-stat" role="listitem">
+                <span className="stock-admin-stat-label">Dispositivos</span>
+                <strong className="stock-admin-stat-value">
+                  {loading ? "…" : backup.dispositivos}
+                </strong>
+              </div>
+              <div className="stock-admin-stat" role="listitem">
+                <span className="stock-admin-stat-label">Lecturas</span>
+                <strong className="stock-admin-stat-value">
+                  {loading ? "…" : backup.lecturas}
+                </strong>
+              </div>
+              <div className="stock-admin-stat" role="listitem">
+                <span className="stock-admin-stat-label">Eliminado el</span>
+                <strong className="stock-admin-stat-value stock-admin-stat-value--date">
+                  {loading ? "…" : formatFechaBackup(backup.creado_en) || "—"}
+                </strong>
+              </div>
+            </div>
+
+            <footer className="stock-admin-card-foot">
+              <button
+                type="button"
+                className="btn btn-primary"
+                disabled={
+                  !apiOnline ||
+                  loading ||
+                  restaurando ||
+                  !backup.disponible ||
+                  !baseVacia
+                }
+                onClick={() => void restaurarBase()}
+              >
+                {restaurando
+                  ? "Recuperando…"
+                  : `Recuperar base eliminada${
+                      backup.disponible ? ` (${backup.dispositivos})` : ""
+                    }`}
+              </button>
+              {!loading && !backup.disponible && (
+                <p className="stock-admin-hint">
+                  No hay respaldo automático disponible para recuperar.
+                </p>
+              )}
+              {!loading && backup.disponible && !baseVacia && (
+                <p className="stock-admin-hint">
+                  Solo se puede recuperar cuando la base está vacía. Vaciá la
+                  base actual o recuperá después de un borrado.
+                </p>
+              )}
+            </footer>
+          </section>
+
+          <section
+            className="stock-admin-card stock-admin-card--wipe"
+            aria-label="Vaciar base de dispositivos"
+          >
+            <header className="stock-admin-card-head">
+              <p className="sg-hub-panel-kicker">Operación destructiva</p>
+              <h3 className="stock-admin-card-title">Base de dispositivos</h3>
+            </header>
+            <p className="stock-admin-card-desc">
+              Elimina todos los dispositivos, lecturas, historial y vínculos con
+              ventas. Antes de borrar se guarda un respaldo automático para
+              poder recuperarla.
+            </p>
+
+            <div className="stock-admin-stats" role="list">
+              <div className="stock-admin-stat" role="listitem">
+                <span className="stock-admin-stat-label">Dispositivos (total)</span>
+                <strong className="stock-admin-stat-value">
+                  {loading ? "…" : resumen.dispositivos_total}
+                </strong>
+              </div>
+              <div className="stock-admin-stat" role="listitem">
+                <span className="stock-admin-stat-label">Activos</span>
+                <strong className="stock-admin-stat-value">
+                  {loading ? "…" : resumen.dispositivos}
+                </strong>
+              </div>
+              <div className="stock-admin-stat" role="listitem">
+                <span className="stock-admin-stat-label">Lecturas</span>
+                <strong className="stock-admin-stat-value">
+                  {loading ? "…" : resumen.registros}
+                </strong>
+              </div>
+              <div className="stock-admin-stat" role="listitem">
+                <span className="stock-admin-stat-label">Importaciones</span>
+                <strong className="stock-admin-stat-value">
+                  {loading ? "…" : resumen.lotes}
+                </strong>
+              </div>
+            </div>
+
+            <footer className="stock-admin-card-foot">
+              <button
+                type="button"
+                className="btn btn-danger"
+                disabled={
+                  !apiOnline || loading || vaciando || resumen.dispositivos_total === 0
+                }
+                onClick={() => void vaciarBase()}
+              >
+                {vaciando ? "Eliminando Base…" : "Eliminar toda la Base"}
+              </button>
+              {resumen.dispositivos_total === 0 && !loading && (
+                <p className="stock-admin-hint">La base ya está vacía.</p>
+              )}
+            </footer>
+          </section>
         </div>
-
-        {!esAdmin ? (
-          <p className="muted" role="status">
-            Solo los administradores pueden administrar la base de Stock Ganadero.
-          </p>
-        ) : (
-          <>
-            <section
-              className="stock-admin-revert"
-              aria-label="Recuperar base eliminada"
-            >
-              <h3 className="stock-admin-revert-title">Recuperar la Base</h3>
-              <p className="muted stock-admin-wipe-desc">
-                Restaura todos los dispositivos, lecturas e historial que se
-                eliminaron en el <strong>último borrado total</strong> de la base.
-                Se usa el respaldo automático que se guarda antes de cada
-                eliminación. Útil cuando se vació la base por error.
-              </p>
-
-              <dl className="stock-admin-stats">
-                <div>
-                  <dt>Respaldo</dt>
-                  <dd>
-                    {loading ? "…" : backup.disponible ? "Disponible" : "—"}
-                  </dd>
-                </div>
-                <div>
-                  <dt>Dispositivos</dt>
-                  <dd>{loading ? "…" : backup.dispositivos}</dd>
-                </div>
-                <div>
-                  <dt>Lecturas</dt>
-                  <dd>{loading ? "…" : backup.lecturas}</dd>
-                </div>
-                <div>
-                  <dt>Eliminado el</dt>
-                  <dd className="stock-admin-stat-fecha">
-                    {loading
-                      ? "…"
-                      : formatFechaBackup(backup.creado_en) || "—"}
-                  </dd>
-                </div>
-              </dl>
-
-              <div className="stock-admin-actions">
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  disabled={
-                    !apiOnline ||
-                    loading ||
-                    restaurando ||
-                    !backup.disponible ||
-                    !baseVacia
-                  }
-                  onClick={() => void restaurarBase()}
-                >
-                  {restaurando
-                    ? "Recuperando…"
-                    : `Recuperar base eliminada${
-                        backup.disponible ? ` (${backup.dispositivos})` : ""
-                      }`}
-                </button>
-                {!loading && !backup.disponible && (
-                  <p className="muted stock-admin-empty">
-                    No hay respaldo automático disponible para recuperar.
-                  </p>
-                )}
-                {!loading && backup.disponible && !baseVacia && (
-                  <p className="muted stock-admin-empty">
-                    Solo se puede recuperar cuando la base está vacía. Vaciá la
-                    base actual o recuperá después de un borrado.
-                  </p>
-                )}
-              </div>
-            </section>
-
-            <section className="stock-admin-wipe" aria-label="Vaciar base de dispositivos">
-              <h3 className="stock-admin-wipe-title">Base de dispositivos</h3>
-              <p className="muted stock-admin-wipe-desc">
-                Elimina por completo todos los dispositivos, lecturas importadas, historial de
-                cambios y vínculos con el simulador de ventas. Antes de borrar se guarda un
-                respaldo automático para poder recuperarla.
-              </p>
-
-              <dl className="stock-admin-stats">
-                <div>
-                  <dt>Dispositivos (total)</dt>
-                  <dd>{loading ? "…" : resumen.dispositivos_total}</dd>
-                </div>
-                <div>
-                  <dt>Activos</dt>
-                  <dd>{loading ? "…" : resumen.dispositivos}</dd>
-                </div>
-                <div>
-                  <dt>Lecturas</dt>
-                  <dd>{loading ? "…" : resumen.registros}</dd>
-                </div>
-                <div>
-                  <dt>Importaciones</dt>
-                  <dd>{loading ? "…" : resumen.lotes}</dd>
-                </div>
-              </dl>
-
-              <div className="stock-admin-actions">
-                <button
-                  type="button"
-                  className="btn btn-danger"
-                  disabled={!apiOnline || loading || vaciando || resumen.dispositivos_total === 0}
-                  onClick={() => void vaciarBase()}
-                >
-                  {vaciando ? "Eliminando Base…" : "Eliminar toda la Base"}
-                </button>
-                {resumen.dispositivos_total === 0 && !loading && (
-                  <p className="muted stock-admin-empty">La base ya está vacía.</p>
-                )}
-              </div>
-            </section>
-          </>
-        )}
-      </div>
+      )}
     </div>
   );
 }

@@ -27,12 +27,6 @@ const CATALOGOS: SgHubItem[] = [
     icon: "config_proveedores",
   },
   {
-    id: "clasificacion_proveedores",
-    label: "Clasificación Proveedores",
-    subtitle: "Costos de producción, gastos admin. y comerciales",
-    icon: "config_clasificacion_proveedores",
-  },
-  {
     id: "rubros",
     label: "Rubros",
     subtitle: "Rubros y sub-rubros del catálogo",
@@ -61,7 +55,7 @@ const SAG_ITEMS: SgHubItem[] = [
   },
   {
     id: "registro_actividad_total",
-    label: "Registro de actividad SAG total",
+    label: "Registro de actividad SAG",
     subtitle: "Todas las cuentas · solo superadministrador",
     icon: "usuarios_permisos_rol",
   },
@@ -78,6 +72,12 @@ const SAG_ITEMS: SgHubItem[] = [
     icon: "stock_sanidad",
   },
   {
+    id: "clasificacion_proveedores",
+    label: "Clasificación Proveedores",
+    subtitle: "Costos de producción, gastos admin. y comerciales",
+    icon: "config_clasificacion_proveedores",
+  },
+  {
     id: "documentos_digitales",
     label: "Documentos Digitales",
     subtitle: "Archivo y gestión documental global",
@@ -91,11 +91,15 @@ const SAG_ITEMS: SgHubItem[] = [
   },
 ];
 
+export const CONFIG_MI_PERFIL_ITEM: SgHubItem = {
+  id: "mi_perfil",
+  label: "Mi perfil",
+  subtitle: "Foto, datos personales y contraseña",
+  icon: "config_responsables",
+};
+
 export function buildConfigCuentaItems(user: AuthUser | null | undefined): SgHubItem[] {
   const items = CATALOGOS.filter((item) => {
-    if (item.id === "clasificacion_proveedores") {
-      return canAccessClasificacionProveedores(user ?? null);
-    }
     if (item.id === "stock_ganadero" || item.id === "stock_equino") {
       return canAccessStockGanaderoAdmin(user ?? null);
     }
@@ -128,6 +132,9 @@ export function buildConfigSagItems(user: AuthUser | null | undefined): SgHubIte
     if (item.id === "sag_arquitectura") return canAccessArquitecturaSistema(user ?? null);
     if (item.id === "catalogo_sanitario_productos") {
       return canAccessCatalogoSanitarioProductos(user ?? null);
+    }
+    if (item.id === "clasificacion_proveedores") {
+      return canAccessClasificacionProveedores(user ?? null);
     }
     if (item.id === "vencimientos_impuestos") {
       return canAccessConfigVencimientosImpuestos(user ?? null);
@@ -199,7 +206,7 @@ export function configHubMeta(
       subtitle: "Stack y módulos técnicos de SAG.",
     },
     registro_actividad_total: {
-      title: "Registro de actividad SAG total",
+      title: "Registro de actividad SAG",
       subtitle: "Todas las cuentas de la plataforma.",
     },
     control_global_cuentas: {
@@ -218,6 +225,10 @@ export function configHubMeta(
       title: "Vencimientos Impuestos",
       subtitle: "Calendarios tributarios.",
     },
+    mi_perfil: {
+      title: "Mi perfil",
+      subtitle: "Tu foto, datos y contraseña de acceso.",
+    },
   };
   return map[id] ?? { title: "Configuración", subtitle: "" };
 }
@@ -229,17 +240,20 @@ export function buildConfigNavItems(
   user: AuthUser | null | undefined,
   esSuperAdmin: boolean
 ): SgHubItem[] {
+  let items: SgHubItem[];
   if (scope === "main") {
-    return esSuperAdmin ? buildConfigMainItems(true) : buildConfigCuentaItems(user);
+    items = esSuperAdmin ? buildConfigMainItems(true) : buildConfigCuentaItems(user);
+  } else if (scope === "sag") {
+    items = buildConfigSagItems(user);
+  } else {
+    items = buildConfigCuentaItems(user);
   }
-  if (scope === "sag") return buildConfigSagItems(user);
-  return buildConfigCuentaItems(user);
+  return [...items, CONFIG_MI_PERFIL_ITEM];
 }
 
 const CUENTA_MODULOS = new Set([
   "responsables",
   "proveedores",
-  "clasificacion_proveedores",
   "rubros",
   "stock_ganadero",
   "stock_equino",
@@ -254,6 +268,7 @@ export function configNavScopeForModulo(modulo: string): ConfigNavScope {
     modulo === "control_global_cuentas" ||
     modulo === "documentos_digitales" ||
     modulo === "catalogo_sanitario_productos" ||
+    modulo === "clasificacion_proveedores" ||
     modulo === "vencimientos_impuestos"
   ) {
     return "sag";

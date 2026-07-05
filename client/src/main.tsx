@@ -9,6 +9,8 @@ import "./usuarios-actividad-hub.css";
 import "./presupuesto-hub.css";
 import "./rrhh-hub.css";
 import "./divisas-hub.css";
+import "./mi-cuenta-hub.css";
+import "./stock-admin-hub.css";
 import "./responsive.css";
 
 createRoot(document.getElementById("root")!).render(

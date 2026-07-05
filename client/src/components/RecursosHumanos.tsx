@@ -84,7 +84,7 @@ export default function RecursosHumanos({
         apiOnline={apiOnline}
         title={meta.title}
         subtitle={meta.subtitle}
-        asideKicker="SGG · Personal"
+        asideKicker="SAG"
         asideTitle="Recursos Humanos"
         asideLogo={<MenuAppIcon id="recursos_humanos" />}
         navAriaLabel="Módulos de Recursos Humanos"

@@ -6,7 +6,7 @@ import {
 } from "lucide-react";
 import type { TabId } from "./Header";
 import type { AuthUser, Nota } from "../types";
-import { canAccessScreen } from "../utils/auth-permissions";
+import { canAccessScreen, type ActividadVistaModo } from "../utils/auth-permissions";
 import { buildHomeQuickApps, mergeRecentModuleLists, getRecentHomeModules } from "../utils/home-quick-modules";
 import { MENU_APP_THEMES, MenuAppIcon } from "./icons/MenuAppIcons";
 import { SgHubAsideSearchField } from "./hub/SgHubAsideSearch";
@@ -126,7 +126,7 @@ export function getScreenTitle(id: TabId): string {
 interface Props {
   user: AuthUser;
   apiOnline: boolean;
-  onOpen: (id: TabId) => void;
+  onOpen: (id: TabId, opts?: { actividadModo?: ActividadVistaModo }) => void;
 }
 
 function filtrarApps(apps: MenuApp[], consulta: string): MenuApp[] {
@@ -154,17 +154,15 @@ export default function HomeMenu({ user, apiOnline, onOpen }: Props) {
     insightsReady,
     loadingNotas,
     loadingVenc,
-    loadingActividad,
     notasDestacadas,
     applyNotaHome,
     removeNotaHome,
     proximosVenc,
-    actividad,
+    actividadPanels,
     insights,
     recentScreens,
     puedeNotas,
     puedeVencimientos,
-    puedeActividad,
   } = useHomeDashboard(user, apiOnline);
 
   const recentMerged = useMemo(
@@ -255,8 +253,8 @@ export default function HomeMenu({ user, apiOnline, onOpen }: Props) {
               <LayoutGrid size={20} strokeWidth={1.75} />
             </span>
             <div>
-              <p className="sg-hub-aside-kicker">SGG · Sistema</p>
-              <p className="sg-hub-aside-title">Inicio</p>
+              <p className="sg-hub-aside-kicker">SAG</p>
+              <p className="sg-hub-aside-title">Pagina Principal</p>
             </div>
           </div>
 
@@ -407,30 +405,40 @@ export default function HomeMenu({ user, apiOnline, onOpen }: Props) {
                 </section>
               ) : null}
 
-              {puedeActividad ? (
-                <section className="sg-hub-panel" aria-label="Últimos guardados en la cuenta">
+              {actividadPanels.map((panel) => (
+                <section
+                  key={panel.id}
+                  className={
+                    panel.variant === "global"
+                      ? "sg-hub-panel sg-hub-panel--actividad-global"
+                      : "sg-hub-panel"
+                  }
+                  aria-label={panel.title}
+                >
                   <div className="sg-hub-panel-head home-hub-panel-head-row">
                     <div>
-                      <p className="sg-hub-panel-kicker">Actividad de cuenta</p>
-                      <h2 className="sg-hub-panel-title">Últimos guardados</h2>
+                      <p className="sg-hub-panel-kicker">{panel.kicker}</p>
+                      <h2 className="sg-hub-panel-title">{panel.title}</h2>
                     </div>
                     <button
                       type="button"
                       className="home-hub-link"
-                      onClick={() => onOpen("registro_actividad")}
+                      onClick={() =>
+                        onOpen("registro_actividad", { actividadModo: panel.verTodoModo })
+                      }
                     >
                       Ver todo
                       <ArrowRight size={14} aria-hidden />
                     </button>
                   </div>
-                  {loadingActividad && actividad.length === 0 ? (
+                  {panel.loading && panel.items.length === 0 ? (
                     <ul
                       className="home-hub-activity-skeleton-list"
                       aria-busy="true"
                       aria-label="Cargando actividad"
                     >
                       {Array.from({ length: 4 }).map((_, i) => (
-                        <li key={`act-skeleton-${i}`}>
+                        <li key={`act-skeleton-${panel.id}-${i}`}>
                           <div className="home-hub-activity-skeleton" aria-hidden>
                             <span className="home-hub-activity-skeleton-icon" />
                             <span className="home-hub-activity-skeleton-lines">
@@ -441,19 +449,18 @@ export default function HomeMenu({ user, apiOnline, onOpen }: Props) {
                         </li>
                       ))}
                     </ul>
-                  ) : actividad.length === 0 ? (
-                    <p className="home-hub-empty">
-                      Todavía no hay cargas recientes del equipo (gastos, stock, RRHH, ventas o notas
-                      compartidas).
-                    </p>
+                  ) : panel.items.length === 0 ? (
+                    <p className="home-hub-empty">{panel.emptyText}</p>
                   ) : (
                     <ul className="home-cmd-activity-list">
-                      {actividad.map((item) => (
+                      {panel.items.map((item) => (
                         <li key={item.id}>
                           <button
                             type="button"
                             className="home-cmd-activity-item"
-                            onClick={() => onOpen("registro_actividad")}
+                            onClick={() =>
+                              onOpen("registro_actividad", { actividadModo: panel.verTodoModo })
+                            }
                           >
                             <span className="home-cmd-activity-icon" aria-hidden>
                               <Clock3 size={15} />
@@ -473,7 +480,7 @@ export default function HomeMenu({ user, apiOnline, onOpen }: Props) {
                     </ul>
                   )}
                 </section>
-              ) : null}
+              ))}
             </div>
 
             <div className="home-hub-col home-hub-col--side">

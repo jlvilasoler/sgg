@@ -883,7 +883,7 @@ export default function StockGanadera({
               <StockGanaderoModuleIcon size={20} strokeWidth={1.75} />
             </span>
             <div>
-              <p className="sg-hub-aside-kicker">SGG · Dispositivos</p>
+              <p className="sg-hub-aside-kicker">SAG</p>
               <p className="sg-hub-aside-title">Stock Ganadero</p>
             </div>
           </div>

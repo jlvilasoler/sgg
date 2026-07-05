@@ -5,9 +5,9 @@ import type { Catalogos, AuthUser, Presupuesto as PresupuestoRow } from "../../t
 import FormGasto from "../FormGasto";
 import Listado from "../Listado";
 import Resumen from "../Resumen";
-import SgHubModuleGrid from "../hub/SgHubModuleGrid";
 import PresupuestoHub from "./PresupuestoHub";
-import { PRESUPUESTO_HUB_ITEMS, PRESUPUESTO_HUB_META, type PresupuestoVista } from "./presupuesto-hub-items";
+import PresupuestoHubDashboard from "./PresupuestoHubDashboard";
+import { PRESUPUESTO_HUB_META, type PresupuestoVista } from "./presupuesto-hub-items";
 
 type VistaPresupuesto = "menu" | PresupuestoVista;
 
@@ -124,14 +124,12 @@ export default function Presupuesto({
       embedded={vista !== "menu"}
     >
       {vista === "menu" ? (
-        <div className="sg-hub-panels">
-          <SgHubModuleGrid
-            items={PRESUPUESTO_HUB_ITEMS}
-            onSelect={(id) => irA(id as PresupuestoVista)}
-            title="Secciones"
-            kicker="Presupuesto y gastos"
-          />
-        </div>
+        <PresupuestoHubDashboard
+          currentUser={currentUser}
+          apiOnline={apiOnline}
+          onNavigate={irA}
+          onEdit={onEdit}
+        />
       ) : vista === "registro" ? (
         <FormGasto
           catalogos={catalogos}

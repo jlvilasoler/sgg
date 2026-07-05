@@ -3,6 +3,7 @@ import LogoSgg from "./LogoSgg";
 import UserAvatar from "./UserAvatar";
 import { APP_FULL_NAME, APP_NAME } from "../brand";
 import type { AuthUser } from "../types";
+import { useChatExternalRequestsOptional } from "../context/ChatExternalRequestsContext";
 
 interface Props {
   user: AuthUser;
@@ -27,16 +28,18 @@ export default function MainHeader({
   onOpenCuenta,
 }: Props) {
   const headerRef = useRef<HTMLElement>(null);
+  const chatReq = useChatExternalRequestsOptional();
+  const pendingCuenta = chatReq?.snoozedCount ?? 0;
 
   const avatar = user.avatar ?? { tipo: "iniciales" as const, url: null };
 
   return (
     <>
       <header ref={headerRef} className="main-header">
-        <div className="layout-frame main-header-inner">
+        <div className="layout-chrome main-header-inner">
           <button type="button" className="main-brand" onClick={onHome} title="Volver al menú">
             <LogoSgg className="main-brand-icon" />
-            <div>
+            <div className="main-brand-copy">
               <span className="main-brand-title">{APP_NAME}</span>
               <span className="main-brand-sub">{APP_FULL_NAME}</span>
             </div>
@@ -76,12 +79,30 @@ export default function MainHeader({
             <div className="main-header-user-panel">
               <button
                 type="button"
-                className="main-header-user-trigger"
+                className={`main-header-user-trigger${pendingCuenta > 0 ? " main-header-user-trigger--pending" : ""}`}
                 onClick={onOpenCuenta}
-                title={`${user.rol_label} · ${user.email}`}
-                aria-label={`${user.nombre}: mi cuenta y foto de perfil`}
+                title={
+                  pendingCuenta > 0
+                    ? `${user.rol_label} · ${user.email} · ${pendingCuenta} solicitud${pendingCuenta === 1 ? "" : "es"} de chat pendiente${pendingCuenta === 1 ? "" : "s"} en Mi cuenta`
+                    : `${user.rol_label} · ${user.email}`
+                }
+                aria-label={
+                  pendingCuenta > 0
+                    ? `${user.nombre}: mi cuenta (${pendingCuenta} solicitud${pendingCuenta === 1 ? "" : "es"} de chat pendiente${pendingCuenta === 1 ? "" : "s"})`
+                    : `${user.nombre}: mi cuenta y foto de perfil`
+                }
               >
-                <UserAvatar nombre={user.nombre} avatar={avatar} showLock />
+                <span className="main-header-user-avatar-wrap">
+                  <UserAvatar nombre={user.nombre} avatar={avatar} showLock />
+                  {pendingCuenta > 0 && (
+                    <span
+                      className="main-header-pending-badge"
+                      aria-hidden
+                    >
+                      {pendingCuenta > 9 ? "9+" : pendingCuenta}
+                    </span>
+                  )}
+                </span>
 
                 <span className="main-header-user-identity">
                   <span className="main-header-user-name">{user.nombre}</span>

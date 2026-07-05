@@ -51,7 +51,7 @@ export default function VentasIngresosHub({
             <MenuAppIcon id="ingresos_ventas" />
           </span>
           <div>
-            <p className="sg-hub-aside-kicker">SGG · Ventas</p>
+            <p className="sg-hub-aside-kicker">SAG</p>
             <p className="sg-hub-aside-title">Ingresos por ventas</p>
           </div>
         </div>
