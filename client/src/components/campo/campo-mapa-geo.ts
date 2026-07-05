@@ -27,6 +27,21 @@ export function geoJsonToPoint(geojson: string): MapLatLng | null {
   return paths[0] ?? null;
 }
 
+/** Anillo abierto para edición (sin repetir el primer punto al cerrar). */
+export function openRingFromGeoJson(geojson: string): MapLatLng[] {
+  const paths = geoJsonToPaths(geojson);
+  if (paths.length < 2) return paths;
+  const first = paths[0];
+  const last = paths[paths.length - 1];
+  if (
+    Math.abs(first.lat - last.lat) < 1e-9 &&
+    Math.abs(first.lng - last.lng) < 1e-9
+  ) {
+    return paths.slice(0, -1);
+  }
+  return paths;
+}
+
 export function pathsToGeoJson(paths: MapLatLng[]): string {
   const ring = paths.map((p) => [p.lng, p.lat] as [number, number]);
   if (ring.length > 0) {

@@ -13,6 +13,23 @@
 
 .campo-mapa-module-page .sg-hub-main-head {
   flex-shrink: 0;
+  container-type: inline-size;
+  container-name: campo-mapa-head;
+}
+
+.campo-mapa-module-page .sg-hub-main-head > div:first-child {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.campo-mapa-module-page .sg-hub-main-sub {
+  max-width: none;
+}
+
+@container campo-mapa-head (min-width: 44rem) {
+  .campo-mapa-module-page .sg-hub-main-sub {
+    white-space: nowrap;
+  }
 }
 
 .campo-mapa-workspace {
@@ -333,6 +350,134 @@
   background: rgba(124, 179, 66, 0.28);
   border-color: rgba(124, 179, 66, 0.55);
   color: #d9f99d;
+}
+
+.campo-mapa-map-work-dock {
+  position: absolute;
+  left: 0.85rem;
+  bottom: 3.35rem;
+  z-index: 670;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  width: min(17rem, calc(100vw - 2rem));
+  padding: 0.65rem 0.75rem;
+  border-radius: 0.85rem;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(26, 33, 26, 0.94);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.32);
+  pointer-events: auto;
+}
+
+.campo-mapa-map-shell:fullscreen .campo-mapa-map-work-dock {
+  bottom: 3.5rem;
+}
+
+.campo-mapa-map-work-dock-title {
+  margin: 0;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: #a3e635;
+}
+
+.campo-mapa-map-work-dock-hint {
+  margin: 0;
+  font-size: 0.74rem;
+  line-height: 1.35;
+  color: rgba(248, 246, 240, 0.82);
+}
+
+.campo-mapa-map-work-dock-field {
+  display: block;
+  margin: 0;
+}
+
+.campo-mapa-map-work-dock-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.42rem 0.55rem;
+  border-radius: 0.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(0, 0, 0, 0.22);
+  color: #f8f6f0;
+  font: inherit;
+  font-size: 0.82rem;
+}
+
+.campo-mapa-map-work-dock-input::placeholder {
+  color: rgba(248, 246, 240, 0.45);
+}
+
+.campo-mapa-map-work-dock-input:focus {
+  outline: none;
+  border-color: rgba(124, 179, 66, 0.55);
+  box-shadow: 0 0 0 2px rgba(124, 179, 66, 0.22);
+}
+
+.campo-mapa-map-work-dock-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.32rem;
+}
+
+.campo-mapa-map-work-dock-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  min-height: 2.1rem;
+  padding: 0.38rem 0.65rem;
+  border-radius: 0.55rem;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.06);
+  color: #f8f6f0;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 650;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.campo-mapa-map-work-dock-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.22);
+}
+
+.campo-mapa-map-work-dock-btn--primary {
+  background: rgba(124, 179, 66, 0.32);
+  border-color: rgba(124, 179, 66, 0.52);
+  color: #ecfccb;
+}
+
+.campo-mapa-map-work-dock-btn--primary:hover:not(:disabled) {
+  background: rgba(124, 179, 66, 0.42);
+  border-color: rgba(124, 179, 66, 0.62);
+}
+
+.campo-mapa-map-work-dock-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+@media (max-width: 560px) {
+  .campo-mapa-map-work-dock {
+    left: 0.55rem;
+    right: 0.55rem;
+    width: auto;
+    max-width: none;
+    bottom: 3.1rem;
+  }
+
+  .campo-mapa-map-work-dock-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .campo-mapa-map-work-dock-actions .campo-mapa-map-work-dock-btn--primary {
+    grid-column: 1 / -1;
+  }
 }
 
 .campo-mapa-map-toggle {

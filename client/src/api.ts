@@ -58,7 +58,6 @@ import type {
   OperativaTarea,
   OperativaTareaInput,
   OperativaTareaRegistro,
-  OperativaTareaEstado,
   StockGanaderaDispositivo,
   StockGanaderaDispositivoDetalle,
   StockGanaderaDispositivoHistorial,

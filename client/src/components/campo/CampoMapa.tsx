@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import L from "leaflet";
-import { Layers, MapPin, Maximize2, Minimize2, Plus, Search, Trash2, Undo2, X } from "lucide-react";
+import { Layers, MapPin, Maximize2, Minimize2, Pencil, Plus, Search, Trash2, Undo2, X } from "lucide-react";
 import SgHubShell from "../hub/SgHubShell";
 import type { SgHubItem } from "../hub/SgHubTypes";
 import { MenuAppIcon } from "../icons/MenuAppIcons";
@@ -21,13 +21,14 @@ import {
   computeHectareas,
   formatDistance,
   formatHectareas,
-  geoJsonToPaths,
+  openRingFromGeoJson,
   pathsToGeoJson,
   pathsToLeafletLatLngs,
   pathsToLineGeoJson,
   pointToGeoJson,
   type MapLatLng,
 } from "./campo-mapa-geo";
+import { mountVertexHandles } from "./campo-mapa-vertex-handles";
 import { buscarLugaresEnMapa, type CampoMapaLugarResult } from "./campo-mapa-geocode";
 import { flyToElemento, renderElementoLayer, renderPotreroLayer } from "./campo-mapa-render";
 import {
@@ -177,6 +178,14 @@ export default function CampoMapa({
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [selectedVertexIndex, setSelectedVertexIndex] = useState<number | null>(null);
+  const [potreroShapeEdit, setPotreroShapeEdit] = useState<{
+    potreroId: number;
+    vertices: MapLatLng[];
+  } | null>(null);
+
+  const potreroShapeEditRef = useRef(potreroShapeEdit);
+  potreroShapeEditRef.current = potreroShapeEdit;
 
   const mapShellRef = useRef<HTMLDivElement | null>(null);
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
@@ -251,6 +260,26 @@ export default function CampoMapa({
   const isSketching = toolUsesSketch(activeTool) && sketchVertices.length > 0 && !pendingDraft;
   const minSketchPoints = toolSketchIsPolygon(activeTool) ? 3 : 2;
 
+  const vertexEditSource = useMemo(() => {
+    if (potreroShapeEdit) {
+      return {
+        kind: "potrero" as const,
+        vertices: potreroShapeEdit.vertices,
+        isPolygon: true,
+        minPoints: 3,
+      };
+    }
+    if (toolUsesSketch(activeTool) && !pendingDraft && sketchVertices.length > 0) {
+      return {
+        kind: "sketch" as const,
+        vertices: sketchVertices,
+        isPolygon: toolSketchIsPolygon(activeTool),
+        minPoints: minSketchPoints,
+      };
+    }
+    return null;
+  }, [activeTool, minSketchPoints, pendingDraft, potreroShapeEdit, sketchVertices]);
+
   const measureHint = useMemo(() => {
     if (activeTool === "medir_distancia" && sketchVertices.length >= 2) {
       const meters = computeDistanceMeters(sketchVertices);
@@ -309,6 +338,12 @@ export default function CampoMapa({
     sketchMarkersRef.current.forEach((marker) => marker.remove());
     sketchMarkersRef.current = [];
     setSketchVertices([]);
+    setSelectedVertexIndex(null);
+  }, []);
+
+  const cancelPotreroShapeEdit = useCallback(() => {
+    setPotreroShapeEdit(null);
+    setSelectedVertexIndex(null);
   }, []);
 
   const clearDraftOverlay = useCallback(() => {
@@ -320,16 +355,98 @@ export default function CampoMapa({
   }, []);
 
   const selectPotrero = useCallback((id: number) => {
+    cancelPotreroShapeEdit();
     setSelection({ kind: "potrero", id });
     clearSketchOverlay();
     clearDraftOverlay();
-  }, [clearDraftOverlay, clearSketchOverlay]);
+  }, [cancelPotreroShapeEdit, clearDraftOverlay, clearSketchOverlay]);
 
   const selectElemento = useCallback((id: number) => {
+    cancelPotreroShapeEdit();
     setSelection({ kind: "elemento", id });
     clearSketchOverlay();
     clearDraftOverlay();
-  }, [clearDraftOverlay, clearSketchOverlay]);
+  }, [cancelPotreroShapeEdit, clearDraftOverlay, clearSketchOverlay]);
+
+  const moveVertexAt = useCallback((index: number, point: MapLatLng) => {
+    if (potreroShapeEditRef.current) {
+      setPotreroShapeEdit((prev) =>
+        prev
+          ? {
+              ...prev,
+              vertices: prev.vertices.map((vertex, i) => (i === index ? point : vertex)),
+            }
+          : null,
+      );
+      return;
+    }
+    setSketchVertices((prev) =>
+      prev.map((vertex, i) => (i === index ? point : vertex)),
+    );
+  }, []);
+
+  const removeVertexAt = useCallback(
+    (index: number) => {
+      const source = potreroShapeEditRef.current
+        ? {
+            vertices: potreroShapeEditRef.current.vertices,
+            minPoints: 3,
+          }
+        : {
+            vertices: sketchVertices,
+            minPoints: minSketchPoints,
+          };
+
+      if (source.vertices.length <= source.minPoints) {
+        onError(`Necesitás al menos ${source.minPoints} puntos.`);
+        return;
+      }
+
+      if (potreroShapeEditRef.current) {
+        setPotreroShapeEdit((prev) =>
+          prev
+            ? {
+                ...prev,
+                vertices: prev.vertices.filter((_, i) => i !== index),
+              }
+            : null,
+        );
+      } else {
+        setSketchVertices((prev) => prev.filter((_, i) => i !== index));
+      }
+      setSelectedVertexIndex((prev) => {
+        if (prev == null) return null;
+        if (prev === index) return null;
+        return prev > index ? prev - 1 : prev;
+      });
+    },
+    [minSketchPoints, onError, sketchVertices],
+  );
+
+  const deleteSelectedVertex = useCallback(() => {
+    if (selectedVertexIndex == null) return;
+    removeVertexAt(selectedVertexIndex);
+  }, [removeVertexAt, selectedVertexIndex]);
+
+  const startPotreroShapeEdit = useCallback(() => {
+    if (!selectedPotrero) return;
+    let vertices: MapLatLng[] = [];
+    try {
+      vertices = openRingFromGeoJson(selectedPotrero.geojson);
+    } catch {
+      onError("No se pudo leer la forma del potrero.");
+      return;
+    }
+    if (vertices.length < 3) {
+      onError("El potrero necesita al menos 3 puntos para editar.");
+      return;
+    }
+    clearSketchOverlay();
+    clearDraftOverlay();
+    setActiveTool("navegar");
+    setPotreroShapeEdit({ potreroId: selectedPotrero.id, vertices });
+    setSelectedVertexIndex(null);
+  }, [clearDraftOverlay, clearSketchOverlay, onError, selectedPotrero]);
 
   const renderMapLayers = useCallback(() => {
     const map = mapRef.current;
@@ -341,6 +458,7 @@ export default function CampoMapa({
     elementoLayersRef.current.clear();
 
     for (const item of potreros) {
+      if (potreroShapeEdit?.potreroId === item.id) continue;
       const layer = renderPotreroLayer(
         map,
         item,
@@ -359,7 +477,7 @@ export default function CampoMapa({
       );
       if (layer) elementoLayersRef.current.set(item.id, layer);
     }
-  }, [elementos, potreros, selectElemento, selectPotrero, selection]);
+  }, [elementos, potreroShapeEdit, potreros, selectElemento, selectPotrero, selection]);
 
   useEffect(() => {
     if (!cuentaTieneGeometriaEnMapa(potreros, elementos)) {
@@ -443,7 +561,7 @@ export default function CampoMapa({
     if (!map) return;
 
     const onClick = (event: L.LeafletMouseEvent) => {
-      if (pendingDraft) return;
+      if (pendingDraft || potreroShapeEditRef.current) return;
 
       if (toolSketchIsPoint(activeTool)) {
         const point = { lat: event.latlng.lat, lng: event.latlng.lng };
@@ -483,43 +601,66 @@ export default function CampoMapa({
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map) return;
+    if (!map || !vertexEditSource) return;
 
     sketchPolylineRef.current?.remove();
+    sketchPolylineRef.current = null;
     sketchPolygonRef.current?.remove();
+    sketchPolygonRef.current = null;
     sketchMarkersRef.current.forEach((marker) => marker.remove());
     sketchMarkersRef.current = [];
 
-    for (const point of sketchVertices) {
-      const marker = L.circleMarker([point.lat, point.lng], {
-        radius: 5,
-        color: "#ffffff",
-        weight: 2,
-        fillColor: SKETCH_COLOR,
-        fillOpacity: 1,
-      }).addTo(map);
-      sketchMarkersRef.current.push(marker);
-    }
+    const { vertices, isPolygon } = vertexEditSource;
 
-    if (sketchVertices.length >= 2) {
-      if (toolSketchIsPolygon(activeTool)) {
-        sketchPolygonRef.current = L.polygon(pathsToLeafletLatLngs(sketchVertices), {
+    if (vertices.length >= 2) {
+      if (isPolygon) {
+        sketchPolygonRef.current = L.polygon(pathsToLeafletLatLngs(vertices), {
           color: SKETCH_COLOR,
           weight: 2,
           opacity: 0.95,
           fillColor: SKETCH_COLOR,
-          fillOpacity: 0.18,
-          dashArray: "6 4",
+          fillOpacity: vertexEditSource.kind === "potrero" ? 0.28 : 0.18,
+          dashArray: vertexEditSource.kind === "potrero" ? undefined : "6 4",
         }).addTo(map);
       } else {
-        sketchPolylineRef.current = L.polyline(pathsToLeafletLatLngs(sketchVertices), {
+        sketchPolylineRef.current = L.polyline(pathsToLeafletLatLngs(vertices), {
           color: SKETCH_COLOR,
           weight: 2,
           opacity: 0.95,
         }).addTo(map);
       }
     }
-  }, [activeTool, sketchVertices, mapReady]);
+
+    const cleanup = mountVertexHandles(map, vertices, {
+      color: SKETCH_COLOR,
+      selectedIndex: selectedVertexIndex,
+      onMove: moveVertexAt,
+      onSelect: setSelectedVertexIndex,
+      onRemove: removeVertexAt,
+    });
+
+    return () => {
+      cleanup();
+      sketchPolylineRef.current?.remove();
+      sketchPolylineRef.current = null;
+      sketchPolygonRef.current?.remove();
+      sketchPolygonRef.current = null;
+    };
+  }, [mapReady, moveVertexAt, removeVertexAt, selectedVertexIndex, vertexEditSource]);
+
+  useEffect(() => {
+    if (!vertexEditSource) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Delete" && event.key !== "Backspace") return;
+      const tag = (event.target as HTMLElement | null)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA") return;
+      if (selectedVertexIndex == null) return;
+      event.preventDefault();
+      removeVertexAt(selectedVertexIndex);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [removeVertexAt, selectedVertexIndex, vertexEditSource]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -653,6 +794,7 @@ export default function CampoMapa({
   };
 
   const handleToolSelect = (tool: CampoMapaTool) => {
+    cancelPotreroShapeEdit();
     clearSketchOverlay();
     setActiveTool(tool);
     if (tool !== "navegar") {
@@ -815,6 +957,33 @@ export default function CampoMapa({
     }
   };
 
+  const savePotreroShape = async () => {
+    if (!potreroShapeEdit) return;
+    if (potreroShapeEdit.vertices.length < 3) {
+      onError("Un potrero necesita al menos 3 puntos.");
+      return;
+    }
+    setSaving(true);
+    try {
+      const hectareas = computeHectareas(potreroShapeEdit.vertices);
+      const updated = await updateCampoPotreroMapa(potreroShapeEdit.potreroId, {
+        geojson: JSON.parse(pathsToGeoJson(potreroShapeEdit.vertices)),
+        hectareas,
+      });
+      setPotreros((prev) =>
+        prev
+          .map((item) => (item.id === updated.id ? updated : item))
+          .sort((a, b) => a.nombre.localeCompare(b.nombre)),
+      );
+      cancelPotreroShapeEdit();
+      onSuccess("Perímetro del potrero actualizado.");
+    } catch (e) {
+      onError(e instanceof Error ? e.message : "No se pudo guardar la forma.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const saveSelected = async () => {
     if (!selectedPotrero && !selectedElemento) return;
     setSaving(true);
@@ -873,12 +1042,26 @@ export default function CampoMapa({
     }
   };
 
+  const mapWorkMode = useMemo((): "sketch" | "potrero-shape" | "draft" | null => {
+    if (!puedeEditar) return null;
+    if (potreroShapeEdit) return "potrero-shape";
+    if (pendingDraft) return "draft";
+    if (toolUsesSketch(activeTool)) return "sketch";
+    return null;
+  }, [activeTool, pendingDraft, potreroShapeEdit, puedeEditar]);
+
+  const showFullscreenWorkDock = isFullscreen && mapWorkMode != null;
+
   const mapHint = useMemo(() => {
+    if (showFullscreenWorkDock) return null;
+    if (vertexEditSource) {
+      return "Arrastrá un punto para moverlo · Doble clic o Supr para eliminar";
+    }
     if (measureHint) return measureHint;
     if (toolUsesSketch(activeTool) && !pendingDraft) return toolDef.hint;
     if (toolSketchIsPoint(activeTool) && !pendingDraft) return toolDef.hint;
     return null;
-  }, [activeTool, measureHint, pendingDraft, toolDef.hint]);
+  }, [activeTool, measureHint, pendingDraft, showFullscreenWorkDock, toolDef.hint, vertexEditSource]);
 
   const sidebarBody = (
     <div className="campo-mapa-aside-body">
@@ -887,9 +1070,11 @@ export default function CampoMapa({
         editan todos los integrantes del equipo en esta cuenta.
       </p>
 
-      {puedeEditar && toolUsesSketch(activeTool) && !pendingDraft ? (
+      {puedeEditar && toolUsesSketch(activeTool) && !pendingDraft && !potreroShapeEdit ? (
         <div className="campo-mapa-aside-tools">
-          <p className="campo-mapa-aside-hint">{toolDef.hint}</p>
+          <p className="campo-mapa-aside-hint">
+            {toolDef.hint} Podés arrastrar un punto para moverlo o hacer doble clic para eliminarlo.
+          </p>
           <button
             type="button"
             className="campo-mapa-aside-btn campo-mapa-aside-btn--primary"
@@ -897,6 +1082,15 @@ export default function CampoMapa({
             disabled={sketchVertices.length < minSketchPoints || saving}
           >
             Finalizar ({sketchVertices.length} pts)
+          </button>
+          <button
+            type="button"
+            className="campo-mapa-aside-btn"
+            onClick={deleteSelectedVertex}
+            disabled={selectedVertexIndex == null || saving}
+          >
+            <Trash2 size={15} aria-hidden />
+            Eliminar punto seleccionado
           </button>
           <button
             type="button"
@@ -914,6 +1108,48 @@ export default function CampoMapa({
             disabled={saving}
           >
             Cancelar dibujo
+          </button>
+        </div>
+      ) : null}
+
+      {puedeEditar && potreroShapeEdit ? (
+        <div className="campo-mapa-aside-tools">
+          <p className="campo-mapa-aside-hint">
+            Editando perímetro. Arrastrá un vértice para moverlo; doble clic o Supr para quitarlo.
+          </p>
+          {potreroShapeEdit.vertices.length >= 3 ? (
+            <p className="campo-mapa-aside-hint">
+              Superficie:{" "}
+              {(() => {
+                const ha = computeHectareas(potreroShapeEdit.vertices);
+                return ha != null ? formatHectareas(ha) : "—";
+              })()}
+            </p>
+          ) : null}
+          <button
+            type="button"
+            className="campo-mapa-aside-btn campo-mapa-aside-btn--primary"
+            onClick={() => void savePotreroShape()}
+            disabled={potreroShapeEdit.vertices.length < 3 || saving}
+          >
+            Guardar perímetro
+          </button>
+          <button
+            type="button"
+            className="campo-mapa-aside-btn"
+            onClick={deleteSelectedVertex}
+            disabled={selectedVertexIndex == null || saving}
+          >
+            <Trash2 size={15} aria-hidden />
+            Eliminar punto seleccionado
+          </button>
+          <button
+            type="button"
+            className="campo-mapa-aside-btn"
+            onClick={cancelPotreroShapeEdit}
+            disabled={saving}
+          >
+            Cancelar edición
           </button>
         </div>
       ) : null}
@@ -1044,7 +1280,7 @@ export default function CampoMapa({
         </div>
       ) : null}
 
-      {puedeEditar && (selectedPotrero || selectedElemento) && !pendingDraft ? (
+      {puedeEditar && (selectedPotrero || selectedElemento) && !pendingDraft && !potreroShapeEdit ? (
         <div className="campo-mapa-aside-form">
           <p className="campo-mapa-aside-label">
             {selectedPotrero ? "Editar potrero" : "Editar elemento"}
@@ -1056,6 +1292,17 @@ export default function CampoMapa({
           ) : null}
           {selectedElemento ? (
             <p className="campo-mapa-aside-hint">{ELEMENTO_TIPO_LABELS[selectedElemento.tipo]}</p>
+          ) : null}
+          {selectedPotrero ? (
+            <button
+              type="button"
+              className="campo-mapa-aside-btn"
+              onClick={startPotreroShapeEdit}
+              disabled={saving}
+            >
+              <Pencil size={15} aria-hidden />
+              Editar perímetro
+            </button>
           ) : null}
           <label>
             Nombre
@@ -1231,6 +1478,146 @@ export default function CampoMapa({
                 <Layers size={18} aria-hidden />
               </button>
             </div>
+            {showFullscreenWorkDock ? (
+              <div className="campo-mapa-map-work-dock" role="region" aria-label="Acciones del mapa">
+                {mapWorkMode === "sketch" ? (
+                  <>
+                    <p className="campo-mapa-map-work-dock-title">Dibujando</p>
+                    <p className="campo-mapa-map-work-dock-hint">
+                      {sketchVertices.length > 0
+                        ? "Arrastrá un punto para moverlo · Doble clic o Supr para eliminar"
+                        : toolDef.hint}
+                    </p>
+                    <div className="campo-mapa-map-work-dock-actions">
+                      <button
+                        type="button"
+                        className="campo-mapa-map-work-dock-btn campo-mapa-map-work-dock-btn--primary"
+                        onClick={finishSketch}
+                        disabled={sketchVertices.length < minSketchPoints || saving}
+                      >
+                        Finalizar ({sketchVertices.length} pts)
+                      </button>
+                      <button
+                        type="button"
+                        className="campo-mapa-map-work-dock-btn"
+                        onClick={deleteSelectedVertex}
+                        disabled={selectedVertexIndex == null || saving}
+                      >
+                        <Trash2 size={15} aria-hidden />
+                        Eliminar punto
+                      </button>
+                      <button
+                        type="button"
+                        className="campo-mapa-map-work-dock-btn"
+                        onClick={undoSketchPoint}
+                        disabled={sketchVertices.length === 0 || saving}
+                      >
+                        <Undo2 size={15} aria-hidden />
+                        Deshacer último
+                      </button>
+                      <button
+                        type="button"
+                        className="campo-mapa-map-work-dock-btn"
+                        onClick={cancelSketch}
+                        disabled={saving}
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  </>
+                ) : null}
+
+                {mapWorkMode === "potrero-shape" && potreroShapeEdit ? (
+                  <>
+                    <p className="campo-mapa-map-work-dock-title">Editar perímetro</p>
+                    <p className="campo-mapa-map-work-dock-hint">
+                      Arrastrá un vértice · Doble clic o Supr para quitarlo
+                    </p>
+                    {potreroShapeEdit.vertices.length >= 3 ? (
+                      <p className="campo-mapa-map-work-dock-hint">
+                        Superficie:{" "}
+                        {(() => {
+                          const ha = computeHectareas(potreroShapeEdit.vertices);
+                          return ha != null ? formatHectareas(ha) : "—";
+                        })()}
+                      </p>
+                    ) : null}
+                    <div className="campo-mapa-map-work-dock-actions">
+                      <button
+                        type="button"
+                        className="campo-mapa-map-work-dock-btn campo-mapa-map-work-dock-btn--primary"
+                        onClick={() => void savePotreroShape()}
+                        disabled={potreroShapeEdit.vertices.length < 3 || saving}
+                      >
+                        Guardar perímetro
+                      </button>
+                      <button
+                        type="button"
+                        className="campo-mapa-map-work-dock-btn"
+                        onClick={deleteSelectedVertex}
+                        disabled={selectedVertexIndex == null || saving}
+                      >
+                        <Trash2 size={15} aria-hidden />
+                        Eliminar punto
+                      </button>
+                      <button
+                        type="button"
+                        className="campo-mapa-map-work-dock-btn"
+                        onClick={cancelPotreroShapeEdit}
+                        disabled={saving}
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  </>
+                ) : null}
+
+                {mapWorkMode === "draft" && pendingDraft ? (
+                  <>
+                    <p className="campo-mapa-map-work-dock-title">{draftLabel(pendingDraft.sourceTool)}</p>
+                    {pendingDraft.hectareas != null ? (
+                      <p className="campo-mapa-map-work-dock-hint">
+                        Superficie: {formatHectareas(pendingDraft.hectareas)}
+                      </p>
+                    ) : null}
+                    {pendingDraft.distanceMeters != null ? (
+                      <p className="campo-mapa-map-work-dock-hint">
+                        Distancia: {formatDistance(pendingDraft.distanceMeters)}
+                      </p>
+                    ) : null}
+                    <label className="campo-mapa-map-work-dock-field">
+                      <span className="sr-only">Nombre</span>
+                      <input
+                        className="campo-mapa-map-work-dock-input"
+                        value={formNombre}
+                        onChange={(e) => setFormNombre(e.target.value)}
+                        placeholder="Nombre en el mapa"
+                        maxLength={48}
+                      />
+                    </label>
+                    <div className="campo-mapa-map-work-dock-actions">
+                      <button
+                        type="button"
+                        className="campo-mapa-map-work-dock-btn campo-mapa-map-work-dock-btn--primary"
+                        onClick={() => void savePending()}
+                        disabled={saving || !formNombre.trim()}
+                      >
+                        <Plus size={15} aria-hidden />
+                        {pendingDraft.isMeasurement ? "Guardar medición" : "Guardar"}
+                      </button>
+                      <button
+                        type="button"
+                        className="campo-mapa-map-work-dock-btn"
+                        onClick={clearDraftOverlay}
+                        disabled={saving}
+                      >
+                        Descartar
+                      </button>
+                    </div>
+                  </>
+                ) : null}
+              </div>
+            ) : null}
             {mapHint ? <div className="campo-mapa-map-hint">{mapHint}</div> : null}
           </div>
         </div>
