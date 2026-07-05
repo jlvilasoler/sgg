@@ -288,6 +288,7 @@ export interface CampoPotreroMapa {
   color: string;
   hectareas: number | null;
   notas: string;
+  metadata: string;
   creado_en: string;
   actualizado_en: string;
 }

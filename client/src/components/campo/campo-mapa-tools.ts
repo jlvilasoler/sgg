@@ -46,7 +46,7 @@ export const CAMPO_MAPA_TOOLS: CampoMapaToolDef[] = [
   {
     id: "area",
     label: "Área",
-    hint: "Dibujá un polígono para marcar un área.",
+    hint: "Dibujá el polígono; al finalizar podés guardarlo como potrero.",
     group: "dibujar",
   },
   {

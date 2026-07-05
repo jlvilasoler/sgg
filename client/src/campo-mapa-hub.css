@@ -776,6 +776,156 @@
   background: rgba(255, 255, 255, 0.94);
 }
 
+.campo-mapa-draft-tipo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.campo-mapa-draft-tipo-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--sg-hub-sidebar-muted, rgba(248, 246, 240, 0.55));
+}
+
+.campo-mapa-draft-tipo-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.35rem;
+}
+
+.campo-mapa-draft-tipo-btn {
+  padding: 0.42rem 0.55rem;
+  border-radius: 0.55rem;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.06);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 650;
+  color: rgba(248, 246, 240, 0.88);
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.campo-mapa-draft-tipo-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.campo-mapa-draft-tipo-btn.is-active {
+  background: rgba(124, 179, 66, 0.28);
+  border-color: rgba(124, 179, 66, 0.55);
+  color: #d9f99d;
+}
+
+.campo-mapa-draft-tipo-hint {
+  margin: 0;
+}
+
+.campo-mapa-map-work-dock-tipo {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.32rem;
+}
+
+.campo-mapa-map-work-dock-tipo-btn {
+  padding: 0.38rem 0.5rem;
+  border-radius: 0.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.06);
+  font: inherit;
+  font-size: 0.74rem;
+  font-weight: 650;
+  color: #f8f6f0;
+  cursor: pointer;
+}
+
+.campo-mapa-map-work-dock-tipo-btn.is-active {
+  background: rgba(124, 179, 66, 0.32);
+  border-color: rgba(124, 179, 66, 0.52);
+  color: #ecfccb;
+}
+
+.campo-mapa-dispositivos-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin-top: 0.25rem;
+}
+
+.campo-mapa-dispositivos-picker-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.campo-mapa-dispositivos-picker-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--sg-hub-sidebar-muted, rgba(248, 246, 240, 0.55));
+}
+
+.campo-mapa-dispositivos-picker-count {
+  font-size: 0.72rem;
+  color: #a3e635;
+  font-weight: 650;
+}
+
+.campo-mapa-dispositivos-picker-search {
+  width: 100%;
+  border-radius: 0.55rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 0.42rem 0.55rem;
+  font: inherit;
+  font-size: 0.78rem;
+  color: #1e2329;
+  background: rgba(255, 255, 255, 0.94);
+}
+
+.campo-mapa-dispositivos-picker-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.campo-mapa-dispositivos-picker-group-title {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: rgba(248, 246, 240, 0.82);
+}
+
+.campo-mapa-dispositivos-picker-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 8.5rem;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.campo-mapa-dispositivos-picker-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+  font-size: 0.74rem;
+  color: rgba(248, 246, 240, 0.88);
+  cursor: pointer;
+}
+
+.campo-mapa-dispositivos-picker-item input {
+  margin-top: 0.15rem;
+  flex-shrink: 0;
+}
+
 @media (max-width: 900px) {
   .campo-mapa-workspace {
     padding: 0 0.45rem 0.45rem;

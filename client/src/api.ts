@@ -1144,6 +1144,7 @@ export async function createCampoPotreroMapa(body: {
   color?: string;
   hectareas?: number | null;
   notas?: string;
+  metadata?: Record<string, unknown>;
 }): Promise<CampoPotreroMapa> {
   const json = await request<{ data: CampoPotreroMapa }>("/campo-potreros", {
     method: "POST",
@@ -1160,6 +1161,7 @@ export async function updateCampoPotreroMapa(
     color?: string;
     hectareas?: number | null;
     notas?: string;
+    metadata?: Record<string, unknown>;
   },
 ): Promise<CampoPotreroMapa> {
   const json = await request<{ data: CampoPotreroMapa }>(`/campo-potreros/${id}`, {
@@ -2078,6 +2080,8 @@ export async function saveStockEquinaDispositivo(
     empresa: DispositivoEmpresa;
     grupo: string;
     grupo_libre: string;
+    potrero?: string;
+    raza?: string;
     nacimiento_mes: number | null;
     nacimiento_anio: number | null;
     observaciones: string;
@@ -2093,6 +2097,8 @@ export async function saveStockEquinaDispositivo(
   empresa: DispositivoEmpresa;
   grupo: string;
   grupo_libre: string;
+  potrero: string;
+  raza: string;
   edad: number | null;
   nacimiento_mes: number | null;
   nacimiento_anio: number | null;
@@ -2109,6 +2115,8 @@ export async function saveStockEquinaDispositivo(
       empresa: DispositivoEmpresa;
       grupo: string;
       grupo_libre: string;
+      potrero: string;
+      raza: string;
       edad: number | null;
       nacimiento_mes: number | null;
       nacimiento_anio: number | null;

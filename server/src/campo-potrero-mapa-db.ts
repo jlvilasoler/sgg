@@ -9,6 +9,7 @@ export interface CampoPotreroMapaRow {
   color: string;
   hectareas: number | null;
   notas: string;
+  metadata: string;
   creado_en: string;
   actualizado_en: string;
 }
@@ -19,6 +20,7 @@ export interface CampoPotreroMapaInput {
   color?: string;
   hectareas?: number | null;
   notas?: string;
+  metadata?: Record<string, unknown>;
 }
 
 const POTRERO_COLORS = [
@@ -41,6 +43,7 @@ function rowToCampoPotrero(row: Record<string, unknown>): CampoPotreroMapaRow {
     color: String(row.color ?? POTRERO_COLORS[0]),
     hectareas: row.hectareas != null ? Number(row.hectareas) : null,
     notas: String(row.notas ?? ""),
+    metadata: String(row.metadata ?? "{}"),
     creado_en: String(row.creado_en ?? ""),
     actualizado_en: String(row.actualizado_en ?? ""),
   };
@@ -75,6 +78,15 @@ function normalizeColor(value: string | undefined, fallbackIndex = 0): string {
   return POTRERO_COLORS[fallbackIndex % POTRERO_COLORS.length];
 }
 
+function normalizeMetadata(raw: unknown): string {
+  if (!raw || typeof raw !== "object") return "{}";
+  try {
+    return JSON.stringify(raw);
+  } catch {
+    return "{}";
+  }
+}
+
 export async function initCampoPotreroMapaTable(db: Db): Promise<void> {
   await db
     .prepare(
@@ -98,6 +110,10 @@ export async function initCampoPotreroMapaTable(db: Db): Promise<void> {
        ON CAMPO_POTRERO_MAPA(cuenta_id)`,
     )
     .run();
+
+  await db
+    .prepare(`ALTER TABLE CAMPO_POTRERO_MAPA ADD COLUMN IF NOT EXISTS metadata TEXT NOT NULL DEFAULT '{}'`)
+    .run();
 }
 
 export async function listCampoPotrerosMapa(
@@ -106,7 +122,7 @@ export async function listCampoPotrerosMapa(
 ): Promise<CampoPotreroMapaRow[]> {
   const rows = (await db
     .prepare(
-      `SELECT id, cuenta_id, nombre, geojson, color, hectareas, notas, creado_en, actualizado_en
+      `SELECT id, cuenta_id, nombre, geojson, color, hectareas, notas, metadata, creado_en, actualizado_en
        FROM CAMPO_POTRERO_MAPA
        WHERE cuenta_id = ?
        ORDER BY LOWER(nombre) ASC, id ASC`,
@@ -122,7 +138,7 @@ export async function getCampoPotreroMapaById(
 ): Promise<CampoPotreroMapaRow | null> {
   const row = (await db
     .prepare(
-      `SELECT id, cuenta_id, nombre, geojson, color, hectareas, notas, creado_en, actualizado_en
+      `SELECT id, cuenta_id, nombre, geojson, color, hectareas, notas, metadata, creado_en, actualizado_en
        FROM CAMPO_POTRERO_MAPA
        WHERE cuenta_id = ? AND id = ?
        LIMIT 1`,
@@ -151,14 +167,15 @@ export async function createCampoPotreroMapa(
       ? Number(input.hectareas)
       : null;
   const notas = String(input.notas ?? "").trim().slice(0, 500);
+  const metadata = normalizeMetadata(input.metadata);
 
   const inserted = (await db
     .prepare(
-      `INSERT INTO CAMPO_POTRERO_MAPA (cuenta_id, nombre, geojson, color, hectareas, notas)
-       VALUES (?, ?, ?, ?, ?, ?)
-       RETURNING id, cuenta_id, nombre, geojson, color, hectareas, notas, creado_en, actualizado_en`,
+      `INSERT INTO CAMPO_POTRERO_MAPA (cuenta_id, nombre, geojson, color, hectareas, notas, metadata)
+       VALUES (?, ?, ?, ?, ?, ?, ?)
+       RETURNING id, cuenta_id, nombre, geojson, color, hectareas, notas, metadata, creado_en, actualizado_en`,
     )
-    .get(cuentaId, nombre, geojson, color, hectareas, notas)) as Record<string, unknown>;
+    .get(cuentaId, nombre, geojson, color, hectareas, notas, metadata)) as Record<string, unknown>;
 
   await ensurePotreroEnCatalogo(db, cuentaId, nombre);
   return rowToCampoPotrero(inserted);
@@ -188,15 +205,17 @@ export async function updateCampoPotreroMapa(
       : existing.hectareas;
   const notas =
     input.notas !== undefined ? String(input.notas ?? "").trim().slice(0, 500) : existing.notas;
+  const metadata =
+    input.metadata !== undefined ? normalizeMetadata(input.metadata) : existing.metadata;
 
   const updated = (await db
     .prepare(
       `UPDATE CAMPO_POTRERO_MAPA
-       SET nombre = ?, geojson = ?, color = ?, hectareas = ?, notas = ?, actualizado_en = NOW()
+       SET nombre = ?, geojson = ?, color = ?, hectareas = ?, notas = ?, metadata = ?, actualizado_en = NOW()
        WHERE cuenta_id = ? AND id = ?
-       RETURNING id, cuenta_id, nombre, geojson, color, hectareas, notas, creado_en, actualizado_en`,
+       RETURNING id, cuenta_id, nombre, geojson, color, hectareas, notas, metadata, creado_en, actualizado_en`,
     )
-    .get(nombre, geojson, color, hectareas, notas, cuentaId, id)) as Record<string, unknown>;
+    .get(nombre, geojson, color, hectareas, notas, metadata, cuentaId, id)) as Record<string, unknown>;
 
   await ensurePotreroEnCatalogo(db, cuentaId, nombre);
   return rowToCampoPotrero(updated);

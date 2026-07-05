@@ -2,15 +2,15 @@ import type { LucideIcon } from "lucide-react";
 import {
   Bookmark,
   Hand,
+  LandPlot,
   MapPin,
   MessageSquare,
   Minus,
-  Pencil,
   Pentagon,
   Ruler,
   Scan,
 } from "lucide-react";
-import type { CampoMapaTool } from "./campo-mapa-tools";
+import { getToolDef, type CampoMapaTool } from "./campo-mapa-tools";
 
 export const CAMPO_MAPA_TOOL_ICONS: Record<CampoMapaTool, LucideIcon> = {
   navegar: Hand,
@@ -18,7 +18,7 @@ export const CAMPO_MAPA_TOOL_ICONS: Record<CampoMapaTool, LucideIcon> = {
   nota: MessageSquare,
   linea: Minus,
   area: Pentagon,
-  potrero: Pencil,
+  potrero: LandPlot,
   medir_distancia: Ruler,
   medir_area: Scan,
   clip: Bookmark,
@@ -62,7 +62,7 @@ export default function CampoMapaToolbar({
                   title={
                     isClip
                       ? "Guardar clip de la vista actual"
-                      : tool.charAt(0).toUpperCase() + tool.slice(1)
+                      : getToolDef(tool).label
                   }
                   onClick={() => {
                     if (isClip) {

@@ -1,8 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
+  ArrowRight,
   CalendarDays,
+  CheckCircle2,
   ChevronLeft,
   ChevronRight,
+  CircleDashed,
   ClipboardList,
   MapPin,
   Plus,
@@ -85,6 +88,13 @@ type FormState = {
 
 type ModalMode = "rutina" | "ejecucion";
 
+type DayPopoverState = {
+  date: string;
+  left: number;
+  top: number;
+  placement: "above" | "below";
+};
+
 function emptyForm(diaSemana: OperativaDiaSemana): FormState {
   return {
     titulo: "",
@@ -122,6 +132,8 @@ export default function TareasOperativas({
 }: Props) {
   const onErrorRef = useRef(onError);
   onErrorRef.current = onError;
+  const calendarFrameRef = useRef<HTMLDivElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
   const puedeEditar = canWriteTareasOperativas(currentUser);
   const cuentaNombre =
     currentUser.cuenta_actividad_nombre?.trim() ||
@@ -148,6 +160,7 @@ export default function TareasOperativas({
   const [registroTexto, setRegistroTexto] = useState("");
   const [registroResultados, setRegistroResultados] = useState("");
   const [filtroAsignado, setFiltroAsignado] = useState("");
+  const [dayPopover, setDayPopover] = useState<DayPopoverState | null>(null);
 
   const monthCells = useMemo(
     () => buildMonthCells(viewYear, viewMonth),
@@ -172,10 +185,32 @@ export default function TareasOperativas({
     [rutinas, selectedDate],
   );
 
+  const popoverRutinas = useMemo(() => {
+    if (!dayPopover) return [];
+    return rutinas
+      .filter((r) => rutinaEnDia(r, dayPopover.date))
+      .sort((a, b) => a.titulo.localeCompare(b.titulo));
+  }, [dayPopover, rutinas]);
+
   const tareasRegistradasIds = useMemo(
     () => new Set(registrosDia.map((r) => r.tarea_id)),
     [registrosDia],
   );
+
+  const stats = useMemo(() => {
+    const delDia = rutinasDelDia.length;
+    const registradas = rutinasDelDia.filter((t) => tareasRegistradasIds.has(t.id)).length;
+    const pendientes = delDia - registradas;
+    const pct = delDia > 0 ? Math.round((registradas / delDia) * 100) : 0;
+    return {
+      totalRutinas: rutinas.length,
+      delDia,
+      registradas,
+      pendientes,
+      pct,
+      diaSemana: OPERATIVA_DIA_SEMANA_LABELS[isoWeekday(selectedDate) as OperativaDiaSemana],
+    };
+  }, [rutinas.length, rutinasDelDia, tareasRegistradasIds, selectedDate]);
 
   const loadData = useCallback(async () => {
     if (!apiOnline) {
@@ -222,10 +257,75 @@ export default function TareasOperativas({
     void loadRegistrosDia(selectedDate);
   }, [selectedDate, loadRegistrosDia]);
 
-  const openCreateRutina = () => {
+  useEffect(() => {
+    if (!dayPopover) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setDayPopover(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [dayPopover]);
+
+  useEffect(() => {
+    if (!dayPopover) return;
+    const onPointerDown = (e: PointerEvent) => {
+      const target = e.target as Node;
+      if (popoverRef.current?.contains(target)) return;
+      if ((e.target as HTMLElement).closest?.(".tareas-op-day")) return;
+      setDayPopover(null);
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, [dayPopover]);
+
+  useLayoutEffect(() => {
+    if (!dayPopover || !popoverRef.current || !calendarFrameRef.current) return;
+    const pop = popoverRef.current;
+    const frame = calendarFrameRef.current;
+    const popWidth = pop.offsetWidth;
+    const frameWidth = frame.clientWidth;
+    const half = popWidth / 2 + 8;
+    const clampedLeft = Math.min(Math.max(dayPopover.left, half), frameWidth - half);
+    if (Math.abs(clampedLeft - dayPopover.left) > 1) {
+      setDayPopover((prev) => (prev ? { ...prev, left: clampedLeft } : null));
+    }
+  }, [dayPopover?.date, dayPopover?.left, dayPopover?.top, dayPopover?.placement, popoverRutinas.length]);
+
+  const openDayPopover = (iso: string, cell: HTMLButtonElement) => {
+    setSelectedDate(iso);
+    const frame = calendarFrameRef.current;
+    if (!frame) {
+      setDayPopover({ date: iso, left: 50, top: 80, placement: "below" });
+      return;
+    }
+    const cellRect = cell.getBoundingClientRect();
+    const frameRect = frame.getBoundingClientRect();
+    const centerX = cellRect.left - frameRect.left + cellRect.width / 2;
+    const belowTop = cellRect.bottom - frameRect.top + 10;
+    const aboveTop = cellRect.top - frameRect.top - 10;
+    const preferAbove = belowTop > frame.clientHeight - 190;
+    setDayPopover({
+      date: iso,
+      left: centerX,
+      top: preferAbove ? aboveTop : belowTop,
+      placement: preferAbove ? "above" : "below",
+    });
+  };
+
+  const handleDayClick = (iso: string, e: React.MouseEvent<HTMLButtonElement>) => {
+    if (dayPopover?.date === iso) {
+      setDayPopover(null);
+      return;
+    }
+    openDayPopover(iso, e.currentTarget);
+  };
+
+  const openCreateRutina = (dateIso?: string) => {
+    setDayPopover(null);
+    const iso = dateIso ?? selectedDate;
     setModalMode("rutina");
     setEditing(null);
-    setForm(emptyForm(isoWeekday(selectedDate) as OperativaDiaSemana));
+    setForm(emptyForm(isoWeekday(iso) as OperativaDiaSemana));
     setRegistros([]);
     setRegistroTexto("");
     setRegistroResultados("");
@@ -233,6 +333,7 @@ export default function TareasOperativas({
   };
 
   const openEjecucion = async (t: OperativaTarea) => {
+    setDayPopover(null);
     setModalMode("ejecucion");
     setEditing(t);
     setForm(tareaToForm(t));
@@ -331,6 +432,7 @@ export default function TareasOperativas({
   };
 
   const prevMonth = () => {
+    setDayPopover(null);
     if (viewMonth === 0) {
       setViewYear((y) => y - 1);
       setViewMonth(11);
@@ -340,6 +442,7 @@ export default function TareasOperativas({
   };
 
   const nextMonth = () => {
+    setDayPopover(null);
     if (viewMonth === 11) {
       setViewYear((y) => y + 1);
       setViewMonth(0);
@@ -365,6 +468,22 @@ export default function TareasOperativas({
       ? "Definí qué se hace, dónde y quién lo lleva cada semana."
       : `Documentá lo hecho el ${formatFechaLarga(selectedDate)} y los resultados.`;
 
+  const goToday = () => {
+    setDayPopover(null);
+    const today = toIsoDate(new Date());
+    setSelectedDate(today);
+    const d = parseIsoDate(today);
+    setViewYear(d.getFullYear());
+    setViewMonth(d.getMonth());
+  };
+
+  const headerActions = puedeEditar ? (
+    <button type="button" className="sg-hub-cta" onClick={() => openCreateRutina()}>
+      <Plus size={16} aria-hidden />
+      Nueva rutina
+    </button>
+  ) : null;
+
   return (
     <div className="sg-module-page tareas-op-module-page">
       <SgHubShell
@@ -384,13 +503,47 @@ export default function TareasOperativas({
         navAriaLabel="Tareas operativas"
         showDashboardInNav={false}
         showApiStatus={false}
+        headerActions={headerActions}
         hubClassName="tareas-op-hub"
       >
         <div className="tareas-op-workspace">
+          <p className="tareas-op-periodo muted" role="status">
+            {loading
+              ? "Actualizando almanaque…"
+              : !apiOnline
+                ? "Sin conexión con la API"
+                : `${stats.totalRutinas} rutina${stats.totalRutinas === 1 ? "" : "s"} activas · ${MESES_ES[viewMonth]} ${viewYear}`}
+          </p>
+
+          <div className="sg-hub-kpi-strip tareas-op-kpi-strip" aria-label="Resumen del día">
+            <article className="sg-hub-kpi">
+              <p className="sg-hub-kpi-kicker">Rutinas activas</p>
+              <p className="sg-hub-kpi-value">{loading ? "—" : stats.totalRutinas}</p>
+              <p className="sg-hub-kpi-hint">Programadas por día de la semana</p>
+            </article>
+            <article className="sg-hub-kpi">
+              <p className="sg-hub-kpi-kicker">Hoy · {stats.diaSemana}</p>
+              <p className="sg-hub-kpi-value">{loading ? "—" : stats.delDia}</p>
+              <p className="sg-hub-kpi-hint">Tareas previstas para el día seleccionado</p>
+            </article>
+            <article className="sg-hub-kpi">
+              <p className="sg-hub-kpi-kicker">Pendientes</p>
+              <p className="sg-hub-kpi-value">{loading ? "—" : stats.pendientes}</p>
+              <p className="sg-hub-kpi-hint">Sin registro de trabajo todavía</p>
+            </article>
+            <article className="sg-hub-kpi sg-hub-kpi--dark">
+              <p className="sg-hub-kpi-kicker">Registradas</p>
+              <p className="sg-hub-kpi-value">{loading ? "—" : stats.registradas}</p>
+              <p className="sg-hub-kpi-hint">
+                {stats.delDia > 0 ? `${stats.pct}% del día completado` : "Sin tareas este día"}
+              </p>
+            </article>
+          </div>
+
           <div className="tareas-op-toolbar">
             <div className="tareas-op-toolbar-filters">
-              <label>
-                Responsable
+              <label className="tareas-op-filter">
+                <span className="tareas-op-filter-label">Responsable</span>
                 <select
                   value={filtroAsignado}
                   onChange={(e) => setFiltroAsignado(e.target.value)}
@@ -404,34 +557,45 @@ export default function TareasOperativas({
                 </select>
               </label>
             </div>
-            {puedeEditar ? (
-              <button
-                type="button"
-                className="tareas-op-btn tareas-op-btn--primary"
-                onClick={openCreateRutina}
-              >
-                <Plus size={16} aria-hidden />
-                Nueva rutina
-              </button>
-            ) : null}
+            <button type="button" className="tareas-op-today-btn" onClick={goToday}>
+              Ir a hoy
+            </button>
           </div>
 
           <div className="tareas-op-grid">
-            <section className="tareas-op-box tareas-op-calendar" aria-label="Almanaque mensual">
-              <header className="tareas-op-box-head">
-                <button type="button" className="tareas-op-icon-btn" onClick={prevMonth} aria-label="Mes anterior">
-                  <ChevronLeft size={18} />
-                </button>
-                <h2>
-                  <CalendarDays size={18} aria-hidden />
-                  {MESES_ES[viewMonth]} {viewYear}
-                </h2>
-                <button type="button" className="tareas-op-icon-btn" onClick={nextMonth} aria-label="Mes siguiente">
-                  <ChevronRight size={18} />
-                </button>
+            <section
+              className="sg-hub-panel tareas-op-panel tareas-op-calendar"
+              aria-label="Almanaque mensual"
+            >
+              <header className="tareas-op-panel-head">
+                <div>
+                  <p className="sg-hub-panel-kicker">Calendario</p>
+                  <h2 className="sg-hub-panel-title">
+                    <CalendarDays size={18} aria-hidden />
+                    {MESES_ES[viewMonth]} {viewYear}
+                  </h2>
+                </div>
+                <div className="tareas-op-month-nav">
+                  <button
+                    type="button"
+                    className="tareas-op-icon-btn"
+                    onClick={prevMonth}
+                    aria-label="Mes anterior"
+                  >
+                    <ChevronLeft size={18} />
+                  </button>
+                  <button
+                    type="button"
+                    className="tareas-op-icon-btn"
+                    onClick={nextMonth}
+                    aria-label="Mes siguiente"
+                  >
+                    <ChevronRight size={18} />
+                  </button>
+                </div>
               </header>
 
-              <div className="tareas-op-calendar-frame">
+              <div className="tareas-op-calendar-frame" ref={calendarFrameRef}>
                 <div className="tareas-op-calendar-weekdays">
                   {DIAS_SEMANA_CORTO.map((d) => (
                     <span key={d}>{d}</span>
@@ -452,12 +616,16 @@ export default function TareasOperativas({
                         className={[
                           "tareas-op-day",
                           selectedDate === iso ? "is-selected" : "",
+                          dayPopover?.date === iso ? "is-popover-open" : "",
                           isToday(iso) ? "is-today" : "",
                           !inMonth ? "is-outside" : "",
+                          dayRutinas.length > 0 ? "has-rutinas" : "",
                         ]
                           .filter(Boolean)
                           .join(" ")}
-                        onClick={() => setSelectedDate(iso)}
+                        onClick={(e) => handleDayClick(iso, e)}
+                        aria-expanded={dayPopover?.date === iso}
+                        aria-haspopup="dialog"
                       >
                         <span className="tareas-op-day-num">{parseIsoDate(iso).getDate()}</span>
                         {dayRutinas.length > 0 ? (
@@ -471,77 +639,247 @@ export default function TareasOperativas({
                     );
                   })}
                 </div>
+
+                {dayPopover ? (
+                  <div
+                    ref={popoverRef}
+                    className={`tareas-op-day-popover tareas-op-day-popover--${dayPopover.placement}`}
+                    style={{ left: dayPopover.left, top: dayPopover.top }}
+                    role="dialog"
+                    aria-label={`Rutinas del ${formatFechaCorta(dayPopover.date)}`}
+                    onMouseDown={(e) => e.stopPropagation()}
+                  >
+                    <span
+                      className={`tareas-op-day-popover-arrow tareas-op-day-popover-arrow--${dayPopover.placement}`}
+                      aria-hidden
+                    />
+                    <header className="tareas-op-day-popover-head">
+                      <div>
+                        <p className="tareas-op-day-popover-kicker">
+                          {
+                            OPERATIVA_DIA_SEMANA_LABELS[
+                              isoWeekday(dayPopover.date) as OperativaDiaSemana
+                            ]
+                          }
+                        </p>
+                        <p className="tareas-op-day-popover-title">
+                          {formatFechaCorta(dayPopover.date)}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        className="tareas-op-day-popover-close"
+                        onClick={() => setDayPopover(null)}
+                        aria-label="Cerrar"
+                      >
+                        <X size={14} aria-hidden />
+                      </button>
+                    </header>
+
+                    <div className="tareas-op-day-popover-body">
+                      {popoverRutinas.length === 0 ? (
+                        <div className="tareas-op-day-popover-empty-wrap">
+                          <p className="tareas-op-day-popover-empty">
+                            No hay rutinas para este día de la semana.
+                          </p>
+                          {puedeEditar ? (
+                            <button
+                              type="button"
+                              className="sg-hub-cta sg-hub-cta--compact tareas-op-day-popover-cta"
+                              onClick={() => openCreateRutina(dayPopover.date)}
+                            >
+                              <Plus size={14} aria-hidden />
+                              Crear rutina
+                            </button>
+                          ) : (
+                            <p className="tareas-op-day-popover-hint">
+                              Las rutinas se repiten cada semana según el día elegido.
+                            </p>
+                          )}
+                        </div>
+                      ) : (
+                        <>
+                          <ul className="tareas-op-day-popover-list">
+                            {popoverRutinas.map((t) => {
+                              const registrado =
+                                dayPopover.date === selectedDate &&
+                                tareasRegistradasIds.has(t.id);
+                              return (
+                                <li key={t.id}>
+                                  <button
+                                    type="button"
+                                    className={`tareas-op-day-popover-item${registrado ? " is-done" : ""}`}
+                                    onClick={() => void openEjecucion(t)}
+                                  >
+                                    <span className="tareas-op-day-popover-item-icon" aria-hidden>
+                                      {registrado ? (
+                                        <CheckCircle2 size={14} />
+                                      ) : (
+                                        <CircleDashed size={14} />
+                                      )}
+                                    </span>
+                                    <span className="tareas-op-day-popover-item-body">
+                                      <strong>{t.titulo}</strong>
+                                      {lugarLabel(t) ? (
+                                        <small>{lugarLabel(t)}</small>
+                                      ) : null}
+                                      {t.asignado_nombre ? (
+                                        <small className="tareas-op-day-popover-assignee">
+                                          {t.asignado_nombre}
+                                        </small>
+                                      ) : null}
+                                    </span>
+                                    <span
+                                      className={`tareas-op-estado ${
+                                        registrado
+                                          ? "tareas-op-estado--hecha"
+                                          : "tareas-op-estado--pendiente"
+                                      }`}
+                                    >
+                                      {registrado ? "Hecho" : "Pend."}
+                                    </span>
+                                  </button>
+                                </li>
+                              );
+                            })}
+                          </ul>
+                          {puedeEditar ? (
+                            <button
+                              type="button"
+                              className="tareas-op-day-popover-add"
+                              onClick={() => openCreateRutina(dayPopover.date)}
+                            >
+                              <Plus size={13} aria-hidden />
+                              Agregar rutina
+                            </button>
+                          ) : null}
+                        </>
+                      )}
+                    </div>
+                  </div>
+                ) : null}
               </div>
             </section>
 
-            <section className="tareas-op-box tareas-op-day-panel" aria-label="Rutinas del día">
-              <header className="tareas-op-box-head tareas-op-box-head--stack">
+            <section
+              className="sg-hub-panel tareas-op-panel tareas-op-day-panel"
+              aria-label="Rutinas del día"
+            >
+              <header className="tareas-op-panel-head tareas-op-panel-head--stack">
                 <div>
                   <p className="sg-hub-panel-kicker">Día seleccionado</p>
-                  <h2>{formatFechaLarga(selectedDate)}</h2>
+                  <h2 className="sg-hub-panel-title">{formatFechaLarga(selectedDate)}</h2>
                 </div>
+                {stats.delDia > 0 ? (
+                  <div className="tareas-op-day-progress" aria-label="Avance del día">
+                    <span className="tareas-op-day-progress-label">
+                      {stats.registradas}/{stats.delDia} registradas
+                    </span>
+                    <div className="tareas-op-day-progress-track">
+                      <div
+                        className="tareas-op-day-progress-fill"
+                        style={{ width: `${stats.pct}%` }}
+                      />
+                    </div>
+                  </div>
+                ) : null}
               </header>
 
-              {loading ? <p className="tareas-op-hint">Cargando rutinas…</p> : null}
+              {loading ? (
+                <ul className="tareas-op-skeleton-list" aria-busy="true">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <li key={`tareas-skel-${i}`}>
+                      <div className="tareas-op-skeleton-row" aria-hidden>
+                        <span className="tareas-op-skeleton-icon" />
+                        <span className="tareas-op-skeleton-lines">
+                          <span />
+                          <span />
+                        </span>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+
               {!loading && rutinasDelDia.length === 0 ? (
                 <div className="tareas-op-empty">
-                  <ClipboardList size={22} aria-hidden />
-                  <p>No hay rutinas programadas para este día de la semana.</p>
+                  <span className="tareas-op-empty-icon" aria-hidden>
+                    <ClipboardList size={22} />
+                  </span>
+                  <p className="tareas-op-empty-title">Sin rutinas este día</p>
+                  <p className="tareas-op-empty-text">
+                    No hay tareas programadas para los {stats.diaSemana.toLowerCase()}. Creá una rutina
+                    semanal para que aparezca acá cada semana.
+                  </p>
                   {puedeEditar ? (
                     <button
                       type="button"
-                      className="tareas-op-btn tareas-op-btn--primary"
-                      onClick={openCreateRutina}
+                      className="sg-hub-cta tareas-op-empty-cta"
+                      onClick={() => openCreateRutina(selectedDate)}
                     >
                       Crear rutina
+                      <ArrowRight size={15} aria-hidden />
                     </button>
                   ) : null}
                 </div>
               ) : null}
 
-              <ul className="tareas-op-list">
-                {rutinasDelDia.map((t) => {
-                  const registrado = tareasRegistradasIds.has(t.id);
-                  return (
-                    <li key={t.id}>
-                      <button
-                        type="button"
-                        className="tareas-op-card"
-                        onClick={() => void openEjecucion(t)}
-                      >
-                        <div className="tareas-op-card-top">
-                          <strong>{t.titulo}</strong>
-                          <span
-                            className={`tareas-op-estado ${
-                              registrado ? "tareas-op-estado--hecha" : "tareas-op-estado--pendiente"
-                            }`}
-                          >
-                            {registrado ? "Registrado" : "Pendiente"}
+              {!loading && rutinasDelDia.length > 0 ? (
+                <ul className="tareas-op-list">
+                  {rutinasDelDia.map((t) => {
+                    const registrado = tareasRegistradasIds.has(t.id);
+                    return (
+                      <li key={t.id}>
+                        <button
+                          type="button"
+                          className={`tareas-op-task-item${registrado ? " is-done" : ""}`}
+                          onClick={() => void openEjecucion(t)}
+                        >
+                          <span className="tareas-op-task-icon" aria-hidden>
+                            {registrado ? <CheckCircle2 size={18} /> : <CircleDashed size={18} />}
                           </span>
-                        </div>
-                        <div className="tareas-op-card-meta">
-                          <span>
-                            <Repeat size={13} aria-hidden />
-                            Cada {OPERATIVA_DIA_SEMANA_LABELS[(t.dia_semana ?? 0) as OperativaDiaSemana]}
-                          </span>
-                          {t.asignado_nombre ? (
-                            <span>
-                              <Users size={13} aria-hidden />
-                              {t.asignado_nombre}
-                            </span>
-                          ) : null}
-                          {lugarLabel(t) ? (
-                            <span>
-                              <MapPin size={13} aria-hidden />
-                              {lugarLabel(t)}
-                            </span>
-                          ) : null}
-                        </div>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
+                          <div className="tareas-op-task-body">
+                            <div className="tareas-op-task-top">
+                              <strong>{t.titulo}</strong>
+                              <span
+                                className={`tareas-op-estado ${
+                                  registrado
+                                    ? "tareas-op-estado--hecha"
+                                    : "tareas-op-estado--pendiente"
+                                }`}
+                              >
+                                {registrado ? "Registrado" : "Pendiente"}
+                              </span>
+                            </div>
+                            {t.notas?.trim() ? (
+                              <p className="tareas-op-task-notas">{t.notas.trim()}</p>
+                            ) : null}
+                            <div className="tareas-op-task-meta">
+                              <span>
+                                <Repeat size={13} aria-hidden />
+                                Cada {OPERATIVA_DIA_SEMANA_LABELS[(t.dia_semana ?? 0) as OperativaDiaSemana]}
+                              </span>
+                              {t.asignado_nombre ? (
+                                <span>
+                                  <Users size={13} aria-hidden />
+                                  {t.asignado_nombre}
+                                </span>
+                              ) : null}
+                              {lugarLabel(t) ? (
+                                <span>
+                                  <MapPin size={13} aria-hidden />
+                                  {lugarLabel(t)}
+                                </span>
+                              ) : null}
+                            </div>
+                          </div>
+                          <ArrowRight size={16} className="tareas-op-task-chevron" aria-hidden />
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : null}
             </section>
           </div>
         </div>

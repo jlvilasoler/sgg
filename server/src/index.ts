@@ -3105,6 +3105,8 @@ app.post("/api/campo-potreros", async (req, res) => {
       color: typeof body.color === "string" ? body.color : undefined,
       hectareas: body.hectareas,
       notas: typeof body.notas === "string" ? body.notas : undefined,
+      metadata:
+        body.metadata && typeof body.metadata === "object" ? body.metadata : undefined,
     });
     await auditStockMovimiento(req, "MODIFICACION", {
       resumen: `Dibujó potrero ${item.nombre} en el mapa del campo`,
@@ -3141,6 +3143,8 @@ app.put("/api/campo-potreros/:id", async (req, res) => {
       color: typeof body.color === "string" ? body.color : undefined,
       hectareas: body.hectareas,
       notas: typeof body.notas === "string" ? body.notas : undefined,
+      metadata:
+        body.metadata && typeof body.metadata === "object" ? body.metadata : undefined,
     });
     res.json({ ok: true, data: item });
   } catch (e) {

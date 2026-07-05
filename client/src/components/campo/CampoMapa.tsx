@@ -47,6 +47,25 @@ import {
   type CampoMapaTool,
 } from "./campo-mapa-tools";
 import CampoMapaToolbar from "./CampoMapaToolbar";
+import CampoMapaDispositivosPicker from "./CampoMapaDispositivosPicker";
+import {
+  availableSaveTargets,
+  draftGeometryFromDraft,
+  draftNombrePlaceholder,
+  draftSaveButton,
+  draftTitle,
+  markerPointFromDraft,
+  saveTargetHint,
+  saveTargetLabel,
+  type DraftSaveTarget,
+} from "./campo-mapa-draft";
+import {
+  emptyCampoMapaDispositivosMetadata,
+  mergeCampoMapaMetadata,
+  parseCampoMapaDispositivosMetadata,
+  type CampoMapaDispositivosMetadata,
+} from "./campo-mapa-metadata";
+import { syncCampoMapaDispositivosPotrero } from "./campo-mapa-sync-dispositivos";
 import type { AuthUser } from "../../types";
 import { canWriteCampoMapa } from "../../utils/auth-permissions";
 
@@ -164,6 +183,14 @@ export default function CampoMapa({
   const [pendingDraft, setPendingDraft] = useState<PendingDraft | null>(null);
   const [formNombre, setFormNombre] = useState("");
   const [formNotas, setFormNotas] = useState("");
+  const [draftSaveTarget, setDraftSaveTarget] = useState<DraftSaveTarget>("potrero");
+  const [editDispositivos, setEditDispositivos] = useState<CampoMapaDispositivosMetadata>(
+    emptyCampoMapaDispositivosMetadata(),
+  );
+  const editDispositivosPrevRef = useRef<CampoMapaDispositivosMetadata>(
+    emptyCampoMapaDispositivosMetadata(),
+  );
+  const editNombrePrevRef = useRef("");
   const [potreros, setPotreros] = useState<CampoPotreroMapa[]>([]);
   const [elementos, setElementos] = useState<CampoMapaElemento[]>([]);
   const [loading, setLoading] = useState(true);
@@ -322,12 +349,20 @@ export default function CampoMapa({
     if (!selectedPotrero && !selectedElemento) {
       setEditNombre("");
       setEditNotas("");
+      setEditDispositivos(emptyCampoMapaDispositivosMetadata());
+      editDispositivosPrevRef.current = emptyCampoMapaDispositivosMetadata();
+      editNombrePrevRef.current = "";
       return;
     }
     const item = selectedPotrero ?? selectedElemento;
     if (!item) return;
     setEditNombre(item.nombre);
     setEditNotas(item.notas);
+    const metaRaw = selectedPotrero?.metadata ?? selectedElemento?.metadata;
+    const dispositivos = parseCampoMapaDispositivosMetadata(metaRaw);
+    setEditDispositivos(dispositivos);
+    editDispositivosPrevRef.current = dispositivos;
+    editNombrePrevRef.current = item.nombre;
   }, [selectedPotrero, selectedElemento]);
 
   const clearSketchOverlay = useCallback(() => {
@@ -352,6 +387,7 @@ export default function CampoMapa({
     setPendingDraft(null);
     setFormNombre("");
     setFormNotas("");
+    setDraftSaveTarget("potrero");
   }, []);
 
   const selectPotrero = useCallback((id: number) => {
@@ -568,6 +604,7 @@ export default function CampoMapa({
         setSelection(null);
         clearSketchOverlay();
         setPendingDraft({ sourceTool: activeTool, point });
+        setDraftSaveTarget("marcador");
         const sinGeometria = !cuentaTieneGeometriaEnMapa(potreros, elementos);
         setFormNombre(
           activeTool === "nota"
@@ -871,6 +908,7 @@ export default function CampoMapa({
     }
 
     if (activeTool === "potrero") {
+      setDraftSaveTarget("potrero");
       setPendingDraft({
         sourceTool: activeTool,
         paths,
@@ -882,19 +920,21 @@ export default function CampoMapa({
     }
 
     if (activeTool === "linea") {
+      setDraftSaveTarget("linea");
       setPendingDraft({ sourceTool: activeTool, paths });
-      setFormNombre("Línea");
+      setFormNombre("");
       setFormNotas("");
       return;
     }
 
     if (activeTool === "area") {
+      setDraftSaveTarget("potrero");
       setPendingDraft({
         sourceTool: activeTool,
         paths,
         hectareas: computeHectareas(paths),
       });
-      setFormNombre("Área");
+      setFormNombre("");
       setFormNotas("");
     }
   };
@@ -907,10 +947,13 @@ export default function CampoMapa({
 
     setSaving(true);
     try {
-      if (pendingDraft.sourceTool === "potrero") {
+      const target =
+        pendingDraft.isMeasurement || pendingDraft.point ? null : draftSaveTarget;
+
+      if (target === "potrero" && pendingDraft.paths) {
         const created = await createCampoPotreroMapa({
           nombre: formNombre.trim(),
-          geojson: JSON.parse(pathsToGeoJson(pendingDraft.paths ?? [])),
+          geojson: JSON.parse(pathsToGeoJson(pendingDraft.paths)),
           hectareas: pendingDraft.hectareas ?? null,
           notas: formNotas,
         });
@@ -918,6 +961,42 @@ export default function CampoMapa({
           [...prev, created].sort((a, b) => a.nombre.localeCompare(b.nombre)),
         );
         setSelection({ kind: "potrero", id: created.id });
+      } else if (target === "marcador") {
+        const point = markerPointFromDraft(pendingDraft);
+        if (!point) throw new Error("No se pudo determinar el punto del marcador.");
+        const created = await createCampoMapaElemento({
+          tipo: "marcador",
+          nombre: formNombre.trim(),
+          geojson: JSON.parse(pointToGeoJson(point)),
+          notas: formNotas,
+        });
+        setElementos((prev) =>
+          [...prev, created].sort((a, b) => a.nombre.localeCompare(b.nombre)),
+        );
+        setSelection({ kind: "elemento", id: created.id });
+      } else if (target === "area" && pendingDraft.paths) {
+        const created = await createCampoMapaElemento({
+          tipo: "area",
+          nombre: formNombre.trim(),
+          geojson: JSON.parse(pathsToGeoJson(pendingDraft.paths)),
+          notas: formNotas,
+          metadata: pendingDraft.metadata,
+        });
+        setElementos((prev) =>
+          [...prev, created].sort((a, b) => a.nombre.localeCompare(b.nombre)),
+        );
+        setSelection({ kind: "elemento", id: created.id });
+      } else if (target === "linea" && pendingDraft.paths) {
+        const created = await createCampoMapaElemento({
+          tipo: "linea",
+          nombre: formNombre.trim(),
+          geojson: JSON.parse(pathsToLineGeoJson(pendingDraft.paths)),
+          notas: formNotas,
+        });
+        setElementos((prev) =>
+          [...prev, created].sort((a, b) => a.nombre.localeCompare(b.nombre)),
+        );
+        setSelection({ kind: "elemento", id: created.id });
       } else {
         const tipo = toolToElementoTipo(pendingDraft.sourceTool);
         if (!tipo) return;
@@ -949,7 +1028,17 @@ export default function CampoMapa({
 
       clearDraftOverlay();
       setActiveTool("navegar");
-      onSuccess(saveSuccessMessage(pendingDraft.sourceTool));
+      const successMsg =
+        target === "potrero"
+          ? "Potrero guardado en el mapa."
+          : target === "marcador"
+            ? "Marcador guardado en el mapa."
+            : target === "area"
+              ? "Área guardada en el mapa."
+              : target === "linea"
+                ? "Línea guardada en el mapa."
+                : saveSuccessMessage(pendingDraft.sourceTool);
+      onSuccess(successMsg);
     } catch (e) {
       onError(e instanceof Error ? e.message : "No se pudo guardar en el mapa.");
     } finally {
@@ -989,20 +1078,31 @@ export default function CampoMapa({
     setSaving(true);
     try {
       if (selectedPotrero) {
+        const metadata = mergeCampoMapaMetadata(selectedPotrero.metadata, editDispositivos);
         const updated = await updateCampoPotreroMapa(selectedPotrero.id, {
           nombre: editNombre,
           notas: editNotas,
+          metadata,
         });
+        await syncCampoMapaDispositivosPotrero(
+          editNombre,
+          editDispositivos,
+          editDispositivosPrevRef.current,
+          editNombrePrevRef.current,
+        );
         setPotreros((prev) =>
           prev
             .map((item) => (item.id === updated.id ? updated : item))
             .sort((a, b) => a.nombre.localeCompare(b.nombre)),
         );
+        editDispositivosPrevRef.current = editDispositivos;
+        editNombrePrevRef.current = editNombre;
         onSuccess("Potrero actualizado.");
       } else if (selectedElemento) {
         const updated = await updateCampoMapaElemento(selectedElemento.id, {
           nombre: editNombre,
           notas: editNotas,
+          metadata: mergeCampoMapaMetadata(selectedElemento.metadata, editDispositivos),
         });
         setElementos((prev) =>
           prev
@@ -1062,6 +1162,34 @@ export default function CampoMapa({
     if (toolSketchIsPoint(activeTool) && !pendingDraft) return toolDef.hint;
     return null;
   }, [activeTool, measureHint, pendingDraft, showFullscreenWorkDock, toolDef.hint, vertexEditSource]);
+
+  const renderDraftSaveTargetSelector = () => {
+    if (!pendingDraft || pendingDraft.isMeasurement) return null;
+    const geometry = draftGeometryFromDraft(pendingDraft);
+    const targets = availableSaveTargets(geometry);
+    if (targets.length <= 1) return null;
+    return (
+      <div className="campo-mapa-draft-tipo">
+        <span className="campo-mapa-draft-tipo-label">Guardar como</span>
+        <div className="campo-mapa-draft-tipo-options" role="group" aria-label="Tipo de guardado">
+          {targets.map((target) => (
+            <button
+              key={target}
+              type="button"
+              className={`campo-mapa-draft-tipo-btn${draftSaveTarget === target ? " is-active" : ""}`}
+              onClick={() => setDraftSaveTarget(target)}
+              aria-pressed={draftSaveTarget === target}
+            >
+              {saveTargetLabel(target)}
+            </button>
+          ))}
+        </div>
+        <p className="campo-mapa-aside-hint campo-mapa-draft-tipo-hint">
+          {saveTargetHint(draftSaveTarget)}
+        </p>
+      </div>
+    );
+  };
 
   const sidebarBody = (
     <div className="campo-mapa-aside-body">
@@ -1226,7 +1354,12 @@ export default function CampoMapa({
 
       {puedeEditar && pendingDraft ? (
         <div className="campo-mapa-aside-form">
-          <p className="campo-mapa-aside-label">{draftLabel(pendingDraft.sourceTool)}</p>
+          <p className="campo-mapa-aside-label">
+            {pendingDraft.isMeasurement
+              ? draftLabel(pendingDraft.sourceTool)
+              : draftTitle(draftSaveTarget)}
+          </p>
+          {renderDraftSaveTargetSelector()}
           {pendingDraft.hectareas != null ? (
             <p className="campo-mapa-aside-hint">
               Superficie: {formatHectareas(pendingDraft.hectareas)}
@@ -1245,7 +1378,11 @@ export default function CampoMapa({
             <input
               value={formNombre}
               onChange={(e) => setFormNombre(e.target.value)}
-              placeholder="Nombre en el mapa"
+              placeholder={
+                pendingDraft.isMeasurement
+                  ? "Nombre en el mapa"
+                  : draftNombrePlaceholder(draftSaveTarget)
+              }
               maxLength={48}
             />
           </label>
@@ -1266,7 +1403,9 @@ export default function CampoMapa({
               disabled={saving || !formNombre.trim()}
             >
               <Plus size={15} aria-hidden />
-              {pendingDraft.isMeasurement ? "Guardar medición" : "Guardar"}
+              {pendingDraft.isMeasurement
+                ? "Guardar medición"
+                : draftSaveButton(draftSaveTarget)}
             </button>
             <button
               type="button"
@@ -1316,6 +1455,13 @@ export default function CampoMapa({
             Notas
             <textarea value={editNotas} onChange={(e) => setEditNotas(e.target.value)} rows={3} />
           </label>
+          <CampoMapaDispositivosPicker
+            apiOnline={apiOnline}
+            value={editDispositivos}
+            onChange={setEditDispositivos}
+            disabled={saving}
+            potreroNombre={selectedPotrero?.nombre}
+          />
           <div className="campo-mapa-aside-form-actions">
             <button
               type="button"
@@ -1574,7 +1720,26 @@ export default function CampoMapa({
 
                 {mapWorkMode === "draft" && pendingDraft ? (
                   <>
-                    <p className="campo-mapa-map-work-dock-title">{draftLabel(pendingDraft.sourceTool)}</p>
+                    <p className="campo-mapa-map-work-dock-title">
+                      {pendingDraft.isMeasurement
+                        ? draftLabel(pendingDraft.sourceTool)
+                        : draftTitle(draftSaveTarget)}
+                    </p>
+                    {!pendingDraft.isMeasurement &&
+                    availableSaveTargets(draftGeometryFromDraft(pendingDraft)).length > 1 ? (
+                      <div className="campo-mapa-map-work-dock-tipo">
+                        {availableSaveTargets(draftGeometryFromDraft(pendingDraft)).map((target) => (
+                          <button
+                            key={target}
+                            type="button"
+                            className={`campo-mapa-map-work-dock-tipo-btn${draftSaveTarget === target ? " is-active" : ""}`}
+                            onClick={() => setDraftSaveTarget(target)}
+                          >
+                            {saveTargetLabel(target)}
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
                     {pendingDraft.hectareas != null ? (
                       <p className="campo-mapa-map-work-dock-hint">
                         Superficie: {formatHectareas(pendingDraft.hectareas)}
@@ -1591,7 +1756,11 @@ export default function CampoMapa({
                         className="campo-mapa-map-work-dock-input"
                         value={formNombre}
                         onChange={(e) => setFormNombre(e.target.value)}
-                        placeholder="Nombre en el mapa"
+                        placeholder={
+                          pendingDraft.isMeasurement
+                            ? "Nombre en el mapa"
+                            : draftNombrePlaceholder(draftSaveTarget)
+                        }
                         maxLength={48}
                       />
                     </label>
@@ -1603,7 +1772,9 @@ export default function CampoMapa({
                         disabled={saving || !formNombre.trim()}
                       >
                         <Plus size={15} aria-hidden />
-                        {pendingDraft.isMeasurement ? "Guardar medición" : "Guardar"}
+                        {pendingDraft.isMeasurement
+                          ? "Guardar medición"
+                          : draftSaveButton(draftSaveTarget)}
                       </button>
                       <button
                         type="button"
