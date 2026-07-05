@@ -8,7 +8,7 @@ import {
   fetchVentasAgricultura,
   fetchVentasArrendamientos,
 } from "../api";
-import type { AuthActividadLog, AuthUser, Nota } from "../types";
+import type { AuthUser, Nota } from "../types";
 import type { TabId } from "../components/Header";
 import {
   canAccessIngresosVentasModulo,
