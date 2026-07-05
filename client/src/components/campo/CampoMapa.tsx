@@ -40,6 +40,7 @@ import {
 import {
   ELEMENTO_TIPO_LABELS,
   getToolDef,
+  sketchShowsAsPolygon,
   toolSketchIsPoint,
   toolSketchIsPolygon,
   toolToElementoTipo,
@@ -137,8 +138,8 @@ type PendingDraft = {
 
 function draftLabel(tool: CampoMapaTool): string {
   switch (tool) {
-    case "potrero":
-      return "Nuevo potrero";
+    case "dibujar":
+      return "Nuevo trazo";
     case "marcador":
       return "Nuevo marcador";
     case "nota":
@@ -159,7 +160,7 @@ function draftLabel(tool: CampoMapaTool): string {
 }
 
 function saveSuccessMessage(tool: CampoMapaTool): string {
-  if (tool === "potrero") return "Potrero guardado en el mapa.";
+  if (tool === "dibujar") return "Trazo guardado en el mapa.";
   if (tool === "clip") return "Clip de vista guardado.";
   if (tool === "medir_distancia" || tool === "medir_area") return "Medición guardada en el mapa.";
   return "Elemento guardado en el mapa.";
@@ -183,7 +184,7 @@ export default function CampoMapa({
   const [pendingDraft, setPendingDraft] = useState<PendingDraft | null>(null);
   const [formNombre, setFormNombre] = useState("");
   const [formNotas, setFormNotas] = useState("");
-  const [draftSaveTarget, setDraftSaveTarget] = useState<DraftSaveTarget>("potrero");
+  const [draftSaveTarget, setDraftSaveTarget] = useState<DraftSaveTarget>("area");
   const [editDispositivos, setEditDispositivos] = useState<CampoMapaDispositivosMetadata>(
     emptyCampoMapaDispositivosMetadata(),
   );
@@ -300,7 +301,7 @@ export default function CampoMapa({
       return {
         kind: "sketch" as const,
         vertices: sketchVertices,
-        isPolygon: toolSketchIsPolygon(activeTool),
+        isPolygon: sketchShowsAsPolygon(activeTool, sketchVertices.length),
         minPoints: minSketchPoints,
       };
     }
@@ -313,6 +314,10 @@ export default function CampoMapa({
       return meters != null ? formatDistance(meters) : null;
     }
     if (activeTool === "medir_area" && sketchVertices.length >= 3) {
+      const ha = computeHectareas(sketchVertices);
+      return ha != null ? formatHectareas(ha) : null;
+    }
+    if (activeTool === "dibujar" && sketchVertices.length >= 3) {
       const ha = computeHectareas(sketchVertices);
       return ha != null ? formatHectareas(ha) : null;
     }
@@ -387,7 +392,7 @@ export default function CampoMapa({
     setPendingDraft(null);
     setFormNombre("");
     setFormNotas("");
-    setDraftSaveTarget("potrero");
+    setDraftSaveTarget("area");
   }, []);
 
   const selectPotrero = useCallback((id: number) => {
@@ -731,6 +736,15 @@ export default function CampoMapa({
       return;
     }
 
+    if (sourceTool === "dibujar" && paths.length < 3) {
+      draftLayerRef.current = L.polyline(pathsToLeafletLatLngs(paths), {
+        color: SKETCH_COLOR,
+        weight: 3,
+        opacity: 0.95,
+      }).addTo(map);
+      return;
+    }
+
     draftLayerRef.current = L.polygon(pathsToLeafletLatLngs(paths), {
       color: SKETCH_COLOR,
       weight: 3,
@@ -868,9 +882,11 @@ export default function CampoMapa({
   const finishSketch = () => {
     if (sketchVertices.length < minSketchPoints) {
       onError(
-        toolSketchIsPolygon(activeTool)
-          ? "Marcá al menos tres puntos para cerrar la figura."
-          : "Marcá al menos dos puntos para finalizar.",
+        activeTool === "dibujar"
+          ? "Marcá al menos dos puntos para finalizar el trazo."
+          : toolSketchIsPolygon(activeTool)
+            ? "Marcá al menos tres puntos para cerrar la figura."
+            : "Marcá al menos dos puntos para finalizar.",
       );
       return;
     }
@@ -907,35 +923,21 @@ export default function CampoMapa({
       return;
     }
 
-    if (activeTool === "potrero") {
-      setDraftSaveTarget("potrero");
-      setPendingDraft({
-        sourceTool: activeTool,
-        paths,
-        hectareas: computeHectareas(paths),
-      });
+    if (activeTool === "dibujar") {
+      if (paths.length === 2) {
+        setDraftSaveTarget("linea");
+        setPendingDraft({ sourceTool: activeTool, paths });
+      } else {
+        setDraftSaveTarget("area");
+        setPendingDraft({
+          sourceTool: activeTool,
+          paths,
+          hectareas: computeHectareas(paths),
+        });
+      }
       setFormNombre("");
       setFormNotas("");
       return;
-    }
-
-    if (activeTool === "linea") {
-      setDraftSaveTarget("linea");
-      setPendingDraft({ sourceTool: activeTool, paths });
-      setFormNombre("");
-      setFormNotas("");
-      return;
-    }
-
-    if (activeTool === "area") {
-      setDraftSaveTarget("potrero");
-      setPendingDraft({
-        sourceTool: activeTool,
-        paths,
-        hectareas: computeHectareas(paths),
-      });
-      setFormNombre("");
-      setFormNotas("");
     }
   };
 

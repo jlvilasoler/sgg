@@ -6,7 +6,7 @@ export type CampoMapaTool =
   | "nota"
   | "linea"
   | "area"
-  | "potrero"
+  | "dibujar"
   | "medir_distancia"
   | "medir_area"
   | "clip";
@@ -38,21 +38,9 @@ export const CAMPO_MAPA_TOOLS: CampoMapaToolDef[] = [
     group: "dibujar",
   },
   {
-    id: "linea",
-    label: "Línea",
-    hint: "Marcá vértices y finalizá la línea.",
-    group: "dibujar",
-  },
-  {
-    id: "area",
-    label: "Área",
-    hint: "Dibujá el polígono; al finalizar podés guardarlo como potrero.",
-    group: "dibujar",
-  },
-  {
-    id: "potrero",
-    label: "Potrero",
-    hint: "Dibujá el perímetro del potrero ganadero.",
+    id: "dibujar",
+    label: "Dibujar",
+    hint: "Marcá puntos para dibujar líneas o polígonos; al finalizar elegís cómo guardarlo.",
     group: "dibujar",
   },
   {
@@ -76,11 +64,17 @@ export const CAMPO_MAPA_TOOLS: CampoMapaToolDef[] = [
 ];
 
 export function toolUsesSketch(tool: CampoMapaTool): boolean {
-  return ["linea", "area", "potrero", "medir_distancia", "medir_area"].includes(tool);
+  return ["dibujar", "medir_distancia", "medir_area"].includes(tool);
 }
 
 export function toolSketchIsPolygon(tool: CampoMapaTool): boolean {
-  return ["area", "potrero", "medir_area"].includes(tool);
+  return tool === "medir_area";
+}
+
+/** Vista previa del trazo: polígono cerrado o línea abierta según vértices. */
+export function sketchShowsAsPolygon(tool: CampoMapaTool, vertexCount: number): boolean {
+  if (tool === "dibujar") return vertexCount >= 3;
+  return toolSketchIsPolygon(tool);
 }
 
 export function toolSketchIsPoint(tool: CampoMapaTool): boolean {

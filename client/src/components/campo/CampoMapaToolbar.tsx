@@ -18,7 +18,7 @@ export const CAMPO_MAPA_TOOL_ICONS: Record<CampoMapaTool, LucideIcon> = {
   nota: MessageSquare,
   linea: Minus,
   area: Pentagon,
-  potrero: LandPlot,
+  dibujar: LandPlot,
   medir_distancia: Ruler,
   medir_area: Scan,
   clip: Bookmark,
@@ -39,7 +39,7 @@ export default function CampoMapaToolbar({
 }: Props) {
   const groups: { title: string; tools: CampoMapaTool[] }[] = [
     { title: "Navegar", tools: ["navegar"] },
-    { title: "Dibujar", tools: ["marcador", "nota", "linea", "area", "potrero"] },
+    { title: "Dibujar", tools: ["marcador", "nota", "dibujar"] },
     { title: "Medir", tools: ["medir_distancia", "medir_area"] },
     { title: "Vista", tools: ["clip"] },
   ];

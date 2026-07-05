@@ -1,5 +1,5 @@
 import type { CampoMapaTool } from "./campo-mapa-tools";
-import { toolSketchIsPolygon } from "./campo-mapa-tools";
+import { sketchShowsAsPolygon } from "./campo-mapa-tools";
 import type { MapLatLng } from "./campo-mapa-geo";
 
 export type DraftSaveTarget = "potrero" | "marcador" | "area" | "linea";
@@ -11,10 +11,11 @@ export function draftGeometryFromDraft(draft: {
   point?: MapLatLng;
 }): DraftGeometry {
   if (draft.point) return "point";
-  if (draft.paths && draft.paths.length >= 3 && toolSketchIsPolygon(draft.sourceTool)) {
+  const vertexCount = draft.paths?.length ?? 0;
+  if (vertexCount >= 3 && sketchShowsAsPolygon(draft.sourceTool, vertexCount)) {
     return "polygon";
   }
-  if (draft.paths && draft.paths.length >= 2) return "line";
+  if (vertexCount >= 2) return "line";
   return "point";
 }
 
@@ -34,7 +35,7 @@ export function defaultSaveTarget(
   sourceTool: CampoMapaTool,
 ): DraftSaveTarget {
   if (geometry === "polygon") {
-    return sourceTool === "area" ? "potrero" : "potrero";
+    return sourceTool === "dibujar" ? "area" : "potrero";
   }
   if (geometry === "line") return "linea";
   return "marcador";
