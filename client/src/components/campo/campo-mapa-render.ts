@@ -10,6 +10,18 @@ import {
 
 export type MapLayerHandle = L.Layer;
 
+function attachFeatureNameLabel(layer: L.Layer, nombre: string, selected: boolean): void {
+  const text = nombre.trim();
+  if (!text) return;
+  layer.bindTooltip(text, {
+    permanent: true,
+    direction: "center",
+    className: `campo-mapa-feature-name-tooltip${selected ? " is-selected" : ""}`,
+    opacity: 1,
+    interactive: false,
+  });
+}
+
 function popupHtml(nombre: string, notas: string, extra?: string): string {
   const note = notas.trim()
     ? `<p style="margin:0.35rem 0 0;font-size:0.78rem;color:#475569">${notas}</p>`
@@ -25,6 +37,7 @@ export function renderPotreroLayer(
   item: CampoPotreroMapa,
   selected: boolean,
   onSelect: () => void,
+  options?: { showName?: boolean },
 ): L.Polygon | null {
   let paths: MapLatLng[] = [];
   try {
@@ -46,6 +59,9 @@ export function renderPotreroLayer(
       item.hectareas != null ? `${item.hectareas} ha` : undefined,
     ),
   );
+  if (options?.showName !== false) {
+    attachFeatureNameLabel(polygon, item.nombre, selected);
+  }
   polygon.on("click", onSelect);
   return polygon;
 }
@@ -55,6 +71,7 @@ export function renderElementoLayer(
   item: CampoMapaElemento,
   selected: boolean,
   onSelect: () => void,
+  options?: { showName?: boolean },
 ): MapLayerHandle | null {
   const meta = parseMetadata<{ zoom?: number; distancia_m?: number; area_ha?: number }>(
     item.metadata,
@@ -116,6 +133,9 @@ export function renderElementoLayer(
     dashArray: item.tipo === "medicion_area" ? "6 5" : undefined,
   }).addTo(map);
   polygon.bindPopup(popupHtml(item.nombre, item.notas, extra));
+  if (options?.showName !== false && item.tipo === "area") {
+    attachFeatureNameLabel(polygon, item.nombre, selected);
+  }
   polygon.on("click", onSelect);
   return polygon;
 }

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import L from "leaflet";
-import { Layers, MapPin, Maximize2, Minimize2, Pencil, Plus, Search, Trash2, Undo2, X } from "lucide-react";
+import { CircleDot, Cpu, Layers, MapPin, Maximize2, Minimize2, Pencil, Plus, Search, Tag, Trash2, Undo2, X } from "lucide-react";
 import SgHubShell from "../hub/SgHubShell";
 import type { SgHubItem } from "../hub/SgHubTypes";
 import { MenuAppIcon } from "../icons/MenuAppIcons";
@@ -11,10 +11,12 @@ import {
   deleteCampoPotreroMapa,
   fetchCampoMapaElementos,
   fetchCampoPotrerosMapa,
+  fetchStockEquinaDispositivos,
+  fetchStockGanaderaDispositivos,
   updateCampoMapaElemento,
   updateCampoPotreroMapa,
 } from "../../api";
-import type { CampoMapaElemento, CampoMapaElementoTipo, CampoPotreroMapa } from "../../types";
+import type { CampoMapaElemento, CampoMapaElementoTipo, CampoPotreroMapa, StockGanaderaDispositivo } from "../../types";
 import { hubAsideKicker } from "../../brand";
 import {
   computeDistanceMeters,
@@ -48,16 +50,26 @@ import {
   type CampoMapaTool,
 } from "./campo-mapa-tools";
 import CampoMapaToolbar from "./CampoMapaToolbar";
-import CampoMapaDispositivosPicker from "./CampoMapaDispositivosPicker";
+import CampoMapaDispositivosModal from "./CampoMapaDispositivosModal";
+import {
+  buildCampoMapaDispositivoMarkers,
+  renderCampoMapaDispositivoMarkers,
+} from "./campo-mapa-dispositivos-map";
 import {
   availableSaveTargets,
+  canChangeSaveTarget,
   draftGeometryFromDraft,
   draftNombrePlaceholder,
   draftSaveButton,
   draftTitle,
+  elementoTipoFromSaveTarget,
+  geoJsonForSaveTarget,
+  geometryFromGeoJson,
   markerPointFromDraft,
+  saveTargetFromElemento,
   saveTargetHint,
   saveTargetLabel,
+  type DraftGeometry,
   type DraftSaveTarget,
 } from "./campo-mapa-draft";
 import {
@@ -66,7 +78,7 @@ import {
   parseCampoMapaDispositivosMetadata,
   type CampoMapaDispositivosMetadata,
 } from "./campo-mapa-metadata";
-import { syncCampoMapaDispositivosPotrero } from "./campo-mapa-sync-dispositivos";
+import { clearCampoMapaDispositivosPotrero, syncCampoMapaDispositivosPotrero } from "./campo-mapa-sync-dispositivos";
 import type { AuthUser } from "../../types";
 import { canWriteCampoMapa } from "../../utils/auth-permissions";
 
@@ -82,6 +94,15 @@ const HUB_ITEMS: SgHubItem[] = [
 const DEFAULT_CENTER = CAMPO_MAPA_DEFAULT_CENTER;
 const DEFAULT_ZOOM = CAMPO_MAPA_DEFAULT_ZOOM;
 const SKETCH_COLOR = "#7cb342";
+
+function supportsDispositivosEnMapa(
+  potrero: CampoPotreroMapa | null,
+  elemento: CampoMapaElemento | null,
+): boolean {
+  if (potrero) return true;
+  if (!elemento) return false;
+  return !["clip", "medicion_distancia", "medicion_area"].includes(elemento.tipo);
+}
 
 const ELEMENTO_TIPO_ORDER: CampoMapaElementoTipo[] = [
   "marcador",
@@ -185,6 +206,7 @@ export default function CampoMapa({
   const [formNombre, setFormNombre] = useState("");
   const [formNotas, setFormNotas] = useState("");
   const [draftSaveTarget, setDraftSaveTarget] = useState<DraftSaveTarget>("area");
+  const [editSaveTarget, setEditSaveTarget] = useState<DraftSaveTarget>("area");
   const [editDispositivos, setEditDispositivos] = useState<CampoMapaDispositivosMetadata>(
     emptyCampoMapaDispositivosMetadata(),
   );
@@ -197,6 +219,14 @@ export default function CampoMapa({
   const [loading, setLoading] = useState(true);
   const [mapReady, setMapReady] = useState(false);
   const [showLabels, setShowLabels] = useState(true);
+  const [showFeatureNames, setShowFeatureNames] = useState(true);
+  const [showDevicesOnMap, setShowDevicesOnMap] = useState(false);
+  const [stockGanadero, setStockGanadero] = useState<StockGanaderaDispositivo[]>([]);
+  const [stockEquino, setStockEquino] = useState<StockGanaderaDispositivo[]>([]);
+  const [dispositivosModalOpen, setDispositivosModalOpen] = useState(false);
+  const [modalDispositivos, setModalDispositivos] = useState<CampoMapaDispositivosMetadata>(
+    emptyCampoMapaDispositivosMetadata(),
+  );
   const [saving, setSaving] = useState(false);
   const [editNombre, setEditNombre] = useState("");
   const [editNotas, setEditNotas] = useState("");
@@ -227,6 +257,7 @@ export default function CampoMapa({
   const sketchPolylineRef = useRef<L.Polyline | null>(null);
   const sketchPolygonRef = useRef<L.Polygon | null>(null);
   const sketchMarkersRef = useRef<L.CircleMarker[]>([]);
+  const dispositivoMarkersLayerRef = useRef<L.LayerGroup | null>(null);
   const initialViewAppliedRef = useRef(false);
 
   const toggleFullscreen = useCallback(async () => {
@@ -269,6 +300,12 @@ export default function CampoMapa({
         : null,
     [elementos, selection],
   );
+
+  const editGeometry = useMemo((): DraftGeometry | null => {
+    const geojson = selectedPotrero?.geojson ?? selectedElemento?.geojson;
+    if (!geojson) return null;
+    return geometryFromGeoJson(geojson);
+  }, [selectedElemento, selectedPotrero]);
 
   const elementosByTipo = useMemo(() => {
     const grouped = new Map<CampoMapaElementoTipo, CampoMapaElemento[]>();
@@ -339,6 +376,17 @@ export default function CampoMapa({
       ]);
       setPotreros(potreroData);
       setElementos(elementoData);
+      if (apiOnline) {
+        const [ganaderoData, equinoData] = await Promise.all([
+          fetchStockGanaderaDispositivos({}),
+          fetchStockEquinaDispositivos({}),
+        ]);
+        setStockGanadero(ganaderoData.filter((d) => d.estado === "VIVO"));
+        setStockEquino(equinoData.filter((d) => d.estado === "VIVO"));
+      } else {
+        setStockGanadero([]);
+        setStockEquino([]);
+      }
     } catch (e) {
       onError(e instanceof Error ? e.message : "No se pudieron cargar las capas del mapa.");
     } finally {
@@ -368,6 +416,12 @@ export default function CampoMapa({
     setEditDispositivos(dispositivos);
     editDispositivosPrevRef.current = dispositivos;
     editNombrePrevRef.current = item.nombre;
+    if (selectedPotrero) {
+      setEditSaveTarget("potrero");
+    } else if (selectedElemento) {
+      const target = saveTargetFromElemento(selectedElemento.tipo);
+      if (target) setEditSaveTarget(target);
+    }
   }, [selectedPotrero, selectedElemento]);
 
   const clearSketchOverlay = useCallback(() => {
@@ -408,6 +462,45 @@ export default function CampoMapa({
     clearSketchOverlay();
     clearDraftOverlay();
   }, [cancelPotreroShapeEdit, clearDraftOverlay, clearSketchOverlay]);
+
+  const openDispositivosModalFor = useCallback(
+    (kind: "potrero" | "elemento", id: number) => {
+      if (kind === "potrero") {
+        selectPotrero(id);
+        const item = potreros.find((p) => p.id === id) ?? null;
+        if (!supportsDispositivosEnMapa(item, null)) return;
+        setModalDispositivos(parseCampoMapaDispositivosMetadata(item?.metadata));
+        setDispositivosModalOpen(true);
+        return;
+      }
+      selectElemento(id);
+      const item = elementos.find((e) => e.id === id) ?? null;
+      if (!supportsDispositivosEnMapa(null, item)) return;
+      setModalDispositivos(parseCampoMapaDispositivosMetadata(item?.metadata));
+      setDispositivosModalOpen(true);
+    },
+    [elementos, potreros, selectElemento, selectPotrero],
+  );
+
+  const handleMapFeatureClick = useCallback(
+    (kind: "potrero" | "elemento", id: number) => {
+      mapRef.current?.closePopup();
+      if (activeTool === "navegar" && !pendingDraft && !potreroShapeEdit) {
+        openDispositivosModalFor(kind, id);
+        return;
+      }
+      if (kind === "potrero") selectPotrero(id);
+      else selectElemento(id);
+    },
+    [
+      activeTool,
+      openDispositivosModalFor,
+      pendingDraft,
+      potreroShapeEdit,
+      selectElemento,
+      selectPotrero,
+    ],
+  );
 
   const moveVertexAt = useCallback((index: number, point: MapLatLng) => {
     if (potreroShapeEditRef.current) {
@@ -504,7 +597,8 @@ export default function CampoMapa({
         map,
         item,
         selection?.kind === "potrero" && selection.id === item.id,
-        () => selectPotrero(item.id),
+        () => handleMapFeatureClick("potrero", item.id),
+        { showName: showFeatureNames },
       );
       if (layer) potreroLayersRef.current.set(item.id, layer);
     }
@@ -514,11 +608,12 @@ export default function CampoMapa({
         map,
         item,
         selection?.kind === "elemento" && selection.id === item.id,
-        () => selectElemento(item.id),
+        () => handleMapFeatureClick("elemento", item.id),
+        { showName: showFeatureNames },
       );
       if (layer) elementoLayersRef.current.set(item.id, layer);
     }
-  }, [elementos, potreroShapeEdit, potreros, selectElemento, selectPotrero, selection]);
+  }, [elementos, handleMapFeatureClick, potreroShapeEdit, potreros, selection, showFeatureNames]);
 
   useEffect(() => {
     if (!cuentaTieneGeometriaEnMapa(potreros, elementos)) {
@@ -555,6 +650,8 @@ export default function CampoMapa({
       potreroLayersRef.current.clear();
       elementoLayersRef.current.forEach((layer) => layer.remove());
       elementoLayersRef.current.clear();
+      dispositivoMarkersLayerRef.current?.remove();
+      dispositivoMarkersLayerRef.current = null;
       map.remove();
       mapRef.current = null;
       labelLayerRef.current = null;
@@ -568,6 +665,22 @@ export default function CampoMapa({
     if (!mapReady) return;
     renderMapLayers();
   }, [mapReady, renderMapLayers]);
+
+  const dispositivoMapMarkers = useMemo(
+    () => buildCampoMapaDispositivoMarkers(potreros, elementos, stockGanadero, stockEquino),
+    [elementos, potreros, stockEquino, stockGanadero],
+  );
+
+  useEffect(() => {
+    const map = mapRef.current;
+    dispositivoMarkersLayerRef.current?.remove();
+    dispositivoMarkersLayerRef.current = null;
+    if (!map || !showDevicesOnMap || dispositivoMapMarkers.length === 0) return;
+    dispositivoMarkersLayerRef.current = renderCampoMapaDispositivoMarkers(
+      map,
+      dispositivoMapMarkers,
+    );
+  }, [dispositivoMapMarkers, mapReady, showDevicesOnMap]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -1077,10 +1190,25 @@ export default function CampoMapa({
 
   const saveSelected = async () => {
     if (!selectedPotrero && !selectedElemento) return;
+    if (!editNombre.trim()) {
+      onError("Ingresá un nombre para guardar en el mapa.");
+      return;
+    }
+
+    const metadata = mergeCampoMapaMetadata(
+      selectedPotrero?.metadata ?? selectedElemento?.metadata,
+      editDispositivos,
+    );
+    const currentTarget: DraftSaveTarget | null = selectedPotrero
+      ? "potrero"
+      : selectedElemento
+        ? saveTargetFromElemento(selectedElemento.tipo)
+        : null;
+    const targetChanged = currentTarget != null && editSaveTarget !== currentTarget;
+
     setSaving(true);
     try {
-      if (selectedPotrero) {
-        const metadata = mergeCampoMapaMetadata(selectedPotrero.metadata, editDispositivos);
+      if (!targetChanged && selectedPotrero) {
         const updated = await updateCampoPotreroMapa(selectedPotrero.id, {
           nombre: editNombre,
           notas: editNotas,
@@ -1100,11 +1228,14 @@ export default function CampoMapa({
         editDispositivosPrevRef.current = editDispositivos;
         editNombrePrevRef.current = editNombre;
         onSuccess("Potrero actualizado.");
-      } else if (selectedElemento) {
+        return;
+      }
+
+      if (!targetChanged && selectedElemento) {
         const updated = await updateCampoMapaElemento(selectedElemento.id, {
           nombre: editNombre,
           notas: editNotas,
-          metadata: mergeCampoMapaMetadata(selectedElemento.metadata, editDispositivos),
+          metadata,
         });
         setElementos((prev) =>
           prev
@@ -1112,13 +1243,154 @@ export default function CampoMapa({
             .sort((a, b) => a.nombre.localeCompare(b.nombre)),
         );
         onSuccess("Elemento actualizado.");
+        return;
       }
+
+      const sourceGeojson = selectedPotrero?.geojson ?? selectedElemento?.geojson ?? "";
+      const geojson = geoJsonForSaveTarget(sourceGeojson, editSaveTarget);
+
+      if (editSaveTarget === "potrero") {
+        const paths = openRingFromGeoJson(sourceGeojson);
+        const created = await createCampoPotreroMapa({
+          nombre: editNombre.trim(),
+          geojson,
+          hectareas: computeHectareas(paths),
+          notas: editNotas,
+          metadata,
+        });
+        if (selectedPotrero) {
+          await deleteCampoPotreroMapa(selectedPotrero.id);
+          setPotreros((prev) => prev.filter((item) => item.id !== selectedPotrero.id));
+        } else if (selectedElemento) {
+          await deleteCampoMapaElemento(selectedElemento.id);
+          setElementos((prev) => prev.filter((item) => item.id !== selectedElemento.id));
+        }
+        setPotreros((prev) =>
+          [...prev, created].sort((a, b) => a.nombre.localeCompare(b.nombre)),
+        );
+        await syncCampoMapaDispositivosPotrero(
+          editNombre,
+          editDispositivos,
+          editDispositivosPrevRef.current,
+          editNombrePrevRef.current,
+        );
+        setSelection({ kind: "potrero", id: created.id });
+        editDispositivosPrevRef.current = editDispositivos;
+        editNombrePrevRef.current = editNombre;
+        onSuccess("Guardado como potrero.");
+        return;
+      }
+
+      if (selectedPotrero) {
+        await clearCampoMapaDispositivosPotrero(
+          editDispositivosPrevRef.current,
+          editNombrePrevRef.current,
+        );
+        await deleteCampoPotreroMapa(selectedPotrero.id);
+        setPotreros((prev) => prev.filter((item) => item.id !== selectedPotrero.id));
+      }
+
+      const elementoTipo = elementoTipoFromSaveTarget(editSaveTarget);
+      if (selectedElemento && !selectedPotrero) {
+        const updated = await updateCampoMapaElemento(selectedElemento.id, {
+          tipo: elementoTipo,
+          nombre: editNombre.trim(),
+          notas: editNotas,
+          geojson,
+          metadata,
+        });
+        setElementos((prev) =>
+          prev
+            .map((item) => (item.id === updated.id ? updated : item))
+            .sort((a, b) => a.nombre.localeCompare(b.nombre)),
+        );
+        setSelection({ kind: "elemento", id: updated.id });
+        onSuccess(`Guardado como ${saveTargetLabel(editSaveTarget).toLowerCase()}.`);
+        return;
+      }
+
+      const created = await createCampoMapaElemento({
+        tipo: elementoTipo,
+        nombre: editNombre.trim(),
+        geojson,
+        notas: editNotas,
+        metadata,
+      });
+      if (selectedElemento) {
+        await deleteCampoMapaElemento(selectedElemento.id);
+        setElementos((prev) => prev.filter((item) => item.id !== selectedElemento.id));
+      }
+      setElementos((prev) =>
+        [...prev, created].sort((a, b) => a.nombre.localeCompare(b.nombre)),
+      );
+      setSelection({ kind: "elemento", id: created.id });
+      onSuccess(`Guardado como ${saveTargetLabel(editSaveTarget).toLowerCase()}.`);
     } catch (e) {
       onError(e instanceof Error ? e.message : "No se pudo actualizar.");
     } finally {
       setSaving(false);
     }
   };
+
+  const saveDispositivosFromModal = async () => {
+    if (!selectedPotrero && !selectedElemento) return;
+    setSaving(true);
+    try {
+      const metadata = mergeCampoMapaMetadata(
+        selectedPotrero?.metadata ?? selectedElemento?.metadata,
+        modalDispositivos,
+      );
+      if (selectedPotrero) {
+        const updated = await updateCampoPotreroMapa(selectedPotrero.id, { metadata });
+        await syncCampoMapaDispositivosPotrero(
+          editNombre,
+          modalDispositivos,
+          editDispositivosPrevRef.current,
+          editNombrePrevRef.current,
+        );
+        setPotreros((prev) =>
+          prev
+            .map((item) => (item.id === updated.id ? updated : item))
+            .sort((a, b) => a.nombre.localeCompare(b.nombre)),
+        );
+      } else if (selectedElemento) {
+        const updated = await updateCampoMapaElemento(selectedElemento.id, { metadata });
+        setElementos((prev) =>
+          prev
+            .map((item) => (item.id === updated.id ? updated : item))
+            .sort((a, b) => a.nombre.localeCompare(b.nombre)),
+        );
+      }
+      setEditDispositivos(modalDispositivos);
+      editDispositivosPrevRef.current = modalDispositivos;
+      if (apiOnline) {
+        const [ganaderoData, equinoData] = await Promise.all([
+          fetchStockGanaderaDispositivos({}),
+          fetchStockEquinaDispositivos({}),
+        ]);
+        setStockGanadero(ganaderoData.filter((d) => d.estado === "VIVO"));
+        setStockEquino(equinoData.filter((d) => d.estado === "VIVO"));
+      }
+      setDispositivosModalOpen(false);
+      onSuccess("Dispositivos actualizados.");
+    } catch (e) {
+      onError(e instanceof Error ? e.message : "No se pudieron guardar los dispositivos.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const dispositivosModalSubtitulo = useMemo(() => {
+    if (selectedPotrero) {
+      const ha =
+        selectedPotrero.hectareas != null ? formatHectareas(selectedPotrero.hectareas) : null;
+      return ha ? `Potrero · ${ha}` : "Potrero";
+    }
+    if (selectedElemento) {
+      return ELEMENTO_TIPO_LABELS[selectedElemento.tipo];
+    }
+    return undefined;
+  }, [selectedElemento, selectedPotrero]);
 
   const removeSelected = async () => {
     if (!selectedPotrero && !selectedElemento) return;
@@ -1165,32 +1437,41 @@ export default function CampoMapa({
     return null;
   }, [activeTool, measureHint, pendingDraft, showFullscreenWorkDock, toolDef.hint, vertexEditSource]);
 
-  const renderDraftSaveTargetSelector = () => {
-    if (!pendingDraft || pendingDraft.isMeasurement) return null;
-    const geometry = draftGeometryFromDraft(pendingDraft);
+  const renderSaveTargetSelector = (
+    value: DraftSaveTarget,
+    onChange: (target: DraftSaveTarget) => void,
+    geometry: DraftGeometry | null,
+  ) => {
+    if (!geometry) return null;
     const targets = availableSaveTargets(geometry);
     if (targets.length <= 1) return null;
     return (
       <div className="campo-mapa-draft-tipo">
         <span className="campo-mapa-draft-tipo-label">Guardar como</span>
-        <div className="campo-mapa-draft-tipo-options" role="group" aria-label="Tipo de guardado">
+        <div className="campo-mapa-draft-tipo-options" role="group" aria-label="Tipo en el mapa">
           {targets.map((target) => (
             <button
               key={target}
               type="button"
-              className={`campo-mapa-draft-tipo-btn${draftSaveTarget === target ? " is-active" : ""}`}
-              onClick={() => setDraftSaveTarget(target)}
-              aria-pressed={draftSaveTarget === target}
+              className={`campo-mapa-draft-tipo-btn${value === target ? " is-active" : ""}`}
+              onClick={() => onChange(target)}
+              aria-pressed={value === target}
             >
               {saveTargetLabel(target)}
             </button>
           ))}
         </div>
         <p className="campo-mapa-aside-hint campo-mapa-draft-tipo-hint">
-          {saveTargetHint(draftSaveTarget)}
+          {saveTargetHint(value)}
         </p>
       </div>
     );
+  };
+
+  const renderDraftSaveTargetSelector = () => {
+    if (!pendingDraft || pendingDraft.isMeasurement) return null;
+    const geometry = draftGeometryFromDraft(pendingDraft);
+    return renderSaveTargetSelector(draftSaveTarget, setDraftSaveTarget, geometry);
   };
 
   const sidebarBody = (
@@ -1423,18 +1704,18 @@ export default function CampoMapa({
 
       {puedeEditar && (selectedPotrero || selectedElemento) && !pendingDraft && !potreroShapeEdit ? (
         <div className="campo-mapa-aside-form">
-          <p className="campo-mapa-aside-label">
-            {selectedPotrero ? "Editar potrero" : "Editar elemento"}
-          </p>
+          <p className="campo-mapa-aside-label">Editar en el mapa</p>
           {selectedPotrero?.hectareas != null ? (
             <p className="campo-mapa-aside-hint">
               Superficie: {formatHectareas(selectedPotrero.hectareas)}
             </p>
           ) : null}
-          {selectedElemento ? (
-            <p className="campo-mapa-aside-hint">{ELEMENTO_TIPO_LABELS[selectedElemento.tipo]}</p>
-          ) : null}
-          {selectedPotrero ? (
+          {canChangeSaveTarget(selectedPotrero, selectedElemento)
+            ? renderSaveTargetSelector(editSaveTarget, setEditSaveTarget, editGeometry)
+            : selectedElemento ? (
+                <p className="campo-mapa-aside-hint">{ELEMENTO_TIPO_LABELS[selectedElemento.tipo]}</p>
+              ) : null}
+          {selectedPotrero && editSaveTarget === "potrero" ? (
             <button
               type="button"
               className="campo-mapa-aside-btn"
@@ -1457,13 +1738,23 @@ export default function CampoMapa({
             Notas
             <textarea value={editNotas} onChange={(e) => setEditNotas(e.target.value)} rows={3} />
           </label>
-          <CampoMapaDispositivosPicker
-            apiOnline={apiOnline}
-            value={editDispositivos}
-            onChange={setEditDispositivos}
-            disabled={saving}
-            potreroNombre={selectedPotrero?.nombre}
-          />
+          {supportsDispositivosEnMapa(selectedPotrero, selectedElemento) ? (
+            <button
+              type="button"
+              className="campo-mapa-aside-btn"
+              onClick={() => {
+                setModalDispositivos(editDispositivos);
+                setDispositivosModalOpen(true);
+              }}
+              disabled={saving}
+            >
+              <Cpu size={15} aria-hidden />
+              Dispositivos (
+              {editDispositivos.dispositivos_ganadero.length +
+                editDispositivos.dispositivos_equino.length}
+              )
+            </button>
+          ) : null}
           <div className="campo-mapa-aside-form-actions">
             <button
               type="button"
@@ -1617,10 +1908,38 @@ export default function CampoMapa({
               </button>
               <button
                 type="button"
+                className={`campo-mapa-map-corner-btn${showDevicesOnMap ? " is-active" : ""}`}
+                onClick={() => setShowDevicesOnMap((v) => !v)}
+                title={
+                  showDevicesOnMap
+                    ? "Ocultar dispositivos en el mapa"
+                    : "Mostrar dispositivos en el mapa"
+                }
+                aria-label={
+                  showDevicesOnMap
+                    ? "Ocultar dispositivos en el mapa"
+                    : "Mostrar dispositivos en el mapa"
+                }
+                aria-pressed={showDevicesOnMap}
+              >
+                <CircleDot size={18} aria-hidden />
+              </button>
+              <button
+                type="button"
+                className={`campo-mapa-map-corner-btn${showFeatureNames ? " is-active" : ""}`}
+                onClick={() => setShowFeatureNames((v) => !v)}
+                title={showFeatureNames ? "Ocultar nombres en el mapa" : "Mostrar nombres en el mapa"}
+                aria-label={showFeatureNames ? "Ocultar nombres en el mapa" : "Mostrar nombres en el mapa"}
+                aria-pressed={showFeatureNames}
+              >
+                <Tag size={18} aria-hidden />
+              </button>
+              <button
+                type="button"
                 className={`campo-mapa-map-corner-btn${showLabels ? " is-active" : ""}`}
                 onClick={() => setShowLabels((v) => !v)}
-                title={showLabels ? "Ocultar etiquetas del mapa" : "Mostrar etiquetas del mapa"}
-                aria-label={showLabels ? "Ocultar etiquetas del mapa" : "Mostrar etiquetas del mapa"}
+                title={showLabels ? "Ocultar etiquetas del mapa base" : "Mostrar etiquetas del mapa base"}
+                aria-label={showLabels ? "Ocultar etiquetas del mapa base" : "Mostrar etiquetas del mapa base"}
                 aria-pressed={showLabels}
               >
                 <Layers size={18} aria-hidden />
@@ -1795,6 +2114,20 @@ export default function CampoMapa({
           </div>
         </div>
       </SgHubShell>
+
+      <CampoMapaDispositivosModal
+        open={dispositivosModalOpen && supportsDispositivosEnMapa(selectedPotrero, selectedElemento)}
+        apiOnline={apiOnline}
+        puedeEditar={puedeEditar}
+        nombre={selectedPotrero?.nombre ?? selectedElemento?.nombre ?? ""}
+        subtitulo={dispositivosModalSubtitulo}
+        dispositivos={modalDispositivos}
+        onChange={setModalDispositivos}
+        onClose={() => setDispositivosModalOpen(false)}
+        onSave={saveDispositivosFromModal}
+        saving={saving}
+        potreroNombre={selectedPotrero ? editNombre : undefined}
+      />
     </div>
   );
 }

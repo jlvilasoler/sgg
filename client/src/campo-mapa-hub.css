@@ -352,6 +352,49 @@
   color: #d9f99d;
 }
 
+.campo-mapa-feature-name-tooltip {
+  background: rgba(18, 24, 18, 0.88) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  border-radius: 0.45rem !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.38) !important;
+  color: #f8f6f0 !important;
+  font-size: 0.72rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.02em;
+  padding: 0.22rem 0.55rem !important;
+  pointer-events: none !important;
+  text-align: center;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+  white-space: nowrap;
+}
+
+.campo-mapa-feature-name-tooltip::before {
+  display: none !important;
+}
+
+.campo-mapa-feature-name-tooltip.is-selected {
+  background: rgba(124, 179, 66, 0.92) !important;
+  border-color: rgba(255, 255, 255, 0.35) !important;
+  color: #14210f !important;
+  font-size: 0.76rem !important;
+  text-shadow: none;
+}
+
+.campo-mapa-dispositivo-marker-tooltip {
+  background: rgba(18, 24, 18, 0.92) !important;
+  border: 1px solid rgba(220, 38, 38, 0.45) !important;
+  border-radius: 0.4rem !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.32) !important;
+  color: #fef2f2 !important;
+  font-size: 0.68rem !important;
+  font-weight: 700 !important;
+  padding: 0.18rem 0.42rem !important;
+}
+
+.campo-mapa-dispositivo-marker-tooltip::before {
+  border-top-color: rgba(220, 38, 38, 0.55) !important;
+}
+
 .campo-mapa-map-work-dock {
   position: absolute;
   left: 0.85rem;
@@ -652,6 +695,36 @@
   gap: 0.3rem;
   max-height: 220px;
   overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--sg-hub-sidebar-muted) 70%, transparent) transparent;
+}
+
+.campo-mapa-aside-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.campo-mapa-aside-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.campo-mapa-aside-list::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--sg-hub-sidebar-muted) 75%, transparent);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.campo-mapa-aside-list::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--sg-hub-sidebar-text) 40%, transparent);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.campo-mapa-aside-list::-webkit-scrollbar-button {
+  display: none;
+  height: 0;
+  width: 0;
 }
 
 .campo-mapa-aside-item {
@@ -907,9 +980,39 @@
   padding: 0;
   max-height: 8.5rem;
   overflow: auto;
+  overscroll-behavior: contain;
   display: flex;
   flex-direction: column;
   gap: 0.2rem;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--sg-hub-sidebar-muted) 70%, transparent) transparent;
+}
+
+.campo-mapa-dispositivos-picker-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.campo-mapa-dispositivos-picker-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.campo-mapa-dispositivos-picker-list::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--sg-hub-sidebar-muted) 75%, transparent);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.campo-mapa-dispositivos-picker-list::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--sg-hub-sidebar-text) 40%, transparent);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.campo-mapa-dispositivos-picker-list::-webkit-scrollbar-button {
+  display: none;
+  height: 0;
+  width: 0;
 }
 
 .campo-mapa-dispositivos-picker-item {
@@ -921,9 +1024,207 @@
   cursor: pointer;
 }
 
+.campo-mapa-dispositivos-picker-item span {
+  line-height: 1.35;
+  word-break: break-word;
+}
+
 .campo-mapa-dispositivos-picker-item input {
   margin-top: 0.15rem;
   flex-shrink: 0;
+}
+
+.campo-mapa-dispositivos-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(10, 14, 10, 0.62);
+  backdrop-filter: blur(2px);
+}
+
+.campo-mapa-dispositivos-modal {
+  display: flex;
+  flex-direction: column;
+  width: min(28rem, calc(100vw - 2rem));
+  max-height: min(34rem, calc(100vh - 2rem));
+  border-radius: 1rem;
+  border: 1px solid rgba(124, 179, 66, 0.28);
+  background: linear-gradient(180deg, rgba(26, 33, 26, 0.98), rgba(18, 24, 18, 0.98));
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.42);
+  color: #f8f6f0;
+}
+
+.campo-mapa-dispositivos-modal-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.9rem 1rem 0.75rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.campo-mapa-dispositivos-modal-head-main {
+  min-width: 0;
+}
+
+.campo-mapa-dispositivos-modal-kicker {
+  margin: 0 0 0.2rem;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(217, 249, 157, 0.82);
+}
+
+.campo-mapa-dispositivos-modal-head h2 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.campo-mapa-dispositivos-modal-sub {
+  margin: 0.25rem 0 0;
+  font-size: 0.78rem;
+  color: rgba(248, 246, 240, 0.62);
+}
+
+.campo-mapa-dispositivos-modal-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 0.55rem;
+  background: rgba(255, 255, 255, 0.06);
+  color: #f8f6f0;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.campo-mapa-dispositivos-modal-close:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.campo-mapa-dispositivos-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding: 0.85rem 1rem;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--sg-hub-sidebar-muted) 70%, transparent) transparent;
+}
+
+.campo-mapa-dispositivos-modal-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.campo-mapa-dispositivos-modal-body::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--sg-hub-sidebar-muted) 75%, transparent);
+  border-radius: 999px;
+}
+
+.campo-mapa-dispositivos-modal-resumen {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 0.65rem 0.7rem;
+  border-radius: 0.75rem;
+  background: rgba(124, 179, 66, 0.1);
+  border: 1px solid rgba(124, 179, 66, 0.22);
+}
+
+.campo-mapa-dispositivos-modal-resumen-head {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: rgba(248, 246, 240, 0.9);
+}
+
+.campo-mapa-dispositivos-modal-resumen-head strong {
+  margin-left: auto;
+  font-size: 0.82rem;
+  color: #d9f99d;
+}
+
+.campo-mapa-dispositivos-modal-hint {
+  margin: 0;
+  font-size: 0.74rem;
+  line-height: 1.45;
+  color: rgba(248, 246, 240, 0.62);
+}
+
+.campo-mapa-dispositivos-modal-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.campo-mapa-dispositivos-modal-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.28rem 0.5rem;
+  border-radius: 999px;
+  background: rgba(18, 24, 18, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 0.7rem;
+  color: rgba(248, 246, 240, 0.92);
+}
+
+.campo-mapa-dispositivos-modal-chip-kind {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(217, 249, 157, 0.78);
+}
+
+.campo-mapa-dispositivos-modal-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.45rem;
+  padding: 0.75rem 1rem 0.9rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.campo-mapa-dispositivos-modal-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.2rem;
+  padding: 0.45rem 0.85rem;
+  border-radius: 0.6rem;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.06);
+  color: #f8f6f0;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.campo-mapa-dispositivos-modal-btn--primary {
+  background: rgba(124, 179, 66, 0.88);
+  border-color: rgba(124, 179, 66, 0.95);
+  color: #14210f;
+}
+
+.campo-mapa-dispositivos-modal-btn--primary:hover:not(:disabled) {
+  background: #8bc34a;
+}
+
+.campo-mapa-dispositivos-modal-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 @media (max-width: 900px) {

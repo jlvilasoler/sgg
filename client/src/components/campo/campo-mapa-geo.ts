@@ -117,6 +117,12 @@ export function pathsToLeafletLatLngs(paths: MapLatLng[]): [number, number][] {
   return paths.map((p) => [p.lat, p.lng]);
 }
 
+export function centroidOfPaths(paths: MapLatLng[]): MapLatLng {
+  const lat = paths.reduce((sum, p) => sum + p.lat, 0) / paths.length;
+  const lng = paths.reduce((sum, p) => sum + p.lng, 0) / paths.length;
+  return { lat, lng };
+}
+
 export function parseMetadata<T extends Record<string, unknown>>(raw: string): T {
   try {
     return JSON.parse(raw) as T;

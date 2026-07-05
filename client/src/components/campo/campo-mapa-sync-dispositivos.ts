@@ -124,6 +124,18 @@ async function syncEquinoPotrero(
   }
 }
 
+export async function clearCampoMapaDispositivosPotrero(
+  previous: CampoMapaDispositivosMetadata,
+  previousPotreroNombre: string,
+): Promise<void> {
+  const prevName = previousPotreroNombre.trim();
+  if (!prevName) return;
+  await Promise.all([
+    syncGanaderoPotrero([], "", previous.dispositivos_ganadero, prevName),
+    syncEquinoPotrero([], "", previous.dispositivos_equino, prevName),
+  ]);
+}
+
 export async function syncCampoMapaDispositivosPotrero(
   potreroNombre: string,
   next: CampoMapaDispositivosMetadata,

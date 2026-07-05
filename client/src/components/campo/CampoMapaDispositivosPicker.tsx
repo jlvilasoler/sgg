@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { fetchStockEquinaDispositivos, fetchStockGanaderaDispositivos } from "../../api";
 import type { StockGanaderaDispositivo } from "../../types";
+import { etiquetaCaravana } from "../stock/stock-ganadera-utils";
 import type { CampoMapaDispositivosMetadata } from "./campo-mapa-metadata";
 
 interface Props {
@@ -12,8 +13,9 @@ interface Props {
 }
 
 function deviceLabel(d: StockGanaderaDispositivo): string {
-  const parts = [d.eid || d.clave, d.potrero?.trim() ? `· ${d.potrero}` : ""].filter(Boolean);
-  return parts.join(" ");
+  const numero = etiquetaCaravana(d);
+  const potrero = d.potrero?.trim();
+  return potrero ? `${numero} · ${potrero}` : numero;
 }
 
 export default function CampoMapaDispositivosPicker({

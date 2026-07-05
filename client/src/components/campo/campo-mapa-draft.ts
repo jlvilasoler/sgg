@@ -1,9 +1,85 @@
 import type { CampoMapaTool } from "./campo-mapa-tools";
 import { sketchShowsAsPolygon } from "./campo-mapa-tools";
 import type { MapLatLng } from "./campo-mapa-geo";
+import {
+  centroidOfPaths,
+  geoJsonToPaths,
+  pointToGeoJson,
+} from "./campo-mapa-geo";
+import type { CampoMapaElementoTipo } from "../../types";
 
 export type DraftSaveTarget = "potrero" | "marcador" | "area" | "linea";
 export type DraftGeometry = "polygon" | "line" | "point";
+
+export function geometryFromGeoJson(geojson: string): DraftGeometry {
+  try {
+    const parsed = JSON.parse(geojson) as { type?: string };
+    if (parsed.type === "Polygon") return "polygon";
+    if (parsed.type === "LineString") return "line";
+    if (parsed.type === "Point") return "point";
+  } catch {
+    /* noop */
+  }
+  return "point";
+}
+
+export function saveTargetFromElemento(tipo: CampoMapaElementoTipo): DraftSaveTarget | null {
+  switch (tipo) {
+    case "area":
+      return "area";
+    case "linea":
+      return "linea";
+    case "marcador":
+    case "nota":
+      return "marcador";
+    default:
+      return null;
+  }
+}
+
+export function canChangeSaveTarget(
+  potrero: { geojson: string } | null,
+  elemento: { tipo: CampoMapaElementoTipo; geojson: string } | null,
+): boolean {
+  if (potrero) return true;
+  if (!elemento) return false;
+  return saveTargetFromElemento(elemento.tipo) != null;
+}
+
+export function elementoTipoFromSaveTarget(target: DraftSaveTarget): CampoMapaElementoTipo {
+  switch (target) {
+    case "marcador":
+      return "marcador";
+    case "area":
+      return "area";
+    case "linea":
+      return "linea";
+    case "potrero":
+      throw new Error("Potrero no es un tipo de elemento.");
+  }
+}
+
+export function geoJsonForSaveTarget(sourceGeojson: string, target: DraftSaveTarget): unknown {
+  const geometry = geometryFromGeoJson(sourceGeojson);
+  if (target === "linea") {
+    if (geometry !== "line") {
+      throw new Error("Esta figura no se puede guardar como línea.");
+    }
+    return JSON.parse(sourceGeojson);
+  }
+  if (target === "potrero" || target === "area") {
+    if (geometry !== "polygon") {
+      throw new Error("Esta figura no se puede guardar como potrero o área.");
+    }
+    return JSON.parse(sourceGeojson);
+  }
+  if (geometry === "point") return JSON.parse(sourceGeojson);
+  const paths = geoJsonToPaths(sourceGeojson);
+  if (paths.length === 0) {
+    throw new Error("No se pudo determinar el punto del marcador.");
+  }
+  return JSON.parse(pointToGeoJson(centroidOfPaths(paths)));
+}
 
 export function draftGeometryFromDraft(draft: {
   sourceTool: CampoMapaTool;
@@ -107,12 +183,6 @@ export function saveTargetHint(target: DraftSaveTarget): string {
     case "linea":
       return "Se guarda como línea en elementos del mapa.";
   }
-}
-
-export function centroidOfPaths(paths: MapLatLng[]): MapLatLng {
-  const lat = paths.reduce((sum, p) => sum + p.lat, 0) / paths.length;
-  const lng = paths.reduce((sum, p) => sum + p.lng, 0) / paths.length;
-  return { lat, lng };
 }
 
 export function markerPointFromDraft(draft: {
