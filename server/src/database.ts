@@ -38,6 +38,9 @@ import * as vsubItems from "./venta-sub-rubro-items-db.js";
 import * as vgicon from "./venta-grupo-iconos-db.js";
 import * as stock from "./stock-ganadero-db.js";
 import * as stockEquinoDb from "./stock-equino-db.js";
+import * as campoPotreroMapa from "./campo-potrero-mapa-db.js";
+import * as campoMapaElementosDb from "./campo-mapa-elementos-db.js";
+import * as operativaTareasDb from "./operativa-tareas-db.js";
 import * as stockSalidas from "./stock-ganadera-salidas.js";
 import * as stockEquinoSalidas from "./stock-equina-salidas.js";
 import * as stockAud from "./stock-auditoria-db.js";
@@ -192,6 +195,9 @@ export async function initDb(): Promise<void> {
       stockAud.initStockAuditoriaTable(db),
       pgan.initPreciosGanadoTable(db),
     ]);
+    await campoPotreroMapa.initCampoPotreroMapaTable(db);
+    await campoMapaElementosDb.initCampoMapaElementosTable(db);
+    await operativaTareasDb.initOperativaTareasTables(db);
     await Promise.all([
       simVenta.initSimuladorVentaGanadoTable(db),
       simVentaAud.initSimuladorVentaAuditoriaTable(db),
@@ -469,6 +475,65 @@ export const stockGanadero = {
   listGrupos: (cuentaId: number) => stock.listStockGanaderoGrupos(db, cuentaId),
   createGrupo: (cuentaId: number, nombre: string) =>
     stock.createStockGanaderoGrupo(db, cuentaId, nombre),
+};
+
+export const campoPotreros = {
+  list: (cuentaId: number) => campoPotreroMapa.listCampoPotrerosMapa(db, cuentaId),
+  getById: (cuentaId: number, id: number) =>
+    campoPotreroMapa.getCampoPotreroMapaById(db, cuentaId, id),
+  create: (cuentaId: number, input: campoPotreroMapa.CampoPotreroMapaInput) =>
+    campoPotreroMapa.createCampoPotreroMapa(db, cuentaId, input),
+  update: (
+    cuentaId: number,
+    id: number,
+    input: Partial<campoPotreroMapa.CampoPotreroMapaInput>,
+  ) => campoPotreroMapa.updateCampoPotreroMapa(db, cuentaId, id, input),
+  delete: (cuentaId: number, id: number) =>
+    campoPotreroMapa.deleteCampoPotreroMapa(db, cuentaId, id),
+};
+
+export const campoMapaElementos = {
+  list: (cuentaId: number) => campoMapaElementosDb.listCampoMapaElementos(db, cuentaId),
+  getById: (cuentaId: number, id: number) =>
+    campoMapaElementosDb.getCampoMapaElementoById(db, cuentaId, id),
+  create: (cuentaId: number, input: campoMapaElementosDb.CampoMapaElementoInput) =>
+    campoMapaElementosDb.createCampoMapaElemento(db, cuentaId, input),
+  update: (
+    cuentaId: number,
+    id: number,
+    input: Partial<campoMapaElementosDb.CampoMapaElementoInput>,
+  ) => campoMapaElementosDb.updateCampoMapaElemento(db, cuentaId, id, input),
+  delete: (cuentaId: number, id: number) =>
+    campoMapaElementosDb.deleteCampoMapaElemento(db, cuentaId, id),
+};
+
+export const operativaTareas = {
+  list: (cuentaId: number, filters?: operativaTareasDb.OperativaTareaListFilters) =>
+    operativaTareasDb.listOperativaTareas(db, cuentaId, filters),
+  getById: (cuentaId: number, id: number) =>
+    operativaTareasDb.getOperativaTareaById(db, cuentaId, id),
+  create: (
+    cuentaId: number,
+    creadoPorUserId: number | null,
+    input: operativaTareasDb.OperativaTareaInput,
+  ) => operativaTareasDb.createOperativaTarea(db, cuentaId, creadoPorUserId, input),
+  update: (
+    cuentaId: number,
+    id: number,
+    input: Partial<operativaTareasDb.OperativaTareaInput>,
+  ) => operativaTareasDb.updateOperativaTarea(db, cuentaId, id, input),
+  delete: (cuentaId: number, id: number) =>
+    operativaTareasDb.deleteOperativaTarea(db, cuentaId, id),
+  listRegistros: (cuentaId: number, tareaId: number, fechaEjecucion?: string) =>
+    operativaTareasDb.listOperativaTareaRegistros(db, cuentaId, tareaId, fechaEjecucion),
+  listRegistrosPorFecha: (cuentaId: number, fecha: string) =>
+    operativaTareasDb.listOperativaRegistrosPorFecha(db, cuentaId, fecha),
+  createRegistro: (
+    cuentaId: number,
+    tareaId: number,
+    userId: number | null,
+    input: operativaTareasDb.OperativaTareaRegistroInput,
+  ) => operativaTareasDb.createOperativaTareaRegistro(db, cuentaId, tareaId, userId, input),
 };
 
 export const stockEquino = {

@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { MessageSquare } from "lucide-react";
+import { Heart, Maximize2, Menu, MessageSquare, Pencil, Reply, ThumbsUp, X } from "lucide-react";
 import {
   agregarChatContactoExterno,
   buscarChatMensajes,
   crearChatCanal,
+  editarChatMensaje,
   eliminarChatContactoExterno,
   enviarChatAdjunto,
   enviarChatMensaje,
@@ -15,8 +16,16 @@ import {
   guardarChatWallpaper,
   marcarChatLeido,
   renombrarChatCanal,
+  toggleChatReaccionMensaje,
 } from "../api";
-import type { AuthUser, ChatChannel, ChatContact, ChatMessage, ChatSearchHit } from "../types";
+import type {
+  AuthUser,
+  ChatChannel,
+  ChatContact,
+  ChatMessage,
+  ChatMessageReactions,
+  ChatSearchHit,
+} from "../types";
 import { formatChatPresence, presenceStatusClass } from "../utils/chat-presence";
 import { bubbleColorForSender, bubbleStyleVars } from "../utils/chat-bubble-colors";
 import {
@@ -46,6 +55,12 @@ import ChatWallpaperPicker from "./chat/ChatWallpaperPicker";
 import { chatWallpaperClass } from "./chat/chat-wallpapers";
 
 const MESSAGES_PAGE = 50;
+
+const EMPTY_REACTIONS: ChatMessageReactions = {
+  like_count: 0,
+  heart_count: 0,
+  mi_reaccion: null,
+};
 
 function formatFechaHoraMensaje(iso: string): string {
   const d = new Date(iso);
@@ -169,6 +184,9 @@ export default function ChatInterno({
   const [removingExternalId, setRemovingExternalId] = useState<number | null>(null);
   const [incomingAlert, setIncomingAlert] = useState(false);
   const [incomingSender, setIncomingSender] = useState<string | null>(null);
+  const [replyingTo, setReplyingTo] = useState<ChatMessage | null>(null);
+  const [editingMessage, setEditingMessage] = useState<ChatMessage | null>(null);
+  const [reactingId, setReactingId] = useState<number | null>(null);
 
   const listRef = useRef<HTMLDivElement>(null);
   const draftRef = useRef<HTMLTextAreaElement>(null);
@@ -282,7 +300,12 @@ export default function ChatInterno({
 
   const scrollToMessage = useCallback((messageId: number) => {
     const el = listRef.current?.querySelector(`[data-msg-id="${messageId}"]`);
-    el?.scrollIntoView({ behavior: "smooth", block: "center" });
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    setHighlightId(messageId);
+    window.setTimeout(() => {
+      setHighlightId((cur) => (cur === messageId ? null : cur));
+    }, 2200);
   }, []);
 
   const loadMessagesAround = useCallback(
@@ -518,6 +541,8 @@ export default function ChatInterno({
     setWallpaperOpen(false);
     setIncomingAlert(false);
     setIncomingSender(null);
+    setReplyingTo(null);
+    setEditingMessage(null);
     clearPendingFile();
     if (isPanel && panelPickedChat) setSidebarOpen(false);
   }, [peerId, panelPickedChat, loadMessages, isPanel, clearPendingFile]);
@@ -535,6 +560,23 @@ export default function ChatInterno({
     skipPeerLoadRef.current = false;
     void loadMessages(next, { initial: true });
   }, [channels, peerId, loadMessages]);
+
+  const syncDraftHeight = useCallback(() => {
+    const el = draftRef.current;
+    if (!el) return;
+    if (!el.value) {
+      el.style.height = "";
+      return;
+    }
+    el.style.height = "auto";
+    const maxPx = parseFloat(getComputedStyle(el).maxHeight);
+    const cap = Number.isFinite(maxPx) && maxPx > 0 ? maxPx : 112;
+    el.style.height = `${Math.min(el.scrollHeight, cap)}px`;
+  }, []);
+
+  useEffect(() => {
+    syncDraftHeight();
+  }, [draft, editingMessage, replyingTo, syncDraftHeight]);
 
   useEffect(() => {
     if (!incomingAlert) return;
@@ -798,15 +840,28 @@ export default function ChatInterno({
       : null;
 
   const peerLabel = peerTabLabel(peerId, channels, contacts, externalContacts);
+  const composePlaceholder = editingMessage
+    ? "Editá tu mensaje…"
+    : isPanel
+      ? "Escribí un mensaje…"
+      : `Mensaje para ${isGroupChannelPeer(peerId) ? activeChannel?.nombre ?? "el canal" : peerLabel}…`;
   const currentWallpaper = wallpaperByPeer[peerId] ?? "default";
   const wallpaperClass = chatWallpaperClass(currentWallpaper);
 
-  const peerSubtitle = isGroupChannelPeer(peerId)
+  const peerHeadKicker = isGroupChannelPeer(peerId)
+    ? activeChannel?.es_sistema
+      ? "Canal del equipo"
+      : "Canal grupal"
+    : peerContact && externalContacts.some((c) => c.id === peerContact.id)
+      ? "Contacto externo"
+      : "Mensaje directo";
+
+  const peerHeadSub = isGroupChannelPeer(peerId)
     ? activeChannel?.es_sistema
       ? onlineCount > 0
-        ? `${onlineCount} en línea ahora · canal del equipo`
-        : "Canal del equipo · todos los usuarios"
-      : "Canal grupal · todos los usuarios"
+        ? `${onlineCount} en línea ahora · todos los usuarios`
+        : "Todos los usuarios de la cuenta"
+      : "Canal grupal · todos los miembros"
     : peerContact && externalContacts.some((c) => c.id === peerContact.id)
       ? formatChatPresence(peerContact.presencia)
       : formatChatPresence(peerContact?.presencia);
@@ -880,6 +935,38 @@ export default function ChatInterno({
     });
   };
 
+  const cancelComposeContext = useCallback(() => {
+    setReplyingTo(null);
+    setEditingMessage(null);
+  }, []);
+
+  const startReply = useCallback((message: ChatMessage) => {
+    setEditingMessage(null);
+    setReplyingTo(message);
+    draftRef.current?.focus();
+  }, []);
+
+  const startEdit = useCallback((message: ChatMessage) => {
+    if (!message.puede_editar || message.attachment) return;
+    setReplyingTo(null);
+    setEditingMessage(message);
+    setDraft(message.body);
+    draftRef.current?.focus();
+  }, []);
+
+  const onReaction = useCallback(async (messageId: number, tipo: "like" | "heart") => {
+    if (reactingId != null) return;
+    setReactingId(messageId);
+    try {
+      const updated = await toggleChatReaccionMensaje(messageId, tipo);
+      setMessages((prev) => prev.map((m) => (m.id === messageId ? updated : m)));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "No se pudo reaccionar");
+    } finally {
+      setReactingId(null);
+    }
+  }, [reactingId]);
+
   const onPickFile = (file: File | null) => {
     clearPendingFile();
     if (!file) return;
@@ -893,7 +980,7 @@ export default function ChatInterno({
 
   const send = async () => {
     const text = draft.trim();
-    if (sending || (!text && !pendingFile)) return;
+    if (sending || (!text && !pendingFile && !editingMessage)) return;
     const externalPending = externalContacts.find(
       (c) => c.id === peerId && c.external_estado === "pendiente_enviada"
     );
@@ -904,11 +991,22 @@ export default function ChatInterno({
     setSending(true);
     setError(null);
     try {
+      if (editingMessage) {
+        const updated = await editarChatMensaje(editingMessage.id, text);
+        setMessages((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
+        setDraft("");
+        cancelComposeContext();
+        draftRef.current?.focus();
+        return;
+      }
+
+      const replyId = replyingTo?.id ?? null;
       const msg = pendingFile
-        ? await enviarChatAdjunto(peerId, pendingFile, text)
-        : await enviarChatMensaje(peerId, text);
+        ? await enviarChatAdjunto(peerId, pendingFile, text, replyId)
+        : await enviarChatMensaje(peerId, text, replyId);
       setDraft("");
       clearPendingFile();
+      cancelComposeContext();
       setMessages((prev) => {
         const next = [...prev, msg];
         lastIdRef.current = msg.id;
@@ -933,7 +1031,11 @@ export default function ChatInterno({
   let lastDay = "";
 
   return (
-    <div className={`chat-interno chat-interno--hub chat-interno--${variant}`}>
+    <div
+      className={`chat-interno chat-interno--hub chat-interno--${variant}${
+        isPanel && panelPickedChat ? " chat-interno--panel-chat" : ""
+      }`}
+    >
       <aside
         className={`chat-interno-sidebar chat-interno-hub-aside${sidebarOpen ? " chat-interno-sidebar--open" : ""}`}
         aria-label="Conversaciones"
@@ -1113,157 +1215,169 @@ export default function ChatInterno({
         <div className="chat-interno-hub-workspace">
           <div className="chat-interno-hub-conversation">
         <header className="chat-interno-main-head chat-interno-hub-head">
-          <button
-            type="button"
-            className="chat-interno-menu-btn"
-            onClick={() => setSidebarOpen((v) => !v)}
-            aria-label="Ver conversaciones"
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-              <path d="M4 6h16M4 12h16M4 18h10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-            </svg>
-          </button>
-          <div className="chat-interno-main-head-text">
-            {activeChannel && (
-              <ChatChannelAvatar channel={activeChannel} className="chat-interno-main-head-avatar" />
-            )}
-            {peerContact && (
-              <span
-                className={`chat-interno-avatar-wrap${
-                  peerContact.presencia.online
-                    ? " chat-interno-avatar-wrap--online"
-                    : " chat-interno-avatar-wrap--offline"
-                }`}
-              >
-                <UserAvatar
-                  nombre={peerContact.nombre}
-                  avatar={peerContact.avatar}
-                  variant="chat-channel"
-                  className="chat-interno-main-head-avatar"
-                />
-              </span>
-            )}
-            <div>
-              {renamingChannelId !== null && activeChannel?.id === renamingChannelId ? (
-                <div className="chat-interno-rename-row">
-                  <input
-                    type="text"
-                    className="chat-interno-rename-input"
-                    value={renameDraft}
-                    maxLength={60}
-                    onChange={(e) => setRenameDraft(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") void guardarRenombre();
-                      if (e.key === "Escape") setRenamingChannelId(null);
-                    }}
-                    autoFocus
-                  />
-                  <button
-                    type="button"
-                    className="sg-hub-cta chat-interno-hub-btn-sm"
-                    onClick={() => void guardarRenombre()}
-                  >
-                    Guardar
-                  </button>
-                  <button
-                    type="button"
-                    className="sg-hub-cta sg-hub-cta--ghost chat-interno-hub-btn-sm"
-                    onClick={() => setRenamingChannelId(null)}
-                  >
-                    Cancelar
-                  </button>
-                </div>
-              ) : (
-                <div className="chat-interno-main-head-title-row">
-                  <h3 className={incomingAlert ? "chat-interno-main-head-name--alert" : undefined}>
-                    {peerLabel}
-                  </h3>
-                  {incomingAlert && (
-                    <span className="chat-interno-incoming-badge" role="status" aria-live="polite">
-                      {isGroupChannelPeer(peerId) && incomingSender
-                        ? `Nuevo mensaje · ${incomingSender}`
-                        : "Nuevo mensaje"}
-                    </span>
-                  )}
-                </div>
-              )}
-              <p className={presenceStatusClass(peerContact?.presencia)}>{peerSubtitle}</p>
-            </div>
-          </div>
-          {variant === "page" && onClose && (
-            <button type="button" className="sg-hub-cta sg-hub-cta--ghost chat-interno-hub-back" onClick={onClose}>
-              Volver
+          <div className="chat-interno-hub-head-bar">
+            <button
+              type="button"
+              className="chat-interno-menu-btn"
+              onClick={() => setSidebarOpen((v) => !v)}
+              aria-label="Ver conversaciones"
+            >
+              <Menu size={17} strokeWidth={2} aria-hidden />
             </button>
-          )}
-          <div className="chat-interno-main-head-actions">
-            <ChatInternoKebabMenu
-              variant="header"
-              label={
-                activeExternalContact
-                  ? `Opciones de ${activeExternalContact.nombre}`
-                  : "Opciones del chat"
-              }
-              onChangeWallpaper={() => {
-                setWallpaperOpen((v) => !v);
-                setSearchOpen(false);
-                setEmojiOpen(false);
-              }}
-              onSearch={() => {
-                setSearchOpen((v) => !v);
-                setWallpaperOpen(false);
-              }}
-              {...(activeChannel && renamingChannelId === null
-                ? {
-                    onRenameChannel: () => {
-                      setRenamingChannelId(activeChannel.id);
-                      setRenameDraft(activeChannel.nombre);
-                      setWallpaperOpen(false);
-                      setSearchOpen(false);
-                      setEmojiOpen(false);
-                    },
-                  }
-                : {})}
-              {...(activeExternalContact
-                ? {
-                    removing: removingExternalId === activeExternalContact.id,
-                    onRemove: () => void eliminarContactoExterno(activeExternalContact),
-                  }
-                : {})}
-            />
-            {variant === "panel" && (onClose || onOpenFullscreen) && (
-              <div className="chat-interno-panel-actions">
-                {onOpenFullscreen && (
-                  <button
-                    type="button"
-                    className="chat-interno-panel-expand"
-                    onClick={onOpenFullscreen}
-                    aria-label="Abrir chat en pantalla completa"
-                    title="Abrir en vista completa"
+
+            <div className="chat-interno-hub-head-main">
+              <div className="chat-interno-hub-head-avatar">
+                {activeChannel ? (
+                  <ChatChannelAvatar
+                    channel={activeChannel}
+                    className="chat-interno-main-head-avatar"
+                  />
+                ) : null}
+                {peerContact ? (
+                  <span
+                    className={`chat-interno-avatar-wrap${
+                      peerContact.presencia.online
+                        ? " chat-interno-avatar-wrap--online"
+                        : " chat-interno-avatar-wrap--offline"
+                    }`}
                   >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
-                      <path
-                        d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"
-                        stroke="currentColor"
-                        strokeWidth="1.8"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </button>
-                )}
-                {onClose && (
-                  <button
-                    type="button"
-                    className="chat-interno-panel-close"
-                    onClick={onClose}
-                    aria-label="Ocultar chat"
-                    title="Ocultar chat (Esc)"
-                  >
-                    ✕
-                  </button>
+                    <UserAvatar
+                      nombre={peerContact.nombre}
+                      avatar={peerContact.avatar}
+                      variant="chat-channel"
+                      className="chat-interno-main-head-avatar"
+                    />
+                  </span>
+                ) : null}
+              </div>
+
+              <div className="chat-interno-hub-head-copy">
+                {renamingChannelId !== null && activeChannel?.id === renamingChannelId ? (
+                  <div className="chat-interno-rename-row">
+                    <input
+                      type="text"
+                      className="chat-interno-rename-input"
+                      value={renameDraft}
+                      maxLength={60}
+                      onChange={(e) => setRenameDraft(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") void guardarRenombre();
+                        if (e.key === "Escape") setRenamingChannelId(null);
+                      }}
+                      autoFocus
+                    />
+                    <button
+                      type="button"
+                      className="sg-hub-cta chat-interno-hub-btn-sm"
+                      onClick={() => void guardarRenombre()}
+                    >
+                      Guardar
+                    </button>
+                    <button
+                      type="button"
+                      className="sg-hub-cta sg-hub-cta--ghost chat-interno-hub-btn-sm"
+                      onClick={() => setRenamingChannelId(null)}
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <p className="chat-interno-hub-head-kicker">{peerHeadKicker}</p>
+                    <div className="chat-interno-main-head-title-row">
+                      <h3 className={incomingAlert ? "chat-interno-main-head-name--alert" : undefined}>
+                        {peerLabel}
+                      </h3>
+                      {incomingAlert ? (
+                        <span className="chat-interno-incoming-badge" role="status" aria-live="polite">
+                          {isGroupChannelPeer(peerId) && incomingSender
+                            ? `Nuevo · ${incomingSender}`
+                            : "Nuevo mensaje"}
+                        </span>
+                      ) : null}
+                    </div>
+                    <p
+                      className={`chat-interno-hub-head-sub ${presenceStatusClass(peerContact?.presencia)}`}
+                    >
+                      {peerHeadSub}
+                    </p>
+                  </>
                 )}
               </div>
-            )}
+            </div>
+
+            {variant === "page" && onClose ? (
+              <button
+                type="button"
+                className="sg-hub-cta sg-hub-cta--ghost chat-interno-hub-back"
+                onClick={onClose}
+              >
+                Volver
+              </button>
+            ) : null}
+
+            <div className="chat-interno-main-head-actions">
+              <ChatInternoKebabMenu
+                variant="header"
+                label={
+                  activeExternalContact
+                    ? `Opciones de ${activeExternalContact.nombre}`
+                    : "Opciones del chat"
+                }
+                onChangeWallpaper={() => {
+                  setWallpaperOpen((v) => !v);
+                  setSearchOpen(false);
+                  setEmojiOpen(false);
+                }}
+                onSearch={() => {
+                  setSearchOpen((v) => !v);
+                  setWallpaperOpen(false);
+                }}
+                {...(activeChannel && renamingChannelId === null
+                  ? {
+                      onRenameChannel: () => {
+                        setRenamingChannelId(activeChannel.id);
+                        setRenameDraft(activeChannel.nombre);
+                        setWallpaperOpen(false);
+                        setSearchOpen(false);
+                        setEmojiOpen(false);
+                      },
+                    }
+                  : {})}
+                {...(activeExternalContact
+                  ? {
+                      removing: removingExternalId === activeExternalContact.id,
+                      onRemove: () => void eliminarContactoExterno(activeExternalContact),
+                    }
+                  : {})}
+              />
+              {variant === "panel" && (onClose || onOpenFullscreen) ? (
+                <div className="chat-interno-panel-actions">
+                  {onOpenFullscreen ? (
+                    <button
+                      type="button"
+                      className="chat-interno-panel-expand"
+                      onClick={onOpenFullscreen}
+                      aria-label="Abrir chat en pantalla completa"
+                      title="Abrir en vista completa"
+                    >
+                      <Maximize2 size={15} strokeWidth={2} aria-hidden />
+                    </button>
+                  ) : null}
+                  {onClose ? (
+                    <button
+                      type="button"
+                      className="chat-interno-panel-close"
+                      onClick={onClose}
+                      aria-label="Ocultar chat"
+                      title="Ocultar chat (Esc)"
+                    >
+                      <X size={15} strokeWidth={2} aria-hidden />
+                    </button>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
           </div>
         </header>
 
@@ -1374,7 +1488,10 @@ export default function ChatInterno({
             </p>
           )}
           {loading ? (
-            <p className="chat-interno-status">Cargando mensajes…</p>
+            <div className="chat-interno-status chat-interno-status--loading" role="status">
+              <span className="chat-interno-status-spinner" aria-hidden />
+              <p>Cargando mensajes…</p>
+            </div>
           ) : messages.length === 0 ? (
             <div className="chat-interno-empty">
               <p>Sin mensajes todavía.</p>
@@ -1386,6 +1503,9 @@ export default function ChatInterno({
               const showDay = day !== lastDay;
               if (showDay) lastDay = day;
               const bubbleColor = bubbleColorForSender(m.sender_id, m.es_propio);
+              const reacciones = m.reacciones ?? EMPTY_REACTIONS;
+              const showReactionsSummary =
+                reacciones.like_count > 0 || reacciones.heart_count > 0;
               return (
                 <div key={m.id}>
                   {showDay && <div className="chat-interno-day">{day}</div>}
@@ -1402,34 +1522,121 @@ export default function ChatInterno({
                         variant="chat-bubble"
                       />
                     )}
-                    <div
-                      className={`chat-interno-bubble${m.es_propio ? " chat-interno-bubble--own" : " chat-interno-bubble--other"}`}
-                      style={bubbleStyleVars(bubbleColor)}
-                    >
-                      {!m.es_propio && isGroupChannelPeer(peerId) && (
-                        <span className="chat-interno-bubble-author">{m.sender_nombre}</span>
-                      )}
-                      {m.attachment && (
-                        <ChatMessageAttachmentView
-                          messageId={m.id}
-                          attachment={m.attachment}
-                          onImageClick={setImagePreviewUrl}
-                        />
-                      )}
-                      {m.body.trim() && (
-                        <p className="chat-interno-bubble-text">
-                          {highlightTerm && highlightId === m.id
-                            ? resaltarTexto(m.body, highlightTerm)
-                            : m.body}
-                        </p>
-                      )}
-                      <time
-                        className="chat-interno-bubble-time"
-                        dateTime={m.creado_en}
-                        title={formatFechaHoraMensaje(m.creado_en)}
+                    <div className="chat-interno-bubble-wrap">
+                      <div className="chat-interno-bubble-actions" aria-label="Acciones del mensaje">
+                        <button
+                          type="button"
+                          className={`chat-interno-bubble-action${
+                            reacciones.mi_reaccion === "like"
+                              ? " chat-interno-bubble-action--active"
+                              : ""
+                          }`}
+                          onClick={() => void onReaction(m.id, "like")}
+                          disabled={reactingId === m.id}
+                          title="Me gusta"
+                          aria-label="Me gusta"
+                        >
+                          <ThumbsUp size={14} strokeWidth={2} aria-hidden />
+                        </button>
+                        <button
+                          type="button"
+                          className={`chat-interno-bubble-action${
+                            reacciones.mi_reaccion === "heart"
+                              ? " chat-interno-bubble-action--active"
+                              : ""
+                          }`}
+                          onClick={() => void onReaction(m.id, "heart")}
+                          disabled={reactingId === m.id}
+                          title="Corazón"
+                          aria-label="Corazón"
+                        >
+                          <Heart size={14} strokeWidth={2} aria-hidden />
+                        </button>
+                        <button
+                          type="button"
+                          className="chat-interno-bubble-action"
+                          onClick={() => startReply(m)}
+                          title="Responder"
+                          aria-label="Responder"
+                        >
+                          <Reply size={14} strokeWidth={2} aria-hidden />
+                        </button>
+                        {m.es_propio && m.puede_editar && !m.attachment && (
+                          <button
+                            type="button"
+                            className="chat-interno-bubble-action"
+                            onClick={() => startEdit(m)}
+                            title="Editar (5 min)"
+                            aria-label="Editar mensaje"
+                          >
+                            <Pencil size={14} strokeWidth={2} aria-hidden />
+                          </button>
+                        )}
+                      </div>
+                      <div
+                        className={`chat-interno-bubble${m.es_propio ? " chat-interno-bubble--own" : " chat-interno-bubble--other"}`}
+                        style={bubbleStyleVars(bubbleColor)}
                       >
-                        {formatFechaHoraMensaje(m.creado_en)}
-                      </time>
+                        {!m.es_propio && isGroupChannelPeer(peerId) && (
+                          <span className="chat-interno-bubble-author">{m.sender_nombre}</span>
+                        )}
+                        {m.reply_to && (
+                          <button
+                            type="button"
+                            className="chat-interno-bubble-quote"
+                            onClick={() => scrollToMessage(m.reply_to!.id)}
+                          >
+                            <span className="chat-interno-bubble-quote-author">
+                              {m.reply_to.sender_nombre}
+                            </span>
+                            <span className="chat-interno-bubble-quote-body">
+                              {truncar(m.reply_to.body, 120)}
+                            </span>
+                          </button>
+                        )}
+                        {m.attachment && (
+                          <ChatMessageAttachmentView
+                            messageId={m.id}
+                            attachment={m.attachment}
+                            onImageClick={setImagePreviewUrl}
+                          />
+                        )}
+                        {m.body.trim() && (
+                          <p className="chat-interno-bubble-text">
+                            {highlightTerm && highlightId === m.id
+                              ? resaltarTexto(m.body, highlightTerm)
+                              : m.body}
+                          </p>
+                        )}
+                        <div className="chat-interno-bubble-meta">
+                          {m.editado_en && (
+                            <span className="chat-interno-bubble-edited">editado</span>
+                          )}
+                          <time
+                            className="chat-interno-bubble-time"
+                            dateTime={m.creado_en}
+                            title={formatFechaHoraMensaje(m.creado_en)}
+                          >
+                            {formatFechaHoraMensaje(m.creado_en)}
+                          </time>
+                        </div>
+                      </div>
+                      {showReactionsSummary && (
+                        <div className="chat-interno-bubble-reactions" aria-label="Reacciones">
+                          {reacciones.like_count > 0 && (
+                            <span className="chat-interno-bubble-reaction-chip">
+                              <ThumbsUp size={12} strokeWidth={2} aria-hidden />
+                              {reacciones.like_count}
+                            </span>
+                          )}
+                          {reacciones.heart_count > 0 && (
+                            <span className="chat-interno-bubble-reaction-chip chat-interno-bubble-reaction-chip--heart">
+                              <Heart size={12} strokeWidth={2} aria-hidden />
+                              {reacciones.heart_count}
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1438,6 +1645,7 @@ export default function ChatInterno({
           )}
         </div>
 
+        <div className="chat-interno-compose-area">
         {error && <p className="chat-interno-error">{error}</p>}
         {notice && <p className="chat-interno-notice">{notice}</p>}
 
@@ -1458,6 +1666,34 @@ export default function ChatInterno({
               aria-label="Quitar adjunto"
             >
               ✕
+            </button>
+          </div>
+        )}
+
+        {(replyingTo || editingMessage) && (
+          <div
+            className={`chat-interno-compose-context${
+              editingMessage ? " chat-interno-compose-context--edit" : ""
+            }`}
+          >
+            <div className="chat-interno-compose-context-main">
+              <span className="chat-interno-compose-context-label">
+                {editingMessage ? "Editando mensaje" : `Respondiendo a ${replyingTo?.sender_nombre}`}
+              </span>
+              <p className="chat-interno-compose-context-preview">
+                {truncar(editingMessage?.body ?? replyingTo?.body ?? "", 140)}
+              </p>
+            </div>
+            <button
+              type="button"
+              className="chat-interno-compose-context-close"
+              onClick={() => {
+                cancelComposeContext();
+                if (editingMessage) setDraft("");
+              }}
+              aria-label="Cancelar"
+            >
+              <X size={16} strokeWidth={2} aria-hidden />
             </button>
           </div>
         )}
@@ -1528,19 +1764,22 @@ export default function ChatInterno({
             ref={draftRef}
             className="chat-interno-input"
             rows={1}
-            placeholder={`Mensaje para ${isGroupChannelPeer(peerId) ? activeChannel?.nombre ?? "el canal" : peerLabel}…`}
+            placeholder={composePlaceholder}
             value={draft}
             disabled={sending}
-            onChange={(e) => setDraft(e.target.value)}
+            onChange={(e) => {
+              setDraft(e.target.value);
+              requestAnimationFrame(syncDraftHeight);
+            }}
             onKeyDown={onDraftKey}
             maxLength={2000}
           />
           <button
             type="button"
             className="chat-interno-send"
-            disabled={sending || (!draft.trim() && !pendingFile)}
+            disabled={sending || (!draft.trim() && !pendingFile && !editingMessage)}
             onClick={() => void send()}
-            aria-label="Enviar mensaje"
+            aria-label={editingMessage ? "Guardar cambios" : "Enviar mensaje"}
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
               <path
@@ -1556,6 +1795,7 @@ export default function ChatInterno({
         <p className="chat-interno-compose-hint muted">
           Enter para enviar · Shift+Enter para nueva línea · Máx. 12 MB por archivo
         </p>
+        </div>
           </div>
         </div>
       </section>

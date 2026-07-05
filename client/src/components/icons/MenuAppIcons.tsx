@@ -233,6 +233,41 @@ function IconVencimientosImpuestos({ className }: IconProps) {
   );
 }
 
+function IconCampoMapa({ className }: IconProps) {
+  return (
+    <IconShell className={className}>
+      <path
+        d="M4.5 18.5 12 5.5l7.5 13"
+        {...stroke}
+      />
+      <path d="M8.5 14.5h7" {...stroke} />
+      <circle cx="12" cy="11.5" r="1.35" fill="currentColor" fillOpacity="0.35" />
+      <path
+        d="M16.5 8.5c1.4.8 2.3 2.1 2.5 3.8"
+        {...stroke}
+        strokeWidth="1.4"
+      />
+    </IconShell>
+  );
+}
+
+function IconTareasOperativas({ className }: IconProps) {
+  return (
+    <IconShell className={className}>
+      <rect x="4.5" y="5.5" width="15" height="14" rx="1.5" {...stroke} />
+      <path d="M8 4v3M16 4v3M4.5 10h15" {...stroke} strokeWidth="1.4" />
+      <path d="M8.5 13.5h2.2M8.5 16.5h4.5" {...stroke} strokeWidth="1.4" />
+      <path
+        d="M14.5 14.2 15.8 15.5 18.2 12.8"
+        {...stroke}
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </IconShell>
+  );
+}
+
 function IconDocumentosDigitales({ className }: IconProps) {
   return (
     <IconShell className={className}>
@@ -265,6 +300,8 @@ const ICONS: Record<TabId, (props: IconProps) => ReactNode> = {
   recursos_humanos: IconRecursosHumanos,
   ingresos_ventas: IconIngresosVentas,
   stock_ganadero: IconStockGanadero,
+  campo_mapa: IconCampoMapa,
+  tareas_operativas: IconTareasOperativas,
   stock_equino: IconStockEquino,
   stock_movimientos: IconStockMovimientos,
   registro_actividad: IconRegistroActividad,
@@ -341,6 +378,16 @@ export const MENU_APP_THEMES: Record<TabId, MenuAppTheme> = {
     accent: "#92400e",
     accentSoft: "linear-gradient(145deg, #fffbeb 0%, #fde68a 40%, #fbbf24 100%)",
     accentGlow: "rgba(146, 64, 14, 0.26)",
+  },
+  campo_mapa: {
+    accent: "#15803d",
+    accentSoft: "linear-gradient(145deg, #f0fdf4 0%, #dcfce7 52%, #bbf7d0 100%)",
+    accentGlow: "rgba(21, 128, 61, 0.28)",
+  },
+  tareas_operativas: {
+    accent: "#0369a1",
+    accentSoft: "linear-gradient(145deg, #f0f9ff 0%, #e0f2fe 52%, #bae6fd 100%)",
+    accentGlow: "rgba(3, 105, 161, 0.28)",
   },
   stock_equino: {
     accent: "#4338ca",

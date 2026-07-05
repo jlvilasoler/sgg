@@ -52,6 +52,13 @@ import type {
   StockGanaderoLote,
   StockGanaderoRegistro,
   StockGanaderoEstadisticas,
+  CampoPotreroMapa,
+  CampoMapaElemento,
+  CampoMapaElementoTipo,
+  OperativaTarea,
+  OperativaTareaInput,
+  OperativaTareaRegistro,
+  OperativaTareaEstado,
   StockGanaderaDispositivo,
   StockGanaderaDispositivoDetalle,
   StockGanaderaDispositivoHistorial,
@@ -1125,6 +1132,159 @@ export async function createStockGanaderoPotrero(nombre: string): Promise<string
     body: JSON.stringify({ nombre }),
   });
   return json.data.nombre;
+}
+
+export async function fetchCampoPotrerosMapa(): Promise<CampoPotreroMapa[]> {
+  const json = await request<{ data: CampoPotreroMapa[] }>("/campo-potreros");
+  return json.data;
+}
+
+export async function createCampoPotreroMapa(body: {
+  nombre: string;
+  geojson: unknown;
+  color?: string;
+  hectareas?: number | null;
+  notas?: string;
+}): Promise<CampoPotreroMapa> {
+  const json = await request<{ data: CampoPotreroMapa }>("/campo-potreros", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+  return json.data;
+}
+
+export async function updateCampoPotreroMapa(
+  id: number,
+  body: {
+    nombre?: string;
+    geojson?: unknown;
+    color?: string;
+    hectareas?: number | null;
+    notas?: string;
+  },
+): Promise<CampoPotreroMapa> {
+  const json = await request<{ data: CampoPotreroMapa }>(`/campo-potreros/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(body),
+  });
+  return json.data;
+}
+
+export async function deleteCampoPotreroMapa(id: number): Promise<void> {
+  await request(`/campo-potreros/${id}`, { method: "DELETE" });
+}
+
+export async function fetchCampoMapaElementos(): Promise<CampoMapaElemento[]> {
+  const json = await request<{ data: CampoMapaElemento[] }>("/campo-mapa-elementos");
+  return json.data;
+}
+
+export async function createCampoMapaElemento(body: {
+  tipo: CampoMapaElementoTipo;
+  nombre: string;
+  geojson: unknown;
+  notas?: string;
+  color?: string;
+  metadata?: Record<string, unknown>;
+}): Promise<CampoMapaElemento> {
+  const json = await request<{ data: CampoMapaElemento }>("/campo-mapa-elementos", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+  return json.data;
+}
+
+export async function updateCampoMapaElemento(
+  id: number,
+  body: {
+    tipo?: CampoMapaElementoTipo;
+    nombre?: string;
+    geojson?: unknown;
+    notas?: string;
+    color?: string;
+    metadata?: Record<string, unknown>;
+  },
+): Promise<CampoMapaElemento> {
+  const json = await request<{ data: CampoMapaElemento }>(`/campo-mapa-elementos/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(body),
+  });
+  return json.data;
+}
+
+export async function deleteCampoMapaElemento(id: number): Promise<void> {
+  await request(`/campo-mapa-elementos/${id}`, { method: "DELETE" });
+}
+
+export async function fetchOperativaTareas(filters?: {
+  asignado_user_id?: number;
+}): Promise<OperativaTarea[]> {
+  const params = new URLSearchParams();
+  if (filters?.asignado_user_id != null) {
+    params.set("asignado_user_id", String(filters.asignado_user_id));
+  }
+  const q = params.toString();
+  const json = await request<{ data: OperativaTarea[] }>(
+    `/operativa-tareas${q ? `?${q}` : ""}`,
+  );
+  return json.data;
+}
+
+export async function createOperativaTarea(body: OperativaTareaInput): Promise<OperativaTarea> {
+  const json = await request<{ data: OperativaTarea }>("/operativa-tareas", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+  return json.data;
+}
+
+export async function updateOperativaTarea(
+  id: number,
+  body: Partial<OperativaTareaInput>,
+): Promise<OperativaTarea> {
+  const json = await request<{ data: OperativaTarea }>(`/operativa-tareas/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(body),
+  });
+  return json.data;
+}
+
+export async function deleteOperativaTarea(id: number): Promise<void> {
+  await request(`/operativa-tareas/${id}`, { method: "DELETE" });
+}
+
+export async function fetchOperativaTareaRegistros(
+  tareaId: number,
+  fecha?: string,
+): Promise<OperativaTareaRegistro[]> {
+  const q = fecha ? `?fecha=${encodeURIComponent(fecha)}` : "";
+  const json = await request<{ data: OperativaTareaRegistro[] }>(
+    `/operativa-tareas/${tareaId}/registros${q}`,
+  );
+  return json.data;
+}
+
+export async function fetchOperativaRegistrosDia(
+  fecha: string,
+): Promise<OperativaTareaRegistro[]> {
+  const json = await request<{ data: OperativaTareaRegistro[] }>(
+    `/operativa-tareas/registros-dia?fecha=${encodeURIComponent(fecha)}`,
+  );
+  return json.data;
+}
+
+export async function createOperativaTareaRegistro(
+  tareaId: number,
+  body: { texto: string; ganado_detalle?: string; fecha_ejecucion: string },
+): Promise<OperativaTareaRegistro> {
+  const json = await request<{ data: OperativaTareaRegistro }>(
+    `/operativa-tareas/${tareaId}/registros`,
+    {
+      method: "POST",
+      body: JSON.stringify(body),
+    },
+  );
+  return json.data;
 }
 
 export async function fetchStockGanaderoGrupos(): Promise<string[]> {
@@ -3403,11 +3563,36 @@ export async function buscarChatMensajes(
 
 export async function enviarChatMensaje(
   peerId: number,
-  body: string
+  body: string,
+  replyToId?: number | null
 ): Promise<ChatMessage> {
+  const payload: { peer_id: number; body: string; reply_to_id?: number } = {
+    peer_id: peerId,
+    body,
+  };
+  if (replyToId != null && replyToId > 0) payload.reply_to_id = replyToId;
   const json = await request<{ data: ChatMessage }>("/chat/messages", {
     method: "POST",
-    body: JSON.stringify({ peer_id: peerId, body }),
+    body: JSON.stringify(payload),
+  });
+  return json.data;
+}
+
+export async function editarChatMensaje(id: number, body: string): Promise<ChatMessage> {
+  const json = await request<{ data: ChatMessage }>(`/chat/messages/${id}`, {
+    method: "PUT",
+    body: JSON.stringify({ body }),
+  });
+  return json.data;
+}
+
+export async function toggleChatReaccionMensaje(
+  id: number,
+  tipo: "like" | "heart"
+): Promise<ChatMessage> {
+  const json = await request<{ data: ChatMessage }>(`/chat/messages/${id}/reactions`, {
+    method: "POST",
+    body: JSON.stringify({ tipo }),
   });
   return json.data;
 }
@@ -3415,12 +3600,14 @@ export async function enviarChatMensaje(
 export async function enviarChatAdjunto(
   peerId: number,
   file: File,
-  body = ""
+  body = "",
+  replyToId?: number | null
 ): Promise<ChatMessage> {
   const fd = new FormData();
   fd.append("archivo", file);
   fd.append("peer_id", String(peerId));
   if (body.trim()) fd.append("body", body.trim());
+  if (replyToId != null && replyToId > 0) fd.append("reply_to_id", String(replyToId));
 
   let res: Response;
   try {

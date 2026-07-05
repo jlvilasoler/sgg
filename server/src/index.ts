@@ -3063,6 +3063,406 @@ app.get("/api/stock-ganadero/potreros", async (req, res) => {
   }
 });
 
+app.get("/api/campo-potreros", async (req, res) => {
+  try {
+    const cuentaId = await cuentaIdParaInsert(req.user!);
+    if (!cuentaId) {
+      res.status(400).json({
+        ok: false,
+        error: "No se pudo determinar la cuenta para listar potreros del mapa",
+      });
+      return;
+    }
+    const items = await db.campoPotreros.list(cuentaId);
+    res.json({ ok: true, data: items });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al listar potreros del mapa",
+    });
+  }
+});
+
+app.post("/api/campo-potreros", async (req, res) => {
+  try {
+    const cuentaId = await cuentaIdParaInsert(req.user!);
+    if (!cuentaId) {
+      res.status(400).json({
+        ok: false,
+        error: "No se pudo determinar la cuenta para guardar el potrero",
+      });
+      return;
+    }
+    const body = req.body ?? {};
+    const item = await db.campoPotreros.create(cuentaId, {
+      nombre: typeof body.nombre === "string" ? body.nombre : "",
+      geojson: body.geojson,
+      color: typeof body.color === "string" ? body.color : undefined,
+      hectareas: body.hectareas,
+      notas: typeof body.notas === "string" ? body.notas : undefined,
+    });
+    await auditStockMovimiento(req, "MODIFICACION", {
+      resumen: `Dibujó potrero ${item.nombre} en el mapa del campo`,
+      detalle: { potrero_id: item.id, nombre: item.nombre, cuenta_id: cuentaId },
+    });
+    res.status(201).json({ ok: true, data: item });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al guardar el potrero",
+    });
+  }
+});
+
+app.put("/api/campo-potreros/:id", async (req, res) => {
+  try {
+    const cuentaId = await cuentaIdParaInsert(req.user!);
+    if (!cuentaId) {
+      res.status(400).json({
+        ok: false,
+        error: "No se pudo determinar la cuenta para actualizar el potrero",
+      });
+      return;
+    }
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id) || id <= 0) {
+      res.status(400).json({ ok: false, error: "Potrero inválido" });
+      return;
+    }
+    const body = req.body ?? {};
+    const item = await db.campoPotreros.update(cuentaId, id, {
+      nombre: typeof body.nombre === "string" ? body.nombre : undefined,
+      geojson: body.geojson,
+      color: typeof body.color === "string" ? body.color : undefined,
+      hectareas: body.hectareas,
+      notas: typeof body.notas === "string" ? body.notas : undefined,
+    });
+    res.json({ ok: true, data: item });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al actualizar el potrero",
+    });
+  }
+});
+
+app.delete("/api/campo-potreros/:id", async (req, res) => {
+  try {
+    const cuentaId = await cuentaIdParaInsert(req.user!);
+    if (!cuentaId) {
+      res.status(400).json({
+        ok: false,
+        error: "No se pudo determinar la cuenta para eliminar el potrero",
+      });
+      return;
+    }
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id) || id <= 0) {
+      res.status(400).json({ ok: false, error: "Potrero inválido" });
+      return;
+    }
+    const existing = await db.campoPotreros.getById(cuentaId, id);
+    await db.campoPotreros.delete(cuentaId, id);
+    if (existing) {
+      await auditStockMovimiento(req, "MODIFICACION", {
+        resumen: `Eliminó potrero ${existing.nombre} del mapa del campo`,
+        detalle: { potrero_id: id, nombre: existing.nombre, cuenta_id: cuentaId },
+      });
+    }
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al eliminar el potrero",
+    });
+  }
+});
+
+app.get("/api/campo-mapa-elementos", async (req, res) => {
+  try {
+    const cuentaId = await cuentaIdParaInsert(req.user!);
+    if (!cuentaId) {
+      res.status(400).json({ ok: false, error: "No se pudo determinar la cuenta" });
+      return;
+    }
+    const items = await db.campoMapaElementos.list(cuentaId);
+    res.json({ ok: true, data: items });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al listar elementos del mapa",
+    });
+  }
+});
+
+app.post("/api/campo-mapa-elementos", async (req, res) => {
+  try {
+    const cuentaId = await cuentaIdParaInsert(req.user!);
+    if (!cuentaId) {
+      res.status(400).json({ ok: false, error: "No se pudo determinar la cuenta" });
+      return;
+    }
+    const body = req.body ?? {};
+    const item = await db.campoMapaElementos.create(cuentaId, {
+      tipo: typeof body.tipo === "string" ? body.tipo : "marcador",
+      nombre: typeof body.nombre === "string" ? body.nombre : "",
+      geojson: body.geojson,
+      notas: typeof body.notas === "string" ? body.notas : undefined,
+      color: typeof body.color === "string" ? body.color : undefined,
+      metadata:
+        body.metadata && typeof body.metadata === "object" ? body.metadata : undefined,
+    });
+    res.status(201).json({ ok: true, data: item });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al guardar elemento del mapa",
+    });
+  }
+});
+
+app.put("/api/campo-mapa-elementos/:id", async (req, res) => {
+  try {
+    const cuentaId = await cuentaIdParaInsert(req.user!);
+    if (!cuentaId) {
+      res.status(400).json({ ok: false, error: "No se pudo determinar la cuenta" });
+      return;
+    }
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id) || id <= 0) {
+      res.status(400).json({ ok: false, error: "Elemento inválido" });
+      return;
+    }
+    const body = req.body ?? {};
+    const item = await db.campoMapaElementos.update(cuentaId, id, {
+      tipo: typeof body.tipo === "string" ? body.tipo : undefined,
+      nombre: typeof body.nombre === "string" ? body.nombre : undefined,
+      geojson: body.geojson,
+      notas: typeof body.notas === "string" ? body.notas : undefined,
+      color: typeof body.color === "string" ? body.color : undefined,
+      metadata:
+        body.metadata && typeof body.metadata === "object" ? body.metadata : undefined,
+    });
+    res.json({ ok: true, data: item });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al actualizar elemento del mapa",
+    });
+  }
+});
+
+app.delete("/api/campo-mapa-elementos/:id", async (req, res) => {
+  try {
+    const cuentaId = await cuentaIdParaInsert(req.user!);
+    if (!cuentaId) {
+      res.status(400).json({ ok: false, error: "No se pudo determinar la cuenta" });
+      return;
+    }
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id) || id <= 0) {
+      res.status(400).json({ ok: false, error: "Elemento inválido" });
+      return;
+    }
+    await db.campoMapaElementos.delete(cuentaId, id);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al eliminar elemento del mapa",
+    });
+  }
+});
+
+app.get("/api/operativa-tareas/registros-dia", async (req, res) => {
+  try {
+    const cuentaId = await cuentaIdParaInsert(req.user!);
+    if (!cuentaId) {
+      res.status(400).json({ ok: false, error: "No se pudo determinar la cuenta" });
+      return;
+    }
+    const fecha = typeof req.query.fecha === "string" ? req.query.fecha.trim() : "";
+    if (!fecha) {
+      res.status(400).json({ ok: false, error: "Indicá la fecha (AAAA-MM-DD)." });
+      return;
+    }
+    const items = await db.operativaTareas.listRegistrosPorFecha(cuentaId, fecha);
+    res.json({ ok: true, data: items });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al listar registros del día",
+    });
+  }
+});
+
+app.get("/api/operativa-tareas", async (req, res) => {
+  try {
+    const cuentaId = await cuentaIdParaInsert(req.user!);
+    if (!cuentaId) {
+      res.status(400).json({ ok: false, error: "No se pudo determinar la cuenta" });
+      return;
+    }
+    const q = req.query;
+    const filters: {
+      desde?: string;
+      hasta?: string;
+      asignado_user_id?: number;
+      estado?: string;
+    } = {};
+    if (typeof q.desde === "string" && q.desde.trim()) filters.desde = q.desde.trim();
+    if (typeof q.hasta === "string" && q.hasta.trim()) filters.hasta = q.hasta.trim();
+    if (q.asignado_user_id != null) {
+      const n = Number(q.asignado_user_id);
+      if (Number.isFinite(n) && n > 0) filters.asignado_user_id = n;
+    }
+    if (typeof q.estado === "string" && q.estado.trim()) {
+      filters.estado = q.estado.trim();
+    }
+    const items = await db.operativaTareas.list(cuentaId, filters);
+    res.json({ ok: true, data: items });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al listar tareas operativas",
+    });
+  }
+});
+
+app.post("/api/operativa-tareas", async (req, res) => {
+  try {
+    const cuentaId = await cuentaIdParaInsert(req.user!);
+    if (!cuentaId) {
+      res.status(400).json({ ok: false, error: "No se pudo determinar la cuenta" });
+      return;
+    }
+    const body = req.body ?? {};
+    const item = await db.operativaTareas.create(cuentaId, req.user!.id, {
+      titulo: typeof body.titulo === "string" ? body.titulo : "",
+      descripcion: typeof body.descripcion === "string" ? body.descripcion : undefined,
+      notas: typeof body.notas === "string" ? body.notas : undefined,
+      fecha: typeof body.fecha === "string" ? body.fecha : undefined,
+      dia_semana: body.dia_semana,
+      asignado_user_id: body.asignado_user_id,
+      potrero_id: body.potrero_id,
+      ubicacion: typeof body.ubicacion === "string" ? body.ubicacion : undefined,
+    });
+    res.status(201).json({ ok: true, data: item });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al crear la tarea",
+    });
+  }
+});
+
+app.put("/api/operativa-tareas/:id", async (req, res) => {
+  try {
+    const cuentaId = await cuentaIdParaInsert(req.user!);
+    if (!cuentaId) {
+      res.status(400).json({ ok: false, error: "No se pudo determinar la cuenta" });
+      return;
+    }
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id) || id <= 0) {
+      res.status(400).json({ ok: false, error: "Tarea inválida" });
+      return;
+    }
+    const body = req.body ?? {};
+    const item = await db.operativaTareas.update(cuentaId, id, {
+      titulo: typeof body.titulo === "string" ? body.titulo : undefined,
+      descripcion: typeof body.descripcion === "string" ? body.descripcion : undefined,
+      notas: typeof body.notas === "string" ? body.notas : undefined,
+      dia_semana: body.dia_semana,
+      asignado_user_id: body.asignado_user_id,
+      potrero_id: body.potrero_id,
+      ubicacion: typeof body.ubicacion === "string" ? body.ubicacion : undefined,
+    });
+    res.json({ ok: true, data: item });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al actualizar la tarea",
+    });
+  }
+});
+
+app.delete("/api/operativa-tareas/:id", async (req, res) => {
+  try {
+    const cuentaId = await cuentaIdParaInsert(req.user!);
+    if (!cuentaId) {
+      res.status(400).json({ ok: false, error: "No se pudo determinar la cuenta" });
+      return;
+    }
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id) || id <= 0) {
+      res.status(400).json({ ok: false, error: "Tarea inválida" });
+      return;
+    }
+    await db.operativaTareas.delete(cuentaId, id);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al eliminar la tarea",
+    });
+  }
+});
+
+app.get("/api/operativa-tareas/:id/registros", async (req, res) => {
+  try {
+    const cuentaId = await cuentaIdParaInsert(req.user!);
+    if (!cuentaId) {
+      res.status(400).json({ ok: false, error: "No se pudo determinar la cuenta" });
+      return;
+    }
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id) || id <= 0) {
+      res.status(400).json({ ok: false, error: "Tarea inválida" });
+      return;
+    }
+    const fecha =
+      typeof req.query.fecha === "string" && req.query.fecha.trim()
+        ? req.query.fecha.trim()
+        : undefined;
+    const items = await db.operativaTareas.listRegistros(cuentaId, id, fecha);
+    res.json({ ok: true, data: items });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al listar registros de la tarea",
+    });
+  }
+});
+
+app.post("/api/operativa-tareas/:id/registros", async (req, res) => {
+  try {
+    const cuentaId = await cuentaIdParaInsert(req.user!);
+    if (!cuentaId) {
+      res.status(400).json({ ok: false, error: "No se pudo determinar la cuenta" });
+      return;
+    }
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id) || id <= 0) {
+      res.status(400).json({ ok: false, error: "Tarea inválida" });
+      return;
+    }
+    const body = req.body ?? {};
+    const item = await db.operativaTareas.createRegistro(cuentaId, id, req.user!.id, {
+      texto: typeof body.texto === "string" ? body.texto : "",
+      ganado_detalle: typeof body.ganado_detalle === "string" ? body.ganado_detalle : undefined,
+      fecha_ejecucion:
+        typeof body.fecha_ejecucion === "string" ? body.fecha_ejecucion : "",
+    });
+    res.status(201).json({ ok: true, data: item });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al guardar el registro",
+    });
+  }
+});
+
 app.post("/api/stock-ganadero/potreros", async (req, res) => {
   try {
     const cuentaId = await cuentaIdParaInsert(req.user!);

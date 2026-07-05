@@ -8,6 +8,8 @@ import {
   CHAT_GENERAL_PEER_ID,
   acceptExternalContactRequest,
   addChatExternalContactByEmail,
+  editChatMessage,
+  toggleChatMessageReaction,
   getChatUnreadSummary,
   listChatContacts,
   listChatExternalContacts,
@@ -207,8 +209,18 @@ export function registerChatRoutes(app: Express): void {
     }
 
     const body = String(req.body?.body ?? "");
+    const replyToId =
+      req.body?.reply_to_id != null && req.body?.reply_to_id !== ""
+        ? Math.max(0, Math.floor(Number(req.body.reply_to_id)))
+        : null;
     try {
-      const message = await sendChatMessage(getDb(), userId, peerId, body);
+      const message = await sendChatMessage(
+        getDb(),
+        userId,
+        peerId,
+        body,
+        replyToId && replyToId > 0 ? replyToId : null
+      );
       res.status(201).json({ ok: true, data: message });
     } catch (e) {
       res.status(400).json({
@@ -235,17 +247,70 @@ export function registerChatRoutes(app: Express): void {
     }
 
     const body = String(req.body?.body ?? "");
+    const replyToId =
+      req.body?.reply_to_id != null && req.body?.reply_to_id !== ""
+        ? Math.max(0, Math.floor(Number(req.body.reply_to_id)))
+        : null;
     try {
       const message = await sendChatMessageWithAttachment(getDb(), userId, peerId, body, {
         buffer: file.buffer,
         mime: file.mimetype,
         originalName: file.originalname,
-      });
+      }, replyToId && replyToId > 0 ? replyToId : null);
       res.status(201).json({ ok: true, data: message });
     } catch (e) {
       res.status(400).json({
         ok: false,
         error: e instanceof Error ? e.message : "Error al enviar adjunto",
+      });
+    }
+  });
+
+  app.put("/api/chat/messages/:messageId", async (req, res) => {
+    const userId = requireUser(req, res);
+    if (userId === null) return;
+
+    const messageId = Math.max(0, Number(req.params.messageId) || 0);
+    if (messageId <= 0) {
+      res.status(400).json({ ok: false, error: "Mensaje no válido" });
+      return;
+    }
+
+    const body = String(req.body?.body ?? "");
+    try {
+      const message = await editChatMessage(getDb(), userId, messageId, body);
+      res.json({ ok: true, data: message });
+    } catch (e) {
+      res.status(400).json({
+        ok: false,
+        error: e instanceof Error ? e.message : "Error al editar mensaje",
+      });
+    }
+  });
+
+  app.post("/api/chat/messages/:messageId/reactions", async (req, res) => {
+    const userId = requireUser(req, res);
+    if (userId === null) return;
+
+    const messageId = Math.max(0, Number(req.params.messageId) || 0);
+    if (messageId <= 0) {
+      res.status(400).json({ ok: false, error: "Mensaje no válido" });
+      return;
+    }
+
+    const tipo = String(req.body?.tipo ?? "");
+    if (tipo !== "like" && tipo !== "heart") {
+      res.status(400).json({ ok: false, error: "Reacción no válida" });
+      return;
+    }
+
+    try {
+      const message = await toggleChatMessageReaction(getDb(), userId, messageId, tipo);
+      res.json({ ok: true, data: message });
+    } catch (e) {
+      res.status(400).json({
+        ok: false,
+        error: e instanceof Error ? e.message : "Error al reaccionar",
       });
     }
   });

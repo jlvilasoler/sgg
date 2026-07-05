@@ -280,6 +280,123 @@ export type TipoBaja =
   | "MUERTE"
   | "PERDIDO";
 
+export interface CampoPotreroMapa {
+  id: number;
+  cuenta_id: number;
+  nombre: string;
+  geojson: string;
+  color: string;
+  hectareas: number | null;
+  notas: string;
+  creado_en: string;
+  actualizado_en: string;
+}
+
+export type CampoMapaElementoTipo =
+  | "marcador"
+  | "nota"
+  | "linea"
+  | "area"
+  | "clip"
+  | "medicion_distancia"
+  | "medicion_area";
+
+export interface CampoMapaElemento {
+  id: number;
+  cuenta_id: number;
+  tipo: CampoMapaElementoTipo;
+  nombre: string;
+  notas: string;
+  geojson: string;
+  color: string;
+  metadata: string;
+  creado_en: string;
+  actualizado_en: string;
+}
+
+export type OperativaTareaEstado = "pendiente" | "en_curso" | "hecha" | "cancelada";
+
+export type OperativaTareaPrioridad = "baja" | "normal" | "alta";
+
+export type OperativaDiaSemana = 0 | 1 | 2 | 3 | 4 | 5 | 6;
+
+export interface OperativaTarea {
+  id: number;
+  cuenta_id: number;
+  titulo: string;
+  descripcion: string;
+  notas: string;
+  fecha: string;
+  fecha_hasta: string | null;
+  dia_semana: OperativaDiaSemana | null;
+  estado: OperativaTareaEstado;
+  prioridad: OperativaTareaPrioridad;
+  asignado_user_id: number | null;
+  asignado_nombre: string | null;
+  creado_por_user_id: number | null;
+  creado_por_nombre: string | null;
+  potrero_id: number | null;
+  potrero_nombre: string | null;
+  ubicacion: string;
+  ganado_cantidad: number | null;
+  ganado_detalle: string;
+  completado_en: string | null;
+  creado_en: string;
+  actualizado_en: string;
+}
+
+export interface OperativaTareaRegistro {
+  id: number;
+  tarea_id: number;
+  cuenta_id: number;
+  user_id: number | null;
+  user_nombre: string | null;
+  texto: string;
+  ganado_cantidad: number | null;
+  ganado_detalle: string;
+  fecha_ejecucion: string;
+  creado_en: string;
+}
+
+export interface OperativaTareaInput {
+  titulo: string;
+  descripcion?: string;
+  notas?: string;
+  fecha?: string;
+  fecha_hasta?: string | null;
+  dia_semana?: OperativaDiaSemana | null;
+  estado?: OperativaTareaEstado;
+  prioridad?: OperativaTareaPrioridad;
+  asignado_user_id?: number | null;
+  potrero_id?: number | null;
+  ubicacion?: string;
+  ganado_cantidad?: number | null;
+  ganado_detalle?: string;
+}
+
+export const OPERATIVA_DIA_SEMANA_LABELS: Record<OperativaDiaSemana, string> = {
+  0: "Lunes",
+  1: "Martes",
+  2: "Miércoles",
+  3: "Jueves",
+  4: "Viernes",
+  5: "Sábado",
+  6: "Domingo",
+};
+
+export const OPERATIVA_TAREA_ESTADO_LABELS: Record<OperativaTareaEstado, string> = {
+  pendiente: "Pendiente",
+  en_curso: "En curso",
+  hecha: "Hecha",
+  cancelada: "Cancelada",
+};
+
+export const OPERATIVA_TAREA_PRIORIDAD_LABELS: Record<OperativaTareaPrioridad, string> = {
+  baja: "Baja",
+  normal: "Normal",
+  alta: "Alta",
+};
+
 export interface StockGanaderaDispositivo {
   clave: string;
   eid: string;
@@ -1334,6 +1451,18 @@ export interface ChatMessageAttachment {
   url: string;
 }
 
+export interface ChatMessageReplyPreview {
+  id: number;
+  sender_nombre: string;
+  body: string;
+}
+
+export interface ChatMessageReactions {
+  like_count: number;
+  heart_count: number;
+  mi_reaccion: "like" | "heart" | null;
+}
+
 export interface ChatMessage {
   id: number;
   sender_id: number;
@@ -1342,8 +1471,12 @@ export interface ChatMessage {
   recipient_id: number;
   body: string;
   creado_en: string;
+  editado_en: string | null;
   es_propio: boolean;
   attachment: ChatMessageAttachment | null;
+  reply_to: ChatMessageReplyPreview | null;
+  reacciones: ChatMessageReactions;
+  puede_editar: boolean;
 }
 
 export interface ChatSearchHit extends ChatMessage {

@@ -30,8 +30,8 @@ const MODULO_MENU_SCREENS: Record<Modulo, TabId[]> = {
   chat: ["chat", "notas"],
   rrhh: ["recursos_humanos"],
   ventas: ["ingresos_ventas"],
-  stock: ["stock_ganadero", "stock_equino"],
-  usuarios: ["registro_actividad"],
+  stock: ["stock_ganadero", "stock_equino", "campo_mapa", "tareas_operativas"],
+  usuarios: [],
   documentos_digitales: [],
 };
 
@@ -48,8 +48,10 @@ const NAV_LABEL_TO_SCREEN: Record<string, TabId> = {
   recursos_humanos: "recursos_humanos",
   ingresos_ventas: "ingresos_ventas",
   stock_ganadero: "stock_ganadero",
+  campo_mapa: "campo_mapa",
+  tareas_operativas: "tareas_operativas",
   stock_equino: "stock_equino",
-  registro_actividad: "registro_actividad",
+  registro_actividad: "configuracion",
   chat: "chat",
   notas: "notas",
   vencimientos_impuestos: "vencimientos_impuestos",
@@ -64,8 +66,10 @@ const NAV_LABEL_TO_SCREEN: Record<string, TabId> = {
   "Recursos Humanos": "recursos_humanos",
   "Ingresos por ventas": "ingresos_ventas",
   "Stock Ganadero": "stock_ganadero",
+  "Mapa del campo": "campo_mapa",
+  "Tareas operativas": "tareas_operativas",
   "Stock Equino": "stock_equino",
-  "Registro de actividad": "registro_actividad",
+  "Registro de actividad": "configuracion",
   "Chat interno": "chat",
   Notas: "notas",
   "Vencimientos Impuestos": "vencimientos_impuestos",
@@ -80,8 +84,9 @@ const MENU_SCREEN_IDS = new Set<TabId>([
   "ingresos_ventas",
   "recursos_humanos",
   "stock_ganadero",
+  "campo_mapa",
+  "tareas_operativas",
   "stock_equino",
-  "registro_actividad",
   "notas",
   "chat",
 ]);
@@ -180,7 +185,6 @@ export function screensDelPerfil(user: AuthUser): TabId[] {
   }
 
   push("notas");
-  push("registro_actividad");
   push("chat");
 
   return ids;

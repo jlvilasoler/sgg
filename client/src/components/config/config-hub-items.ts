@@ -2,6 +2,8 @@ import type { AuthUser } from "../../types";
 import type { SgHubItem } from "../hub/SgHubTypes";
 import {
   canAccessAdministradorCuentas,
+  canAccessActividadCuenta,
+  canAccessActividadPropia,
   canAccessActividadSagTotal,
   canAccessArquitecturaSistema,
   canAccessCatalogoSanitarioProductos,
@@ -121,6 +123,14 @@ export function buildConfigCuentaItems(user: AuthUser | null | undefined): SgHub
       icon: "config_admin_cuenta",
     });
   }
+  if (canAccessActividadCuenta(user ?? null) || canAccessActividadPropia(user ?? null)) {
+    items.push({
+      id: "registro_actividad",
+      label: "Registro de actividad",
+      subtitle: "Historial de accesos y acciones en el sistema",
+      icon: "usuarios_permisos_rol",
+    });
+  }
   return items;
 }
 
@@ -201,6 +211,10 @@ export function configHubMeta(
       subtitle: "Datos de cuenta, empresas y usuarios.",
     },
     usuarios: { title: "Usuarios", subtitle: "Administración de usuarios de la cuenta." },
+    registro_actividad: {
+      title: "Registro de actividad",
+      subtitle: "Historial de accesos y acciones en el sistema.",
+    },
     sag_arquitectura: {
       title: "Arquitectura del sistema",
       subtitle: "Stack y módulos técnicos de SAG.",
@@ -259,6 +273,7 @@ const CUENTA_MODULOS = new Set([
   "stock_equino",
   "admin_cuenta",
   "usuarios",
+  "registro_actividad",
 ]);
 
 export function configNavScopeForModulo(modulo: string): ConfigNavScope {

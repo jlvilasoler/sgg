@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type CSSProperties } from "react";
+import { useMemo, useRef, useState, type CSSProperties, Fragment } from "react";
 import {
   ArrowRight,
   Clock3,
@@ -21,6 +21,7 @@ import {
 } from "./home/home-dashboard-format";
 import { formatActividadDetalle } from "../utils/format-actividad-detalle";
 import HomeVencProximoBanner from "./home/HomeVencProximoBanner";
+import HomeCampoMapaPanel from "./home/HomeCampoMapaPanel";
 import HomeNotasBoard from "./home/HomeNotasBoard";
 import HomeNotaModal from "./home/HomeNotaModal";
 
@@ -81,11 +82,6 @@ export const MENU_APPS: MenuApp[] = [
     subtitle: "Importar lecturas EID de equinos desde archivo o carga manual",
   },
   {
-    id: "registro_actividad",
-    label: "Registro de actividad",
-    subtitle: "Historial de accesos y acciones en el sistema",
-  },
-  {
     id: "notas",
     label: "Notas",
     subtitle: "Apuntes personales y notas compartidas con el equipo",
@@ -94,6 +90,50 @@ export const MENU_APPS: MenuApp[] = [
     id: "chat",
     label: "Chat",
     subtitle: "Mensajes con el equipo y mensajes directos",
+  },
+];
+
+export const MENU_SECTIONS: { id: string; label: string; appIds: TabId[] }[] = [
+  {
+    id: "principal",
+    label: "Principal",
+    appIds: [
+      "registro",
+      "vencimientos_impuestos",
+      "configuracion",
+      "divisas",
+      "precios_ganado",
+      "ingresos_ventas",
+      "recursos_humanos",
+      "stock_ganadero",
+      "stock_equino",
+      "notas",
+      "chat",
+    ],
+  },
+  {
+    id: "operaciones",
+    label: "Operaciones",
+    appIds: ["campo_mapa"],
+  },
+  {
+    id: "tareas",
+    label: "Tareas",
+    appIds: ["tareas_operativas"],
+  },
+];
+
+const MENU_APPS_EXTENDED: MenuApp[] = [
+  ...MENU_APPS,
+  {
+    id: "campo_mapa",
+    label: "Mapa del campo",
+    subtitle: "Vista satelital y potreros dibujados en el mapa",
+  },
+  {
+    id: "tareas_operativas",
+    label: "Tareas operativas",
+    subtitle: "Almanaque, asignaciones y registro de trabajo en el campo",
   },
 ];
 
@@ -109,6 +149,8 @@ const SCREEN_TITLES: Record<TabId, string> = {
   recursos_humanos: "Recursos Humanos",
   ingresos_ventas: "Ingresos por ventas",
   stock_ganadero: "Stock Ganadero",
+  campo_mapa: "Mapa del campo",
+  tareas_operativas: "Tareas operativas",
   stock_equino: "Stock Equino",
   stock_movimientos: "Movimientos de Dispositivos",
   registro_actividad: "Registro de actividad",
@@ -138,7 +180,11 @@ function filtrarApps(apps: MenuApp[], consulta: string): MenuApp[] {
 }
 
 export default function HomeMenu({ user, apiOnline, onOpen }: Props) {
-  const apps = MENU_APPS.filter((app) => canAccessScreen(user, app.id));
+  const appsById = useMemo(
+    () => new Map(MENU_APPS_EXTENDED.map((app) => [app.id, app])),
+    [],
+  );
+  const apps = MENU_APPS_EXTENDED.filter((app) => canAccessScreen(user, app.id));
   const vencProximosCount = useVencImpProximosBadge();
   const [busquedaModulos, setBusquedaModulos] = useState("");
   const busquedaInputRef = useRef<HTMLInputElement>(null);
@@ -164,6 +210,8 @@ export default function HomeMenu({ user, apiOnline, onOpen }: Props) {
     puedeNotas,
     puedeVencimientos,
   } = useHomeDashboard(user, apiOnline);
+
+  const puedeMapaCampo = canAccessScreen(user, "campo_mapa");
 
   const recentMerged = useMemo(
     () => mergeRecentModuleLists(getRecentHomeModules(user.id), recentScreens),
@@ -244,6 +292,41 @@ export default function HomeMenu({ user, apiOnline, onOpen }: Props) {
       </button>
     ));
 
+  const renderNavApp = (app: MenuApp) => (
+    <button
+      key={app.id}
+      type="button"
+      className="sg-hub-nav-item"
+      onClick={() => onOpen(app.id)}
+      onMouseEnter={
+        app.id === "vencimientos_impuestos" ? prefetchVencimientosImpuestos : undefined
+      }
+      onFocus={
+        app.id === "vencimientos_impuestos" ? prefetchVencimientosImpuestos : undefined
+      }
+    >
+      <span className="sg-hub-nav-icon home-hub-nav-icon" aria-hidden>
+        <MenuAppIcon id={app.id} className="menu-app-icon-svg" />
+      </span>
+      <span className="sg-hub-nav-copy">
+        <span>{app.label}</span>
+        {consultaActiva ? <small className="sg-hub-nav-sub">{app.subtitle}</small> : null}
+      </span>
+      {app.id === "vencimientos_impuestos" && vencProximosCount > 0 ? (
+        <span className="home-hub-nav-badge" aria-hidden>
+          {vencProximosCount > 99 ? "99+" : vencProximosCount}
+        </span>
+      ) : null}
+    </button>
+  );
+
+  const sectionApps = (section: (typeof MENU_SECTIONS)[number]): MenuApp[] => {
+    const allowed = new Set(appsFiltrados.map((a) => a.id));
+    return section.appIds
+      .map((id) => appsById.get(id))
+      .filter((app): app is MenuApp => !!app && allowed.has(app.id));
+  };
+
   return (
     <div className="sg-module-page home-module-page">
       <div className="sg-hub sg-hub--module home--hub">
@@ -265,43 +348,40 @@ export default function HomeMenu({ user, apiOnline, onOpen }: Props) {
           />
 
           <nav className="sg-hub-aside-nav" aria-label="Módulos">
-            <p className="sg-hub-aside-nav-label">
-              {consultaActiva ? `Resultados (${appsFiltrados.length})` : "Principal"}
-            </p>
-            <button type="button" className="sg-hub-nav-item is-active">
-              <LayoutGrid size={18} aria-hidden />
-              Inicio
-            </button>
-            {appsFiltrados.map((app) => (
-              <button
-                key={app.id}
-                type="button"
-                className="sg-hub-nav-item"
-                onClick={() => onOpen(app.id)}
-                onMouseEnter={
-                  app.id === "vencimientos_impuestos" ? prefetchVencimientosImpuestos : undefined
-                }
-                onFocus={
-                  app.id === "vencimientos_impuestos" ? prefetchVencimientosImpuestos : undefined
-                }
-              >
-                <span className="sg-hub-nav-icon home-hub-nav-icon" aria-hidden>
-                  <MenuAppIcon id={app.id} className="menu-app-icon-svg" />
-                </span>
-                <span className="sg-hub-nav-copy">
-                  <span>{app.label}</span>
-                  {consultaActiva ? <small className="sg-hub-nav-sub">{app.subtitle}</small> : null}
-                </span>
-                {app.id === "vencimientos_impuestos" && vencProximosCount > 0 ? (
-                  <span className="home-hub-nav-badge" aria-hidden>
-                    {vencProximosCount > 99 ? "99+" : vencProximosCount}
-                  </span>
+            {consultaActiva ? (
+              <>
+                <p className="sg-hub-aside-nav-label">Resultados ({appsFiltrados.length})</p>
+                <button type="button" className="sg-hub-nav-item is-active">
+                  <LayoutGrid size={18} aria-hidden />
+                  Inicio
+                </button>
+                {appsFiltrados.map(renderNavApp)}
+                {appsFiltrados.length === 0 ? (
+                  <p className="sg-hub-aside-nav-empty">Ningún módulo coincide con la búsqueda.</p>
                 ) : null}
-              </button>
-            ))}
-            {consultaActiva && appsFiltrados.length === 0 ? (
-              <p className="sg-hub-aside-nav-empty">Ningún módulo coincide con la búsqueda.</p>
-            ) : null}
+              </>
+            ) : (
+              <>
+                <p className="sg-hub-aside-nav-label">Principal</p>
+                <button type="button" className="sg-hub-nav-item is-active">
+                  <LayoutGrid size={18} aria-hidden />
+                  Inicio
+                </button>
+                {sectionApps(MENU_SECTIONS[0]).map(renderNavApp)}
+                {MENU_SECTIONS.slice(1).map((section) => {
+                  const items = sectionApps(section);
+                  if (items.length === 0) return null;
+                  return (
+                    <Fragment key={section.id}>
+                      <p className="sg-hub-aside-nav-label sg-hub-aside-nav-label--section">
+                        {section.label}
+                      </p>
+                      {items.map(renderNavApp)}
+                    </Fragment>
+                  );
+                })}
+              </>
+            )}
           </nav>
         </aside>
 
@@ -380,7 +460,6 @@ export default function HomeMenu({ user, apiOnline, onOpen }: Props) {
                     <div>
                       <p className="sg-hub-panel-kicker">Recordatorios</p>
                       <h2 className="sg-hub-panel-title">Notas principales</h2>
-                      <p className="home-hub-modules-hint muted">Pizarrón con apuntes pegados</p>
                     </div>
                     <button type="button" className="home-hub-link" onClick={() => onOpen("notas")}>
                       Ver todas
@@ -484,6 +563,13 @@ export default function HomeMenu({ user, apiOnline, onOpen }: Props) {
             </div>
 
             <div className="home-hub-col home-hub-col--side">
+              {puedeMapaCampo ? (
+                <HomeCampoMapaPanel
+                  apiOnline={apiOnline}
+                  onOpenMapa={() => onOpen("campo_mapa")}
+                />
+              ) : null}
+
               {puedeVencimientos ? (
                 <section
                   className="sg-hub-panel home-hub-panel--venc"

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { ArrowRight, Banknote, UserRound } from "lucide-react";
 import { fetchRrhhDashboard } from "../../api";
 import type { RrhhDashboardData } from "../../types";
 import { fmtDate, fmtNum } from "../../utils";
@@ -15,6 +16,20 @@ interface Props {
 }
 
 const EJERCICIO = ejercicioVigente();
+
+function formatNombreDisplay(nombre: string | null | undefined): string {
+  if (!nombre?.trim()) return "Sin funcionario";
+  return nombre
+    .trim()
+    .split(/\s+/)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(" ");
+}
+
+function conceptoLabel(concepto: string): string {
+  const t = concepto.trim();
+  return t || "Sueldo";
+}
 
 export default function RrhhDashboard({
   apiOnline,
@@ -102,7 +117,7 @@ export default function RrhhDashboard({
 
       <div className="rrhh-dash-grid">
         <section className="sg-hub-panel rrhh-dash-panel" aria-labelledby="rrhh-dash-pagos-title">
-          <div className="sg-hub-panel-head">
+          <div className="rrhh-dash-panel-head-row">
             <div>
               <p className="sg-hub-panel-kicker">Movimientos recientes</p>
               <h2 id="rrhh-dash-pagos-title" className="sg-hub-panel-title">
@@ -111,89 +126,120 @@ export default function RrhhDashboard({
             </div>
             <button
               type="button"
-              className="sg-hub-cta sg-hub-cta--ghost sg-hub-cta--compact"
+              className="rrhh-dash-panel-link"
               onClick={() => onNavigate("sueldos")}
             >
               Ver todos
+              <ArrowRight size={14} aria-hidden />
             </button>
           </div>
 
-          <div className="rrhh-dash-table-wrap">
-            <table className="data-table rrhh-dash-table">
-              <thead>
-                <tr>
-                  <th>Fecha</th>
-                  <th>Funcionario</th>
-                  <th>Concepto</th>
-                  <th className="num">USD</th>
-                  <th aria-label="Acciones" />
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <tr>
-                    <td colSpan={5} className="empty">
-                      Cargando…
-                    </td>
-                  </tr>
-                ) : !apiOnline ? (
-                  <tr>
-                    <td colSpan={5} className="empty">
-                      API no conectada
-                    </td>
-                  </tr>
-                ) : ultimos.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="empty">
-                      Sin pagos de sueldos en el ejercicio vigente.
-                    </td>
-                  </tr>
-                ) : (
-                  ultimos.map((p) => (
-                    <tr key={p.id}>
-                      <td className="rrhh-dash-fecha">{fmtDate(p.fecha)}</td>
-                      <td>
-                        <span className="rrhh-dash-func-nombre">
-                          {p.funcionario_nombre ?? "—"}
-                        </span>
-                        {p.cedula_display ? (
-                          <span className="rrhh-dash-func-ci muted">CI {p.cedula_display}</span>
-                        ) : null}
-                      </td>
-                      <td>
-                        <span className="cell-ellipsis" title={p.concepto}>
-                          {p.concepto || "—"}
-                        </span>
-                        <span className="rrhh-dash-rubro muted">{p.rubro}</span>
-                      </td>
-                      <td className="num">
-                        <strong>{fmtNum(p.saldo_usd)}</strong>
-                      </td>
-                      <td className="actions-cell">
-                        {p.cedula && onVerPago ? (
-                          <button
-                            type="button"
-                            className="rrhh-dash-link-btn"
-                            onClick={() => onVerPago(p.cedula!)}
-                          >
-                            Pagos
-                          </button>
-                        ) : onEditGasto ? (
-                          <button
-                            type="button"
-                            className="rrhh-dash-link-btn"
-                            onClick={() => onEditGasto(p.id)}
-                          >
-                            Gasto
-                          </button>
-                        ) : null}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+          {loading && ultimos.length === 0 ? (
+            <ul className="rrhh-dash-recent-skeleton-list" aria-busy="true">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <li key={`rrhh-skel-${i}`}>
+                  <div className="rrhh-dash-recent-skeleton-row" aria-hidden>
+                    <span className="rrhh-dash-recent-skeleton-icon" />
+                    <span className="rrhh-dash-recent-skeleton-lines">
+                      <span />
+                      <span />
+                      <span />
+                    </span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : !apiOnline ? (
+            <div className="rrhh-dash-recent-empty">
+              <p className="rrhh-dash-recent-empty-text">API no conectada.</p>
+            </div>
+          ) : ultimos.length === 0 ? (
+            <div className="rrhh-dash-recent-empty">
+              <p className="rrhh-dash-recent-empty-text">
+                Sin pagos de sueldos en el ejercicio vigente. Cuando registres remuneraciones,
+                aparecerán acá para un vistazo rápido.
+              </p>
+              <button
+                type="button"
+                className="sg-hub-cta rrhh-dash-recent-cta"
+                onClick={() => onNavigate("sueldos")}
+              >
+                Ir a sueldos y jornales
+                <ArrowRight size={15} aria-hidden />
+              </button>
+            </div>
+          ) : (
+            <ul className="rrhh-dash-recent-list">
+              {ultimos.map((p, index) => {
+                const esUltimo = index === 0;
+                const puedeAbrir = Boolean((p.cedula && onVerPago) || onEditGasto);
+                const handleVerPagos = () => {
+                  if (p.cedula && onVerPago) onVerPago(p.cedula);
+                };
+
+                return (
+                  <li key={p.id}>
+                    <div
+                      className={`rrhh-dash-recent-item${esUltimo ? " rrhh-dash-recent-item--latest" : ""}`}
+                    >
+                      <span className="rrhh-dash-recent-icon" aria-hidden>
+                        <UserRound size={15} />
+                      </span>
+                      <div className="rrhh-dash-recent-body">
+                        <div className="rrhh-dash-recent-top">
+                          <span className="rrhh-dash-recent-title">
+                            {formatNombreDisplay(p.funcionario_nombre)}
+                          </span>
+                          {esUltimo ? (
+                            <span className="rrhh-dash-recent-badge">Último pago</span>
+                          ) : null}
+                        </div>
+                        <p className="rrhh-dash-recent-meta">
+                          {conceptoLabel(p.concepto)} · {p.rubro || "Sueldos y Jornales"}
+                          {p.cedula_display ? ` · CI ${p.cedula_display}` : ""}
+                        </p>
+                        <div className="rrhh-dash-recent-foot">
+                          <span>{fmtDate(p.fecha)}</span>
+                          <span className="rrhh-dash-recent-usd">
+                            USD {fmtNum(p.saldo_usd, 2)}
+                          </span>
+                        </div>
+                      </div>
+                      {puedeAbrir ? (
+                        <div className="rrhh-dash-recent-actions">
+                          {p.cedula && onVerPago ? (
+                            <button
+                              type="button"
+                              className="rrhh-dash-recent-action-btn"
+                              onClick={handleVerPagos}
+                            >
+                              Pagos
+                            </button>
+                          ) : null}
+                          {onEditGasto ? (
+                            <button
+                              type="button"
+                              className="rrhh-dash-recent-action-btn rrhh-dash-recent-action-btn--ghost"
+                              onClick={() => onEditGasto(p.id)}
+                            >
+                              <Banknote size={13} aria-hidden />
+                              Gasto
+                            </button>
+                          ) : null}
+                        </div>
+                      ) : null}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+
+          {!loading && ultimos.length > 0 ? (
+            <p className="rrhh-dash-recent-hint muted">
+              Pagos vinculados a rubros de remuneración en el ejercicio {periodoLabel}.
+            </p>
+          ) : null}
         </section>
 
         <div className="rrhh-dash-side">

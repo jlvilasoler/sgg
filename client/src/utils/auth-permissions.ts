@@ -35,6 +35,8 @@ const SCREEN_MODULO: Record<TabId, Modulo> = {
   ingresos_ventas: "ventas",
   stock_ganadero: "stock",
   stock_equino: "stock",
+  campo_mapa: "stock",
+  tareas_operativas: "stock",
   stock_movimientos: "usuarios",
   registro_actividad: "usuarios",
   notas: "chat",
@@ -337,4 +339,14 @@ export function canConfigurarVencimientosImpuestos(user: AuthUser | null): boole
 
 export function canWrite(user: AuthUser | null): boolean {
   return Boolean(user?.puede_escribir);
+}
+
+/** Mapa del campo: colaborativo por cuenta; cualquier integrante con acceso puede editar. */
+export function canWriteCampoMapa(user: AuthUser | null): boolean {
+  return canAccessScreen(user, "campo_mapa");
+}
+
+/** Tareas operativas: colaborativo por cuenta; cualquier integrante con acceso puede editar. */
+export function canWriteTareasOperativas(user: AuthUser | null): boolean {
+  return canAccessScreen(user, "tareas_operativas");
 }

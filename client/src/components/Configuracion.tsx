@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react
 import { useHeaderBackStep } from "../header-back";
 import type { AuthUser } from "../types";
 import {
+  canAccessActividadCuenta,
+  canAccessActividadPropia,
   canAccessActividadSagTotal,
   canAccessCatalogoSanitarioProductos,
   canAccessClasificacionProveedores,
@@ -26,6 +28,11 @@ import Usuarios from "./Usuarios";
 import UsuariosActividad from "./UsuariosActividad";
 import ConfigHubView from "./config/ConfigHubView";
 import { configNavScopeForModulo } from "./config/config-hub-items";
+import {
+  actividadModoPorDefecto,
+  actividadTituloPorModo,
+  type ActividadVistaModo,
+} from "../utils/auth-permissions";
 
 type CatalogoModulo =
   | "responsables"
@@ -35,7 +42,8 @@ type CatalogoModulo =
   | "stock_ganadero"
   | "stock_equino"
   | "admin_cuenta"
-  | "usuarios";
+  | "usuarios"
+  | "registro_actividad";
 
 type SagModulo =
   | "sag_arquitectura"
@@ -60,6 +68,9 @@ interface Props {
   onCatalogosChanged: () => void;
   onVolver: () => void;
   onOpenMiPerfil?: () => void;
+  moduloInicial?: ModuloConfig | null;
+  actividadModoInicial?: ActividadVistaModo | null;
+  onModuloInicialConsumido?: () => void;
 }
 
 function nombreCuentaConfig(user: AuthUser | null | undefined): string {
@@ -78,8 +89,12 @@ export default function Configuracion({
   onCatalogosChanged,
   onVolver,
   onOpenMiPerfil,
+  moduloInicial,
+  actividadModoInicial,
+  onModuloInicialConsumido,
 }: Props) {
   const [modulo, setModulo] = useState<ModuloConfig>("menu");
+  const [actividadModo, setActividadModo] = useState<ActividadVistaModo | null>(null);
   const esSuperAdmin = Boolean(currentUser?.es_super_admin);
   const cuentaNombre = nombreCuentaConfig(currentUser);
 
@@ -139,6 +154,15 @@ export default function Configuracion({
   );
 
   useEffect(() => {
+    if (!moduloInicial) return;
+    setModulo(moduloInicial);
+    if (moduloInicial === "registro_actividad" && actividadModoInicial) {
+      setActividadModo(actividadModoInicial);
+    }
+    onModuloInicialConsumido?.();
+  }, [moduloInicial, actividadModoInicial, onModuloInicialConsumido]);
+
+  useEffect(() => {
     if (
       modulo === "clasificacion_proveedores" &&
       !canAccessClasificacionProveedores(currentUser ?? null)
@@ -176,6 +200,13 @@ export default function Configuracion({
       setModulo("sag_hub");
     }
     if (modulo === "usuarios" && !canManageUsuariosCuenta(currentUser ?? null)) {
+      setModulo(esSuperAdmin ? "cuenta_hub" : "menu");
+    }
+    if (
+      modulo === "registro_actividad" &&
+      !canAccessActividadCuenta(currentUser ?? null) &&
+      !canAccessActividadPropia(currentUser ?? null)
+    ) {
       setModulo(esSuperAdmin ? "cuenta_hub" : "menu");
     }
   }, [modulo, currentUser, esSuperAdmin]);
@@ -287,6 +318,34 @@ export default function Configuracion({
         onVolver={() => volverConfigDashboard("usuarios")}
         onError={onError}
         onSuccess={onSuccess}
+      />
+    );
+  }
+
+  if (
+    modulo === "registro_actividad" &&
+    currentUser &&
+    (canAccessActividadCuenta(currentUser) || canAccessActividadPropia(currentUser))
+  ) {
+    const modo = actividadModo ?? actividadModoInicial ?? actividadModoPorDefecto(currentUser);
+    const { titulo, subtituloAmbito } = actividadTituloPorModo(currentUser, modo);
+    return wrapConfigSubmodule(
+      "registro_actividad",
+      <UsuariosActividad
+        apiOnline={apiOnline}
+        currentUser={currentUser}
+        modo={modo}
+        embedded
+        titulo={titulo}
+        subtituloAmbito={subtituloAmbito}
+        volverLabel={
+          esSuperAdmin ? "Volver a Configuración cuenta" : "Volver a Configuración"
+        }
+        onError={onError}
+        onVolver={() => {
+          setActividadModo(null);
+          volverConfigDashboard("registro_actividad");
+        }}
       />
     );
   }

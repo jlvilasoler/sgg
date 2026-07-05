@@ -23,7 +23,6 @@ import AppFooter from "./components/AppFooter";
 import LoginScreen from "./components/LoginScreen";
 import ForgotPasswordScreen from "./components/ForgotPasswordScreen";
 import ResetPasswordScreen from "./components/ResetPasswordScreen";
-import UsuariosActividad from "./components/UsuariosActividad";
 import ArquitecturaSistema from "./components/ArquitecturaSistema";
 import PresupuestoModule from "./components/presupuesto/Presupuesto";
 import Configuracion from "./components/Configuracion";
@@ -32,6 +31,8 @@ import PreciosGanado from "./components/precios-ganado/PreciosGanado";
 import RecursosHumanos from "./components/RecursosHumanos";
 import IngresosVentas from "./components/ventas/IngresosVentas";
 import StockGanadero from "./components/stock/StockGanadero";
+import CampoMapa from "./components/campo/CampoMapa";
+import TareasOperativas from "./components/operaciones/TareasOperativas";
 import StockEquino from "./components/stock-equino/StockEquino";
 import DocumentosDigitales from "./components/DocumentosDigitales";
 import VencimientosImpuestos from "./components/VencimientosImpuestos";
@@ -48,8 +49,6 @@ import {
   canAccessArquitecturaSistema,
   canAccessChat,
   canAccessScreen,
-  actividadModoPorDefecto,
-  actividadTituloPorModo,
   type ActividadVistaModo,
 } from "./utils/auth-permissions";
 import { showToast } from "./utils/toast";
@@ -94,6 +93,7 @@ export default function App() {
   const [actividadModoOverride, setActividadModoOverride] = useState<ActividadVistaModo | null>(
     null
   );
+  const [configModuloInicial, setConfigModuloInicial] = useState<"registro_actividad" | null>(null);
   const hadUserRef = useRef(false);
   const freshLoginRef = useRef(false);
   const sessionUserIdRef = useRef<number | null>(null);
@@ -129,6 +129,7 @@ export default function App() {
     setChatOpen(false);
     setCuentaOpen(false);
     setActividadModoOverride(null);
+    setConfigModuloInicial(null);
   }, []);
 
   useEffect(() => {
@@ -317,13 +318,17 @@ export default function App() {
       notify("No tenés permiso para acceder a ese módulo", false);
       return;
     }
-    if (id === "registro_actividad" && opts?.actividadModo) {
-      setActividadModoOverride(opts.actividadModo);
-    } else if (id !== "registro_actividad") {
-      setActividadModoOverride(null);
-    } else {
-      setActividadModoOverride(null);
+    if (id === "registro_actividad") {
+      setConfigModuloInicial("registro_actividad");
+      setActividadModoOverride(opts?.actividadModo ?? null);
+      if (screenRef.current !== "configuracion") pushNavHistory();
+      setScreen("configuracion");
+      setEditRow(null);
+      trackPantalla("configuracion");
+      return;
     }
+    setActividadModoOverride(null);
+    setConfigModuloInicial(null);
     if (screenRef.current !== id) pushNavHistory();
     setScreen(id);
     if (id !== "registro") setEditRow(null);
@@ -432,7 +437,6 @@ export default function App() {
             }}
             onError={(m) => notify(m, false)}
           />
-          <AppFooter user={null} />
           <ConfirmDialogHost />
         </div>
       );
@@ -447,7 +451,6 @@ export default function App() {
             onBack={() => setAuthView("login")}
             onError={(m) => notify(m, false)}
           />
-          <AppFooter user={null} />
           <ConfirmDialogHost />
         </div>
       );
@@ -464,7 +467,6 @@ export default function App() {
             setAuthView("forgot");
           }}
         />
-        <AppFooter user={null} />
         <ConfirmDialogHost />
       </div>
     );
@@ -566,6 +568,12 @@ export default function App() {
                 onCatalogosChanged={refreshCatalogos}
                 onVolver={goHome}
                 onOpenMiPerfil={() => setCuentaOpen(true)}
+                moduloInicial={configModuloInicial}
+                actividadModoInicial={actividadModoOverride}
+                onModuloInicialConsumido={() => {
+                  setConfigModuloInicial(null);
+                  setActividadModoOverride(null);
+                }}
               />
             )}
             {screen === "divisas" && (
@@ -635,6 +643,25 @@ export default function App() {
                 onVolver={goHome}
               />
             )}
+            {screen === "campo_mapa" && user && (
+              <CampoMapa
+                apiOnline={apiOnline}
+                currentUser={user}
+                onError={(m) => notify(m, false)}
+                onSuccess={(m) => notify(m, true)}
+                onVolver={goHome}
+              />
+            )}
+            {screen === "tareas_operativas" && user && (
+              <TareasOperativas
+                apiOnline={apiOnline}
+                currentUser={user}
+                onError={(m) => notify(m, false)}
+                onSuccess={(m) => notify(m, true)}
+                onVolver={goHome}
+                onOpenMapa={() => setScreen("campo_mapa")}
+              />
+            )}
             {screen === "stock_equino" && (
               <StockEquino
                 apiOnline={apiOnline}
@@ -644,22 +671,6 @@ export default function App() {
                 onVolver={goHome}
               />
             )}
-            {screen === "registro_actividad" && user && (() => {
-              const modo = actividadModoOverride ?? actividadModoPorDefecto(user);
-              const { titulo, subtituloAmbito } = actividadTituloPorModo(user, modo);
-              return (
-              <UsuariosActividad
-                apiOnline={apiOnline}
-                currentUser={user}
-                modo={modo}
-                titulo={titulo}
-                subtituloAmbito={subtituloAmbito}
-                volverLabel="Volver al inicio"
-                onError={(m) => notify(m, false)}
-                onVolver={goHome}
-              />
-              );
-            })()}
             {screen === "panel_admin_sitio" && user && canAccessArquitecturaSistema(user) && (
               <ArquitecturaSistema
                 apiOnline={apiOnline}

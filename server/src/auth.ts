@@ -151,6 +151,16 @@ function clearSessionCookie(res: Response): void {
   });
 }
 
+/** Potreros, marcadores y tareas operativas: datos compartidos por cuenta. */
+function isCampoMapaApiPath(path: string): boolean {
+  const p = path.toLowerCase();
+  return (
+    p.startsWith("/api/campo-potreros") ||
+    p.startsWith("/api/campo-mapa-elementos") ||
+    p.startsWith("/api/operativa-tareas")
+  );
+}
+
 export function moduleFromApiPath(path: string): Modulo | null {
   if (path === "/api/auth/actividad/pantalla") return null;
   const p = path.toLowerCase();
@@ -194,6 +204,7 @@ export function moduleFromApiPath(path: string): Modulo | null {
   }
   if (p.startsWith("/api/stock-ganadero")) return "stock";
   if (p.startsWith("/api/stock-equino")) return "stock";
+  if (isCampoMapaApiPath(p)) return "stock";
   if (p.startsWith("/api/documentos-digitales")) return "documentos_digitales";
   if (p.startsWith("/api/catalogos") || p.startsWith("/api/empresas-operativas")) {
     return "presupuesto";
@@ -275,14 +286,18 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
     WRITE_METHODS.has(req.method.toUpperCase()) &&
     !canWriteInModulo(user, modulo)
   ) {
-    res.status(403).json({
-      ok: false,
-      error:
-        user.rol === "gestor_n2" && modulo === "divisas"
-          ? "Gestor N2 solo puede consultar divisas, no modificarlas"
-          : "Tu rol solo permite consultar datos, no modificarlos",
-    });
-    return;
+    const mapaColaborativo =
+      isCampoMapaApiPath(path) && canAccessModulo(user, modulo);
+    if (!mapaColaborativo) {
+      res.status(403).json({
+        ok: false,
+        error:
+          user.rol === "gestor_n2" && modulo === "divisas"
+            ? "Gestor N2 solo puede consultar divisas, no modificarlas"
+            : "Tu rol solo permite consultar datos, no modificarlos",
+      });
+      return;
+    }
   }
 
   next();

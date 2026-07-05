@@ -63,6 +63,8 @@ export interface ChatMessageRow {
   recipient_id: number;
   body: string;
   creado_en: string;
+  reply_to_id?: number | null;
+  editado_en?: string | null;
 }
 
 export interface ChatMessageDto {
@@ -73,9 +75,29 @@ export interface ChatMessageDto {
   recipient_id: number;
   body: string;
   creado_en: string;
+  editado_en: string | null;
   es_propio: boolean;
   attachment: ChatAttachmentDto | null;
+  reply_to: ChatMessageReplyPreviewDto | null;
+  reacciones: ChatMessageReactionsDto;
+  puede_editar: boolean;
 }
+
+export interface ChatMessageReplyPreviewDto {
+  id: number;
+  sender_nombre: string;
+  body: string;
+}
+
+export interface ChatMessageReactionsDto {
+  like_count: number;
+  heart_count: number;
+  mi_reaccion: "like" | "heart" | null;
+}
+
+export type ChatReactionTipo = "like" | "heart";
+
+export const CHAT_EDIT_WINDOW_MS = 5 * 60 * 1000;
 
 export interface ChatContactDto {
   id: number;
@@ -117,7 +139,22 @@ type SenderRow = ChatMessageRow & {
   attachment_mime?: string | null;
   attachment_tamano?: number | null;
   attachment_archivo?: string | null;
+  editado_en?: string | null;
+  reply_to_msg_id?: number | null;
+  reply_to_body?: string | null;
+  reply_to_sender_nombre?: string | null;
 };
+
+const MESSAGE_REPLY_JOIN = `
+  LEFT JOIN CHAT_MESSAGES rt ON rt.id = m.reply_to_id
+  LEFT JOIN USERS rtu ON rtu.id = rt.sender_id
+`;
+
+const MESSAGE_REPLY_FIELDS = `
+  rt.id AS reply_to_msg_id,
+  rt.body AS reply_to_body,
+  rtu.nombre AS reply_to_sender_nombre
+`;
 
 function iniciales(nombre: string): string {
   const parts = nombre.trim().split(/\s+/).filter(Boolean);
@@ -176,6 +213,29 @@ export async function initChatTables(db: Db): Promise<void> {
 
   await migrateChatAttachmentColumns(db);
   await initChatChannelTables(db);
+
+  await db
+    .prepare(`ALTER TABLE CHAT_MESSAGES ADD COLUMN IF NOT EXISTS reply_to_id INTEGER`)
+    .run();
+  await db
+    .prepare(`ALTER TABLE CHAT_MESSAGES ADD COLUMN IF NOT EXISTS editado_en TIMESTAMPTZ`)
+    .run();
+
+  await db.prepare(
+    `CREATE TABLE IF NOT EXISTS CHAT_MESSAGE_REACTION (
+      id SERIAL PRIMARY KEY,
+      message_id INTEGER NOT NULL REFERENCES CHAT_MESSAGES(id) ON DELETE CASCADE,
+      user_id INTEGER NOT NULL REFERENCES USERS(id) ON DELETE CASCADE,
+      tipo TEXT NOT NULL,
+      creado_en TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE(message_id, user_id)
+    )`
+  ).run();
+
+  await db.prepare(
+    `CREATE INDEX IF NOT EXISTS idx_chat_message_reaction_msg
+     ON CHAT_MESSAGE_REACTION(message_id)`
+  ).run();
 
   await db.prepare(
     `CREATE TABLE IF NOT EXISTS CHAT_EXTERNAL_CONTACTS (
@@ -283,7 +343,31 @@ async function getLastReadId(db: Db, userId: number, peerId: number): Promise<nu
   return row?.last_read_message_id ?? 0;
 }
 
-function rowToDto(row: SenderRow, currentUserId: number): ChatMessageDto {
+function truncReplyBody(body: string, max = 160): string {
+  const t = body.trim().replace(/\s+/g, " ");
+  if (t.length <= max) return t;
+  return `${t.slice(0, max - 1)}…`;
+}
+
+function canEditMessage(row: SenderRow, currentUserId: number): boolean {
+  if (row.sender_id !== currentUserId) return false;
+  if (row.attachment_archivo) return false;
+  const created = new Date(row.creado_en).getTime();
+  if (Number.isNaN(created)) return false;
+  return Date.now() - created <= CHAT_EDIT_WINDOW_MS;
+}
+
+const EMPTY_REACTIONS: ChatMessageReactionsDto = {
+  like_count: 0,
+  heart_count: 0,
+  mi_reaccion: null,
+};
+
+function rowToDto(
+  row: SenderRow,
+  currentUserId: number,
+  reacciones: ChatMessageReactionsDto = EMPTY_REACTIONS
+): ChatMessageDto {
   return {
     id: row.id,
     sender_id: row.sender_id,
@@ -292,9 +376,111 @@ function rowToDto(row: SenderRow, currentUserId: number): ChatMessageDto {
     recipient_id: row.recipient_id,
     body: row.body,
     creado_en: row.creado_en,
+    editado_en: row.editado_en ? String(row.editado_en) : null,
     es_propio: row.sender_id === currentUserId,
     attachment: attachmentDtoFromRow(row.id, row),
+    reply_to:
+      row.reply_to_msg_id != null
+        ? {
+            id: Number(row.reply_to_msg_id),
+            sender_nombre: String(row.reply_to_sender_nombre ?? ""),
+            body: truncReplyBody(String(row.reply_to_body ?? "")),
+          }
+        : null,
+    reacciones,
+    puede_editar: canEditMessage(row, currentUserId),
   };
+}
+
+async function loadReactionsForMessages(
+  db: Db,
+  messageIds: number[],
+  userId: number
+): Promise<Map<number, ChatMessageReactionsDto>> {
+  const map = new Map<number, ChatMessageReactionsDto>();
+  if (messageIds.length === 0) return map;
+
+  const placeholders = messageIds.map(() => "?").join(", ");
+  const rows = (await db
+    .prepare(
+      `SELECT message_id, tipo, COUNT(*)::int AS n
+       FROM CHAT_MESSAGE_REACTION
+       WHERE message_id IN (${placeholders})
+       GROUP BY message_id, tipo`
+    )
+    .all(...messageIds)) as { message_id: number; tipo: string; n: number }[];
+
+  const mine = (await db
+    .prepare(
+      `SELECT message_id, tipo FROM CHAT_MESSAGE_REACTION
+       WHERE user_id = ? AND message_id IN (${placeholders})`
+    )
+    .all(userId, ...messageIds)) as { message_id: number; tipo: string }[];
+
+  for (const id of messageIds) {
+    map.set(id, { like_count: 0, heart_count: 0, mi_reaccion: null });
+  }
+  for (const r of rows) {
+    const entry = map.get(Number(r.message_id)) ?? { ...EMPTY_REACTIONS };
+    if (r.tipo === "like") entry.like_count = Number(r.n);
+    if (r.tipo === "heart") entry.heart_count = Number(r.n);
+    map.set(Number(r.message_id), entry);
+  }
+  for (const r of mine) {
+    const entry = map.get(Number(r.message_id)) ?? { ...EMPTY_REACTIONS };
+    entry.mi_reaccion = r.tipo === "heart" ? "heart" : r.tipo === "like" ? "like" : null;
+    map.set(Number(r.message_id), entry);
+  }
+  return map;
+}
+
+async function rowsToDtos(
+  db: Db,
+  rows: SenderRow[],
+  userId: number
+): Promise<ChatMessageDto[]> {
+  const ids = rows.map((r) => r.id);
+  const reactions = await loadReactionsForMessages(db, ids, userId);
+  return rows.map((row) => rowToDto(row, userId, reactions.get(row.id) ?? EMPTY_REACTIONS));
+}
+
+async function getChatMessageDto(
+  db: Db,
+  userId: number,
+  messageId: number
+): Promise<ChatMessageDto | null> {
+  const row = await fetchMessageRow(db, messageId);
+  if (!row) return null;
+  const reactions = await loadReactionsForMessages(db, [messageId], userId);
+  return rowToDto(row, userId, reactions.get(messageId) ?? EMPTY_REACTIONS);
+}
+
+function messageBelongsToPeer(row: ChatMessageRow, peerId: number, userId: number): boolean {
+  if (peerId > 0) {
+    return (
+      row.recipient_id > 0 &&
+      ((row.sender_id === userId && row.recipient_id === peerId) ||
+        (row.sender_id === peerId && row.recipient_id === userId))
+    );
+  }
+  return row.recipient_id === peerId;
+}
+
+async function validateReplyToId(
+  db: Db,
+  userId: number,
+  peerId: number,
+  replyToId: number | null | undefined
+): Promise<number | null> {
+  if (replyToId == null) return null;
+  const id = Number(replyToId);
+  if (!Number.isFinite(id) || id <= 0) return null;
+  const replyRow = await userCanAccessChatMessage(db, userId, id);
+  if (!replyRow) throw new Error("El mensaje citado no está disponible.");
+  if (!messageBelongsToPeer(replyRow, peerId, userId)) {
+    throw new Error("El mensaje citado no pertenece a esta conversación.");
+  }
+  return id;
 }
 
 async function isDmPeerAllowed(
@@ -354,9 +540,10 @@ function peerMessageFilter(peerId: number, userId: number): { clause: string; bi
 async function fetchMessageRow(db: Db, id: number): Promise<SenderRow | undefined> {
   return (await db
     .prepare(
-      `SELECT m.*, ${SENDER_JOIN_FIELDS}
+      `SELECT m.*, ${SENDER_JOIN_FIELDS}, ${MESSAGE_REPLY_FIELDS}
        FROM CHAT_MESSAGES m
        JOIN USERS u ON u.id = m.sender_id
+       ${MESSAGE_REPLY_JOIN}
        WHERE m.id = ?`
     )
     .get(id)) as SenderRow | undefined;
@@ -382,9 +569,10 @@ export async function listChatMessages(
 
     const anchorRow = (await db
       .prepare(
-        `SELECT m.*, ${SENDER_JOIN_FIELDS}
+        `SELECT m.*, ${SENDER_JOIN_FIELDS}, ${MESSAGE_REPLY_FIELDS}
          FROM CHAT_MESSAGES m
          JOIN USERS u ON u.id = m.sender_id
+         ${MESSAGE_REPLY_JOIN}
          WHERE ${filter.clause} AND m.id = ?`
       )
       .get(...filter.binds, aroundId)) as SenderRow | undefined;
@@ -393,9 +581,10 @@ export async function listChatMessages(
 
     const beforeRows = (await db
       .prepare(
-        `SELECT m.*, ${SENDER_JOIN_FIELDS}
+        `SELECT m.*, ${SENDER_JOIN_FIELDS}, ${MESSAGE_REPLY_FIELDS}
          FROM CHAT_MESSAGES m
          JOIN USERS u ON u.id = m.sender_id
+         ${MESSAGE_REPLY_JOIN}
          WHERE ${filter.clause} AND m.id < ?
          ORDER BY m.id DESC LIMIT ?`
       )
@@ -404,15 +593,16 @@ export async function listChatMessages(
 
     const afterRows = (await db
       .prepare(
-        `SELECT m.*, ${SENDER_JOIN_FIELDS}
+        `SELECT m.*, ${SENDER_JOIN_FIELDS}, ${MESSAGE_REPLY_FIELDS}
          FROM CHAT_MESSAGES m
          JOIN USERS u ON u.id = m.sender_id
+         ${MESSAGE_REPLY_JOIN}
          WHERE ${filter.clause} AND m.id > ?
          ORDER BY m.id ASC LIMIT ?`
       )
       .all(...filter.binds, aroundId, afterLimit)) as SenderRow[];
 
-    return [...beforeRows, anchorRow, ...afterRows].map((row) => rowToDto(row, userId));
+    return rowsToDtos(db, [...beforeRows, anchorRow, ...afterRows], userId);
   }
 
   let rows: SenderRow[];
@@ -420,9 +610,10 @@ export async function listChatMessages(
   if (beforeId > 0) {
     rows = (await db
       .prepare(
-        `SELECT m.*, ${SENDER_JOIN_FIELDS}
+        `SELECT m.*, ${SENDER_JOIN_FIELDS}, ${MESSAGE_REPLY_FIELDS}
          FROM CHAT_MESSAGES m
          JOIN USERS u ON u.id = m.sender_id
+         ${MESSAGE_REPLY_JOIN}
          WHERE ${filter.clause} AND m.id < ?
          ORDER BY m.id DESC LIMIT ?`
       )
@@ -431,9 +622,10 @@ export async function listChatMessages(
   } else if (sinceId > 0) {
     rows = (await db
       .prepare(
-        `SELECT m.*, ${SENDER_JOIN_FIELDS}
+        `SELECT m.*, ${SENDER_JOIN_FIELDS}, ${MESSAGE_REPLY_FIELDS}
          FROM CHAT_MESSAGES m
          JOIN USERS u ON u.id = m.sender_id
+         ${MESSAGE_REPLY_JOIN}
          WHERE ${filter.clause} AND m.id > ?
          ORDER BY m.id ASC LIMIT ?`
       )
@@ -441,9 +633,10 @@ export async function listChatMessages(
   } else {
     rows = (await db
       .prepare(
-        `SELECT m.*, ${SENDER_JOIN_FIELDS}
+        `SELECT m.*, ${SENDER_JOIN_FIELDS}, ${MESSAGE_REPLY_FIELDS}
          FROM CHAT_MESSAGES m
          JOIN USERS u ON u.id = m.sender_id
+         ${MESSAGE_REPLY_JOIN}
          WHERE ${filter.clause}
          ORDER BY m.id DESC LIMIT ?`
       )
@@ -451,27 +644,31 @@ export async function listChatMessages(
     rows.reverse();
   }
 
-  return rows.map((row) => rowToDto(row, userId));
+  return rowsToDtos(db, rows, userId);
 }
 
 export async function sendChatMessage(
   db: Db,
   senderId: number,
   recipientId: number,
-  body: string
+  body: string,
+  replyToId?: number | null
 ): Promise<ChatMessageDto> {
   const text = trimBody(body);
   await assertValidPeer(db, senderId, recipientId);
+  const replyId = await validateReplyToId(db, senderId, recipientId, replyToId);
 
   const result = await db
-    .prepare(`INSERT INTO CHAT_MESSAGES (sender_id, recipient_id, body) VALUES (?, ?, ?)`)
-    .run(senderId, recipientId, text);
+    .prepare(
+      `INSERT INTO CHAT_MESSAGES (sender_id, recipient_id, body, reply_to_id)
+       VALUES (?, ?, ?, ?)`
+    )
+    .run(senderId, recipientId, text, replyId);
 
   const id = Number(result.lastInsertRowid);
-  const row = await fetchMessageRow(db, id);
-
-  if (!row) throw new Error("No se pudo guardar el mensaje");
-  return rowToDto(row, senderId);
+  const dto = await getChatMessageDto(db, senderId, id);
+  if (!dto) throw new Error("No se pudo guardar el mensaje");
+  return dto;
 }
 
 export async function sendChatMessageWithAttachment(
@@ -479,14 +676,19 @@ export async function sendChatMessageWithAttachment(
   senderId: number,
   recipientId: number,
   body: string,
-  file: { buffer: Buffer; mime: string; originalName: string }
+  file: { buffer: Buffer; mime: string; originalName: string },
+  replyToId?: number | null
 ): Promise<ChatMessageDto> {
   const text = trimBody(body, true);
   await assertValidPeer(db, senderId, recipientId);
+  const replyId = await validateReplyToId(db, senderId, recipientId, replyToId);
 
   const insert = await db
-    .prepare(`INSERT INTO CHAT_MESSAGES (sender_id, recipient_id, body) VALUES (?, ?, ?)`)
-    .run(senderId, recipientId, text);
+    .prepare(
+      `INSERT INTO CHAT_MESSAGES (sender_id, recipient_id, body, reply_to_id)
+       VALUES (?, ?, ?, ?)`
+    )
+    .run(senderId, recipientId, text, replyId);
 
   const id = Number(insert.lastInsertRowid);
   try {
@@ -519,9 +721,66 @@ export async function sendChatMessageWithAttachment(
     throw e;
   }
 
-  const row = await fetchMessageRow(db, id);
-  if (!row) throw new Error("No se pudo guardar el mensaje");
-  return rowToDto(row, senderId);
+  const dto = await getChatMessageDto(db, senderId, id);
+  if (!dto) throw new Error("No se pudo guardar el mensaje");
+  return dto;
+}
+
+export async function editChatMessage(
+  db: Db,
+  userId: number,
+  messageId: number,
+  body: string
+): Promise<ChatMessageDto> {
+  const row = await fetchMessageRow(db, messageId);
+  if (!row || row.sender_id !== userId) {
+    throw new Error("No podés editar este mensaje.");
+  }
+  if (!canEditMessage(row, userId)) {
+    throw new Error("Solo podés editar tus mensajes durante 5 minutos después de enviarlos.");
+  }
+  const text = trimBody(body);
+  await db
+    .prepare(`UPDATE CHAT_MESSAGES SET body = ?, editado_en = NOW() WHERE id = ?`)
+    .run(text, messageId);
+  const dto = await getChatMessageDto(db, userId, messageId);
+  if (!dto) throw new Error("Mensaje no encontrado.");
+  return dto;
+}
+
+export async function toggleChatMessageReaction(
+  db: Db,
+  userId: number,
+  messageId: number,
+  tipo: ChatReactionTipo
+): Promise<ChatMessageDto> {
+  if (tipo !== "like" && tipo !== "heart") {
+    throw new Error("Reacción no válida.");
+  }
+  const row = await userCanAccessChatMessage(db, userId, messageId);
+  if (!row) throw new Error("Mensaje no encontrado.");
+
+  const existing = (await db
+    .prepare(`SELECT tipo FROM CHAT_MESSAGE_REACTION WHERE message_id = ? AND user_id = ?`)
+    .get(messageId, userId)) as { tipo: string } | undefined;
+
+  if (existing?.tipo === tipo) {
+    await db
+      .prepare(`DELETE FROM CHAT_MESSAGE_REACTION WHERE message_id = ? AND user_id = ?`)
+      .run(messageId, userId);
+  } else {
+    await db
+      .prepare(
+        `INSERT INTO CHAT_MESSAGE_REACTION (message_id, user_id, tipo)
+         VALUES (?, ?, ?)
+         ON CONFLICT (message_id, user_id) DO UPDATE SET tipo = EXCLUDED.tipo, creado_en = NOW()`
+      )
+      .run(messageId, userId, tipo);
+  }
+
+  const dto = await getChatMessageDto(db, userId, messageId);
+  if (!dto) throw new Error("Mensaje no encontrado.");
+  return dto;
 }
 
 export async function userCanAccessChatMessage(
@@ -1221,10 +1480,11 @@ export async function searchChatMessages(
     >;
   }
 
-  return rows.map((row) => ({
-    ...rowToDto(row, userId),
-    peer_id: Number(row.peer_id),
-    peer_label: row.peer_label,
+  const dtos = await rowsToDtos(db, rows, userId);
+  return dtos.map((dto, index) => ({
+    ...dto,
+    peer_id: Number(rows[index].peer_id),
+    peer_label: rows[index].peer_label,
   }));
 }
 

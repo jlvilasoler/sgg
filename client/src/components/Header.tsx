@@ -17,4 +17,6 @@ export type TabId =
   | "documentos_digitales"
   | "panel_admin_sitio"
   | "vencimientos_impuestos"
-  | "notas";
+  | "notas"
+  | "campo_mapa"
+  | "tareas_operativas";
