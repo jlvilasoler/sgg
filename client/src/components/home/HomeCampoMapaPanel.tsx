@@ -1,8 +1,20 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import L from "leaflet";
 import { ArrowRight } from "lucide-react";
-import { fetchCampoMapaElementos, fetchCampoPotrerosMapa } from "../../api";
-import type { CampoMapaElemento, CampoPotreroMapa } from "../../types";
+import {
+  fetchCampoMapaElementos,
+  fetchCampoPotrerosMapa,
+  fetchEmpresasOperativasStock,
+  fetchStockEquinaDispositivos,
+  fetchStockGanaderaDispositivos,
+  type EmpresaOperativaStock,
+} from "../../api";
+import type { CampoMapaElemento, CampoPotreroMapa, StockGanaderaDispositivo } from "../../types";
+import {
+  buildCampoMapaDispositivoMarkers,
+  filterDispositivoMarkersInBounds,
+  renderCampoMapaDispositivoMarkersPreview,
+} from "../campo/campo-mapa-dispositivos-map";
 import { renderElementoLayer, renderPotreroLayer } from "../campo/campo-mapa-render";
 import {
   applyCampoMapaInitialView,
@@ -30,26 +42,42 @@ export default function HomeCampoMapaPanel({ apiOnline, onOpenMapa }: Props) {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
   const layersRef = useRef<L.Layer[]>([]);
+  const deviceLayerRef = useRef<L.LayerGroup | null>(null);
   const [loading, setLoading] = useState(true);
   const [potreros, setPotreros] = useState<CampoPotreroMapa[]>([]);
   const [elementos, setElementos] = useState<CampoMapaElemento[]>([]);
+  const [stockGanadero, setStockGanadero] = useState<StockGanaderaDispositivo[]>([]);
+  const [stockEquino, setStockEquino] = useState<StockGanaderaDispositivo[]>([]);
+  const [empresasOperativas, setEmpresasOperativas] = useState<EmpresaOperativaStock[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setError(null);
-    void Promise.all([fetchCampoPotrerosMapa(), fetchCampoMapaElementos()])
-      .then(([potrerosData, elementosData]) => {
+    void Promise.all([
+      fetchCampoPotrerosMapa(),
+      fetchCampoMapaElementos(),
+      fetchStockGanaderaDispositivos({}),
+      fetchStockEquinaDispositivos({}),
+      fetchEmpresasOperativasStock(),
+    ])
+      .then(([potrerosData, elementosData, ganaderoData, equinoData, empresasData]) => {
         if (cancelled) return;
         setPotreros(potrerosData);
         setElementos(elementosData);
+        setStockGanadero(ganaderoData);
+        setStockEquino(equinoData);
+        setEmpresasOperativas(empresasData);
       })
       .catch(() => {
         if (cancelled) return;
         setError("No se pudo cargar el mapa del predio.");
         setPotreros([]);
         setElementos([]);
+        setStockGanadero([]);
+        setStockEquino([]);
+        setEmpresasOperativas([]);
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -81,12 +109,40 @@ export default function HomeCampoMapaPanel({ apiOnline, onOpenMapa }: Props) {
     return () => {
       window.clearTimeout(timer);
       window.removeEventListener("resize", resize);
+      deviceLayerRef.current?.remove();
+      deviceLayerRef.current = null;
       layersRef.current.forEach((layer) => layer.remove());
       layersRef.current = [];
       map.remove();
       mapRef.current = null;
     };
   }, []);
+
+  const allDeviceMarkers = useMemo(
+    () =>
+      buildCampoMapaDispositivoMarkers(
+        potreros,
+        elementos,
+        stockGanadero,
+        stockEquino,
+        empresasOperativas,
+      ),
+    [elementos, empresasOperativas, potreros, stockEquino, stockGanadero],
+  );
+
+  const syncVisibleDevices = useCallback(() => {
+    const map = mapRef.current;
+    if (!map || loading) return;
+
+    deviceLayerRef.current?.remove();
+    deviceLayerRef.current = null;
+    if (allDeviceMarkers.length === 0) return;
+
+    const visible = filterDispositivoMarkersInBounds(allDeviceMarkers, map.getBounds());
+    if (visible.length === 0) return;
+
+    deviceLayerRef.current = renderCampoMapaDispositivoMarkersPreview(map, visible);
+  }, [allDeviceMarkers, loading]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -108,8 +164,26 @@ export default function HomeCampoMapaPanel({ apiOnline, onOpenMapa }: Props) {
     if (cuentaTieneGeometriaEnMapa(potreros, elementos)) {
       applyCampoMapaInitialView(map, potreros, elementos, { animate: false });
     }
-    window.setTimeout(() => map.invalidateSize(), 80);
-  }, [elementos, loading, potreros]);
+
+    syncVisibleDevices();
+    window.setTimeout(() => {
+      map.invalidateSize();
+      syncVisibleDevices();
+    }, 80);
+  }, [elementos, loading, potreros, syncVisibleDevices]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    const onViewChange = () => syncVisibleDevices();
+    map.on("moveend", onViewChange);
+    map.on("zoomend", onViewChange);
+    return () => {
+      map.off("moveend", onViewChange);
+      map.off("zoomend", onViewChange);
+    };
+  }, [syncVisibleDevices]);
 
   const totalMarcaciones = potreros.length + elementos.length;
 

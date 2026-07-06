@@ -241,6 +241,34 @@ export function buildCampoMapaDispositivoMarkers(
   return markers;
 }
 
+export function filterDispositivoMarkersInBounds(
+  markers: CampoMapaDispositivoMarker[],
+  bounds: L.LatLngBounds,
+): CampoMapaDispositivoMarker[] {
+  return markers.filter((marker) => bounds.contains([marker.lat, marker.lng]));
+}
+
+export function renderCampoMapaDispositivoMarkersPreview(
+  map: L.Map,
+  markers: CampoMapaDispositivoMarker[],
+): L.LayerGroup {
+  const group = L.layerGroup();
+
+  for (const marker of markers) {
+    L.circleMarker([marker.lat, marker.lng], {
+      radius: 5,
+      color: darkenHexColor(marker.fillColor),
+      weight: 1,
+      fillColor: marker.fillColor,
+      fillOpacity: 0.95,
+      interactive: false,
+    }).addTo(group);
+  }
+
+  group.addTo(map);
+  return group;
+}
+
 function dispositivoMarkerCardHtml(
   marker: CampoMapaDispositivoMarker,
   expanded: boolean,
