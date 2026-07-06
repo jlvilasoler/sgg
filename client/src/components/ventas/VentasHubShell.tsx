@@ -32,7 +32,7 @@ export default function VentasHubShell({
   onNavigate,
   onVolverDashboard,
   onVolverInicio,
-  apiOnline,
+  apiOnline: _apiOnline,
   title,
   subtitle,
   headerActions,

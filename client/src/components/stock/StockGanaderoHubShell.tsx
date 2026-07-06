@@ -31,7 +31,7 @@ export default function StockGanaderoHubShell({
   onNavigate,
   onVolverDashboard,
   onVolverInicio,
-  apiOnline,
+  apiOnline: _apiOnline,
   title,
   subtitle,
   headerActions,

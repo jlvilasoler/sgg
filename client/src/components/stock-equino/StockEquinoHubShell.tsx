@@ -31,7 +31,7 @@ export default function StockEquinoHubShell({
   onNavigate,
   onVolverDashboard,
   onVolverInicio,
-  apiOnline,
+  apiOnline: _apiOnline,
   title,
   subtitle,
   headerActions,

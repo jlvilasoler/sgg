@@ -58,13 +58,6 @@ function formatUsd(n: number): string {
   }).format(n);
 }
 
-function tituloGasto(row: Presupuesto): string {
-  const proveedor = row.razon_social_proveedor?.trim();
-  const concepto = row.concepto?.trim();
-  if (proveedor && concepto) return `${proveedor} · ${concepto}`;
-  return proveedor || concepto || `Operación #${row.nro_registro}`;
-}
-
 function esResponsable(plantilla: GastoAutomatizacion, user: AuthUser): boolean {
   if (plantilla.responsable_user_id === user.id) return true;
   if (
@@ -223,7 +216,7 @@ export default function AutomatizacionGastos({
       title: "Eliminar automatización",
       message: `¿Eliminar «${p.nombre}»? No se generarán más pagos automáticos.`,
       confirmText: "Eliminar",
-      danger: true,
+      variant: "danger",
     });
     if (!ok) return;
     setBusyId(p.id);
@@ -265,7 +258,7 @@ export default function AutomatizacionGastos({
       title: "Omitir este mes",
       message: `No se registrará el pago «${p.plantilla.nombre}» en ${p.periodo}. Podés aprobarlo el mes que viene si actualizás la plantilla.`,
       confirmText: "Omitir mes",
-      danger: true,
+      variant: "danger",
     });
     if (!ok) return;
     setBusyId(p.id);

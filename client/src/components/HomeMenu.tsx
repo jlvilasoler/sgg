@@ -263,7 +263,7 @@ export default function HomeMenu({
       title: "Omitir este mes",
       message: `No se registrará el pago «${p.plantilla.nombre}» en ${p.periodo}.`,
       confirmText: "Omitir mes",
-      danger: true,
+      variant: "danger",
     });
     if (!ok) return;
     setAutoBusyId(p.id);
