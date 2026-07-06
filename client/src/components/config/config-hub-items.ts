@@ -1,10 +1,10 @@
 import type { AuthUser } from "../../types";
 import type { SgHubItem } from "../hub/SgHubTypes";
 import {
-  canAccessAdministradorCuentas,
   canAccessActividadCuenta,
   canAccessActividadPropia,
   canAccessActividadSagTotal,
+  canAccessArquitecturaCuenta,
   canAccessArquitecturaSistema,
   canAccessCatalogoSanitarioProductos,
   canAccessClasificacionProveedores,
@@ -115,12 +115,12 @@ export function buildConfigCuentaItems(user: AuthUser | null | undefined): SgHub
       icon: "usuarios_permisos_rol",
     });
   }
-  if (canAccessAdministradorCuentas(user ?? null)) {
+  if (canAccessArquitecturaCuenta(user ?? null)) {
     items.push({
       id: "admin_cuenta",
-      label: "Administrador de Cuentas",
-      subtitle: "Datos de su cuenta, empresas y usuarios",
-      icon: "config_admin_cuenta",
+      label: "Arquitectura del sistema",
+      subtitle: "Su cuenta, empresas operativas y usuarios",
+      icon: "arquitectura_sistema",
     });
   }
   if (canAccessActividadCuenta(user ?? null) || canAccessActividadPropia(user ?? null)) {
@@ -207,8 +207,8 @@ export function configHubMeta(
       subtitle: "Vaciar y administrar dispositivos equinos.",
     },
     admin_cuenta: {
-      title: "Administrador de Cuentas",
-      subtitle: "Datos de cuenta, empresas y usuarios.",
+      title: "Arquitectura del sistema",
+      subtitle: "Información de su cuenta y empresas operativas.",
     },
     usuarios: { title: "Usuarios", subtitle: "Administración de usuarios de la cuenta." },
     registro_actividad: {

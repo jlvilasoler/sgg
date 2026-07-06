@@ -2649,6 +2649,9 @@ app.patch("/api/stock-ganadero/dispositivos/bulk", async (req, res) => {
     if (patch.raza !== undefined) {
       metaPatch.raza = String(patch.raza);
     }
+    if (patch.color_caravana !== undefined) {
+      metaPatch.color_caravana = String(patch.color_caravana);
+    }
     if (patch.estado !== undefined) {
       metaPatch.estado = String(patch.estado).toUpperCase() as
         | "VIVO"
@@ -2868,6 +2871,8 @@ app.patch("/api/stock-ganadero/dispositivos/:clave", async (req, res) => {
       typeof body.grupo_libre === "string" ? body.grupo_libre : "";
     const potrero = typeof body.potrero === "string" ? body.potrero : "";
     const raza = typeof body.raza === "string" ? body.raza : "";
+    const color_caravana =
+      typeof body.color_caravana === "string" ? body.color_caravana : "";
     const estado = String(body.estado ?? "VIVO").toUpperCase() as
       | "VIVO"
       | "MUERTO"
@@ -2898,6 +2903,7 @@ app.patch("/api/stock-ganadero/dispositivos/:clave", async (req, res) => {
         grupo_libre,
         potrero,
         raza,
+        color_caravana,
         nacimiento_mes,
         nacimiento_anio,
         observaciones,

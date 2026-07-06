@@ -1312,10 +1312,18 @@ export function registerAuthRoutes(app: Express): void {
       const activo = body.activo !== false;
       const opRaw = body.empresa_operativa ?? {};
       const opNombre = String(opRaw.nombre ?? "").trim();
+      const opColor = String(opRaw.color ?? "").trim();
       if (!opNombre) {
         res.status(400).json({
           ok: false,
           error: "La primera empresa operativa (nombre) es obligatoria",
+        });
+        return;
+      }
+      if (!opColor) {
+        res.status(400).json({
+          ok: false,
+          error: "Elegí un color para la primera empresa operativa",
         });
         return;
       }
@@ -1343,6 +1351,7 @@ export function registerAuthRoutes(app: Express): void {
         );
         await empresasCuenta.insertEmpresaOperativa(tx, withAdmin.id, {
           nombre: opNombre,
+          color: opColor,
           activo: true,
         });
         return (await empresasCuenta.getEmpresaCuentaById(tx, withAdmin.id))!;
@@ -1456,6 +1465,7 @@ export function registerAuthRoutes(app: Express): void {
       const body = req.body ?? {};
       const empresa = await empresasCuenta.insertEmpresaOperativa(getDb(), cuentaId, {
         nombre: String(body.nombre ?? ""),
+        color: String(body.color ?? ""),
         activo: body.activo !== false,
       });
       res.status(201).json({ ok: true, data: empresa });
@@ -1482,6 +1492,7 @@ export function registerAuthRoutes(app: Express): void {
       const body = req.body ?? {};
       const patch: Partial<empresasCuenta.EmpresaOperativaInput> = {};
       if (body.nombre !== undefined) patch.nombre = String(body.nombre);
+      if (body.color !== undefined) patch.color = String(body.color);
       if (body.activo !== undefined) patch.activo = body.activo !== false;
       const empresa = await empresasCuenta.updateEmpresaOperativa(
         getDb(),

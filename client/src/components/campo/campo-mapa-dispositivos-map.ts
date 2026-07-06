@@ -1,6 +1,9 @@
 import L from "leaflet";
+import type { EmpresaOperativaStock } from "../../api";
 import type { CampoMapaElemento, CampoPotreroMapa, StockGanaderaDispositivo } from "../../types";
 import { etiquetaCaravana, normalizarPotrero } from "../stock/stock-ganadera-utils";
+import { hexColorCaravana, normalizarColorCaravana } from "../stock/stock-dispositivo-color";
+import { colorEmpresaOperativa, fmtEmpresaOperativa } from "../stock/stock-empresa-utils";
 import {
   centroidOfPaths,
   openRingFromGeoJson,
@@ -15,7 +18,37 @@ export interface CampoMapaDispositivoMarker {
   label: string;
   potreroNombre: string;
   kind: "ganadero" | "equino";
+  fillColor: string;
+  empresaNombre: string;
 }
+
+const DEFAULT_MARKER_COLOR = "#94a3b8";
+
+function darkenHexColor(hex: string, factor = 0.72): string {
+  const cleaned = hex.replace("#", "").trim();
+  if (!/^[0-9a-fA-F]{6}$/.test(cleaned)) return hex;
+  const r = Math.round(parseInt(cleaned.slice(0, 2), 16) * factor);
+  const g = Math.round(parseInt(cleaned.slice(2, 4), 16) * factor);
+  const b = Math.round(parseInt(cleaned.slice(4, 6), 16) * factor);
+  return `#${[r, g, b].map((c) => c.toString(16).padStart(2, "0")).join("")}`;
+}
+
+function deviceMarkerFillColor(
+  d: StockGanaderaDispositivo,
+  empresas: EmpresaOperativaStock[],
+): string {
+  const colorId = normalizarColorCaravana(
+    d.color_caravana || colorEmpresaOperativa(d.empresa, empresas),
+  );
+  return hexColorCaravana(colorId) ?? DEFAULT_MARKER_COLOR;
+}
+
+type AssignedDevice = {
+  clave: string;
+  label: string;
+  kind: "ganadero" | "equino";
+  device: StockGanaderaDispositivo;
+};
 
 function normalizeNombre(value: string): string {
   return normalizarPotrero(value).toLowerCase();
@@ -78,42 +111,47 @@ function deviceLabel(d: StockGanaderaDispositivo): string {
   return etiquetaCaravana(d);
 }
 
-function collectAssignedDevices(
+export function collectCampoMapaFeatureDevices(
   featureNombre: string,
   metadataRaw: string | undefined | null,
   ganadero: StockGanaderaDispositivo[],
   equino: StockGanaderaDispositivo[],
-): { clave: string; label: string; kind: "ganadero" | "equino" }[] {
+): AssignedDevice[] {
   const meta = parseCampoMapaDispositivosMetadata(metadataRaw);
   const seen = new Set<string>();
-  const result: { clave: string; label: string; kind: "ganadero" | "equino" }[] = [];
+  const result: AssignedDevice[] = [];
 
-  const push = (clave: string, label: string, kind: "ganadero" | "equino") => {
-    const key = `${kind}:${clave}`;
+  const push = (device: StockGanaderaDispositivo, kind: "ganadero" | "equino") => {
+    const key = `${kind}:${device.clave}`;
     if (seen.has(key)) return;
     seen.add(key);
-    result.push({ clave, label, kind });
+    result.push({
+      clave: device.clave,
+      label: deviceLabel(device),
+      kind,
+      device,
+    });
   };
 
   for (const clave of meta.dispositivos_ganadero) {
     const d = ganadero.find((item) => item.clave === clave);
-    if (d) push(clave, deviceLabel(d), "ganadero");
+    if (d) push(d, "ganadero");
   }
   for (const clave of meta.dispositivos_equino) {
     const d = equino.find((item) => item.clave === clave);
-    if (d) push(clave, deviceLabel(d), "equino");
+    if (d) push(d, "equino");
   }
 
   const nombreNorm = normalizeNombre(featureNombre);
   if (nombreNorm) {
     for (const d of ganadero) {
       if (normalizeNombre(d.potrero) === nombreNorm) {
-        push(d.clave, deviceLabel(d), "ganadero");
+        push(d, "ganadero");
       }
     }
     for (const d of equino) {
       if (normalizeNombre(d.potrero) === nombreNorm) {
-        push(d.clave, deviceLabel(d), "equino");
+        push(d, "equino");
       }
     }
   }
@@ -128,13 +166,15 @@ function markersForPolygonFeature(
   metadataRaw: string | undefined | null,
   ganadero: StockGanaderaDispositivo[],
   equino: StockGanaderaDispositivo[],
+  empresas: EmpresaOperativaStock[],
 ): CampoMapaDispositivoMarker[] {
-  const devices = collectAssignedDevices(featureNombre, metadataRaw, ganadero, equino);
+  const devices = collectCampoMapaFeatureDevices(featureNombre, metadataRaw, ganadero, equino);
   if (devices.length === 0) return [];
 
   const positions = distributePointsInPolygon(ring, devices.length);
   return devices.map((device, index) => {
     const pos = positions[index] ?? positions[0];
+    const empresaNombre = fmtEmpresaOperativa(device.device.empresa, empresas);
     return {
       id: `${featureKey}:${device.kind}:${device.clave}`,
       lat: pos.lat,
@@ -142,6 +182,8 @@ function markersForPolygonFeature(
       label: device.label,
       potreroNombre: featureNombre,
       kind: device.kind,
+      fillColor: deviceMarkerFillColor(device.device, empresas),
+      empresaNombre: empresaNombre === "—" ? "" : empresaNombre,
     };
   });
 }
@@ -151,6 +193,7 @@ export function buildCampoMapaDispositivoMarkers(
   elementos: CampoMapaElemento[],
   ganadero: StockGanaderaDispositivo[],
   equino: StockGanaderaDispositivo[],
+  empresas: EmpresaOperativaStock[] = [],
 ): CampoMapaDispositivoMarker[] {
   const markers: CampoMapaDispositivoMarker[] = [];
 
@@ -166,6 +209,7 @@ export function buildCampoMapaDispositivoMarkers(
           potrero.metadata,
           ganadero,
           equino,
+          empresas,
         ),
       );
     } catch {
@@ -186,6 +230,7 @@ export function buildCampoMapaDispositivoMarkers(
           elemento.metadata,
           ganadero,
           equino,
+          empresas,
         ),
       );
     } catch {
@@ -196,29 +241,117 @@ export function buildCampoMapaDispositivoMarkers(
   return markers;
 }
 
+function dispositivoMarkerCardHtml(
+  marker: CampoMapaDispositivoMarker,
+  expanded: boolean,
+): string {
+  const kindLabel = marker.kind === "ganadero" ? "Ganadero" : "Equino";
+  const meta = [marker.empresaNombre, marker.potreroNombre, kindLabel]
+    .filter(Boolean)
+    .join(" · ");
+
+  if (!expanded || !meta) {
+    return `<div class="campo-mapa-dispositivo-marker-card campo-mapa-dispositivo-marker-card--compact">${marker.label}</div>`;
+  }
+
+  return `<div class="campo-mapa-dispositivo-marker-card">
+    <strong class="campo-mapa-dispositivo-marker-card-title">${marker.label}</strong>
+    <span class="campo-mapa-dispositivo-marker-card-meta">${meta}</span>
+  </div>`;
+}
+
+const DISPOSITIVO_MARKER_POPUP_OPTS: L.PopupOptions = {
+  className: "campo-mapa-dispositivo-marker-popup",
+  closeButton: true,
+  maxWidth: 300,
+  autoPan: false,
+  offset: [0, -2],
+};
+
 export function renderCampoMapaDispositivoMarkers(
   map: L.Map,
   markers: CampoMapaDispositivoMarker[],
 ): L.LayerGroup {
   const group = L.layerGroup();
+  let pinnedMarkerId: string | null = null;
+  let hoverMarkerId: string | null = null;
+  const sharedPopup = L.popup(DISPOSITIVO_MARKER_POPUP_OPTS);
+
+  const closeActiveCard = () => {
+    hoverMarkerId = null;
+    map.closePopup();
+  };
+
+  const closePinnedPopup = () => {
+    pinnedMarkerId = null;
+    closeActiveCard();
+  };
+
+  const onPopupClose = () => {
+    pinnedMarkerId = null;
+    hoverMarkerId = null;
+  };
+
+  const showCard = (marker: CampoMapaDispositivoMarker, expanded: boolean, pin: boolean) => {
+    closeActiveCard();
+    if (pin) {
+      pinnedMarkerId = marker.id;
+      hoverMarkerId = null;
+    } else {
+      hoverMarkerId = marker.id;
+    }
+
+    sharedPopup.options.closeButton = expanded;
+    sharedPopup.options.autoClose = !pin;
+    sharedPopup
+      .setLatLng([marker.lat, marker.lng])
+      .setContent(dispositivoMarkerCardHtml(marker, expanded))
+      .openOn(map);
+  };
+
+  map.on("click", closePinnedPopup);
+  map.on("popupclose", onPopupClose);
+
   for (const marker of markers) {
-    L.circleMarker([marker.lat, marker.lng], {
-      radius: 5,
-      color: "#ffffff",
-      weight: 1.5,
-      fillColor: "#dc2626",
+    const circle = L.circleMarker([marker.lat, marker.lng], {
+      radius: 6,
+      color: darkenHexColor(marker.fillColor),
+      weight: 1,
+      fillColor: marker.fillColor,
       fillOpacity: 0.95,
-    })
-      .bindTooltip(marker.label, {
-        direction: "top",
-        opacity: 0.95,
-        className: "campo-mapa-dispositivo-marker-tooltip",
-      })
-      .bindPopup(
-        `<strong>${marker.label}</strong><br/><span style="font-size:0.75rem;color:#64748b">${marker.potreroNombre} · ${marker.kind === "ganadero" ? "Ganadero" : "Equino"}</span>`,
-      )
-      .addTo(group);
+    });
+
+    circle.on("mouseover", () => {
+      if (pinnedMarkerId != null) return;
+      if (hoverMarkerId === marker.id && map.isPopupOpen()) return;
+      showCard(marker, false, false);
+    });
+
+    circle.on("mouseout", () => {
+      if (pinnedMarkerId != null) return;
+      if (hoverMarkerId !== marker.id) return;
+      closeActiveCard();
+    });
+
+    circle.on("click", (event) => {
+      L.DomEvent.stopPropagation(event);
+      if (pinnedMarkerId === marker.id) {
+        closePinnedPopup();
+        return;
+      }
+      pinnedMarkerId = marker.id;
+      showCard(marker, true, true);
+    });
+
+    circle.addTo(group);
   }
+
+  group.on("remove", () => {
+    map.off("click", closePinnedPopup);
+    map.off("popupclose", onPopupClose);
+    closePinnedPopup();
+  });
+
   group.addTo(map);
   return group;
 }

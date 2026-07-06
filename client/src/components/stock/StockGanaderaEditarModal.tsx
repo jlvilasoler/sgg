@@ -39,6 +39,8 @@ import {
   requiereFechaBaja,
   resolverFechaBajaFormulario,
 } from "./stock-ganadera-utils";
+import { normalizarColorCaravana } from "./stock-dispositivo-color";
+import { colorEmpresaOperativa } from "./stock-empresa-utils";
 
 interface Props {
   dispositivo: StockGanaderaDispositivo;
@@ -73,6 +75,9 @@ export default function StockGanaderaEditarPanel({
   const [empresa, setEmpresa] = useState<DispositivoEmpresa>(
     dispositivo.empresa ?? ""
   );
+  const [colorCaravana, setColorCaravana] = useState(
+    normalizarColorCaravana(dispositivo.color_caravana)
+  );
   const [sexo, setSexo] = useState<DispositivoSexo>(dispositivo.sexo ?? "");
   const [nacimientoMes, setNacimientoMes] = useState<number | null>(
     dispositivo.nacimiento_mes
@@ -100,6 +105,7 @@ export default function StockGanaderaEditarPanel({
 
   const restablecerDesdeDispositivo = useCallback((d: StockGanaderaDispositivo) => {
     setEmpresa(d.empresa ?? "");
+    setColorCaravana(normalizarColorCaravana(d.color_caravana));
     setSexo(d.sexo ?? "");
     setNacimientoMes(d.nacimiento_mes);
     setNacimientoAnio(d.nacimiento_anio);
@@ -152,6 +158,13 @@ export default function StockGanaderaEditarPanel({
     if (anio !== bajaAnio) setBajaAnio(anio);
   }, [estado, dispositivo.clave]);
 
+  useEffect(() => {
+    const empresaColor = normalizarColorCaravana(
+      colorEmpresaOperativa(empresa, empresas)
+    );
+    setColorCaravana(empresaColor);
+  }, [empresa, empresas]);
+
   const grupoActual = useMemo(
     () => buildGrupo(nacimientoMes, nacimientoAnio),
     [nacimientoMes, nacimientoAnio]
@@ -169,6 +182,8 @@ export default function StockGanaderaEditarPanel({
 
   const hayCambios =
     empresa !== (dispositivo.empresa ?? "") ||
+    normalizarColorCaravana(colorCaravana) !==
+      normalizarColorCaravana(dispositivo.color_caravana ?? "") ||
     grupoActual !== (dispositivo.grupo ?? "").trim().toUpperCase() ||
     normalizarGrupoLibre(grupoLibre) !== normalizarGrupoLibre(dispositivo.grupo_libre ?? "") ||
     normalizarPotrero(potrero) !== normalizarPotrero(dispositivo.potrero ?? "") ||
@@ -210,6 +225,8 @@ export default function StockGanaderaEditarPanel({
       let guardado = dispositivo;
       const cambiosFicha =
         empresa !== (dispositivo.empresa ?? "") ||
+        normalizarColorCaravana(colorCaravana) !==
+          normalizarColorCaravana(dispositivo.color_caravana ?? "") ||
         grupoActual !== (dispositivo.grupo ?? "").trim().toUpperCase() ||
         normalizarGrupoLibre(grupoLibre) !== normalizarGrupoLibre(dispositivo.grupo_libre ?? "") ||
         normalizarPotrero(potrero) !== normalizarPotrero(dispositivo.potrero ?? "") ||
@@ -232,6 +249,7 @@ export default function StockGanaderaEditarPanel({
             grupo_libre: normalizarGrupoLibre(grupoLibre),
             potrero: normalizarPotrero(potrero),
             raza: normalizarRaza(raza),
+            color_caravana: normalizarColorCaravana(colorCaravana),
             nacimiento_mes: nacimientoMes,
             nacimiento_anio: nacimientoAnio,
             observaciones: observaciones.trim(),
@@ -401,6 +419,7 @@ export default function StockGanaderaEditarPanel({
                       empresas={empresas}
                       value={empresa}
                       disabled={camposDeshabilitados}
+                      mostrarColorSwatch
                       onChange={(e) =>
                         setEmpresa(e === EMPRESA_PENDIENTE ? "" : (e as DispositivoEmpresa))
                       }

@@ -10,6 +10,7 @@ import { PageModuleHeadRow } from "./PageModuleHead";
 import ArquitecturaCuentaDetalle, {
   type CuentaDetallePanel,
 } from "./ArquitecturaCuentaDetalle";
+import SelectColorEmpresaOperativa from "./SelectColorEmpresaOperativa";
 import {
   emptyEmpresaForm,
   emptyOperativaForm,
@@ -171,6 +172,10 @@ export default function ArquitecturaSistema({
       onError("Completá el nombre de la primera empresa operativa");
       return;
     }
+    if (!operativaForm.color?.trim()) {
+      onError("Elegí un color para la primera empresa operativa");
+      return;
+    }
     setSavingEmpresa(true);
     try {
       const opNombre = operativaForm.nombre.trim();
@@ -180,6 +185,7 @@ export default function ArquitecturaSistema({
         admin_email: adminEmail,
         empresa_operativa: {
           nombre: opNombre,
+          color: operativaForm.color,
         },
       });
       setEmpresas((prev) =>
@@ -600,6 +606,16 @@ export default function ArquitecturaSistema({
                           }
                           placeholder="INGRESAR NOMBRE DE EMPRESA"
                           required
+                        />
+                      </div>
+                      <div className="field usuarios-form-grid-span-full">
+                        <span className="cuenta-entity-edit-color-label">Color de empresa</span>
+                        <SelectColorEmpresaOperativa
+                          value={operativaForm.color ?? ""}
+                          coloresOcupados={[]}
+                          onChange={(color) =>
+                            setOperativaForm((f) => ({ ...f, color }))
+                          }
                         />
                       </div>
                     </div>

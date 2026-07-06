@@ -15,3 +15,18 @@ export function fmtEmpresaOperativa(
   );
   return match?.nombre ?? c;
 }
+
+export function colorEmpresaOperativa(
+  codigo: string | null | undefined,
+  empresas: EmpresaOperativaStock[]
+): string {
+  const c = (codigo ?? "").trim();
+  if (!c) return "";
+  const up = c.toUpperCase();
+  const match = empresas.find(
+    (e) =>
+      e.codigo.trim().toUpperCase() === up ||
+      e.nombre.trim().toUpperCase() === up
+  );
+  return match?.color ?? "";
+}

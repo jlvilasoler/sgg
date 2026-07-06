@@ -157,6 +157,7 @@ export default function StockGanaderoBajaManual({
           grupo_libre: dispositivo.grupo_libre ?? "",
           potrero: dispositivo.potrero ?? "",
           raza: dispositivo.raza ?? "",
+          color_caravana: dispositivo.color_caravana ?? "",
           nacimiento_mes: dispositivo.nacimiento_mes,
           nacimiento_anio: dispositivo.nacimiento_anio,
           observaciones: dispositivo.observaciones ?? "",

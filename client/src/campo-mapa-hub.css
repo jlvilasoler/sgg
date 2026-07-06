@@ -352,6 +352,64 @@
   color: #d9f99d;
 }
 
+.campo-mapa-resumen-menu-wrap {
+  position: relative;
+}
+
+.campo-mapa-resumen-menu {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 0.45rem);
+  z-index: 680;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 11rem;
+  padding: 0.35rem;
+  border-radius: 0.65rem;
+  border: 1px solid rgba(124, 179, 66, 0.35);
+  background: rgba(12, 16, 12, 0.96);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.38);
+}
+
+.campo-mapa-resumen-menu-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 0.45rem 0.55rem;
+  border: none;
+  border-radius: 0.45rem;
+  background: transparent;
+  color: rgba(248, 246, 240, 0.9);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.campo-mapa-resumen-menu-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.campo-mapa-resumen-menu-item.is-selected {
+  background: rgba(124, 179, 66, 0.22);
+  color: #d9f99d;
+}
+
+.campo-mapa-potrero-resumen-total-only {
+  margin: 0;
+  padding: 0.1rem 0 0.15rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: rgba(248, 246, 240, 0.88);
+  text-align: center;
+}
+
+.campo-mapa-potrero-resumen-panel--totales {
+  min-width: 8.5rem;
+}
+
 .campo-mapa-feature-name-tooltip {
   background: rgba(18, 24, 18, 0.88) !important;
   border: 1px solid rgba(255, 255, 255, 0.2) !important;
@@ -380,19 +438,205 @@
   text-shadow: none;
 }
 
+.campo-mapa-potrero-resumen-leaflet {
+  background: transparent !important;
+  border: none !important;
+}
+
+.campo-mapa-potrero-resumen-panel {
+  transform: translate(-50%, 1.35rem);
+  width: max-content;
+  min-width: 13.5rem;
+  max-width: min(22rem, calc(100vw - 2rem));
+  padding: 0.5rem 0.65rem 0.55rem;
+  border-radius: 0.55rem;
+  border: 1px solid rgba(124, 179, 66, 0.35);
+  background: rgba(12, 16, 12, 0.9);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.38);
+  color: #f8f6f0;
+  pointer-events: none;
+}
+
+.campo-mapa-potrero-resumen-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 0.35rem;
+  padding-top: 0.4rem;
+  border-top: 1px solid rgba(124, 179, 66, 0.35);
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: rgba(248, 246, 240, 0.88);
+}
+
+.campo-mapa-potrero-resumen-foot strong {
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: #d9f99d;
+}
+
+.campo-mapa-potrero-resumen-section {
+  margin: 0;
+  padding: 0.28rem 0 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.campo-mapa-potrero-resumen-section:first-of-type {
+  border-top: none;
+  padding-top: 0;
+}
+
+.campo-mapa-potrero-resumen-section h4 {
+  margin: 0 0 0.2rem;
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(248, 246, 240, 0.58);
+}
+
+.campo-mapa-potrero-resumen-section ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.14rem;
+}
+
+.campo-mapa-potrero-resumen-section li {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.28rem;
+  font-size: 0.64rem;
+  line-height: 1.25;
+}
+
+.campo-mapa-potrero-resumen-row--no-swatch {
+  grid-template-columns: 1fr auto !important;
+}
+
+.campo-mapa-potrero-resumen-row-label {
+  min-width: 0;
+  white-space: normal;
+  word-break: break-word;
+  color: rgba(248, 246, 240, 0.88);
+}
+
+.campo-mapa-potrero-resumen-section li strong {
+  font-size: 0.66rem;
+  font-weight: 800;
+  color: #f8f6f0;
+  padding-left: 0.35rem;
+  white-space: nowrap;
+}
+
+.campo-mapa-potrero-resumen-swatch {
+  width: 0.62rem;
+  height: 0.62rem;
+  border-radius: 0.12rem;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  flex-shrink: 0;
+}
+
+.campo-mapa-potrero-resumen-swatch--empty {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.campo-mapa-potrero-resumen-empty {
+  margin: 0;
+  font-size: 0.64rem;
+  color: rgba(248, 246, 240, 0.45);
+}
+
+.campo-mapa-dispositivo-marker-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.14rem;
+  background: rgba(18, 24, 18, 0.94);
+  border: 1px solid rgba(220, 38, 38, 0.45);
+  border-radius: 0.45rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.32);
+  color: #fef2f2;
+  padding: 0.28rem 0.5rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1.35;
+  white-space: nowrap;
+}
+
+.campo-mapa-dispositivo-marker-card--compact {
+  border-radius: 999px;
+  padding: 0.18rem 0.42rem;
+}
+
+.campo-mapa-dispositivo-marker-card-title {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #fef2f2;
+}
+
+.campo-mapa-dispositivo-marker-card-meta {
+  font-size: 0.62rem;
+  font-weight: 600;
+  color: rgba(254, 242, 242, 0.72);
+  white-space: normal;
+}
+
 .campo-mapa-dispositivo-marker-tooltip {
-  background: rgba(18, 24, 18, 0.92) !important;
-  border: 1px solid rgba(220, 38, 38, 0.45) !important;
-  border-radius: 0.4rem !important;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.32) !important;
-  color: #fef2f2 !important;
-  font-size: 0.68rem !important;
-  font-weight: 700 !important;
-  padding: 0.18rem 0.42rem !important;
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  color: inherit !important;
+  font-size: inherit !important;
+  font-weight: inherit !important;
+  padding: 0 !important;
 }
 
 .campo-mapa-dispositivo-marker-tooltip::before {
-  border-top-color: rgba(220, 38, 38, 0.55) !important;
+  display: none !important;
+}
+
+.campo-mapa-dispositivo-marker-popup .leaflet-popup-content-wrapper {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0;
+}
+
+.campo-mapa-dispositivo-marker-popup .leaflet-popup-content {
+  margin: 0;
+  padding: 0;
+  line-height: 1.35;
+}
+
+.campo-mapa-dispositivo-marker-popup .leaflet-popup-tip-container {
+  display: none;
+}
+
+.campo-mapa-dispositivo-marker-popup .campo-mapa-dispositivo-marker-card:not(
+    .campo-mapa-dispositivo-marker-card--compact
+  ) {
+  padding-right: 1.35rem;
+}
+
+.campo-mapa-dispositivo-marker-popup .leaflet-popup-close-button {
+  top: 0.12rem;
+  right: 0.2rem;
+  width: 1.1rem;
+  height: 1.1rem;
+  font-size: 1rem;
+  line-height: 1.1rem;
+  color: rgba(254, 242, 242, 0.75);
+  text-shadow: none;
+}
+
+.campo-mapa-dispositivo-marker-popup .leaflet-popup-close-button:hover {
+  color: #fef2f2;
 }
 
 .campo-mapa-map-work-dock {
@@ -1078,6 +1322,29 @@
   word-break: break-word;
 }
 
+.campo-mapa-dispositivos-picker-item-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.campo-mapa-dispositivos-picker-item-swatch {
+  flex-shrink: 0;
+  width: 0.72rem;
+  height: 0.72rem;
+  border-radius: 0.15rem;
+}
+
+.campo-mapa-dispositivos-picker-item-empresa {
+  font-size: 0.72rem;
+  font-weight: 650;
+  color: rgba(248, 246, 240, 0.78);
+  line-height: 1.4;
+  word-break: break-word;
+}
+
 .campo-mapa-dispositivos-picker-item input {
   margin-top: 0.18rem;
   flex-shrink: 0;
@@ -1092,7 +1359,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 1rem;
+  padding: 1.25rem;
   background: rgba(10, 14, 10, 0.62);
   backdrop-filter: blur(2px);
 }
@@ -1100,8 +1367,9 @@
 .campo-mapa-dispositivos-modal {
   display: flex;
   flex-direction: column;
-  width: min(28rem, calc(100vw - 2rem));
-  max-height: min(34rem, calc(100vh - 2rem));
+  width: min(44rem, calc(100vw - 2.5rem));
+  min-height: min(36rem, calc(100vh - 2.5rem));
+  max-height: min(48rem, calc(100vh - 2.5rem));
   border-radius: 1rem;
   border: 1px solid rgba(124, 179, 66, 0.28);
   background: linear-gradient(180deg, rgba(26, 33, 26, 0.98), rgba(18, 24, 18, 0.98));
@@ -1114,8 +1382,9 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 0.75rem;
-  padding: 0.9rem 1rem 0.75rem;
+  padding: 1.1rem 1.25rem 0.9rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  flex-shrink: 0;
 }
 
 .campo-mapa-dispositivos-modal-head-main {
@@ -1133,14 +1402,14 @@
 
 .campo-mapa-dispositivos-modal-head h2 {
   margin: 0;
-  font-size: 1.1rem;
+  font-size: 1.35rem;
   font-weight: 800;
   line-height: 1.2;
 }
 
 .campo-mapa-dispositivos-modal-sub {
-  margin: 0.25rem 0 0;
-  font-size: 0.78rem;
+  margin: 0.3rem 0 0;
+  font-size: 0.84rem;
   color: rgba(248, 246, 240, 0.62);
 }
 
@@ -1165,8 +1434,10 @@
 .campo-mapa-dispositivos-modal-body {
   display: flex;
   flex-direction: column;
-  gap: 0.85rem;
-  padding: 0.85rem 1rem;
+  gap: 1rem;
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 1rem 1.25rem;
   overflow: auto;
   overscroll-behavior: contain;
   scrollbar-width: thin;
@@ -1185,11 +1456,12 @@
 .campo-mapa-dispositivos-modal-resumen {
   display: flex;
   flex-direction: column;
-  gap: 0.45rem;
-  padding: 0.65rem 0.7rem;
+  gap: 0.55rem;
+  padding: 0.8rem 0.9rem;
   border-radius: 0.75rem;
   background: rgba(124, 179, 66, 0.1);
   border: 1px solid rgba(124, 179, 66, 0.22);
+  flex-shrink: 0;
 }
 
 .campo-mapa-dispositivos-modal-resumen-head {
@@ -1222,14 +1494,31 @@
 
 .campo-mapa-dispositivos-modal-chip {
   display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 0.28rem 0.5rem;
-  border-radius: 999px;
+  align-items: flex-start;
+  gap: 0.4rem;
+  padding: 0.45rem 0.65rem;
+  border-radius: 0.65rem;
   background: rgba(18, 24, 18, 0.55);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  font-size: 0.7rem;
+  font-size: 0.78rem;
   color: rgba(248, 246, 240, 0.92);
+  max-width: 100%;
+}
+
+.campo-mapa-dispositivos-modal-chip-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+  min-width: 0;
+}
+
+.campo-mapa-dispositivos-modal-chip-num {
+  font-weight: 650;
+  line-height: 1.35;
+}
+
+.campo-mapa-dispositivos-modal-chip-body .campo-mapa-dispositivos-picker-item-meta {
+  gap: 0.3rem;
 }
 
 .campo-mapa-dispositivos-modal-chip-kind {
@@ -1243,22 +1532,61 @@
 .campo-mapa-dispositivos-modal-foot {
   display: flex;
   justify-content: flex-end;
-  gap: 0.45rem;
-  padding: 0.75rem 1rem 0.9rem;
+  gap: 0.55rem;
+  padding: 0.9rem 1.25rem 1.1rem;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
+  flex-shrink: 0;
+}
+
+.campo-mapa-dispositivos-modal .campo-mapa-dispositivos-picker {
+  flex: 1 1 auto;
+  min-height: 0;
+  gap: 0.65rem;
+}
+
+.campo-mapa-dispositivos-modal .campo-mapa-dispositivos-picker-search {
+  padding: 0.55rem 0.7rem;
+  font-size: 0.84rem;
+}
+
+.campo-mapa-dispositivos-modal .campo-mapa-dispositivos-picker-group-title {
+  font-size: 0.8rem;
+}
+
+.campo-mapa-dispositivos-modal .campo-mapa-dispositivos-picker-list {
+  max-height: min(14rem, calc(50vh - 8rem));
+}
+
+.campo-mapa-dispositivos-modal .campo-mapa-dispositivos-picker-item {
+  padding: 0.48rem 0.25rem;
+  font-size: 0.86rem;
+}
+
+.campo-mapa-dispositivos-modal .campo-mapa-dispositivos-picker-item-num {
+  font-size: 0.88rem;
+}
+
+.campo-mapa-dispositivos-modal .campo-mapa-dispositivos-picker-item-empresa,
+.campo-mapa-dispositivos-modal .campo-mapa-dispositivos-picker-item-potrero {
+  font-size: 0.78rem;
+}
+
+.campo-mapa-dispositivos-modal .campo-mapa-dispositivos-picker-item-swatch {
+  width: 0.82rem;
+  height: 0.82rem;
 }
 
 .campo-mapa-dispositivos-modal-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 2.2rem;
-  padding: 0.45rem 0.85rem;
+  min-height: 2.35rem;
+  padding: 0.5rem 1rem;
   border-radius: 0.6rem;
   border: 1px solid rgba(255, 255, 255, 0.14);
   background: rgba(255, 255, 255, 0.06);
   color: #f8f6f0;
-  font-size: 0.78rem;
+  font-size: 0.84rem;
   font-weight: 600;
   cursor: pointer;
 }
@@ -1305,5 +1633,15 @@
 
   .campo-mapa-aside-list {
     max-height: 160px;
+  }
+
+  .campo-mapa-dispositivos-modal {
+    width: calc(100vw - 1.25rem);
+    min-height: min(32rem, calc(100vh - 1.25rem));
+    max-height: calc(100vh - 1.25rem);
+  }
+
+  .campo-mapa-dispositivos-modal .campo-mapa-dispositivos-picker-list {
+    max-height: min(12rem, calc(45vh - 6rem));
   }
 }

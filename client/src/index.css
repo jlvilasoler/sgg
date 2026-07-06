@@ -39631,6 +39631,90 @@ button.sg-kpi-card:disabled {
   color: #fff;
 }
 
+.empresa-operativa-color-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.empresa-operativa-color-picker-hint {
+  margin: 0;
+  font-size: 0.8rem;
+}
+
+.empresa-operativa-color-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(7.5rem, 1fr));
+  gap: 0.45rem;
+}
+
+.empresa-operativa-color-option {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.4rem 0.55rem;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 10px;
+  background: #fff;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.8rem;
+  text-align: left;
+}
+
+.empresa-operativa-color-option:hover:not(:disabled) {
+  border-color: rgba(201, 162, 39, 0.45);
+  background: #fffbeb;
+}
+
+.empresa-operativa-color-option--selected {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.18);
+}
+
+.empresa-operativa-color-option--taken {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.empresa-operativa-color-option-swatch {
+  flex: 0 0 1.1rem;
+  width: 1.1rem;
+  height: 1.1rem;
+  border-radius: 0.25rem;
+  border: 1px solid rgba(15, 23, 42, 0.15);
+}
+
+.empresa-operativa-color-option-label {
+  min-width: 0;
+}
+
+.empresa-operativa-color-picker-selected {
+  margin: 0;
+  font-size: 0.8rem;
+}
+
+.cuenta-entity-edit-color {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.cuenta-entity-edit-color--full {
+  grid-column: 1 / -1;
+}
+
+.cuenta-entity-edit-color-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.stock-editar-ficha-color-hint {
+  font-size: 0.72rem;
+  line-height: 1.2;
+}
+
 .cuenta-entity-avatar--empresa {
   background: linear-gradient(145deg, #34d399 0%, #059669 100%);
 }
@@ -40209,7 +40293,136 @@ button.sg-kpi-card:disabled {
 }
 
 .stock-editar-ficha-zone--ident {
-  flex: 1.35 1 12rem;
+  flex: 1.6 1 14rem;
+}
+
+.stock-empresa-select-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.stock-empresa-select-wrap .stock-empresa-select {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.stock-empresa-select-swatch {
+  flex-shrink: 0;
+}
+
+.stock-color-caravana-select {
+  position: relative;
+  min-width: 0;
+}
+
+.stock-color-caravana-trigger {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  width: 100%;
+  min-width: 0;
+  text-align: left;
+  cursor: pointer;
+  padding-right: 1.75rem;
+}
+
+.stock-color-caravana-trigger:disabled {
+  cursor: not-allowed;
+  opacity: 0.72;
+}
+
+.stock-color-caravana-trigger-label {
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.stock-color-caravana-trigger-chevron {
+  position: absolute;
+  right: 0.55rem;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  width: 0.95rem;
+  height: 0.95rem;
+  color: rgba(15, 23, 42, 0.45);
+  pointer-events: none;
+}
+
+.stock-color-caravana-trigger-chevron svg {
+  width: 100%;
+  height: 100%;
+}
+
+.stock-color-caravana-menu {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + 0.25rem);
+  left: 0;
+  right: 0;
+  margin: 0;
+  padding: 0.25rem 0;
+  list-style: none;
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 10px;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+  max-height: min(280px, 40vh);
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.stock-color-caravana-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.45rem 0.65rem;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.875rem;
+  text-align: left;
+  color: #0f172a;
+}
+
+.stock-color-caravana-option:hover {
+  background: #eef3ef;
+}
+
+.stock-color-caravana-option--selected,
+.stock-color-caravana-option--selected:hover {
+  background: #2563eb;
+  color: #fff;
+}
+
+.stock-color-caravana-swatch {
+  flex: 0 0 1.35rem;
+  width: 1.35rem;
+  height: 1.35rem;
+  border-radius: 0.3rem;
+  border: 1px solid rgba(15, 23, 42, 0.18);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+}
+
+.stock-color-caravana-option--selected .stock-color-caravana-swatch {
+  border-color: rgba(255, 255, 255, 0.55);
+}
+
+.stock-color-caravana-swatch--empty {
+  background: repeating-linear-gradient(
+    -45deg,
+    rgba(148, 163, 184, 0.25),
+    rgba(148, 163, 184, 0.25) 3px,
+    rgba(241, 245, 249, 0.9) 3px,
+    rgba(241, 245, 249, 0.9) 6px
+  );
 }
 
 .stock-editar-ficha-zone--sexo {

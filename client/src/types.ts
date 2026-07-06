@@ -408,6 +408,7 @@ export interface StockGanaderaDispositivo {
   grupo_libre: string;
   potrero: string;
   raza: string;
+  color_caravana: string;
   edad: number | null;
   nacimiento_mes: number | null;
   nacimiento_anio: number | null;
@@ -1355,6 +1356,7 @@ export interface EmpresaOperativa {
   cuenta_id: number;
   nombre: string;
   codigo: string;
+  color: string;
   activo: boolean;
   creado_en: string;
   actualizado_en: string;
@@ -1365,7 +1367,7 @@ export interface EmpresaCuentaForm {
   codigo?: string;
   activo?: boolean;
   admin_email?: string;
-  empresa_operativa?: Pick<EmpresaOperativaForm, "nombre">;
+  empresa_operativa?: Pick<EmpresaOperativaForm, "nombre" | "color">;
 }
 
 export interface EmpresaCuentaCreateResult {
@@ -1400,6 +1402,7 @@ export interface CuentasControlPlataformaResumen {
 export interface EmpresaOperativaForm {
   nombre: string;
   codigo?: string;
+  color?: string;
   activo?: boolean;
 }
 

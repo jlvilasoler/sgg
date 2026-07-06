@@ -1,4 +1,5 @@
 import type { Db } from "./db/pg-client.js";
+import * as colorDb from "./stock-dispositivo-color-db.js";
 
 export interface EmpresaCuentaRow {
   id: number;
@@ -16,6 +17,7 @@ export interface EmpresaOperativaRow {
   cuenta_id: number;
   nombre: string;
   codigo: string;
+  color: string;
   activo: number;
   creado_en: string;
   actualizado_en: string;
@@ -26,6 +28,7 @@ export interface EmpresaOperativa {
   cuenta_id: number;
   nombre: string;
   codigo: string;
+  color: string;
   activo: boolean;
   creado_en: string;
   actualizado_en: string;
@@ -62,8 +65,15 @@ export interface EmpresaCuentaInput {
 export interface EmpresaOperativaInput {
   nombre: string;
   codigo?: string;
+  color?: string;
   activo?: boolean;
 }
+
+export type EmpresaOperativaDetalle = {
+  codigo: string;
+  nombre: string;
+  color: string;
+};
 
 const SEED_CUENTA_MADRE = { nombre: "VILA DIAZ", codigo: "VILADIAZ" };
 
@@ -269,10 +279,57 @@ function operativaToPublic(row: EmpresaOperativaRow): EmpresaOperativa {
     cuenta_id: row.cuenta_id,
     nombre: row.nombre,
     codigo: row.codigo,
+    color: colorDb.normalizarColorCaravana(row.color),
     activo: pgNum(row.activo) === 1,
     creado_en: pgTimestampString(row.creado_en),
     actualizado_en: pgTimestampString(row.actualizado_en),
   };
+}
+
+function normalizarColorEmpresaOperativa(
+  val: string | undefined | null,
+  requerido = false
+): string {
+  const norm = colorDb.normalizarColorCaravana(val);
+  if (!norm && requerido) {
+    throw new Error("Elegí un color para la empresa.");
+  }
+  return norm;
+}
+
+async function assertColorEmpresaOperativaDisponible(
+  db: Db,
+  cuentaId: number,
+  color: string,
+  excludeEmpresaId?: number
+): Promise<void> {
+  if (!color) return;
+  const dup = (await db
+    .prepare(
+      `SELECT nombre FROM EMPRESAS_OPERATIVAS
+       WHERE cuenta_id = ? AND color = ? AND id != ?`
+    )
+    .get(cuentaId, color, excludeEmpresaId ?? 0)) as { nombre: string } | undefined;
+  if (dup) {
+    throw new Error(
+      `El color ${colorDb.etiquetaColorCaravana(color)} ya está asignado a ${dup.nombre}. Elegí otro color.`
+    );
+  }
+}
+
+/** Color de empresa operativa por código E00001 (vacío si no existe o sin color). */
+export async function getEmpresaOperativaColorPorCodigo(
+  db: Db,
+  codigo: string
+): Promise<string> {
+  const norm = normalizeCodigo(codigo);
+  if (!norm) return "";
+  const row = (await db
+    .prepare(
+      `SELECT color FROM EMPRESAS_OPERATIVAS WHERE UPPER(TRIM(codigo)) = ?`
+    )
+    .get(norm)) as { color: string } | undefined;
+  return colorDb.normalizarColorCaravana(row?.color);
 }
 
 async function tableExists(db: Db, tableName: string): Promise<boolean> {
@@ -572,6 +629,60 @@ async function migrateVilaDiazStructure(db: Db): Promise<void> {
   }
 }
 
+async function migrateEmpresaOperativaColorColumn(db: Db): Promise<void> {
+  try {
+    await db
+      .prepare(
+        `ALTER TABLE EMPRESAS_OPERATIVAS ADD COLUMN color TEXT NOT NULL DEFAULT ''`
+      )
+      .run();
+  } catch {
+    /* columna ya existe */
+  }
+
+  const cuentas = (await db
+    .prepare("SELECT id FROM EMPRESAS_CUENTA ORDER BY id ASC")
+    .all()) as { id: number }[];
+
+  for (const cuenta of cuentas) {
+    const ops = (await db
+      .prepare(
+        `SELECT id, color FROM EMPRESAS_OPERATIVAS
+         WHERE cuenta_id = ? ORDER BY id ASC`
+      )
+      .all(cuenta.id)) as { id: number; color: string }[];
+
+    const usados = new Set(
+      ops
+        .map((o) => colorDb.normalizarColorCaravana(o.color))
+        .filter(Boolean)
+    );
+
+    for (const op of ops) {
+      if (colorDb.normalizarColorCaravana(op.color)) continue;
+      const libre = colorDb.COLORES_CARAVANA.find((c) => !usados.has(c.id));
+      if (!libre) continue;
+      await db
+        .prepare("UPDATE EMPRESAS_OPERATIVAS SET color = ? WHERE id = ?")
+        .run(libre.id, op.id);
+      usados.add(libre.id);
+
+      const codigoRow = (await db
+        .prepare("SELECT codigo FROM EMPRESAS_OPERATIVAS WHERE id = ?")
+        .get(op.id)) as { codigo: string } | undefined;
+      if (codigoRow?.codigo) {
+        await db
+          .prepare(
+            `UPDATE STOCK_GANADERO_DISPOSITIVO
+             SET color_caravana = ?
+             WHERE UPPER(TRIM(empresa)) = UPPER(TRIM(?))`
+          )
+          .run(libre.id, codigoRow.codigo);
+      }
+    }
+  }
+}
+
 export async function initEmpresasCuentaTables(db: Db): Promise<void> {
   await db
     .prepare(
@@ -594,6 +705,7 @@ export async function initEmpresasCuentaTables(db: Db): Promise<void> {
         cuenta_id INTEGER NOT NULL REFERENCES EMPRESAS_CUENTA(id) ON DELETE CASCADE,
         nombre TEXT NOT NULL,
         codigo TEXT NOT NULL,
+        color TEXT NOT NULL DEFAULT '',
         activo INTEGER NOT NULL DEFAULT 1,
         creado_en TIMESTAMPTZ DEFAULT NOW(),
         actualizado_en TIMESTAMPTZ DEFAULT NOW(),
@@ -605,6 +717,7 @@ export async function initEmpresasCuentaTables(db: Db): Promise<void> {
 
   await migrateCuentaNumeroColumn(db);
   await migrateCuentaAdminColumn(db);
+  await migrateEmpresaOperativaColorColumn(db);
   await migrateDropEmpresaCheckConstraints(db);
   await migrateVilaDiazStructure(db);
   await migrateEmpresaOperativaCodigosCorrelativos(db);
@@ -687,27 +800,31 @@ export async function getEmpresaCodigosActivosPorCuenta(
 
 export async function getEmpresasOperativasDetalleActivas(
   db: Db
-): Promise<Array<{ codigo: string; nombre: string }>> {
+): Promise<EmpresaOperativaDetalle[]> {
   const rows = (await db
     .prepare(
-      `SELECT op.codigo, op.nombre
+      `SELECT op.codigo, op.nombre, op.color
        FROM EMPRESAS_OPERATIVAS op
        INNER JOIN EMPRESAS_CUENTA c ON c.id = op.cuenta_id
        WHERE op.activo = 1 AND c.activo = 1
        ORDER BY LOWER(op.nombre) ASC`
     )
-    .all()) as { codigo: string; nombre: string }[];
-  return rows.map((r) => ({ codigo: r.codigo, nombre: r.nombre }));
+    .all()) as { codigo: string; nombre: string; color: string }[];
+  return rows.map((r) => ({
+    codigo: r.codigo,
+    nombre: r.nombre,
+    color: colorDb.normalizarColorCaravana(r.color),
+  }));
 }
 
 export async function getEmpresasOperativasDetallePorCuenta(
   db: Db,
   cuentaId: number
-): Promise<Array<{ codigo: string; nombre: string }>> {
+): Promise<EmpresaOperativaDetalle[]> {
   const ops = await listEmpresasOperativas(db, cuentaId);
   return ops
     .filter((o) => o.activo)
-    .map((o) => ({ codigo: o.codigo, nombre: o.nombre }));
+    .map((o) => ({ codigo: o.codigo, nombre: o.nombre, color: o.color }));
 }
 
 /** ID de la cuenta madre semilla (VILA DIAZ). Usado para backfill de datos legacy. */
@@ -1002,12 +1119,15 @@ export async function insertEmpresaOperativa(
     .get(codigo)) as { id: number } | undefined;
   if (dupCodigo) throw new Error("Ya existe una empresa con ese código");
 
+  const color = normalizarColorEmpresaOperativa(input.color, true);
+  await assertColorEmpresaOperativaDisponible(db, cuentaId, color);
+
   const result = await db
     .prepare(
-      `INSERT INTO EMPRESAS_OPERATIVAS (cuenta_id, nombre, codigo, activo)
-       VALUES (?, ?, ?, ?)`
+      `INSERT INTO EMPRESAS_OPERATIVAS (cuenta_id, nombre, codigo, color, activo)
+       VALUES (?, ?, ?, ?, ?)`
     )
-    .run(cuentaId, nombre, codigo, input.activo === false ? 0 : 1);
+    .run(cuentaId, nombre, codigo, color, input.activo === false ? 0 : 1);
 
   const row = (await db
     .prepare("SELECT * FROM EMPRESAS_OPERATIVAS WHERE id = ?")
@@ -1030,8 +1150,13 @@ export async function updateEmpresaOperativa(
     input.nombre !== undefined ? input.nombre.trim() : current.nombre;
   const activo =
     input.activo !== undefined ? (input.activo ? 1 : 0) : current.activo;
+  const color =
+    input.color !== undefined
+      ? normalizarColorEmpresaOperativa(input.color, true)
+      : colorDb.normalizarColorCaravana(current.color);
 
   if (!nombre) throw new Error("El nombre de la empresa es obligatorio");
+  if (!color) throw new Error("Elegí un color para la empresa.");
 
   const dupNombre = (await db
     .prepare(
@@ -1041,13 +1166,26 @@ export async function updateEmpresaOperativa(
     .get(cuentaId, nombre, empresaId)) as { id: number } | undefined;
   if (dupNombre) throw new Error("Ya existe una empresa con ese nombre en la cuenta");
 
+  await assertColorEmpresaOperativaDisponible(db, cuentaId, color, empresaId);
+
   await db
     .prepare(
       `UPDATE EMPRESAS_OPERATIVAS
-       SET nombre = ?, activo = ?, actualizado_en = NOW()
+       SET nombre = ?, color = ?, activo = ?, actualizado_en = NOW()
        WHERE id = ? AND cuenta_id = ?`
     )
-    .run(nombre, activo, empresaId, cuentaId);
+    .run(nombre, color, activo, empresaId, cuentaId);
+
+  const prevColor = colorDb.normalizarColorCaravana(current.color);
+  if (color && color !== prevColor) {
+    await db
+      .prepare(
+        `UPDATE STOCK_GANADERO_DISPOSITIVO
+         SET color_caravana = ?
+         WHERE UPPER(TRIM(empresa)) = UPPER(TRIM(?))`
+      )
+      .run(color, current.codigo);
+  }
 
   const row = (await db
     .prepare("SELECT * FROM EMPRESAS_OPERATIVAS WHERE id = ?")

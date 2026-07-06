@@ -270,6 +270,7 @@ export async function fetchEmpresasOperativas(): Promise<string[]> {
 export interface EmpresaOperativaStock {
   codigo: string;
   nombre: string;
+  color: string;
 }
 
 /** Empresas operativas con código y nombre (Stock Ganadero). */
@@ -1045,6 +1046,7 @@ export async function saveStockGanaderaDispositivo(
     grupo_libre: string;
     potrero: string;
     raza: string;
+    color_caravana: string;
     nacimiento_mes: number | null;
     nacimiento_anio: number | null;
     observaciones: string;
@@ -1062,6 +1064,7 @@ export async function saveStockGanaderaDispositivo(
   grupo_libre: string;
   potrero: string;
   raza: string;
+  color_caravana: string;
   edad: number | null;
   nacimiento_mes: number | null;
   nacimiento_anio: number | null;
@@ -1080,6 +1083,7 @@ export async function saveStockGanaderaDispositivo(
       grupo_libre: string;
       potrero: string;
       raza: string;
+      color_caravana: string;
       edad: number | null;
       nacimiento_mes: number | null;
       nacimiento_anio: number | null;

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import L from "leaflet";
-import { CircleDot, Cpu, Layers, MapPin, Maximize2, Minimize2, Pencil, Plus, Search, Tag, Trash2, Undo2, X } from "lucide-react";
+import { CircleDot, Cpu, Layers, ListTree, MapPin, Maximize2, Minimize2, Pencil, Plus, Search, Tag, Trash2, Undo2, X } from "lucide-react";
 import SgHubShell from "../hub/SgHubShell";
 import type { SgHubItem } from "../hub/SgHubTypes";
 import { MenuAppIcon } from "../icons/MenuAppIcons";
@@ -11,8 +11,10 @@ import {
   deleteCampoPotreroMapa,
   fetchCampoMapaElementos,
   fetchCampoPotrerosMapa,
+  fetchEmpresasOperativasStock,
   fetchStockEquinaDispositivos,
   fetchStockGanaderaDispositivos,
+  type EmpresaOperativaStock,
   updateCampoMapaElemento,
   updateCampoPotreroMapa,
 } from "../../api";
@@ -56,6 +58,12 @@ import {
   buildCampoMapaDispositivoMarkers,
   renderCampoMapaDispositivoMarkers,
 } from "./campo-mapa-dispositivos-map";
+import {
+  buildAllPotreroResumenes,
+  POTRERO_RESUMEN_MODOS,
+  renderPotreroResumenOverlays,
+  type PotreroResumenModo,
+} from "./campo-mapa-potrero-resumen";
 import {
   availableSaveTargets,
   canChangeSaveTarget,
@@ -223,8 +231,16 @@ export default function CampoMapa({
   const [showLabels, setShowLabels] = useState(true);
   const [showFeatureNames, setShowFeatureNames] = useState(true);
   const [showDevicesOnMap, setShowDevicesOnMap] = useState(false);
+  const [potreroResumenModos, setPotreroResumenModos] = useState<PotreroResumenModo[]>([]);
+  const [potreroResumenMenuOpen, setPotreroResumenMenuOpen] = useState(false);
+  const potreroResumenMenuRef = useRef<HTMLDivElement | null>(null);
+  const potreroResumenModosSet = useMemo(
+    () => new Set(potreroResumenModos),
+    [potreroResumenModos],
+  );
   const [stockGanadero, setStockGanadero] = useState<StockGanaderaDispositivo[]>([]);
   const [stockEquino, setStockEquino] = useState<StockGanaderaDispositivo[]>([]);
+  const [empresasOperativas, setEmpresasOperativas] = useState<EmpresaOperativaStock[]>([]);
   const [dispositivosModalOpen, setDispositivosModalOpen] = useState(false);
   const [editingSelectionContent, setEditingSelectionContent] = useState(false);
   const [modalDispositivos, setModalDispositivos] = useState<CampoMapaDispositivosMetadata>(
@@ -261,6 +277,7 @@ export default function CampoMapa({
   const sketchPolygonRef = useRef<L.Polygon | null>(null);
   const sketchMarkersRef = useRef<L.CircleMarker[]>([]);
   const dispositivoMarkersLayerRef = useRef<L.LayerGroup | null>(null);
+  const potreroResumenLayerRef = useRef<L.LayerGroup | null>(null);
   const initialViewAppliedRef = useRef(false);
 
   const toggleFullscreen = useCallback(async () => {
@@ -380,15 +397,18 @@ export default function CampoMapa({
       setPotreros(potreroData);
       setElementos(elementoData);
       if (apiOnline) {
-        const [ganaderoData, equinoData] = await Promise.all([
+        const [ganaderoData, equinoData, empresasData] = await Promise.all([
           fetchStockGanaderaDispositivos({}),
           fetchStockEquinaDispositivos({}),
+          fetchEmpresasOperativasStock(),
         ]);
         setStockGanadero(ganaderoData.filter((d) => d.estado === "VIVO"));
         setStockEquino(equinoData.filter((d) => d.estado === "VIVO"));
+        setEmpresasOperativas(empresasData);
       } else {
         setStockGanadero([]);
         setStockEquino([]);
+        setEmpresasOperativas([]);
       }
     } catch (e) {
       onError(e instanceof Error ? e.message : "No se pudieron cargar las capas del mapa.");
@@ -665,6 +685,8 @@ export default function CampoMapa({
       elementoLayersRef.current.clear();
       dispositivoMarkersLayerRef.current?.remove();
       dispositivoMarkersLayerRef.current = null;
+      potreroResumenLayerRef.current?.remove();
+      potreroResumenLayerRef.current = null;
       map.remove();
       mapRef.current = null;
       labelLayerRef.current = null;
@@ -680,8 +702,15 @@ export default function CampoMapa({
   }, [mapReady, renderMapLayers]);
 
   const dispositivoMapMarkers = useMemo(
-    () => buildCampoMapaDispositivoMarkers(potreros, elementos, stockGanadero, stockEquino),
-    [elementos, potreros, stockEquino, stockGanadero],
+    () =>
+      buildCampoMapaDispositivoMarkers(
+        potreros,
+        elementos,
+        stockGanadero,
+        stockEquino,
+        empresasOperativas,
+      ),
+    [elementos, empresasOperativas, potreros, stockEquino, stockGanadero],
   );
 
   useEffect(() => {
@@ -694,6 +723,44 @@ export default function CampoMapa({
       dispositivoMapMarkers,
     );
   }, [dispositivoMapMarkers, mapReady, showDevicesOnMap]);
+
+  const potreroResumenes = useMemo(
+    () => buildAllPotreroResumenes(potreros, stockGanadero, stockEquino, empresasOperativas),
+    [empresasOperativas, potreros, stockEquino, stockGanadero],
+  );
+
+  useEffect(() => {
+    const map = mapRef.current;
+    potreroResumenLayerRef.current?.remove();
+    potreroResumenLayerRef.current = null;
+    if (!map || potreroResumenModos.length === 0) return;
+    potreroResumenLayerRef.current = renderPotreroResumenOverlays(
+      map,
+      potreros,
+      potreroResumenes,
+      potreroResumenModosSet,
+    );
+  }, [mapReady, potreroResumenModos.length, potreroResumenModosSet, potreroResumenes, potreros]);
+
+  useEffect(() => {
+    if (!potreroResumenMenuOpen) return;
+    const onDocClick = (event: MouseEvent) => {
+      if (
+        potreroResumenMenuRef.current &&
+        !potreroResumenMenuRef.current.contains(event.target as Node)
+      ) {
+        setPotreroResumenMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [potreroResumenMenuOpen]);
+
+  const togglePotreroResumenModo = useCallback((modo: PotreroResumenModo) => {
+    setPotreroResumenModos((prev) =>
+      prev.includes(modo) ? prev.filter((item) => item !== modo) : [...prev, modo],
+    );
+  }, []);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -1998,6 +2065,39 @@ export default function CampoMapa({
               >
                 <CircleDot size={18} aria-hidden />
               </button>
+              <div className="campo-mapa-resumen-menu-wrap" ref={potreroResumenMenuRef}>
+                <button
+                  type="button"
+                  className={`campo-mapa-map-corner-btn${potreroResumenModos.length > 0 ? " is-active" : ""}${
+                    potreroResumenMenuOpen ? " is-menu-open" : ""
+                  }`}
+                  onClick={() => setPotreroResumenMenuOpen((open) => !open)}
+                  title="Resumen por potrero"
+                  aria-label="Resumen por potrero"
+                  aria-haspopup="menu"
+                  aria-expanded={potreroResumenMenuOpen}
+                >
+                  <ListTree size={18} aria-hidden />
+                </button>
+                {potreroResumenMenuOpen ? (
+                  <div className="campo-mapa-resumen-menu" role="menu" aria-label="Vista del resumen">
+                    {POTRERO_RESUMEN_MODOS.map((opcion) => (
+                      <button
+                        key={opcion.id}
+                        type="button"
+                        role="menuitemcheckbox"
+                        className={`campo-mapa-resumen-menu-item${
+                          potreroResumenModos.includes(opcion.id) ? " is-selected" : ""
+                        }`}
+                        aria-checked={potreroResumenModos.includes(opcion.id)}
+                        onClick={() => togglePotreroResumenModo(opcion.id)}
+                      >
+                        {opcion.label}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
               <button
                 type="button"
                 className={`campo-mapa-map-corner-btn${showFeatureNames ? " is-active" : ""}`}

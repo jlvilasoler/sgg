@@ -1,7 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { fetchStockEquinaDispositivos, fetchStockGanaderaDispositivos } from "../../api";
+import {
+  fetchEmpresasOperativasStock,
+  fetchStockEquinaDispositivos,
+  fetchStockGanaderaDispositivos,
+  type EmpresaOperativaStock,
+} from "../../api";
 import type { StockGanaderaDispositivo } from "../../types";
 import { etiquetaCaravana } from "../stock/stock-ganadera-utils";
+import { hexColorCaravana, normalizarColorCaravana } from "../stock/stock-dispositivo-color";
+import { colorEmpresaOperativa, fmtEmpresaOperativa } from "../stock/stock-empresa-utils";
 import type { CampoMapaDispositivosMetadata } from "./campo-mapa-metadata";
 
 interface Props {
@@ -16,9 +23,50 @@ function deviceNumeroLabel(d: StockGanaderaDispositivo): string {
   return etiquetaCaravana(d);
 }
 
-function devicePotreroLabel(d: StockGanaderaDispositivo): string | null {
+function deviceEmpresaColorHex(
+  d: StockGanaderaDispositivo,
+  empresas: EmpresaOperativaStock[]
+): string {
+  const colorId = normalizarColorCaravana(
+    d.color_caravana || colorEmpresaOperativa(d.empresa, empresas)
+  );
+  return hexColorCaravana(colorId) ?? "";
+}
+
+export function CampoMapaDispositivoEmpresaMeta({
+  d,
+  empresas,
+}: {
+  d: StockGanaderaDispositivo;
+  empresas: EmpresaOperativaStock[];
+}) {
+  const nombre = fmtEmpresaOperativa(d.empresa, empresas);
   const potrero = d.potrero?.trim();
-  return potrero || null;
+  if ((!nombre || nombre === "—") && !potrero) return null;
+
+  const colorHex = deviceEmpresaColorHex(d, empresas);
+
+  return (
+    <span className="campo-mapa-dispositivos-picker-item-meta">
+      {nombre && nombre !== "—" ? (
+        <>
+          <span
+            className={`stock-color-caravana-swatch campo-mapa-dispositivos-picker-item-swatch${
+              colorHex ? "" : " stock-color-caravana-swatch--empty"
+            }`}
+            style={colorHex ? { backgroundColor: colorHex } : undefined}
+            aria-hidden
+          />
+          <span className="campo-mapa-dispositivos-picker-item-empresa">{nombre}</span>
+        </>
+      ) : null}
+      {potrero ? (
+        <span className="campo-mapa-dispositivos-picker-item-potrero">
+          {nombre && nombre !== "—" ? `· ${potrero}` : potrero}
+        </span>
+      ) : null}
+    </span>
+  );
 }
 
 export default function CampoMapaDispositivosPicker({
@@ -30,6 +78,7 @@ export default function CampoMapaDispositivosPicker({
 }: Props) {
   const [ganadero, setGanadero] = useState<StockGanaderaDispositivo[]>([]);
   const [equino, setEquino] = useState<StockGanaderaDispositivo[]>([]);
+  const [empresas, setEmpresas] = useState<EmpresaOperativaStock[]>([]);
   const [loading, setLoading] = useState(false);
   const [filtro, setFiltro] = useState("");
 
@@ -37,19 +86,23 @@ export default function CampoMapaDispositivosPicker({
     if (!apiOnline) {
       setGanadero([]);
       setEquino([]);
+      setEmpresas([]);
       return;
     }
     setLoading(true);
     try {
-      const [g, e] = await Promise.all([
+      const [g, e, emp] = await Promise.all([
         fetchStockGanaderaDispositivos({}),
         fetchStockEquinaDispositivos({}),
+        fetchEmpresasOperativasStock(),
       ]);
       setGanadero(g.filter((d) => d.estado === "VIVO"));
       setEquino(e.filter((d) => d.estado === "VIVO"));
+      setEmpresas(emp);
     } catch {
       setGanadero([]);
       setEquino([]);
+      setEmpresas([]);
     } finally {
       setLoading(false);
     }
@@ -65,21 +118,25 @@ export default function CampoMapaDispositivosPicker({
     if (!q) return ganadero.slice(0, 80);
     return ganadero
       .filter((d) => {
-        const hay = `${d.clave} ${d.eid} ${d.vid} ${d.potrero}`.toLowerCase();
+        const empresaNombre = fmtEmpresaOperativa(d.empresa, empresas);
+        const hay =
+          `${d.clave} ${d.eid} ${d.vid} ${d.potrero} ${d.empresa} ${empresaNombre}`.toLowerCase();
         return hay.includes(q);
       })
       .slice(0, 80);
-  }, [ganadero, q]);
+  }, [ganadero, empresas, q]);
 
   const equinoFiltrado = useMemo(() => {
     if (!q) return equino.slice(0, 80);
     return equino
       .filter((d) => {
-        const hay = `${d.clave} ${d.eid} ${d.vid} ${d.potrero}`.toLowerCase();
+        const empresaNombre = fmtEmpresaOperativa(d.empresa, empresas);
+        const hay =
+          `${d.clave} ${d.eid} ${d.vid} ${d.potrero} ${d.empresa} ${empresaNombre}`.toLowerCase();
         return hay.includes(q);
       })
       .slice(0, 80);
-  }, [equino, q]);
+  }, [equino, empresas, q]);
 
   const toggle = (kind: "ganadero" | "equino", clave: string) => {
     const key = kind === "ganadero" ? "dispositivos_ganadero" : "dispositivos_equino";
@@ -135,11 +192,7 @@ export default function CampoMapaDispositivosPicker({
                   <span className="campo-mapa-dispositivos-picker-item-num">
                     {deviceNumeroLabel(d)}
                   </span>
-                  {devicePotreroLabel(d) ? (
-                    <span className="campo-mapa-dispositivos-picker-item-potrero">
-                      {devicePotreroLabel(d)}
-                    </span>
-                  ) : null}
+                  <CampoMapaDispositivoEmpresaMeta d={d} empresas={empresas} />
                 </span>
               </label>
             </li>
@@ -163,11 +216,7 @@ export default function CampoMapaDispositivosPicker({
                   <span className="campo-mapa-dispositivos-picker-item-num">
                     {deviceNumeroLabel(d)}
                   </span>
-                  {devicePotreroLabel(d) ? (
-                    <span className="campo-mapa-dispositivos-picker-item-potrero">
-                      {devicePotreroLabel(d)}
-                    </span>
-                  ) : null}
+                  <CampoMapaDispositivoEmpresaMeta d={d} empresas={empresas} />
                 </span>
               </label>
             </li>

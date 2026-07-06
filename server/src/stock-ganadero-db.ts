@@ -1,6 +1,6 @@
 import type { Db } from "./db/pg-client.js";
 import type { StockGanaderoRowInput } from "./parse-stock-ganadero-txt.js";
-import { migrateAddCuentaIdColumn, getEmpresaCodigosActivosPorCuenta } from "./empresas-cuenta-db.js";
+import { migrateAddCuentaIdColumn, getEmpresaCodigosActivosPorCuenta, getEmpresaOperativaColorPorCodigo } from "./empresas-cuenta-db.js";
 import { listClavesDispositivosEnVentasCerradas } from "./simulador-venta-dispositivos-db.js";
 import { labelCategoriaSalidaDispositivo } from "./stock-ganadera-categoria.js";
 import { dispositivoClave, eidClave, splitEidVid, coincideBusquedaDispositivo } from "./stock-ganadero-id.js";
@@ -9,6 +9,7 @@ import * as stockControlSanitario from "./stock-control-sanitario-db.js";
 import * as potreroDb from "./stock-ganadero-potrero-db.js";
 import { syncStockDispositivoPotreroEnMapa } from "./campo-mapa-sync-stock-db.js";
 import * as grupoDb from "./stock-ganadero-grupo-db.js";
+import * as colorDb from "./stock-dispositivo-color-db.js";
 
 export { dispositivoClave, eidClave, splitEidVid } from "./stock-ganadero-id.js";
 
@@ -126,6 +127,11 @@ async function clavesEidRepetidas(
 
 export { normalizarPotrero, POTRERO_MAX } from "./stock-ganadero-potrero-db.js";
 export { normalizarGrupoCatalogo, GRUPO_LIBRE_MAX } from "./stock-ganadero-grupo-db.js";
+export {
+  COLORES_CARAVANA,
+  normalizarColorCaravana,
+  etiquetaColorCaravana,
+} from "./stock-dispositivo-color-db.js";
 
 export async function initStockGanaderoTables(db: Db): Promise<void> {
   await migrateStockGanaderoLoteCuenta(db);
@@ -136,6 +142,7 @@ export async function initStockGanaderoTables(db: Db): Promise<void> {
   await migrateRazaCatalogTable(db);
   await potreroDb.migratePotreroColumn(db);
   await potreroDb.migratePotreroCatalogTable(db);
+  await colorDb.migrateGanaderoColorCaravanaColumn(db);
   await grupoDb.migrateGrupoCatalogTable(db);
   await stockFoto.migrateStockDispositivoFotoColumns(db, "ganadero");
   await stockFoto.migrateStockDispositivoFotosGallery(db, "ganadero");
@@ -629,6 +636,7 @@ export interface DispositivoMetaInput {
   grupo_libre: string;
   potrero: string;
   raza: string;
+  color_caravana: string;
   nacimiento_mes: number | null;
   nacimiento_anio: number | null;
   observaciones: string;
@@ -672,6 +680,7 @@ interface DispositivoMetaRow {
   grupo_libre: string;
   potrero: string;
   raza: string;
+  color_caravana?: string;
   edad: number | null;
   nacimiento_mes: number | null;
   nacimiento_anio: number | null;
@@ -720,7 +729,7 @@ async function mapMetaDispositivos(
 ): Promise<Map<string, DispositivoMetaGuardada>> {
   const rows = (await db
     .prepare(
-      `SELECT clave, sexo, empresa, grupo, grupo_libre, potrero, raza, edad, nacimiento_mes, nacimiento_anio, observaciones, estado, tipo_baja, numero_guia, baja_mes, baja_anio
+      `SELECT clave, sexo, empresa, grupo, grupo_libre, potrero, raza, color_caravana, edad, nacimiento_mes, nacimiento_anio, observaciones, estado, tipo_baja, numero_guia, baja_mes, baja_anio
        FROM STOCK_GANADERO_DISPOSITIVO`
     )
     .all()) as DispositivoMetaRow[];
@@ -779,6 +788,7 @@ function normalizarMetaDispositivo(row: Partial<DispositivoMetaRow>): Dispositiv
     grupo_libre: normalizarGrupoLibre(row.grupo_libre),
     potrero: potreroDb.normalizarPotrero(row.potrero),
     raza: normalizarRaza(row.raza),
+    color_caravana: colorDb.normalizarColorCaravana(row.color_caravana),
     nacimiento_mes: mes,
     nacimiento_anio: anio,
     observaciones: String(row.observaciones ?? "").trim(),
@@ -806,6 +816,7 @@ async function enrichDispositivosWithMeta(
     d.grupo_libre = info?.grupo_libre ?? "";
     d.potrero = info?.potrero ?? "";
     d.raza = info?.raza ?? "";
+    d.color_caravana = info?.color_caravana ?? "";
     d.edad = info?.edad ?? null;
     d.nacimiento_mes = info?.nacimiento_mes ?? null;
     d.nacimiento_anio = info?.nacimiento_anio ?? null;
@@ -926,6 +937,9 @@ export async function saveStockGanaderaDispositivo(
   const grupo_libre = normalizarGrupoLibre(input.grupo_libre);
   const potrero = potreroDb.normalizarPotrero(input.potrero);
   const raza = normalizarRaza(input.raza);
+  const color_caravana = empresa
+    ? await getEmpresaOperativaColorPorCodigo(db, empresa)
+    : colorDb.normalizarColorCaravana(input.color_caravana);
   const estadoRaw = String(input.estado ?? "VIVO").toUpperCase();
   if (!ESTADOS_VALIDOS.has(estadoRaw as DispositivoEstado)) {
     throw new Error("Estado inválido. Use VIVO, MUERTO, VENDIDO, FRIGORIFICO o PERDIDO.");
@@ -970,6 +984,7 @@ export async function saveStockGanaderaDispositivo(
     grupo_libre,
     potrero,
     raza,
+    color_caravana,
     nacimiento_mes: nacimiento.nacimiento_mes,
     nacimiento_anio: nacimiento.nacimiento_anio,
     observaciones,
@@ -983,9 +998,9 @@ export async function saveStockGanaderaDispositivo(
 
   await db.prepare(
     `INSERT INTO STOCK_GANADERO_DISPOSITIVO (
-       clave, eid, sexo, empresa, grupo, grupo_libre, potrero, raza, edad, nacimiento_mes, nacimiento_anio, observaciones, estado, tipo_baja, numero_guia, baja_mes, baja_anio, actualizado_en
+       clave, eid, sexo, empresa, grupo, grupo_libre, potrero, raza, color_caravana, edad, nacimiento_mes, nacimiento_anio, observaciones, estado, tipo_baja, numero_guia, baja_mes, baja_anio, actualizado_en
      ) VALUES (
-       @clave, @eid, @sexo, @empresa, @grupo, @grupo_libre, @potrero, @raza, @edad, @nacimiento_mes, @nacimiento_anio, @observaciones, @estado, @tipo_baja, @numero_guia, @baja_mes, @baja_anio,
+       @clave, @eid, @sexo, @empresa, @grupo, @grupo_libre, @potrero, @raza, @color_caravana, @edad, @nacimiento_mes, @nacimiento_anio, @observaciones, @estado, @tipo_baja, @numero_guia, @baja_mes, @baja_anio,
        datetime('now', 'localtime')
      )
      ON CONFLICT(clave) DO UPDATE SET
@@ -995,6 +1010,7 @@ export async function saveStockGanaderaDispositivo(
        grupo_libre = excluded.grupo_libre,
        potrero = excluded.potrero,
        raza = excluded.raza,
+       color_caravana = excluded.color_caravana,
        edad = excluded.edad,
        nacimiento_mes = excluded.nacimiento_mes,
        nacimiento_anio = excluded.nacimiento_anio,
@@ -1015,6 +1031,7 @@ export async function saveStockGanaderaDispositivo(
     grupo_libre,
     potrero,
     raza,
+    color_caravana,
     edad,
     nacimiento_mes: nacimiento.nacimiento_mes,
     nacimiento_anio: nacimiento.nacimiento_anio,
@@ -1051,6 +1068,7 @@ export async function saveStockGanaderaDispositivo(
     grupo_libre,
     potrero,
     raza,
+    color_caravana,
     edad,
     nacimiento_mes: nacimiento.nacimiento_mes,
     nacimiento_anio: nacimiento.nacimiento_anio,
@@ -1081,6 +1099,7 @@ function mergeMetaConPatch(
     grupo_libre: prev?.grupo_libre ?? "",
     potrero: prev?.potrero ?? "",
     raza: prev?.raza ?? "",
+    color_caravana: prev?.color_caravana ?? "",
     nacimiento_mes: prev?.nacimiento_mes ?? null,
     nacimiento_anio: prev?.nacimiento_anio ?? null,
     observaciones: prev?.observaciones ?? "",
@@ -1095,6 +1114,7 @@ function mergeMetaConPatch(
   if (patch.grupo_libre !== undefined) merged.grupo_libre = patch.grupo_libre;
   if (patch.potrero !== undefined) merged.potrero = patch.potrero;
   if (patch.raza !== undefined) merged.raza = patch.raza;
+  if (patch.color_caravana !== undefined) merged.color_caravana = patch.color_caravana;
   if (patch.nacimiento_mes !== undefined) merged.nacimiento_mes = patch.nacimiento_mes;
   if (patch.nacimiento_anio !== undefined) merged.nacimiento_anio = patch.nacimiento_anio;
   if (patch.observaciones !== undefined) merged.observaciones = patch.observaciones;
@@ -1951,6 +1971,7 @@ async function aplicarBajaDispositivo(
     grupo_libre: anterior?.grupo_libre ?? "",
     potrero: anterior?.potrero ?? "",
     raza: anterior?.raza ?? "",
+    color_caravana: anterior?.color_caravana ?? "",
     nacimiento_mes,
     nacimiento_anio,
     observaciones,
@@ -2485,6 +2506,7 @@ export async function updateStockGanaderaDispositivoSexo(
       grupo_libre: anterior?.grupo_libre ?? "",
       potrero: anterior?.potrero ?? "",
       raza: anterior?.raza ?? "",
+      color_caravana: anterior?.color_caravana ?? "",
       edad: anterior?.edad ?? null,
       nacimiento_mes: anterior?.nacimiento_mes ?? null,
       nacimiento_anio: anterior?.nacimiento_anio ?? null,
@@ -2989,6 +3011,7 @@ export interface StockGanaderaDispositivo {
   grupo_libre: string;
   potrero: string;
   raza: string;
+  color_caravana: string;
   edad: number | null;
   nacimiento_mes: number | null;
   nacimiento_anio: number | null;
@@ -3162,6 +3185,7 @@ function buildDispositivosFromRegistros(
         grupo_libre: "",
         potrero: "",
         raza: "",
+        color_caravana: "",
         edad: null,
         nacimiento_mes: null,
         nacimiento_anio: null,
@@ -3681,6 +3705,7 @@ async function registrarHistorialCambiosDispositivo(
   const prevGrupoLibre = fmtHistorialGrupoLibre(anterior?.grupo_libre ?? "");
   const prevPotrero = fmtHistorialPotrero(anterior?.potrero ?? "");
   const prevRaza = fmtHistorialRaza(anterior?.raza ?? "");
+  const prevColor = colorDb.etiquetaColorCaravana(anterior?.color_caravana ?? "");
   const prevSexo = fmtHistorialSexo(anterior?.sexo ?? "");
   const prevNac = fmtHistorialNacimiento(
     anterior?.nacimiento_mes ?? null,
@@ -3703,6 +3728,7 @@ async function registrarHistorialCambiosDispositivo(
   const nextGrupoLibre = fmtHistorialGrupoLibre(nuevo.grupo_libre);
   const nextPotrero = fmtHistorialPotrero(nuevo.potrero);
   const nextRaza = fmtHistorialRaza(nuevo.raza);
+  const nextColor = colorDb.etiquetaColorCaravana(nuevo.color_caravana);
   const nextSexo = fmtHistorialSexo(nuevo.sexo);
   const nextNac = fmtHistorialNacimiento(
     nuevo.nacimiento_mes,
@@ -3749,6 +3775,16 @@ async function registrarHistorialCambiosDispositivo(
     "Raza",
     prevRaza,
     nextRaza,
+    undefined,
+    autor
+  );
+  await insertHistorialFila(
+    db,
+    clave,
+    "color_caravana",
+    "Color",
+    prevColor,
+    nextColor,
     undefined,
     autor
   );

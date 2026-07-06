@@ -45,5 +45,6 @@ export const emptyUserForm = (): UserForm => ({
 export const emptyOperativaForm = (): EmpresaOperativaForm => ({
   nombre: "",
   codigo: "",
+  color: "",
   activo: true,
 });

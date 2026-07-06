@@ -1,5 +1,6 @@
 export type FichaLabelIcon =
   | "empresa"
+  | "color"
   | "raza"
   | "sexo"
   | "nacimiento"
@@ -28,6 +29,15 @@ export function FichaLabelIconSvg({ icon }: { icon: FichaLabelIcon }) {
         <svg viewBox="0 0 24 24" aria-hidden focusable="false">
           <path
             d="M4 20V4h8v4h8v12H4Zm2-2h4v-4H6v4Zm0-6h4V8H6v4Zm6 6h4v-7h-4v7Zm0-9h4V6h-4v3Z"
+            fill="currentColor"
+          />
+        </svg>
+      );
+    case "color":
+      return (
+        <svg viewBox="0 0 24 24" aria-hidden focusable="false">
+          <path
+            d="M12 3c-4.97 0-9 4.03-9 9 0 2.39 1.01 4.55 2.62 6.07L12 22l6.38-3.93C19.99 16.55 21 14.39 21 12c0-4.97-4.03-9-9-9Zm0 2.5c3.59 0 6.5 2.91 6.5 6.5 0 1.55-.55 2.98-1.46 4.09L12 19.5l-5.04-3.41A6.44 6.44 0 0 1 5.5 12c0-3.59 2.91-6.5 6.5-6.5Z"
             fill="currentColor"
           />
         </svg>

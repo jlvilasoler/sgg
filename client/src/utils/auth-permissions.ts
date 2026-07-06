@@ -215,10 +215,16 @@ export function canAccessArquitecturaSistema(user: AuthUser | null): boolean {
   return user.es_super_admin ?? user.empresa_id == null;
 }
 
+/** Arquitectura de su propia cuenta en Configuración (admin de cuenta, no superadmin). */
+export function canAccessArquitecturaCuenta(user: AuthUser | null): boolean {
+  if (!user || user.rol !== "admin" || user.es_super_admin) return false;
+  const cuentaId = user.cuenta_actividad_id ?? user.empresa_id;
+  return cuentaId != null && cuentaId > 0;
+}
+
 /** Panel en Configuración: administrador de su propia cuenta (no super-admin). */
 export function canAccessAdministradorCuentas(user: AuthUser | null): boolean {
-  if (!user || user.rol !== "admin" || user.es_super_admin) return false;
-  return user.empresa_id != null;
+  return canAccessArquitecturaCuenta(user);
 }
 
 /** Alta, edición y baja de usuarios del equipo: solo el admin designado de la cuenta. */

@@ -1,9 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Cpu, X } from "lucide-react";
-import { fetchStockEquinaDispositivos, fetchStockGanaderaDispositivos } from "../../api";
+import {
+  fetchEmpresasOperativasStock,
+  fetchStockEquinaDispositivos,
+  fetchStockGanaderaDispositivos,
+  type EmpresaOperativaStock,
+} from "../../api";
 import type { StockGanaderaDispositivo } from "../../types";
 import { etiquetaCaravana } from "../stock/stock-ganadera-utils";
-import CampoMapaDispositivosPicker from "./CampoMapaDispositivosPicker";
+import CampoMapaDispositivosPicker, {
+  CampoMapaDispositivoEmpresaMeta,
+} from "./CampoMapaDispositivosPicker";
 import type { CampoMapaDispositivosMetadata } from "./campo-mapa-metadata";
 
 interface Props {
@@ -21,8 +28,7 @@ interface Props {
 }
 
 function deviceChipLabel(d: StockGanaderaDispositivo): string {
-  const parts = [etiquetaCaravana(d), d.grupo?.trim(), d.potrero?.trim()].filter(Boolean);
-  return parts.join(" · ");
+  return etiquetaCaravana(d);
 }
 
 export default function CampoMapaDispositivosModal({
@@ -40,25 +46,30 @@ export default function CampoMapaDispositivosModal({
 }: Props) {
   const [ganadero, setGanadero] = useState<StockGanaderaDispositivo[]>([]);
   const [equino, setEquino] = useState<StockGanaderaDispositivo[]>([]);
+  const [empresas, setEmpresas] = useState<EmpresaOperativaStock[]>([]);
   const [loading, setLoading] = useState(false);
 
   const load = useCallback(async () => {
     if (!apiOnline) {
       setGanadero([]);
       setEquino([]);
+      setEmpresas([]);
       return;
     }
     setLoading(true);
     try {
-      const [g, e] = await Promise.all([
+      const [g, e, emp] = await Promise.all([
         fetchStockGanaderaDispositivos({}),
         fetchStockEquinaDispositivos({}),
+        fetchEmpresasOperativasStock(),
       ]);
       setGanadero(g);
       setEquino(e);
+      setEmpresas(emp);
     } catch {
       setGanadero([]);
       setEquino([]);
+      setEmpresas([]);
     } finally {
       setLoading(false);
     }
@@ -150,13 +161,23 @@ export default function CampoMapaDispositivosModal({
                 {asignadosGanadero.map((d) => (
                   <span key={`g-${d.clave}`} className="campo-mapa-dispositivos-modal-chip">
                     <span className="campo-mapa-dispositivos-modal-chip-kind">Ganadero</span>
-                    {deviceChipLabel(d)}
+                    <span className="campo-mapa-dispositivos-modal-chip-body">
+                      <span className="campo-mapa-dispositivos-modal-chip-num">
+                        {deviceChipLabel(d)}
+                      </span>
+                      <CampoMapaDispositivoEmpresaMeta d={d} empresas={empresas} />
+                    </span>
                   </span>
                 ))}
                 {asignadosEquino.map((d) => (
                   <span key={`e-${d.clave}`} className="campo-mapa-dispositivos-modal-chip">
                     <span className="campo-mapa-dispositivos-modal-chip-kind">Equino</span>
-                    {deviceChipLabel(d)}
+                    <span className="campo-mapa-dispositivos-modal-chip-body">
+                      <span className="campo-mapa-dispositivos-modal-chip-num">
+                        {deviceChipLabel(d)}
+                      </span>
+                      <CampoMapaDispositivoEmpresaMeta d={d} empresas={empresas} />
+                    </span>
                   </span>
                 ))}
               </div>

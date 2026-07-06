@@ -21,6 +21,8 @@ import {
   PASSWORD_POLICY_HINT,
   validatePasswordStrength,
 } from "../utils/password-policy";
+import SelectColorEmpresaOperativa from "./SelectColorEmpresaOperativa";
+import { hexColorCaravana } from "./stock/stock-dispositivo-color";
 import UserAvatar from "./UserAvatar";
 import {
   emptyOperativaForm,
@@ -61,8 +63,10 @@ export default function ArquitecturaCuentaDetalle({
   initialPanel = "none",
 }: Props) {
   const esCuentaPropia = modo === "cuentaPropia";
+  const puedeGestionarCuenta =
+    !esCuentaPropia || Boolean(currentUser?.es_admin_cuenta);
   const puedeEditarDatosCuenta =
-    esCuentaPropia ||
+    (esCuentaPropia && Boolean(currentUser?.es_admin_cuenta)) ||
     Boolean(currentUser?.es_super_admin || currentUser?.es_admin_plataforma);
   const backLabel =
     volverLabel ?? (esCuentaPropia ? "Volver a Configuración" : "Volver a cuentas madre");
@@ -83,10 +87,9 @@ export default function ArquitecturaCuentaDetalle({
   );
   const [savingOperativa, setSavingOperativa] = useState(false);
   const [editingOperativaId, setEditingOperativaId] = useState<number | null>(null);
-  const [operativaEditForm, setOperativaEditForm] = useState({
-    nombre: "",
-    activo: true,
-  });
+  const [operativaEditForm, setOperativaEditForm] = useState<EmpresaOperativaForm>(
+    emptyOperativaForm()
+  );
   const [savingOperativaEdit, setSavingOperativaEdit] = useState(false);
   const [editingUserId, setEditingUserId] = useState<number | null>(null);
   const [userEditForm, setUserEditForm] = useState<UserForm>(emptyUserForm);
@@ -230,16 +233,30 @@ export default function ArquitecturaCuentaDetalle({
     }
   };
 
+  const coloresOcupadosCuenta = useMemo(
+    () =>
+      cuentaActual.empresas
+        .filter((e) => e.id !== editingOperativaId)
+        .map((e) => e.color)
+        .filter(Boolean),
+    [cuentaActual.empresas, editingOperativaId]
+  );
+
   const handleCrearOperativa = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!operativaForm.nombre.trim()) {
       onError("Completá el nombre de la empresa interna");
       return;
     }
+    if (!operativaForm.color?.trim()) {
+      onError("Elegí un color para la empresa");
+      return;
+    }
     setSavingOperativa(true);
     try {
       const created = await crearEmpresaOperativa(cuentaActual.id, {
         nombre: operativaForm.nombre.trim(),
+        color: operativaForm.color,
         activo: true,
       });
       syncCuenta({
@@ -261,14 +278,18 @@ export default function ArquitecturaCuentaDetalle({
 
   const openEditOperativa = (op: (typeof cuentaActual.empresas)[number]) => {
     setEditingOperativaId(op.id);
-    setOperativaEditForm({ nombre: op.nombre, activo: op.activo });
+    setOperativaEditForm({
+      nombre: op.nombre,
+      color: op.color ?? "",
+      activo: op.activo,
+    });
     setShowOperativaForm(false);
     closeEditUser();
   };
 
   const closeEditOperativa = () => {
     setEditingOperativaId(null);
-    setOperativaEditForm({ nombre: "", activo: true });
+    setOperativaEditForm(emptyOperativaForm());
   };
 
   const handleGuardarOperativa = async (e: React.FormEvent, empresaId: number) => {
@@ -277,10 +298,15 @@ export default function ArquitecturaCuentaDetalle({
       onError("Completá el nombre de la empresa");
       return;
     }
+    if (!operativaEditForm.color?.trim()) {
+      onError("Elegí un color para la empresa");
+      return;
+    }
     setSavingOperativaEdit(true);
     try {
       const updated = await actualizarEmpresaOperativa(cuentaActual.id, empresaId, {
         nombre: operativaEditForm.nombre.trim(),
+        color: operativaEditForm.color,
         activo: operativaEditForm.activo,
       });
       syncCuenta({
@@ -463,7 +489,9 @@ export default function ArquitecturaCuentaDetalle({
                 {iniciales(cuentaActual.nombre)}
               </span>
               <div className="cuenta-detalle-hero-text">
-                <p className="cuenta-detalle-eyebrow">Administración de cuenta</p>
+                <p className="cuenta-detalle-eyebrow">
+                  {esCuentaPropia ? "Arquitectura del sistema" : "Administración de cuenta"}
+                </p>
                 <h2>{cuentaActual.nombre}</h2>
                 {!esCuentaPropia && (
                   <div className="arquitectura-sistema-pills cuenta-detalle-pills">
@@ -612,6 +640,7 @@ export default function ArquitecturaCuentaDetalle({
                 <span>Administrador designado</span>
                 <select
                   value={cuentaActual.admin_user_id ?? ""}
+                  disabled={!puedeGestionarCuenta}
                   onChange={(e) =>
                     void handleAsignarAdmin(
                       e.target.value === "" ? null : Number(e.target.value)
@@ -715,6 +744,16 @@ export default function ArquitecturaCuentaDetalle({
                                   autoFocus
                                 />
                               </label>
+                              <div className="cuenta-entity-edit-color cuenta-entity-edit-color--full">
+                                <span className="cuenta-entity-edit-color-label">Color</span>
+                                <SelectColorEmpresaOperativa
+                                  value={operativaEditForm.color ?? ""}
+                                  coloresOcupados={coloresOcupadosCuenta}
+                                  onChange={(color) =>
+                                    setOperativaEditForm((f) => ({ ...f, color }))
+                                  }
+                                />
+                              </div>
                               <label className="cuenta-entity-edit-activo">
                                 <input
                                   type="checkbox"
@@ -751,6 +790,11 @@ export default function ArquitecturaCuentaDetalle({
                           <>
                             <span
                               className="cuenta-entity-avatar cuenta-entity-avatar--empresa"
+                              style={
+                                op.color
+                                  ? { background: hexColorCaravana(op.color) ?? undefined }
+                                  : undefined
+                              }
                               aria-hidden="true"
                             >
                               {iniciales(op.nombre)}
@@ -774,13 +818,15 @@ export default function ArquitecturaCuentaDetalle({
                               {op.activo ? "Activa" : "Inactiva"}
                             </span>
                             <div className="cuenta-entity-actions">
-                              <button
-                                type="button"
-                                className="btn btn-ghost btn-sm"
-                                onClick={() => openEditOperativa(op)}
-                              >
-                                Editar
-                              </button>
+                              {puedeGestionarCuenta ? (
+                                <button
+                                  type="button"
+                                  className="btn btn-ghost btn-sm"
+                                  onClick={() => openEditOperativa(op)}
+                                >
+                                  Editar
+                                </button>
+                              ) : null}
                             </div>
                           </>
                         )}
@@ -812,6 +858,16 @@ export default function ArquitecturaCuentaDetalle({
                         />
                       </label>
                     </div>
+                    <div className="cuenta-entity-edit-color cuenta-entity-edit-color--full">
+                      <span className="cuenta-entity-edit-color-label">Color</span>
+                      <SelectColorEmpresaOperativa
+                        value={operativaForm.color ?? ""}
+                        coloresOcupados={coloresOcupadosCuenta}
+                        onChange={(color) =>
+                          setOperativaForm((f) => ({ ...f, color }))
+                        }
+                      />
+                    </div>
                     <div className="arquitectura-sistema-form-actions">
                       <button
                         type="button"
@@ -829,7 +885,7 @@ export default function ArquitecturaCuentaDetalle({
                       </button>
                     </div>
                   </form>
-                ) : (
+                ) : puedeGestionarCuenta ? (
                   <div className="arquitectura-cuenta-seccion-actions">
                     <button
                       type="button"
@@ -845,7 +901,7 @@ export default function ArquitecturaCuentaDetalle({
                       Nueva empresa
                     </button>
                   </div>
-                )}
+                ) : null}
               </div>
             )}
           </section>
@@ -1053,21 +1109,25 @@ export default function ArquitecturaCuentaDetalle({
                               {u.activo ? "Activo" : "Inactivo"}
                             </span>
                             <div className="cuenta-entity-actions">
-                              <button
-                                type="button"
-                                className="btn btn-ghost btn-sm"
-                                onClick={() => openEditUser(u)}
-                              >
-                                Editar
-                              </button>
-                              <button
-                                type="button"
-                                className="btn btn-ghost btn-sm"
-                                disabled={currentUser?.id === u.id && u.activo}
-                                onClick={() => void handleToggleUsuarioActivo(u)}
-                              >
-                                {u.activo ? "Desactivar" : "Activar"}
-                              </button>
+                              {puedeGestionarCuenta ? (
+                                <>
+                                  <button
+                                    type="button"
+                                    className="btn btn-ghost btn-sm"
+                                    onClick={() => openEditUser(u)}
+                                  >
+                                    Editar
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="btn btn-ghost btn-sm"
+                                    disabled={currentUser?.id === u.id && u.activo}
+                                    onClick={() => void handleToggleUsuarioActivo(u)}
+                                  >
+                                    {u.activo ? "Desactivar" : "Activar"}
+                                  </button>
+                                </>
+                              ) : null}
                             </div>
                           </>
                         )}
@@ -1170,7 +1230,7 @@ export default function ArquitecturaCuentaDetalle({
                       </button>
                     </div>
                   </form>
-                ) : (
+                ) : puedeGestionarCuenta ? (
                   <div className="arquitectura-cuenta-seccion-actions">
                     <button
                       type="button"
@@ -1188,7 +1248,7 @@ export default function ArquitecturaCuentaDetalle({
                       Nuevo usuario
                     </button>
                   </div>
-                )}
+                ) : null}
               </div>
             )}
           </section>

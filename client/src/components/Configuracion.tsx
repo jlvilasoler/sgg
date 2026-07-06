@@ -9,6 +9,8 @@ import {
   canAccessClasificacionProveedores,
   canAccessConfigVencimientosImpuestos,
   canAccessControlGlobalCuentas,
+  canAccessArquitecturaCuenta,
+  canAccessArquitecturaSistema,
   canAccessStockGanaderoAdmin,
   canManageUsuariosCuenta,
 } from "../utils/auth-permissions";
@@ -202,6 +204,12 @@ export default function Configuracion({
     if (modulo === "usuarios" && !canManageUsuariosCuenta(currentUser ?? null)) {
       setModulo(esSuperAdmin ? "cuenta_hub" : "menu");
     }
+    if (modulo === "admin_cuenta" && !canAccessArquitecturaCuenta(currentUser ?? null)) {
+      setModulo("menu");
+    }
+    if (modulo === "sag_arquitectura" && !canAccessArquitecturaSistema(currentUser ?? null)) {
+      setModulo("sag_hub");
+    }
     if (
       modulo === "registro_actividad" &&
       !canAccessActividadCuenta(currentUser ?? null) &&
@@ -289,12 +297,12 @@ export default function Configuracion({
     );
   }
 
-  if (modulo === "admin_cuenta") {
+  if (modulo === "admin_cuenta" && currentUser && canAccessArquitecturaCuenta(currentUser)) {
     return wrapConfigSubmodule(
       "admin_cuenta",
       <AdministradorCuenta
         apiOnline={apiOnline}
-        currentUser={currentUser!}
+        currentUser={currentUser}
         onError={onError}
         onSuccess={onSuccess}
         onVolver={() => volverConfigDashboard("admin_cuenta")}
@@ -350,7 +358,7 @@ export default function Configuracion({
     );
   }
 
-  if (modulo === "sag_arquitectura") {
+  if (modulo === "sag_arquitectura" && currentUser && canAccessArquitecturaSistema(currentUser)) {
     return wrapConfigSubmodule(
       "sag_arquitectura",
       <ArquitecturaSistema
