@@ -323,7 +323,7 @@ export function renderCampoMapaDispositivoMarkers(
 
     circle.on("mouseover", () => {
       if (pinnedMarkerId != null) return;
-      if (hoverMarkerId === marker.id && map.isPopupOpen()) return;
+      if (hoverMarkerId === marker.id && sharedPopup.isOpen()) return;
       showCard(marker, false, false);
     });
 

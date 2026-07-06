@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
   Bookmark,
@@ -10,6 +11,10 @@ import {
   Ruler,
   Scan,
 } from "lucide-react";
+import {
+  CAMPO_MAPA_BORDER_WEIGHTS,
+  type CampoMapaBorderWeight,
+} from "./campo-mapa-border-weight";
 import { getToolDef, type CampoMapaTool } from "./campo-mapa-tools";
 
 export const CAMPO_MAPA_TOOL_ICONS: Record<CampoMapaTool, LucideIcon> = {
@@ -26,17 +31,38 @@ export const CAMPO_MAPA_TOOL_ICONS: Record<CampoMapaTool, LucideIcon> = {
 
 interface Props {
   activeTool: CampoMapaTool;
+  borderWeight: CampoMapaBorderWeight;
   disabled?: boolean;
   onSelect: (tool: CampoMapaTool) => void;
+  onBorderWeightChange: (weight: CampoMapaBorderWeight) => void;
   onSaveClip?: () => void;
 }
 
 export default function CampoMapaToolbar({
   activeTool,
+  borderWeight,
   disabled,
   onSelect,
+  onBorderWeightChange,
   onSaveClip,
 }: Props) {
+  const [dibujarMenuOpen, setDibujarMenuOpen] = useState(false);
+  const dibujarMenuRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!dibujarMenuOpen) return;
+    const onDocClick = (event: MouseEvent) => {
+      if (
+        dibujarMenuRef.current &&
+        !dibujarMenuRef.current.contains(event.target as Node)
+      ) {
+        setDibujarMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [dibujarMenuOpen]);
+
   const groups: { title: string; tools: CampoMapaTool[] }[] = [
     { title: "Navegar", tools: ["navegar"] },
     { title: "Dibujar", tools: ["marcador", "nota", "dibujar"] },
@@ -53,6 +79,66 @@ export default function CampoMapaToolbar({
             {group.tools.map((tool) => {
               const Icon = CAMPO_MAPA_TOOL_ICONS[tool];
               const isClip = tool === "clip";
+              const isDibujar = tool === "dibujar";
+
+              if (isDibujar) {
+                return (
+                  <div
+                    key={tool}
+                    className="campo-mapa-toolbar-menu-wrap"
+                    ref={dibujarMenuRef}
+                  >
+                    <button
+                      type="button"
+                      className={`campo-mapa-toolbar-btn${activeTool === tool ? " is-active" : ""}${
+                        dibujarMenuOpen ? " is-menu-open" : ""
+                      }`}
+                      disabled={disabled}
+                      title={getToolDef(tool).label}
+                      aria-label={getToolDef(tool).label}
+                      aria-haspopup="menu"
+                      aria-expanded={dibujarMenuOpen}
+                      onClick={() => {
+                        onSelect(tool);
+                        setDibujarMenuOpen((open) => !open);
+                      }}
+                    >
+                      <Icon size={18} aria-hidden />
+                    </button>
+                    {dibujarMenuOpen ? (
+                      <div
+                        className="campo-mapa-border-weight-menu"
+                        role="menu"
+                        aria-label="Grosor del borde"
+                      >
+                        {CAMPO_MAPA_BORDER_WEIGHTS.map((weight) => (
+                          <button
+                            key={weight}
+                            type="button"
+                            role="menuitemradio"
+                            className={`campo-mapa-border-weight-option${
+                              borderWeight === weight ? " is-selected" : ""
+                            }`}
+                            aria-checked={borderWeight === weight}
+                            title={`Grosor ${weight}`}
+                            onClick={() => {
+                              onBorderWeightChange(weight);
+                              setDibujarMenuOpen(false);
+                            }}
+                          >
+                            <span
+                              className="campo-mapa-border-weight-swatch"
+                              style={{ borderWidth: weight }}
+                              aria-hidden
+                            />
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              }
+
               return (
                 <button
                   key={tool}

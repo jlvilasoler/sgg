@@ -8,6 +8,9 @@ import {
   type MapLatLng,
 } from "./campo-mapa-geo";
 
+import type { CampoMapaBorderWeight } from "./campo-mapa-border-weight";
+import { DEFAULT_CAMPO_MAPA_BORDER_WEIGHT, strokeWeightForSelection } from "./campo-mapa-border-weight";
+
 export type MapLayerHandle = L.Layer;
 
 function attachFeatureNameLabel(layer: L.Layer, nombre: string, selected: boolean): void {
@@ -37,7 +40,7 @@ export function renderPotreroLayer(
   item: CampoPotreroMapa,
   selected: boolean,
   onSelect: () => void,
-  options?: { showName?: boolean },
+  options?: { showName?: boolean; borderWeight?: CampoMapaBorderWeight },
 ): L.Polygon | null {
   let paths: MapLatLng[] = [];
   try {
@@ -45,9 +48,10 @@ export function renderPotreroLayer(
   } catch {
     return null;
   }
+  const baseWeight = options?.borderWeight ?? DEFAULT_CAMPO_MAPA_BORDER_WEIGHT;
   const polygon = L.polygon(pathsToLeafletLatLngs(paths), {
     color: item.color,
-    weight: selected ? 3 : 2,
+    weight: strokeWeightForSelection(baseWeight, selected),
     opacity: 0.95,
     fillColor: item.color,
     fillOpacity: selected ? 0.38 : 0.24,
@@ -71,11 +75,12 @@ export function renderElementoLayer(
   item: CampoMapaElemento,
   selected: boolean,
   onSelect: () => void,
-  options?: { showName?: boolean },
+  options?: { showName?: boolean; borderWeight?: CampoMapaBorderWeight },
 ): MapLayerHandle | null {
   const meta = parseMetadata<{ zoom?: number; distancia_m?: number; area_ha?: number }>(
     item.metadata,
   );
+  const baseWeight = options?.borderWeight ?? DEFAULT_CAMPO_MAPA_BORDER_WEIGHT;
   const extra =
     item.tipo === "medicion_distancia" && meta.distancia_m != null
       ? `${meta.distancia_m} m`
@@ -109,7 +114,7 @@ export function renderElementoLayer(
     }
     const line = L.polyline(pathsToLeafletLatLngs(paths), {
       color: item.color,
-      weight: selected ? 4 : 3,
+      weight: strokeWeightForSelection(baseWeight, selected) + 1,
       opacity: 0.95,
       dashArray: item.tipo === "medicion_distancia" ? "8 6" : undefined,
     }).addTo(map);
@@ -126,7 +131,7 @@ export function renderElementoLayer(
   }
   const polygon = L.polygon(pathsToLeafletLatLngs(paths), {
     color: item.color,
-    weight: selected ? 3 : 2,
+    weight: strokeWeightForSelection(baseWeight, selected),
     opacity: 0.95,
     fillColor: item.color,
     fillOpacity: selected ? 0.32 : 0.2,

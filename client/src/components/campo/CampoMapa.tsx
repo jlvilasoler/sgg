@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import L from "leaflet";
-import { CircleDot, Cpu, Layers, ListTree, MapPin, Maximize2, Minimize2, Pencil, Plus, Search, Tag, Trash2, Undo2, X } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import { Building2, CircleDot, Cpu, Layers, ListTree, MapPin, Maximize2, Minimize2, Pencil, Plus, Search, Sigma, Tag, Trash2, Undo2, VenusAndMars, X } from "lucide-react";
 import SgHubShell from "../hub/SgHubShell";
 import type { SgHubItem } from "../hub/SgHubTypes";
 import { MenuAppIcon } from "../icons/MenuAppIcons";
@@ -53,6 +54,10 @@ import {
   type CampoMapaTool,
 } from "./campo-mapa-tools";
 import CampoMapaToolbar from "./CampoMapaToolbar";
+import {
+  DEFAULT_CAMPO_MAPA_BORDER_WEIGHT,
+  type CampoMapaBorderWeight,
+} from "./campo-mapa-border-weight";
 import CampoMapaDispositivosModal from "./CampoMapaDispositivosModal";
 import {
   buildCampoMapaDispositivoMarkers,
@@ -64,6 +69,12 @@ import {
   renderPotreroResumenOverlays,
   type PotreroResumenModo,
 } from "./campo-mapa-potrero-resumen";
+
+const POTRERO_RESUMEN_ICONS: Record<PotreroResumenModo, LucideIcon> = {
+  empresa: Building2,
+  sexo: VenusAndMars,
+  totales: Sigma,
+};
 import {
   availableSaveTargets,
   canChangeSaveTarget,
@@ -230,6 +241,9 @@ export default function CampoMapa({
   const [mapReady, setMapReady] = useState(false);
   const [showLabels, setShowLabels] = useState(true);
   const [showFeatureNames, setShowFeatureNames] = useState(true);
+  const [borderWeight, setBorderWeight] = useState<CampoMapaBorderWeight>(
+    DEFAULT_CAMPO_MAPA_BORDER_WEIGHT,
+  );
   const [showDevicesOnMap, setShowDevicesOnMap] = useState(false);
   const [potreroResumenModos, setPotreroResumenModos] = useState<PotreroResumenModo[]>([]);
   const [potreroResumenMenuOpen, setPotreroResumenMenuOpen] = useState(false);
@@ -631,7 +645,7 @@ export default function CampoMapa({
         item,
         selection?.kind === "potrero" && selection.id === item.id,
         () => handleMapFeatureClick("potrero", item.id),
-        { showName: showFeatureNames },
+        { showName: showFeatureNames, borderWeight },
       );
       if (layer) potreroLayersRef.current.set(item.id, layer);
     }
@@ -642,11 +656,11 @@ export default function CampoMapa({
         item,
         selection?.kind === "elemento" && selection.id === item.id,
         () => handleMapFeatureClick("elemento", item.id),
-        { showName: showFeatureNames },
+        { showName: showFeatureNames, borderWeight },
       );
       if (layer) elementoLayersRef.current.set(item.id, layer);
     }
-  }, [elementos, handleMapFeatureClick, potreroShapeEdit, potreros, selection, showFeatureNames]);
+  }, [borderWeight, elementos, handleMapFeatureClick, potreroShapeEdit, potreros, selection, showFeatureNames]);
 
   useEffect(() => {
     if (!cuentaTieneGeometriaEnMapa(potreros, elementos)) {
@@ -851,7 +865,7 @@ export default function CampoMapa({
       if (isPolygon) {
         sketchPolygonRef.current = L.polygon(pathsToLeafletLatLngs(vertices), {
           color: SKETCH_COLOR,
-          weight: 2,
+          weight: borderWeight,
           opacity: 0.95,
           fillColor: SKETCH_COLOR,
           fillOpacity: vertexEditSource.kind === "potrero" ? 0.28 : 0.18,
@@ -860,7 +874,7 @@ export default function CampoMapa({
       } else {
         sketchPolylineRef.current = L.polyline(pathsToLeafletLatLngs(vertices), {
           color: SKETCH_COLOR,
-          weight: 2,
+          weight: borderWeight,
           opacity: 0.95,
         }).addTo(map);
       }
@@ -881,7 +895,7 @@ export default function CampoMapa({
       sketchPolygonRef.current?.remove();
       sketchPolygonRef.current = null;
     };
-  }, [mapReady, moveVertexAt, removeVertexAt, selectedVertexIndex, vertexEditSource]);
+  }, [borderWeight, mapReady, moveVertexAt, removeVertexAt, selectedVertexIndex, vertexEditSource]);
 
   useEffect(() => {
     if (!vertexEditSource) return;
@@ -922,7 +936,7 @@ export default function CampoMapa({
     if (sourceTool === "linea" || sourceTool === "medir_distancia") {
       draftLayerRef.current = L.polyline(pathsToLeafletLatLngs(paths), {
         color: SKETCH_COLOR,
-        weight: 3,
+        weight: borderWeight,
         opacity: 0.95,
         dashArray: sourceTool === "medir_distancia" ? "8 6" : undefined,
       }).addTo(map);
@@ -932,7 +946,7 @@ export default function CampoMapa({
     if (sourceTool === "dibujar" && paths.length < 3) {
       draftLayerRef.current = L.polyline(pathsToLeafletLatLngs(paths), {
         color: SKETCH_COLOR,
-        weight: 3,
+        weight: borderWeight,
         opacity: 0.95,
       }).addTo(map);
       return;
@@ -940,12 +954,12 @@ export default function CampoMapa({
 
     draftLayerRef.current = L.polygon(pathsToLeafletLatLngs(paths), {
       color: SKETCH_COLOR,
-      weight: 3,
+      weight: borderWeight,
       opacity: 0.95,
       fillColor: SKETCH_COLOR,
       fillOpacity: 0.32,
     }).addTo(map);
-  }, [mapReady, pendingDraft]);
+  }, [borderWeight, mapReady, pendingDraft]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -1953,8 +1967,10 @@ export default function CampoMapa({
             ) : null}
             <CampoMapaToolbar
               activeTool={activeTool}
+              borderWeight={borderWeight}
               disabled={!puedeEditar || !mapReady || saving || !!pendingDraft}
               onSelect={handleToolSelect}
+              onBorderWeightChange={setBorderWeight}
               onSaveClip={handleSaveClip}
             />
             <form
@@ -2081,20 +2097,25 @@ export default function CampoMapa({
                 </button>
                 {potreroResumenMenuOpen ? (
                   <div className="campo-mapa-resumen-menu" role="menu" aria-label="Vista del resumen">
-                    {POTRERO_RESUMEN_MODOS.map((opcion) => (
+                    {POTRERO_RESUMEN_MODOS.map((opcion) => {
+                      const Icon = POTRERO_RESUMEN_ICONS[opcion.id];
+                      return (
                       <button
                         key={opcion.id}
                         type="button"
                         role="menuitemcheckbox"
-                        className={`campo-mapa-resumen-menu-item${
-                          potreroResumenModos.includes(opcion.id) ? " is-selected" : ""
+                        className={`campo-mapa-map-corner-btn campo-mapa-resumen-menu-item${
+                          potreroResumenModos.includes(opcion.id) ? " is-active" : ""
                         }`}
                         aria-checked={potreroResumenModos.includes(opcion.id)}
+                        aria-label={opcion.label}
+                        title={opcion.label}
                         onClick={() => togglePotreroResumenModo(opcion.id)}
                       >
-                        {opcion.label}
+                        <Icon size={18} aria-hidden />
                       </button>
-                    ))}
+                      );
+                    })}
                   </div>
                 ) : null}
               </div>

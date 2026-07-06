@@ -359,42 +359,20 @@
 .campo-mapa-resumen-menu {
   position: absolute;
   right: 0;
-  bottom: calc(100% + 0.45rem);
+  bottom: 100%;
   z-index: 680;
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
-  min-width: 11rem;
-  padding: 0.35rem;
-  border-radius: 0.65rem;
-  border: 1px solid rgba(124, 179, 66, 0.35);
-  background: rgba(12, 16, 12, 0.96);
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.38);
+  align-items: flex-end;
+  gap: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
 }
 
 .campo-mapa-resumen-menu-item {
-  display: flex;
-  align-items: center;
-  width: 100%;
-  padding: 0.45rem 0.55rem;
-  border: none;
-  border-radius: 0.45rem;
-  background: transparent;
-  color: rgba(248, 246, 240, 0.9);
-  font: inherit;
-  font-size: 0.78rem;
-  font-weight: 600;
-  text-align: left;
-  cursor: pointer;
-}
-
-.campo-mapa-resumen-menu-item:hover {
-  background: rgba(255, 255, 255, 0.08);
-}
-
-.campo-mapa-resumen-menu-item.is-selected {
-  background: rgba(124, 179, 66, 0.22);
-  color: #d9f99d;
+  flex-shrink: 0;
 }
 
 .campo-mapa-potrero-resumen-total-only {
@@ -864,6 +842,60 @@
 .campo-mapa-toolbar-btn:disabled {
   opacity: 0.45;
   cursor: not-allowed;
+}
+
+.campo-mapa-toolbar-menu-wrap {
+  position: relative;
+}
+
+.campo-mapa-border-weight-menu {
+  position: absolute;
+  top: calc(100% + 0.4rem);
+  left: 50%;
+  z-index: 700;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.35rem;
+  border-radius: 0.65rem;
+  border: 1px solid rgba(124, 179, 66, 0.35);
+  background: rgba(12, 16, 12, 0.96);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.38);
+  transform: translateX(-50%);
+}
+
+.campo-mapa-border-weight-option {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.15rem;
+  height: 2.15rem;
+  padding: 0;
+  border-radius: 0.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  cursor: pointer;
+}
+
+.campo-mapa-border-weight-option:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.campo-mapa-border-weight-option.is-selected {
+  background: rgba(124, 179, 66, 0.28);
+  border-color: rgba(124, 179, 66, 0.55);
+}
+
+.campo-mapa-border-weight-swatch {
+  display: block;
+  width: 1.15rem;
+  height: 1.15rem;
+  border-style: solid;
+  border-color: #d9f99d;
+  border-radius: 0.18rem;
+  background: transparent;
+  box-sizing: border-box;
 }
 
 /* Sidebar oscuro */
