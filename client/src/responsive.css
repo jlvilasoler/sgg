@@ -1065,17 +1065,28 @@ textarea {
 }
 
 @media (max-width: 720px) {
-  .bn-ui .home-module-page .home-hub-kpi-strip--gastos.sg-hub-kpi-strip {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    overflow: visible;
-    flex-wrap: wrap;
+  .home-auto-pendientes-section {
+    width: min(100%, 17.82rem);
+    max-width: none;
   }
 
-  .bn-ui .home-hub-kpi-strip--gastos .home-hub-kpi-btn {
-    flex: initial;
+  .home-hub-gastos-kpi-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: stretch;
+    gap: 0.55rem;
+  }
+
+  .home-hub-gastos-kpi-row__gastos {
+    flex: 1 1 100%;
+    grid-column: auto;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .home-hub-gastos-kpi-row__gastos .home-hub-kpi-btn,
+  .home-hub-gastos-kpi-row__gastos .home-hub-kpi-skeleton {
     min-width: 0;
-    scroll-snap-align: unset;
   }
 
   .bn-ui .home-module-page .home-hub-kpi-strip.sg-hub-kpi-strip {
@@ -1126,14 +1137,6 @@ textarea {
 
   .home-hub-panels.home-hub-panels {
     gap: 0.75rem;
-  }
-
-  .home-hub-gastos-kpi-row {
-    grid-template-columns: 1fr;
-  }
-
-  .home-hub-gastos-kpi-row__side {
-    display: none;
   }
 }
 
@@ -1294,5 +1297,31 @@ textarea {
   .stock-table-pro .stock-th,
   .stock-table-pro .stock-td {
     display: table-cell !important;
+  }
+}
+
+/* —— Presupuesto · automatización (móvil / safe-area) —— */
+@media (max-width: 768px) {
+  .presupuesto-auto-modal-overlay.pd-overlay {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  .presupuesto-module-page.presupuesto-auto-nueva {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .presupuesto-auto-wizard-form-wrap {
+    padding-bottom: 0.25rem;
+  }
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .presupuesto-auto-wizard-factura.presupuesto-hub-recent-item:active {
+    transform: scale(0.99);
+  }
+
+  .presupuesto-auto-wizard-facturas-btn:active:not(:disabled) {
+    transform: scale(0.96);
   }
 }

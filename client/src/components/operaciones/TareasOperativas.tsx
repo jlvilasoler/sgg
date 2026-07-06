@@ -502,7 +502,6 @@ export default function TareasOperativas({
         asideLogo={<MenuAppIcon id="tareas_operativas" />}
         navAriaLabel="Tareas operativas"
         showDashboardInNav={false}
-        showApiStatus={false}
         headerActions={headerActions}
         hubClassName="tareas-op-hub"
       >

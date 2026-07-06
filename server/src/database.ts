@@ -41,6 +41,7 @@ import * as stockEquinoDb from "./stock-equino-db.js";
 import * as campoPotreroMapa from "./campo-potrero-mapa-db.js";
 import * as campoMapaElementosDb from "./campo-mapa-elementos-db.js";
 import * as operativaTareasDb from "./operativa-tareas-db.js";
+import * as gastosAutoDb from "./gastos-automatizacion-db.js";
 import * as stockSalidas from "./stock-ganadera-salidas.js";
 import * as stockEquinoSalidas from "./stock-equina-salidas.js";
 import * as stockAud from "./stock-auditoria-db.js";
@@ -199,6 +200,7 @@ export async function initDb(): Promise<void> {
     await campoPotreroMapa.initCampoPotreroMapaTable(db);
     await campoMapaElementosDb.initCampoMapaElementosTable(db);
     await operativaTareasDb.initOperativaTareasTables(db);
+    await gastosAutoDb.initGastosAutomatizacionTables(db);
     await billingDb.initBillingTables(db);
     await Promise.all([
       simVenta.initSimuladorVentaGanadoTable(db),
@@ -507,6 +509,48 @@ export const campoMapaElementos = {
   ) => campoMapaElementosDb.updateCampoMapaElemento(db, cuentaId, id, input),
   delete: (cuentaId: number, id: number) =>
     campoMapaElementosDb.deleteCampoMapaElemento(db, cuentaId, id),
+};
+
+export const gastosAutomatizacion = {
+  list: (cuentaId: number) => gastosAutoDb.listGastoAutomatizaciones(db, cuentaId),
+  getById: (cuentaId: number, id: number) =>
+    gastosAutoDb.getGastoAutomatizacionById(db, cuentaId, id),
+  createFromPresupuesto: (
+    cuentaId: number,
+    presupuesto: Presupuesto,
+    opts: Parameters<typeof gastosAutoDb.createGastoAutomatizacionFromPresupuesto>[3],
+  ) => gastosAutoDb.createGastoAutomatizacionFromPresupuesto(db, cuentaId, presupuesto, opts),
+  update: (cuentaId: number, id: number, input: gastosAutoDb.GastoAutomatizacionInput) =>
+    gastosAutoDb.updateGastoAutomatizacion(db, cuentaId, id, input),
+  delete: (cuentaId: number, id: number) =>
+    gastosAutoDb.deleteGastoAutomatizacion(db, cuentaId, id),
+  syncPendientes: (cuentaId: number) =>
+    gastosAutoDb.syncGastoAutomatizacionPendientes(db, cuentaId),
+  listPendientes: (
+    cuentaId: number,
+    opts?: Parameters<typeof gastosAutoDb.listGastoAutoPendientes>[2],
+  ) => gastosAutoDb.listGastoAutoPendientes(db, cuentaId, opts),
+  getPendienteById: (cuentaId: number, id: number) =>
+    gastosAutoDb.getGastoAutoPendienteById(db, cuentaId, id),
+  aprobarPendiente: (
+    cuentaId: number,
+    pendienteId: number,
+    gestor: { email: string; nombre: string },
+  ) =>
+    gastosAutoDb.aprobarGastoAutoPendiente(
+      db,
+      cuentaId,
+      pendienteId,
+      insertPresupuesto,
+      gestor,
+    ),
+  rechazarPendiente: (
+    cuentaId: number,
+    pendienteId: number,
+    gestor: { email: string; nombre: string },
+    nota?: string,
+  ) => gastosAutoDb.rechazarGastoAutoPendiente(db, cuentaId, pendienteId, gestor, nota),
+  esResponsable: gastosAutoDb.esResponsableAutomatizacion,
 };
 
 export const operativaTareas = {

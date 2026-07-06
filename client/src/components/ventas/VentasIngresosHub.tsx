@@ -97,12 +97,6 @@ export default function VentasIngresosHub({
             </p>
           </div>
           <div className="sg-hub-main-actions">
-            <span
-              className={`sg-hub-status${apiOnline ? " sg-hub-status--online" : ""}`}
-              role="status"
-            >
-              {apiOnline ? "API conectada" : "Sin conexión API"}
-            </span>
             <button
               type="button"
               className="sg-hub-cta"

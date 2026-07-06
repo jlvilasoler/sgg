@@ -25,6 +25,7 @@ import ForgotPasswordScreen from "./components/ForgotPasswordScreen";
 import ResetPasswordScreen from "./components/ResetPasswordScreen";
 import ArquitecturaSistema from "./components/ArquitecturaSistema";
 import PresupuestoModule from "./components/presupuesto/Presupuesto";
+import type { PresupuestoVista } from "./components/presupuesto/presupuesto-hub-items";
 import Configuracion from "./components/Configuracion";
 import Divisas from "./components/Divisas";
 import PreciosGanado from "./components/precios-ganado/PreciosGanado";
@@ -101,6 +102,9 @@ export default function App() {
   const [configModuloInicial, setConfigModuloInicial] = useState<
     "registro_actividad" | "suscripcion" | null
   >(null);
+  const [presupuestoVistaInicial, setPresupuestoVistaInicial] = useState<PresupuestoVista | null>(
+    null
+  );
   const billingReturnRef = useRef(parseBillingReturnFromUrl());
   const hadUserRef = useRef(false);
   const freshLoginRef = useRef(false);
@@ -359,6 +363,28 @@ export default function App() {
     trackPantalla(id);
   };
 
+  const openPresupuesto = (vista: PresupuestoVista) => {
+    if (!user) {
+      notify("No tenés permiso para acceder a ese módulo", false);
+      return;
+    }
+    if (!canAccessScreen(user, "registro")) {
+      notify("No tenés permiso para acceder a ese módulo", false);
+      return;
+    }
+    setPresupuestoVistaInicial(vista);
+    setActividadModoOverride(null);
+    setConfigModuloInicial(null);
+    const enPresupuesto =
+      screenRef.current === "registro" ||
+      screenRef.current === "listado" ||
+      screenRef.current === "resumen";
+    if (!enPresupuesto) pushNavHistory();
+    setScreen("registro");
+    setEditRow(null);
+    trackPantalla("registro");
+  };
+
   const onLogin = (u: AuthUser) => {
     freshLoginRef.current = true;
     sessionUserIdRef.current = null;
@@ -550,7 +576,14 @@ export default function App() {
           </main>
         ) : screen === "home" ? (
           <main className="page-main bn-ui">
-            <HomeMenu user={user} apiOnline={apiOnline} onOpen={navigate} />
+            <HomeMenu
+              user={user}
+              apiOnline={apiOnline}
+              onOpen={navigate}
+              onOpenPresupuesto={openPresupuesto}
+              onError={(m) => notify(m, false)}
+              onSuccess={(m, t) => notify(m, true, t)}
+            />
           </main>
         ) : (
           <main className="layout-frame page-main bn-ui">
@@ -562,6 +595,8 @@ export default function App() {
                 editRow={editRow}
                 listKey={listKey}
                 apiOnline={apiOnline}
+                vistaInicial={presupuestoVistaInicial}
+                onVistaInicialConsumida={() => setPresupuestoVistaInicial(null)}
                 onScreenChange={navigate}
                 onVolver={goHome}
                 onSaved={onSaved}

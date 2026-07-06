@@ -159,6 +159,52 @@ export function getAllowedClientOrigins(): string[] {
   return [...DEV_CLIENT_ORIGINS];
 }
 
+/** URL pública del frontend para enlaces en emails (reset password, etc.). */
+export function getClientPublicBaseUrl(preferredOrigin?: string): string {
+  const preferred = preferredOrigin?.trim();
+  if (preferred && isAllowedClientOrigin(preferred)) {
+    return preferred;
+  }
+  const configured = process.env.SCG_CLIENT_ORIGIN?.trim();
+  if (configured && !/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(configured)) {
+    return configured;
+  }
+  const extra = process.env.SCG_CLIENT_ORIGINS?.trim();
+  if (extra) {
+    const first = extra.split(",")[0]?.trim();
+    if (first) return first;
+  }
+  const prodUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL?.trim();
+  if (prodUrl) {
+    return prodUrl.startsWith("http") ? prodUrl : `https://${prodUrl}`;
+  }
+  return getAllowedClientOrigins()[0] ?? "http://127.0.0.1:5173";
+}
+
+/** Origen del frontend según la solicitud (para enlaces de email al mismo dominio). */
+export function clientPublicOriginFromRequest(req: Request): string | undefined {
+  const rawOrigin = req.headers.origin;
+  if (typeof rawOrigin === "string" && rawOrigin.trim()) {
+    const origin = rawOrigin.trim();
+    if (isAllowedClientOrigin(origin, req)) return origin;
+  }
+  const host = requestHost(req);
+  if (host) {
+    const candidate = `https://${host}`;
+    if (isAllowedClientOrigin(candidate, req)) return candidate;
+  }
+  const referer = req.headers.referer;
+  if (typeof referer === "string" && referer.trim()) {
+    try {
+      const origin = new URL(referer).origin;
+      if (isAllowedClientOrigin(origin, req)) return origin;
+    } catch {
+      /* ignore */
+    }
+  }
+  return undefined;
+}
+
 export function isAllowedClientOrigin(origin: string, req?: Request): boolean {
   if (req) {
     const host = requestHost(req);

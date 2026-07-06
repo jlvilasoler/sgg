@@ -15,6 +15,8 @@
     "build:vercel": "npm run install:all && npm run build",
     "setup:resend-vercel": "node scripts/setup-resend-vercel.mjs",
     "setup:email-from-vercel": "node scripts/setup-email-from-vercel.mjs",
+    "vercel:link-gamma": "node scripts/vercel-link-gamma.mjs",
+    "vercel:unify-gamma": "node scripts/vercel-unify-gamma.mjs",
     "start": "npm run start --prefix server"
   },
   "dependencies": {

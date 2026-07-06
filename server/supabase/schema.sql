@@ -749,3 +749,59 @@ CREATE TABLE IF NOT EXISTS scg_schema_version (
 );
 INSERT INTO scg_schema_version (id, version) VALUES (1, 1)
 ON CONFLICT (id) DO NOTHING;
+
+-- Automatización de gastos recurrentes (presupuesto)
+CREATE TABLE IF NOT EXISTS GASTO_AUTOMATIZACION (
+  id SERIAL PRIMARY KEY,
+  cuenta_id INTEGER NOT NULL REFERENCES EMPRESAS_CUENTA(id) ON DELETE CASCADE,
+  nombre TEXT NOT NULL,
+  presupuesto_origen_id INTEGER REFERENCES PRESUPUESTO(id) ON DELETE SET NULL,
+  empresa TEXT NOT NULL,
+  codigo_proveedor TEXT NOT NULL DEFAULT '',
+  razon_social_proveedor TEXT NOT NULL DEFAULT '',
+  concepto TEXT NOT NULL,
+  observaciones TEXT NOT NULL DEFAULT '',
+  rubro TEXT NOT NULL,
+  sub_rubro TEXT NOT NULL DEFAULT '',
+  responsable_gasto TEXT NOT NULL DEFAULT '',
+  funcionario_cedula TEXT NOT NULL DEFAULT '',
+  nro_factura TEXT NOT NULL DEFAULT '',
+  nro_operacion_origen TEXT NOT NULL DEFAULT '',
+  pesos DOUBLE PRECISION NOT NULL DEFAULT 0,
+  dolares_usd DOUBLE PRECISION NOT NULL DEFAULT 0,
+  reales DOUBLE PRECISION NOT NULL DEFAULT 0,
+  tc_usd DOUBLE PRECISION NOT NULL DEFAULT 0,
+  tc_reales DOUBLE PRECISION NOT NULL DEFAULT 0,
+  saldo_usd DOUBLE PRECISION NOT NULL DEFAULT 0,
+  dia_mes INTEGER NOT NULL CHECK (dia_mes >= 1 AND dia_mes <= 31),
+  intervalo_meses INTEGER NOT NULL DEFAULT 1,
+  fecha_inicio TEXT NOT NULL DEFAULT '',
+  activo BOOLEAN NOT NULL DEFAULT TRUE,
+  responsable_user_id INTEGER REFERENCES USERS(id) ON DELETE SET NULL,
+  responsable_email TEXT NOT NULL DEFAULT '',
+  responsable_nombre TEXT NOT NULL DEFAULT '',
+  creado_por_user_id INTEGER REFERENCES USERS(id) ON DELETE SET NULL,
+  creado_por_email TEXT NOT NULL DEFAULT '',
+  creado_por_nombre TEXT NOT NULL DEFAULT '',
+  creado_en TIMESTAMPTZ DEFAULT NOW(),
+  actualizado_en TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_gasto_auto_cuenta ON GASTO_AUTOMATIZACION(cuenta_id);
+
+CREATE TABLE IF NOT EXISTS GASTO_AUTOMATIZACION_PENDIENTE (
+  id SERIAL PRIMARY KEY,
+  automatizacion_id INTEGER NOT NULL REFERENCES GASTO_AUTOMATIZACION(id) ON DELETE CASCADE,
+  cuenta_id INTEGER NOT NULL REFERENCES EMPRESAS_CUENTA(id) ON DELETE CASCADE,
+  periodo TEXT NOT NULL,
+  fecha_programada TEXT NOT NULL,
+  estado TEXT NOT NULL DEFAULT 'pendiente_aprobacion',
+  presupuesto_id INTEGER REFERENCES PRESUPUESTO(id) ON DELETE SET NULL,
+  gestionado_por_email TEXT NOT NULL DEFAULT '',
+  gestionado_por_nombre TEXT NOT NULL DEFAULT '',
+  gestionado_en TIMESTAMPTZ,
+  nota_gestion TEXT NOT NULL DEFAULT '',
+  creado_en TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (automatizacion_id, periodo)
+);
+CREATE INDEX IF NOT EXISTS idx_gasto_auto_pendiente_cuenta_estado
+  ON GASTO_AUTOMATIZACION_PENDIENTE(cuenta_id, estado);

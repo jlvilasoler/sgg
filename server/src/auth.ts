@@ -24,6 +24,7 @@ import { listOnlineUsers, listRecentlyOfflineUsers, listStaleOfflineUsers, markU
 import {
   artificialLoginDelay,
   clientIp,
+  clientPublicOriginFromRequest,
   clientSafeErrorDetail,
   getAllowedClientOrigins,
   hitPasswordChangeRateLimit,
@@ -561,7 +562,10 @@ export function registerAuthRoutes(app: Express): void {
 
       if (user) {
         const rawToken = await authDb.createPasswordResetToken(db, user.id, { ip });
-        const resetUrl = buildPasswordResetUrl(rawToken);
+        const resetUrl = buildPasswordResetUrl(
+          rawToken,
+          clientPublicOriginFromRequest(req)
+        );
         try {
           const mailResult = await sendPasswordResetEmail({
             to: user.email,

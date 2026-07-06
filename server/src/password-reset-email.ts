@@ -1,9 +1,9 @@
 import nodemailer from "nodemailer";
 import { APP_FULL_NAME, APP_NAME } from "./brand.js";
-import { getAllowedClientOrigins } from "./auth-security.js";
+import { getClientPublicBaseUrl } from "./auth-security.js";
 
-export function buildPasswordResetUrl(rawToken: string): string {
-  const base = getAllowedClientOrigins()[0] ?? "http://127.0.0.1:5173";
+export function buildPasswordResetUrl(rawToken: string, preferredOrigin?: string): string {
+  const base = getClientPublicBaseUrl(preferredOrigin);
   const url = new URL(base);
   url.searchParams.set("reset", rawToken);
   return url.toString();
@@ -31,6 +31,7 @@ export function getPasswordResetEmailStatus(): {
     email_from: Boolean(process.env.EMAIL_FROM?.trim()),
     smtp_host: Boolean(process.env.SMTP_HOST?.trim()),
     smtp_from: Boolean(process.env.SMTP_FROM?.trim()),
+    database_url: Boolean(process.env.DATABASE_URL?.trim()),
   };
 
   if (process.env.RESEND_API_KEY?.trim()) {
@@ -59,7 +60,9 @@ export function getPasswordResetEmailStatus(): {
     provider: null,
     env_present: envPresent,
     hint: !envPresent.resend_api_key
-      ? "Falta RESEND_API_KEY o está vacía en Vercel. Editá la variable existente (no crear otra) y hacé Redeploy."
+      ? envPresent.database_url
+        ? "RESEND_API_KEY está vacía en Vercel. Editá la variable en el dashboard, pegá la clave re_... y hacé Redeploy."
+        : "Falta RESEND_API_KEY o está vacía en Vercel. Editá la variable existente (no crear otra) y hacé Redeploy."
       : undefined,
   };
 }

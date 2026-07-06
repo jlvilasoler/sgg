@@ -35,6 +35,116 @@ export interface PresupuestoDocumentoAdjunto {
 
 export type PresupuestoForm = Omit<Presupuesto, "id" | "nro_registro" | "creado_en">;
 
+export type GastoAutoPendienteEstado =
+  | "pendiente_aprobacion"
+  | "aprobado"
+  | "rechazado"
+  | "omitido";
+
+export interface GastoAutomatizacion {
+  id: number;
+  cuenta_id: number;
+  nombre: string;
+  presupuesto_origen_id: number | null;
+  empresa: Empresa;
+  codigo_proveedor: string;
+  razon_social_proveedor: string;
+  concepto: string;
+  observaciones: string;
+  rubro: string;
+  sub_rubro: string;
+  responsable_gasto: string;
+  funcionario_cedula: string;
+  nro_factura: string;
+  nro_operacion_origen: string;
+  pesos: number;
+  dolares_usd: number;
+  reales: number;
+  tc_usd: number;
+  tc_reales: number;
+  saldo_usd: number;
+  dia_mes: number;
+  intervalo_meses: number;
+  fecha_inicio: string;
+  activo: boolean;
+  responsable_user_id: number | null;
+  responsable_email: string;
+  responsable_nombre: string;
+  creado_por_user_id: number | null;
+  creado_por_email: string;
+  creado_por_nombre: string;
+  creado_en: string;
+  actualizado_en: string;
+}
+
+export interface GastoAutoPendiente {
+  id: number;
+  automatizacion_id: number;
+  cuenta_id: number;
+  periodo: string;
+  fecha_programada: string;
+  estado: GastoAutoPendienteEstado;
+  presupuesto_id: number | null;
+  gestionado_por_email: string;
+  gestionado_por_nombre: string;
+  gestionado_en: string | null;
+  nota_gestion: string;
+  creado_en: string;
+  plantilla: GastoAutomatizacion;
+}
+
+export type GastoAutomatizacionInput = Partial<
+  Pick<
+    GastoAutomatizacion,
+    | "nombre"
+    | "dia_mes"
+    | "empresa"
+    | "codigo_proveedor"
+    | "razon_social_proveedor"
+    | "concepto"
+    | "observaciones"
+    | "rubro"
+    | "sub_rubro"
+    | "responsable_gasto"
+    | "funcionario_cedula"
+    | "nro_factura"
+    | "nro_operacion_origen"
+    | "pesos"
+    | "dolares_usd"
+    | "reales"
+    | "tc_usd"
+    | "tc_reales"
+    | "saldo_usd"
+    | "activo"
+    | "intervalo_meses"
+    | "fecha_inicio"
+  >
+>;
+
+export type CreateGastoAutomatizacionInput = {
+  presupuesto_id: number;
+  nombre: string;
+  dia_mes: number;
+  intervalo_meses?: number;
+  fecha_inicio?: string;
+} & Partial<
+  Omit<
+    GastoAutomatizacion,
+    | "id"
+    | "cuenta_id"
+    | "presupuesto_origen_id"
+    | "activo"
+    | "responsable_user_id"
+    | "responsable_email"
+    | "responsable_nombre"
+    | "creado_por_user_id"
+    | "creado_por_email"
+    | "creado_por_nombre"
+    | "creado_en"
+    | "actualizado_en"
+  >
+>;
+
 /** Configuración del registro de comisión bancaria separado (transferencias BROU). */
 export interface ComisionDocumentoConfig {
   activa: boolean;

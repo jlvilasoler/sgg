@@ -1146,12 +1146,6 @@ export default function SubRubroListado({
                 subClassName="listado-pro-head-sub"
                 textClassName="listado-pro-head-text"
               />
-              <span
-                className={`sg-hub-status${apiOnline ? " sg-hub-status--online" : ""}`}
-                role="status"
-              >
-                {apiOnline ? "API conectada" : "Sin conexión API"}
-              </span>
             </header>
             {hubKpiStrip}
           </>

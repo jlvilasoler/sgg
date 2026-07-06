@@ -14,6 +14,12 @@ export const PRESUPUESTO_HUB_ITEMS: SgHubItem[] = [
     icon: "prov_listado",
   },
   {
+    id: "automatizacion",
+    label: "Automatización",
+    subtitle: "Gastos rutinarios · Aprobación mensual",
+    icon: "presupuesto_automatizacion",
+  },
+  {
     id: "resumen",
     label: "Control de Gestión",
     subtitle: "Por empresa · Por rubro",
@@ -32,6 +38,11 @@ export const PRESUPUESTO_HUB_META: Record<
   listado: {
     title: "Listado de gastos",
     subtitle: "Consultá, filtrá, editá y eliminá registros del presupuesto.",
+  },
+  automatizacion: {
+    title: "Automatización",
+    subtitle:
+      "Programá gastos rutinarios. Cada mes el administrador de la cuenta aprueba el pago antes de registrarlo.",
   },
   resumen: {
     title: "Control de Gestión",

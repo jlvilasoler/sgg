@@ -107,12 +107,6 @@ export default function StockGanaderoHubShell({
           </div>
           <div className="sg-hub-main-actions">
             {headerActions}
-            <span
-              className={`sg-hub-status${apiOnline ? " sg-hub-status--online" : ""}`}
-              role="status"
-            >
-              {apiOnline ? "API conectada" : "Sin conexión API"}
-            </span>
           </div>
         </header>
         {children}

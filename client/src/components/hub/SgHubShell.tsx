@@ -18,7 +18,6 @@ interface Props {
   asideTitle?: string;
   asideLogo?: ReactNode;
   navAriaLabel?: string;
-  showApiStatus?: boolean;
   showDashboardInNav?: boolean;
   children: ReactNode;
   className?: string;
@@ -31,7 +30,7 @@ export default function SgHubShell({
   onNavigate,
   onVolverDashboard,
   onVolverInicio,
-  apiOnline,
+  apiOnline: _apiOnline,
   title,
   subtitle,
   headerActions,
@@ -40,7 +39,6 @@ export default function SgHubShell({
   asideTitle = "Módulo",
   asideLogo,
   navAriaLabel,
-  showApiStatus = true,
   showDashboardInNav = true,
   children,
   className = "",
@@ -114,17 +112,7 @@ export default function SgHubShell({
             <h1 className="sg-hub-main-title">{title}</h1>
             {subtitle ? <p className="sg-hub-main-sub">{subtitle}</p> : null}
           </div>
-          <div className="sg-hub-main-actions">
-            {headerActions}
-            {showApiStatus ? (
-              <span
-                className={`sg-hub-status${apiOnline ? " sg-hub-status--online" : ""}`}
-                role="status"
-              >
-                {apiOnline ? "API conectada" : "Sin conexión API"}
-              </span>
-            ) : null}
-          </div>
+          <div className="sg-hub-main-actions">{headerActions}</div>
         </header>
         {children}
       </main>

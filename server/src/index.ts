@@ -1097,6 +1097,306 @@ app.get("/api/presupuesto/siguiente-operacion", async (_req, res) => {
   });
 });
 
+async function cuentaIdPresupuestoWrite(user: UserPublic): Promise<number | null> {
+  return await cuentaIdParaInsert(user);
+}
+
+app.get("/api/presupuesto/automatizacion", async (req, res) => {
+  try {
+    const cuentaId = await cuentaIdPresupuestoWrite(req.user!);
+    if (!cuentaId) {
+      res.status(400).json({ ok: false, error: "No se pudo determinar la cuenta" });
+      return;
+    }
+    await db.gastosAutomatizacion.syncPendientes(cuentaId);
+    const plantillas = await db.gastosAutomatizacion.list(cuentaId);
+    const pendientes = await db.gastosAutomatizacion.listPendientes(cuentaId, {
+      soloPendientes: true,
+    });
+    res.json({ ok: true, data: { plantillas, pendientes } });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al cargar automatizaciones",
+    });
+  }
+});
+
+app.post("/api/presupuesto/automatizacion/sync", async (req, res) => {
+  try {
+    const cuentaId = await cuentaIdPresupuestoWrite(req.user!);
+    if (!cuentaId) {
+      res.status(400).json({ ok: false, error: "No se pudo determinar la cuenta" });
+      return;
+    }
+    const creados = await db.gastosAutomatizacion.syncPendientes(cuentaId);
+    res.json({ ok: true, data: { creados } });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al sincronizar pendientes",
+    });
+  }
+});
+
+app.post("/api/presupuesto/automatizacion", async (req, res) => {
+  try {
+    const user = req.user!;
+    const cuentaId = await cuentaIdPresupuestoWrite(user);
+    if (!cuentaId) {
+      res.status(400).json({ ok: false, error: "No se pudo determinar la cuenta" });
+      return;
+    }
+    const body = req.body as Record<string, unknown>;
+    const presupuestoId = Number(body.presupuesto_id);
+    const diaMes = Number(body.dia_mes);
+    const nombre = String(body.nombre ?? "").trim();
+    if (!Number.isFinite(presupuestoId) || presupuestoId <= 0) {
+      throw new Error("Seleccioná un gasto válido.");
+    }
+    if (!nombre) throw new Error("El nombre de la automatización es obligatorio.");
+
+    const presupuesto = await db.getPresupuesto(presupuestoId);
+    if (!presupuesto) {
+      res.status(404).json({ ok: false, error: "Gasto no encontrado" });
+      return;
+    }
+    if (!(await puedeAccederPresupuesto(presupuesto, user))) {
+      res.status(403).json({ ok: false, error: "No tenés permiso para automatizar este gasto" });
+      return;
+    }
+
+    const overrides: Record<string, unknown> = {};
+    const strFields = [
+      "empresa",
+      "codigo_proveedor",
+      "razon_social_proveedor",
+      "concepto",
+      "observaciones",
+      "rubro",
+      "sub_rubro",
+      "responsable_gasto",
+      "funcionario_cedula",
+      "nro_factura",
+      "nro_operacion_origen",
+    ] as const;
+    for (const key of strFields) {
+      if (body[key] != null) overrides[key] = String(body[key]);
+    }
+    const numFields = [
+      "pesos",
+      "dolares_usd",
+      "reales",
+      "tc_usd",
+      "tc_reales",
+      "saldo_usd",
+    ] as const;
+    for (const key of numFields) {
+      if (body[key] != null) overrides[key] = Number(body[key]);
+    }
+
+    const plantilla = await db.gastosAutomatizacion.createFromPresupuesto(
+      cuentaId,
+      presupuesto,
+      {
+        nombre,
+        dia_mes: diaMes,
+        intervalo_meses: body.intervalo_meses != null ? Number(body.intervalo_meses) : 1,
+        fecha_inicio:
+          typeof body.fecha_inicio === "string" ? body.fecha_inicio : undefined,
+        responsable_user_id: user.id,
+        responsable_email: user.email,
+        responsable_nombre: user.nombre,
+        creado_por_user_id: user.id,
+        creado_por_email: user.email,
+        creado_por_nombre: user.nombre,
+        overrides: Object.keys(overrides).length > 0 ? overrides : undefined,
+      },
+    );
+    res.status(201).json({ ok: true, data: plantilla });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al crear automatización",
+    });
+  }
+});
+
+app.patch("/api/presupuesto/automatizacion/:id", async (req, res) => {
+  try {
+    const user = req.user!;
+    const cuentaId = await cuentaIdPresupuestoWrite(user);
+    if (!cuentaId) {
+      res.status(400).json({ ok: false, error: "No se pudo determinar la cuenta" });
+      return;
+    }
+    const id = Number(req.params.id);
+    const prev = await db.gastosAutomatizacion.getById(cuentaId, id);
+    if (!prev) {
+      res.status(404).json({ ok: false, error: "Automatización no encontrada" });
+      return;
+    }
+    if (!db.gastosAutomatizacion.esResponsable(prev, user)) {
+      res.status(403).json({
+        ok: false,
+        error: "Solo el responsable puede modificar esta automatización",
+      });
+      return;
+    }
+    const body = req.body as Record<string, unknown>;
+    const input: Record<string, unknown> = {};
+    const strFields = [
+      "nombre",
+      "empresa",
+      "codigo_proveedor",
+      "razon_social_proveedor",
+      "concepto",
+      "observaciones",
+      "rubro",
+      "sub_rubro",
+      "responsable_gasto",
+      "funcionario_cedula",
+      "nro_factura",
+      "nro_operacion_origen",
+    ] as const;
+    for (const key of strFields) {
+      if (body[key] != null) input[key] = String(body[key]);
+    }
+    const numFields = [
+      "pesos",
+      "dolares_usd",
+      "reales",
+      "tc_usd",
+      "tc_reales",
+      "saldo_usd",
+      "dia_mes",
+      "intervalo_meses",
+      "fecha_inicio",
+    ] as const;
+    for (const key of numFields) {
+      if (body[key] != null) input[key] = Number(body[key]);
+    }
+    if (body.fecha_inicio != null) input.fecha_inicio = String(body.fecha_inicio);
+    if (body.activo != null) input.activo = Boolean(body.activo);
+
+    const updated = await db.gastosAutomatizacion.update(cuentaId, id, input);
+    res.json({ ok: true, data: updated });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al actualizar automatización",
+    });
+  }
+});
+
+app.delete("/api/presupuesto/automatizacion/:id", async (req, res) => {
+  try {
+    const user = req.user!;
+    const cuentaId = await cuentaIdPresupuestoWrite(user);
+    if (!cuentaId) {
+      res.status(400).json({ ok: false, error: "No se pudo determinar la cuenta" });
+      return;
+    }
+    const id = Number(req.params.id);
+    const prev = await db.gastosAutomatizacion.getById(cuentaId, id);
+    if (!prev) {
+      res.status(404).json({ ok: false, error: "Automatización no encontrada" });
+      return;
+    }
+    if (!db.gastosAutomatizacion.esResponsable(prev, user)) {
+      res.status(403).json({
+        ok: false,
+        error: "Solo el responsable puede eliminar esta automatización",
+      });
+      return;
+    }
+    await db.gastosAutomatizacion.delete(cuentaId, id);
+    res.json({ ok: true, message: "Automatización eliminada" });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al eliminar automatización",
+    });
+  }
+});
+
+app.post("/api/presupuesto/automatizacion/pendientes/:id/aprobar", async (req, res) => {
+  try {
+    const user = req.user!;
+    const cuentaId = await cuentaIdPresupuestoWrite(user);
+    if (!cuentaId) {
+      res.status(400).json({ ok: false, error: "No se pudo determinar la cuenta" });
+      return;
+    }
+    const id = Number(req.params.id);
+    const item = await db.gastosAutomatizacion.getPendienteById(cuentaId, id);
+    if (!item) {
+      res.status(404).json({ ok: false, error: "Solicitud no encontrada" });
+      return;
+    }
+    if (!db.gastosAutomatizacion.esResponsable(item.plantilla, user)) {
+      res.status(403).json({
+        ok: false,
+        error: "Solo el administrador de la cuenta puede aprobar este pago automático",
+      });
+      return;
+    }
+    const result = await db.gastosAutomatizacion.aprobarPendiente(cuentaId, id, {
+      email: user.email,
+      nombre: user.nombre,
+    });
+    res.json({
+      ok: true,
+      data: result,
+      message: "Pago registrado correctamente",
+      nro_registro: result.presupuesto.nro_registro,
+    });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al aprobar el pago",
+    });
+  }
+});
+
+app.post("/api/presupuesto/automatizacion/pendientes/:id/rechazar", async (req, res) => {
+  try {
+    const user = req.user!;
+    const cuentaId = await cuentaIdPresupuestoWrite(user);
+    if (!cuentaId) {
+      res.status(400).json({ ok: false, error: "No se pudo determinar la cuenta" });
+      return;
+    }
+    const id = Number(req.params.id);
+    const item = await db.gastosAutomatizacion.getPendienteById(cuentaId, id);
+    if (!item) {
+      res.status(404).json({ ok: false, error: "Solicitud no encontrada" });
+      return;
+    }
+    if (!db.gastosAutomatizacion.esResponsable(item.plantilla, user)) {
+      res.status(403).json({
+        ok: false,
+        error: "Solo el administrador de la cuenta puede omitir este pago automático",
+      });
+      return;
+    }
+    const body = req.body as Record<string, unknown>;
+    const nota = typeof body.nota === "string" ? body.nota : "";
+    const pendiente = await db.gastosAutomatizacion.rechazarPendiente(
+      cuentaId,
+      id,
+      { email: user.email, nombre: user.nombre },
+      nota,
+    );
+    res.json({ ok: true, data: pendiente, message: "Pago automático omitido para este mes" });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al rechazar el ingreso",
+    });
+  }
+});
+
 app.get("/api/presupuesto/:id", async (req, res) => {
   const id = Number(req.params.id);
   const reg = await db.getPresupuesto(id);

@@ -6,6 +6,10 @@ import type {
   Presupuesto,
   PresupuestoDocumentoAdjunto,
   PresupuestoForm,
+  GastoAutomatizacion,
+  GastoAutoPendiente,
+  GastoAutomatizacionInput,
+  CreateGastoAutomatizacionInput,
   Proveedor,
   ProveedorForm,
   ProveedorRubroClasificacionInput,
@@ -344,6 +348,64 @@ export async function updatePresupuesto(
 
 export async function deletePresupuesto(id: number): Promise<void> {
   await request(`/presupuesto/${id}`, { method: "DELETE" });
+}
+
+export async function fetchGastosAutomatizacion(): Promise<{
+  plantillas: GastoAutomatizacion[];
+  pendientes: GastoAutoPendiente[];
+}> {
+  const json = await request<{
+    data: { plantillas: GastoAutomatizacion[]; pendientes: GastoAutoPendiente[] };
+  }>("/presupuesto/automatizacion");
+  return json.data;
+}
+
+export async function createGastoAutomatizacion(
+  input: CreateGastoAutomatizacionInput
+): Promise<GastoAutomatizacion> {
+  const json = await request<{ data: GastoAutomatizacion }>("/presupuesto/automatizacion", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+  return json.data;
+}
+
+export async function updateGastoAutomatizacion(
+  id: number,
+  input: GastoAutomatizacionInput
+): Promise<GastoAutomatizacion> {
+  const json = await request<{ data: GastoAutomatizacion }>(
+    `/presupuesto/automatizacion/${id}`,
+    { method: "PATCH", body: JSON.stringify(input) }
+  );
+  return json.data;
+}
+
+export async function deleteGastoAutomatizacion(id: number): Promise<void> {
+  await request(`/presupuesto/automatizacion/${id}`, { method: "DELETE" });
+}
+
+export async function aprobarGastoAutoPendiente(id: number): Promise<{
+  pendiente: GastoAutoPendiente;
+  presupuesto: Presupuesto;
+}> {
+  const json = await request<{
+    data: { pendiente: GastoAutoPendiente; presupuesto: Presupuesto };
+    message: string;
+    nro_registro?: number;
+  }>(`/presupuesto/automatizacion/pendientes/${id}/aprobar`, { method: "POST" });
+  return json.data;
+}
+
+export async function rechazarGastoAutoPendiente(
+  id: number,
+  nota?: string
+): Promise<GastoAutoPendiente> {
+  const json = await request<{ data: GastoAutoPendiente }>(
+    `/presupuesto/automatizacion/pendientes/${id}/rechazar`,
+    { method: "POST", body: JSON.stringify({ nota: nota ?? "" }) }
+  );
+  return json.data;
 }
 
 export function presupuestoDocumentoUrl(id: number, download = false): string {

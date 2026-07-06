@@ -1391,14 +1391,6 @@ export default function VencimientosImpuestos({ apiOnline, currentUser, onError 
                   Contribución rural, patente SUCIVE, BPS Caja rural e Impuesto Primaria (DGI).
                 </p>
               </div>
-              <div className="sg-hub-main-actions">
-                <span
-                  className={`sg-hub-status${apiOnline ? " sg-hub-status--online" : ""}`}
-                  role="status"
-                >
-                  {apiOnline ? "API conectada" : "Sin conexión API"}
-                </span>
-              </div>
             </header>
 
             {mostrarBarraFiltros && (

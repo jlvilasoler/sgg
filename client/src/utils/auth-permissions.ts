@@ -128,6 +128,11 @@ export function canFiltrarActividadPorUsuario(user: AuthUser | null): boolean {
   return user?.rol === "admin";
 }
 
+/** Ingresos automáticos mensuales: solo el administrador de la cuenta puede aprobar u omitir. */
+export function canAprobarGastosAutomatizacion(user: AuthUser | null): boolean {
+  return user?.rol === "admin";
+}
+
 /** Admin de cuenta o super-admin en vista total/cuenta: ve usuarios en línea de su ámbito. */
 export function canVerUsuariosOnlineActividad(user: AuthUser | null): boolean {
   return user?.rol === "admin";

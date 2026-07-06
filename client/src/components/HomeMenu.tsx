@@ -5,7 +5,7 @@ import {
   LayoutGrid,
 } from "lucide-react";
 import type { TabId } from "./Header";
-import type { AuthUser, Nota } from "../types";
+import type { AuthUser, GastoAutoPendiente, Nota } from "../types";
 import { canAccessScreen, type ActividadVistaModo } from "../utils/auth-permissions";
 import { buildHomeQuickApps, mergeRecentModuleLists, getRecentHomeModules } from "../utils/home-quick-modules";
 import { MENU_APP_THEMES, MenuAppIcon } from "./icons/MenuAppIcons";
@@ -20,7 +20,16 @@ import {
   saludoPorHora,
 } from "./home/home-dashboard-format";
 import { formatActividadDetalle } from "../utils/format-actividad-detalle";
+import { fmtDate } from "../utils/format";
+import HomeAutoPendientesPanel from "./home/HomeAutoPendientesPanel";
 import HomeVencProximoBanner from "./home/HomeVencProximoBanner";
+import { useHomeAutoPendientes } from "../hooks/useHomeAutoPendientes";
+import type { PresupuestoVista } from "./presupuesto/presupuesto-hub-items";
+import {
+  aprobarGastoAutoPendiente,
+  rechazarGastoAutoPendiente,
+} from "../api";
+import { confirmAction } from "../utils/confirm";
 import HomeCampoMapaPanel from "./home/HomeCampoMapaPanel";
 import HomeNotasBoard from "./home/HomeNotasBoard";
 import HomeNotaModal from "./home/HomeNotaModal";
@@ -176,6 +185,9 @@ interface Props {
   user: AuthUser;
   apiOnline: boolean;
   onOpen: (id: TabId, opts?: { actividadModo?: ActividadVistaModo }) => void;
+  onOpenPresupuesto?: (vista: PresupuestoVista) => void;
+  onError?: (msg: string) => void;
+  onSuccess?: (msg: string, title?: string) => void;
 }
 
 function filtrarApps(apps: MenuApp[], consulta: string): MenuApp[] {
@@ -186,7 +198,14 @@ function filtrarApps(apps: MenuApp[], consulta: string): MenuApp[] {
   );
 }
 
-export default function HomeMenu({ user, apiOnline, onOpen }: Props) {
+export default function HomeMenu({
+  user,
+  apiOnline,
+  onOpen,
+  onOpenPresupuesto,
+  onError,
+  onSuccess,
+}: Props) {
   const appsById = useMemo(
     () => new Map(MENU_APPS_EXTENDED.map((app) => [app.id, app])),
     [],
@@ -201,6 +220,71 @@ export default function HomeMenu({ user, apiOnline, onOpen }: Props) {
   );
   const consultaActiva = busquedaModulos.trim().length > 0;
   const [notaModal, setNotaModal] = useState<Nota | null | undefined>(undefined);
+  const [autoBusyId, setAutoBusyId] = useState<number | null>(null);
+
+  const {
+    pendientes: autoPendientes,
+    loading: loadingAutoPendientes,
+    puedeAprobar: puedeAprobarAuto,
+    recargar: recargarAutoPendientes,
+  } = useHomeAutoPendientes(user, apiOnline);
+
+  const formatUsdAuto = (n: number) =>
+    new Intl.NumberFormat("es-UY", {
+      style: "currency",
+      currency: "USD",
+      maximumFractionDigits: 0,
+    }).format(n);
+
+  const aprobarAutoDesdeHome = async (p: GastoAutoPendiente) => {
+    const ok = await confirmAction({
+      title: "Aprobar pago automático",
+      message: `Se registrará el pago «${p.plantilla.nombre}» con fecha ${fmtDate(p.fecha_programada)} y monto ${formatUsdAuto(p.plantilla.saldo_usd)}.`,
+      confirmText: "Aprobar pago",
+    });
+    if (!ok) return;
+    setAutoBusyId(p.id);
+    try {
+      const result = await aprobarGastoAutoPendiente(p.id);
+      onSuccess?.(
+        `Pago registrado — operación #${result.presupuesto.nro_registro}`,
+        "Pago automático"
+      );
+      await recargarAutoPendientes();
+    } catch (e) {
+      onError?.(e instanceof Error ? e.message : "No se pudo aprobar");
+    } finally {
+      setAutoBusyId(null);
+    }
+  };
+
+  const rechazarAutoDesdeHome = async (p: GastoAutoPendiente) => {
+    const ok = await confirmAction({
+      title: "Omitir este mes",
+      message: `No se registrará el pago «${p.plantilla.nombre}» en ${p.periodo}.`,
+      confirmText: "Omitir mes",
+      danger: true,
+    });
+    if (!ok) return;
+    setAutoBusyId(p.id);
+    try {
+      await rechazarGastoAutoPendiente(p.id);
+      onSuccess?.("Pago omitido para este mes");
+      await recargarAutoPendientes();
+    } catch (e) {
+      onError?.(e instanceof Error ? e.message : "No se pudo omitir");
+    } finally {
+      setAutoBusyId(null);
+    }
+  };
+
+  const irAutomatizacion = () => {
+    if (onOpenPresupuesto) {
+      onOpenPresupuesto("automatizacion");
+      return;
+    }
+    onOpen("registro");
+  };
 
   const {
     loadingInsights,
@@ -256,6 +340,9 @@ export default function HomeMenu({ user, apiOnline, onOpen }: Props) {
   );
 
   const kpiStripCols = expectedTopKpiSlots;
+
+  const showAutoPendientes =
+    puedeAprobarAuto && (loadingAutoPendientes || autoPendientes.length > 0);
 
   const kpiVariant = (item: HomeInsight, index: number): "dark" | "light" => {
     if (item.id === "stock-ganado-activo" || item.id === "ganado-por-vender") {
@@ -401,14 +488,6 @@ export default function HomeMenu({ user, apiOnline, onOpen }: Props) {
                 esencial.
               </p>
             </div>
-            <div className="sg-hub-main-actions">
-              <span
-                className={`sg-hub-status${apiOnline ? " sg-hub-status--online" : ""}`}
-                role="status"
-              >
-                {apiOnline ? "API conectada" : "Sin conexión API"}
-              </span>
-            </div>
           </header>
 
           {expectedTopKpiSlots > 0 ? (
@@ -431,16 +510,19 @@ export default function HomeMenu({ user, apiOnline, onOpen }: Props) {
           ) : null}
 
           {expectedGastosKpiSlots > 0 ? (
-            <div className="home-hub-gastos-kpi-row">
-              <section
-                className="sg-hub-kpi-strip home-hub-kpi-strip home-hub-kpi-strip--gastos"
+            <div
+              className="home-hub-gastos-kpi-row"
+              style={
+                {
+                  "--home-hub-kpi-cols": String(kpiStripCols),
+                  "--home-hub-gastos-cols": String(expectedGastosKpiSlots),
+                } as CSSProperties
+              }
+            >
+              <div
+                className="home-hub-gastos-kpi-row__gastos"
                 aria-label="Gastos"
                 aria-busy={loadingInsights}
-                style={
-                  {
-                    "--home-hub-kpi-cols": String(expectedGastosKpiSlots),
-                  } as CSSProperties
-                }
               >
                 {showKpiSkeleton
                   ? Array.from({ length: expectedGastosKpiSlots }, (_, index) => (
@@ -451,8 +533,7 @@ export default function HomeMenu({ user, apiOnline, onOpen }: Props) {
                       />
                     ))
                   : renderKpiCards(kpisGastos, kpisTop.length)}
-              </section>
-              <div className="home-hub-gastos-kpi-row__side" aria-hidden />
+              </div>
             </div>
           ) : null}
 
@@ -466,7 +547,7 @@ export default function HomeMenu({ user, apiOnline, onOpen }: Props) {
                   <div className="sg-hub-panel-head home-hub-panel-head-row">
                     <div>
                       <p className="sg-hub-panel-kicker">Recordatorios</p>
-                      <h2 className="sg-hub-panel-title">Notas principales</h2>
+                      <h2 className="sg-hub-panel-title">Pizarrón</h2>
                     </div>
                     <button type="button" className="home-hub-link" onClick={() => onOpen("notas")}>
                       Ver todas
@@ -487,6 +568,22 @@ export default function HomeMenu({ user, apiOnline, onOpen }: Props) {
                     onClose={() => setNotaModal(undefined)}
                     onSaved={applyNotaHome}
                     onDeleted={removeNotaHome}
+                  />
+                </section>
+              ) : null}
+
+              {showAutoPendientes ? (
+                <section
+                  className="home-auto-pendientes-section"
+                  aria-label="Pendientes de aprobación"
+                >
+                  <HomeAutoPendientesPanel
+                    pendientes={autoPendientes}
+                    loading={loadingAutoPendientes}
+                    busyId={autoBusyId}
+                    onAprobar={(p) => void aprobarAutoDesdeHome(p)}
+                    onRechazar={(p) => void rechazarAutoDesdeHome(p)}
+                    onVerTodos={irAutomatizacion}
                   />
                 </section>
               ) : null}

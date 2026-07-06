@@ -7,6 +7,7 @@ import Listado from "../Listado";
 import Resumen from "../Resumen";
 import PresupuestoHub from "./PresupuestoHub";
 import PresupuestoHubDashboard from "./PresupuestoHubDashboard";
+import AutomatizacionGastos from "./AutomatizacionGastos";
 import { PRESUPUESTO_HUB_META, type PresupuestoVista } from "./presupuesto-hub-items";
 
 type VistaPresupuesto = "menu" | PresupuestoVista;
@@ -18,6 +19,8 @@ interface Props {
   editRow: PresupuestoRow | null;
   listKey: number;
   apiOnline: boolean;
+  vistaInicial?: PresupuestoVista | null;
+  onVistaInicialConsumida?: () => void;
   onScreenChange: (id: TabId) => void;
   onVolver: () => void;
   onSaved: () => void;
@@ -42,6 +45,8 @@ export default function Presupuesto({
   editRow,
   listKey,
   apiOnline,
+  vistaInicial,
+  onVistaInicialConsumida,
   onScreenChange,
   onVolver,
   onSaved,
@@ -61,6 +66,11 @@ export default function Presupuesto({
       setVista("registro");
       return;
     }
+    if (vistaInicial) {
+      setVista(vistaInicial);
+      onVistaInicialConsumida?.();
+      return;
+    }
     if (screen === "listado" || screen === "resumen") {
       setVista(screen);
       return;
@@ -71,7 +81,7 @@ export default function Presupuesto({
     if (screen === "registro") {
       setVista("menu");
     }
-  }, [screen, editRow]); // eslint-disable-line react-hooks/exhaustive-deps -- vista registro se mantiene hasta salir
+  }, [screen, editRow, vistaInicial, onVistaInicialConsumida]); // eslint-disable-line react-hooks/exhaustive-deps -- vista registro se mantiene hasta salir
 
   const volverMenu = useCallback(() => {
     onCancelEdit();
@@ -83,7 +93,11 @@ export default function Presupuesto({
     (id: PresupuestoVista) => {
       onCancelEdit();
       setVista(id);
-      onScreenChange(id as TabId);
+      if (id === "listado" || id === "resumen") {
+        onScreenChange(id as TabId);
+      } else if (id === "registro") {
+        onScreenChange("registro");
+      }
     },
     [onCancelEdit, onScreenChange]
   );
@@ -109,7 +123,7 @@ export default function Presupuesto({
       }
       volverMenu();
     },
-    vista === "registro" ? "Ingresar gasto" : "Presupuesto y gastos"
+    vista === "registro" ? "Ingresar gasto" : vista === "automatizacion" ? "Automatización" : "Presupuesto y gastos"
   );
 
   return (
@@ -152,6 +166,14 @@ export default function Presupuesto({
           onDeleted={onDeleted}
           onError={onError}
           onSuccess={(m) => onSuccess(m)}
+        />
+      ) : vista === "automatizacion" ? (
+        <AutomatizacionGastos
+          currentUser={currentUser}
+          catalogos={catalogos}
+          apiOnline={apiOnline}
+          onError={onError}
+          onSuccess={onSuccess}
         />
       ) : (
         <Resumen

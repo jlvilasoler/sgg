@@ -1950,7 +1950,6 @@ export default function CampoMapa({
         asideLogo={<MenuAppIcon id="campo_mapa" />}
         navAriaLabel="Campo y mapa"
         showDashboardInNav={false}
-        showApiStatus={false}
         hubClassName="campo-mapa-hub"
         sidebarExtra={sidebarBody}
       >
