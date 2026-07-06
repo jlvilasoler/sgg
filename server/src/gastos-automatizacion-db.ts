@@ -537,7 +537,6 @@ export async function updateGastoAutomatizacion(
       tc_usd: input.tc_usd != null ? num(input.tc_usd) : prev.tc_usd,
       tc_reales: input.tc_reales != null ? num(input.tc_reales) : prev.tc_reales,
       saldo_usd: input.saldo_usd != null ? num(input.saldo_usd) : prev.saldo_usd,
-      dia_mes: diaMes,
       intervalo_meses: intervaloMeses,
       fecha_inicio: fechaInicio,
       activo: input.activo != null ? Boolean(input.activo) : prev.activo,
