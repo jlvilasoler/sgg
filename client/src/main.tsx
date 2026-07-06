@@ -13,6 +13,7 @@ import "./divisas-hub.css";
 import "./mi-cuenta-hub.css";
 import "./stock-admin-hub.css";
 import "./campo-mapa-hub.css";
+import "./ayuda-hub.css";
 import "./tareas-operativas-hub.css";
 import "./responsive.css";
 

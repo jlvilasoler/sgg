@@ -46,6 +46,7 @@ import * as stockEquinoSalidas from "./stock-equina-salidas.js";
 import * as stockAud from "./stock-auditoria-db.js";
 import * as auth from "./auth-db.js";
 import * as empresasCuenta from "./empresas-cuenta-db.js";
+import * as billingDb from "./billing-db.js";
 import * as docDig from "./documentos-digitales-db.js";
 import * as presDoc from "./presupuesto-documentos-db.js";
 import * as chat from "./chat-db.js";
@@ -198,6 +199,7 @@ export async function initDb(): Promise<void> {
     await campoPotreroMapa.initCampoPotreroMapaTable(db);
     await campoMapaElementosDb.initCampoMapaElementosTable(db);
     await operativaTareasDb.initOperativaTareasTables(db);
+    await billingDb.initBillingTables(db);
     await Promise.all([
       simVenta.initSimuladorVentaGanadoTable(db),
       simVentaAud.initSimuladorVentaAuditoriaTable(db),

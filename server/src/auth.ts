@@ -227,7 +227,8 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
     path === "/api/auth/logout" ||
     path === "/api/auth/forgot-password" ||
     path === "/api/auth/reset-password" ||
-    path === "/api/auth/reset-password/validate"
+    path === "/api/auth/reset-password/validate" ||
+    path === "/api/billing/mercadopago/webhook"
   ) {
     next();
     return;

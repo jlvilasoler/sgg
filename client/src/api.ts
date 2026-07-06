@@ -4347,3 +4347,212 @@ export async function updateNota(id: number, input: NotaInput): Promise<Nota> {
 export async function deleteNota(id: number): Promise<void> {
   await request<{ ok: true }>(`/notas/${id}`, { method: "DELETE" });
 }
+
+export type BillingPlan = {
+  codigo: string;
+  nombre: string;
+  descripcion: string;
+  precio_mensual: number;
+  moneda: string;
+};
+
+export type CuentaSuscripcion = {
+  cuenta_id: number;
+  plan_codigo: string | null;
+  estado: "trial" | "pending" | "authorized" | "paused" | "cancelled";
+  mp_preapproval_id: string | null;
+  trial_hasta: string | null;
+  proximo_cobro: string | null;
+  actualizado_en: string | null;
+};
+
+export type BillingSuscripcionResponse = {
+  suscripcion: CuentaSuscripcion;
+  plan: BillingPlan | null;
+  activa: boolean;
+  trial_dias_restantes: number | null;
+  sandbox: boolean;
+  mercadopago_configurado: boolean;
+};
+
+export async function fetchBillingConfig(): Promise<{
+  mercadopago_configurado: boolean;
+  sandbox: boolean;
+  public_key: string | null;
+  tema?: {
+    marca: string;
+    mensaje_checkout: string;
+    color_acento: string;
+  };
+}> {
+  const json = await request<{
+    ok: true;
+    mercadopago_configurado: boolean;
+    sandbox: boolean;
+    public_key: string | null;
+    tema?: {
+      marca: string;
+      mensaje_checkout: string;
+      color_acento: string;
+    };
+  }>("/billing/config");
+  return json;
+}
+
+export async function fetchBillingPlans(): Promise<BillingPlan[]> {
+  const json = await request<{ ok: true; plans: BillingPlan[] }>("/billing/plans");
+  return json.plans;
+}
+
+export async function fetchBillingSuscripcion(): Promise<BillingSuscripcionResponse> {
+  const json = await request<{ ok: true } & BillingSuscripcionResponse>("/billing/suscripcion");
+  return json;
+}
+
+export async function syncBillingSuscripcion(): Promise<{
+  suscripcion: CuentaSuscripcion;
+  plan: BillingPlan | null;
+  activa: boolean;
+  trial_dias_restantes: number | null;
+  sin_cambios?: boolean;
+}> {
+  const json = await request<{
+    ok: true;
+    suscripcion: CuentaSuscripcion;
+    plan: BillingPlan | null;
+    activa: boolean;
+    trial_dias_restantes: number | null;
+    sin_cambios?: boolean;
+  }>("/billing/suscripcion/sync", { method: "POST" });
+  return json;
+}
+
+export async function startBillingCheckout(planCodigo: string): Promise<{
+  init_point: string;
+  preapproval_id: string;
+  sandbox: boolean;
+}> {
+  const json = await request<{
+    ok: true;
+    init_point: string;
+    preapproval_id: string;
+    sandbox: boolean;
+  }>("/billing/checkout", {
+    method: "POST",
+    body: JSON.stringify({ plan_codigo: planCodigo }),
+  });
+  return json;
+}
+
+export type BillingSettings = {
+  marca: string;
+  motivo_plantilla: string;
+  url_retorno_path: string;
+  mensaje_checkout: string;
+  color_acento: string;
+  trial_dias: number | null;
+  actualizado_en: string | null;
+};
+
+export type SuscripcionAdminRow = {
+  cuenta_id: number;
+  cuenta_nombre: string;
+  cuenta_codigo: string;
+  cuenta_activa: boolean;
+  plan_codigo: string | null;
+  plan_nombre: string | null;
+  precio_mensual: number | null;
+  moneda: string | null;
+  estado: CuentaSuscripcion["estado"] | "sin_registro";
+  mp_preapproval_id: string | null;
+  trial_hasta: string | null;
+  proximo_cobro: string | null;
+  actualizado_en: string | null;
+  trial_dias_restantes: number | null;
+  activa: boolean;
+};
+
+export type BillingAdminResumen = {
+  total_cuentas: number;
+  con_suscripcion: number;
+  trial: number;
+  pending: number;
+  authorized: number;
+  paused: number;
+  cancelled: number;
+  sin_registro: number;
+  mrr_estimado_uyu: number;
+};
+
+export type BillingEventoRow = {
+  id: number;
+  cuenta_id: number | null;
+  cuenta_nombre: string | null;
+  tipo: string;
+  mp_resource_id: string | null;
+  creado_en: string;
+};
+
+export async function fetchBillingAdminSettings(): Promise<{
+  settings: BillingSettings;
+  mercadopago_configurado: boolean;
+  sandbox: boolean;
+  public_key: string | null;
+}> {
+  const json = await request<{
+    ok: true;
+    settings: BillingSettings;
+    mercadopago_configurado: boolean;
+    sandbox: boolean;
+    public_key: string | null;
+  }>("/billing/admin/settings");
+  return json;
+}
+
+export async function updateBillingAdminSettings(
+  patch: Partial<BillingSettings>
+): Promise<BillingSettings> {
+  const json = await request<{ ok: true; settings: BillingSettings }>("/billing/admin/settings", {
+    method: "PATCH",
+    body: JSON.stringify(patch),
+  });
+  return json.settings;
+}
+
+export async function fetchBillingAdminOverview(): Promise<{
+  resumen: BillingAdminResumen;
+  cuentas: SuscripcionAdminRow[];
+  eventos: BillingEventoRow[];
+  settings: BillingSettings;
+  mercadopago_configurado: boolean;
+  sandbox: boolean;
+  actualizado_en: string;
+}> {
+  const json = await request<{
+    ok: true;
+    resumen: BillingAdminResumen;
+    cuentas: SuscripcionAdminRow[];
+    eventos: BillingEventoRow[];
+    settings: BillingSettings;
+    mercadopago_configurado: boolean;
+    sandbox: boolean;
+    actualizado_en: string;
+  }>("/billing/admin/overview");
+  return json;
+}
+
+export async function syncBillingAdminAll(): Promise<{
+  procesadas: number;
+  actualizadas: number;
+  errores: string[];
+  actualizado_en: string;
+}> {
+  const json = await request<{
+    ok: true;
+    procesadas: number;
+    actualizadas: number;
+    errores: string[];
+    actualizado_en: string;
+  }>("/billing/admin/sync-all", { method: "POST" });
+  return json;
+}

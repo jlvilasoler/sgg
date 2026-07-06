@@ -19,4 +19,5 @@ export type TabId =
   | "vencimientos_impuestos"
   | "notas"
   | "campo_mapa"
-  | "tareas_operativas";
+  | "tareas_operativas"
+  | "ayuda";

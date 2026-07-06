@@ -37,6 +37,7 @@ const SCREEN_MODULO: Record<TabId, Modulo> = {
   stock_equino: "stock",
   campo_mapa: "stock",
   tareas_operativas: "stock",
+  ayuda: "chat",
   stock_movimientos: "usuarios",
   registro_actividad: "usuarios",
   notas: "chat",
@@ -272,6 +273,16 @@ export function canAccessConfigVencimientosImpuestos(user: AuthUser | null): boo
   return Boolean(user?.es_super_admin);
 }
 
+/** Tema y checkout Mercado Pago (Configuración SAG): solo superadministrador. */
+export function canAccessBillingMercadoPagoSettings(user: AuthUser | null): boolean {
+  return Boolean(user?.es_super_admin);
+}
+
+/** Panel de suscripciones de plataforma: solo superadministrador. */
+export function canAccessBillingAdminSuscripciones(user: AuthUser | null): boolean {
+  return Boolean(user?.es_super_admin);
+}
+
 /** Módulos visibles para cualquier usuario autenticado. */
 const MODULOS_ACCESO_TODOS: Modulo[] = ["chat"];
 
@@ -323,6 +334,7 @@ export function canAccessScreen(user: AuthUser | null, screen: TabId): boolean {
   if (!user) return false;
   if (screen === "registro_actividad") return true;
   if (screen === "notas") return true;
+  if (screen === "ayuda") return true;
   if (screen === "usuarios") return false;
   if (screen === "documentos_digitales") return canAccessDocumentosDigitales(user);
   if (screen === "panel_admin_sitio") return canAccessArquitecturaSistema(user);

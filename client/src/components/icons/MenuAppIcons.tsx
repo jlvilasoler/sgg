@@ -288,6 +288,16 @@ function IconDocumentosDigitales({ className }: IconProps) {
   );
 }
 
+function IconAyuda({ className }: IconProps) {
+  return (
+    <IconShell className={className}>
+      <path d="M5.5 5.5A6.5 6.5 0 0 1 18.5 8.5c0 2.2-1.2 3.8-2.8 4.9-.9.7-1.5 1.3-1.9 2.1-.4.8-.5 1.5-.5 2.5" {...stroke} />
+      <path d="M12 18.75h.01" {...stroke} strokeWidth="2.2" strokeLinecap="round" />
+      <path d="M6 4.5h11.5a1.5 1.5 0 0 1 1.5 1.5V18a1.5 1.5 0 0 1-1.5 1.5H8l-2.5 2v-2.5H6A1.5 1.5 0 0 1 4.5 18V6A1.5 1.5 0 0 1 6 4.5Z" {...stroke} />
+    </IconShell>
+  );
+}
+
 const ICONS: Record<TabId, (props: IconProps) => ReactNode> = {
   registro: IconRegistro,
   listado: IconListado,
@@ -309,6 +319,7 @@ const ICONS: Record<TabId, (props: IconProps) => ReactNode> = {
   usuarios: IconUsuarios,
   panel_admin_sitio: IconPanelAdminSitio,
   chat: IconChat,
+  ayuda: IconAyuda,
   documentos_digitales: IconDocumentosDigitales,
 };
 
@@ -428,5 +439,10 @@ export const MENU_APP_THEMES: Record<TabId, MenuAppTheme> = {
     accent: "#0369a1",
     accentSoft: "linear-gradient(145deg, #f0f9ff 0%, #e0f2fe 52%, #bae6fd 100%)",
     accentGlow: "rgba(3, 105, 161, 0.28)",
+  },
+  ayuda: {
+    accent: "#4f46e5",
+    accentSoft: "linear-gradient(145deg, #eef2ff 0%, #e0e7ff 52%, #c7d2fe 100%)",
+    accentGlow: "rgba(79, 70, 229, 0.28)",
   },
 };

@@ -73,6 +73,8 @@ const NAV_LABEL_TO_SCREEN: Record<string, TabId> = {
   "Chat interno": "chat",
   Notas: "notas",
   "Vencimientos Impuestos": "vencimientos_impuestos",
+  Ayuda: "ayuda",
+  "Centro de ayuda": "ayuda",
 };
 
 const MENU_SCREEN_IDS = new Set<TabId>([
@@ -89,6 +91,7 @@ const MENU_SCREEN_IDS = new Set<TabId>([
   "stock_equino",
   "notas",
   "chat",
+  "ayuda",
 ]);
 
 function recentStorageKey(userId: number): string {

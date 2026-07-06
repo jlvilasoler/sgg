@@ -20,6 +20,7 @@ import {
 } from "./auth.js";
 import { clientSafeErrorDetail, clientSafeErrorMessage } from "./auth-security.js";
 import { registerChatRoutes } from "./chat.js";
+import { registerBillingRoutes } from "./billing.js";
 import { PARES_DIVISA, type ParDivisa } from "./divisas-db.js";
 import { parseDivisasBuffer, parseDivisasText } from "./parse-divisas-file.js";
 import { fetchBcuUsdUyu } from "./bcu-usd-uyu.js";
@@ -315,6 +316,7 @@ app.use(csrfOriginGuard);
 app.use(authMiddleware);
 
 registerAuthRoutes(app);
+registerBillingRoutes(app);
 registerChatRoutes(app);
 console.info("[SGG Auth] Rutas de autenticación registradas");
 

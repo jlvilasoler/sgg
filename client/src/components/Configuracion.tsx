@@ -5,6 +5,8 @@ import {
   canAccessActividadCuenta,
   canAccessActividadPropia,
   canAccessActividadSagTotal,
+  canAccessBillingAdminSuscripciones,
+  canAccessBillingMercadoPagoSettings,
   canAccessCatalogoSanitarioProductos,
   canAccessClasificacionProveedores,
   canAccessConfigVencimientosImpuestos,
@@ -21,11 +23,14 @@ import Rubros from "./Rubros";
 import StockGanaderoAdmin from "./stock/StockGanaderoAdmin";
 import StockEquinoAdmin from "./stock-equino/StockEquinoAdmin";
 import AdministradorCuenta from "./AdministradorCuenta";
+import SuscripcionCuenta from "./SuscripcionCuenta";
 import ArquitecturaSistema from "./ArquitecturaSistema";
 import DocumentosDigitales from "./DocumentosDigitales";
 import ControlGlobalCuentas from "./ControlGlobalCuentas";
 import ConfigSanitarioProductos from "./stock/ConfigSanitarioProductos";
 import ConfigVencimientosImpuestos from "./ConfigVencimientosImpuestos";
+import BillingMercadoPagoSettings from "./config/BillingMercadoPagoSettings";
+import BillingAdminSuscripciones from "./config/BillingAdminSuscripciones";
 import Usuarios from "./Usuarios";
 import UsuariosActividad from "./UsuariosActividad";
 import ConfigHubView from "./config/ConfigHubView";
@@ -43,6 +48,7 @@ type CatalogoModulo =
   | "rubros"
   | "stock_ganadero"
   | "stock_equino"
+  | "suscripcion"
   | "admin_cuenta"
   | "usuarios"
   | "registro_actividad";
@@ -53,7 +59,9 @@ type SagModulo =
   | "control_global_cuentas"
   | "documentos_digitales"
   | "catalogo_sanitario_productos"
-  | "vencimientos_impuestos";
+  | "vencimientos_impuestos"
+  | "billing_mp_settings"
+  | "billing_suscripciones_plataforma";
 
 type ModuloConfig =
   | "menu"
@@ -201,10 +209,25 @@ export default function Configuracion({
     ) {
       setModulo("sag_hub");
     }
+    if (
+      modulo === "billing_mp_settings" &&
+      !canAccessBillingMercadoPagoSettings(currentUser ?? null)
+    ) {
+      setModulo("sag_hub");
+    }
+    if (
+      modulo === "billing_suscripciones_plataforma" &&
+      !canAccessBillingAdminSuscripciones(currentUser ?? null)
+    ) {
+      setModulo("sag_hub");
+    }
     if (modulo === "usuarios" && !canManageUsuariosCuenta(currentUser ?? null)) {
       setModulo(esSuperAdmin ? "cuenta_hub" : "menu");
     }
     if (modulo === "admin_cuenta" && !canAccessArquitecturaCuenta(currentUser ?? null)) {
+      setModulo("menu");
+    }
+    if (modulo === "suscripcion" && !canAccessArquitecturaCuenta(currentUser ?? null)) {
       setModulo("menu");
     }
     if (modulo === "sag_arquitectura" && !canAccessArquitecturaSistema(currentUser ?? null)) {
@@ -293,6 +316,18 @@ export default function Configuracion({
         onError={onError}
         onSuccess={onSuccess}
         onVolver={() => volverConfigDashboard("stock_equino")}
+      />
+    );
+  }
+
+  if (modulo === "suscripcion" && canAccessArquitecturaCuenta(currentUser ?? null)) {
+    return wrapConfigSubmodule(
+      "suscripcion",
+      <SuscripcionCuenta
+        apiOnline={apiOnline}
+        onError={onError}
+        onSuccess={onSuccess}
+        onVolver={() => volverConfigDashboard("suscripcion")}
       />
     );
   }
@@ -451,6 +486,38 @@ export default function Configuracion({
         onSuccess={onSuccess}
         volverLabel="Volver a Configuración SAG"
         onVolver={() => volverConfigDashboard("vencimientos_impuestos")}
+      />
+    );
+  }
+
+  if (
+    modulo === "billing_mp_settings" &&
+    currentUser &&
+    canAccessBillingMercadoPagoSettings(currentUser)
+  ) {
+    return wrapConfigSubmodule(
+      "billing_mp_settings",
+      <BillingMercadoPagoSettings
+        apiOnline={apiOnline}
+        onError={onError}
+        onSuccess={onSuccess}
+        onVolver={() => volverConfigDashboard("billing_mp_settings")}
+      />
+    );
+  }
+
+  if (
+    modulo === "billing_suscripciones_plataforma" &&
+    currentUser &&
+    canAccessBillingAdminSuscripciones(currentUser)
+  ) {
+    return wrapConfigSubmodule(
+      "billing_suscripciones_plataforma",
+      <BillingAdminSuscripciones
+        apiOnline={apiOnline}
+        onError={onError}
+        onSuccess={onSuccess}
+        onVolver={() => volverConfigDashboard("billing_suscripciones_plataforma")}
       />
     );
   }

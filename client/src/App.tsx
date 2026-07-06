@@ -39,6 +39,7 @@ import VencimientosImpuestos from "./components/VencimientosImpuestos";
 import ChatPanel from "./components/ChatPanel";
 import ChatInterno from "./components/ChatInterno";
 import Notas from "./components/Notas";
+import AyudaManual from "./components/ayuda/AyudaManual";
 import ChatExternalRequestHost from "./components/chat/ChatExternalRequestHost";
 import MiCuentaPanel from "./components/MiCuentaModal";
 import ConfirmDialogHost from "./components/ConfirmDialogHost";
@@ -71,6 +72,10 @@ function clearResetTokenFromUrl(): void {
   window.history.replaceState({}, "", next);
 }
 
+function parseBillingReturnFromUrl(): boolean {
+  return new URLSearchParams(window.location.search).get("billing") === "ok";
+}
+
 export default function App() {
   useFormularioMayusculas();
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -93,7 +98,10 @@ export default function App() {
   const [actividadModoOverride, setActividadModoOverride] = useState<ActividadVistaModo | null>(
     null
   );
-  const [configModuloInicial, setConfigModuloInicial] = useState<"registro_actividad" | null>(null);
+  const [configModuloInicial, setConfigModuloInicial] = useState<
+    "registro_actividad" | "suscripcion" | null
+  >(null);
+  const billingReturnRef = useRef(parseBillingReturnFromUrl());
   const hadUserRef = useRef(false);
   const freshLoginRef = useRef(false);
   const sessionUserIdRef = useRef<number | null>(null);
@@ -139,6 +147,15 @@ export default function App() {
     }
     if (sessionUserIdRef.current === user.id) return;
     sessionUserIdRef.current = user.id;
+    if (billingReturnRef.current) {
+      billingReturnRef.current = false;
+      navHistoryRef.current = [];
+      setNavHistory([]);
+      setConfigModuloInicial("suscripcion");
+      setScreen("configuracion");
+      registrarPantallaActividad("configuracion");
+      return;
+    }
     resetToHomeScreen();
     registrarPantallaActividad("home");
   }, [user?.id, resetToHomeScreen]);
@@ -151,6 +168,13 @@ export default function App() {
     }
     void runVencimientosLoginAlert(user.id, false);
   }, [user?.id, apiOnline, runVencimientosLoginAlert]);
+
+  useEffect(() => {
+    if (!authChecked || !user) return;
+    if (!parseBillingReturnFromUrl()) return;
+    setConfigModuloInicial("suscripcion");
+    setScreen("configuracion");
+  }, [authChecked, user]);
 
   const refreshCatalogos = useCallback(async () => {
     if (!user) return;
@@ -699,6 +723,14 @@ export default function App() {
                 onVolver={goHome}
                 onError={(m) => notify(m, false)}
                 onSuccess={(m) => notify(m, true)}
+              />
+            )}
+            {screen === "ayuda" && user && (
+              <AyudaManual
+                apiOnline={apiOnline}
+                currentUser={user}
+                onVolver={goHome}
+                onOpenModulo={navigate}
               />
             )}
           </main>

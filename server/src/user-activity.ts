@@ -264,7 +264,10 @@ export const PANTALLA_LABELS: Record<string, string> = {
   panel_admin_sitio: "Administración del sitio",
   chat: "Chat interno",
   notas: "Notas",
+  ayuda: "Ayuda",
   documentos_digitales: "Documentos Digitales",
+  campo_mapa: "Mapa del campo",
+  tareas_operativas: "Tareas operativas",
 };
 
 export function formatNavegacionDetalle(pantallaLabel: string): string {

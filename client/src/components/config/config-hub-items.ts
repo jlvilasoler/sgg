@@ -6,6 +6,8 @@ import {
   canAccessActividadSagTotal,
   canAccessArquitecturaCuenta,
   canAccessArquitecturaSistema,
+  canAccessBillingAdminSuscripciones,
+  canAccessBillingMercadoPagoSettings,
   canAccessCatalogoSanitarioProductos,
   canAccessClasificacionProveedores,
   canAccessConfigVencimientosImpuestos,
@@ -91,6 +93,18 @@ const SAG_ITEMS: SgHubItem[] = [
     subtitle: "Calendarios y fechas por departamento",
     icon: "config_responsables",
   },
+  {
+    id: "billing_mp_settings",
+    label: "Tema Mercado Pago",
+    subtitle: "Checkout, marca y días de prueba",
+    icon: "config_admin_cuenta",
+  },
+  {
+    id: "billing_suscripciones_plataforma",
+    label: "Suscripciones plataforma",
+    subtitle: "Estado en tiempo real de todas las cuentas",
+    icon: "config_admin_cuenta",
+  },
 ];
 
 export const CONFIG_MI_PERFIL_ITEM: SgHubItem = {
@@ -116,6 +130,12 @@ export function buildConfigCuentaItems(user: AuthUser | null | undefined): SgHub
     });
   }
   if (canAccessArquitecturaCuenta(user ?? null)) {
+    items.push({
+      id: "suscripcion",
+      label: "Suscripción",
+      subtitle: "Plan mensual con Mercado Pago (modo test)",
+      icon: "config_admin_cuenta",
+    });
     items.push({
       id: "admin_cuenta",
       label: "Arquitectura del sistema",
@@ -148,6 +168,12 @@ export function buildConfigSagItems(user: AuthUser | null | undefined): SgHubIte
     }
     if (item.id === "vencimientos_impuestos") {
       return canAccessConfigVencimientosImpuestos(user ?? null);
+    }
+    if (item.id === "billing_mp_settings") {
+      return canAccessBillingMercadoPagoSettings(user ?? null);
+    }
+    if (item.id === "billing_suscripciones_plataforma") {
+      return canAccessBillingAdminSuscripciones(user ?? null);
     }
     return true;
   });
@@ -210,6 +236,10 @@ export function configHubMeta(
       title: "Arquitectura del sistema",
       subtitle: "Información de su cuenta y empresas operativas.",
     },
+    suscripcion: {
+      title: "Suscripción",
+      subtitle: "Plan mensual con tarjeta vía Mercado Pago.",
+    },
     usuarios: { title: "Usuarios", subtitle: "Administración de usuarios de la cuenta." },
     registro_actividad: {
       title: "Registro de actividad",
@@ -238,6 +268,14 @@ export function configHubMeta(
     vencimientos_impuestos: {
       title: "Vencimientos Impuestos",
       subtitle: "Calendarios tributarios.",
+    },
+    billing_mp_settings: {
+      title: "Tema Mercado Pago",
+      subtitle: "Marca, motivo de checkout y retorno.",
+    },
+    billing_suscripciones_plataforma: {
+      title: "Suscripciones plataforma",
+      subtitle: "Panel en tiempo real para superadministrador.",
     },
     mi_perfil: {
       title: "Mi perfil",
@@ -271,6 +309,7 @@ const CUENTA_MODULOS = new Set([
   "rubros",
   "stock_ganadero",
   "stock_equino",
+  "suscripcion",
   "admin_cuenta",
   "usuarios",
   "registro_actividad",
@@ -284,7 +323,9 @@ export function configNavScopeForModulo(modulo: string): ConfigNavScope {
     modulo === "documentos_digitales" ||
     modulo === "catalogo_sanitario_productos" ||
     modulo === "clasificacion_proveedores" ||
-    modulo === "vencimientos_impuestos"
+    modulo === "vencimientos_impuestos" ||
+    modulo === "billing_mp_settings" ||
+    modulo === "billing_suscripciones_plataforma"
   ) {
     return "sag";
   }

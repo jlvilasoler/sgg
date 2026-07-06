@@ -26,6 +26,7 @@ export default function AppFooter({
   const drawerActive = chatOpen && !chatPageOpen;
 
   const showChat = user != null && canAccessChat(user);
+  const showDock = showChat;
 
   const refreshUnread = useCallback(async () => {
     if (!showChat) return;
@@ -62,13 +63,13 @@ export default function AppFooter({
   }, [refreshUnread, showChat, chatOpen, chatPageOpen]);
 
   return (
-    <footer className={`app-footer${showChat ? " app-footer--dock" : ""}`}>
-      <div className={`layout-chrome app-footer-inner${showChat ? " app-footer-inner--dock" : ""}`}>
+    <footer className={`app-footer${showDock ? " app-footer--dock" : ""}`}>
+      <div className={`layout-chrome app-footer-inner${showDock ? " app-footer-inner--dock" : ""}`}>
         <span className="app-footer-copy">
           © {year} {APP_NAME}
         </span>
 
-        {showChat ? (
+        {showDock ? (
           <div className="app-footer-actions">
             <button
               type="button"

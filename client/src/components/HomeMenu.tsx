@@ -91,6 +91,11 @@ export const MENU_APPS: MenuApp[] = [
     label: "Chat",
     subtitle: "Mensajes con el equipo y mensajes directos",
   },
+  {
+    id: "ayuda",
+    label: "Ayuda",
+    subtitle: "Manual de uso y guía de cada módulo",
+  },
 ];
 
 export const MENU_SECTIONS: { id: string; label: string; appIds: TabId[] }[] = [
@@ -109,6 +114,7 @@ export const MENU_SECTIONS: { id: string; label: string; appIds: TabId[] }[] = [
       "stock_equino",
       "notas",
       "chat",
+      "ayuda",
     ],
   },
   {
@@ -158,6 +164,7 @@ const SCREEN_TITLES: Record<TabId, string> = {
   usuarios: "Usuarios",
   panel_admin_sitio: "Administración del sitio",
   chat: "Chat",
+  ayuda: "Ayuda",
   documentos_digitales: "Documentos Digitales",
 };
 
