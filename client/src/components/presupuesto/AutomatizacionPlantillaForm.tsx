@@ -93,7 +93,7 @@ export default function AutomatizacionPlantillaForm({
         <h3 className="presupuesto-auto-form-section-title">Programación</h3>
         <div className="presupuesto-auto-form-grid presupuesto-auto-form-grid--sched">
           <div className="field">
-            <label htmlFor="auto-fecha-inicio">Desde</label>
+            <label htmlFor="auto-fecha-inicio">Desde (primer pago automático)</label>
             <input
               id="auto-fecha-inicio"
               type="date"

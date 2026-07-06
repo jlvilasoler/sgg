@@ -47,6 +47,19 @@ function diaDesdeFecha(iso: string): number {
   return Number.isFinite(d) && d >= 1 && d <= 31 ? d : new Date().getDate();
 }
 
+/** Primer día del mes siguiente al gasto documentado (inicio por defecto de la regla). */
+export function fechaInicioAutomatizacionDesdeGasto(fechaGasto: string): string {
+  const [y, m] = fechaGasto.slice(0, 10).split("-").map(Number);
+  if (!y || !m) return todayIso();
+  let nm = m + 1;
+  let ny = y;
+  if (nm > 12) {
+    nm = 1;
+    ny += 1;
+  }
+  return `${ny}-${String(nm).padStart(2, "0")}-01`;
+}
+
 export function plantillaFormVacia(): AutomatizacionPlantillaFormState {
   return {
     presupuesto_id: 0,
@@ -81,7 +94,7 @@ export function plantillaFormDesdePresupuesto(p: Presupuesto): AutomatizacionPla
     nombre: tituloDesdeGasto(p).slice(0, 80),
     dia_mes: diaDesdeFecha(p.fecha),
     intervalo_meses: 1,
-    fecha_inicio: todayIso(),
+    fecha_inicio: fechaInicioAutomatizacionDesdeGasto(p.fecha),
     empresa: p.empresa,
     codigo_proveedor: p.codigo_proveedor ?? "",
     razon_social_proveedor: p.razon_social_proveedor ?? "",

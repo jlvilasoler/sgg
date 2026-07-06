@@ -154,6 +154,39 @@ function mesesDesdeInicio(fechaInicio: string, periodo: string): number {
   return (y2 - y1) * 12 + (m2 - m1);
 }
 
+/** Primer día del mes siguiente al de la fecha del gasto (AAAA-MM-01). */
+function primerDiaMesSiguiente(fechaIso: string): string {
+  const [y, m] = fechaIso.slice(0, 10).split("-").map(Number);
+  if (!y || !m) return todayIso();
+  let nm = m + 1;
+  let ny = y;
+  if (nm > 12) {
+    nm = 1;
+    ny += 1;
+  }
+  return `${ny}-${String(nm).padStart(2, "0")}-01`;
+}
+
+function periodoDeFecha(fechaIso: string): string {
+  return fechaIso.slice(0, 7);
+}
+
+/** La automatización no debe repetir el mes del documento que se copió. */
+function periodoYaCubiertoPorOrigen(origenFecha: string | null | undefined, periodo: string): boolean {
+  if (!origenFecha?.trim()) return false;
+  return periodoDeFecha(origenFecha) === periodo;
+}
+
+function resolveFechaInicioDesdePresupuesto(
+  presupuesto: Presupuesto,
+  requested?: string,
+): string {
+  const min = primerDiaMesSiguiente(presupuesto.fecha);
+  if (!requested?.trim()) return min;
+  const normalized = normalizeFechaInicio(requested, min);
+  return normalized < min ? min : normalized;
+}
+
 function aplicaEnPeriodo(plantilla: GastoAutomatizacionRow, periodo: string): boolean {
   const inicio = (plantilla.fecha_inicio || plantilla.creado_en || todayIso()).slice(0, 10);
   const diff = mesesDesdeInicio(inicio, periodo);
@@ -406,7 +439,7 @@ export async function createGastoAutomatizacionFromPresupuesto(
 ): Promise<GastoAutomatizacionRow> {
   const diaMes = normalizeDiaMes(opts.dia_mes);
   const intervaloMeses = normalizeIntervaloMeses(opts.intervalo_meses ?? 1);
-  const fechaInicio = normalizeFechaInicio(opts.fecha_inicio ?? todayIso());
+  const fechaInicio = resolveFechaInicioDesdePresupuesto(presupuesto, opts.fecha_inicio);
   const nombre = opts.nombre.trim();
   if (!nombre) throw new Error("El nombre de la automatización es obligatorio.");
 
@@ -563,12 +596,20 @@ export async function syncGastoAutomatizacionPendientes(
   const periodo = currentPeriod();
   const hoy = todayIso();
   const plantillas = (await db
-    .prepare(`SELECT * FROM GASTO_AUTOMATIZACION WHERE cuenta_id = ? AND activo = TRUE`)
+    .prepare(
+      `SELECT ga.*, po.fecha AS origen_fecha
+       FROM GASTO_AUTOMATIZACION ga
+       LEFT JOIN PRESUPUESTO po ON po.id = ga.presupuesto_origen_id
+       WHERE ga.cuenta_id = ? AND ga.activo = TRUE`,
+    )
     .all(cuentaId)) as Record<string, unknown>[];
 
   let creados = 0;
   for (const raw of plantillas) {
     const p = rowToPlantilla(raw);
+    const origenFecha =
+      raw.origen_fecha != null ? String(raw.origen_fecha).slice(0, 10) : null;
+    if (periodoYaCubiertoPorOrigen(origenFecha, periodo)) continue;
     if (!aplicaEnPeriodo(p, periodo)) continue;
     const fechaProg = fechaProgramada(periodo, p.dia_mes);
     if (fechaProg > hoy) continue;
@@ -715,6 +756,17 @@ export async function aprobarGastoAutoPendiente(
   }
   if (!item.plantilla.activo) {
     throw new Error("La automatización está pausada.");
+  }
+
+  if (item.plantilla.presupuesto_origen_id) {
+    const origen = (await db
+      .prepare(`SELECT fecha FROM PRESUPUESTO WHERE id = ?`)
+      .get(item.plantilla.presupuesto_origen_id)) as { fecha: string } | undefined;
+    if (periodoYaCubiertoPorOrigen(origen?.fecha, item.periodo)) {
+      throw new Error(
+        "Este mes ya está registrado con el gasto original. Omití la solicitud o ajustá la fecha de inicio.",
+      );
+    }
   }
 
   const payload = plantillaToPresupuestoInput(item.plantilla, item.fecha_programada);
