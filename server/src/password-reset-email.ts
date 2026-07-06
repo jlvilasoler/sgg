@@ -19,7 +19,20 @@ export function getPasswordResetEmailStatus(): {
   configured: boolean;
   provider: "resend" | "smtp" | null;
   hint?: string;
+  env_present?: {
+    resend_api_key: boolean;
+    email_from: boolean;
+    smtp_host: boolean;
+    smtp_from: boolean;
+  };
 } {
+  const envPresent = {
+    resend_api_key: Boolean(process.env.RESEND_API_KEY?.trim()),
+    email_from: Boolean(process.env.EMAIL_FROM?.trim()),
+    smtp_host: Boolean(process.env.SMTP_HOST?.trim()),
+    smtp_from: Boolean(process.env.SMTP_FROM?.trim()),
+  };
+
   if (process.env.RESEND_API_KEY?.trim()) {
     const from =
       process.env.EMAIL_FROM?.trim() || `${APP_NAME} <onboarding@resend.dev>`;
@@ -41,7 +54,14 @@ export function getPasswordResetEmailStatus(): {
         : undefined,
     };
   }
-  return { configured: false, provider: null };
+  return {
+    configured: false,
+    provider: null,
+    env_present: envPresent,
+    hint: !envPresent.resend_api_key
+      ? "Falta RESEND_API_KEY o está vacía en Vercel. Editá la variable existente (no crear otra) y hacé Redeploy."
+      : undefined,
+  };
 }
 
 export type PasswordResetEmailResult =

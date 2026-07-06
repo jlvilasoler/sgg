@@ -5,6 +5,7 @@ client/dist/
 server/dist/
 data/
 .env
+.env.vercel.*
 *.pyc
 __pycache__/
 venv/

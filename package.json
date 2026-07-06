@@ -13,6 +13,8 @@
     "build": "npm run build --prefix client && npm run build --prefix server",
     "build:render": "npm run install:all && npm run build",
     "build:vercel": "npm run install:all && npm run build",
+    "setup:resend-vercel": "node scripts/setup-resend-vercel.mjs",
+    "setup:email-from-vercel": "node scripts/setup-email-from-vercel.mjs",
     "start": "npm run start --prefix server"
   },
   "dependencies": {
