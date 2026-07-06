@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { solicitarResetPassword } from "../api";
+import { solicitarResetPassword, type ForgotPasswordResult } from "../api";
 import { apiConnectionError, apiOfflineMessage } from "../utils/api-messages";
 import AuthLoginShell from "./AuthLoginShell";
 
@@ -20,6 +20,7 @@ export default function ForgotPasswordScreen({
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
+  const [devPreview, setDevPreview] = useState<ForgotPasswordResult["devPreview"]>();
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -31,6 +32,7 @@ export default function ForgotPasswordScreen({
     try {
       const result = await solicitarResetPassword(email.trim());
       setSuccessMessage(result.message);
+      setDevPreview(result.devPreview);
       setSent(true);
     } catch (err) {
       onError(err instanceof Error ? err.message : "Error al enviar solicitud");
@@ -63,6 +65,30 @@ export default function ForgotPasswordScreen({
           <p className="auth-login-recovery-hint auth-login-recovery-hint--split">
             El enlace para crear una nueva contraseña vence en 1 hora.
           </p>
+          {devPreview && (
+            <div className="auth-login-recovery-dev auth-login-recovery-dev--split">
+              <p className="auth-login-recovery-dev-title">Modo desarrollo</p>
+              <p className="auth-login-recovery-dev-hint">
+                El correo de prueba puede no llegar a tu bandeja real. Usá estos enlaces:
+              </p>
+              {devPreview.emailPreviewUrl && (
+                <a
+                  className="auth-login-recovery-dev-link"
+                  href={devPreview.emailPreviewUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Ver email de prueba (Ethereal)
+                </a>
+              )}
+              <a
+                className="auth-login-recovery-dev-link auth-login-recovery-dev-link--primary"
+                href={devPreview.resetUrl}
+              >
+                Abrir enlace de recuperación
+              </a>
+            </div>
+          )}
           <button
             type="button"
             className="auth-login-submit auth-login-submit--split"

@@ -555,17 +555,40 @@ export function registerAuthRoutes(app: Express): void {
       const ip = clientIp(req);
       const user = await authDb.findActiveUserByEmail(db, email);
 
+      let devPreview:
+        | { reset_url: string; email_preview_url?: string }
+        | undefined;
+
       if (user) {
         const rawToken = await authDb.createPasswordResetToken(db, user.id, { ip });
         const resetUrl = buildPasswordResetUrl(rawToken);
         try {
-          await sendPasswordResetEmail({
+          const mailResult = await sendPasswordResetEmail({
             to: user.email,
             nombre: user.nombre,
             resetUrl,
           });
+          if (process.env.NODE_ENV !== "production") {
+            devPreview = {
+              reset_url: resetUrl,
+              email_preview_url: mailResult.emailPreviewUrl,
+            };
+          }
         } catch (mailErr) {
           console.error("[SGG Auth] No se pudo enviar email de recuperación:", mailErr);
+          const msg = mailErr instanceof Error ? mailErr.message : "";
+          if (process.env.NODE_ENV !== "production") {
+            devPreview = { reset_url: resetUrl };
+          } else {
+            const userMessage = msg.includes("Servicio de email no configurado")
+              ? "El envío de correos no está configurado en el servidor. Contactá al administrador del sistema."
+              : msg.toLowerCase().includes("only send testing emails") ||
+                  msg.toLowerCase().includes("verify a domain")
+                ? "El correo de recuperación no está habilitado para todos los usuarios. El administrador debe verificar un dominio en Resend."
+                : "No se pudo enviar el correo en este momento. Intentá más tarde o contactá al administrador.";
+            res.status(503).json({ ok: false, error: userMessage });
+            return;
+          }
         }
         await authDb.recordAuthEvent(db, "password_reset_requested", {
           email: user.email,
@@ -575,7 +598,11 @@ export function registerAuthRoutes(app: Express): void {
       }
 
       await artificialLoginDelay();
-      res.json({ ok: true, message: FORGOT_PASSWORD_MESSAGE });
+      res.json({
+        ok: true,
+        message: FORGOT_PASSWORD_MESSAGE,
+        ...(devPreview ? { dev_preview: devPreview } : {}),
+      });
     } catch (e) {
       console.error("[SGG Auth] Error en forgot-password:", e);
       res.status(500).json({

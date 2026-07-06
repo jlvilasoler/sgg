@@ -19,6 +19,7 @@ import {
   securityHeaders,
 } from "./auth.js";
 import { clientSafeErrorDetail, clientSafeErrorMessage } from "./auth-security.js";
+import { getPasswordResetEmailStatus } from "./password-reset-email.js";
 import { registerChatRoutes } from "./chat.js";
 import { registerBillingRoutes } from "./billing.js";
 import { PARES_DIVISA, type ParDivisa } from "./divisas-db.js";
@@ -218,12 +219,14 @@ app.use(cookieParser());
 app.use(express.json({ limit: "512kb" }));
 
 app.get("/api/health", async (_req, res) => {
+  const passwordResetEmail = getPasswordResetEmailStatus();
   if (dbInitOk) {
     res.json({
       ok: true,
       service: "scg-api",
       database: "postgres",
       ready: true,
+      password_reset_email: passwordResetEmail,
     });
     return;
   }
@@ -246,6 +249,7 @@ app.get("/api/health", async (_req, res) => {
       database: "postgres",
       ready: false,
       error: "Base de datos no disponible",
+      password_reset_email: passwordResetEmail,
       ...(clientSafeErrorDetail(lastDbInitError)
         ? { detail: clientSafeErrorDetail(lastDbInitError) }
         : {}),
@@ -257,6 +261,7 @@ app.get("/api/health", async (_req, res) => {
     service: "scg-api",
     database: "postgres",
     ready: dbInitOk,
+    password_reset_email: passwordResetEmail,
   });
 });
 

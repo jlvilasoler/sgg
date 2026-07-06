@@ -3479,17 +3479,31 @@ export async function cambiarPasswordAuth(
 
 export interface ForgotPasswordResult {
   message: string;
+  devPreview?: {
+    resetUrl: string;
+    emailPreviewUrl?: string;
+  };
 }
 
 export async function solicitarResetPassword(email: string): Promise<ForgotPasswordResult> {
-  const json = await request<{ message?: string }>("/auth/forgot-password", {
+  const json = await request<{
+    message?: string;
+    dev_preview?: { reset_url: string; email_preview_url?: string };
+  }>("/auth/forgot-password", {
     method: "POST",
     body: JSON.stringify({ email }),
   });
+  const preview = json.dev_preview;
   return {
     message:
       json.message ??
       "Si el email está registrado, recibirás un enlace para restablecer tu contraseña.",
+    devPreview: preview
+      ? {
+          resetUrl: preview.reset_url,
+          emailPreviewUrl: preview.email_preview_url,
+        }
+      : undefined,
   };
 }
 

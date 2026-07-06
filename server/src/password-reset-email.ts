@@ -15,8 +15,37 @@ export function isPasswordResetEmailConfigured(): boolean {
   return false;
 }
 
+export function getPasswordResetEmailStatus(): {
+  configured: boolean;
+  provider: "resend" | "smtp" | null;
+  hint?: string;
+} {
+  if (process.env.RESEND_API_KEY?.trim()) {
+    const from =
+      process.env.EMAIL_FROM?.trim() || `${APP_NAME} <onboarding@resend.dev>`;
+    return {
+      configured: true,
+      provider: "resend",
+      hint: from.includes("onboarding@resend.dev")
+        ? "Modo prueba Resend: solo entrega al email de la cuenta Resend hasta verificar un dominio."
+        : undefined,
+    };
+  }
+  if (process.env.SMTP_HOST?.trim() && process.env.SMTP_FROM?.trim()) {
+    const host = process.env.SMTP_HOST.trim();
+    return {
+      configured: true,
+      provider: "smtp",
+      hint: host.includes("ethereal.email")
+        ? "SMTP Ethereal no sirve en producción; configurá RESEND_API_KEY en Vercel."
+        : undefined,
+    };
+  }
+  return { configured: false, provider: null };
+}
+
 export type PasswordResetEmailResult =
-  | { mode: "sent" }
+  | { mode: "sent"; emailPreviewUrl?: string }
   | { mode: "dev_fallback"; resetUrl: string; emailPreviewUrl?: string };
 
 let devEtherealTransport: nodemailer.Transporter | null = null;
@@ -130,7 +159,14 @@ async function sendViaResend(opts: {
 
   if (!res.ok) {
     const detail = await res.text().catch(() => "");
-    throw new Error(`Resend error ${res.status}: ${detail.slice(0, 200)}`);
+    let message = `Resend error ${res.status}`;
+    try {
+      const parsed = JSON.parse(detail) as { message?: string };
+      if (parsed.message?.trim()) message = parsed.message.trim();
+    } catch {
+      if (detail.trim()) message = detail.trim().slice(0, 240);
+    }
+    throw new Error(message);
   }
 }
 
@@ -138,7 +174,7 @@ async function sendViaSmtp(opts: {
   to: string;
   nombre: string;
   resetUrl: string;
-}): Promise<void> {
+}): Promise<{ emailPreviewUrl?: string }> {
   const host = process.env.SMTP_HOST!.trim();
   const port = Number(process.env.SMTP_PORT ?? 587);
   const secure = process.env.SMTP_SECURE === "1" || port === 465;
@@ -160,12 +196,16 @@ async function sendViaSmtp(opts: {
     html: buildResetEmailHtml(opts.nombre, opts.resetUrl),
   });
 
-  if (process.env.NODE_ENV !== "production" && host.includes("ethereal.email")) {
+  let emailPreviewUrl: string | undefined;
+  if (host.includes("ethereal.email")) {
     const preview = nodemailer.getTestMessageUrl(info);
-    if (preview) {
+    if (typeof preview === "string") {
+      emailPreviewUrl = preview;
       console.info(`[SGG Auth] Vista previa email Ethereal: ${preview}`);
     }
   }
+
+  return { emailPreviewUrl };
 }
 
 export async function sendPasswordResetEmail(opts: {
@@ -178,8 +218,22 @@ export async function sendPasswordResetEmail(opts: {
     return { mode: "sent" };
   }
   if (process.env.SMTP_HOST?.trim() && process.env.SMTP_FROM?.trim()) {
-    await sendViaSmtp(opts);
-    return { mode: "sent" };
+    try {
+      const smtpResult = await sendViaSmtp(opts);
+      return { mode: "sent", emailPreviewUrl: smtpResult.emailPreviewUrl };
+    } catch (smtpErr) {
+      if (process.env.NODE_ENV === "production") throw smtpErr;
+      console.warn(
+        "[SGG Auth] SMTP falló (¿credenciales Ethereal vencidas?). Usando cuenta Ethereal temporal:",
+        smtpErr instanceof Error ? smtpErr.message : smtpErr
+      );
+      const dev = await sendViaDevEthereal(opts);
+      return {
+        mode: "dev_fallback",
+        resetUrl: dev.resetUrl,
+        emailPreviewUrl: dev.emailPreviewUrl,
+      };
+    }
   }
   if (process.env.NODE_ENV !== "production") {
     const dev = await sendViaDevEthereal(opts);
