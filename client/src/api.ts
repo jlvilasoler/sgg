@@ -4180,6 +4180,28 @@ export async function actualizarRolePermissions(
   return json.data;
 }
 
+export interface HomeLayoutRoleConfig {
+  rol: Rol;
+  rol_label: string;
+  paneles: Record<string, boolean>;
+}
+
+export async function fetchHomeLayoutConfig(): Promise<HomeLayoutRoleConfig[]> {
+  const json = await request<{ data: HomeLayoutRoleConfig[] }>("/auth/home-layout");
+  return json.data;
+}
+
+export async function actualizarHomeLayoutRol(
+  rol: Rol,
+  paneles: Record<string, boolean>,
+): Promise<HomeLayoutRoleConfig> {
+  const json = await request<{ data: HomeLayoutRoleConfig }>(`/auth/home-layout/${rol}`, {
+    method: "PATCH",
+    body: JSON.stringify({ paneles }),
+  });
+  return json.data;
+}
+
 export async function fetchTiposDocumentoGasto(opts?: {
   soloActivos?: boolean;
 }): Promise<TipoDocumentoGasto[]> {

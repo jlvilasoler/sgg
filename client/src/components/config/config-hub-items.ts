@@ -12,6 +12,7 @@ import {
   canAccessClasificacionProveedores,
   canAccessConfigVencimientosImpuestos,
   canAccessConfigDotacionGanadera,
+  canAccessConfigHomeLayout,
   canAccessControlGlobalCuentas,
   canAccessDocumentosDigitales,
   canAccessStockGanaderoAdmin,
@@ -75,6 +76,12 @@ const SAG_ITEMS: SgHubItem[] = [
     label: "Catálogo sanitario",
     subtitle: "Remedios y fichas técnicas",
     icon: "stock_sanidad",
+  },
+  {
+    id: "home_layout",
+    label: "Inicio por cuenta",
+    subtitle: "Qué ve cada Gestor N1, N2 y Lector en el home",
+    icon: "arquitectura_sistema",
   },
   {
     id: "dotacion_ganadera",
@@ -172,6 +179,9 @@ export function buildConfigSagItems(user: AuthUser | null | undefined): SgHubIte
     }
     if (item.id === "dotacion_ganadera") {
       return canAccessConfigDotacionGanadera(user ?? null);
+    }
+    if (item.id === "home_layout") {
+      return canAccessConfigHomeLayout(user ?? null);
     }
     if (item.id === "clasificacion_proveedores") {
       return canAccessClasificacionProveedores(user ?? null);
@@ -275,6 +285,10 @@ export function configHubMeta(
       title: "Dotación ganadera",
       subtitle: "Equivalencias en unidades ganaderas por categoría.",
     },
+    home_layout: {
+      title: "Inicio por tipo de cuenta",
+      subtitle: "Bloques visibles del dashboard Inicio por rol.",
+    },
     documentos_digitales: {
       title: "Documentos Digitales",
       subtitle: "Archivo documental global.",
@@ -337,6 +351,7 @@ export function configNavScopeForModulo(modulo: string): ConfigNavScope {
     modulo === "documentos_digitales" ||
     modulo === "catalogo_sanitario_productos" ||
     modulo === "dotacion_ganadera" ||
+    modulo === "home_layout" ||
     modulo === "clasificacion_proveedores" ||
     modulo === "vencimientos_impuestos" ||
     modulo === "billing_mp_settings" ||

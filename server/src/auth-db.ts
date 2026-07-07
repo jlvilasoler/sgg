@@ -3,6 +3,7 @@ import crypto from "crypto";
 import type { Db } from "./db/pg-client.js";
 import { DEFAULT_ADMIN_NAME } from "./brand.js";
 import * as empresasCuenta from "./empresas-cuenta-db.js";
+import * as homeLayoutDb from "./home-layout-db.js";
 import {
   hashSessionToken,
   isValidSessionTokenFormat,
@@ -140,6 +141,7 @@ export interface UserPublic {
   permisos: Modulo[];
   puede_escribir: boolean;
   modulos_solo_lectura: Modulo[];
+  home_paneles: Record<string, boolean>;
   creado_en: string;
   ultimo_acceso: string | null;
   avatar: UserAvatarDto;
@@ -316,6 +318,7 @@ export async function toUserPublic(row: UserRow, db: Db): Promise<UserPublic> {
     permisos: caps.permisos,
     puede_escribir: caps.puede_escribir,
     modulos_solo_lectura: caps.modulos_solo_lectura,
+    home_paneles: await homeLayoutDb.getHomeLayoutForRole(db, row.rol),
     creado_en: pgTimestampString(row.creado_en) ?? "",
     ultimo_acceso: pgTimestampString(row.ultimo_acceso),
     avatar: avatarDtoFromRow(row.id, row),
@@ -725,6 +728,7 @@ export async function initAuthTables(db: Db): Promise<void> {
   await migrateModuloDocumentosDigitales(db);
   await migrateUserEmpresaId(db);
   await migrateUserNumero(db);
+  await homeLayoutDb.initHomeLayoutTable(db);
   await migratePasswordResetTokens(db);
   await purgeExpiredSessions(db);
   await seedAdminIfEmpty(db);

@@ -1286,6 +1286,38 @@ export function registerAuthRoutes(app: Express): void {
     }
   });
 
+  app.get("/api/auth/home-layout", async (req, res) => {
+    if (!requireSuperAdmin(req, res)) return;
+    const homeLayoutDb = await import("./home-layout-db.js");
+    res.json({ ok: true, data: await homeLayoutDb.listHomeLayoutConfig(getDb()) });
+  });
+
+  app.patch("/api/auth/home-layout/:rol", async (req, res) => {
+    if (!requireSuperAdmin(req, res)) return;
+    try {
+      const homeLayoutDb = await import("./home-layout-db.js");
+      const rol = String(req.params.rol) as authDb.Rol;
+      if (!homeLayoutDb.HOME_LAYOUT_ROLES.includes(rol)) {
+        res.status(400).json({ ok: false, error: "Rol no configurable para el inicio" });
+        return;
+      }
+      const updated = await homeLayoutDb.updateHomeLayoutForRole(
+        getDb(),
+        rol,
+        req.body?.paneles ?? {},
+      );
+      await authDb.recordAuthEvent(getDb(), "home_layout_updated", {
+        detalle: `rol=${rol}`,
+      });
+      res.json({ ok: true, data: updated });
+    } catch (e) {
+      res.status(400).json({
+        ok: false,
+        error: e instanceof Error ? e.message : "Error al guardar inicio",
+      });
+    }
+  });
+
   app.get("/api/empresas-cuenta/mi-cuenta", async (req, res) => {
     if (!requireAdmin(req, res)) return;
     const actor = req.user!;

@@ -17,6 +17,7 @@ import {
   listHomeActividadPanels,
   type HomeActividadPanelState,
 } from "../utils/auth-permissions";
+import { canShowHomePanel } from "../utils/home-layout-config";
 import { buildVencimientosProximosHome } from "../utils/vencimientos-impuestos-alertas";
 import {
   getVencimientosImpuestosCache,
@@ -125,7 +126,10 @@ const HOME_INSIGHT_ORDER = [
 export function buildExpectedHomeInsights(user: AuthUser): HomeInsight[] {
   const items: HomeInsight[] = [];
 
-  if (canAccessScreen(user, "registro") || canAccessScreen(user, "listado")) {
+  if (
+    canShowHomePanel(user, "kpis_gastos") &&
+    (canAccessScreen(user, "registro") || canAccessScreen(user, "listado"))
+  ) {
     items.push({
       id: "gastos-mes",
       tab: "listado",
@@ -144,7 +148,7 @@ export function buildExpectedHomeInsights(user: AuthUser): HomeInsight[] {
     });
   }
 
-  if (canAccessScreen(user, "stock_ganadero")) {
+  if (canShowHomePanel(user, "kpis_operativos") && canAccessScreen(user, "stock_ganadero")) {
     items.push({
       id: "stock-ganado-activo",
       tab: "stock_ganadero",
@@ -155,7 +159,7 @@ export function buildExpectedHomeInsights(user: AuthUser): HomeInsight[] {
     });
   }
 
-  if (canAccessSimuladorVentaGanado(user)) {
+  if (canShowHomePanel(user, "kpis_operativos") && canAccessSimuladorVentaGanado(user)) {
     items.push({
       id: "ganado-por-vender",
       tab: "simulador_venta_ganado",
@@ -166,7 +170,7 @@ export function buildExpectedHomeInsights(user: AuthUser): HomeInsight[] {
     });
   }
 
-  if (canAccessIngresosVentasModulo(user)) {
+  if (canShowHomePanel(user, "kpis_operativos") && canAccessIngresosVentasModulo(user)) {
     items.push({
       id: "arrendamientos-por-recibir",
       tab: "ingresos_ventas",
@@ -221,9 +225,13 @@ function proximosDesdeCache(): VencImpCuotaConsolidada[] {
 
 export function useHomeDashboard(user: AuthUser, apiOnline: boolean) {
   const userId = user.id;
-  const puedeNotas = canAccessScreen(user, "notas");
-  const puedeVencimientos = canAccessScreen(user, "vencimientos_impuestos");
-  const actividadPanelConfigs = useMemo(() => listHomeActividadPanels(user), [
+  const puedeNotas = canAccessScreen(user, "notas") && canShowHomePanel(user, "pizarron");
+  const puedeVencimientos =
+    canAccessScreen(user, "vencimientos_impuestos") && canShowHomePanel(user, "vencimientos");
+  const actividadPanelConfigs = useMemo(() => {
+    if (!canShowHomePanel(user, "actividad")) return [];
+    return listHomeActividadPanels(user);
+  }, [
     user.id,
     user.rol,
     user.email,

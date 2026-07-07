@@ -1434,6 +1434,8 @@ export interface AuthUser {
   permisos: Modulo[];
   puede_escribir: boolean;
   modulos_solo_lectura: Modulo[];
+  /** Visibilidad de bloques del inicio según rol (Configuración SAG). */
+  home_paneles?: Partial<Record<string, boolean>>;
   creado_en: string;
   ultimo_acceso: string | null;
   avatar: UserAvatar;

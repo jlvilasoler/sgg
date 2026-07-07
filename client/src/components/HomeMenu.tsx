@@ -7,6 +7,7 @@ import {
 import type { TabId } from "./Header";
 import type { AuthUser, GastoAutoPendiente, Nota } from "../types";
 import { canAccessScreen, type ActividadVistaModo } from "../utils/auth-permissions";
+import { canShowHomePanel } from "../utils/home-layout-config";
 import { buildHomeQuickApps, mergeRecentModuleLists, getRecentHomeModules } from "../utils/home-quick-modules";
 import { MENU_APP_THEMES, MenuAppIcon } from "./icons/MenuAppIcons";
 import { SgHubAsideSearchField } from "./hub/SgHubAsideSearch";
@@ -303,8 +304,13 @@ export default function HomeMenu({
     puedeVencimientos,
   } = useHomeDashboard(user, apiOnline);
 
-  const puedeMapaCampo = canAccessScreen(user, "campo_mapa");
-  const puedeStockGanadero = canAccessScreen(user, "stock_ganadero");
+  const puedeMapaCampo =
+    canAccessScreen(user, "campo_mapa") && canShowHomePanel(user, "mapa_campo");
+  const puedeStockGanadero =
+    canAccessScreen(user, "stock_ganadero") && canShowHomePanel(user, "stock_potrero");
+  const showModulosRapidos = canShowHomePanel(user, "modulos_rapidos");
+  const showKpisOperativos = canShowHomePanel(user, "kpis_operativos");
+  const showKpisGastos = canShowHomePanel(user, "kpis_gastos");
 
   const recentMerged = useMemo(
     () => mergeRecentModuleLists(getRecentHomeModules(user.id), recentScreens),
@@ -344,7 +350,9 @@ export default function HomeMenu({
   const kpiStripCols = expectedTopKpiSlots;
 
   const showAutoPendientes =
-    puedeAprobarAuto && (loadingAutoPendientes || autoPendientes.length > 0);
+    canShowHomePanel(user, "auto_pendientes") &&
+    puedeAprobarAuto &&
+    (loadingAutoPendientes || autoPendientes.length > 0);
 
   const kpiVariant = (item: HomeInsight, index: number): "dark" | "light" => {
     if (item.id === "stock-ganado-activo" || item.id === "ganado-por-vender") {
@@ -492,7 +500,7 @@ export default function HomeMenu({
             </div>
           </header>
 
-          {expectedTopKpiSlots > 0 ? (
+          {showKpisOperativos && expectedTopKpiSlots > 0 ? (
             <section
               className="sg-hub-kpi-strip home-hub-kpi-strip home-hub-kpi-strip--primary"
               aria-label="Indicadores operativos"
@@ -511,7 +519,7 @@ export default function HomeMenu({
             </section>
           ) : null}
 
-          {expectedGastosKpiSlots > 0 ? (
+          {showKpisGastos && expectedGastosKpiSlots > 0 ? (
             <div
               className="home-hub-gastos-kpi-row"
               style={
@@ -725,6 +733,7 @@ export default function HomeMenu({
                 />
               ) : null}
 
+              {showModulosRapidos ? (
               <section
                 className="sg-hub-panel sg-hub-panel--modules home-hub-panel--quick"
                 aria-labelledby="home-hub-mod-title"
@@ -788,6 +797,7 @@ export default function HomeMenu({
                   })}
                 </div>
               </section>
+              ) : null}
             </div>
           </div>
         </main>

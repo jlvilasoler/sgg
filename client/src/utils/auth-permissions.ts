@@ -273,6 +273,11 @@ export function canAccessStockGanaderoAdmin(user: AuthUser | null): boolean {
   return user?.rol === "admin";
 }
 
+/** Inicio por rol (Configuración SAG): solo superadministrador. */
+export function canAccessConfigHomeLayout(user: AuthUser | null): boolean {
+  return Boolean(user?.es_super_admin);
+}
+
 /** Dotación ganadera — equivalencias UG (Configuración SAG): solo superadministrador. */
 export function canAccessConfigDotacionGanadera(user: AuthUser | null): boolean {
   return Boolean(user?.es_super_admin);
