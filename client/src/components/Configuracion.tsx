@@ -10,6 +10,7 @@ import {
   canAccessCatalogoSanitarioProductos,
   canAccessClasificacionProveedores,
   canAccessConfigVencimientosImpuestos,
+  canAccessConfigDotacionGanadera,
   canAccessControlGlobalCuentas,
   canAccessArquitecturaCuenta,
   canAccessArquitecturaSistema,
@@ -31,6 +32,7 @@ import ConfigSanitarioProductos from "./stock/ConfigSanitarioProductos";
 import ConfigVencimientosImpuestos from "./ConfigVencimientosImpuestos";
 import BillingMercadoPagoSettings from "./config/BillingMercadoPagoSettings";
 import BillingAdminSuscripciones from "./config/BillingAdminSuscripciones";
+import ConfigDotacionGanadera from "./config/ConfigDotacionGanadera";
 import Usuarios from "./Usuarios";
 import UsuariosActividad from "./UsuariosActividad";
 import ConfigHubView from "./config/ConfigHubView";
@@ -59,6 +61,7 @@ type SagModulo =
   | "control_global_cuentas"
   | "documentos_digitales"
   | "catalogo_sanitario_productos"
+  | "dotacion_ganadera"
   | "vencimientos_impuestos"
   | "billing_mp_settings"
   | "billing_suscripciones_plataforma";
@@ -200,6 +203,12 @@ export default function Configuracion({
     if (
       modulo === "catalogo_sanitario_productos" &&
       !canAccessCatalogoSanitarioProductos(currentUser ?? null)
+    ) {
+      setModulo("sag_hub");
+    }
+    if (
+      modulo === "dotacion_ganadera" &&
+      !canAccessConfigDotacionGanadera(currentUser ?? null)
     ) {
       setModulo("sag_hub");
     }
@@ -469,6 +478,20 @@ export default function Configuracion({
         onSuccess={onSuccess}
         volverLabel="Volver a Configuración SAG"
         onVolver={() => volverConfigDashboard("catalogo_sanitario_productos")}
+      />
+    );
+  }
+
+  if (
+    modulo === "dotacion_ganadera" &&
+    currentUser &&
+    canAccessConfigDotacionGanadera(currentUser)
+  ) {
+    return wrapConfigSubmodule(
+      "dotacion_ganadera",
+      <ConfigDotacionGanadera
+        volverLabel="Volver a Configuración SAG"
+        onVolver={() => volverConfigDashboard("dotacion_ganadera")}
       />
     );
   }

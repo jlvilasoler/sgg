@@ -35,7 +35,7 @@ export const POTRERO_RESUMEN_MODOS: {
   { id: "totales", label: "Totales" },
 ];
 
-function sexoLabel(sexo: string): string {
+export function sexoLabelPotreroResumen(sexo: string): string {
   if (sexo === "MACHO") return "Machos";
   if (sexo === "HEMBRA") return "Hembras";
   return "Sin sexo";
@@ -56,21 +56,12 @@ function countRows(
   return [...map.values()].sort((a, b) => b.count - a.count || a.label.localeCompare(b.label, "es"));
 }
 
-export function buildPotreroDispositivoResumen(
-  potrero: CampoPotreroMapa,
-  ganadero: StockGanaderaDispositivo[],
-  equino: StockGanaderaDispositivo[],
+export function buildDispositivoResumenFilas(
+  devices: StockGanaderaDispositivo[],
   empresas: EmpresaOperativaStock[],
-): PotreroDispositivoResumen {
-  const devices = collectCampoMapaFeatureDevices(
-    potrero.nombre,
-    potrero.metadata,
-    ganadero,
-    equino,
-  );
-
+): Pick<PotreroDispositivoResumen, "porEmpresa" | "porSexo"> {
   const porEmpresa = countRows(
-    devices.map(({ device }) => {
+    devices.map((device) => {
       const nombre = fmtEmpresaOperativa(device.empresa, empresas);
       const colorId = normalizarColorCaravana(
         device.color_caravana || colorEmpresaOperativa(device.empresa, empresas),
@@ -84,7 +75,7 @@ export function buildPotreroDispositivoResumen(
   );
 
   const porSexo = countRows(
-    devices.map(({ device }) => {
+    devices.map((device) => {
       const empresa = fmtEmpresaOperativa(device.empresa, empresas);
       const sexoKey = device.sexo || "sin-sexo";
       const colorId = normalizarColorCaravana(
@@ -92,7 +83,7 @@ export function buildPotreroDispositivoResumen(
       );
       return {
         key: `${empresa}::${sexoKey}`,
-        label: `${empresa} · ${sexoLabel(device.sexo)}`,
+        label: `${empresa} · ${sexoLabelPotreroResumen(device.sexo ?? "")}`,
         hex: hexColorCaravana(colorId) ?? undefined,
       };
     }),
@@ -105,6 +96,24 @@ export function buildPotreroDispositivoResumen(
       sex === "HEMBRA" ? 0 : sex === "MACHO" ? 1 : 2;
     return sexOrder(sexA) - sexOrder(sexB);
   });
+
+  return { porEmpresa, porSexo };
+}
+
+export function buildPotreroDispositivoResumen(
+  potrero: CampoPotreroMapa,
+  ganadero: StockGanaderaDispositivo[],
+  equino: StockGanaderaDispositivo[],
+  empresas: EmpresaOperativaStock[],
+): PotreroDispositivoResumen {
+  const devices = collectCampoMapaFeatureDevices(
+    potrero.nombre,
+    potrero.metadata,
+    ganadero,
+    equino,
+  ).map((item) => item.device);
+
+  const { porEmpresa, porSexo } = buildDispositivoResumenFilas(devices, empresas);
 
   return {
     potreroId: potrero.id,

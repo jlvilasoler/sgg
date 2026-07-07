@@ -273,6 +273,11 @@ export function canAccessStockGanaderoAdmin(user: AuthUser | null): boolean {
   return user?.rol === "admin";
 }
 
+/** Dotación ganadera — equivalencias UG (Configuración SAG): solo superadministrador. */
+export function canAccessConfigDotacionGanadera(user: AuthUser | null): boolean {
+  return Boolean(user?.es_super_admin);
+}
+
 /** Calendarios de contribución rural (Configuración SAG): solo superadministrador de plataforma. */
 export function canAccessConfigVencimientosImpuestos(user: AuthUser | null): boolean {
   return Boolean(user?.es_super_admin);

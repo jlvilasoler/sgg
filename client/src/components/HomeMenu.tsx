@@ -31,6 +31,7 @@ import {
 } from "../api";
 import { confirmAction } from "../utils/confirm";
 import HomeCampoMapaPanel from "./home/HomeCampoMapaPanel";
+import HomeStockPotreroPanel from "./home/HomeStockPotreroPanel";
 import HomeNotasBoard from "./home/HomeNotasBoard";
 import HomeNotaModal from "./home/HomeNotaModal";
 
@@ -303,6 +304,7 @@ export default function HomeMenu({
   } = useHomeDashboard(user, apiOnline);
 
   const puedeMapaCampo = canAccessScreen(user, "campo_mapa");
+  const puedeStockGanadero = canAccessScreen(user, "stock_ganadero");
 
   const recentMerged = useMemo(
     () => mergeRecentModuleLists(getRecentHomeModules(user.id), recentScreens),
@@ -713,6 +715,14 @@ export default function HomeMenu({
                     </div>
                   )}
                 </section>
+              ) : null}
+
+              {puedeStockGanadero ? (
+                <HomeStockPotreroPanel
+                  apiOnline={apiOnline}
+                  onOpenStock={() => onOpen("stock_ganadero")}
+                  onOpenMapa={puedeMapaCampo ? () => onOpen("campo_mapa") : undefined}
+                />
               ) : null}
 
               <section
