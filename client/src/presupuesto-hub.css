@@ -851,6 +851,27 @@
   gap: 0.3rem;
 }
 
+.presupuesto-auto-plantillas-panel .presupuesto-auto-item-actions {
+  flex-wrap: nowrap;
+}
+
+.presupuesto-auto-plantillas-panel .presupuesto-auto-item-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  min-width: 2rem;
+  min-height: 2rem;
+  padding: 0;
+  border-radius: 0.5rem;
+  flex-shrink: 0;
+}
+
+.presupuesto-auto-plantillas-panel .presupuesto-auto-item-action-btn svg {
+  flex-shrink: 0;
+}
+
 .presupuesto-auto-badge {
   font-size: 0.64rem;
   font-weight: 700;
@@ -2185,7 +2206,16 @@
   }
 
   .presupuesto-auto-pendiente-item .presupuesto-auto-item-actions .sg-hub-cta,
-  .presupuesto-auto-plantilla-item .presupuesto-auto-item-actions .sg-hub-cta {
+  .presupuesto-auto-plantilla-item .presupuesto-auto-item-actions .sg-hub-cta:not(
+      .presupuesto-auto-item-action-btn
+    ) {
+    min-height: var(--touch-min, 2.75rem);
+  }
+
+  .presupuesto-auto-plantilla-item .presupuesto-auto-item-actions .presupuesto-auto-item-action-btn {
+    width: var(--touch-min, 2.75rem);
+    height: var(--touch-min, 2.75rem);
+    min-width: var(--touch-min, 2.75rem);
     min-height: var(--touch-min, 2.75rem);
   }
 

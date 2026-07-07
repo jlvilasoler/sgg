@@ -501,36 +501,37 @@ export default function AutomatizacionGastos({
                         <span className="presupuesto-auto-item-actions">
                           <button
                             type="button"
-                            className="sg-hub-cta sg-hub-cta--ghost sg-hub-cta--compact"
+                            className="sg-hub-cta sg-hub-cta--ghost presupuesto-auto-item-action-btn"
                             title="Editar montos y día"
+                            aria-label="Editar automatización"
                             onClick={() => abrirEditar(p)}
                             disabled={busyId === p.id}
                           >
-                            <Pencil size={14} aria-hidden />
-                            Editar
+                            <Pencil size={15} aria-hidden />
                           </button>
                           <button
                             type="button"
-                            className="sg-hub-cta sg-hub-cta--ghost sg-hub-cta--compact"
+                            className="sg-hub-cta sg-hub-cta--ghost presupuesto-auto-item-action-btn"
                             title={p.activo ? "Pausar" : "Reanudar"}
+                            aria-label={p.activo ? "Pausar automatización" : "Reanudar automatización"}
                             onClick={() => void togglePausa(p)}
                             disabled={busyId === p.id}
                           >
                             {p.activo ? (
-                              <Pause size={14} aria-hidden />
+                              <Pause size={15} aria-hidden />
                             ) : (
-                              <Play size={14} aria-hidden />
+                              <Play size={15} aria-hidden />
                             )}
-                            {p.activo ? "Pausar" : "Reanudar"}
                           </button>
                           <button
                             type="button"
-                            className="sg-hub-cta sg-hub-cta--ghost sg-hub-cta--compact presupuesto-auto-btn-omit"
+                            className="sg-hub-cta sg-hub-cta--ghost presupuesto-auto-item-action-btn presupuesto-auto-btn-omit"
                             title="Eliminar"
+                            aria-label="Eliminar automatización"
                             onClick={() => void eliminar(p)}
                             disabled={busyId === p.id}
                           >
-                            <Trash2 size={14} aria-hidden />
+                            <Trash2 size={15} aria-hidden />
                           </button>
                         </span>
                       ) : null}
