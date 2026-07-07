@@ -18,7 +18,13 @@ export type HomePanelId = (typeof HOME_PANEL_IDS)[number];
 
 export type HomeLayoutMap = Record<HomePanelId, boolean>;
 
-export const HOME_LAYOUT_ROLES: Rol[] = ["editor", "gestor_n2", "consulta"];
+export const HOME_LAYOUT_ROLES = ["editor", "gestor_n2", "consulta"] as const;
+
+export type HomeLayoutConfigurableRol = (typeof HOME_LAYOUT_ROLES)[number];
+
+export function isHomeLayoutConfigurableRol(rol: Rol): rol is HomeLayoutConfigurableRol {
+  return (HOME_LAYOUT_ROLES as readonly Rol[]).includes(rol);
+}
 
 export interface HomePanelMeta {
   id: HomePanelId;
@@ -137,7 +143,7 @@ export function canShowHomePanel(
 }
 
 export interface HomeLayoutRoleConfig {
-  rol: Rol;
+  rol: HomeLayoutConfigurableRol;
   rol_label: string;
   paneles: HomeLayoutMap;
 }

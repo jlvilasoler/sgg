@@ -2,10 +2,9 @@ import { Clock3, LayoutGrid, Search } from "lucide-react";
 import type { CSSProperties, ReactNode } from "react";
 import type { TabId } from "../Header";
 import { MenuAppIcon, MENU_APP_THEMES } from "../icons/MenuAppIcons";
-import type { Rol } from "../../types";
 import {
-  HOME_LAYOUT_ROLES,
   HOME_PANEL_META,
+  type HomeLayoutConfigurableRol,
   type HomeLayoutMap,
   type HomePanelId,
 } from "../../utils/home-layout-config";
@@ -13,13 +12,13 @@ import { SgHubKpi, SgMiniBars } from "../stock/SgHubUi";
 
 interface Props {
   paneles: HomeLayoutMap;
-  rol: Rol;
+  rol: HomeLayoutConfigurableRol;
   rolLabel: string;
   accent: string;
 }
 
 const ROLE_PREVIEW: Record<
-  (typeof HOME_LAYOUT_ROLES)[number],
+  HomeLayoutConfigurableRol,
   { navItems: string[]; quickModules: TabId[]; readOnly?: boolean; cuentaHint: string }
 > = {
   editor: {

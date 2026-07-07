@@ -122,7 +122,13 @@ import type { PatenteSuciveCalendariosStore } from "./types/patente-sucive";
 import type { BpsCajaRuralCalendariosStore } from "./types/bps-caja-rural";
 import type { PrimariaRuralCalendariosStore } from "./types/primaria-rural";
 import type { GastoMapeoCampos } from "./utils/gasto-campos";
+import type {
+  HomeLayoutConfigurableRol,
+  HomeLayoutRoleConfig,
+} from "./utils/home-layout-config";
 import { apiConnectionError } from "./utils/api-messages";
+
+export type { HomeLayoutRoleConfig };
 
 const API = "/api";
 
@@ -4180,19 +4186,13 @@ export async function actualizarRolePermissions(
   return json.data;
 }
 
-export interface HomeLayoutRoleConfig {
-  rol: Rol;
-  rol_label: string;
-  paneles: Record<string, boolean>;
-}
-
 export async function fetchHomeLayoutConfig(): Promise<HomeLayoutRoleConfig[]> {
   const json = await request<{ data: HomeLayoutRoleConfig[] }>("/auth/home-layout");
   return json.data;
 }
 
 export async function actualizarHomeLayoutRol(
-  rol: Rol,
+  rol: HomeLayoutConfigurableRol,
   paneles: Record<string, boolean>,
 ): Promise<HomeLayoutRoleConfig> {
   const json = await request<{ data: HomeLayoutRoleConfig }>(`/auth/home-layout/${rol}`, {

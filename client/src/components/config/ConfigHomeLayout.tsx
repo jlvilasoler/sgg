@@ -3,14 +3,14 @@ import { Eye, EyeOff, Save, Sparkles } from "lucide-react";
 import {
   actualizarHomeLayoutRol,
   fetchHomeLayoutConfig,
-  type HomeLayoutRoleConfig,
 } from "../../api";
-import type { Rol } from "../../types";
 import {
   HOME_LAYOUT_ROLES,
   HOME_PANEL_META,
+  isHomeLayoutConfigurableRol,
   normalizeHomeLayoutMap,
   rolHomeLayoutLabel,
+  type HomeLayoutConfigurableRol,
   type HomeLayoutMap,
   type HomePanelId,
 } from "../../utils/home-layout-config";
@@ -24,7 +24,7 @@ interface Props {
   onSuccess: (msg: string) => void;
 }
 
-const ROL_ACCENT: Record<(typeof HOME_LAYOUT_ROLES)[number], string> = {
+const ROL_ACCENT: Record<HomeLayoutConfigurableRol, string> = {
   editor: "#2563eb",
   gestor_n2: "#7c3aed",
   consulta: "#0f766e",
@@ -37,11 +37,10 @@ export default function ConfigHomeLayout({
   onError,
   onSuccess,
 }: Props) {
-  const [configs, setConfigs] = useState<HomeLayoutRoleConfig[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [activeRol, setActiveRol] = useState<Rol>(HOME_LAYOUT_ROLES[0]);
-  const [drafts, setDrafts] = useState<Partial<Record<Rol, HomeLayoutMap>>>({});
+  const [activeRol, setActiveRol] = useState<HomeLayoutConfigurableRol>(HOME_LAYOUT_ROLES[0]);
+  const [drafts, setDrafts] = useState<Partial<Record<HomeLayoutConfigurableRol, HomeLayoutMap>>>({});
   const [dirty, setDirty] = useState(false);
 
   const load = useCallback(async () => {
@@ -52,9 +51,9 @@ export default function ConfigHomeLayout({
     setLoading(true);
     try {
       const data = await fetchHomeLayoutConfig();
-      setConfigs(data);
-      const nextDrafts: Partial<Record<Rol, HomeLayoutMap>> = {};
+      const nextDrafts: Partial<Record<HomeLayoutConfigurableRol, HomeLayoutMap>> = {};
       for (const row of data) {
+        if (!isHomeLayoutConfigurableRol(row.rol)) continue;
         nextDrafts[row.rol] = normalizeHomeLayoutMap(row.paneles);
       }
       setDrafts(nextDrafts);
@@ -107,9 +106,6 @@ export default function ConfigHomeLayout({
       const draft = drafts[activeRol];
       if (!draft) return;
       const updated = await actualizarHomeLayoutRol(activeRol, draft);
-      setConfigs((prev) =>
-        prev.map((row) => (row.rol === updated.rol ? updated : row)),
-      );
       setDrafts((prev) => ({
         ...prev,
         [activeRol]: normalizeHomeLayoutMap(updated.paneles),
