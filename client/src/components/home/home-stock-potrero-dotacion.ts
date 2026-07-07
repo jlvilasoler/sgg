@@ -41,6 +41,18 @@ export function resolvePotreroHectareas(potrero: CampoPotreroMapa): number | nul
   }
 }
 
+/** 1 UG/ha equivale al 100 % de ocupación de referencia (vaca adulta por hectárea). */
+export const UG_HA_CAPACIDAD_REFERENCIA = 1;
+
+export function calcularOcupacionPotreroPct(
+  totalUg: number,
+  hectareas: number | null,
+): number | null {
+  const ugPorHa = calcularDotacionUgPorHa(totalUg, hectareas);
+  if (ugPorHa == null) return null;
+  return Math.round((ugPorHa / UG_HA_CAPACIDAD_REFERENCIA) * 100);
+}
+
 export function calcularDotacionUgPorHa(
   totalUg: number,
   hectareas: number | null,
@@ -213,5 +225,36 @@ export function formatDotacionCelda(dotacion: DotacionGanaderaResumen): {
       dotacion.hectareas != null
         ? `${formatHectareas(dotacion.hectareas)} · ${dotacion.etiqueta}`
         : dotacion.etiqueta,
+  };
+}
+
+export function formatOcupacionCelda(dotacion: DotacionGanaderaResumen): {
+  principal: string;
+  nivel: DotacionNivel;
+  tooltip: string;
+} | null {
+  const pct = calcularOcupacionPotreroPct(dotacion.totalUg, dotacion.hectareas);
+  if (pct == null || dotacion.hectareas == null) return null;
+
+  const haLabel = formatHectareas(dotacion.hectareas);
+  return {
+    principal: `${pct.toLocaleString("es-UY")}%`,
+    nivel: dotacion.nivel,
+    tooltip: `Ocupación del potrero: ${formatUnidadGanadera(dotacion.totalUg)} ÷ ${haLabel} = ${pct}% (referencia ${UG_HA_CAPACIDAD_REFERENCIA} UG/ha = 100%). Superficie del mapa satelital.`,
+  };
+}
+
+export function formatOcupacionPromedio(ugHa: number | null): {
+  principal: string;
+  nivel: DotacionNivel;
+  tooltip: string;
+} | null {
+  if (ugHa == null) return null;
+  const pct = Math.round((ugHa / UG_HA_CAPACIDAD_REFERENCIA) * 100);
+  const clasificacion = clasificarDotacion(ugHa);
+  return {
+    principal: `${pct.toLocaleString("es-UY")}%`,
+    nivel: clasificacion.nivel,
+    tooltip: `Promedio ponderado en potreros con superficie: ${pct}% de ocupación (UG ÷ ha del mapa, referencia 1 UG/ha = 100%).`,
   };
 }

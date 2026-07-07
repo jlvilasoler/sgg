@@ -1,15 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  Building2,
-  Landmark,
-  RefreshCw,
-  Search,
-  ShieldCheck,
-  TrendingUp,
-  Wallet,
-} from "lucide-react";
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
+import { Landmark, RefreshCw, Search, ShieldCheck } from "lucide-react";
 import { fetchCuentasControlResumen } from "../api";
 import type { CuentaControlResumen, CuentasControlPlataformaResumen } from "../types";
+import { SgHubKpi, SgMiniBars } from "./stock/SgHubUi";
 import TablePagination, { type PageSize } from "./TablePagination";
 
 interface Props {
@@ -115,17 +108,17 @@ export default function ControlGlobalCuentas({
   const hayFiltros = Boolean(filtroTexto.trim() || filtroEstado);
   const cuentasActivas = useMemo(
     () => (data?.cuentas ?? []).filter((c) => c.activo).length,
-    [data?.cuentas]
+    [data?.cuentas],
   );
   const cuentasSuspendidas = useMemo(
     () => (data?.cuentas ?? []).filter((c) => !c.activo).length,
-    [data?.cuentas]
+    [data?.cuentas],
   );
 
   const syncLabel = loading
     ? "Sincronizando libro mayor…"
     : !apiOnline
-      ? "Sin enlace al core bancario (API)"
+      ? "Sin enlace al servidor (API)"
       : ultimaActualizacion
         ? `Última sincronización ${ultimaActualizacion.toLocaleString("es-UY", {
             day: "2-digit",
@@ -135,114 +128,110 @@ export default function ControlGlobalCuentas({
           })}`
         : "Libro mayor listo";
 
+  const kpiPlaceholder = loading || !apiOnline ? "—" : undefined;
+
   return (
     <div className="subseccion-panel bank-control-shell">
-      <button type="button" className="subseccion-back bank-control-back" onClick={onVolver}>
+      <button type="button" className="subseccion-back" onClick={onVolver}>
         ‹ {volverLabel}
       </button>
 
-      <div className="bank-control-hero">
-        <div className="bank-control-hero-grid" aria-hidden />
-        <div className="bank-control-hero-inner">
-          <div className="bank-control-hero-brand">
-            <span className="bank-control-hero-icon" aria-hidden>
-              <Landmark size={28} strokeWidth={1.75} />
+      <section className="sg-hub-panel bank-control-panel" aria-labelledby="bank-control-title">
+        <header className="sg-hub-panel-head bank-control-head">
+          <div className="bank-control-head-copy">
+            <p className="sg-hub-panel-kicker">Plataforma SAG · Supervisión</p>
+            <h2 id="bank-control-title" className="sg-hub-panel-title">
+              Centro de control de cuentas
+            </h2>
+            <p className="bank-control-lead muted">
+              Monitoreo consolidado de cuentas madre: activos productivos, movimientos contables y
+              exposición en pesos. Vista de auditoría en solo lectura.
+            </p>
+            <p className="bank-control-sync-meta muted">{syncLabel}</p>
+          </div>
+          <div className="bank-control-head-side">
+            <span className="bank-control-head-icon" aria-hidden>
+              <Landmark size={20} strokeWidth={1.75} />
             </span>
-            <div>
-              <p className="bank-control-hero-kicker">Supervisión institucional · SAG Core</p>
-              <h1 className="bank-control-hero-title">Centro de control de cuentas cliente</h1>
-              <p className="bank-control-hero-sub">
-                Monitoreo consolidado de cuentas madre: activos productivos, movimientos
-                contables y exposición en pesos. Vista de auditoría en solo lectura.
-              </p>
+            <div className="bank-control-head-actions">
+              <span className="bank-control-compliance">
+                <ShieldCheck size={14} aria-hidden />
+                Modo auditoría
+              </span>
+              <button
+                type="button"
+                className="sg-hub-cta bank-control-sync-btn"
+                disabled={!apiOnline || loading}
+                onClick={() => void load()}
+              >
+                <RefreshCw
+                  size={15}
+                  className={loading ? "bank-control-spin" : undefined}
+                  aria-hidden
+                />
+                Sincronizar
+              </button>
             </div>
           </div>
-          <div className="bank-control-hero-actions">
-            <span className="bank-control-compliance">
-              <ShieldCheck size={15} aria-hidden />
-              Modo auditoría
-            </span>
-            <button
-              type="button"
-              className="bank-control-sync-btn"
-              disabled={!apiOnline || loading}
-              onClick={() => void load()}
-            >
-              <RefreshCw size={16} className={loading ? "bank-control-spin" : undefined} aria-hidden />
-              Sincronizar
-            </button>
-          </div>
-        </div>
-        <p className="bank-control-sync-meta">{syncLabel}</p>
-      </div>
+        </header>
 
-      <div className="bank-control-body">
-        <section className="bank-control-kpis" aria-label="Indicadores consolidados">
-          <article className="bank-control-kpi bank-control-kpi--primary">
-            <span className="bank-control-kpi-icon" aria-hidden>
-              <Building2 size={20} />
-            </span>
-            <div className="bank-control-kpi-copy">
-              <span className="bank-control-kpi-label">Cartera de cuentas</span>
-              <span className="bank-control-kpi-value">
-                {loading || !apiOnline ? "—" : fmtEntero(data?.cuentas.length ?? 0)}
-              </span>
-              <span className="bank-control-kpi-hint">
-                {loading || !apiOnline
-                  ? "—"
-                  : `${cuentasActivas} operativas · ${cuentasSuspendidas} suspendidas`}
-              </span>
-            </div>
-          </article>
-          <article className="bank-control-kpi bank-control-kpi--assets">
-            <span className="bank-control-kpi-icon" aria-hidden>
-              <TrendingUp size={20} />
-            </span>
-            <div className="bank-control-kpi-copy">
-              <span className="bank-control-kpi-label">Activos productivos</span>
-              <span className="bank-control-kpi-value">
-                {loading || !apiOnline ? "—" : fmtEntero(totales.animales_total)}
-              </span>
-              <span className="bank-control-kpi-hint">
-                Ganadero {loading || !apiOnline ? "—" : fmtEntero(totales.animales_ganadero)} ·
-                Equino {loading || !apiOnline ? "—" : fmtEntero(totales.animales_equino)}
-              </span>
-            </div>
-          </article>
-          <article className="bank-control-kpi bank-control-kpi--movements">
-            <span className="bank-control-kpi-icon" aria-hidden>
-              <Wallet size={20} />
-            </span>
-            <div className="bank-control-kpi-copy">
-              <span className="bank-control-kpi-label">Movimientos contables</span>
-              <span className="bank-control-kpi-value">
-                {loading || !apiOnline ? "—" : fmtEntero(totales.gastos_registros)}
-              </span>
-              <span className="bank-control-kpi-hint">Registros en presupuesto / gastos</span>
-            </div>
-          </article>
-          <article className="bank-control-kpi bank-control-kpi--exposure">
-            <span className="bank-control-kpi-icon" aria-hidden>
-              <Landmark size={20} />
-            </span>
-            <div className="bank-control-kpi-copy">
-              <span className="bank-control-kpi-label">Exposición consolidada</span>
-              <span className="bank-control-kpi-value bank-control-kpi-value--money">
-                {loading || !apiOnline ? "—" : fmtPesos(totales.gastos_pesos)}
-              </span>
-              <span className="bank-control-kpi-hint">Suma de montos en pesos por cuenta</span>
-            </div>
-          </article>
+        <section
+          className="sg-hub-kpi-strip home-hub-kpi-strip bank-control-kpi-strip"
+          aria-label="Indicadores consolidados"
+          style={{ "--home-hub-kpi-cols": "4" } as CSSProperties}
+        >
+          <SgHubKpi
+            variant="dark"
+            kicker="Cartera de cuentas"
+            value={kpiPlaceholder ?? fmtEntero(data?.cuentas.length ?? 0)}
+            hint={
+              kpiPlaceholder
+                ? "—"
+                : `${cuentasActivas} operativas · ${cuentasSuspendidas} suspendidas`
+            }
+            trend="Cuentas madre"
+            bars={<SgMiniBars highlight="mid" />}
+          />
+          <SgHubKpi
+            variant="dark"
+            kicker="Activos productivos"
+            value={kpiPlaceholder ?? fmtEntero(totales.animales_total)}
+            hint={
+              kpiPlaceholder
+                ? "—"
+                : `Ganadero ${fmtEntero(totales.animales_ganadero)} · Equino ${fmtEntero(totales.animales_equino)}`
+            }
+            trend="Stock vivo"
+            bars={<SgMiniBars />}
+          />
+          <SgHubKpi
+            variant="light"
+            kicker="Movimientos contables"
+            value={kpiPlaceholder ?? fmtEntero(totales.gastos_registros)}
+            hint="Registros en presupuesto / gastos"
+            bars={<SgMiniBars highlight="last" />}
+          />
+          <SgHubKpi
+            variant="light"
+            kicker="Exposición consolidada"
+            value={kpiPlaceholder ?? fmtPesos(totales.gastos_pesos)}
+            hint="Suma de montos en pesos por cuenta"
+            trend="UYU"
+            bars={<SgMiniBars />}
+          />
         </section>
 
-        <section className="bank-control-panel">
-          <header className="bank-control-panel-head">
+        <section className="bank-control-data" aria-labelledby="bank-control-table-title">
+          <header className="bank-control-data-head">
             <div>
-              <h2 className="bank-control-panel-title">Libro mayor · Cuentas cliente</h2>
-              <p className="bank-control-panel-sub">
+              <p className="bank-control-data-kicker">Libro mayor</p>
+              <h3 id="bank-control-table-title" className="bank-control-data-title">
+                Cuentas cliente
+              </h3>
+              <p className="bank-control-data-sub muted">
                 {hayFiltros
                   ? `${filas.length} de ${data?.cuentas.length ?? 0} cuentas en pantalla`
-                  : "Detalle por titular · clasificación operativa y saldos agregados"}
+                  : "Detalle por titular, clasificación operativa y saldos agregados"}
               </p>
             </div>
           </header>
@@ -260,7 +249,7 @@ export default function ControlGlobalCuentas({
               />
             </label>
             <label className="bank-control-select-wrap">
-              <span>Estado operativo</span>
+              <span className="bank-control-field-label">Estado operativo</span>
               <select
                 value={filtroEstado}
                 onChange={(e) => setFiltroEstado(e.target.value as "" | "activo" | "inactivo")}
@@ -274,7 +263,7 @@ export default function ControlGlobalCuentas({
             {hayFiltros ? (
               <button
                 type="button"
-                className="bank-control-clear"
+                className="home-hub-link bank-control-clear"
                 onClick={() => {
                   setFiltroTexto("");
                   setFiltroEstado("");
@@ -304,7 +293,7 @@ export default function ControlGlobalCuentas({
                 {loading ? (
                   <tr>
                     <td colSpan={9} className="bank-control-empty">
-                      Consultando core…
+                      Consultando datos…
                     </td>
                   </tr>
                 ) : !apiOnline ? (
@@ -356,7 +345,7 @@ export default function ControlGlobalCuentas({
             onPageSizeChange={setPageSize}
           />
         </section>
-      </div>
+      </section>
     </div>
   );
 }

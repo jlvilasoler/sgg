@@ -9,6 +9,7 @@ import {
   CONTRIBUCION_RURAL_JURISDICCION_ORDER,
   shiftJurisdiccionDatesToYear,
 } from "../types/contribucion-rural";
+import { escudoDepartamentoSrc } from "../utils/escudos-departamentos";
 import { safeExternalHref, safeExternalHostname } from "../utils/safe-url";
 
 interface Props {
@@ -64,7 +65,7 @@ function CuotasEditor({
     <div className="venc-imp-form-cuotas">
       {cuotas.map((item) => (
         <label key={item.cuota} className="venc-imp-form-cuota">
-          <span>Cuota {item.cuota}</span>
+          <span className="venc-imp-form-label">Cuota {item.cuota}</span>
           <input
             type="date"
             value={item.fecha}
@@ -125,9 +126,18 @@ export default function VencimientosImpuestosCalendariosForm({ store, saving, on
           return (
             <article key={id} className="venc-imp-form-card">
               <header className="venc-imp-form-card-head">
-                <h3>{j.label}</h3>
+                <div className="venc-imp-form-card-title">
+                  <img
+                    src={escudoDepartamentoSrc(id)}
+                    alt=""
+                    className="venc-imp-form-card-escudo"
+                    width={28}
+                    height={28}
+                  />
+                  <h3>{j.label}</h3>
+                </div>
                 <label className="venc-imp-form-anio">
-                  Ejercicio
+                  <span className="venc-imp-form-label">Ejercicio</span>
                   <input
                     type="number"
                     min={2000}
@@ -143,7 +153,7 @@ export default function VencimientosImpuestosCalendariosForm({ store, saving, on
               </header>
 
               <label className="venc-imp-form-url">
-                Link oficial
+                <span className="venc-imp-form-label">Link oficial</span>
                 <input
                   type="url"
                   value={j.fuenteUrl}
@@ -187,7 +197,7 @@ export default function VencimientosImpuestosCalendariosForm({ store, saving, on
               )}
 
               <label className="venc-imp-form-nota">
-                Nota al pie (opcional)
+                <span className="venc-imp-form-label">Nota al pie (opcional)</span>
                 <input
                   type="text"
                   value={j.fuenteNota}

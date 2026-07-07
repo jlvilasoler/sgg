@@ -1,12 +1,12 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
+import { Layers, Plus, Search } from "lucide-react";
 import {
   actualizarEmpresaCuenta,
   crearEmpresaCuenta,
   fetchEmpresasCuenta,
 } from "../api";
 import type { AuthUser, EmpresaCuenta, EmpresaCuentaForm } from "../types";
-import { PageModuleHeadRow } from "./PageModuleHead";
 import ArquitecturaCuentaDetalle, {
   type CuentaDetallePanel,
 } from "./ArquitecturaCuentaDetalle";
@@ -16,6 +16,7 @@ import {
   emptyOperativaForm,
   iniciales,
 } from "./arquitectura-sistema-shared";
+import { SgHubKpi, SgMiniBars } from "./stock/SgHubUi";
 
 interface Props {
   apiOnline: boolean;
@@ -252,226 +253,261 @@ export default function ArquitecturaSistema({
         ? `${filteredRows.length} de ${empresas.length} cuenta(s) en pantalla`
         : `${empresas.length} cuenta(s) madre registrada${empresas.length === 1 ? "" : "s"}`;
 
+  const kpiPlaceholder = loading || !apiOnline ? "—" : undefined;
+
   return (
-    <div className="subseccion-panel usuarios-admin arquitectura-sistema">
+    <div className="subseccion-panel arq-sistema-shell">
       <button type="button" className="subseccion-back" onClick={onVolver}>
         ‹ {volverLabel}
       </button>
 
-      <div className="card usuarios-panel listado-pro-shell">
-        <header className="listado-pro-head usuarios-admin-head">
-          <div className="listado-pro-head-main">
-            <PageModuleHeadRow
-              icon={{ source: "hub", id: "arquitectura_sistema" }}
-              title={titulo}
-              subtitle={subtitulo}
-              titleClassName="listado-pro-head-title"
-              subClassName="listado-pro-head-sub"
-              textClassName="listado-pro-head-text"
-            />
+      <section className="sg-hub-panel arq-sistema-panel" aria-labelledby="arq-sistema-title">
+        <header className="sg-hub-panel-head arq-sistema-head">
+          <div className="arq-sistema-head-copy">
+            <p className="sg-hub-panel-kicker">Plataforma SAG · Cuentas</p>
+            <h2 id="arq-sistema-title" className="sg-hub-panel-title">
+              {titulo}
+            </h2>
+            <p className="arq-sistema-lead muted">
+              Gestión de cuentas madre, empresas operativas y usuarios. Cree cuentas, asigne
+              administradores y supervise el estado operativo de cada titular.
+            </p>
+            <p className="arq-sistema-meta muted">{subtitulo}</p>
           </div>
-          <div className="usuarios-head-actions">
+          <div className="arq-sistema-head-side">
+            <span className="arq-sistema-head-icon" aria-hidden>
+              <Layers size={20} strokeWidth={1.75} />
+            </span>
             <button
               type="button"
-              className="btn btn-primary"
+              className="sg-hub-cta arq-sistema-new-btn"
               disabled={!apiOnline}
               onClick={openNuevaEmpresa}
             >
-              + Nueva cuenta madre
+              <Plus size={15} aria-hidden />
+              Nueva cuenta madre
             </button>
           </div>
         </header>
 
-        <section className="usuarios-admin-dashboard" aria-label="Resumen de cuentas">
-          <div className="usuarios-admin-kpi-grid">
-            <article className="usuarios-admin-kpi usuarios-admin-kpi--hero">
-              <span className="usuarios-admin-kpi-label">Cuentas madre</span>
-              <span className="usuarios-admin-kpi-valor">
-                {loading || !apiOnline ? "—" : stats.total}
-              </span>
-              <span className="usuarios-admin-kpi-hint">Total en el sistema</span>
-            </article>
-            <article className="usuarios-admin-kpi usuarios-admin-kpi--activos">
-              <span className="usuarios-admin-kpi-label">Activas</span>
-              <span className="usuarios-admin-kpi-valor">
-                {loading || !apiOnline ? "—" : stats.activas}
-              </span>
-              <span className="usuarios-admin-kpi-hint">Operando normalmente</span>
-            </article>
-            <article className="usuarios-admin-kpi usuarios-admin-kpi--inactivos">
-              <span className="usuarios-admin-kpi-label">Empresas internas</span>
-              <span className="usuarios-admin-kpi-valor">
-                {loading || !apiOnline ? "—" : stats.empresasOp}
-              </span>
-              <span className="usuarios-admin-kpi-hint">Empresas operativas</span>
-            </article>
-            <article className="usuarios-admin-kpi usuarios-admin-kpi--recientes">
-              <span className="usuarios-admin-kpi-label">Usuarios</span>
-              <span className="usuarios-admin-kpi-valor">
-                {loading || !apiOnline ? "—" : stats.usuarios}
-              </span>
-              <span className="usuarios-admin-kpi-hint">En todas las cuentas</span>
-            </article>
-          </div>
+        <section
+          className="sg-hub-kpi-strip home-hub-kpi-strip arq-sistema-kpi-strip"
+          aria-label="Resumen de cuentas"
+          style={{ "--home-hub-kpi-cols": "4" } as CSSProperties}
+        >
+          <SgHubKpi
+            variant="dark"
+            kicker="Cuentas madre"
+            value={kpiPlaceholder ?? String(stats.total)}
+            hint="Total en el sistema"
+            trend="Plataforma"
+            bars={<SgMiniBars highlight="mid" />}
+          />
+          <SgHubKpi
+            variant="dark"
+            kicker="Activas"
+            value={kpiPlaceholder ?? String(stats.activas)}
+            hint={
+              kpiPlaceholder
+                ? "—"
+                : `${stats.inactivas} inactiva${stats.inactivas === 1 ? "" : "s"}`
+            }
+            trend="Operativas"
+            bars={<SgMiniBars />}
+          />
+          <SgHubKpi
+            variant="light"
+            kicker="Empresas internas"
+            value={kpiPlaceholder ?? String(stats.empresasOp)}
+            hint="Empresas operativas"
+            bars={<SgMiniBars highlight="last" />}
+          />
+          <SgHubKpi
+            variant="light"
+            kicker="Usuarios"
+            value={kpiPlaceholder ?? String(stats.usuarios)}
+            hint="En todas las cuentas"
+            trend="Accesos"
+            bars={<SgMiniBars />}
+          />
         </section>
 
-        <div className="filters listado-pro-filters usuarios-admin-filters">
-          <div className="field usuarios-admin-search">
-            <label htmlFor="arq-filtro-texto">Buscar</label>
-            <input
-              id="arq-filtro-texto"
-              type="search"
-              placeholder="Nombre, código o ID…"
-              value={filtroTexto}
-              disabled={loading || !apiOnline}
-              onChange={(e) => setFiltroTexto(e.target.value)}
-            />
-          </div>
-          <div className="field">
-            <label htmlFor="arq-filtro-estado">Estado</label>
-            <select
-              id="arq-filtro-estado"
-              value={filtroEstado}
-              disabled={loading || !apiOnline}
-              onChange={(e) =>
-                setFiltroEstado(e.target.value as "" | "activo" | "inactivo")
-              }
-            >
-              <option value="">Todos</option>
-              <option value="activo">Activas</option>
-              <option value="inactivo">Inactivas</option>
-            </select>
-          </div>
-          <button
-            type="button"
-            className="btn listado-pro-reset-btn"
-            disabled={!hayFiltros || loading}
-            onClick={limpiarFiltros}
-          >
-            Limpiar
-          </button>
-        </div>
+        <section className="arq-sistema-data" aria-labelledby="arq-sistema-table-title">
+          <header className="arq-sistema-data-head">
+            <div>
+              <p className="arq-sistema-data-kicker">Directorio</p>
+              <h3 id="arq-sistema-table-title" className="arq-sistema-data-title">
+                Cuentas madre
+              </h3>
+              <p className="arq-sistema-data-sub muted">
+                {hayFiltros
+                  ? `${filteredRows.length} resultado(s) con los filtros aplicados`
+                  : "Listado de titulares con administrador, empresas y usuarios asociados"}
+              </p>
+            </div>
+          </header>
 
-        <div className="table-wrap listado-pro-table-wrap usuarios-admin-table-wrap">
-          <table className="data-table listado-pro-table usuarios-admin-table">
-            <thead>
-              <tr>
-                <th>Cuenta</th>
-                <th>ID cuenta</th>
-                <th>Código</th>
-                <th>Empresas</th>
-                <th>Usuarios</th>
-                <th>Estado</th>
-                <th className="col-acciones" />
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
+          <div className="arq-sistema-filtros">
+            <label className="arq-sistema-search">
+              <Search size={16} aria-hidden />
+              <span className="sr-only">Buscar cuenta</span>
+              <input
+                id="arq-filtro-texto"
+                type="search"
+                placeholder="Nombre, código o ID…"
+                value={filtroTexto}
+                disabled={loading || !apiOnline}
+                onChange={(e) => setFiltroTexto(e.target.value)}
+              />
+            </label>
+            <label className="arq-sistema-select-wrap">
+              <span className="arq-sistema-field-label">Estado</span>
+              <select
+                id="arq-filtro-estado"
+                value={filtroEstado}
+                disabled={loading || !apiOnline}
+                onChange={(e) =>
+                  setFiltroEstado(e.target.value as "" | "activo" | "inactivo")
+                }
+              >
+                <option value="">Todos</option>
+                <option value="activo">Activas</option>
+                <option value="inactivo">Inactivas</option>
+              </select>
+            </label>
+            {hayFiltros ? (
+              <button
+                type="button"
+                className="home-hub-link arq-sistema-clear"
+                disabled={loading}
+                onClick={limpiarFiltros}
+              >
+                Limpiar filtros
+              </button>
+            ) : null}
+          </div>
+
+          <div className="arq-sistema-table-wrap">
+            <table className="arq-sistema-table">
+              <thead>
                 <tr>
-                  <td colSpan={7} className="usuarios-admin-empty-cell">
-                    <div className="usuarios-admin-empty">Cargando cuentas…</div>
-                  </td>
+                  <th>Cuenta</th>
+                  <th>ID cuenta</th>
+                  <th>Código</th>
+                  <th className="num">Empresas</th>
+                  <th className="num">Usuarios</th>
+                  <th>Estado</th>
+                  <th className="col-acciones" />
                 </tr>
-              ) : filteredRows.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="usuarios-admin-empty-cell">
-                    <div className="usuarios-admin-empty" role="status">
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr>
+                    <td colSpan={7} className="arq-sistema-empty">
+                      Cargando cuentas…
+                    </td>
+                  </tr>
+                ) : filteredRows.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="arq-sistema-empty" role="status">
                       {hayFiltros
                         ? "No hay cuentas que coincidan con los filtros"
                         : "No hay cuentas de empresa registradas"}
-                    </div>
-                  </td>
-                </tr>
-              ) : (
-                filteredRows.map((empresa) => (
-                  <tr
-                    key={empresa.id}
-                    className={`listado-pro-row usuarios-admin-row arquitectura-sistema-tr${
-                      !empresa.activo ? " usuarios-row--inactivo" : ""
-                    }`}
-                    onClick={() => openCuenta(empresa.id)}
-                  >
-                    <td>
-                      <div className="usuarios-table-user">
-                        <span
-                          className="arquitectura-sistema-empresa-avatar arquitectura-sistema-empresa-avatar--sm"
-                          aria-hidden="true"
-                        >
-                          {iniciales(empresa.nombre)}
-                        </span>
-                        <div className="usuarios-table-user-text">
-                          <strong>{empresa.nombre}</strong>
-                          {empresa.admin ? (
-                            <div className="arquitectura-sistema-cuenta-propietario">
-                              <span className="arquitectura-sistema-admin-chip">
-                                <span className="arquitectura-sistema-admin-dot" />
-                                {empresa.admin.nombre}
-                                {empresa.admin.es_super_admin ? " · admin SAG" : ""}
-                              </span>
-                              <span className="arquitectura-sistema-admin-email">
-                                {empresa.admin.email}
-                              </span>
-                            </div>
-                          ) : (
-                            <span className="arquitectura-sistema-admin-chip is-empty">
-                              Sin administrador asignado
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="usuarios-admin-fecha">
-                      <span className="arquitectura-sistema-pill arquitectura-sistema-pill--cuenta">
-                        {empresa.cuenta_numero}
-                      </span>
-                    </td>
-                    <td className="usuarios-admin-fecha">
-                      <span className="arquitectura-sistema-pill arquitectura-sistema-pill--codigo">
-                        {empresa.codigo}
-                      </span>
-                    </td>
-                    <td>{empresa.empresas_count}</td>
-                    <td>{empresa.usuarios_count}</td>
-                    <td>
-                      <span
-                        className={`usuarios-estado-pill ${
-                          empresa.activo
-                            ? "usuarios-estado-pill--activo"
-                            : "usuarios-estado-pill--inactivo"
-                        }`}
-                      >
-                        {empresa.activo ? "Activa" : "Inactiva"}
-                      </span>
-                    </td>
-                    <td className="actions-cell usuarios-admin-actions">
-                      <button
-                        type="button"
-                        className="btn btn-ghost btn-xs"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openCuenta(empresa.id);
-                        }}
-                      >
-                        Abrir
-                      </button>
-                      <button
-                        type="button"
-                        className={`btn btn-xs ${empresa.activo ? "btn-ghost" : "btn-primary"}`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          void handleToggleActiva(empresa);
-                        }}
-                      >
-                        {empresa.activo ? "Desactivar" : "Activar"}
-                      </button>
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+                ) : (
+                  filteredRows.map((empresa) => (
+                    <tr
+                      key={empresa.id}
+                      className={`arq-sistema-row arquitectura-sistema-tr${
+                        empresa.activo ? " arq-sistema-row--activa" : " arq-sistema-row--inactiva"
+                      }`}
+                      onClick={() => openCuenta(empresa.id)}
+                    >
+                      <td>
+                        <div className="arq-sistema-account-cell">
+                          <span
+                            className="arquitectura-sistema-empresa-avatar arquitectura-sistema-empresa-avatar--sm"
+                            aria-hidden="true"
+                          >
+                            {iniciales(empresa.nombre)}
+                          </span>
+                          <div className="arq-sistema-account-text">
+                            <div className="arq-sistema-account-name">{empresa.nombre}</div>
+                            {empresa.admin ? (
+                              <div className="arquitectura-sistema-cuenta-propietario">
+                                <span className="arquitectura-sistema-admin-chip">
+                                  <span className="arquitectura-sistema-admin-dot" />
+                                  {empresa.admin.nombre}
+                                  {empresa.admin.es_super_admin ? " · admin SAG" : ""}
+                                </span>
+                                <span className="arquitectura-sistema-admin-email">
+                                  {empresa.admin.email}
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="arquitectura-sistema-admin-chip is-empty">
+                                Sin administrador asignado
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+                      <td>
+                        <span className="arquitectura-sistema-pill arquitectura-sistema-pill--cuenta">
+                          {empresa.cuenta_numero}
+                        </span>
+                      </td>
+                      <td>
+                        <span className="arquitectura-sistema-pill arquitectura-sistema-pill--codigo">
+                          {empresa.codigo}
+                        </span>
+                      </td>
+                      <td className="num">{empresa.empresas_count}</td>
+                      <td className="num">{empresa.usuarios_count}</td>
+                      <td>
+                        <span
+                          className={`arq-sistema-status ${
+                            empresa.activo
+                              ? "arq-sistema-status--ok"
+                              : "arq-sistema-status--off"
+                          }`}
+                        >
+                          {empresa.activo ? "Activa" : "Inactiva"}
+                        </span>
+                      </td>
+                      <td className="arq-sistema-actions">
+                        <button
+                          type="button"
+                          className="sg-hub-cta sg-hub-cta--ghost sg-hub-cta--compact"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openCuenta(empresa.id);
+                          }}
+                        >
+                          Abrir
+                        </button>
+                        <button
+                          type="button"
+                          className={`sg-hub-cta sg-hub-cta--compact${
+                            empresa.activo ? " sg-hub-cta--ghost" : ""
+                          }`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            void handleToggleActiva(empresa);
+                          }}
+                        >
+                          {empresa.activo ? "Desactivar" : "Activar"}
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </section>
 
       {showNuevaEmpresa &&
         createPortal(

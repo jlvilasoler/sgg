@@ -242,6 +242,7 @@ function PreviewStockPotrero() {
           <tr>
             <th>Potrero</th>
             <th>Total</th>
+            <th>Ocupación</th>
             <th>UG/ha</th>
           </tr>
         </thead>
@@ -249,16 +250,19 @@ function PreviewStockPotrero() {
           <tr>
             <td>La Tapera</td>
             <td>420</td>
+            <td className="is-ok">82%</td>
             <td className="is-ok">0,82</td>
           </tr>
           <tr>
             <td>El Ceibal</td>
             <td>318</td>
+            <td>105%</td>
             <td>1,05</td>
           </tr>
           <tr className="is-muted">
             <td>SIN POTRERO</td>
             <td>12</td>
+            <td>—</td>
             <td>—</td>
           </tr>
         </tbody>

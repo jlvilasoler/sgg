@@ -17,6 +17,8 @@ import {
 import {
   formatDotacionCelda,
   formatDotacionPromedio,
+  formatOcupacionCelda,
+  formatOcupacionPromedio,
 } from "./home-stock-potrero-dotacion";
 
 interface Props {
@@ -95,6 +97,40 @@ function TotalActivosDash({
   );
 }
 
+function OcupacionCelda({
+  resumen,
+  sinAsignar,
+}: {
+  resumen: PotreroStockResumenHome;
+  sinAsignar: boolean;
+}) {
+  if (sinAsignar) {
+    return (
+      <td className="home-stock-potrero-tabla-ocupacion is-dotacion-sin-dato">
+        <span className="home-stock-potrero-dotacion-vacio">—</span>
+      </td>
+    );
+  }
+
+  const ocupacion = formatOcupacionCelda(resumen.dotacion);
+  if (!ocupacion) {
+    return (
+      <td className="home-stock-potrero-tabla-ocupacion is-dotacion-sin-dato">
+        <span className="home-stock-potrero-dotacion-vacio">—</span>
+      </td>
+    );
+  }
+
+  return (
+    <td
+      className={`home-stock-potrero-tabla-ocupacion is-dotacion-${ocupacion.nivel}`}
+      title={ocupacion.tooltip}
+    >
+      <span className="home-stock-potrero-dotacion-valor">{ocupacion.principal}</span>
+    </td>
+  );
+}
+
 function DotacionCelda({
   resumen,
   sinAsignar,
@@ -135,6 +171,7 @@ function PotreroTabla({
   dotacionPromedio: number | null;
 }) {
   const pieDotacion = formatDotacionPromedio(dotacionPromedio);
+  const pieOcupacion = formatOcupacionPromedio(dotacionPromedio);
 
   return (
     <div className="home-stock-potrero-tabla-wrap">
@@ -146,6 +183,13 @@ function PotreroTabla({
             </th>
             <th scope="col" className="home-stock-potrero-tabla-th-total">
               Total
+            </th>
+            <th
+              scope="col"
+              className="home-stock-potrero-tabla-th-ocupacion"
+              title="UG del stock ÷ hectáreas del potrero en el mapa (referencia 1 UG/ha = 100%)"
+            >
+              Ocupación
             </th>
             <th
               scope="col"
@@ -170,6 +214,7 @@ function PotreroTabla({
                 <td className="home-stock-potrero-tabla-num home-stock-potrero-tabla-row-total">
                   {resumen.total}
                 </td>
+                <OcupacionCelda resumen={resumen} sinAsignar={sinAsignar} />
                 <DotacionCelda resumen={resumen} sinAsignar={sinAsignar} />
               </tr>
             );
@@ -181,6 +226,18 @@ function PotreroTabla({
               Total
             </th>
             <td className="home-stock-potrero-tabla-foot-total">{totalGeneral}</td>
+            <td
+              className={`home-stock-potrero-tabla-ocupacion home-stock-potrero-tabla-foot-ocupacion${
+                pieOcupacion ? ` is-dotacion-${pieOcupacion.nivel}` : " is-dotacion-sin-dato"
+              }`}
+              title={pieOcupacion?.tooltip}
+            >
+              {pieOcupacion ? (
+                <span className="home-stock-potrero-dotacion-valor">{pieOcupacion.principal}</span>
+              ) : (
+                <span className="home-stock-potrero-dotacion-vacio">—</span>
+              )}
+            </td>
             <td
               className={`home-stock-potrero-tabla-dotacion home-stock-potrero-tabla-foot-dotacion${
                 pieDotacion ? ` is-dotacion-${pieDotacion.nivel}` : " is-dotacion-sin-dato"
@@ -257,7 +314,7 @@ export default function HomeStockPotreroPanel({ apiOnline, onOpenStock, onOpenMa
           <p className="sg-hub-panel-kicker">Stock ganadero</p>
           <h2 className="sg-hub-panel-title">Animales por potrero</h2>
           <p className="home-stock-potrero-sub muted">
-            Resumen al {fechaHoy} · dotación en UG/ha por categoría · solo animales activos
+            Resumen al {fechaHoy} · ocupación % (UG ÷ ha del mapa) y dotación UG/ha · solo animales activos
           </p>
         </div>
         <button type="button" className="home-hub-link" onClick={onOpenStock}>
