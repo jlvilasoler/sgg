@@ -60,6 +60,29 @@ export function fechaInicioAutomatizacionDesdeGasto(fechaGasto: string): string 
   return `${ny}-${String(nm).padStart(2, "0")}-01`;
 }
 
+/** Fecha contable del pago en un período (AAAA-MM) según el día configurado. */
+export function fechaProgramadaEnPeriodo(periodo: string, diaMes: number): string {
+  const [yStr, mStr] = periodo.split("-");
+  const y = Number(yStr);
+  const m = Number(mStr);
+  if (!y || !m) return periodo;
+  const ultimoDia = new Date(y, m, 0).getDate();
+  const dia = Math.min(diaMes, ultimoDia);
+  return `${yStr}-${mStr}-${String(dia).padStart(2, "0")}`;
+}
+
+/** Primera fecha en que se contabilizará un pago automático (desde + día). */
+export function primeraFechaPagoProgramada(form: AutomatizacionPlantillaFormState): string {
+  const inicio = form.fecha_inicio.slice(0, 10);
+  const periodoInicio = inicio.slice(0, 7);
+  let fecha = fechaProgramadaEnPeriodo(periodoInicio, form.dia_mes);
+  if (fecha < inicio) {
+    const siguienteMes = fechaInicioAutomatizacionDesdeGasto(inicio);
+    fecha = fechaProgramadaEnPeriodo(siguienteMes.slice(0, 7), form.dia_mes);
+  }
+  return fecha;
+}
+
 export function plantillaFormVacia(): AutomatizacionPlantillaFormState {
   return {
     presupuesto_id: 0,
@@ -150,5 +173,8 @@ export function programacionResumen(form: AutomatizacionPlantillaFormState): str
   const intervalo =
     INTERVALO_MESES_OPCIONES.find((o) => o.value === form.intervalo_meses)?.label ??
     `Cada ${form.intervalo_meses} meses`;
-  return `Día ${form.dia_mes} · ${intervalo} · desde ${form.fecha_inicio.slice(0, 10)}`;
+  const primera = primeraFechaPagoProgramada(form);
+  const [y, m, d] = primera.split("-");
+  const primeraFmt = d && m && y ? `${d}/${m}/${y}` : primera;
+  return `Primer pago: ${primeraFmt} · Día ${form.dia_mes} · ${intervalo}`;
 }

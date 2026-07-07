@@ -177,6 +177,31 @@ function periodoYaCubiertoPorOrigen(origenFecha: string | null | undefined, peri
   return periodoDeFecha(origenFecha) === periodo;
 }
 
+function fechaYaCubiertaPorOrigen(
+  origenFecha: string | null | undefined,
+  fechaContable: string,
+): boolean {
+  if (!origenFecha?.trim()) return false;
+  const origen = origenFecha.slice(0, 10);
+  const fecha = fechaContable.slice(0, 10);
+  if (origen === fecha) return true;
+  return periodoDeFecha(origen) === periodoDeFecha(fecha);
+}
+
+/** Primera fecha contable según Paso 2: desde + día del mes. */
+function primeraFechaPago(
+  plantilla: Pick<GastoAutomatizacionRow, "fecha_inicio" | "dia_mes" | "creado_en">,
+): string {
+  const inicio = (plantilla.fecha_inicio || plantilla.creado_en || todayIso()).slice(0, 10);
+  const periodoInicio = periodoDeFecha(inicio);
+  let fecha = fechaProgramada(periodoInicio, plantilla.dia_mes);
+  if (fecha < inicio) {
+    const siguienteMes = primerDiaMesSiguiente(inicio);
+    fecha = fechaProgramada(periodoDeFecha(siguienteMes), plantilla.dia_mes);
+  }
+  return fecha;
+}
+
 function resolveFechaInicioDesdePresupuesto(
   presupuesto: Presupuesto,
   requested?: string,
@@ -188,8 +213,10 @@ function resolveFechaInicioDesdePresupuesto(
 }
 
 function aplicaEnPeriodo(plantilla: GastoAutomatizacionRow, periodo: string): boolean {
-  const inicio = (plantilla.fecha_inicio || plantilla.creado_en || todayIso()).slice(0, 10);
-  const diff = mesesDesdeInicio(inicio, periodo);
+  const fechaPago = fechaProgramada(periodo, plantilla.dia_mes);
+  const primera = primeraFechaPago(plantilla);
+  if (fechaPago < primera) return false;
+  const diff = mesesDesdeInicio(periodoDeFecha(primera), periodo);
   if (diff < 0) return false;
   const intervalo = Math.max(1, plantilla.intervalo_meses || 1);
   return diff % intervalo === 0;
@@ -512,10 +539,19 @@ export async function updateGastoAutomatizacion(
     input.intervalo_meses != null
       ? normalizeIntervaloMeses(input.intervalo_meses)
       : prev.intervalo_meses;
-  const fechaInicio =
+  let fechaInicio =
     input.fecha_inicio != null
       ? normalizeFechaInicio(input.fecha_inicio, prev.fecha_inicio || todayIso())
       : prev.fecha_inicio;
+  if (prev.presupuesto_origen_id) {
+    const origen = (await db
+      .prepare(`SELECT fecha FROM PRESUPUESTO WHERE id = ?`)
+      .get(prev.presupuesto_origen_id)) as { fecha: string } | undefined;
+    if (origen?.fecha) {
+      const min = primerDiaMesSiguiente(origen.fecha);
+      if (fechaInicio < min) fechaInicio = min;
+    }
+  }
   const nombre =
     input.nombre != null ? String(input.nombre).trim() || prev.nombre : prev.nombre;
 
@@ -609,9 +645,11 @@ export async function syncGastoAutomatizacionPendientes(
     const p = rowToPlantilla(raw);
     const origenFecha =
       raw.origen_fecha != null ? String(raw.origen_fecha).slice(0, 10) : null;
-    if (periodoYaCubiertoPorOrigen(origenFecha, periodo)) continue;
-    if (!aplicaEnPeriodo(p, periodo)) continue;
     const fechaProg = fechaProgramada(periodo, p.dia_mes);
+    if (periodoYaCubiertoPorOrigen(origenFecha, periodo)) continue;
+    if (fechaYaCubiertaPorOrigen(origenFecha, fechaProg)) continue;
+    if (!aplicaEnPeriodo(p, periodo)) continue;
+    if (fechaProg < primeraFechaPago(p)) continue;
     if (fechaProg > hoy) continue;
 
     const existe = (await db
@@ -762,11 +800,20 @@ export async function aprobarGastoAutoPendiente(
     const origen = (await db
       .prepare(`SELECT fecha FROM PRESUPUESTO WHERE id = ?`)
       .get(item.plantilla.presupuesto_origen_id)) as { fecha: string } | undefined;
-    if (periodoYaCubiertoPorOrigen(origen?.fecha, item.periodo)) {
+    if (
+      periodoYaCubiertoPorOrigen(origen?.fecha, item.periodo) ||
+      fechaYaCubiertaPorOrigen(origen?.fecha, item.fecha_programada)
+    ) {
       throw new Error(
         "Este mes ya está registrado con el gasto original. Omití la solicitud o ajustá la fecha de inicio.",
       );
     }
+  }
+
+  if (item.fecha_programada < primeraFechaPago(item.plantilla)) {
+    throw new Error(
+      "La fecha programada es anterior al primer pago configurado. Omití la solicitud o ajustá la programación.",
+    );
   }
 
   const payload = plantillaToPresupuestoInput(item.plantilla, item.fecha_programada);
