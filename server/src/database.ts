@@ -29,6 +29,7 @@ import * as subItems from "./sub-rubro-items-db.js";
 import * as vinc from "./rubro-sub-rubros-db.js";
 import * as gicon from "./grupo-iconos-db.js";
 import type { GastosRubrosReadScope } from "./gastos-rubros-scope.js";
+import { migrateGastosRubrosCuentaScope } from "./gastos-rubros-scope.js";
 import * as rubrosMonitorDb from "./gastos-rubros-monitor-db.js";
 import * as func from "./funcionarios-db.js";
 import * as rrhh from "./rrhh-pagos-db.js";
@@ -212,6 +213,7 @@ export async function initDb(): Promise<void> {
       ventasArr.initVentasArrendamientosTable(db),
     ]);
     await migratePresupuestoIngresadoPor(db);
+    await migrateGastosRubrosCuentaScope(db);
     await prov.initProveedoresTable(db);
     await resp.initResponsablesTable(db);
     await func.initFuncionariosTable(db);

@@ -38,6 +38,13 @@ export async function migrateAddCuentaIdColumnSagCatalog(
   }
 }
 
+export async function migrateGastosRubrosCuentaScope(db: Db): Promise<void> {
+  await migrateAddCuentaIdColumnSagCatalog(db, "SUB_RUBROS");
+  await migrateAddCuentaIdColumnSagCatalog(db, "RUBROS");
+  await migrateAddCuentaIdColumnSagCatalog(db, "GRUPO_ICONOS");
+  await migrateGastosRubrosUniqueIndexes(db);
+}
+
 export async function migrateGastosRubrosUniqueIndexes(db: Db): Promise<void> {
   for (const stmt of [
     "DROP INDEX IF EXISTS idx_sub_rubros_nombre",
