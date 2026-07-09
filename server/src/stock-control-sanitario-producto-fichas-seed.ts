@@ -1,6 +1,6 @@
 import type { StockControlSanitarioProductoFichaInput } from "./stock-control-sanitario-db.js";
 import fotosManifest from "./stock-control-sanitario-producto-fichas-fotos.json" with { type: "json" };
-import { sanitizeProductoFichaFoto } from "./stock-producto-ficha-foto.js";
+import { mejorFotoRasterProducto, sanitizeProductoFichaFoto } from "./stock-producto-ficha-foto.js";
 
 const FOTOS_BY_NOMBRE = fotosManifest as Record<string, string>;
 
@@ -26,10 +26,10 @@ function joinLines(lines: readonly string[]): string {
 }
 
 export function buildFicha(ficha: Omit<ProductoFichaSeed, "foto">): ProductoFichaSeed {
-  const candidata = FOTOS_BY_NOMBRE[ficha.nombre] ?? productoFichaFotoPath(ficha.nombre);
+  const foto = mejorFotoRasterProducto(ficha.nombre) || sanitizeProductoFichaFoto(FOTOS_BY_NOMBRE[ficha.nombre] ?? "");
   return {
     ...ficha,
-    foto: sanitizeProductoFichaFoto(candidata),
+    foto: foto || undefined,
   };
 }
 

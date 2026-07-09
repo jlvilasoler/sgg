@@ -21,6 +21,38 @@ import {
 } from "./campo-mapa-draw-colors";
 import { getToolDef, type CampoMapaTool } from "./campo-mapa-tools";
 
+function DrawColorPicker({
+  drawColor,
+  label,
+  onDrawColorChange,
+}: {
+  drawColor: CampoMapaDrawColor;
+  label: string;
+  onDrawColorChange: (color: CampoMapaDrawColor) => void;
+}) {
+  return (
+    <div className="campo-mapa-draw-style-section">
+      <span className="campo-mapa-draw-style-label">{label}</span>
+      <div className="campo-mapa-draw-color-options" role="group" aria-label={label}>
+        {CAMPO_MAPA_DRAW_COLORS.map((color) => (
+          <button
+            key={color}
+            type="button"
+            role="menuitemradio"
+            className={`campo-mapa-draw-color-option${
+              drawColor === color ? " is-selected" : ""
+            }`}
+            aria-checked={drawColor === color}
+            title={`Color ${color}`}
+            style={{ backgroundColor: color }}
+            onClick={() => onDrawColorChange(color)}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export const CAMPO_MAPA_TOOL_ICONS: Record<CampoMapaTool, LucideIcon> = {
   navegar: Hand,
   marcador: MapPin,
@@ -55,7 +87,17 @@ export default function CampoMapaToolbar({
   onSaveClip,
 }: Props) {
   const [dibujarMenuOpen, setDibujarMenuOpen] = useState(false);
+  const [marcadorMenuOpen, setMarcadorMenuOpen] = useState(false);
+  const [notaMenuOpen, setNotaMenuOpen] = useState(false);
   const dibujarMenuRef = useRef<HTMLDivElement | null>(null);
+  const marcadorMenuRef = useRef<HTMLDivElement | null>(null);
+  const notaMenuRef = useRef<HTMLDivElement | null>(null);
+
+  const closeOtherMenus = (except?: "dibujar" | "marcador" | "nota") => {
+    if (except !== "dibujar") setDibujarMenuOpen(false);
+    if (except !== "marcador") setMarcadorMenuOpen(false);
+    if (except !== "nota") setNotaMenuOpen(false);
+  };
 
   useEffect(() => {
     if (!dibujarMenuOpen) return;
@@ -70,6 +112,31 @@ export default function CampoMapaToolbar({
     document.addEventListener("mousedown", onDocClick);
     return () => document.removeEventListener("mousedown", onDocClick);
   }, [dibujarMenuOpen]);
+
+  useEffect(() => {
+    if (!marcadorMenuOpen) return;
+    const onDocClick = (event: MouseEvent) => {
+      if (
+        marcadorMenuRef.current &&
+        !marcadorMenuRef.current.contains(event.target as Node)
+      ) {
+        setMarcadorMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [marcadorMenuOpen]);
+
+  useEffect(() => {
+    if (!notaMenuOpen) return;
+    const onDocClick = (event: MouseEvent) => {
+      if (notaMenuRef.current && !notaMenuRef.current.contains(event.target as Node)) {
+        setNotaMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [notaMenuOpen]);
 
   const groups: { title: string; tools: CampoMapaTool[] }[] = [
     { title: "Navegar", tools: ["navegar"] },
@@ -88,6 +155,98 @@ export default function CampoMapaToolbar({
               const Icon = CAMPO_MAPA_TOOL_ICONS[tool];
               const isClip = tool === "clip";
               const isDibujar = tool === "dibujar";
+              const isMarcador = tool === "marcador";
+              const isNota = tool === "nota";
+
+              if (isMarcador) {
+                return (
+                  <div
+                    key={tool}
+                    className="campo-mapa-toolbar-menu-wrap"
+                    ref={marcadorMenuRef}
+                  >
+                    <button
+                      type="button"
+                      className={`campo-mapa-toolbar-btn${activeTool === tool ? " is-active" : ""}${
+                        marcadorMenuOpen ? " is-menu-open" : ""
+                      }`}
+                      disabled={disabled}
+                      title={getToolDef(tool).label}
+                      aria-label={getToolDef(tool).label}
+                      aria-haspopup="menu"
+                      aria-expanded={marcadorMenuOpen}
+                      onClick={() => {
+                        onSelect(tool);
+                        setMarcadorMenuOpen((open) => !open);
+                        closeOtherMenus("marcador");
+                      }}
+                    >
+                      <Icon size={18} aria-hidden />
+                      <span
+                        className="campo-mapa-toolbar-color-dot"
+                        style={{ backgroundColor: drawColor }}
+                        aria-hidden
+                      />
+                    </button>
+                    {marcadorMenuOpen ? (
+                      <div
+                        className="campo-mapa-draw-style-menu"
+                        role="menu"
+                        aria-label="Color del marcador"
+                      >
+                        <DrawColorPicker
+                          drawColor={drawColor}
+                          label="Color"
+                          onDrawColorChange={onDrawColorChange}
+                        />
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              }
+
+              if (isNota) {
+                return (
+                  <div key={tool} className="campo-mapa-toolbar-menu-wrap" ref={notaMenuRef}>
+                    <button
+                      type="button"
+                      className={`campo-mapa-toolbar-btn${activeTool === tool ? " is-active" : ""}${
+                        notaMenuOpen ? " is-menu-open" : ""
+                      }`}
+                      disabled={disabled}
+                      title={getToolDef(tool).label}
+                      aria-label={getToolDef(tool).label}
+                      aria-haspopup="menu"
+                      aria-expanded={notaMenuOpen}
+                      onClick={() => {
+                        onSelect(tool);
+                        setNotaMenuOpen((open) => !open);
+                        closeOtherMenus("nota");
+                      }}
+                    >
+                      <Icon size={18} aria-hidden />
+                      <span
+                        className="campo-mapa-toolbar-color-dot"
+                        style={{ backgroundColor: drawColor }}
+                        aria-hidden
+                      />
+                    </button>
+                    {notaMenuOpen ? (
+                      <div
+                        className="campo-mapa-draw-style-menu"
+                        role="menu"
+                        aria-label="Color de la nota"
+                      >
+                        <DrawColorPicker
+                          drawColor={drawColor}
+                          label="Color"
+                          onDrawColorChange={onDrawColorChange}
+                        />
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              }
 
               if (isDibujar) {
                 return (
@@ -109,6 +268,7 @@ export default function CampoMapaToolbar({
                       onClick={() => {
                         onSelect(tool);
                         setDibujarMenuOpen((open) => !open);
+                        closeOtherMenus("dibujar");
                       }}
                     >
                       <Icon size={18} aria-hidden />
@@ -124,29 +284,11 @@ export default function CampoMapaToolbar({
                         role="menu"
                         aria-label="Estilo del dibujo"
                       >
-                        <div className="campo-mapa-draw-style-section">
-                          <span className="campo-mapa-draw-style-label">Color</span>
-                          <div
-                            className="campo-mapa-draw-color-options"
-                            role="group"
-                            aria-label="Color del trazo"
-                          >
-                            {CAMPO_MAPA_DRAW_COLORS.map((color) => (
-                              <button
-                                key={color}
-                                type="button"
-                                role="menuitemradio"
-                                className={`campo-mapa-draw-color-option${
-                                  drawColor === color ? " is-selected" : ""
-                                }`}
-                                aria-checked={drawColor === color}
-                                title={`Color ${color}`}
-                                style={{ backgroundColor: color }}
-                                onClick={() => onDrawColorChange(color)}
-                              />
-                            ))}
-                          </div>
-                        </div>
+                        <DrawColorPicker
+                          drawColor={drawColor}
+                          label="Color"
+                          onDrawColorChange={onDrawColorChange}
+                        />
                         <div className="campo-mapa-draw-style-section">
                           <span className="campo-mapa-draw-style-label">Grosor</span>
                           <div

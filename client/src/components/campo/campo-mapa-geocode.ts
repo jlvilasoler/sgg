@@ -4,7 +4,7 @@ export interface CampoMapaLugarResult {
   subtitle: string;
   lat: number;
   lng: number;
-  /** [minLon, maxLon, minLat, maxLat] cuando está disponible */
+  /** [minLon, minLat, maxLon, maxLat] según Photon */
   extent?: [number, number, number, number];
   /** Zoom sugerido cuando no hay extent (provincias, ciudades, etc.) */
   zoom?: number;
@@ -19,18 +19,18 @@ function zoomForFeature(props: Record<string, string | undefined>): number {
   if (osmValue === "country" || type === "country") return 6;
   if (osmValue === "state" || type === "state") return 8;
   if (osmValue === "county" || type === "county") return 10;
-  if (osmValue === "city" || type === "city" || osmValue === "town") return 12;
+  if (osmValue === "city" || type === "city" || osmValue === "town") return 13;
   if (osmValue === "village" || osmValue === "hamlet" || osmValue === "suburb") return 14;
-  if (osmValue === "farm" || osmValue === "isolated_dwelling") return 15;
-  return 13;
+  if (osmValue === "farm" || osmValue === "isolated_dwelling") return 16;
+  return 14;
 }
 
 function isValidExtent(extent: [number, number, number, number]): boolean {
-  const [minLon, maxLon, minLat, maxLat] = extent;
+  const [minLon, minLat, maxLon, maxLat] = extent;
   if (
     !Number.isFinite(minLon) ||
-    !Number.isFinite(maxLon) ||
     !Number.isFinite(minLat) ||
+    !Number.isFinite(maxLon) ||
     !Number.isFinite(maxLat)
   ) {
     return false;
@@ -39,17 +39,25 @@ function isValidExtent(extent: [number, number, number, number]): boolean {
   return maxLon - minLon >= 0.00005 && maxLat - minLat >= 0.00005;
 }
 
+function extentSpans(extent: [number, number, number, number]): {
+  lngSpan: number;
+  latSpan: number;
+} {
+  const [minLon, minLat, maxLon, maxLat] = extent;
+  return { lngSpan: maxLon - minLon, latSpan: maxLat - minLat };
+}
+
 /** Bounds Leaflet [[sur, oeste], [norte, este]] para encuadrar el lugar en el mapa. */
 export function lugarBounds(lugar: CampoMapaLugarResult): [[number, number], [number, number]] {
   if (lugar.extent && isValidExtent(lugar.extent)) {
-    const [minLon, maxLon, minLat, maxLat] = lugar.extent;
+    const [minLon, minLat, maxLon, maxLat] = lugar.extent;
     return [
       [minLat, minLon],
       [maxLat, maxLon],
     ];
   }
 
-  const zoom = lugar.zoom ?? 14;
+  const zoom = lugarZoomCercano(lugar);
   const latRad = (lugar.lat * Math.PI) / 180;
   const scale = 360 / 2 ** (zoom + 1);
   const lngSpan = scale / Math.max(Math.cos(latRad), 0.2);
@@ -62,8 +70,22 @@ export function lugarBounds(lugar: CampoMapaLugarResult): [[number, number], [nu
 }
 
 export function lugarMaxZoom(lugar: CampoMapaLugarResult): number {
+  return lugarZoomCercano(lugar);
+}
+
+/** Zoom directo al buscar un lugar: más cerca para pueblos, estancias y direcciones. */
+export function lugarZoomCercano(lugar: CampoMapaLugarResult): number {
   const base = lugar.zoom ?? 14;
+  if (base <= 8) return base + 1;
+  if (base <= 10) return base + 1;
   return Math.min(base + 2, 17);
+}
+
+/** Solo encuadrar bounds cuando el extent es chico (edificio, predio, manzana). */
+export function lugarUsaBoundsAjustados(lugar: CampoMapaLugarResult): boolean {
+  if (!lugar.extent || !isValidExtent(lugar.extent)) return false;
+  const { lngSpan, latSpan } = extentSpans(lugar.extent);
+  return lngSpan <= 0.06 && latSpan <= 0.06;
 }
 
 function buildSubtitle(props: Record<string, string | undefined>): string {

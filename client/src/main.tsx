@@ -14,6 +14,7 @@ import "./rrhh-hub.css";
 import "./divisas-hub.css";
 import "./mi-cuenta-hub.css";
 import "./stock-admin-hub.css";
+import "./stock-producto-ficha-hub.css";
 import "./campo-mapa-hub.css";
 import "./rubros-sag-monitor.css";
 import "./home-layout-users-monitor.css";

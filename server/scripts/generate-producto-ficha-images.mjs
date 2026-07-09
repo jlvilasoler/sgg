@@ -85,6 +85,7 @@ const SOURCES = {
   Zactran: "https://www.merck-animal-health.com.au/products/zactran/",
   Zoetis: "https://ar.zoetis.com/global-assets/img/logo.png",
   Zuprevo: "https://www.merck-animal-health.com.au/products/zuprevo/",
+  "VAC-SULES": "https://www.laboratoriosmicrosules.com/producto/vac-sules-polivac/",
 };
 
 const PRODUCTOS = Object.keys(SOURCES);
@@ -163,6 +164,14 @@ function extFromContentType(ct, url) {
   return "jpg";
 }
 
+function preferRasterManifestPath(nombre, slug) {
+  for (const ext of ["jpg", "jpeg", "png", "webp", "svg"]) {
+    const file = path.join(OUT_DIR, `${slug}.${ext}`);
+    if (fs.existsSync(file)) return `/productos-sanitarios/${slug}.${ext}`;
+  }
+  return null;
+}
+
 async function main() {
   fs.mkdirSync(OUT_DIR, { recursive: true });
   const manifest = {};
@@ -202,8 +211,17 @@ async function main() {
   }
 
   const manifestPath = path.join(ROOT, "server/src/stock-control-sanitario-producto-fichas-fotos.json");
+  const clientManifestPath = path.join(ROOT, "client/src/data/producto-ficha-fotos.json");
+
+  for (const nombre of Object.keys(manifest)) {
+    const preferida = preferRasterManifestPath(nombre, slug(nombre));
+    if (preferida) manifest[nombre] = preferida;
+  }
+
   fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
+  fs.writeFileSync(clientManifestPath, JSON.stringify(manifest, null, 2));
   console.log(`\nManifest: ${manifestPath}`);
+  console.log(`Client manifest: ${clientManifestPath}`);
 }
 
 main().catch((e) => {

@@ -4,6 +4,7 @@ import { PRODUCTO_FICHAS_SEED_EQUINO } from "./stock-control-sanitario-producto-
 import { productoVisibleEnModuloSanitario } from "./stock-control-sanitario-marcas-equino.js";
 import {
   esFotoProductoAceptable,
+  mejorFotoRasterProducto,
   sanitizeProductoFichaFoto,
 } from "./stock-producto-ficha-foto.js";
 
@@ -780,6 +781,7 @@ export async function migrateStockControlSanitarioProductoFicha(db: Db): Promise
 
   await seedStockControlSanitarioProductoFichasIfMissing(db);
   await repairProductoFichasFotosInvalidas(db);
+  await backfillProductoFichaFotosVacias(db);
 }
 
 export async function repairProductoFichasFotosInvalidas(db: Db): Promise<void> {
@@ -795,6 +797,23 @@ export async function repairProductoFichasFotosInvalidas(db: Db): Promise<void> 
   }
 }
 
+export async function backfillProductoFichaFotosVacias(db: Db): Promise<void> {
+  const rows = (await db
+    .prepare(
+      `SELECT id, nombre, foto_data FROM ${PRODUCTO_FICHA_TABLE}
+       WHERE TRIM(foto_data) = '' OR foto_data IS NULL`
+    )
+    .all()) as { id: number; nombre: string; foto_data: string }[];
+
+  for (const row of rows) {
+    const foto = mejorFotoRasterProducto(row.nombre, row.foto_data);
+    if (!foto) continue;
+    await db
+      .prepare(`UPDATE ${PRODUCTO_FICHA_TABLE} SET foto_data = @foto WHERE id = @id`)
+      .run({ id: row.id, foto });
+  }
+}
+
 export async function seedStockControlSanitarioProductoFichasIfMissing(db: Db): Promise<void> {
   for (const seed of [...PRODUCTO_FICHAS_SEED, ...PRODUCTO_FICHAS_SEED_EQUINO]) {
     const existente = await getStockControlSanitarioProductoFicha(db, seed.nombre);
@@ -805,7 +824,7 @@ export async function seedStockControlSanitarioProductoFichasIfMissing(db: Db): 
     const foto_data =
       fotoExistente && esFotoProductoAceptable(fotoExistente)
         ? fotoExistente
-        : fotoSeed || fotoExistente;
+        : mejorFotoRasterProducto(seed.nombre, fotoSeed) || fotoSeed || fotoExistente;
 
     await upsertStockControlSanitarioProductoFicha(
       db,

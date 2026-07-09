@@ -34,7 +34,7 @@ export const CAMPO_MAPA_TOOLS: CampoMapaToolDef[] = [
   {
     id: "nota",
     label: "Nota",
-    hint: "Hacé clic para anclar una nota en el mapa.",
+    hint: "Hacé clic en el mapa y escribí una nota en un globo.",
     group: "dibujar",
   },
   {

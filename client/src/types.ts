@@ -1342,53 +1342,111 @@ export const ROL_LABELS_DETALLE: Record<Rol, string> = {
 };
 
 export const ROL_DESCRIPCION: Record<Rol, string> = {
-  admin: "Administrador designado de la cuenta. Gestiona usuarios y configuración.",
-  editor: "Gestión operativa según sectores habilitados (sin usuarios ni ventas)",
+  admin: "Responsable de la cuenta. Acceso total y único perfil que administra usuarios.",
+  editor:
+    "Operación completa en sectores habilitados (incluye ventas). Sin administración de usuarios.",
   gestor_n2:
-    "Gastos, configuración, stock, RRHH y resumen. Divisas solo lectura. Sin ventas ni usuarios.",
-  consulta: "Solo lectura (lector) en los sectores habilitados",
+    "Operación sin ventas. Divisas solo lectura. Sin administración de usuarios.",
+  consulta: "Solo lectura en los sectores habilitados por el administrador.",
+};
+
+export type RolInfoSeccion = {
+  etiqueta: string;
+  items: string[];
 };
 
 /** Texto extendido para el panel informativo de cada rol. */
 export const ROL_INFO_DETALLE: Record<
   Rol,
-  { titulo: string; puntos: string[] }
+  { titulo: string; resumen: string; secciones: RolInfoSeccion[]; nota?: string }
 > = {
   admin: {
     titulo: "Administrador",
-    puntos: [
-      "Usuario designado como administrador de la cuenta.",
-      "Puede crear, editar y desactivar usuarios de su equipo.",
-      "Acceso completo a configuración y módulos operativos.",
-      "Es el único rol que administra usuarios de la cuenta.",
+    resumen:
+      "Responsable máximo de la cuenta: define el equipo, los accesos y la configuración general.",
+    secciones: [
+      {
+        etiqueta: "Puede",
+        items: [
+          "Crear, editar y desactivar usuarios del equipo.",
+          "Acceder a todos los módulos operativos: gastos, stock, RRHH, ventas, divisas y más.",
+          "Configurar catálogos, proveedores, permisos por tipo de usuario y sectores.",
+        ],
+      },
+      {
+        etiqueta: "Exclusivo de este rol",
+        items: [
+          "Administración de usuarios y documentos digitales de la cuenta.",
+        ],
+      },
     ],
   },
   editor: {
     titulo: "Gestor N1",
-    puntos: [
-      "Operación diaria según los sectores habilitados por el administrador.",
-      "Puede registrar y consultar gastos, stock, RRHH y resumen.",
-      "Accede a configuración operativa (catálogos, proveedores, etc.).",
-      "No gestiona usuarios ni ingresos por ventas.",
+    resumen:
+      "Perfil operativo principal para el trabajo diario en campo y oficina.",
+    secciones: [
+      {
+        etiqueta: "Puede",
+        items: [
+          "Registrar y consultar gastos, stock ganadero, RRHH y paneles de inicio.",
+          "Gestionar ingresos por ventas, divisas, precios de ganado y simulador.",
+          "Usar configuración operativa: proveedores, rubros y catálogos.",
+          "Participar en el chat interno del equipo.",
+        ],
+      },
+      {
+        etiqueta: "No puede",
+        items: [
+          "Administrar usuarios ni documentos digitales de la cuenta.",
+        ],
+      },
     ],
+    nota: "El alcance final depende de los sectores habilitados por el administrador.",
   },
   gestor_n2: {
     titulo: "Gestor N2",
-    puntos: [
-      "Perfil intermedio con acceso acotado por el administrador.",
-      "Gastos, configuración, stock, RRHH y resumen según permisos.",
-      "Divisas en solo lectura.",
-      "Sin acceso a ventas ni administración de usuarios.",
+    resumen:
+      "Operación con alcance reducido; pensado para tareas de campo sin registrar ventas.",
+    secciones: [
+      {
+        etiqueta: "Puede",
+        items: [
+          "Gastos, configuración operativa, stock ganadero y RRHH.",
+          "Consultar divisas y precios de ganado (divisas en solo lectura).",
+          "Usar simulador de venta ganado y chat interno.",
+        ],
+      },
+      {
+        etiqueta: "No puede",
+        items: [
+          "Registrar ingresos por ventas.",
+          "Administrar usuarios ni documentos digitales.",
+        ],
+      },
     ],
+    nota: "El administrador puede ampliar o restringir módulos en «Permisos por tipo de usuario».",
   },
   consulta: {
-    titulo: "Consulta (Lector)",
-    puntos: [
-      "Perfil de solo lectura en los sectores habilitados.",
-      "Puede consultar listados, reportes y datos operativos.",
-      "No puede crear, editar ni eliminar registros.",
-      "Ideal para supervisión o auditoría sin intervención.",
+    titulo: "Consulta",
+    resumen: "Supervisión y auditoría sin modificar datos operativos.",
+    secciones: [
+      {
+        etiqueta: "Puede",
+        items: [
+          "Ver listados, reportes y resúmenes de los sectores habilitados.",
+          "Acceder al chat interno para comunicación con el equipo.",
+        ],
+      },
+      {
+        etiqueta: "No puede",
+        items: [
+          "Crear, editar ni eliminar registros.",
+          "Cambiar configuración ni gestionar usuarios.",
+        ],
+      },
     ],
+    nota: "Ideal para supervisores, auditores o colaboradores que solo necesitan consultar.",
   },
 };
 

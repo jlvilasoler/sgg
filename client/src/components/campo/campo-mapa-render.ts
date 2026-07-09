@@ -10,6 +10,8 @@ import {
 
 import type { CampoMapaBorderWeight } from "./campo-mapa-border-weight";
 import { DEFAULT_CAMPO_MAPA_BORDER_WEIGHT, strokeWeightForSelection } from "./campo-mapa-border-weight";
+import { createCampoMapaPinIcon } from "./campo-mapa-pin-icon";
+import { createCampoMapaNotaBubbleIcon } from "./campo-mapa-nota-bubble";
 
 export type MapLayerHandle = L.Layer;
 
@@ -90,7 +92,30 @@ export function renderElementoLayer(
           ? `Zoom ${meta.zoom}`
           : undefined;
 
-  if (item.tipo === "marcador" || item.tipo === "nota" || item.tipo === "clip") {
+  if (item.tipo === "marcador") {
+    const point = geoJsonToPoint(item.geojson);
+    if (!point) return null;
+    const marker = L.marker([point.lat, point.lng], {
+      icon: createCampoMapaPinIcon(item.color, selected),
+      zIndexOffset: selected ? 400 : 200,
+    }).addTo(map);
+    marker.bindPopup(popupHtml(item.nombre, item.notas, extra));
+    marker.on("click", onSelect);
+    return marker;
+  }
+
+  if (item.tipo === "nota") {
+    const point = geoJsonToPoint(item.geojson);
+    if (!point) return null;
+    const marker = L.marker([point.lat, point.lng], {
+      icon: createCampoMapaNotaBubbleIcon(item.color, item.nombre, item.notas, selected),
+      zIndexOffset: selected ? 400 : 200,
+    }).addTo(map);
+    marker.on("click", onSelect);
+    return marker;
+  }
+
+  if (item.tipo === "clip") {
     const point = geoJsonToPoint(item.geojson);
     if (!point) return null;
     const marker = L.circleMarker([point.lat, point.lng], {

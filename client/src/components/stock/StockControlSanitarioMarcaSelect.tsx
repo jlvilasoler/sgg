@@ -251,6 +251,7 @@ interface Props {
   onChange: (value: string) => void;
   disabled?: boolean;
   historialMarcas?: string[];
+  onAbrirFicha?: (nombre: string) => void;
   apiOnline?: boolean;
   modulo?: StockDispositivoModulo;
   onError?: (msg: string) => void;
@@ -263,6 +264,7 @@ export default function StockControlSanitarioMarcaSelect({
   onChange,
   disabled = false,
   historialMarcas = [],
+  onAbrirFicha,
   apiOnline = true,
   modulo = "ganadero",
   onError = () => {},
@@ -435,6 +437,14 @@ export default function StockControlSanitarioMarcaSelect({
     (nombre: string) => {
       const n = nombre.trim();
       if (!n || disabled) return;
+      if (onAbrirFicha) {
+        onAbrirFicha(n);
+        setAbierto(false);
+        setBusqueda("");
+        setModoNuevo(false);
+        setNuevaMarca("");
+        return;
+      }
       setFichaNombre(n);
       setFichaAbierta(true);
       setAbierto(false);
@@ -442,7 +452,7 @@ export default function StockControlSanitarioMarcaSelect({
       setModoNuevo(false);
       setNuevaMarca("");
     },
-    [disabled]
+    [disabled, onAbrirFicha]
   );
 
   const abrir = () => {
@@ -777,6 +787,7 @@ export default function StockControlSanitarioMarcaSelect({
         </div>
       ) : null}
 
+      {onAbrirFicha ? null : (
       <StockControlSanitarioProductoFichaModal
         open={fichaAbierta}
         nombre={fichaNombre || value}
@@ -792,6 +803,7 @@ export default function StockControlSanitarioMarcaSelect({
           void reloadMarcas();
         }}
       />
+      )}
     </div>
   );
 }

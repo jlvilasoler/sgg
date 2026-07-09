@@ -1358,6 +1358,7 @@ export function registerAuthRoutes(app: Express): void {
       const updated = await authDb.updateRolePermissions(getDb(), rol, {
         puede_escribir: Boolean(body.puede_escribir),
         modulos: body.modulos ?? {},
+        modulos_solo_lectura: body.modulos_solo_lectura ?? {},
       });
       await authDb.recordAuthEvent(getDb(), "role_permissions_updated", {
         detalle: `rol=${rol}`,

@@ -95,6 +95,7 @@ interface Props {
   onAdminModo?: (modo: AdminModo) => void;
   onError: (msg: string) => void;
   onFichaSaved?: (msg: string) => void;
+  onAbrirFichaProducto?: (nombre: string) => void;
   historialMarcas?: string[];
   historialFormulas?: string[];
   historialFormas?: string[];
@@ -116,6 +117,7 @@ export default function StockControlSanitarioRegistroForm({
   onAdminModo,
   onError,
   onFichaSaved,
+  onAbrirFichaProducto,
   historialMarcas = [],
   historialFormulas = [],
   historialFormas = [],
@@ -309,6 +311,7 @@ export default function StockControlSanitarioRegistroForm({
             modulo={modulo}
             onError={onError}
             onFichaSaved={onFichaSaved}
+            onAbrirFicha={onAbrirFichaProducto}
             currentUser={currentUser}
           />
         </div>

@@ -49,6 +49,7 @@ import { fmtEmpresaOperativa } from "../stock/stock-empresa-utils";
 import IconoDispositivoWifi from "../stock/IconoDispositivoWifi";
 import StockEquinaEdadMiniTimeline from "./StockEquinaEdadMiniTimeline";
 import StockSanidadHistorialDashboard from "../stock/StockSanidadHistorialDashboard";
+import StockControlSanitarioProductoFichaPage from "../stock/StockControlSanitarioProductoFichaPage";
 
 const SANIDAD_TABLE_COLS = 10;
 
@@ -350,8 +351,10 @@ export default function StockEquinoSanidad({
   >([]);
   const [historialRefreshKey, setHistorialRefreshKey] = useState(0);
   const [fechasAplicacion, setFechasAplicacion] = useState<Record<string, string>>({});
+  const [fichaProductoNombre, setFichaProductoNombre] = useState<string | null>(null);
 
-  useHeaderBackStep(true, onVolver, "Stock Equino");
+  const volverDesdeFicha = useCallback(() => setFichaProductoNombre(null), []);
+  useHeaderBackStep(true, fichaProductoNombre ? volverDesdeFicha : onVolver, "Stock Equino");
 
   useEffect(() => {
     if (!apiOnline) {
@@ -811,6 +814,7 @@ export default function StockEquinoSanidad({
                     onPatch={patchForm}
                     onError={onError}
                     onFichaSaved={(msg) => onSuccess(msg)}
+                    onAbrirFichaProducto={setFichaProductoNombre}
                     currentUser={currentUser}
                   />
                 </div>
@@ -1026,6 +1030,20 @@ export default function StockEquinoSanidad({
       <div className="stock-sanidad-layout">{layoutInner}</div>
     </div>
   );
+
+  if (fichaProductoNombre) {
+    return (
+      <StockControlSanitarioProductoFichaPage
+        nombre={fichaProductoNombre}
+        modulo="equino"
+        apiOnline={apiOnline}
+        embedded={embedded}
+        onVolver={volverDesdeFicha}
+        onError={onError}
+        onSaved={(msg) => onSuccess(msg)}
+      />
+    );
+  }
 
   if (embedded) return panel;
 

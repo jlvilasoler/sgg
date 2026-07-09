@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { RefreshCw, Search, UserPlus } from "lucide-react";
 import {
@@ -29,6 +29,9 @@ interface Props {
 
 const ROLES: Rol[] = ALL_ROLES;
 
+const ROL_INFO_PANEL_WIDTH = 296;
+const ROL_INFO_VIEWPORT_PAD = 10;
+
 function IconoInfo() {
   return (
     <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true">
@@ -43,27 +46,154 @@ function IconoInfo() {
 function RolInfoButton({ rol }: { rol: Rol }) {
   const info = ROL_INFO_DETALLE[rol];
   const panelId = `rol-info-${rol}`;
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [open, setOpen] = useState(false);
+  const [panelPos, setPanelPos] = useState<{ top: number; left: number } | null>(null);
+
+  const clearHideTimer = useCallback(() => {
+    if (hideTimerRef.current) {
+      clearTimeout(hideTimerRef.current);
+      hideTimerRef.current = null;
+    }
+  }, []);
+
+  const showPanel = useCallback(() => {
+    clearHideTimer();
+    setOpen(true);
+  }, [clearHideTimer]);
+
+  const scheduleHidePanel = useCallback(() => {
+    clearHideTimer();
+    hideTimerRef.current = setTimeout(() => {
+      setOpen(false);
+      setPanelPos(null);
+    }, 120);
+  }, [clearHideTimer]);
+
+  const updatePanelPosition = useCallback(() => {
+    const btn = btnRef.current;
+    const panel = panelRef.current;
+    if (!btn) return;
+
+    const rect = btn.getBoundingClientRect();
+    const panelWidth = panel?.offsetWidth || ROL_INFO_PANEL_WIDTH;
+    const panelHeight = panel?.offsetHeight || 240;
+    const gap = 8;
+
+    const spaceBelow = window.innerHeight - rect.bottom - ROL_INFO_VIEWPORT_PAD;
+    const spaceAbove = rect.top - ROL_INFO_VIEWPORT_PAD;
+    const openAbove = spaceBelow < panelHeight + gap && spaceAbove > spaceBelow;
+
+    let top = openAbove
+      ? rect.top - panelHeight - gap
+      : rect.bottom + gap;
+    top = Math.max(
+      ROL_INFO_VIEWPORT_PAD,
+      Math.min(top, window.innerHeight - panelHeight - ROL_INFO_VIEWPORT_PAD)
+    );
+
+    let left = rect.left;
+    left = Math.max(
+      ROL_INFO_VIEWPORT_PAD,
+      Math.min(left, window.innerWidth - panelWidth - ROL_INFO_VIEWPORT_PAD)
+    );
+
+    setPanelPos({ top, left });
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!open) return;
+    updatePanelPosition();
+    const frame = window.requestAnimationFrame(() => updatePanelPosition());
+    const onReflow = () => updatePanelPosition();
+    window.addEventListener("resize", onReflow);
+    window.addEventListener("scroll", onReflow, true);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener("resize", onReflow);
+      window.removeEventListener("scroll", onReflow, true);
+    };
+  }, [open, updatePanelPosition, info]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setOpen(false);
+        setPanelPos(null);
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [open]);
+
+  useEffect(() => () => clearHideTimer(), [clearHideTimer]);
+
+  const panelContent = useMemo(
+    () => (
+      <>
+        <p className="usuarios-rol-info-panel-title">{info.titulo}</p>
+        <p className="usuarios-rol-info-panel-resumen">{info.resumen}</p>
+        {info.secciones.map((seccion) => (
+          <div key={seccion.etiqueta} className="usuarios-rol-info-panel-block">
+            <p className="usuarios-rol-info-panel-section">{seccion.etiqueta}</p>
+            <ul className="usuarios-rol-info-panel-list">
+              {seccion.items.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </div>
+        ))}
+        {info.nota ? (
+          <p className="usuarios-rol-info-panel-nota">{info.nota}</p>
+        ) : null}
+      </>
+    ),
+    [info]
+  );
 
   return (
-    <span className="usuarios-rol-info-wrap">
+    <span
+      className="usuarios-rol-info-wrap"
+      onMouseEnter={showPanel}
+      onMouseLeave={scheduleHidePanel}
+    >
       <button
+        ref={btnRef}
         type="button"
         className="usuarios-rol-info-btn"
-        aria-describedby={panelId}
+        aria-describedby={open ? panelId : undefined}
+        aria-expanded={open}
         title={`Información sobre ${info.titulo}`}
         onClick={(e) => e.stopPropagation()}
+        onFocus={showPanel}
+        onBlur={scheduleHidePanel}
       >
         <IconoInfo />
         <span className="sr-only">Información sobre {info.titulo}</span>
       </button>
-      <div id={panelId} className="usuarios-rol-info-panel" role="tooltip">
-        <p className="usuarios-rol-info-panel-title">{info.titulo}</p>
-        <ul className="usuarios-rol-info-panel-list">
-          {info.puntos.map((punto) => (
-            <li key={punto}>{punto}</li>
-          ))}
-        </ul>
-      </div>
+      {open
+        ? createPortal(
+            <div
+              ref={panelRef}
+              id={panelId}
+              className="usuarios-rol-info-panel usuarios-rol-info-panel--portal"
+              role="tooltip"
+              style={
+                panelPos
+                  ? { top: panelPos.top, left: panelPos.left }
+                  : { top: -9999, left: -9999, visibility: "hidden" }
+              }
+              onMouseEnter={showPanel}
+              onMouseLeave={scheduleHidePanel}
+            >
+              {panelContent}
+            </div>,
+            document.body
+          )
+        : null}
     </span>
   );
 }
@@ -415,49 +545,64 @@ export default function Usuarios({
           ) : null}
         </header>
         <div className="usuarios-admin-roles-grid">
-          {ROLES.map((rol) => {
+          {ROLES.map((rol, index) => {
             const count = stats.porRol[rol];
             const pct = stats.total > 0 ? Math.round((count / stats.total) * 100) : 0;
             const isActive = filtroRol === rol;
+            const disabled = loading || !apiOnline;
             return (
               <div
                 key={rol}
                 role="button"
-                tabIndex={loading || !apiOnline ? -1 : 0}
-                className={`usuarios-admin-rol-card usuarios-admin-rol-card--${rol}${
+                tabIndex={disabled ? -1 : 0}
+                className={`home-hub-kpi-btn usuarios-admin-rol-kpi-btn usuarios-admin-rol-kpi-btn--${rol}${
                   isActive ? " is-active" : ""
-                }${loading || !apiOnline ? " is-disabled" : ""}`}
+                }${disabled ? " is-disabled" : ""}`}
                 aria-pressed={isActive}
+                aria-label={`${ROL_LABELS_DETALLE[rol]}: ${disabled ? "—" : count} usuarios, ${pct}% del equipo`}
                 onClick={() => {
-                  if (loading || !apiOnline) return;
+                  if (disabled) return;
                   setFiltroRol(isActive ? "" : rol);
                 }}
                 onKeyDown={(e) => {
-                  if (loading || !apiOnline) return;
+                  if (disabled) return;
                   if (e.key === "Enter" || e.key === " ") {
                     e.preventDefault();
                     setFiltroRol(isActive ? "" : rol);
                   }
                 }}
               >
-                <div className="usuarios-admin-rol-top">
-                  <span className="usuarios-admin-rol-label">
-                    <span className={`usuarios-rol-badge usuarios-rol-badge--${rol}`}>
-                      {ROL_LABELS_DETALLE[rol]}
-                    </span>
-                    <RolInfoButton rol={rol} />
-                  </span>
-                  <strong className="usuarios-admin-rol-count">
-                    {loading || !apiOnline ? "—" : count}
-                  </strong>
-                </div>
-                <div className="usuarios-admin-rol-bar" aria-hidden>
-                  <span
-                    className="usuarios-admin-rol-bar-fill"
-                    style={{ width: `${pct}%` }}
-                  />
-                </div>
-                <span className="usuarios-admin-rol-pct muted">{pct}% del equipo</span>
+                <article className="sg-hub-kpi sg-hub-kpi--light usuarios-admin-rol-kpi">
+                  {isActive ? (
+                    <span className="sg-hub-kpi-filter-tag">Filtro activo</span>
+                  ) : null}
+                  <div className="sg-hub-kpi-top">
+                    <div className="usuarios-admin-rol-kpi-copy">
+                      <p className="sg-hub-kpi-kicker usuarios-admin-rol-kpi-kicker">
+                        <span className={`usuarios-rol-badge usuarios-rol-badge--${rol}`}>
+                          {ROL_LABELS_DETALLE[rol]}
+                        </span>
+                        <RolInfoButton rol={rol} />
+                      </p>
+                      <p className="sg-hub-kpi-value usuarios-admin-rol-kpi-value">
+                        {disabled ? "—" : count}
+                      </p>
+                      <p className="sg-hub-kpi-trend">{pct}% del equipo</p>
+                    </div>
+                    {isActive ? null : (
+                      <SgMiniBars highlight={index % 2 === 0 ? "mid" : "last"} />
+                    )}
+                  </div>
+                  <div className="usuarios-admin-rol-kpi-bar" aria-hidden>
+                    <span
+                      className="usuarios-admin-rol-kpi-bar-fill"
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                  <p className="sg-hub-kpi-hint">
+                    {isActive ? "Pulsá de nuevo para ver todos" : "Tocá para filtrar el listado"}
+                  </p>
+                </article>
               </div>
             );
           })}

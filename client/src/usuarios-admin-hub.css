@@ -190,26 +190,73 @@
   font-size: 0.78rem;
 }
 
-/* Role cards */
+/* Role cards — mismo lenguaje visual que sg-hub-kpi / home-hub-kpi-btn */
 .usuarios-admin--hub .usuarios-admin-hub-box .usuarios-admin-roles-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.55rem;
 }
 
-.usuarios-admin--hub .usuarios-admin-rol-card {
-  display: flex;
-  flex-direction: column;
-  gap: 0.45rem;
+.usuarios-admin--hub .usuarios-admin-rol-kpi-btn {
+  display: block;
   width: 100%;
   margin: 0;
-  padding: 0.75rem 0.8rem 0.7rem;
-  border: 1px solid color-mix(in srgb, var(--bn-border, #eaecef) 92%, transparent);
-  border-radius: var(--sg-hub-radius-md);
-  background: color-mix(in srgb, var(--sg-hub-workspace) 38%, var(--sg-hub-surface));
-  box-shadow: 0 1px 0 rgba(30, 35, 41, 0.03);
+  padding: 0;
+  border: none;
+  background: transparent;
   text-align: left;
   cursor: pointer;
+}
+
+.usuarios-admin--hub .usuarios-admin-rol-kpi-btn.is-disabled {
+  opacity: 0.65;
+  cursor: default;
+  pointer-events: none;
+}
+
+.usuarios-admin--hub .usuarios-admin-rol-kpi-btn--admin {
+  --usr-rol-accent: var(--usr-rol-admin);
+  --usr-rol-accent-soft: rgba(212, 168, 0, 0.16);
+  --sg-hub-kpi-accent: var(--usr-rol-admin);
+  --sg-hub-accent: var(--usr-rol-admin);
+}
+
+.usuarios-admin--hub .usuarios-admin-rol-kpi-btn--editor {
+  --usr-rol-accent: var(--usr-rol-editor);
+  --usr-rol-accent-soft: rgba(59, 130, 246, 0.14);
+  --sg-hub-kpi-accent: var(--usr-rol-editor);
+  --sg-hub-accent: var(--usr-rol-editor);
+}
+
+.usuarios-admin--hub .usuarios-admin-rol-kpi-btn--gestor_n2 {
+  --usr-rol-accent: var(--usr-rol-gestor_n2);
+  --usr-rol-accent-soft: rgba(139, 92, 246, 0.14);
+  --sg-hub-kpi-accent: var(--usr-rol-gestor_n2);
+  --sg-hub-accent: var(--usr-rol-gestor_n2);
+}
+
+.usuarios-admin--hub .usuarios-admin-rol-kpi-btn--consulta {
+  --usr-rol-accent: var(--usr-rol-consulta);
+  --usr-rol-accent-soft: rgba(148, 163, 184, 0.18);
+  --sg-hub-kpi-accent: var(--usr-rol-consulta);
+  --sg-hub-accent: var(--usr-rol-consulta);
+}
+
+.usuarios-admin--hub .usuarios-admin-rol-kpi-btn .sg-hub-kpi.usuarios-admin-rol-kpi {
+  position: relative;
+  min-height: 0;
+  height: 100%;
+  padding: 0.72rem 0.8rem 0.65rem;
+  gap: 0.38rem;
+  overflow: visible;
+  border-radius: var(--sg-hub-radius-card);
+  border-color: color-mix(in srgb, var(--usr-rol-accent) 18%, var(--bn-border, #eaecef));
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--usr-rol-accent) 9%, #fff) 0%,
+    var(--sg-hub-surface) 58%
+  );
+  box-shadow: 0 2px 10px rgba(30, 35, 41, 0.04);
   transition:
     border-color 0.15s ease,
     box-shadow 0.15s ease,
@@ -217,56 +264,124 @@
     background 0.15s ease;
 }
 
-.usuarios-admin--hub .usuarios-admin-rol-card:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: 0 6px 18px rgba(30, 35, 41, 0.07);
+.usuarios-admin--hub .usuarios-admin-rol-kpi-btn:hover:not(.is-disabled) .sg-hub-kpi.usuarios-admin-rol-kpi {
+  border-color: color-mix(in srgb, var(--usr-rol-accent) 32%, var(--bn-border, #eaecef));
+  box-shadow: 0 8px 22px rgba(30, 35, 41, 0.08);
 }
 
-.usuarios-admin--hub .usuarios-admin-rol-card[aria-disabled="true"],
-.usuarios-admin--hub .usuarios-admin-rol-card.is-disabled {
-  opacity: 0.65;
-  cursor: default;
-  pointer-events: none;
+.usuarios-admin--hub .usuarios-admin-rol-kpi-btn.is-active .sg-hub-kpi.usuarios-admin-rol-kpi {
+  border-color: color-mix(in srgb, var(--usr-rol-accent) 55%, var(--bn-border, #eaecef));
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--usr-rol-accent) 14%, #fff) 0%,
+    var(--sg-hub-surface) 62%
+  );
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--usr-rol-accent) 22%, transparent),
+    0 0 0 2px var(--usr-rol-accent-soft);
 }
 
-.usuarios-admin--hub .usuarios-admin-rol-card.is-active {
-  border-color: color-mix(in srgb, var(--sg-hub-accent) 45%, var(--bn-border, #eaecef));
-  background: color-mix(in srgb, var(--sg-hub-accent) 8%, var(--sg-hub-surface));
-  box-shadow: 0 0 0 2px var(--sg-hub-accent-soft);
+.usuarios-admin--hub .usuarios-admin-rol-kpi-btn.is-active .sg-hub-kpi-filter-tag {
+  color: #1a211a;
+  background: color-mix(in srgb, var(--usr-rol-accent) 82%, #fff);
+  border-color: transparent;
 }
 
-.usuarios-admin--hub .usuarios-admin-rol-card--admin {
-  border-left: 3px solid var(--usr-rol-admin);
+.usuarios-admin--hub .usuarios-admin-rol-kpi-copy {
+  min-width: 0;
 }
 
-.usuarios-admin--hub .usuarios-admin-rol-card--editor {
-  border-left: 3px solid var(--usr-rol-editor);
+.usuarios-admin--hub .usuarios-admin-rol-kpi-kicker {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.28rem;
+  margin: 0;
 }
 
-.usuarios-admin--hub .usuarios-admin-rol-card--gestor_n2 {
-  border-left: 3px solid var(--usr-rol-gestor_n2);
+.usuarios-admin--hub .usuarios-admin-rol-kpi-btn .sg-hub-kpi-value.usuarios-admin-rol-kpi-value {
+  margin-top: 0.28rem;
+  font-size: clamp(1.15rem, 1.2vw + 0.55rem, 1.55rem);
+  color: color-mix(in srgb, var(--usr-rol-accent) 72%, var(--bn-text, #1e2329));
 }
 
-.usuarios-admin--hub .usuarios-admin-rol-card--consulta {
-  border-left: 3px solid var(--usr-rol-consulta);
+.usuarios-admin--hub .usuarios-admin-rol-kpi-btn .sg-hub-kpi-trend {
+  margin-top: 0.12rem;
+  font-size: 0.66rem;
+  color: color-mix(in srgb, var(--usr-rol-accent) 78%, var(--bn-muted, #707a8a));
 }
 
-.usuarios-admin--hub .usuarios-admin-rol-count {
-  font-size: 1.35rem;
-  font-weight: 700;
-  letter-spacing: -0.03em;
-  line-height: 1;
+.usuarios-admin--hub .usuarios-admin-rol-kpi-btn .sg-hub-kpi-hint {
+  margin-top: 0.05rem;
+  font-size: 0.66rem;
+  line-height: 1.35;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.usuarios-admin--hub .usuarios-admin-rol-bar {
-  height: 5px;
+.usuarios-admin--hub .usuarios-admin-rol-kpi-btn .sg-hub-mini-bars {
+  width: 3.1rem;
+  height: 2rem;
+  gap: 0.12rem;
+}
+
+.usuarios-admin--hub .usuarios-admin-rol-kpi-bar {
+  height: 4px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--bn-border, #eaecef) 70%, transparent);
+  background: color-mix(in srgb, var(--bn-border, #eaecef) 72%, transparent);
+  overflow: hidden;
 }
 
-.usuarios-admin--hub .usuarios-admin-rol-pct {
-  font-size: 0.68rem;
-  font-weight: 600;
+.usuarios-admin--hub .usuarios-admin-rol-kpi-bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--usr-rol-accent);
+  transition: width 0.35s ease;
+}
+
+.usuarios-admin--hub .usuarios-admin-rol-kpi-btn .usuarios-rol-badge {
+  border-radius: 999px;
+  padding: 0.16rem 0.48rem;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.usuarios-admin--hub .usuarios-admin-rol-kpi-btn .usuarios-rol-info-btn {
+  width: 1.25rem;
+  height: 1.25rem;
+  border-color: color-mix(in srgb, var(--usr-rol-accent) 24%, var(--bn-border, #eaecef));
+  background: color-mix(in srgb, var(--usr-rol-accent) 6%, #fff);
+  color: color-mix(in srgb, var(--usr-rol-accent) 70%, #64748b);
+}
+
+.usuarios-admin--hub .usuarios-admin-rol-kpi-btn .usuarios-rol-info-wrap:hover .usuarios-rol-info-btn,
+.usuarios-admin--hub .usuarios-admin-rol-kpi-btn .usuarios-rol-info-wrap:focus-within .usuarios-rol-info-btn {
+  color: color-mix(in srgb, var(--usr-rol-accent) 85%, #1e2329);
+  border-color: color-mix(in srgb, var(--usr-rol-accent) 40%, var(--bn-border, #eaecef));
+  background: color-mix(in srgb, var(--usr-rol-accent) 12%, #fff);
+}
+
+.usuarios-admin--hub .usuarios-admin-rol-kpi-btn:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--usr-rol-accent, var(--sg-hub-accent)) 55%, transparent);
+  outline-offset: 3px;
+  border-radius: var(--sg-hub-radius-card);
+}
+
+.usuarios-admin--hub .usuarios-admin-hub-box--roles {
+  position: relative;
+  z-index: 2;
+}
+
+.usuarios-admin--hub .usuarios-admin-hub-box--listado {
+  position: relative;
+  z-index: 1;
+}
+
+.usuarios-admin--hub .usuarios-admin-rol-kpi-btn .usuarios-rol-info-panel {
+  z-index: 10150;
 }
 
 /* Filters */

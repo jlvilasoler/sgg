@@ -2,8 +2,11 @@ import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "r
 import { Eye, EyeOff, Save, Sparkles } from "lucide-react";
 import {
   actualizarHomeLayoutRol,
+  actualizarRolePermissions,
   fetchHomeLayoutConfig,
+  fetchRolePermissions,
 } from "../../api";
+import type { HomeLayoutConfigurableRol, HomeLayoutMap, HomePanelId } from "../../utils/home-layout-config";
 import {
   HOME_LAYOUT_ROLES,
   HOME_PANEL_META,
@@ -11,10 +14,20 @@ import {
   normalizeHomeLayoutMap,
   normalizeHomePanelOrder,
   rolHomeLayoutLabel,
-  type HomeLayoutConfigurableRol,
-  type HomeLayoutMap,
-  type HomePanelId,
 } from "../../utils/home-layout-config";
+import type { RolPermisosInput } from "../../types";
+import {
+  countModulosHabilitados,
+  desmarcarTodosModulosPermiso,
+  marcarTodosModulosPermiso,
+  rolPermisosToInput,
+  setModoEdicionModulo,
+  toggleModuloPermiso,
+  type ModoEdicionModulo,
+} from "../../utils/rol-modulos-config";
+import type { Modulo } from "../../types";
+import ConfigRolAlcancePanel from "./ConfigRolAlcancePanel";
+import ConfigRolModulosPanel from "./ConfigRolModulosPanel";
 import HomeLayoutScreenPreview from "./HomeLayoutScreenPreview";
 
 interface Props {
@@ -45,7 +58,11 @@ export default function ConfigHomeLayout({
   const [orderDrafts, setOrderDrafts] = useState<
     Partial<Record<HomeLayoutConfigurableRol, HomePanelId[]>>
   >({});
-  const [dirty, setDirty] = useState(false);
+  const [permDrafts, setPermDrafts] = useState<
+    Partial<Record<HomeLayoutConfigurableRol, RolPermisosInput>>
+  >({});
+  const [layoutDirty, setLayoutDirty] = useState(false);
+  const [permDirty, setPermDirty] = useState(false);
 
   const load = useCallback(async () => {
     if (!apiOnline) {
@@ -54,19 +71,29 @@ export default function ConfigHomeLayout({
     }
     setLoading(true);
     try {
-      const data = await fetchHomeLayoutConfig();
+      const [layoutData, permData] = await Promise.all([
+        fetchHomeLayoutConfig(),
+        fetchRolePermissions(),
+      ]);
       const nextDrafts: Partial<Record<HomeLayoutConfigurableRol, HomeLayoutMap>> = {};
       const nextOrders: Partial<Record<HomeLayoutConfigurableRol, HomePanelId[]>> = {};
-      for (const row of data) {
+      for (const row of layoutData) {
         if (!isHomeLayoutConfigurableRol(row.rol)) continue;
         nextDrafts[row.rol] = normalizeHomeLayoutMap(row.paneles);
         nextOrders[row.rol] = normalizeHomePanelOrder(row.orden);
       }
+      const nextPerms: Partial<Record<HomeLayoutConfigurableRol, RolPermisosInput>> = {};
+      for (const row of permData) {
+        if (!isHomeLayoutConfigurableRol(row.rol)) continue;
+        nextPerms[row.rol] = rolPermisosToInput(row);
+      }
       setDrafts(nextDrafts);
       setOrderDrafts(nextOrders);
-      setDirty(false);
+      setPermDrafts(nextPerms);
+      setLayoutDirty(false);
+      setPermDirty(false);
     } catch (e) {
-      onError(e instanceof Error ? e.message : "No se pudo cargar la configuración del inicio");
+      onError(e instanceof Error ? e.message : "No se pudo cargar la configuración");
     } finally {
       setLoading(false);
     }
@@ -86,10 +113,14 @@ export default function ConfigHomeLayout({
     [activeRol, orderDrafts],
   );
 
-  const visibleCount = useMemo(
+  const activePermDraft = permDrafts[activeRol] ?? null;
+
+  const visibleBlocks = useMemo(
     () => HOME_PANEL_META.filter((p) => activeDraft[p.id]).length,
     [activeDraft],
   );
+
+  const dirty = layoutDirty || permDirty;
 
   const togglePanel = (panelId: HomePanelId) => {
     setDrafts((prev) => ({
@@ -99,36 +130,65 @@ export default function ConfigHomeLayout({
         [panelId]: !(prev[activeRol]?.[panelId] ?? true),
       },
     }));
-    setDirty(true);
+    setLayoutDirty(true);
   };
 
-  const setAll = (visible: boolean) => {
+  const setAllPanels = (visible: boolean) => {
     const next = normalizeHomeLayoutMap(null);
     for (const id of Object.keys(next) as HomePanelId[]) {
       next[id] = visible;
     }
     setDrafts((prev) => ({ ...prev, [activeRol]: next }));
-    setDirty(true);
+    setLayoutDirty(true);
+  };
+
+  const updatePermDraft = (next: RolPermisosInput) => {
+    setPermDrafts((prev) => ({ ...prev, [activeRol]: next }));
+    setPermDirty(true);
   };
 
   const save = async () => {
     if (!apiOnline || !dirty) return;
+    const draft = drafts[activeRol];
+    const orden = orderDrafts[activeRol];
+    const permDraft = permDrafts[activeRol];
+    if (!draft || !orden || !permDraft) return;
+    if (permDirty && countModulosHabilitados(permDraft) === 0) {
+      onError("Activá al menos un módulo para este tipo de cuenta.");
+      return;
+    }
+
     setSaving(true);
     try {
-      const draft = drafts[activeRol];
-      const orden = orderDrafts[activeRol];
-      if (!draft || !orden) return;
-      const updated = await actualizarHomeLayoutRol(activeRol, draft, orden);
-      setDrafts((prev) => ({
-        ...prev,
-        [activeRol]: normalizeHomeLayoutMap(updated.paneles),
-      }));
-      setOrderDrafts((prev) => ({
-        ...prev,
-        [activeRol]: normalizeHomePanelOrder(updated.orden),
-      }));
-      setDirty(false);
-      onSuccess(`Inicio actualizado para ${rolHomeLayoutLabel(activeRol)}`);
+      const tasks: Promise<unknown>[] = [];
+      if (layoutDirty) {
+        tasks.push(
+          actualizarHomeLayoutRol(activeRol, draft, orden).then((updated) => {
+            setDrafts((prev) => ({
+              ...prev,
+              [activeRol]: normalizeHomeLayoutMap(updated.paneles),
+            }));
+            setOrderDrafts((prev) => ({
+              ...prev,
+              [activeRol]: normalizeHomePanelOrder(updated.orden),
+            }));
+          }),
+        );
+      }
+      if (permDirty) {
+        tasks.push(
+          actualizarRolePermissions(activeRol, permDraft).then((updated) => {
+            setPermDrafts((prev) => ({
+              ...prev,
+              [activeRol]: rolPermisosToInput(updated),
+            }));
+          }),
+        );
+      }
+      await Promise.all(tasks);
+      setLayoutDirty(false);
+      setPermDirty(false);
+      onSuccess(`Configuración actualizada para ${rolHomeLayoutLabel(activeRol)}`);
     } catch (e) {
       onError(e instanceof Error ? e.message : "No se pudo guardar");
     } finally {
@@ -150,9 +210,9 @@ export default function ConfigHomeLayout({
               Inicio por tipo de cuenta
             </h2>
             <p className="config-home-layout-lead muted">
-              Definí qué bloques del dashboard <strong>Inicio</strong> ve cada perfil: Gestor N1,
-              Gestor N2 y Consulta (lector). Arrastrá con el ícono <strong>⠿</strong> para cambiar el
-              orden dentro de cada columna.
+              Definí el <strong>alcance</strong>, los <strong>módulos del menú</strong> y los{" "}
+              <strong>bloques del Inicio</strong> para Gestor N1, Gestor N2 y Consulta. Arrastrá con
+              el ícono <strong>⠿</strong> para reordenar los bloques del dashboard.
             </p>
           </div>
           <div className="config-home-layout-head-badge" aria-hidden>
@@ -164,9 +224,9 @@ export default function ConfigHomeLayout({
           {HOME_LAYOUT_ROLES.map((rol) => {
             const accent = ROL_ACCENT[rol];
             const isActive = activeRol === rol;
-            const count =
-              Object.values(drafts[rol] ?? {}).filter(Boolean).length ||
-              HOME_PANEL_META.length;
+            const blocks =
+              Object.values(drafts[rol] ?? {}).filter(Boolean).length || HOME_PANEL_META.length;
+            const modules = countModulosHabilitados(permDrafts[rol]);
             return (
               <button
                 key={rol}
@@ -179,7 +239,8 @@ export default function ConfigHomeLayout({
               >
                 <span className="config-home-layout-role-tab-label">{rolHomeLayoutLabel(rol)}</span>
                 <span className="config-home-layout-role-tab-meta">
-                  {count} bloque{count === 1 ? "" : "s"} visibles
+                  {blocks} bloque{blocks === 1 ? "" : "s"} · {modules} módulo
+                  {modules === 1 ? "" : "s"}
                 </span>
               </button>
             );
@@ -206,62 +267,94 @@ export default function ConfigHomeLayout({
                       [id]: next,
                     },
                   }));
-                  setDirty(true);
+                  setLayoutDirty(true);
                 }}
                 onReorder={(next) => {
                   setOrderDrafts((prev) => ({ ...prev, [activeRol]: next }));
-                  setDirty(true);
+                  setLayoutDirty(true);
                 }}
               />
             </div>
 
-            <aside className="config-home-layout-controls" aria-label="Bloques del inicio">
-              <div className="config-home-layout-controls-head">
-                <div>
-                  <p className="config-home-layout-controls-kicker">Configuración</p>
-                  <h3>{rolHomeLayoutLabel(activeRol)}</h3>
-                  <p className="muted">
-                    {visibleCount} de {HOME_PANEL_META.length} bloques visibles
-                  </p>
-                </div>
-                <div className="config-home-layout-bulk">
-                  <button type="button" className="home-hub-link" onClick={() => setAll(true)}>
-                    Mostrar todos
-                  </button>
-                  <button type="button" className="home-hub-link" onClick={() => setAll(false)}>
-                    Ocultar todos
-                  </button>
-                </div>
-              </div>
+            <div className="config-home-layout-sidebar">
+              <ConfigRolAlcancePanel rol={activeRol} accent={ROL_ACCENT[activeRol]} />
 
-              <ul className="config-home-layout-toggle-list">
-                {HOME_PANEL_META.map((panel) => {
-                  const on = activeDraft[panel.id];
-                  return (
-                    <li key={panel.id}>
-                      <button
-                        type="button"
-                        className={`config-home-layout-toggle${on ? " is-on" : ""}`}
-                        onClick={() => togglePanel(panel.id)}
-                        aria-pressed={on}
-                      >
-                        <span className="config-home-layout-toggle-icon" aria-hidden>
-                          {on ? <Eye size={16} /> : <EyeOff size={16} />}
-                        </span>
-                        <span className="config-home-layout-toggle-copy">
-                          <strong>{panel.label}</strong>
-                          <small>{panel.hint}</small>
-                        </span>
-                        <span className={`config-home-layout-switch${on ? " is-on" : ""}`}>
-                          <span className="config-home-layout-switch-thumb" />
-                        </span>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
+              <ConfigRolModulosPanel
+                rol={activeRol}
+                draft={activePermDraft}
+                onToggleModulo={(modulo, activo) => {
+                  if (!activePermDraft) return;
+                  updatePermDraft(toggleModuloPermiso(activePermDraft, activeRol, modulo, activo));
+                }}
+                onSetModo={(modulo, modo: ModoEdicionModulo) => {
+                  if (!activePermDraft) return;
+                  updatePermDraft(setModoEdicionModulo(activePermDraft, modulo, modo));
+                }}
+                onPuedeEscribirChange={(value) => {
+                  if (!activePermDraft) return;
+                  updatePermDraft({ ...activePermDraft, puede_escribir: value });
+                }}
+                onMarcarTodos={() => {
+                  if (!activePermDraft) return;
+                  updatePermDraft(marcarTodosModulosPermiso(activePermDraft, activeRol));
+                }}
+                onDesmarcarTodos={() => {
+                  if (!activePermDraft) return;
+                  updatePermDraft(desmarcarTodosModulosPermiso(activePermDraft));
+                }}
+              />
 
-              <div className="config-home-layout-actions">
+              <section
+                className="config-home-layout-section config-home-layout-section--blocks"
+                aria-label="Bloques del inicio"
+              >
+                <header className="config-home-layout-section-head config-home-layout-section-head--split">
+                  <div>
+                    <p className="config-home-layout-section-kicker">Dashboard Inicio</p>
+                    <h3>Bloques visibles</h3>
+                    <p className="config-home-layout-section-lead muted">
+                      {visibleBlocks} de {HOME_PANEL_META.length} bloques visibles en el inicio.
+                    </p>
+                  </div>
+                  <div className="config-home-layout-bulk">
+                    <button type="button" className="home-hub-link" onClick={() => setAllPanels(true)}>
+                      Mostrar todos
+                    </button>
+                    <button type="button" className="home-hub-link" onClick={() => setAllPanels(false)}>
+                      Ocultar todos
+                    </button>
+                  </div>
+                </header>
+
+                <ul className="config-home-layout-toggle-list">
+                  {HOME_PANEL_META.map((panel) => {
+                    const on = activeDraft[panel.id];
+                    return (
+                      <li key={panel.id}>
+                        <button
+                          type="button"
+                          className={`config-home-layout-toggle${on ? " is-on" : ""}`}
+                          onClick={() => togglePanel(panel.id)}
+                          aria-pressed={on}
+                        >
+                          <span className="config-home-layout-toggle-icon" aria-hidden>
+                            {on ? <Eye size={16} /> : <EyeOff size={16} />}
+                          </span>
+                          <span className="config-home-layout-toggle-copy">
+                            <strong>{panel.label}</strong>
+                            <small>{panel.hint}</small>
+                          </span>
+                          <span className={`config-home-layout-switch${on ? " is-on" : ""}`}>
+                            <span className="config-home-layout-switch-thumb" />
+                          </span>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
+
+              <div className="config-home-layout-actions config-home-layout-actions--sticky">
                 <button
                   type="button"
                   className="sg-hub-cta"
@@ -269,13 +362,13 @@ export default function ConfigHomeLayout({
                   onClick={() => void save()}
                 >
                   <Save size={16} aria-hidden />
-                  {saving ? "Guardando…" : "Guardar para este perfil"}
+                  {saving ? "Guardando…" : `Guardar ${rolHomeLayoutLabel(activeRol)}`}
                 </button>
                 <p className="config-home-layout-foot muted">
-                  Los usuarios verán los cambios al volver a iniciar sesión o al refrescar su sesión.
+                  Los usuarios verán módulos e inicio actualizados al refrescar la sesión.
                 </p>
               </div>
-            </aside>
+            </div>
           </div>
         )}
       </section>

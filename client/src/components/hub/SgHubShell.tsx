@@ -21,6 +21,7 @@ interface Props {
   asideLogo?: ReactNode;
   navAriaLabel?: string;
   showDashboardInNav?: boolean;
+  showAsideNav?: boolean;
   children: ReactNode;
   className?: string;
   hubClassName?: string;
@@ -43,6 +44,7 @@ export default function SgHubShell({
   asideLogo,
   navAriaLabel,
   showDashboardInNav = true,
+  showAsideNav = true,
   children,
   className = "",
   hubClassName = "",
@@ -78,26 +80,30 @@ export default function SgHubShell({
           </div>
         </div>
 
-        <SgHubAsideSearchField
-          value={busquedaModulos}
-          onChange={setBusquedaModulos}
-          inputRef={busquedaInputRef}
-        />
+        {showAsideNav ? (
+          <>
+            <SgHubAsideSearchField
+              value={busquedaModulos}
+              onChange={setBusquedaModulos}
+              inputRef={busquedaInputRef}
+            />
 
-        <SgHubNav
-          items={consultaActiva ? itemsFiltrados : items}
-          sections={consultaActiva ? [] : navSections}
-          activeId={activeId}
-          onNavigate={onNavigate}
-          onVolverDashboard={onVolverDashboard}
-          showDashboard={showDashboardInNav && mostrarDashboard}
-          showSubtitles={consultaActiva}
-          navLabel={consultaActiva ? `Resultados (${itemsFiltrados.length})` : "Principal"}
-          ariaLabel={navAriaLabel}
-        />
+            <SgHubNav
+              items={consultaActiva ? itemsFiltrados : items}
+              sections={consultaActiva ? [] : navSections}
+              activeId={activeId}
+              onNavigate={onNavigate}
+              onVolverDashboard={onVolverDashboard}
+              showDashboard={showDashboardInNav && mostrarDashboard}
+              showSubtitles={consultaActiva}
+              navLabel={consultaActiva ? `Resultados (${itemsFiltrados.length})` : "Principal"}
+              ariaLabel={navAriaLabel}
+            />
 
-        {consultaActiva && !mostrarDashboard && itemsFiltrados.length === 0 ? (
-          <p className="sg-hub-aside-nav-empty">Ningún módulo coincide con la búsqueda.</p>
+            {consultaActiva && !mostrarDashboard && itemsFiltrados.length === 0 ? (
+              <p className="sg-hub-aside-nav-empty">Ningún módulo coincide con la búsqueda.</p>
+            ) : null}
+          </>
         ) : null}
 
         {sidebarExtra}

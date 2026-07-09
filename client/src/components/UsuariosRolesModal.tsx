@@ -7,6 +7,20 @@ import { useHeaderBackStep } from "../header-back";
 import type { Modulo, Rol, RolPermisosConfig, RolPermisosInput } from "../types";
 import { ALL_ROLES } from "../types";
 import { MODULO_LABELS, MODULOS_SOLO_ADMIN, ROL_LABELS_DETALLE } from "../utils/auth-permissions";
+import {
+  MODULO_TODOS,
+  MODULOS_CONFIGURABLES,
+  countModulosHabilitados,
+  desmarcarTodosModulosPermiso,
+  isModuloHabilitado,
+  marcarTodosModulosPermiso,
+  modoEdicionModulo,
+  modoEdicionModuloLabel,
+  rolPermisosToInput,
+  setModoEdicionModulo,
+  toggleModuloPermiso,
+  type ModoEdicionModulo,
+} from "../utils/rol-modulos-config";
 import SubseccionInlinePanel from "./SubseccionInlinePanel";
 
 interface Props {
@@ -19,60 +33,6 @@ interface Props {
 }
 
 const ROLES_EDITABLES: Rol[] = ["editor", "gestor_n2", "consulta"];
-
-/** Secciones del menú principal que el administrador puede asignar por rol. */
-const MODULOS_CONFIGURABLES: Modulo[] = [
-  "presupuesto",
-  "configuracion",
-  "divisas",
-  "precios_ganado",
-  "simulador_venta_ganado",
-  "rrhh",
-  "ventas",
-  "stock",
-];
-
-/** Siempre habilitado para todos los roles — no configurable. */
-const MODULO_TODOS: Modulo = "chat";
-
-type ModoEdicion = "lectura" | "edicion";
-
-function isModuloSoloAdmin(modulo: Modulo): boolean {
-  return MODULOS_SOLO_ADMIN.includes(modulo);
-}
-
-function toInput(config: RolPermisosConfig): RolPermisosInput {
-  const modulos: Partial<Record<Modulo, boolean>> = {};
-  const modulos_solo_lectura: Partial<Record<Modulo, boolean>> = {};
-  for (const m of config.modulos) {
-    if (isModuloSoloAdmin(m.modulo) || m.modulo === MODULO_TODOS) continue;
-    modulos[m.modulo] = m.acceso;
-    if (m.solo_lectura) modulos_solo_lectura[m.modulo] = true;
-  }
-  return {
-    puede_escribir: config.puede_escribir,
-    modulos,
-    modulos_solo_lectura,
-  };
-}
-
-function isHabilitado(draft: RolPermisosInput, modulo: Modulo): boolean {
-  return Boolean(draft.modulos[modulo]);
-}
-
-function modoEdicion(
-  draft: RolPermisosInput,
-  activeRol: Rol,
-  modulo: Modulo
-): ModoEdicion {
-  if (activeRol === "consulta" || !draft.puede_escribir) return "lectura";
-  if (draft.modulos_solo_lectura?.[modulo]) return "lectura";
-  return "edicion";
-}
-
-function modoEdicionLabel(modo: ModoEdicion): string {
-  return modo === "edicion" ? "Ver y editar" : "Solo lectura";
-}
 
 export default function UsuariosRolesPanel({
   apiOnline,
@@ -91,10 +51,7 @@ export default function UsuariosRolesPanel({
   useHeaderBackStep(true, onVolver, "Usuarios");
 
   const activeConfig = roles.find((r) => r.rol === activeRol) ?? null;
-  const habilitadosCount =
-    draft?.modulos
-      ? MODULOS_CONFIGURABLES.filter((m) => isHabilitado(draft, m)).length
-      : 0;
+  const habilitadosCount = countModulosHabilitados(draft);
 
   const load = useCallback(async () => {
     if (!apiOnline) return;
@@ -103,7 +60,7 @@ export default function UsuariosRolesPanel({
       const data = await fetchRolePermissions();
       setRoles(data);
       const editor = data.find((r) => r.rol === "editor");
-      if (editor) setDraft(toInput(editor));
+      if (editor) setDraft(rolPermisosToInput(editor));
     } catch (e) {
       onError(e instanceof Error ? e.message : "Error al cargar permisos");
     } finally {
@@ -118,75 +75,27 @@ export default function UsuariosRolesPanel({
   const selectRol = (rol: Rol) => {
     setActiveRol(rol);
     const cfg = roles.find((r) => r.rol === rol);
-    if (cfg) setDraft(toInput(cfg));
+    if (cfg) setDraft(rolPermisosToInput(cfg));
   };
 
   const toggleModulo = (modulo: Modulo, activo: boolean) => {
-    if (!draft || isModuloSoloAdmin(modulo) || modulo === MODULO_TODOS) return;
-    if (activo) {
-      const modo: ModoEdicion =
-        activeRol === "consulta" || !draft.puede_escribir ? "lectura" : "edicion";
-      setDraft((d) =>
-        d
-          ? {
-              ...d,
-              modulos: { ...d.modulos, [modulo]: true },
-              modulos_solo_lectura: {
-                ...d.modulos_solo_lectura,
-                [modulo]: modo === "lectura",
-              },
-            }
-          : d
-      );
-      return;
-    }
-    setDraft((d) =>
-      d
-        ? {
-            ...d,
-            modulos: { ...d.modulos, [modulo]: false },
-          }
-        : d
-    );
+    if (!draft) return;
+    setDraft(toggleModuloPermiso(draft, activeRol, modulo, activo));
   };
 
-  const setModoEdicion = (modulo: Modulo, modo: ModoEdicion) => {
+  const setModoEdicion = (modulo: Modulo, modo: ModoEdicionModulo) => {
     if (!draft) return;
-    setDraft((d) =>
-      d
-        ? {
-            ...d,
-            modulos_solo_lectura: {
-              ...d.modulos_solo_lectura,
-              [modulo]: modo === "lectura",
-            },
-          }
-        : d
-    );
+    setDraft(setModoEdicionModulo(draft, modulo, modo));
   };
 
   const marcarTodas = () => {
     if (!draft) return;
-    const modo: ModoEdicion =
-      activeRol === "consulta" || !draft.puede_escribir ? "lectura" : "edicion";
-    const modulos: Partial<Record<Modulo, boolean>> = { ...draft.modulos };
-    const modulos_solo_lectura: Partial<Record<Modulo, boolean>> = {
-      ...draft.modulos_solo_lectura,
-    };
-    for (const modulo of MODULOS_CONFIGURABLES) {
-      modulos[modulo] = true;
-      modulos_solo_lectura[modulo] = modo === "lectura";
-    }
-    setDraft({ ...draft, modulos, modulos_solo_lectura });
+    setDraft(marcarTodosModulosPermiso(draft, activeRol));
   };
 
   const desmarcarTodas = () => {
     if (!draft) return;
-    const modulos: Partial<Record<Modulo, boolean>> = { ...draft.modulos };
-    for (const modulo of MODULOS_CONFIGURABLES) {
-      modulos[modulo] = false;
-    }
-    setDraft({ ...draft, modulos });
+    setDraft(desmarcarTodosModulosPermiso(draft));
   };
 
   const save = async () => {
@@ -195,7 +104,7 @@ export default function UsuariosRolesPanel({
     try {
       const updated = await actualizarRolePermissions(activeRol, draft);
       setRoles((prev) => prev.map((r) => (r.rol === updated.rol ? updated : r)));
-      setDraft(toInput(updated));
+      setDraft(rolPermisosToInput(updated));
       onSuccess(`Permisos de ${ROL_LABELS_DETALLE[activeRol]} actualizados`);
       onSaved?.();
     } catch (e) {
@@ -322,8 +231,8 @@ export default function UsuariosRolesPanel({
 
                   <div className="usuarios-roles-grid usuarios-roles-grid--simple">
                     {MODULOS_CONFIGURABLES.map((modulo) => {
-                      const activo = isHabilitado(draft, modulo);
-                      const modo = modoEdicion(draft, activeRol, modulo);
+                      const activo = isModuloHabilitado(draft, modulo);
+                      const modo = modoEdicionModulo(draft, activeRol, modulo);
                       const edicionBloqueada =
                         activeRol === "consulta" || !draft.puede_escribir;
                       return (
@@ -351,7 +260,7 @@ export default function UsuariosRolesPanel({
                               aria-label={`Acceso para ${MODULO_LABELS[modulo]}`}
                               onClick={(e) => e.stopPropagation()}
                               onChange={(e) =>
-                                setModoEdicion(modulo, e.target.value as ModoEdicion)
+                                setModoEdicion(modulo, e.target.value as ModoEdicionModulo)
                               }
                             >
                               <option value="lectura">Solo lectura</option>
@@ -362,7 +271,7 @@ export default function UsuariosRolesPanel({
                           )}
                           {activo && (
                             <span className="usuarios-roles-modulo-hint usuarios-roles-modulo-hint--active">
-                              {modoEdicionLabel(modo)}
+                              {modoEdicionModuloLabel(modo)}
                             </span>
                           )}
                         </label>

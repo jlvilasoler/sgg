@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import L from "leaflet";
 import type { LucideIcon } from "lucide-react";
-import { Building2, CircleDot, Cpu, ListTree, Map, MapPin, Maximize2, Minimize2, Pencil, Plus, Search, Sigma, Tag, Trash2, Undo2, VenusAndMars, X } from "lucide-react";
+import { Building2, CircleDot, Cpu, ListTree, Map, MapPin, Maximize2, MessageSquare, Minimize2, Pencil, Plus, Search, Sigma, Tag, Trash2, Undo2, VenusAndMars, X } from "lucide-react";
 import SgHubShell from "../hub/SgHubShell";
-import type { SgHubItem } from "../hub/SgHubTypes";
 import { MenuAppIcon } from "../icons/MenuAppIcons";
 import {
   createCampoMapaElemento,
@@ -35,7 +34,7 @@ import {
   type MapLatLng,
 } from "./campo-mapa-geo";
 import { mountVertexHandles } from "./campo-mapa-vertex-handles";
-import { buscarLugaresEnMapa, lugarBounds, lugarMaxZoom, type CampoMapaLugarResult } from "./campo-mapa-geocode";
+import { buscarLugaresEnMapa, lugarBounds, lugarUsaBoundsAjustados, lugarZoomCercano, type CampoMapaLugarResult } from "./campo-mapa-geocode";
 import {
   CAMPO_MAPA_MEASURE_COLOR,
   DEFAULT_CAMPO_MAPA_DRAW_COLOR,
@@ -46,6 +45,8 @@ import {
   type CampoMapaDrawColor,
 } from "./campo-mapa-draw-colors";
 import { flyToElemento, renderElementoLayer, renderPotreroLayer } from "./campo-mapa-render";
+import { createCampoMapaPinIcon } from "./campo-mapa-pin-icon";
+import { createCampoMapaNotaBubbleIcon } from "./campo-mapa-nota-bubble";
 import {
   CAMPO_MAPA_DETAILS_TOGGLE_LABEL,
   createCampoMapaBasemapLayers,
@@ -117,15 +118,6 @@ import {
 import { clearCampoMapaDispositivosPotrero, syncCampoMapaDispositivosPotrero } from "./campo-mapa-sync-dispositivos";
 import type { AuthUser } from "../../types";
 import { canWriteCampoMapa } from "../../utils/auth-permissions";
-
-const HUB_ITEMS: SgHubItem[] = [
-  {
-    id: "mapa",
-    label: "Mapa del campo",
-    subtitle: "Herramientas de dibujo y medición sobre vista satelital",
-    icon: "stock_cabana",
-  },
-];
 
 const DEFAULT_CENTER = CAMPO_MAPA_DEFAULT_CENTER;
 const DEFAULT_ZOOM = CAMPO_MAPA_DEFAULT_ZOOM;
@@ -483,6 +475,8 @@ export default function CampoMapa({
     setEditNotas(item.notas);
     if (selectedPotrero) {
       setEditColor(normalizePotreroMapaColor(selectedPotrero.color));
+    } else if (selectedElemento) {
+      setEditColor(normalizePotreroMapaColor(selectedElemento.color));
     } else {
       setEditColor(drawColor);
     }
@@ -520,6 +514,8 @@ export default function CampoMapa({
     setEditNotas(item.notas);
     if (selectedPotrero) {
       setEditColor(normalizePotreroMapaColor(selectedPotrero.color));
+    } else if (selectedElemento) {
+      setEditColor(normalizePotreroMapaColor(selectedElemento.color));
     } else {
       setEditColor(drawColor);
     }
@@ -1045,13 +1041,29 @@ export default function CampoMapa({
     const draftColor = pendingDraft.isMeasurement ? CAMPO_MAPA_MEASURE_COLOR : drawColor;
     const { point, paths, sourceTool } = pendingDraft;
     if (point) {
-      draftLayerRef.current = L.circleMarker([point.lat, point.lng], {
-        radius: sourceTool === "clip" ? 7 : 8,
-        color: "#ffffff",
-        weight: 3,
-        fillColor: draftColor,
-        fillOpacity: 1,
-      }).addTo(map);
+      if (sourceTool === "marcador") {
+        draftLayerRef.current = L.marker([point.lat, point.lng], {
+          icon: createCampoMapaPinIcon(draftColor, true),
+        }).addTo(map);
+      } else if (sourceTool === "nota") {
+        draftLayerRef.current = L.marker([point.lat, point.lng], {
+          icon: createCampoMapaNotaBubbleIcon(
+            draftColor,
+            "Nota",
+            formNotas,
+            true,
+            !formNotas.trim(),
+          ),
+        }).addTo(map);
+      } else {
+        draftLayerRef.current = L.circleMarker([point.lat, point.lng], {
+          radius: sourceTool === "clip" ? 7 : 8,
+          color: "#ffffff",
+          weight: 3,
+          fillColor: draftColor,
+          fillOpacity: 1,
+        }).addTo(map);
+      }
       return;
     }
 
@@ -1083,7 +1095,7 @@ export default function CampoMapa({
       fillColor: draftColor,
       fillOpacity: 0.32,
     }).addTo(map);
-  }, [borderWeight, drawColor, mapReady, pendingDraft]);
+  }, [borderWeight, drawColor, formNotas, mapReady, pendingDraft]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -1121,16 +1133,25 @@ export default function CampoMapa({
         fillOpacity: 1,
       }).addTo(map);
 
-      const flyOptions = {
-        padding: [88, 56] as L.PointExpression,
-        maxZoom: lugarMaxZoom(lugar),
-        duration: 0.85,
-        easeLinearity: 0.25,
-      };
+      const flyDuration = 0.85;
+      const flyEase = 0.25;
 
       map.invalidateSize({ animate: false });
       window.requestAnimationFrame(() => {
-        map.flyToBounds(lugarBounds(lugar), flyOptions);
+        if (lugarUsaBoundsAjustados(lugar)) {
+          map.flyToBounds(lugarBounds(lugar), {
+            padding: [72, 48],
+            maxZoom: 17,
+            duration: flyDuration,
+            easeLinearity: flyEase,
+          });
+          return;
+        }
+
+        map.flyTo([lugar.lat, lugar.lng], lugarZoomCercano(lugar), {
+          duration: flyDuration,
+          easeLinearity: flyEase,
+        });
       });
 
       setSearchQuery(lugar.label);
@@ -1141,38 +1162,17 @@ export default function CampoMapa({
     [clearSearchMarker],
   );
 
-  useEffect(() => {
-    const q = searchQuery.trim();
-    if (q.length < 2) {
-      setSearchResults([]);
-      setSearchLoading(false);
-      setSearchError(null);
-      return;
-    }
-
-    setSearchLoading(true);
-    setSearchError(null);
-    const timer = window.setTimeout(() => {
-      void buscarLugaresEnMapa(q)
-        .then((items) => {
-          setSearchResults(items);
-          setSearchOpen(true);
-          if (items.length === 0) setSearchError("No se encontraron lugares con ese nombre.");
-        })
-        .catch(() => {
-          setSearchResults([]);
-          setSearchError("No se pudo buscar en el mapa. Probá de nuevo.");
-        })
-        .finally(() => setSearchLoading(false));
-    }, 320);
-
-    return () => window.clearTimeout(timer);
-  }, [searchQuery]);
-
   const navegarABusqueda = useCallback(
     async (query: string) => {
       const q = query.trim();
       if (q.length < 2) return;
+
+      const map = mapRef.current;
+      if (!map) {
+        setSearchError("El mapa todavía está cargando. Probá de nuevo en un instante.");
+        setSearchOpen(true);
+        return;
+      }
 
       setSearchLoading(true);
       setSearchError(null);
@@ -1200,6 +1200,37 @@ export default function CampoMapa({
     event.preventDefault();
     void navegarABusqueda(searchQuery);
   };
+
+  useEffect(() => {
+    const q = searchQuery.trim();
+    if (q.length < 2) {
+      setSearchResults([]);
+      setSearchLoading(false);
+      setSearchError(null);
+      return;
+    }
+
+    setSearchError(null);
+    setSearchLoading(true);
+    const timer = window.setTimeout(() => {
+      void buscarLugaresEnMapa(q)
+        .then((items) => {
+          setSearchResults(items);
+          setSearchOpen(true);
+          if (items.length === 0) setSearchError("No se encontraron lugares con ese nombre.");
+        })
+        .catch(() => {
+          setSearchResults([]);
+          setSearchError("No se pudo buscar en el mapa. Probá de nuevo.");
+        })
+        .finally(() => setSearchLoading(false));
+    }, 320);
+
+    return () => {
+      window.clearTimeout(timer);
+      setSearchLoading(false);
+    };
+  }, [searchQuery]);
 
   const handleToolSelect = (tool: CampoMapaTool) => {
     cancelPotreroShapeEdit();
@@ -1231,10 +1262,53 @@ export default function CampoMapa({
     setSketchVertices((prev) => prev.slice(0, -1));
   };
 
-  const cancelSketch = () => {
+  const cancelSketch = useCallback(() => {
     clearSketchOverlay();
     setActiveTool("navegar");
-  };
+  }, [clearSketchOverlay]);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      const target = event.target as HTMLElement | null;
+      const tag = target?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      if (target?.isContentEditable) return;
+      if (!puedeEditar) return;
+
+      if (potreroShapeEdit) {
+        event.preventDefault();
+        cancelPotreroShapeEdit();
+        return;
+      }
+
+      if (pendingDraft) {
+        event.preventDefault();
+        clearDraftOverlay();
+        clearSketchOverlay();
+        setActiveTool("navegar");
+        return;
+      }
+
+      if (activeTool !== "navegar" || sketchVertices.length > 0) {
+        event.preventDefault();
+        cancelSketch();
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [
+    activeTool,
+    cancelPotreroShapeEdit,
+    cancelSketch,
+    clearDraftOverlay,
+    clearSketchOverlay,
+    pendingDraft,
+    potreroShapeEdit,
+    puedeEditar,
+    sketchVertices.length,
+  ]);
 
   const finishSketch = () => {
     if (sketchVertices.length < minSketchPoints) {
@@ -1299,7 +1373,14 @@ export default function CampoMapa({
   };
 
   const savePending = async () => {
-    if (!pendingDraft || !formNombre.trim()) {
+    const isNotaDraft = pendingDraft?.sourceTool === "nota";
+    if (!pendingDraft) return;
+    if (isNotaDraft) {
+      if (!formNotas.trim()) {
+        onError("Escribí el texto de la nota.");
+        return;
+      }
+    } else if (!formNombre.trim()) {
       onError("Ingresá un nombre para guardar en el mapa.");
       return;
     }
@@ -1378,9 +1459,11 @@ export default function CampoMapa({
 
         const created = await createCampoMapaElemento({
           tipo,
-          nombre: formNombre.trim(),
+          nombre: isNotaDraft
+            ? formNotas.trim().split("\n")[0].slice(0, 48) || "Nota"
+            : formNombre.trim(),
           geojson,
-          notas: formNotas,
+          notas: isNotaDraft ? formNotas.trim() : formNotas,
           color: pendingDraft.isMeasurement ? undefined : drawColor,
           metadata: pendingDraft.metadata,
         });
@@ -1439,7 +1522,13 @@ export default function CampoMapa({
 
   const saveSelected = async () => {
     if (!selectedPotrero && !selectedElemento) return;
-    if (!editNombre.trim()) {
+    const isNotaElemento = selectedElemento?.tipo === "nota";
+    if (isNotaElemento) {
+      if (!editNotas.trim()) {
+        onError("Escribí el texto de la nota.");
+        return;
+      }
+    } else if (!editNombre.trim()) {
       onError("Ingresá un nombre para guardar en el mapa.");
       return;
     }
@@ -1484,8 +1573,11 @@ export default function CampoMapa({
 
       if (!targetChanged && selectedElemento) {
         const updated = await updateCampoMapaElemento(selectedElemento.id, {
-          nombre: editNombre,
+          nombre: isNotaElemento
+            ? editNotas.trim().split("\n")[0].slice(0, 48) || "Nota"
+            : editNombre,
           notas: editNotas,
+          color: editColor,
           metadata,
         });
         setElementos((prev) =>
@@ -1548,9 +1640,12 @@ export default function CampoMapa({
       if (selectedElemento && !selectedPotrero) {
         const updated = await updateCampoMapaElemento(selectedElemento.id, {
           tipo: elementoTipo,
-          nombre: editNombre.trim(),
+          nombre: isNotaElemento
+            ? editNotas.trim().split("\n")[0].slice(0, 48) || "Nota"
+            : editNombre.trim(),
           notas: editNotas,
           geojson,
+          color: editColor,
           metadata,
         });
         setElementos((prev) =>
@@ -1684,20 +1779,22 @@ export default function CampoMapa({
 
   const mapHint = useMemo(() => {
     if (showFullscreenWorkDock) return null;
-    if (measureHint) return measureHint;
-    if (vertexEditSource) {
-      return "Arrastrá un punto para moverlo · Doble clic o Supr para eliminar";
-    }
-    if (
+    let hint: string | null = null;
+    if (measureHint) hint = measureHint;
+    else if (vertexEditSource) {
+      hint = "Arrastrá un punto para moverlo · Doble clic o Supr para eliminar";
+    } else if (
       (activeTool === "medir_distancia" || activeTool === "medir_area") &&
       toolUsesSketch(activeTool) &&
       !pendingDraft
     ) {
-      return toolDef.hint;
-    }
-    if (toolUsesSketch(activeTool) && !pendingDraft) return toolDef.hint;
-    if (toolSketchIsPoint(activeTool) && !pendingDraft) return toolDef.hint;
-    return null;
+      hint = toolDef.hint;
+    } else if (toolUsesSketch(activeTool) && !pendingDraft) hint = toolDef.hint;
+    else if (toolSketchIsPoint(activeTool) && !pendingDraft) hint = toolDef.hint;
+
+    if (!hint) return null;
+    if (pendingDraft) return hint;
+    return `${hint} · Esc para cancelar`;
   }, [activeTool, measureHint, pendingDraft, showFullscreenWorkDock, toolDef.hint, vertexEditSource]);
 
   const renderSaveTargetSelector = (
@@ -1748,7 +1845,7 @@ export default function CampoMapa({
         <div className="campo-mapa-aside-tools">
           <p className="campo-mapa-aside-hint">
             {measureHint ??
-              `${toolDef.hint} Podés arrastrar un punto para moverlo o hacer doble clic para eliminarlo.`}
+              `${toolDef.hint} Podés arrastrar un punto para moverlo o hacer doble clic para eliminarlo. Presioná Esc para cancelar.`}
           </p>
           <button
             type="button"
@@ -1885,9 +1982,29 @@ export default function CampoMapa({
                       }`}
                       onClick={() => selectElemento(item.id)}
                     >
-                      <span className="campo-mapa-swatch" style={{ background: item.color }} />
+                      {item.tipo === "marcador" ? (
+                        <MapPin
+                          size={16}
+                          className="campo-mapa-aside-pin"
+                          style={{ color: item.color }}
+                          aria-hidden
+                        />
+                      ) : item.tipo === "nota" ? (
+                        <MessageSquare
+                          size={16}
+                          className="campo-mapa-aside-pin"
+                          style={{ color: item.color }}
+                          aria-hidden
+                        />
+                      ) : (
+                        <span className="campo-mapa-swatch" style={{ background: item.color }} />
+                      )}
                       <span className="campo-mapa-aside-item-text">
-                        <strong>{item.nombre}</strong>
+                        <strong>
+                          {item.tipo === "nota"
+                            ? item.notas.trim() || item.nombre
+                            : item.nombre}
+                        </strong>
                         <span>{ELEMENTO_TIPO_LABELS[item.tipo]}</span>
                       </span>
                     </button>
@@ -1904,9 +2021,11 @@ export default function CampoMapa({
           <p className="campo-mapa-aside-label">
             {pendingDraft.isMeasurement
               ? draftLabel(pendingDraft.sourceTool)
-              : draftTitle(draftSaveTarget)}
+              : pendingDraft.sourceTool === "nota"
+                ? "Nueva nota"
+                : draftTitle(draftSaveTarget)}
           </p>
-          {renderDraftSaveTargetSelector()}
+          {pendingDraft.sourceTool !== "nota" ? renderDraftSaveTargetSelector() : null}
           {pendingDraft.hectareas != null ? (
             <p className="campo-mapa-aside-hint">
               Superficie: {formatHectareas(pendingDraft.hectareas)}
@@ -1920,39 +2039,59 @@ export default function CampoMapa({
           {pendingDraft.sourceTool === "clip" && pendingDraft.metadata?.zoom != null ? (
             <p className="campo-mapa-aside-hint">Zoom: {String(pendingDraft.metadata.zoom)}</p>
           ) : null}
-          <label>
-            Nombre
-            <input
-              value={formNombre}
-              onChange={(e) => setFormNombre(e.target.value)}
-              placeholder={
-                pendingDraft.isMeasurement
-                  ? "Nombre en el mapa"
-                  : draftNombrePlaceholder(draftSaveTarget)
-              }
-              maxLength={48}
-            />
-          </label>
-          <label>
-            Notas
-            <textarea
-              value={formNotas}
-              onChange={(e) => setFormNotas(e.target.value)}
-              rows={3}
-              placeholder="Observaciones opcionales"
-            />
-          </label>
+          {pendingDraft.sourceTool === "nota" ? (
+            <label>
+              Nota
+              <textarea
+                value={formNotas}
+                onChange={(e) => setFormNotas(e.target.value)}
+                rows={4}
+                placeholder="Escribí tu nota…"
+                autoFocus
+              />
+            </label>
+          ) : (
+            <>
+              <label>
+                Nombre
+                <input
+                  value={formNombre}
+                  onChange={(e) => setFormNombre(e.target.value)}
+                  placeholder={
+                    pendingDraft.isMeasurement
+                      ? "Nombre en el mapa"
+                      : draftNombrePlaceholder(draftSaveTarget)
+                  }
+                  maxLength={48}
+                />
+              </label>
+              <label>
+                Notas
+                <textarea
+                  value={formNotas}
+                  onChange={(e) => setFormNotas(e.target.value)}
+                  rows={3}
+                  placeholder="Observaciones opcionales"
+                />
+              </label>
+            </>
+          )}
           <div className="campo-mapa-aside-form-actions">
             <button
               type="button"
               className="campo-mapa-aside-btn campo-mapa-aside-btn--primary"
               onClick={() => void savePending()}
-              disabled={saving || !formNombre.trim()}
+              disabled={
+                saving ||
+                (pendingDraft.sourceTool === "nota" ? !formNotas.trim() : !formNombre.trim())
+              }
             >
               <Plus size={15} aria-hidden />
               {pendingDraft.isMeasurement
                 ? "Guardar medición"
-                : draftSaveButton(draftSaveTarget)}
+                : pendingDraft.sourceTool === "nota"
+                  ? "Guardar nota"
+                  : draftSaveButton(draftSaveTarget)}
             </button>
             <button
               type="button"
@@ -2038,21 +2177,21 @@ export default function CampoMapa({
               Editar perímetro
             </button>
           ) : null}
-          <label>
-            Nombre
-            <input
-              value={editNombre}
-              onChange={(e) => setEditNombre(e.target.value)}
-              maxLength={48}
-            />
-          </label>
-          {editSaveTarget === "potrero" ? (
+          {editSaveTarget === "potrero" ||
+          selectedElemento?.tipo === "nota" ||
+          selectedElemento?.tipo === "marcador" ? (
             <div className="campo-mapa-aside-color-field">
-              <span className="campo-mapa-aside-color-label">Color del potrero</span>
+              <span className="campo-mapa-aside-color-label">
+                {selectedElemento?.tipo === "nota"
+                  ? "Color de la nota"
+                  : selectedElemento?.tipo === "marcador"
+                    ? "Color del marcador"
+                    : "Color del potrero"}
+              </span>
               <div
                 className="campo-mapa-aside-color-options"
                 role="radiogroup"
-                aria-label="Color del potrero"
+                aria-label="Color del elemento"
               >
                 {potreroColorPickerOptions(editColor).map((color) => (
                   <button
@@ -2071,10 +2210,32 @@ export default function CampoMapa({
               </div>
             </div>
           ) : null}
-          <label>
-            Notas
-            <textarea value={editNotas} onChange={(e) => setEditNotas(e.target.value)} rows={3} />
-          </label>
+          {selectedElemento?.tipo === "nota" ? (
+            <label>
+              Texto de la nota
+              <textarea
+                value={editNotas}
+                onChange={(e) => setEditNotas(e.target.value)}
+                rows={4}
+                placeholder="Escribí tu nota…"
+              />
+            </label>
+          ) : (
+            <>
+              <label>
+                Nombre
+                <input
+                  value={editNombre}
+                  onChange={(e) => setEditNombre(e.target.value)}
+                  maxLength={48}
+                />
+              </label>
+              <label>
+                Notas
+                <textarea value={editNotas} onChange={(e) => setEditNotas(e.target.value)} rows={3} />
+              </label>
+            </>
+          )}
           {supportsDispositivosEnMapa(selectedPotrero, selectedElemento) ? (
             <button
               type="button"
@@ -2128,7 +2289,7 @@ export default function CampoMapa({
     <div className="sg-module-page campo-mapa-module-page">
       <SgHubShell
         activeId="mapa"
-        items={HUB_ITEMS}
+        items={[]}
         onNavigate={() => undefined}
         onVolverDashboard={onVolver}
         onVolverInicio={onVolver}
@@ -2140,6 +2301,7 @@ export default function CampoMapa({
         asideLogo={<MenuAppIcon id="campo_mapa" />}
         navAriaLabel="Campo y mapa"
         showDashboardInNav={false}
+        showAsideNav={false}
         hubClassName="campo-mapa-hub"
         sidebarExtra={sidebarBody}
       >
@@ -2215,7 +2377,7 @@ export default function CampoMapa({
               <button
                 type="submit"
                 className="campo-mapa-search-submit"
-                disabled={searchQuery.trim().length < 2 || searchLoading}
+                disabled={searchQuery.trim().length < 2}
                 aria-label="Buscar lugar en el mapa"
               >
                 Buscar
