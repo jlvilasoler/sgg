@@ -9,6 +9,7 @@ import {
   HOME_PANEL_META,
   isHomeLayoutConfigurableRol,
   normalizeHomeLayoutMap,
+  normalizeHomePanelOrder,
   rolHomeLayoutLabel,
   type HomeLayoutConfigurableRol,
   type HomeLayoutMap,
@@ -41,6 +42,9 @@ export default function ConfigHomeLayout({
   const [saving, setSaving] = useState(false);
   const [activeRol, setActiveRol] = useState<HomeLayoutConfigurableRol>(HOME_LAYOUT_ROLES[0]);
   const [drafts, setDrafts] = useState<Partial<Record<HomeLayoutConfigurableRol, HomeLayoutMap>>>({});
+  const [orderDrafts, setOrderDrafts] = useState<
+    Partial<Record<HomeLayoutConfigurableRol, HomePanelId[]>>
+  >({});
   const [dirty, setDirty] = useState(false);
 
   const load = useCallback(async () => {
@@ -52,11 +56,14 @@ export default function ConfigHomeLayout({
     try {
       const data = await fetchHomeLayoutConfig();
       const nextDrafts: Partial<Record<HomeLayoutConfigurableRol, HomeLayoutMap>> = {};
+      const nextOrders: Partial<Record<HomeLayoutConfigurableRol, HomePanelId[]>> = {};
       for (const row of data) {
         if (!isHomeLayoutConfigurableRol(row.rol)) continue;
         nextDrafts[row.rol] = normalizeHomeLayoutMap(row.paneles);
+        nextOrders[row.rol] = normalizeHomePanelOrder(row.orden);
       }
       setDrafts(nextDrafts);
+      setOrderDrafts(nextOrders);
       setDirty(false);
     } catch (e) {
       onError(e instanceof Error ? e.message : "No se pudo cargar la configuración del inicio");
@@ -72,6 +79,11 @@ export default function ConfigHomeLayout({
   const activeDraft = useMemo(
     () => drafts[activeRol] ?? normalizeHomeLayoutMap(null),
     [activeRol, drafts],
+  );
+
+  const activeOrder = useMemo(
+    () => normalizeHomePanelOrder(orderDrafts[activeRol]),
+    [activeRol, orderDrafts],
   );
 
   const visibleCount = useMemo(
@@ -104,11 +116,16 @@ export default function ConfigHomeLayout({
     setSaving(true);
     try {
       const draft = drafts[activeRol];
-      if (!draft) return;
-      const updated = await actualizarHomeLayoutRol(activeRol, draft);
+      const orden = orderDrafts[activeRol];
+      if (!draft || !orden) return;
+      const updated = await actualizarHomeLayoutRol(activeRol, draft, orden);
       setDrafts((prev) => ({
         ...prev,
         [activeRol]: normalizeHomeLayoutMap(updated.paneles),
+      }));
+      setOrderDrafts((prev) => ({
+        ...prev,
+        [activeRol]: normalizeHomePanelOrder(updated.orden),
       }));
       setDirty(false);
       onSuccess(`Inicio actualizado para ${rolHomeLayoutLabel(activeRol)}`);
@@ -134,7 +151,8 @@ export default function ConfigHomeLayout({
             </h2>
             <p className="config-home-layout-lead muted">
               Definí qué bloques del dashboard <strong>Inicio</strong> ve cada perfil: Gestor N1,
-              Gestor N2 y Consulta (lector). La vista previa simula la pantalla real de cada tipo de cuenta.
+              Gestor N2 y Consulta (lector). Arrastrá con el ícono <strong>⠿</strong> para cambiar el
+              orden dentro de cada columna.
             </p>
           </div>
           <div className="config-home-layout-head-badge" aria-hidden>
@@ -175,9 +193,25 @@ export default function ConfigHomeLayout({
             <div className="config-home-layout-preview-wrap">
               <HomeLayoutScreenPreview
                 paneles={activeDraft}
+                orden={activeOrder}
                 rol={activeRol}
                 rolLabel={rolHomeLayoutLabel(activeRol)}
                 accent={ROL_ACCENT[activeRol]}
+                interactive
+                onTogglePanel={(id, next) => {
+                  setDrafts((prev) => ({
+                    ...prev,
+                    [activeRol]: {
+                      ...(prev[activeRol] ?? normalizeHomeLayoutMap(null)),
+                      [id]: next,
+                    },
+                  }));
+                  setDirty(true);
+                }}
+                onReorder={(next) => {
+                  setOrderDrafts((prev) => ({ ...prev, [activeRol]: next }));
+                  setDirty(true);
+                }}
               />
             </div>
 

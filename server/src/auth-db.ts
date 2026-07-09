@@ -143,6 +143,7 @@ export interface UserPublic {
   puede_escribir: boolean;
   modulos_solo_lectura: Modulo[];
   home_paneles: Record<string, boolean>;
+  home_panel_orden: string[];
   /** Ejercicio fiscal contable EFECTIVO (empresa activa en modo individual, o cuenta). Default 1/7. */
   ejercicio_inicio_mes: number;
   ejercicio_inicio_dia: number;
@@ -276,7 +277,8 @@ export async function toUserPublic(row: UserRow, db: Db): Promise<UserPublic> {
   // Antes eran ~15 round-trips secuenciales al pooler remoto (~5s por request,
   // saturando el pool en la ráfaga del dashboard). Agrupadas por dependencia
   // bajan a ~4 fases secuenciales.
-  const [caps, empresaRow, esSuperAdmin, cuentaAdmin, homePaneles] = await Promise.all([
+  const [caps, empresaRow, esSuperAdmin, cuentaAdmin, homePaneles, homePanelOrden] =
+    await Promise.all([
     roleCapabilities(db, row.rol),
     empresaId
       ? db
@@ -291,6 +293,7 @@ export async function toUserPublic(row: UserRow, db: Db): Promise<UserPublic> {
     }),
     empresasCuenta.getEmpresaCuentaByAdminUserId(db, row.id),
     homeLayoutDb.getEffectiveHomeLayoutForUser(db, row.id, row.rol),
+    homeLayoutDb.getEffectiveHomeLayoutOrderForUser(db, row.id, row.rol),
   ]);
 
   const empresa_nombre = empresaRow?.nombre ?? null;
@@ -361,6 +364,7 @@ export async function toUserPublic(row: UserRow, db: Db): Promise<UserPublic> {
     puede_escribir: caps.puede_escribir,
     modulos_solo_lectura: caps.modulos_solo_lectura,
     home_paneles: homePaneles,
+    home_panel_orden: homePanelOrden,
     ejercicio_inicio_mes: ejercicioFiscal.inicio_mes,
     ejercicio_inicio_dia: ejercicioFiscal.inicio_dia,
     login_mode: loginMode,

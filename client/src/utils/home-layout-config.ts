@@ -112,6 +112,69 @@ export const DEFAULT_HOME_LAYOUT: HomeLayoutMap = {
   modulos_rapidos: true,
 };
 
+export const DEFAULT_HOME_PANEL_ORDER: HomePanelId[] = [...HOME_PANEL_IDS];
+
+export function homePanelZone(id: HomePanelId): HomePanelMeta["zone"] {
+  return HOME_PANEL_META.find((p) => p.id === id)?.zone ?? "main";
+}
+
+export function normalizeHomePanelOrder(
+  input: readonly string[] | null | undefined,
+): HomePanelId[] {
+  const seen = new Set<HomePanelId>();
+  const order: HomePanelId[] = [];
+  for (const raw of input ?? []) {
+    if (!(HOME_PANEL_IDS as readonly string[]).includes(raw)) continue;
+    const id = raw as HomePanelId;
+    if (seen.has(id)) continue;
+    seen.add(id);
+    order.push(id);
+  }
+  for (const id of HOME_PANEL_IDS) {
+    if (!seen.has(id)) order.push(id);
+  }
+  return order;
+}
+
+export function orderPanelsInZone(
+  order: readonly HomePanelId[],
+  zone: HomePanelMeta["zone"],
+): HomePanelId[] {
+  return order.filter((id) => homePanelZone(id) === zone);
+}
+
+export function moveHomePanelInOrder(
+  order: readonly HomePanelId[],
+  draggedId: HomePanelId,
+  targetId: HomePanelId,
+): HomePanelId[] {
+  if (draggedId === targetId) return [...order];
+  const zone = homePanelZone(draggedId);
+  if (homePanelZone(targetId) !== zone) return [...order];
+
+  const zoneIds = orderPanelsInZone(order, zone);
+  const from = zoneIds.indexOf(draggedId);
+  const to = zoneIds.indexOf(targetId);
+  if (from < 0 || to < 0) return [...order];
+
+  const nextZone = [...zoneIds];
+  nextZone.splice(from, 1);
+  nextZone.splice(to, 0, draggedId);
+
+  const zoneSet = new Set(zoneIds);
+  const next: HomePanelId[] = [];
+  let zoneIdx = 0;
+  for (const id of order) {
+    if (zoneSet.has(id)) {
+      next.push(nextZone[zoneIdx]!);
+      zoneIdx += 1;
+    } else {
+      next.push(id);
+    }
+  }
+  return next;
+}
+
 export function homeLayoutAllVisible(): HomeLayoutMap {
   return { ...DEFAULT_HOME_LAYOUT };
 }
@@ -149,6 +212,7 @@ export interface HomeLayoutRoleConfig {
   rol: HomeLayoutConfigurableRol;
   rol_label: string;
   paneles: HomeLayoutMap;
+  orden: HomePanelId[];
 }
 
 /** Configuración personal del inicio para el usuario logueado. */
@@ -159,4 +223,6 @@ export interface MyHomeLayoutConfig {
   ceiling: HomeLayoutMap;
   /** Preferencia personal por bloque (solo aplica donde el techo lo permite). */
   overrides: HomeLayoutMap;
+  /** Orden de bloques en el dashboard (por zona: KPIs, columna principal, lateral). */
+  orden: HomePanelId[];
 }

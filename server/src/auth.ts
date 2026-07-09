@@ -1390,6 +1390,7 @@ export function registerAuthRoutes(app: Express): void {
         getDb(),
         rol,
         req.body?.paneles ?? {},
+        req.body?.orden,
       );
       await authDb.recordAuthEvent(getDb(), "home_layout_updated", {
         detalle: `rol=${rol}`,
@@ -1429,6 +1430,7 @@ export function registerAuthRoutes(app: Express): void {
         user.id,
         user.rol,
         req.body?.paneles ?? {},
+        req.body?.orden,
       );
       const updated = await authDb.getUserById(getDb(), user.id);
       res.json({ ok: true, data: { config, user: updated } });

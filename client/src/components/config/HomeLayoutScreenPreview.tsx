@@ -1,10 +1,13 @@
-import { Clock3, LayoutGrid, Plus, Search, X } from "lucide-react";
-import type { CSSProperties, ReactNode } from "react";
+import { Clock3, GripVertical, LayoutGrid, Plus, Search, X } from "lucide-react";
+import { useState, type CSSProperties, type DragEvent, type ReactNode } from "react";
 import type { Rol } from "../../types";
 import type { TabId } from "../Header";
 import { MenuAppIcon, MENU_APP_THEMES } from "../icons/MenuAppIcons";
 import {
+  DEFAULT_HOME_PANEL_ORDER,
   HOME_PANEL_META,
+  moveHomePanelInOrder,
+  orderPanelsInZone,
   type HomeLayoutMap,
   type HomePanelId,
 } from "../../utils/home-layout-config";
@@ -15,9 +18,11 @@ interface Props {
   rol: Rol;
   rolLabel: string;
   accent: string;
+  orden?: readonly HomePanelId[];
   /** Modo edición: cada bloque muestra una ✕ para quitarlo y un placeholder punteado para agregarlo. */
   interactive?: boolean;
   onTogglePanel?: (id: HomePanelId, next: boolean) => void;
+  onReorder?: (orden: HomePanelId[]) => void;
   /** Bloques no disponibles (rol/permiso): se muestran bloqueados y no editables. */
   lockedPanels?: Partial<Record<HomePanelId, string>>;
 }
@@ -80,6 +85,13 @@ function EditableBlock({
   on,
   lockedReason,
   onToggle,
+  draggable = false,
+  isDragging = false,
+  isDropTarget = false,
+  onDragHandleStart,
+  onDragHandleEnd,
+  onDragOverSlot,
+  onDropOnSlot,
   children,
 }: {
   id: HomePanelId;
@@ -87,11 +99,27 @@ function EditableBlock({
   on: boolean;
   lockedReason?: string;
   onToggle?: (id: HomePanelId, next: boolean) => void;
+  draggable?: boolean;
+  isDragging?: boolean;
+  isDropTarget?: boolean;
+  onDragHandleStart?: (id: HomePanelId) => void;
+  onDragHandleEnd?: () => void;
+  onDragOverSlot?: (id: HomePanelId, e: DragEvent) => void;
+  onDropOnSlot?: (id: HomePanelId) => void;
   children: ReactNode;
 }) {
   const minH = EMPTY_MIN_HEIGHT[id]
     ? ({ minHeight: EMPTY_MIN_HEIGHT[id] } as CSSProperties)
     : undefined;
+
+  const slotClass = [
+    "config-home-screen-slot",
+    on ? "is-on" : "",
+    isDragging ? "is-dragging" : "",
+    isDropTarget ? "is-drop-target" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   if (lockedReason) {
     return (
@@ -104,7 +132,32 @@ function EditableBlock({
 
   if (on) {
     return (
-      <div className="config-home-screen-slot is-on">
+      <div
+        className={slotClass}
+        style={minH}
+        onDragOver={(e) => onDragOverSlot?.(id, e)}
+        onDrop={(e) => {
+          e.preventDefault();
+          onDropOnSlot?.(id);
+        }}
+      >
+        {draggable ? (
+          <button
+            type="button"
+            className="config-home-screen-slot-drag"
+            draggable
+            title={`Mover ${label}`}
+            aria-label={`Mover ${label}`}
+            onDragStart={(e) => {
+              e.dataTransfer.effectAllowed = "move";
+              e.dataTransfer.setData("text/plain", id);
+              onDragHandleStart?.(id);
+            }}
+            onDragEnd={() => onDragHandleEnd?.()}
+          >
+            <GripVertical size={14} aria-hidden />
+          </button>
+        ) : null}
         <button
           type="button"
           className="config-home-screen-slot-remove"
@@ -122,11 +175,16 @@ function EditableBlock({
   return (
     <button
       type="button"
-      className="config-home-screen-slot is-empty"
+      className={`config-home-screen-slot is-empty${isDropTarget ? " is-drop-target" : ""}`}
       style={minH}
       onClick={() => onToggle?.(id, true)}
       title={`Agregar ${label}`}
       aria-label={`Agregar ${label}`}
+      onDragOver={(e) => onDragOverSlot?.(id, e)}
+      onDrop={(e) => {
+        e.preventDefault();
+        onDropOnSlot?.(id);
+      }}
     >
       <span className="config-home-screen-slot-add-icon" aria-hidden>
         <Plus size={16} />
@@ -139,18 +197,53 @@ function EditableBlock({
 
 function PreviewKpiStrip({
   paneles,
+  orden,
   interactive,
   lockedPanels,
   onToggle,
+  onReorder,
+  dragId,
+  dropTargetId,
+  setDragId,
+  setDropTargetId,
 }: {
   paneles: HomeLayoutMap;
+  orden: readonly HomePanelId[];
   interactive: boolean;
   lockedPanels?: Partial<Record<HomePanelId, string>>;
   onToggle?: (id: HomePanelId, next: boolean) => void;
+  onReorder?: (orden: HomePanelId[]) => void;
+  dragId: HomePanelId | null;
+  dropTargetId: HomePanelId | null;
+  setDragId: (id: HomePanelId | null) => void;
+  setDropTargetId: (id: HomePanelId | null) => void;
 }) {
+  const topOrder = orderPanelsInZone(orden, "top");
   const showOps = panelOn(paneles, "kpis_operativos");
   const showGastos = panelOn(paneles, "kpis_gastos");
   if (!interactive && !showOps && !showGastos) return null;
+
+  const dragProps = (id: HomePanelId) => ({
+    draggable: Boolean(interactive && onReorder),
+    isDragging: dragId === id,
+    isDropTarget: dropTargetId === id && dragId !== id,
+    onDragHandleStart: setDragId,
+    onDragHandleEnd: () => {
+      setDragId(null);
+      setDropTargetId(null);
+    },
+    onDragOverSlot: (slotId: HomePanelId, e: DragEvent) => {
+      if (!dragId || dragId === slotId) return;
+      e.preventDefault();
+      setDropTargetId(slotId);
+    },
+    onDropOnSlot: (slotId: HomePanelId) => {
+      if (!dragId || !onReorder) return;
+      onReorder(moveHomePanelInOrder(orden, dragId, slotId));
+      setDragId(null);
+      setDropTargetId(null);
+    },
+  });
 
   const opsRow = (
     <div className="config-home-screen-kpi-row config-home-screen-kpi-row--ops">
@@ -213,34 +306,46 @@ function PreviewKpiStrip({
   );
 
   if (!interactive) {
-    return (
-      <div className="config-home-screen-kpis">
-        {showOps ? opsRow : null}
-        {showGastos ? gastosRow : null}
-      </div>
-    );
+    const nodes: ReactNode[] = [];
+    for (const id of topOrder) {
+      if (id === "kpis_operativos" && showOps) nodes.push(<div key={id}>{opsRow}</div>);
+      if (id === "kpis_gastos" && showGastos) nodes.push(<div key={id}>{gastosRow}</div>);
+    }
+    return <div className="config-home-screen-kpis">{nodes}</div>;
   }
 
   return (
     <div className="config-home-screen-kpis">
-      <EditableBlock
-        id="kpis_operativos"
-        label={PANEL_LABEL.kpis_operativos}
-        on={showOps}
-        lockedReason={lockedPanels?.kpis_operativos}
-        onToggle={onToggle}
-      >
-        {opsRow}
-      </EditableBlock>
-      <EditableBlock
-        id="kpis_gastos"
-        label={PANEL_LABEL.kpis_gastos}
-        on={showGastos}
-        lockedReason={lockedPanels?.kpis_gastos}
-        onToggle={onToggle}
-      >
-        {gastosRow}
-      </EditableBlock>
+      {topOrder.map((id) => {
+        if (id === "kpis_operativos") {
+          return (
+            <EditableBlock
+              key={id}
+              id={id}
+              label={PANEL_LABEL.kpis_operativos}
+              on={showOps}
+              lockedReason={lockedPanels?.kpis_operativos}
+              onToggle={onToggle}
+              {...dragProps(id)}
+            >
+              {opsRow}
+            </EditableBlock>
+          );
+        }
+        return (
+          <EditableBlock
+            key={id}
+            id={id}
+            label={PANEL_LABEL.kpis_gastos}
+            on={showGastos}
+            lockedReason={lockedPanels?.kpis_gastos}
+            onToggle={onToggle}
+            {...dragProps(id)}
+          >
+            {gastosRow}
+          </EditableBlock>
+        );
+      })}
     </div>
   );
 }
@@ -451,10 +556,14 @@ export default function HomeLayoutScreenPreview({
   rol,
   rolLabel,
   accent,
+  orden = DEFAULT_HOME_PANEL_ORDER,
   interactive = false,
   onTogglePanel,
+  onReorder,
   lockedPanels,
 }: Props) {
+  const [dragId, setDragId] = useState<HomePanelId | null>(null);
+  const [dropTargetId, setDropTargetId] = useState<HomePanelId | null>(null);
   const roleMeta = ROLE_PREVIEW[rol];
   const visibleCount = HOME_PANEL_META.filter((p) => panelOn(paneles, p.id)).length;
 
@@ -474,9 +583,44 @@ export default function HomeLayoutScreenPreview({
     },
   ];
 
-  const renderColumn = (panels: { id: HomePanelId; node: ReactNode }[]) =>
-    interactive
-      ? panels.map((p) => (
+  const dragProps = (id: HomePanelId) => ({
+    draggable: Boolean(interactive && onReorder),
+    isDragging: dragId === id,
+    isDropTarget: dropTargetId === id && dragId !== id,
+    onDragHandleStart: setDragId,
+    onDragHandleEnd: () => {
+      setDragId(null);
+      setDropTargetId(null);
+    },
+    onDragOverSlot: (slotId: HomePanelId, e: DragEvent) => {
+      if (!dragId || dragId === slotId) return;
+      e.preventDefault();
+      setDropTargetId(slotId);
+    },
+    onDropOnSlot: (slotId: HomePanelId) => {
+      if (!dragId || !onReorder) return;
+      onReorder(moveHomePanelInOrder(orden, dragId, slotId));
+      setDragId(null);
+      setDropTargetId(null);
+    },
+  });
+
+  const sortPanels = (panels: { id: HomePanelId; node: ReactNode }[], zone: "main" | "side") => {
+    const zoneOrder = orderPanelsInZone(orden, zone);
+    const map = new Map(panels.map((p) => [p.id, p]));
+    return zoneOrder.map((id) => map.get(id)).filter(Boolean) as {
+      id: HomePanelId;
+      node: ReactNode;
+    }[];
+  };
+
+  const renderColumn = (
+    panels: { id: HomePanelId; node: ReactNode }[],
+    zone: "main" | "side",
+  ) => {
+    const sorted = sortPanels(panels, zone);
+    return interactive
+      ? sorted.map((p) => (
           <EditableBlock
             key={p.id}
             id={p.id}
@@ -484,13 +628,15 @@ export default function HomeLayoutScreenPreview({
             on={panelOn(paneles, p.id)}
             lockedReason={lockedPanels?.[p.id]}
             onToggle={onTogglePanel}
+            {...dragProps(p.id)}
           >
             {p.node}
           </EditableBlock>
         ))
-      : panels
+      : sorted
           .filter((p) => panelOn(paneles, p.id))
           .map((p) => <div key={p.id}>{p.node}</div>);
+  };
 
   return (
     <div
@@ -557,14 +703,24 @@ export default function HomeLayoutScreenPreview({
 
           <PreviewKpiStrip
             paneles={paneles}
+            orden={orden}
             interactive={interactive}
             lockedPanels={lockedPanels}
             onToggle={onTogglePanel}
+            onReorder={onReorder}
+            dragId={dragId}
+            dropTargetId={dropTargetId}
+            setDragId={setDragId}
+            setDropTargetId={setDropTargetId}
           />
 
           <div className="config-home-screen-panels">
-            <div className="config-home-screen-panels-main">{renderColumn(mainPanels)}</div>
-            <div className="config-home-screen-panels-side">{renderColumn(sidePanels)}</div>
+            <div className="config-home-screen-panels-main">
+              {renderColumn(mainPanels, "main")}
+            </div>
+            <div className="config-home-screen-panels-side">
+              {renderColumn(sidePanels, "side")}
+            </div>
           </div>
 
           {!interactive && visibleCount === 0 ? (

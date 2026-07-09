@@ -1437,6 +1437,8 @@ export interface AuthUser {
   modulos_solo_lectura: Modulo[];
   /** Visibilidad de bloques del inicio según rol (Configuración SAG). */
   home_paneles?: Partial<Record<string, boolean>>;
+  /** Orden de bloques del inicio (KPIs, columna principal, lateral). */
+  home_panel_orden?: string[];
   /** Ejercicio fiscal contable EFECTIVO: mes/día de inicio (default 1/7). */
   ejercicio_inicio_mes?: number;
   ejercicio_inicio_dia?: number;

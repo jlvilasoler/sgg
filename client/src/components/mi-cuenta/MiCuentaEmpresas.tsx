@@ -262,68 +262,70 @@ export default function MiCuentaEmpresas({
       </header>
 
       {!loading && empresasOrdenadas.length > 1 ? (
-      <div className="mi-cuenta-empresas-modo">
-        <div className="mi-cuenta-empresas-modo-title">
-          <span>Modo de inicio de sesión</span>
-          {savingModo ? <span className="muted">Guardando…</span> : null}
-        </div>
-        <div className="mi-cuenta-empresas-modo-options">
-          <button
-            type="button"
-            className={`mi-cuenta-modo-card ${modo === "consolidado" ? "is-active" : ""}`}
-            onClick={() => void cambiarModo("consolidado")}
-            disabled={savingModo}
-          >
-            <Layers size={18} strokeWidth={2} />
-            <strong>Todas juntas (consolidado)</strong>
-            <span className="muted">
-              Al iniciar sesión se ven todas las empresas de la cuenta a la vez.
-            </span>
-          </button>
-          <button
-            type="button"
-            className={`mi-cuenta-modo-card ${modo === "individual" ? "is-active" : ""}`}
-            onClick={() => void cambiarModo("individual")}
-            disabled={savingModo}
-          >
-            <SplitSquareHorizontal size={18} strokeWidth={2} />
-            <strong>Elegir empresa al iniciar</strong>
-            <span className="muted">
-              Al iniciar sesión se pregunta en qué empresa de la cuenta operar.
-            </span>
-          </button>
-        </div>
-      </div>
-      ) : null}
+        <div className="mi-cuenta-empresas-config-card">
+          <div className="mi-cuenta-empresas-config-inner">
+            <div className="mi-cuenta-empresas-modo">
+              <div className="mi-cuenta-empresas-modo-title">
+                <span>Modo de inicio de sesión</span>
+                {savingModo ? <span className="muted">Guardando…</span> : null}
+              </div>
+              <div className="mi-cuenta-empresas-modo-options">
+                <button
+                  type="button"
+                  className={`mi-cuenta-modo-card ${modo === "consolidado" ? "is-active" : ""}`}
+                  onClick={() => void cambiarModo("consolidado")}
+                  disabled={savingModo}
+                >
+                  <Layers size={18} strokeWidth={2} />
+                  <strong>Todas juntas (consolidado)</strong>
+                  <span className="muted">
+                    Al iniciar sesión se ven todas las empresas de la cuenta a la vez.
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  className={`mi-cuenta-modo-card ${modo === "individual" ? "is-active" : ""}`}
+                  onClick={() => void cambiarModo("individual")}
+                  disabled={savingModo}
+                >
+                  <SplitSquareHorizontal size={18} strokeWidth={2} />
+                  <strong>Elegir empresa al iniciar</strong>
+                  <span className="muted">
+                    Al iniciar sesión se pregunta en qué empresa de la cuenta operar.
+                  </span>
+                </button>
+              </div>
+            </div>
 
-      {!loading && empresasOrdenadas.length > 1 ? (
-        <div className="mi-cuenta-empresas-ejercicio-principal">
-          <div className="mi-cuenta-empresas-modo-title">
-            <span>Ejercicio fiscal en modo consolidado</span>
-            {savingEjEmpresa ? <span className="muted">Guardando…</span> : null}
+            <div className="mi-cuenta-empresas-ejercicio-principal">
+              <div className="mi-cuenta-empresas-modo-title">
+                <span>Ejercicio fiscal en modo consolidado</span>
+                {savingEjEmpresa ? <span className="muted">Guardando…</span> : null}
+              </div>
+              <p className="muted">
+                Cuando operás con todas las empresas juntas, se usa el ejercicio fiscal de la
+                empresa que elijas. En modo "elegir empresa al iniciar", cada empresa usa el suyo.
+              </p>
+              <select
+                aria-label="Empresa que define el ejercicio fiscal consolidado"
+                className="mi-cuenta-ejercicio-select mi-cuenta-ejercicio-select--mes"
+                value={ejercicioEmpresaId ?? ""}
+                onChange={(ev) =>
+                  void cambiarEjercicioEmpresa(ev.target.value ? Number(ev.target.value) : null)
+                }
+                disabled={savingEjEmpresa}
+              >
+                <option value="">
+                  Automática ({empresasOrdenadas[0]?.nombre ?? "primera empresa"})
+                </option>
+                {empresasOrdenadas.map((e) => (
+                  <option key={e.id} value={e.id}>
+                    {e.nombre}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
-          <p className="muted">
-            Cuando operás con todas las empresas juntas, se usa el ejercicio fiscal de la
-            empresa que elijas. En modo "elegir empresa al iniciar", cada empresa usa el suyo.
-          </p>
-          <select
-            aria-label="Empresa que define el ejercicio fiscal consolidado"
-            className="mi-cuenta-ejercicio-select mi-cuenta-ejercicio-select--mes"
-            value={ejercicioEmpresaId ?? ""}
-            onChange={(ev) =>
-              void cambiarEjercicioEmpresa(ev.target.value ? Number(ev.target.value) : null)
-            }
-            disabled={savingEjEmpresa}
-          >
-            <option value="">
-              Automática ({empresasOrdenadas[0]?.nombre ?? "primera empresa"})
-            </option>
-            {empresasOrdenadas.map((e) => (
-              <option key={e.id} value={e.id}>
-                {e.nombre}
-              </option>
-            ))}
-          </select>
         </div>
       ) : null}
 
@@ -345,17 +347,20 @@ export default function MiCuentaEmpresas({
             const dirty = dirtyEmpresa(e);
             return (
               <article key={e.id} className="mi-cuenta-empresa-card">
-                <div className="mi-cuenta-empresa-card-head">
-                  <span
-                    className="mi-cuenta-empresa-dot"
-                    style={{ background: e.color || "#94a3b8" }}
-                    aria-hidden="true"
-                  />
-                  <span className="mi-cuenta-empresa-codigo">{e.codigo}</span>
-                  {!e.activo ? <span className="mi-cuenta-empresa-inactiva">Inactiva</span> : null}
-                </div>
+                <div className="mi-cuenta-empresa-card-inner">
+                  <div className="mi-cuenta-empresa-card-head">
+                    <span
+                      className="mi-cuenta-empresa-dot"
+                      style={{ background: e.color || "#94a3b8" }}
+                      aria-hidden="true"
+                    />
+                    <span className="mi-cuenta-empresa-codigo">{e.codigo}</span>
+                    {!e.activo ? (
+                      <span className="mi-cuenta-empresa-inactiva">Inactiva</span>
+                    ) : null}
+                  </div>
 
-                <div className="mi-cuenta-empresa-grid">
+                  <div className="mi-cuenta-empresa-grid">
                   <label className="mi-cuenta-empresa-field">
                     <span className="mi-cuenta-ejercicio-label">Nombre</span>
                     <input
@@ -430,6 +435,7 @@ export default function MiCuentaEmpresas({
                     <Save size={15} strokeWidth={2.1} />
                     {savingId === e.id ? "Guardando…" : "Guardar"}
                   </button>
+                </div>
                 </div>
               </article>
             );

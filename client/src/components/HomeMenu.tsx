@@ -7,7 +7,7 @@ import {
 import type { TabId } from "./Header";
 import type { AuthUser, GastoAutoPendiente, Nota } from "../types";
 import { canAccessScreen, type ActividadVistaModo } from "../utils/auth-permissions";
-import { canShowHomePanel } from "../utils/home-layout-config";
+import { canShowHomePanel, normalizeHomePanelOrder, orderPanelsInZone } from "../utils/home-layout-config";
 import { buildHomeQuickApps, mergeRecentModuleLists, getRecentHomeModules } from "../utils/home-quick-modules";
 import { MENU_APP_THEMES, MenuAppIcon } from "./icons/MenuAppIcons";
 import { SgHubAsideSearchField } from "./hub/SgHubAsideSearch";
@@ -349,6 +349,14 @@ export default function HomeMenu({
 
   const kpiStripCols = expectedTopKpiSlots;
 
+  const panelOrder = useMemo(
+    () => normalizeHomePanelOrder(user.home_panel_orden),
+    [user.home_panel_orden],
+  );
+  const topPanelOrder = useMemo(() => orderPanelsInZone(panelOrder, "top"), [panelOrder]);
+  const mainPanelOrder = useMemo(() => orderPanelsInZone(panelOrder, "main"), [panelOrder]);
+  const sidePanelOrder = useMemo(() => orderPanelsInZone(panelOrder, "side"), [panelOrder]);
+
   const showAutoPendientes =
     canShowHomePanel(user, "auto_pendientes") &&
     puedeAprobarAuto &&
@@ -500,304 +508,337 @@ export default function HomeMenu({
             </div>
           </header>
 
-          {showKpisOperativos && expectedTopKpiSlots > 0 ? (
-            <section
-              className="sg-hub-kpi-strip home-hub-kpi-strip home-hub-kpi-strip--primary"
-              aria-label="Indicadores operativos"
-              aria-busy={loadingInsights}
-              style={
-                {
-                  "--home-hub-kpi-cols": String(kpiStripCols),
-                } as CSSProperties
-              }
-            >
-              {showKpiSkeleton
-                ? Array.from({ length: expectedTopKpiSlots }, (_, index) => (
-                    <div key={`kpi-skeleton-${index}`} className="home-hub-kpi-skeleton" aria-hidden />
-                  ))
-                : renderKpiCards(kpisTop)}
-            </section>
-          ) : null}
-
-          {showKpisGastos && expectedGastosKpiSlots > 0 ? (
-            <div
-              className="home-hub-gastos-kpi-row"
-              style={
-                {
-                  "--home-hub-kpi-cols": String(kpiStripCols),
-                  "--home-hub-gastos-cols": String(expectedGastosKpiSlots),
-                } as CSSProperties
-              }
-            >
-              <div
-                className="home-hub-gastos-kpi-row__gastos"
-                aria-label="Gastos"
-                aria-busy={loadingInsights}
-              >
-                {showKpiSkeleton
-                  ? Array.from({ length: expectedGastosKpiSlots }, (_, index) => (
-                      <div
-                        key={`kpi-gastos-skeleton-${index}`}
-                        className="home-hub-kpi-skeleton"
-                        aria-hidden
-                      />
-                    ))
-                  : renderKpiCards(kpisGastos, kpisTop.length)}
-              </div>
-            </div>
-          ) : null}
+          {topPanelOrder.map((panelId) => {
+            if (panelId === "kpis_operativos" && showKpisOperativos && expectedTopKpiSlots > 0) {
+              return (
+                <section
+                  key="kpis_operativos"
+                  className="sg-hub-kpi-strip home-hub-kpi-strip home-hub-kpi-strip--primary"
+                  aria-label="Indicadores operativos"
+                  aria-busy={loadingInsights}
+                  style={
+                    {
+                      "--home-hub-kpi-cols": String(kpiStripCols),
+                    } as CSSProperties
+                  }
+                >
+                  {showKpiSkeleton
+                    ? Array.from({ length: expectedTopKpiSlots }, (_, index) => (
+                        <div key={`kpi-skeleton-${index}`} className="home-hub-kpi-skeleton" aria-hidden />
+                      ))
+                    : renderKpiCards(kpisTop)}
+                </section>
+              );
+            }
+            if (panelId === "kpis_gastos" && showKpisGastos && expectedGastosKpiSlots > 0) {
+              return (
+                <div
+                  key="kpis_gastos"
+                  className="home-hub-gastos-kpi-row"
+                  style={
+                    {
+                      "--home-hub-kpi-cols": String(kpiStripCols),
+                      "--home-hub-gastos-cols": String(expectedGastosKpiSlots),
+                    } as CSSProperties
+                  }
+                >
+                  <div
+                    className="home-hub-gastos-kpi-row__gastos"
+                    aria-label="Gastos"
+                    aria-busy={loadingInsights}
+                  >
+                    {showKpiSkeleton
+                      ? Array.from({ length: expectedGastosKpiSlots }, (_, index) => (
+                          <div
+                            key={`kpi-gastos-skeleton-${index}`}
+                            className="home-hub-kpi-skeleton"
+                            aria-hidden
+                          />
+                        ))
+                      : renderKpiCards(kpisGastos, kpisTop.length)}
+                  </div>
+                </div>
+              );
+            }
+            return null;
+          })}
 
           <div className="sg-hub-panels home-hub-panels">
             <div className="home-hub-col">
-              {puedeNotas ? (
-                <section
-                  className="sg-hub-panel home-hub-panel--notes"
-                  aria-label="Notas principales"
-                >
-                  <div className="sg-hub-panel-head home-hub-panel-head-row">
-                    <div>
-                      <p className="sg-hub-panel-kicker">Recordatorios</p>
-                      <h2 className="sg-hub-panel-title">Pizarrón</h2>
-                    </div>
-                    <button type="button" className="home-hub-link" onClick={() => onOpen("notas")}>
-                      Ver todas
-                    </button>
-                  </div>
-                  <HomeNotasBoard
-                    notas={notasDestacadas}
-                    loading={loadingNotas}
-                    currentUserId={user.id}
-                    onOpenNota={(nota) => setNotaModal(nota)}
-                    onNewNota={() => setNotaModal(null)}
-                  />
-                  <HomeNotaModal
-                    open={notaModal !== undefined}
-                    nota={notaModal ?? null}
-                    currentUser={user}
-                    apiOnline={apiOnline}
-                    onClose={() => setNotaModal(undefined)}
-                    onSaved={applyNotaHome}
-                    onDeleted={removeNotaHome}
-                  />
-                </section>
-              ) : null}
-
-              {showAutoPendientes ? (
-                <section
-                  className="home-auto-pendientes-section"
-                  aria-label="Pendientes de aprobación"
-                >
-                  <HomeAutoPendientesPanel
-                    pendientes={autoPendientes}
-                    loading={loadingAutoPendientes}
-                    busyId={autoBusyId}
-                    onAprobar={(p) => void aprobarAutoDesdeHome(p)}
-                    onRechazar={(p) => void rechazarAutoDesdeHome(p)}
-                    onVerTodos={irAutomatizacion}
-                  />
-                </section>
-              ) : null}
-
-              {actividadPanels.map((panel) => (
-                <section
-                  key={panel.id}
-                  className={
-                    panel.variant === "global"
-                      ? "sg-hub-panel sg-hub-panel--actividad-global"
-                      : "sg-hub-panel"
-                  }
-                  aria-label={panel.title}
-                >
-                  <div className="sg-hub-panel-head home-hub-panel-head-row">
-                    <div>
-                      <p className="sg-hub-panel-kicker">{panel.kicker}</p>
-                      <h2 className="sg-hub-panel-title">{panel.title}</h2>
-                    </div>
-                    <button
-                      type="button"
-                      className="home-hub-link"
-                      onClick={() =>
-                        onOpen("registro_actividad", { actividadModo: panel.verTodoModo })
-                      }
+              {mainPanelOrder.map((panelId) => {
+                if (panelId === "pizarron" && puedeNotas) {
+                  return (
+                    <section
+                      key="pizarron"
+                      className="sg-hub-panel home-hub-panel--notes"
+                      aria-label="Notas principales"
                     >
-                      Ver todo
-                      <ArrowRight size={14} aria-hidden />
-                    </button>
-                  </div>
-                  {panel.loading && panel.items.length === 0 ? (
-                    <ul
-                      className="home-hub-activity-skeleton-list"
-                      aria-busy="true"
-                      aria-label="Cargando actividad"
+                      <div className="sg-hub-panel-head home-hub-panel-head-row">
+                        <div>
+                          <p className="sg-hub-panel-kicker">Recordatorios</p>
+                          <h2 className="sg-hub-panel-title">Pizarrón</h2>
+                        </div>
+                        <button type="button" className="home-hub-link" onClick={() => onOpen("notas")}>
+                          Ver todas
+                        </button>
+                      </div>
+                      <HomeNotasBoard
+                        notas={notasDestacadas}
+                        loading={loadingNotas}
+                        currentUserId={user.id}
+                        onOpenNota={(nota) => setNotaModal(nota)}
+                        onNewNota={() => setNotaModal(null)}
+                      />
+                      <HomeNotaModal
+                        open={notaModal !== undefined}
+                        nota={notaModal ?? null}
+                        currentUser={user}
+                        apiOnline={apiOnline}
+                        onClose={() => setNotaModal(undefined)}
+                        onSaved={applyNotaHome}
+                        onDeleted={removeNotaHome}
+                      />
+                    </section>
+                  );
+                }
+                if (panelId === "auto_pendientes" && showAutoPendientes) {
+                  return (
+                    <section
+                      key="auto_pendientes"
+                      className="home-auto-pendientes-section"
+                      aria-label="Pendientes de aprobación"
                     >
-                      {Array.from({ length: 4 }).map((_, i) => (
-                        <li key={`act-skeleton-${panel.id}-${i}`}>
-                          <div className="home-hub-activity-skeleton" aria-hidden>
-                            <span className="home-hub-activity-skeleton-icon" />
-                            <span className="home-hub-activity-skeleton-lines">
-                              <span />
-                              <span />
-                            </span>
+                      <HomeAutoPendientesPanel
+                        pendientes={autoPendientes}
+                        loading={loadingAutoPendientes}
+                        busyId={autoBusyId}
+                        onAprobar={(p) => void aprobarAutoDesdeHome(p)}
+                        onRechazar={(p) => void rechazarAutoDesdeHome(p)}
+                        onVerTodos={irAutomatizacion}
+                      />
+                    </section>
+                  );
+                }
+                if (panelId === "actividad" && canShowHomePanel(user, "actividad")) {
+                  return (
+                    <Fragment key="actividad">
+                      {actividadPanels.map((panel) => (
+                        <section
+                          key={panel.id}
+                          className={
+                            panel.variant === "global"
+                              ? "sg-hub-panel sg-hub-panel--actividad-global"
+                              : "sg-hub-panel"
+                          }
+                          aria-label={panel.title}
+                        >
+                          <div className="sg-hub-panel-head home-hub-panel-head-row">
+                            <div>
+                              <p className="sg-hub-panel-kicker">{panel.kicker}</p>
+                              <h2 className="sg-hub-panel-title">{panel.title}</h2>
+                            </div>
+                            <button
+                              type="button"
+                              className="home-hub-link"
+                              onClick={() =>
+                                onOpen("registro_actividad", { actividadModo: panel.verTodoModo })
+                              }
+                            >
+                              Ver todo
+                              <ArrowRight size={14} aria-hidden />
+                            </button>
                           </div>
-                        </li>
+                          {panel.loading && panel.items.length === 0 ? (
+                            <ul
+                              className="home-hub-activity-skeleton-list"
+                              aria-busy="true"
+                              aria-label="Cargando actividad"
+                            >
+                              {Array.from({ length: 4 }).map((_, i) => (
+                                <li key={`act-skeleton-${panel.id}-${i}`}>
+                                  <div className="home-hub-activity-skeleton" aria-hidden>
+                                    <span className="home-hub-activity-skeleton-icon" />
+                                    <span className="home-hub-activity-skeleton-lines">
+                                      <span />
+                                      <span />
+                                    </span>
+                                  </div>
+                                </li>
+                              ))}
+                            </ul>
+                          ) : panel.items.length === 0 ? (
+                            <p className="home-hub-empty">{panel.emptyText}</p>
+                          ) : (
+                            <ul className="home-cmd-activity-list">
+                              {panel.items.map((item) => (
+                                <li key={item.id}>
+                                  <button
+                                    type="button"
+                                    className="home-cmd-activity-item"
+                                    onClick={() =>
+                                      onOpen("registro_actividad", { actividadModo: panel.verTodoModo })
+                                    }
+                                  >
+                                    <span className="home-cmd-activity-icon" aria-hidden>
+                                      <Clock3 size={15} />
+                                    </span>
+                                    <span className="home-cmd-activity-body">
+                                      <span className="home-cmd-activity-text">
+                                        {formatActividadDetalle(item.detalle, item.evento)}
+                                      </span>
+                                      <span className="home-cmd-activity-meta">
+                                        {item.user_nombre || item.email || "Usuario"} ·{" "}
+                                        {formatFechaRelativa(item.creado_en)}
+                                      </span>
+                                    </span>
+                                  </button>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </section>
                       ))}
-                    </ul>
-                  ) : panel.items.length === 0 ? (
-                    <p className="home-hub-empty">{panel.emptyText}</p>
-                  ) : (
-                    <ul className="home-cmd-activity-list">
-                      {panel.items.map((item) => (
-                        <li key={item.id}>
-                          <button
-                            type="button"
-                            className="home-cmd-activity-item"
-                            onClick={() =>
-                              onOpen("registro_actividad", { actividadModo: panel.verTodoModo })
-                            }
-                          >
-                            <span className="home-cmd-activity-icon" aria-hidden>
-                              <Clock3 size={15} />
-                            </span>
-                            <span className="home-cmd-activity-body">
-                              <span className="home-cmd-activity-text">
-                                {formatActividadDetalle(item.detalle, item.evento)}
-                              </span>
-                              <span className="home-cmd-activity-meta">
-                                {item.user_nombre || item.email || "Usuario"} ·{" "}
-                                {formatFechaRelativa(item.creado_en)}
-                              </span>
-                            </span>
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </section>
-              ))}
+                    </Fragment>
+                  );
+                }
+                return null;
+              })}
             </div>
 
             <div className="home-hub-col home-hub-col--side">
-              {puedeMapaCampo ? (
-                <HomeCampoMapaPanel
-                  apiOnline={apiOnline}
-                  onOpenMapa={() => onOpen("campo_mapa")}
-                />
-              ) : null}
-
-              {puedeVencimientos ? (
-                <section
-                  className="sg-hub-panel home-hub-panel--venc"
-                  aria-label="Próximos vencimientos"
-                >
-                  <div className="sg-hub-panel-head home-hub-panel-head-row">
-                    <div>
-                      <p className="sg-hub-panel-kicker">Calendario tributario</p>
-                      <h2 className="sg-hub-panel-title">Próximos vencimientos</h2>
-                    </div>
-                    <button
-                      type="button"
-                      className="home-hub-link"
-                      onClick={() => onOpen("vencimientos_impuestos")}
+              {sidePanelOrder.map((panelId) => {
+                if (panelId === "mapa_campo" && puedeMapaCampo) {
+                  return (
+                    <HomeCampoMapaPanel
+                      key="mapa_campo"
+                      apiOnline={apiOnline}
+                      onOpenMapa={() => onOpen("campo_mapa")}
+                    />
+                  );
+                }
+                if (panelId === "vencimientos" && puedeVencimientos) {
+                  return (
+                    <section
+                      key="vencimientos"
+                      className="sg-hub-panel home-hub-panel--venc"
+                      aria-label="Próximos vencimientos"
                     >
-                      Abrir
-                    </button>
-                  </div>
-                  {loadingVenc ? (
-                    <p className="home-hub-empty">Cargando vencimientos…</p>
-                  ) : proximosVenc.length === 0 ? (
-                    <p className="home-hub-empty">
-                      No hay vencimientos urgentes en los próximos días.
-                    </p>
-                  ) : (
-                    <div className="home-hub-venc-proximos vencimientos-impuestos-page">
-                      <div className="venc-imp-user-banner-proximos-wrap">
-                        {proximosVenc.map((item) => (
-                          <div key={item.key} className="venc-imp-user-banner-proximo-box">
-                            <HomeVencProximoBanner
-                              item={item}
-                              onClick={() => onOpen("vencimientos_impuestos")}
-                            />
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </section>
-              ) : null}
-
-              {puedeStockGanadero ? (
-                <HomeStockPotreroPanel
-                  apiOnline={apiOnline}
-                  onOpenStock={() => onOpen("stock_ganadero")}
-                  onOpenMapa={puedeMapaCampo ? () => onOpen("campo_mapa") : undefined}
-                />
-              ) : null}
-
-              {showModulosRapidos ? (
-              <section
-                className="sg-hub-panel sg-hub-panel--modules home-hub-panel--quick"
-                aria-labelledby="home-hub-mod-title"
-              >
-                <div className="sg-hub-panel-head">
-                  <div>
-                    <p className="sg-hub-panel-kicker">Accesos rápidos</p>
-                    <h2 id="home-hub-mod-title" className="sg-hub-panel-title">
-                      Módulos
-                    </h2>
-                    <p className="home-hub-modules-hint muted">
-                      Según tu perfil y lo que usaste últimamente
-                    </p>
-                  </div>
-                </div>
-                <div className="sg-hub-module-grid sg-hub-module-grid--primary">
-                  {quickApps.map((app) => {
-                    const theme = MENU_APP_THEMES[app.id];
-                    return (
-                      <button
-                        key={app.id}
-                        type="button"
-                        className="sg-hub-module-card sg-hub-module-card--featured"
-                        onClick={() => onOpen(app.id)}
-                        onMouseEnter={
-                          app.id === "vencimientos_impuestos"
-                            ? prefetchVencimientosImpuestos
-                            : undefined
-                        }
-                        onFocus={
-                          app.id === "vencimientos_impuestos"
-                            ? prefetchVencimientosImpuestos
-                            : undefined
-                        }
-                      >
-                        <span
-                          className="sg-hub-module-icon"
-                          style={
-                            {
-                              "--sg-hub-icon-bg": theme.accentSoft,
-                              "--sg-hub-icon-fg": theme.accent,
-                            } as CSSProperties
-                          }
+                      <div className="sg-hub-panel-head home-hub-panel-head-row">
+                        <div>
+                          <p className="sg-hub-panel-kicker">Calendario tributario</p>
+                          <h2 className="sg-hub-panel-title">Próximos vencimientos</h2>
+                        </div>
+                        <button
+                          type="button"
+                          className="home-hub-link"
+                          onClick={() => onOpen("vencimientos_impuestos")}
                         >
-                          <MenuAppIcon id={app.id} className="menu-app-icon-svg" />
-                        </span>
-                        <span className="sg-hub-module-copy">
-                          <strong>{app.label}</strong>
-                          <small>{app.subtitle}</small>
-                        </span>
-                        {app.id === "vencimientos_impuestos" && vencProximosCount > 0 ? (
-                          <span className="home-hub-module-badge" aria-hidden>
-                            {vencProximosCount > 99 ? "99+" : vencProximosCount}
-                          </span>
-                        ) : null}
-                        <span className="sg-hub-module-arrow" aria-hidden>
-                          →
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </section>
-              ) : null}
+                          Abrir
+                        </button>
+                      </div>
+                      {loadingVenc ? (
+                        <p className="home-hub-empty">Cargando vencimientos…</p>
+                      ) : proximosVenc.length === 0 ? (
+                        <p className="home-hub-empty">
+                          No hay vencimientos urgentes en los próximos días.
+                        </p>
+                      ) : (
+                        <div className="home-hub-venc-proximos vencimientos-impuestos-page">
+                          <div className="venc-imp-user-banner-proximos-wrap">
+                            {proximosVenc.map((item) => (
+                              <div key={item.key} className="venc-imp-user-banner-proximo-box">
+                                <HomeVencProximoBanner
+                                  item={item}
+                                  onClick={() => onOpen("vencimientos_impuestos")}
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </section>
+                  );
+                }
+                if (panelId === "stock_potrero" && puedeStockGanadero) {
+                  return (
+                    <HomeStockPotreroPanel
+                      key="stock_potrero"
+                      apiOnline={apiOnline}
+                      onOpenStock={() => onOpen("stock_ganadero")}
+                      onOpenMapa={puedeMapaCampo ? () => onOpen("campo_mapa") : undefined}
+                    />
+                  );
+                }
+                if (panelId === "modulos_rapidos" && showModulosRapidos) {
+                  return (
+                    <section
+                      key="modulos_rapidos"
+                      className="sg-hub-panel sg-hub-panel--modules home-hub-panel--quick"
+                      aria-labelledby="home-hub-mod-title"
+                    >
+                      <div className="sg-hub-panel-head">
+                        <div>
+                          <p className="sg-hub-panel-kicker">Accesos rápidos</p>
+                          <h2 id="home-hub-mod-title" className="sg-hub-panel-title">
+                            Módulos
+                          </h2>
+                          <p className="home-hub-modules-hint muted">
+                            Según tu perfil y lo que usaste últimamente
+                          </p>
+                        </div>
+                      </div>
+                      <div className="sg-hub-module-grid sg-hub-module-grid--primary">
+                        {quickApps.map((app) => {
+                          const theme = MENU_APP_THEMES[app.id];
+                          return (
+                            <button
+                              key={app.id}
+                              type="button"
+                              className="sg-hub-module-card sg-hub-module-card--featured"
+                              onClick={() => onOpen(app.id)}
+                              onMouseEnter={
+                                app.id === "vencimientos_impuestos"
+                                  ? prefetchVencimientosImpuestos
+                                  : undefined
+                              }
+                              onFocus={
+                                app.id === "vencimientos_impuestos"
+                                  ? prefetchVencimientosImpuestos
+                                  : undefined
+                              }
+                            >
+                              <span
+                                className="sg-hub-module-icon"
+                                style={
+                                  {
+                                    "--sg-hub-icon-bg": theme.accentSoft,
+                                    "--sg-hub-icon-fg": theme.accent,
+                                  } as CSSProperties
+                                }
+                              >
+                                <MenuAppIcon id={app.id} className="menu-app-icon-svg" />
+                              </span>
+                              <span className="sg-hub-module-copy">
+                                <strong>{app.label}</strong>
+                                <small>{app.subtitle}</small>
+                              </span>
+                              {app.id === "vencimientos_impuestos" && vencProximosCount > 0 ? (
+                                <span className="home-hub-module-badge" aria-hidden>
+                                  {vencProximosCount > 99 ? "99+" : vencProximosCount}
+                                </span>
+                              ) : null}
+                              <span className="sg-hub-module-arrow" aria-hidden>
+                                →
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </section>
+                  );
+                }
+                return null;
+              })}
             </div>
           </div>
         </main>

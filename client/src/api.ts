@@ -127,6 +127,7 @@ import type { GastoMapeoCampos } from "./utils/gasto-campos";
 import type {
   HomeLayoutConfigurableRol,
   HomeLayoutRoleConfig,
+  HomePanelId,
   MyHomeLayoutConfig,
 } from "./utils/home-layout-config";
 import { apiConnectionError } from "./utils/api-messages";
@@ -4342,10 +4343,11 @@ export async function fetchHomeLayoutConfig(): Promise<HomeLayoutRoleConfig[]> {
 export async function actualizarHomeLayoutRol(
   rol: HomeLayoutConfigurableRol,
   paneles: Record<string, boolean>,
+  orden?: HomePanelId[],
 ): Promise<HomeLayoutRoleConfig> {
   const json = await request<{ data: HomeLayoutRoleConfig }>(`/auth/home-layout/${rol}`, {
     method: "PATCH",
-    body: JSON.stringify({ paneles }),
+    body: JSON.stringify({ paneles, orden }),
   });
   return json.data;
 }
@@ -4403,12 +4405,13 @@ export async function fetchMiHomeLayout(): Promise<MyHomeLayoutConfig> {
 
 export async function actualizarMiHomeLayout(
   paneles: Record<string, boolean>,
+  orden?: HomePanelId[],
 ): Promise<{ config: MyHomeLayoutConfig; user: AuthUser }> {
   const json = await request<{ data: { config: MyHomeLayoutConfig; user: AuthUser } }>(
     "/auth/my-home-layout",
     {
       method: "PATCH",
-      body: JSON.stringify({ paneles }),
+      body: JSON.stringify({ paneles, orden }),
     },
   );
   return json.data;

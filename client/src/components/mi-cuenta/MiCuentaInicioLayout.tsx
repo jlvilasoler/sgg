@@ -5,6 +5,7 @@ import type { AuthUser, Rol } from "../../types";
 import {
   HOME_PANEL_META,
   homeLayoutAllVisible,
+  normalizeHomePanelOrder,
   type HomeLayoutMap,
   type HomePanelId,
   type MyHomeLayoutConfig,
@@ -58,6 +59,7 @@ export default function MiCuentaInicioLayout({
 }: Props) {
   const [config, setConfig] = useState<MyHomeLayoutConfig | null>(null);
   const [draft, setDraft] = useState<Record<HomePanelId, boolean> | null>(null);
+  const [orderDraft, setOrderDraft] = useState<HomePanelId[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
@@ -73,6 +75,7 @@ export default function MiCuentaInicioLayout({
       const data = await fetchMiHomeLayout();
       setConfig(data);
       setDraft({ ...data.overrides });
+      setOrderDraft(normalizeHomePanelOrder(data.orden));
       setDirty(false);
     } catch (e) {
       onError(e instanceof Error ? e.message : "No se pudo cargar tu configuración de inicio");
@@ -147,12 +150,16 @@ export default function MiCuentaInicioLayout({
   };
 
   const save = async () => {
-    if (!apiOnline || !dirty || !draft) return;
+    if (!apiOnline || !dirty || !draft || !orderDraft) return;
     setSaving(true);
     try {
-      const { config: nextConfig, user: nextUser } = await actualizarMiHomeLayout(draft);
+      const { config: nextConfig, user: nextUser } = await actualizarMiHomeLayout(
+        draft,
+        orderDraft,
+      );
       setConfig(nextConfig);
       setDraft({ ...nextConfig.overrides });
+      setOrderDraft(normalizeHomePanelOrder(nextConfig.orden));
       setDirty(false);
       setGuardadoOk(true);
       if (nextUser) onUserUpdated(nextUser);
@@ -181,7 +188,7 @@ export default function MiCuentaInicioLayout({
 
       {loading ? (
         <p className="mi-cuenta-inicio-loading muted">Cargando tu configuración…</p>
-      ) : !config || !draft ? (
+      ) : !config || !draft || !orderDraft ? (
         <p className="mi-cuenta-inicio-loading muted">
           {apiOnline ? "No se pudo cargar tu configuración." : "Sin conexión con el servidor."}
         </p>
@@ -211,19 +218,26 @@ export default function MiCuentaInicioLayout({
           </div>
 
           <p className="mi-cuenta-inicio-hint muted">
-            Tocá la <strong>✕</strong> de cada bloque para quitarlo de tu inicio. Los espacios
-            marcados con línea punteada verde son bloques ocultos: tocalos para volver a agregarlos.
+            Arrastrá con el ícono <strong>⠿</strong> para cambiar el orden de los bloques dentro de
+            cada columna. Tocá la <strong>✕</strong> para quitar un bloque. Los espacios punteados
+            permiten volver a agregarlo.
             {guardadoOk ? " Cambios guardados." : ""}
           </p>
 
           <div className="mi-cuenta-inicio-canvas">
             <HomeLayoutScreenPreview
               paneles={previewPaneles}
+              orden={orderDraft ?? undefined}
               rol={user.rol}
               rolLabel={user.rol_label}
               accent={ROL_ACCENT[user.rol] ?? ROL_ACCENT.editor}
               interactive
               onTogglePanel={setPanelVisible}
+              onReorder={(next) => {
+                setOrderDraft(next);
+                setDirty(true);
+                setGuardadoOk(false);
+              }}
               lockedPanels={lockedPanels}
             />
           </div>

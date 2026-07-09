@@ -30,6 +30,63 @@ const DEFAULT_HOME_LAYOUT: HomeLayoutMap = {
   modulos_rapidos: true,
 };
 
+const DEFAULT_HOME_PANEL_ORDER: HomePanelId[] = [...HOME_PANEL_IDS];
+
+function homePanelZone(id: HomePanelId): "top" | "main" | "side" {
+  if (id === "kpis_operativos" || id === "kpis_gastos") return "top";
+  if (id === "pizarron" || id === "auto_pendientes" || id === "actividad") return "main";
+  return "side";
+}
+
+export function normalizeHomePanelOrder(
+  input: readonly string[] | null | undefined,
+): HomePanelId[] {
+  const seen = new Set<HomePanelId>();
+  const order: HomePanelId[] = [];
+  for (const raw of input ?? []) {
+    if (!isHomePanelId(raw)) continue;
+    if (seen.has(raw)) continue;
+    seen.add(raw);
+    order.push(raw);
+  }
+  for (const id of HOME_PANEL_IDS) {
+    if (!seen.has(id)) order.push(id);
+  }
+  return order;
+}
+
+function orderPanelsInZone(
+  order: readonly HomePanelId[],
+  zone: "top" | "main" | "side",
+): HomePanelId[] {
+  return order.filter((id) => homePanelZone(id) === zone);
+}
+
+async function migrateHomeLayoutSortOrderColumn(db: Db, table: string): Promise<void> {
+  try {
+    await db.prepare(`ALTER TABLE ${table} ADD COLUMN sort_order INTEGER`).run();
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (!/already exists|duplicate column/i.test(msg)) throw err;
+  }
+}
+
+async function backfillHomeLayoutSortOrder(db: Db, table: string): Promise<void> {
+  const defaultIndex = new Map(HOME_PANEL_IDS.map((id, index) => [id, index]));
+  const rows = (await db
+    .prepare(`SELECT panel_id, sort_order FROM ${table}`)
+    .all()) as { panel_id: string; sort_order: number | null }[];
+
+  const upd = await db.prepare(
+    `UPDATE ${table} SET sort_order = ? WHERE panel_id = ? AND sort_order IS NULL`,
+  );
+  for (const row of rows) {
+    if (!isHomePanelId(row.panel_id)) continue;
+    if (row.sort_order != null) continue;
+    await upd.run(defaultIndex.get(row.panel_id) ?? 0, row.panel_id);
+  }
+}
+
 const ROL_LABELS_DETALLE: Record<Rol, string> = {
   admin: "Administrador",
   editor: "Gestor N1",
@@ -63,6 +120,7 @@ export async function initHomeLayoutTable(db: Db): Promise<void> {
         rol TEXT NOT NULL CHECK (rol IN ('editor', 'gestor_n2', 'consulta')),
         panel_id TEXT NOT NULL,
         visible INTEGER NOT NULL DEFAULT 1,
+        sort_order INTEGER,
         actualizado_en TIMESTAMPTZ DEFAULT NOW(),
         PRIMARY KEY (rol, panel_id)
       )`,
@@ -75,13 +133,19 @@ export async function initHomeLayoutTable(db: Db): Promise<void> {
         user_id INTEGER NOT NULL,
         panel_id TEXT NOT NULL,
         visible INTEGER NOT NULL DEFAULT 1,
+        sort_order INTEGER,
         actualizado_en TIMESTAMPTZ DEFAULT NOW(),
         PRIMARY KEY (user_id, panel_id)
       )`,
     )
     .run();
 
+  await migrateHomeLayoutSortOrderColumn(db, "ROLE_HOME_LAYOUT");
+  await migrateHomeLayoutSortOrderColumn(db, "USER_HOME_LAYOUT");
+
   await seedHomeLayoutIfEmpty(db);
+  await backfillHomeLayoutSortOrder(db, "ROLE_HOME_LAYOUT");
+  await backfillHomeLayoutSortOrder(db, "USER_HOME_LAYOUT");
 }
 
 async function seedHomeLayoutIfEmpty(db: Db): Promise<void> {
@@ -91,13 +155,71 @@ async function seedHomeLayoutIfEmpty(db: Db): Promise<void> {
   if (pgNum(count.n) > 0) return;
 
   const ins = await db.prepare(
-    "INSERT INTO ROLE_HOME_LAYOUT (rol, panel_id, visible) VALUES (?, ?, ?)",
+    "INSERT INTO ROLE_HOME_LAYOUT (rol, panel_id, visible, sort_order) VALUES (?, ?, ?, ?)",
   );
   for (const rol of HOME_LAYOUT_ROLES) {
-    for (const panelId of HOME_PANEL_IDS) {
-      await ins.run(rol, panelId, DEFAULT_HOME_LAYOUT[panelId] ? 1 : 0);
+    for (let i = 0; i < HOME_PANEL_IDS.length; i++) {
+      const panelId = HOME_PANEL_IDS[i]!;
+      await ins.run(rol, panelId, DEFAULT_HOME_LAYOUT[panelId] ? 1 : 0, i);
     }
   }
+}
+
+export async function getHomeLayoutOrderForRole(db: Db, rol: Rol): Promise<HomePanelId[]> {
+  if (rol === "admin") return [...DEFAULT_HOME_PANEL_ORDER];
+
+  const rows = (await db
+    .prepare(
+      "SELECT panel_id, sort_order FROM ROLE_HOME_LAYOUT WHERE rol = ? ORDER BY sort_order ASC NULLS LAST, panel_id ASC",
+    )
+    .all(rol)) as { panel_id: string; sort_order: number | null }[];
+
+  if (rows.length === 0) return [...DEFAULT_HOME_PANEL_ORDER];
+
+  const ordered = rows
+    .filter((row) => isHomePanelId(row.panel_id))
+    .sort((a, b) => {
+      const ao = a.sort_order ?? DEFAULT_HOME_PANEL_ORDER.indexOf(a.panel_id as HomePanelId);
+      const bo = b.sort_order ?? DEFAULT_HOME_PANEL_ORDER.indexOf(b.panel_id as HomePanelId);
+      return ao - bo;
+    })
+    .map((row) => row.panel_id as HomePanelId);
+
+  return normalizeHomePanelOrder(ordered);
+}
+
+/** Orden personal del usuario; si no hay filas guardadas, hereda el del rol. */
+export async function getUserHomeLayoutOrder(
+  db: Db,
+  userId: number,
+  rol: Rol,
+): Promise<HomePanelId[]> {
+  const rows = (await db
+    .prepare(
+      "SELECT panel_id, sort_order FROM USER_HOME_LAYOUT WHERE user_id = ? ORDER BY sort_order ASC NULLS LAST, panel_id ASC",
+    )
+    .all(userId)) as { panel_id: string; sort_order: number | null }[];
+
+  if (rows.length === 0) return getHomeLayoutOrderForRole(db, rol);
+
+  const ordered = rows
+    .filter((row) => isHomePanelId(row.panel_id))
+    .sort((a, b) => {
+      const ao = a.sort_order ?? DEFAULT_HOME_PANEL_ORDER.indexOf(a.panel_id as HomePanelId);
+      const bo = b.sort_order ?? DEFAULT_HOME_PANEL_ORDER.indexOf(b.panel_id as HomePanelId);
+      return ao - bo;
+    })
+    .map((row) => row.panel_id as HomePanelId);
+
+  return normalizeHomePanelOrder(ordered);
+}
+
+export async function getEffectiveHomeLayoutOrderForUser(
+  db: Db,
+  userId: number,
+  rol: Rol,
+): Promise<HomePanelId[]> {
+  return getUserHomeLayoutOrder(db, userId, rol);
 }
 
 export async function getHomeLayoutForRole(db: Db, rol: Rol): Promise<HomeLayoutMap> {
@@ -170,6 +292,7 @@ export interface UserHomeLayoutConfig {
   ceiling: HomeLayoutMap;
   /** Preferencia personal por bloque (solo aplica donde ceiling es true). */
   overrides: HomeLayoutMap;
+  orden: HomePanelId[];
 }
 
 export async function getUserHomeLayoutConfig(
@@ -183,11 +306,13 @@ export async function getUserHomeLayoutConfig(
   for (const id of HOME_PANEL_IDS) {
     if (typeof rawOverrides[id] === "boolean") overrides[id] = rawOverrides[id]!;
   }
+  const orden = await getUserHomeLayoutOrder(db, userId, rol);
   return {
     rol,
     rol_label: ROL_LABELS_DETALLE[rol],
     ceiling,
     overrides,
+    orden,
   };
 }
 
@@ -196,22 +321,25 @@ export async function updateUserHomeLayout(
   userId: number,
   rol: Rol,
   paneles: Partial<Record<string, boolean>>,
+  orden?: readonly string[] | null,
 ): Promise<UserHomeLayoutConfig> {
   const ceiling = await getHomeLayoutForRole(db, rol);
   const normalized = normalizeHomeLayoutMap(paneles);
+  const order = normalizeHomePanelOrder(orden ?? (await getUserHomeLayoutOrder(db, userId, rol)));
 
   const upsert = await db.prepare(
-    `INSERT INTO USER_HOME_LAYOUT (user_id, panel_id, visible, actualizado_en)
-     VALUES (?, ?, ?, NOW())
+    `INSERT INTO USER_HOME_LAYOUT (user_id, panel_id, visible, sort_order, actualizado_en)
+     VALUES (?, ?, ?, ?, NOW())
      ON CONFLICT (user_id, panel_id) DO UPDATE SET
        visible = EXCLUDED.visible,
+       sort_order = EXCLUDED.sort_order,
        actualizado_en = NOW()`,
   );
 
   for (const panelId of HOME_PANEL_IDS) {
-    // Nunca guardamos "visible" en un bloque que el rol tiene deshabilitado.
     const visible = ceiling[panelId] ? normalized[panelId] : false;
-    await upsert.run(userId, panelId, visible ? 1 : 0);
+    const sortOrder = order.indexOf(panelId);
+    await upsert.run(userId, panelId, visible ? 1 : 0, sortOrder >= 0 ? sortOrder : 0);
   }
 
   return getUserHomeLayoutConfig(db, userId, rol);
@@ -221,6 +349,7 @@ export interface HomeLayoutRoleConfig {
   rol: Rol;
   rol_label: string;
   paneles: HomeLayoutMap;
+  orden: HomePanelId[];
 }
 
 export async function listHomeLayoutConfig(db: Db): Promise<HomeLayoutRoleConfig[]> {
@@ -230,6 +359,7 @@ export async function listHomeLayoutConfig(db: Db): Promise<HomeLayoutRoleConfig
       rol,
       rol_label: ROL_LABELS_DETALLE[rol],
       paneles: await getHomeLayoutForRole(db, rol),
+      orden: await getHomeLayoutOrderForRole(db, rol),
     });
   }
   return result;
@@ -239,27 +369,32 @@ export async function updateHomeLayoutForRole(
   db: Db,
   rol: Rol,
   paneles: Partial<Record<string, boolean>>,
+  orden?: readonly string[] | null,
 ): Promise<HomeLayoutRoleConfig> {
   if (!HOME_LAYOUT_ROLES.includes(rol)) {
     throw new Error("Solo se puede configurar el inicio de Gestor N1, Gestor N2 y Consulta.");
   }
 
   const normalized = normalizeHomeLayoutMap(paneles);
+  const order = normalizeHomePanelOrder(orden ?? (await getHomeLayoutOrderForRole(db, rol)));
   const upsert = await db.prepare(
-    `INSERT INTO ROLE_HOME_LAYOUT (rol, panel_id, visible, actualizado_en)
-     VALUES (?, ?, ?, NOW())
+    `INSERT INTO ROLE_HOME_LAYOUT (rol, panel_id, visible, sort_order, actualizado_en)
+     VALUES (?, ?, ?, ?, NOW())
      ON CONFLICT (rol, panel_id) DO UPDATE SET
        visible = EXCLUDED.visible,
+       sort_order = EXCLUDED.sort_order,
        actualizado_en = NOW()`,
   );
 
   for (const panelId of HOME_PANEL_IDS) {
-    await upsert.run(rol, panelId, normalized[panelId] ? 1 : 0);
+    const sortOrder = order.indexOf(panelId);
+    await upsert.run(rol, panelId, normalized[panelId] ? 1 : 0, sortOrder >= 0 ? sortOrder : 0);
   }
 
   return {
     rol,
     rol_label: ROL_LABELS_DETALLE[rol],
     paneles: normalized,
+    orden: order,
   };
 }
