@@ -5,8 +5,10 @@ import SgHubModuleGrid from "../hub/SgHubModuleGrid";
 import SgHubShell from "../hub/SgHubShell";
 import { MenuAppIcon } from "../icons/MenuAppIcons";
 import {
-  buildConfigNavItems,
+  buildConfigCuentaAdminGridItems,
+  buildConfigNavLayout,
   configHubMeta,
+  flattenConfigNavLayout,
   type ConfigNavScope,
 } from "./config-hub-items";
 
@@ -41,9 +43,22 @@ export default function ConfigHubView({
   subtitle,
   children,
 }: Props) {
-  const items = useMemo(
-    () => buildConfigNavItems(navScope, currentUser, esSuperAdmin),
-    [navScope, currentUser, esSuperAdmin]
+  /** Dentro del hub de cuenta: mostrar los módulos del grupo en el lateral. */
+  const expandAdmin =
+    activeId === "cuenta_hub" ||
+    (navScope === "cuenta" && activeId !== "menu");
+
+  const navLayout = useMemo(
+    () =>
+      buildConfigNavLayout(navScope, currentUser, esSuperAdmin, {
+        expandAdmin,
+      }),
+    [navScope, currentUser, esSuperAdmin, expandAdmin]
+  );
+  const itemsFlat = useMemo(() => flattenConfigNavLayout(navLayout), [navLayout]);
+  const cuentaAdminGridItems = useMemo(
+    () => buildConfigCuentaAdminGridItems(currentUser),
+    [currentUser]
   );
   const meta = configHubMeta(activeId, cuentaNombre);
   const isDashboard =
@@ -60,11 +75,22 @@ export default function ConfigHubView({
     [onNavigate, onOpenMiPerfil]
   );
 
+  const dashboardGridItems =
+    activeId === "cuenta_hub" ? cuentaAdminGridItems : itemsFlat;
+
+  const dashboardTitle =
+    activeId === "sag_hub"
+      ? "Administración SAG"
+      : activeId === "cuenta_hub"
+        ? "Administración de Cuenta"
+        : "Módulos";
+
   return (
     <div className="sg-module-page config-module-page">
       <SgHubShell
         activeId={activeId}
-        items={items}
+        items={navLayout.items}
+        navSections={navLayout.sections}
         onNavigate={handleNavigate}
         onVolverDashboard={onVolverDashboard}
         onVolverInicio={onVolverInicio}
@@ -79,15 +105,9 @@ export default function ConfigHubView({
         {isDashboard ? (
           <div className="sg-hub-panels">
             <SgHubModuleGrid
-              items={items}
+              items={dashboardGridItems}
               onSelect={handleNavigate}
-              title={
-                activeId === "sag_hub"
-                  ? "Administración SAG"
-                  : activeId === "cuenta_hub"
-                    ? "Catálogos de cuenta"
-                    : "Módulos"
-              }
+              title={dashboardTitle}
               kicker="Configuración"
             />
           </div>

@@ -1,21 +1,24 @@
 import { useCallback, useEffect, useState } from "react";
 import { ArrowRight, Banknote, UserRound } from "lucide-react";
 import { fetchRrhhDashboard } from "../../api";
-import type { RrhhDashboardData } from "../../types";
+import type { AuthUser, RrhhDashboardData } from "../../types";
 import { fmtDate, fmtNum } from "../../utils";
-import { ejercicioVigente, labelEjercicio } from "../../utils/ejercicio-contable";
+import {
+  ejercicioConfigFromUser,
+  ejercicioVigente,
+  labelEjercicio,
+} from "../../utils/ejercicio-contable";
 import SgHubModuleGrid from "../hub/SgHubModuleGrid";
 import { RRHH_HUB_ITEMS } from "./rrhh-hub-items";
 
 interface Props {
   apiOnline: boolean;
+  currentUser?: AuthUser | null;
   onError: (msg: string) => void;
   onNavigate: (id: string) => void;
   onVerPago?: (cedula: string) => void;
   onEditGasto?: (id: number) => void;
 }
-
-const EJERCICIO = ejercicioVigente();
 
 function formatNombreDisplay(nombre: string | null | undefined): string {
   if (!nombre?.trim()) return "Sin funcionario";
@@ -33,6 +36,7 @@ function conceptoLabel(concepto: string): string {
 
 export default function RrhhDashboard({
   apiOnline,
+  currentUser,
   onError,
   onNavigate,
   onVerPago,
@@ -40,6 +44,7 @@ export default function RrhhDashboard({
 }: Props) {
   const [data, setData] = useState<RrhhDashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const ejercicio = ejercicioVigente(new Date(), ejercicioConfigFromUser(currentUser));
 
   const load = useCallback(async () => {
     if (!apiOnline) {
@@ -50,8 +55,8 @@ export default function RrhhDashboard({
     setLoading(true);
     try {
       const dash = await fetchRrhhDashboard({
-        fecha_desde: EJERCICIO.desde,
-        fecha_hasta: EJERCICIO.hasta,
+        fecha_desde: ejercicio.desde,
+        fecha_hasta: ejercicio.hasta,
       });
       setData(dash);
     } catch (e) {
@@ -60,13 +65,16 @@ export default function RrhhDashboard({
     } finally {
       setLoading(false);
     }
-  }, [apiOnline, onError]);
+  }, [apiOnline, onError, ejercicio.desde, ejercicio.hasta]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
-  const periodoLabel = labelEjercicio(EJERCICIO.anioInicio);
+  const periodoLabel = labelEjercicio(
+    ejercicio.anioInicio,
+    ejercicioConfigFromUser(currentUser),
+  );
   const pagos = data?.pagos_periodo;
   const ultimos = data?.ultimos_pagos ?? [];
 

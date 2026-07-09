@@ -1,7 +1,14 @@
 import SubRubroListado from "./rubros/SubRubroListado";
+import type { AuthUser } from "../types";
+import {
+  canDeleteRubrosCatalogo,
+  canDeleteSubRubroItems,
+  canManageRubrosCatalogo,
+} from "../utils/auth-permissions";
 
 interface Props {
   apiOnline: boolean;
+  currentUser?: AuthUser | null;
   onError: (msg: string) => void;
   onSuccess: (msg: string) => void;
   onCatalogosChanged: () => void;
@@ -11,6 +18,7 @@ interface Props {
 
 export default function Rubros({
   apiOnline,
+  currentUser,
   onError,
   onSuccess,
   onCatalogosChanged,
@@ -25,6 +33,9 @@ export default function Rubros({
       onCatalogosChanged={onCatalogosChanged}
       onVolver={onVolver}
       volverLabel={volverLabel}
+      puedeEditar={canManageRubrosCatalogo(currentUser ?? null)}
+      puedeEliminar={canDeleteRubrosCatalogo(currentUser ?? null)}
+      puedeEliminarItems={canDeleteSubRubroItems(currentUser ?? null)}
     />
   );
 }

@@ -14,6 +14,8 @@ interface Props {
   onItemAdded: (item: SubRubroItem) => void;
   onItemRemoved: (itemId: number) => void;
   puedeEditar?: boolean;
+  /** Botón × para quitar ítems: admin de cuenta o superadmin. */
+  puedeEliminarItems?: boolean;
 }
 
 export default function SubRubroItemsCell({
@@ -27,6 +29,7 @@ export default function SubRubroItemsCell({
   onItemAdded,
   onItemRemoved,
   puedeEditar = true,
+  puedeEliminarItems = false,
 }: Props) {
   const [nuevoItem, setNuevoItem] = useState("");
   const [saving, setSaving] = useState(false);
@@ -84,7 +87,7 @@ export default function SubRubroItemsCell({
               <span className="subrubro-item-chip-label" title={it.nombre}>
                 {it.nombre}
               </span>
-              {puedeEditar && (
+              {puedeEliminarItems && (
                 <button
                   type="button"
                   className="subrubro-item-chip-remove"

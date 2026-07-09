@@ -1,14 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { deletePresupuesto, fetchEmpresasOperativas, fetchPresupuesto, presupuestoDocumentoUrl } from "../api";
 import { FILTRO_SIN_RESPONSABLE } from "../constants";
-import type { Catalogos, Presupuesto } from "../types";
+import type { AuthUser, Catalogos, Presupuesto } from "../types";
 import { confirmAction } from "../utils/confirm";
 import {
+  ejercicioConfigFromUser,
   ejercicioDesdeHasta,
   ejercicioVigente,
   esEjercicioVigente,
   labelEjercicio,
   listarEjerciciosContables,
+  type EjercicioConfig,
 } from "../utils/ejercicio-contable";
 import { empresaClass, empresaCorta, fmtDate, fmtNum } from "../utils";
 import {
@@ -28,20 +30,19 @@ interface Props {
   onDeleted: () => void;
   onError: (msg: string) => void;
   onSuccess?: (msg: string) => void;
+  currentUser?: AuthUser | null;
 }
 
 const COLS_TABLA = 11;
 
 type ModalidadFecha = "ejercicio" | "periodo";
 
-const EJERCICIOS_OPCIONES = listarEjerciciosContables();
-const EJERCICIO_VIGENTE = ejercicioVigente();
-
-function filtrosInicialesEjercicio() {
+function filtrosInicialesEjercicio(cfg?: EjercicioConfig) {
+  const v = ejercicioVigente(new Date(), cfg);
   return {
-    ejercicio: String(EJERCICIO_VIGENTE.anioInicio),
-    fechaDesde: EJERCICIO_VIGENTE.desde,
-    fechaHasta: EJERCICIO_VIGENTE.hasta,
+    ejercicio: String(v.anioInicio),
+    fechaDesde: v.desde,
+    fechaHasta: v.hasta,
   };
 }
 
@@ -60,8 +61,13 @@ function CeldaTexto({
   );
 }
 
-export default function Listado({ catalogos, apiOnline, onEdit, onDeleted, onError, onSuccess }: Props) {
-  const iniciales = filtrosInicialesEjercicio();
+export default function Listado({ catalogos, apiOnline, onEdit, onDeleted, onError, onSuccess, currentUser }: Props) {
+  const ejCfg = useMemo(() => ejercicioConfigFromUser(currentUser), [currentUser]);
+  const ejerciciosOpciones = useMemo(
+    () => listarEjerciciosContables({ cfg: ejCfg }),
+    [ejCfg],
+  );
+  const iniciales = filtrosInicialesEjercicio(ejCfg);
   const [empresa, setEmpresa] = useState("");
   const [rubro, setRubro] = useState("");
   const [responsable, setResponsable] = useState("");
@@ -143,7 +149,7 @@ export default function Listado({ catalogos, apiOnline, onEdit, onDeleted, onErr
   }, [rows]);
 
   const resetFiltros = () => {
-    const v = ejercicioVigente();
+    const v = ejercicioVigente(new Date(), ejCfg);
     setEmpresa("");
     setRubro("");
     setResponsable("");
@@ -157,9 +163,9 @@ export default function Listado({ catalogos, apiOnline, onEdit, onDeleted, onErr
   const onModalidadFechaChange = (modalidad: ModalidadFecha) => {
     setModalidadFecha(modalidad);
     if (modalidad === "ejercicio") {
-      const anio = ejercicio || String(ejercicioVigente().anioInicio);
+      const anio = ejercicio || String(ejercicioVigente(new Date(), ejCfg).anioInicio);
       setEjercicio(anio);
-      const { desde, hasta } = ejercicioDesdeHasta(Number(anio));
+      const { desde, hasta } = ejercicioDesdeHasta(Number(anio), ejCfg);
       setFechaDesde(desde);
       setFechaHasta(hasta);
       return;
@@ -174,7 +180,7 @@ export default function Listado({ catalogos, apiOnline, onEdit, onDeleted, onErr
       setFechaHasta("");
       return;
     }
-    const { desde, hasta } = ejercicioDesdeHasta(Number(value));
+    const { desde, hasta } = ejercicioDesdeHasta(Number(value), ejCfg);
     setFechaDesde(desde);
     setFechaHasta(hasta);
   };
@@ -200,7 +206,7 @@ export default function Listado({ catalogos, apiOnline, onEdit, onDeleted, onErr
     }
     if (modalidadFecha === "ejercicio" && ejercicio) {
       const anio = Number(ejercicio);
-      partes.push(`Ejercicio: ${labelEjercicio(anio)}`);
+      partes.push(`Ejercicio: ${labelEjercicio(anio, ejCfg)}`);
     } else {
       if (fechaDesde) partes.push(`Desde: ${fmtDate(fechaDesde)}`);
       if (fechaHasta) partes.push(`Hasta: ${fmtDate(fechaHasta)}`);
@@ -375,10 +381,10 @@ export default function Listado({ catalogos, apiOnline, onEdit, onDeleted, onErr
                   title="Período del 1 de julio al 30 de junio"
                 >
                   <option value="">Todos</option>
-                  {EJERCICIOS_OPCIONES.map((e) => (
+                  {ejerciciosOpciones.map((e) => (
                     <option key={e.anioInicio} value={String(e.anioInicio)}>
                       {e.label}
-                      {esEjercicioVigente(e.anioInicio) ? " (vigente)" : ""}
+                      {esEjercicioVigente(e.anioInicio, new Date(), ejCfg) ? " (vigente)" : ""}
                     </option>
                   ))}
                 </select>

@@ -8,8 +8,51 @@ export interface EmpresaCuentaRow {
   codigo: string;
   activo: number;
   admin_user_id: number | null;
+  ejercicio_inicio_mes: number | null;
+  ejercicio_inicio_dia: number | null;
+  ejercicio_empresa_id: number | null;
+  login_mode: string | null;
   creado_en: string;
   actualizado_en: string;
+}
+
+/** Ejercicio fiscal contable agropecuario por defecto (Uruguay): 1/7 → 30/6. */
+export const EJERCICIO_INICIO_MES_DEFAULT = 7;
+export const EJERCICIO_INICIO_DIA_DEFAULT = 1;
+
+const DIAS_POR_MES = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+
+export interface EjercicioFiscalConfig {
+  inicio_mes: number;
+  inicio_dia: number;
+}
+
+export const LOGIN_MODE_DEFAULT: LoginMode = "consolidado";
+
+export function normalizeLoginMode(value: unknown): LoginMode {
+  return String(value ?? "").trim().toLowerCase() === "individual"
+    ? "individual"
+    : "consolidado";
+}
+
+/** Normaliza un RUT uruguayo: solo dígitos (hasta 12). Vacío permitido. */
+export function normalizeRut(value: unknown): string {
+  return String(value ?? "").replace(/\D/g, "").slice(0, 12);
+}
+
+export function normalizeEjercicioFiscal(
+  mes: unknown,
+  dia: unknown,
+): EjercicioFiscalConfig {
+  let m = Number(mes);
+  if (!Number.isFinite(m) || m < 1 || m > 12) m = EJERCICIO_INICIO_MES_DEFAULT;
+  m = Math.floor(m);
+  let d = Number(dia);
+  if (!Number.isFinite(d) || d < 1) d = EJERCICIO_INICIO_DIA_DEFAULT;
+  d = Math.floor(d);
+  const maxDia = DIAS_POR_MES[m - 1];
+  if (d > maxDia) d = maxDia;
+  return { inicio_mes: m, inicio_dia: d };
 }
 
 export interface EmpresaOperativaRow {
@@ -19,6 +62,9 @@ export interface EmpresaOperativaRow {
   codigo: string;
   color: string;
   activo: number;
+  rut: string | null;
+  ejercicio_inicio_mes: number | null;
+  ejercicio_inicio_dia: number | null;
   creado_en: string;
   actualizado_en: string;
 }
@@ -30,6 +76,9 @@ export interface EmpresaOperativa {
   codigo: string;
   color: string;
   activo: boolean;
+  rut: string;
+  ejercicio_inicio_mes: number;
+  ejercicio_inicio_dia: number;
   creado_en: string;
   actualizado_en: string;
 }
@@ -41,12 +90,17 @@ export interface EmpresaCuentaAdmin {
   es_super_admin: boolean;
 }
 
+export type LoginMode = "consolidado" | "individual";
+
 export interface EmpresaCuenta {
   id: number;
   cuenta_numero: string;
   nombre: string;
   codigo: string;
   activo: boolean;
+  login_mode: LoginMode;
+  /** Empresa cuyo ejercicio fiscal rige en modo consolidado (null = automática). */
+  ejercicio_empresa_id: number | null;
   creado_en: string;
   actualizado_en: string;
   usuarios_count: number;
@@ -67,6 +121,9 @@ export interface EmpresaOperativaInput {
   codigo?: string;
   color?: string;
   activo?: boolean;
+  rut?: string | null;
+  ejercicio_inicio_mes?: number | null;
+  ejercicio_inicio_dia?: number | null;
 }
 
 export type EmpresaOperativaDetalle = {
@@ -244,6 +301,9 @@ function rowToPublic(
     nombre: row.nombre,
     codigo: row.codigo,
     activo: pgNum(row.activo) === 1,
+    login_mode: normalizeLoginMode(row.login_mode),
+    ejercicio_empresa_id:
+      row.ejercicio_empresa_id != null ? pgNum(row.ejercicio_empresa_id) : null,
     creado_en: pgTimestampString(row.creado_en),
     actualizado_en: pgTimestampString(row.actualizado_en),
     usuarios_count,
@@ -274,6 +334,10 @@ async function getCuentaAdmin(
 }
 
 function operativaToPublic(row: EmpresaOperativaRow): EmpresaOperativa {
+  const ej =
+    row.ejercicio_inicio_mes == null
+      ? { inicio_mes: EJERCICIO_INICIO_MES_DEFAULT, inicio_dia: EJERCICIO_INICIO_DIA_DEFAULT }
+      : normalizeEjercicioFiscal(row.ejercicio_inicio_mes, row.ejercicio_inicio_dia);
   return {
     id: row.id,
     cuenta_id: row.cuenta_id,
@@ -281,6 +345,9 @@ function operativaToPublic(row: EmpresaOperativaRow): EmpresaOperativa {
     codigo: row.codigo,
     color: colorDb.normalizarColorCaravana(row.color),
     activo: pgNum(row.activo) === 1,
+    rut: normalizeRut(row.rut),
+    ejercicio_inicio_mes: ej.inicio_mes,
+    ejercicio_inicio_dia: ej.inicio_dia,
     creado_en: pgTimestampString(row.creado_en),
     actualizado_en: pgTimestampString(row.actualizado_en),
   };
@@ -438,6 +505,352 @@ async function migrateCuentaAdminColumn(db: Db): Promise<void> {
       .run();
     console.info("[SGG Empresas] Migración: columna empresas_cuenta.admin_user_id agregada");
   }
+}
+
+async function migrateEjercicioFiscalColumns(db: Db): Promise<void> {
+  const cols = (await db
+    .prepare(
+      `SELECT column_name FROM information_schema.columns
+       WHERE table_schema = 'public'
+         AND table_name = 'empresas_cuenta'
+         AND column_name IN ('ejercicio_inicio_mes', 'ejercicio_inicio_dia')`,
+    )
+    .all()) as { column_name: string }[];
+  const existentes = new Set(cols.map((c) => c.column_name));
+  if (!existentes.has("ejercicio_inicio_mes")) {
+    await db
+      .prepare("ALTER TABLE EMPRESAS_CUENTA ADD COLUMN ejercicio_inicio_mes INTEGER")
+      .run();
+    console.info("[SGG Empresas] Migración: columna empresas_cuenta.ejercicio_inicio_mes agregada");
+  }
+  if (!existentes.has("ejercicio_inicio_dia")) {
+    await db
+      .prepare("ALTER TABLE EMPRESAS_CUENTA ADD COLUMN ejercicio_inicio_dia INTEGER")
+      .run();
+    console.info("[SGG Empresas] Migración: columna empresas_cuenta.ejercicio_inicio_dia agregada");
+  }
+}
+
+async function migrateLoginModeColumn(db: Db): Promise<void> {
+  const col = await db
+    .prepare(
+      `SELECT 1 FROM information_schema.columns
+       WHERE table_schema = 'public'
+         AND table_name = 'empresas_cuenta'
+         AND column_name = 'login_mode'`,
+    )
+    .get();
+  if (!col) {
+    await db
+      .prepare(
+        "ALTER TABLE EMPRESAS_CUENTA ADD COLUMN login_mode TEXT NOT NULL DEFAULT 'consolidado'",
+      )
+      .run();
+    console.info("[SGG Empresas] Migración: columna empresas_cuenta.login_mode agregada");
+  }
+}
+
+async function migrateEjercicioEmpresaColumn(db: Db): Promise<void> {
+  const col = await db
+    .prepare(
+      `SELECT 1 FROM information_schema.columns
+       WHERE table_schema = 'public'
+         AND table_name = 'empresas_cuenta'
+         AND column_name = 'ejercicio_empresa_id'`,
+    )
+    .get();
+  if (!col) {
+    await db
+      .prepare("ALTER TABLE EMPRESAS_CUENTA ADD COLUMN ejercicio_empresa_id INTEGER")
+      .run();
+    console.info(
+      "[SGG Empresas] Migración: columna empresas_cuenta.ejercicio_empresa_id agregada",
+    );
+  }
+}
+
+async function migrateLoginModeElegidoColumn(db: Db): Promise<void> {
+  const col = await db
+    .prepare(
+      `SELECT 1 FROM information_schema.columns
+       WHERE table_schema = 'public'
+         AND table_name = 'empresas_cuenta'
+         AND column_name = 'login_mode_elegido'`,
+    )
+    .get();
+  if (!col) {
+    await db
+      .prepare(
+        "ALTER TABLE EMPRESAS_CUENTA ADD COLUMN login_mode_elegido INTEGER NOT NULL DEFAULT 0",
+      )
+      .run();
+    // Las cuentas que YA operan con 2+ empresas conservan su modo actual sin
+    // volver a preguntar: se marcan como "modo ya elegido".
+    await db
+      .prepare(
+        `UPDATE EMPRESAS_CUENTA SET login_mode_elegido = 1
+         WHERE id IN (
+           SELECT cuenta_id FROM EMPRESAS_OPERATIVAS
+           WHERE activo = 1
+           GROUP BY cuenta_id
+           HAVING COUNT(*) >= 2
+         )`,
+      )
+      .run();
+    console.info(
+      "[SGG Empresas] Migración: columna empresas_cuenta.login_mode_elegido agregada",
+    );
+  }
+}
+
+async function migrateEmpresaOperativaRutEjercicioColumns(db: Db): Promise<void> {
+  const cols = (await db
+    .prepare(
+      `SELECT column_name FROM information_schema.columns
+       WHERE table_schema = 'public'
+         AND table_name = 'empresas_operativas'
+         AND column_name IN ('rut', 'ejercicio_inicio_mes', 'ejercicio_inicio_dia')`,
+    )
+    .all()) as { column_name: string }[];
+  const existentes = new Set(cols.map((c) => c.column_name));
+  if (!existentes.has("rut")) {
+    await db.prepare("ALTER TABLE EMPRESAS_OPERATIVAS ADD COLUMN rut TEXT").run();
+    console.info("[SGG Empresas] Migración: columna empresas_operativas.rut agregada");
+  }
+  if (!existentes.has("ejercicio_inicio_mes")) {
+    await db
+      .prepare("ALTER TABLE EMPRESAS_OPERATIVAS ADD COLUMN ejercicio_inicio_mes INTEGER")
+      .run();
+    console.info(
+      "[SGG Empresas] Migración: columna empresas_operativas.ejercicio_inicio_mes agregada",
+    );
+  }
+  if (!existentes.has("ejercicio_inicio_dia")) {
+    await db
+      .prepare("ALTER TABLE EMPRESAS_OPERATIVAS ADD COLUMN ejercicio_inicio_dia INTEGER")
+      .run();
+    console.info(
+      "[SGG Empresas] Migración: columna empresas_operativas.ejercicio_inicio_dia agregada",
+    );
+  }
+}
+
+/** Modo de inicio de sesión de una cuenta madre (consolidado por defecto). */
+export async function getLoginModeForCuenta(
+  db: Db,
+  cuentaId: number | null,
+): Promise<LoginMode> {
+  if (cuentaId == null) return LOGIN_MODE_DEFAULT;
+  const row = (await db
+    .prepare("SELECT login_mode FROM EMPRESAS_CUENTA WHERE id = ?")
+    .get(cuentaId)) as { login_mode: string | null } | undefined;
+  return normalizeLoginMode(row?.login_mode);
+}
+
+export async function updateLoginModeForCuenta(
+  db: Db,
+  cuentaId: number,
+  mode: unknown,
+): Promise<LoginMode> {
+  const value = normalizeLoginMode(mode);
+  const res = await db
+    .prepare(
+      "UPDATE EMPRESAS_CUENTA SET login_mode = ?, login_mode_elegido = 1, actualizado_en = NOW() WHERE id = ?",
+    )
+    .run(value, cuentaId);
+  if (res.changes === 0) throw new Error("Cuenta no encontrada para configurar el modo de inicio");
+  return value;
+}
+
+/** ¿El administrador ya eligió explícitamente el modo de inicio de la cuenta? */
+export async function getLoginModeElegido(
+  db: Db,
+  cuentaId: number | null,
+): Promise<boolean> {
+  if (cuentaId == null) return true;
+  const row = (await db
+    .prepare("SELECT login_mode_elegido FROM EMPRESAS_CUENTA WHERE id = ?")
+    .get(cuentaId)) as { login_mode_elegido: number | null } | undefined;
+  return pgNum(row?.login_mode_elegido ?? 0) === 1;
+}
+
+/** Ejercicio fiscal configurado para una empresa operativa (default 1/7). */
+export async function getEjercicioFiscalForEmpresaOperativa(
+  db: Db,
+  empresaId: number | null,
+): Promise<EjercicioFiscalConfig> {
+  if (empresaId == null) {
+    return {
+      inicio_mes: EJERCICIO_INICIO_MES_DEFAULT,
+      inicio_dia: EJERCICIO_INICIO_DIA_DEFAULT,
+    };
+  }
+  const row = (await db
+    .prepare(
+      "SELECT ejercicio_inicio_mes, ejercicio_inicio_dia FROM EMPRESAS_OPERATIVAS WHERE id = ?",
+    )
+    .get(empresaId)) as
+    | { ejercicio_inicio_mes: number | null; ejercicio_inicio_dia: number | null }
+    | undefined;
+  if (!row || row.ejercicio_inicio_mes == null) {
+    return {
+      inicio_mes: EJERCICIO_INICIO_MES_DEFAULT,
+      inicio_dia: EJERCICIO_INICIO_DIA_DEFAULT,
+    };
+  }
+  return normalizeEjercicioFiscal(row.ejercicio_inicio_mes, row.ejercicio_inicio_dia);
+}
+
+/** Empresa operativa activa de un usuario, validada dentro de su cuenta y activa. */
+export async function getEmpresaActivaForUser(
+  db: Db,
+  cuentaId: number | null,
+  empresaActivaId: number | null | undefined,
+): Promise<EmpresaOperativa | null> {
+  if (cuentaId == null || empresaActivaId == null) return null;
+  const row = (await db
+    .prepare(
+      "SELECT * FROM EMPRESAS_OPERATIVAS WHERE id = ? AND cuenta_id = ? AND activo = 1",
+    )
+    .get(empresaActivaId, cuentaId)) as EmpresaOperativaRow | undefined;
+  return row ? operativaToPublic(row) : null;
+}
+
+/** Ejercicio fiscal configurado para una cuenta madre (con defaults 1/7). */
+export async function getEjercicioFiscalForCuenta(
+  db: Db,
+  cuentaId: number | null,
+): Promise<EjercicioFiscalConfig> {
+  if (cuentaId == null) {
+    return {
+      inicio_mes: EJERCICIO_INICIO_MES_DEFAULT,
+      inicio_dia: EJERCICIO_INICIO_DIA_DEFAULT,
+    };
+  }
+  const row = (await db
+    .prepare(
+      "SELECT ejercicio_inicio_mes, ejercicio_inicio_dia FROM EMPRESAS_CUENTA WHERE id = ?",
+    )
+    .get(cuentaId)) as
+    | { ejercicio_inicio_mes: number | null; ejercicio_inicio_dia: number | null }
+    | undefined;
+  if (!row || row.ejercicio_inicio_mes == null) {
+    return {
+      inicio_mes: EJERCICIO_INICIO_MES_DEFAULT,
+      inicio_dia: EJERCICIO_INICIO_DIA_DEFAULT,
+    };
+  }
+  return normalizeEjercicioFiscal(row.ejercicio_inicio_mes, row.ejercicio_inicio_dia);
+}
+
+export async function updateEjercicioFiscalForCuenta(
+  db: Db,
+  cuentaId: number,
+  mes: unknown,
+  dia: unknown,
+): Promise<EjercicioFiscalConfig> {
+  const cfg = normalizeEjercicioFiscal(mes, dia);
+  const res = await db
+    .prepare(
+      `UPDATE EMPRESAS_CUENTA
+       SET ejercicio_inicio_mes = ?, ejercicio_inicio_dia = ?, actualizado_en = NOW()
+       WHERE id = ?`,
+    )
+    .run(cfg.inicio_mes, cfg.inicio_dia, cuentaId);
+  if (res.changes === 0) {
+    throw new Error("Cuenta no encontrada para configurar el ejercicio fiscal");
+  }
+  return cfg;
+}
+
+/** Empresa cuyo ejercicio fiscal rige en modo consolidado (null = automática). */
+export async function getEjercicioEmpresaPrincipalId(
+  db: Db,
+  cuentaId: number | null,
+): Promise<number | null> {
+  if (cuentaId == null) return null;
+  const row = (await db
+    .prepare("SELECT ejercicio_empresa_id FROM EMPRESAS_CUENTA WHERE id = ?")
+    .get(cuentaId)) as { ejercicio_empresa_id: number | null } | undefined;
+  const val = row?.ejercicio_empresa_id;
+  return val != null ? Number(val) : null;
+}
+
+/**
+ * Fija la empresa que define el ejercicio fiscal en modo consolidado.
+ * Se valida que la empresa pertenezca a la cuenta; null limpia la selección.
+ */
+export async function updateEjercicioEmpresaPrincipal(
+  db: Db,
+  cuentaId: number,
+  empresaId: number | null,
+): Promise<number | null> {
+  let valor: number | null = null;
+  if (empresaId != null) {
+    const row = (await db
+      .prepare("SELECT id FROM EMPRESAS_OPERATIVAS WHERE id = ? AND cuenta_id = ?")
+      .get(empresaId, cuentaId)) as { id: number } | undefined;
+    if (!row) throw new Error("La empresa no pertenece a la cuenta");
+    valor = row.id;
+  }
+  const res = await db
+    .prepare(
+      "UPDATE EMPRESAS_CUENTA SET ejercicio_empresa_id = ?, actualizado_en = NOW() WHERE id = ?",
+    )
+    .run(valor, cuentaId);
+  if (res.changes === 0) {
+    throw new Error("Cuenta no encontrada para configurar el ejercicio fiscal");
+  }
+  return valor;
+}
+
+/**
+ * Ejercicio fiscal EFECTIVO de una cuenta en modo consolidado.
+ * La fuente de verdad es siempre una empresa:
+ *  - Si hay una sola empresa activa, se usa su ejercicio.
+ *  - Si hay varias, se usa la empresa marcada como principal (o la primera por nombre).
+ *  - Si no hay empresas, cae al default histórico de la cuenta (1/7).
+ */
+export async function getEjercicioFiscalEfectivoParaCuenta(
+  db: Db,
+  cuentaId: number | null,
+): Promise<EjercicioFiscalConfig> {
+  if (cuentaId == null) {
+    return {
+      inicio_mes: EJERCICIO_INICIO_MES_DEFAULT,
+      inicio_dia: EJERCICIO_INICIO_DIA_DEFAULT,
+    };
+  }
+  // Una sola consulta: prioriza la empresa marcada como principal
+  // (EMPRESAS_CUENTA.ejercicio_empresa_id) y, si no hay, la primera por nombre.
+  const row = (await db
+    .prepare(
+      `SELECT o.ejercicio_inicio_mes AS m, o.ejercicio_inicio_dia AS d
+       FROM EMPRESAS_OPERATIVAS o
+       WHERE o.cuenta_id = ? AND o.activo = 1
+       ORDER BY (o.id = (SELECT ejercicio_empresa_id FROM EMPRESAS_CUENTA WHERE id = ?)) DESC,
+                LOWER(o.nombre) ASC
+       LIMIT 1`,
+    )
+    .get(cuentaId, cuentaId)) as { m: number | null; d: number | null } | undefined;
+  if (!row || row.m == null) {
+    return getEjercicioFiscalForCuenta(db, cuentaId);
+  }
+  return normalizeEjercicioFiscal(row.m, row.d);
+}
+
+/** Conteo liviano de empresas operativas activas de una cuenta. */
+export async function countEmpresasOperativasActivas(
+  db: Db,
+  cuentaId: number | null,
+): Promise<number> {
+  if (cuentaId == null) return 0;
+  const row = (await db
+    .prepare(
+      "SELECT COUNT(*) AS n FROM EMPRESAS_OPERATIVAS WHERE cuenta_id = ? AND activo = 1",
+    )
+    .get(cuentaId)) as { n: number | string } | undefined;
+  return pgNum(row?.n ?? 0);
 }
 
 async function nextCuentaNumero(db: Db): Promise<string> {
@@ -717,7 +1130,12 @@ export async function initEmpresasCuentaTables(db: Db): Promise<void> {
 
   await migrateCuentaNumeroColumn(db);
   await migrateCuentaAdminColumn(db);
+  await migrateEjercicioFiscalColumns(db);
+  await migrateLoginModeColumn(db);
+  await migrateEjercicioEmpresaColumn(db);
+  await migrateLoginModeElegidoColumn(db);
   await migrateEmpresaOperativaColorColumn(db);
+  await migrateEmpresaOperativaRutEjercicioColumns(db);
   await migrateDropEmpresaCheckConstraints(db);
   await migrateVilaDiazStructure(db);
   await migrateEmpresaOperativaCodigosCorrelativos(db);
@@ -1158,6 +1576,21 @@ export async function updateEmpresaOperativa(
   if (!nombre) throw new Error("El nombre de la empresa es obligatorio");
   if (!color) throw new Error("Elegí un color para la empresa.");
 
+  const rut =
+    input.rut !== undefined ? normalizeRut(input.rut) : normalizeRut(current.rut);
+
+  const ejActual =
+    current.ejercicio_inicio_mes == null
+      ? { inicio_mes: EJERCICIO_INICIO_MES_DEFAULT, inicio_dia: EJERCICIO_INICIO_DIA_DEFAULT }
+      : normalizeEjercicioFiscal(current.ejercicio_inicio_mes, current.ejercicio_inicio_dia);
+  const ejercicio =
+    input.ejercicio_inicio_mes !== undefined || input.ejercicio_inicio_dia !== undefined
+      ? normalizeEjercicioFiscal(
+          input.ejercicio_inicio_mes ?? ejActual.inicio_mes,
+          input.ejercicio_inicio_dia ?? ejActual.inicio_dia,
+        )
+      : ejActual;
+
   const dupNombre = (await db
     .prepare(
       `SELECT id FROM EMPRESAS_OPERATIVAS
@@ -1171,10 +1604,20 @@ export async function updateEmpresaOperativa(
   await db
     .prepare(
       `UPDATE EMPRESAS_OPERATIVAS
-       SET nombre = ?, color = ?, activo = ?, actualizado_en = NOW()
+       SET nombre = ?, color = ?, activo = ?, rut = ?,
+           ejercicio_inicio_mes = ?, ejercicio_inicio_dia = ?, actualizado_en = NOW()
        WHERE id = ? AND cuenta_id = ?`
     )
-    .run(nombre, color, activo, empresaId, cuentaId);
+    .run(
+      nombre,
+      color,
+      activo,
+      rut,
+      ejercicio.inicio_mes,
+      ejercicio.inicio_dia,
+      empresaId,
+      cuentaId,
+    );
 
   const prevColor = colorDb.normalizarColorCaravana(current.color);
   if (color && color !== prevColor) {
@@ -1316,6 +1759,28 @@ export async function resolveCuentaMadreIdForUser(
  * Nombres de empresas operativas visibles para el usuario en pantallas operativas.
  * null = sin filtro (solo super admin puro sin cuenta); [] = ninguna.
  */
+/**
+ * En modo de inicio "individual", si el usuario eligió una empresa activa,
+ * restringe la lista a esa empresa. En consolidado no cambia nada.
+ * Nunca deja al usuario sin scope: si la empresa activa no matchea, devuelve la lista completa.
+ */
+async function narrowScopePorEmpresaActiva(
+  db: Db,
+  cuentaId: number,
+  empresaActivaId: number | null | undefined,
+  lista: string[],
+  campo: "nombre" | "codigo",
+): Promise<string[]> {
+  if (empresaActivaId == null) return lista;
+  const mode = await getLoginModeForCuenta(db, cuentaId);
+  if (mode !== "individual") return lista;
+  const activa = await getEmpresaActivaForUser(db, cuentaId, empresaActivaId);
+  if (!activa) return lista;
+  const clave = (campo === "nombre" ? activa.nombre : activa.codigo).trim().toUpperCase();
+  const filtrada = lista.filter((v) => v.trim().toUpperCase() === clave);
+  return filtrada.length ? filtrada : lista;
+}
+
 export async function getEmpresasOperativasPermitidas(
   db: Db,
   user: {
@@ -1323,10 +1788,20 @@ export async function getEmpresasOperativasPermitidas(
     email?: string;
     es_super_admin?: boolean;
     empresa_id?: number | null;
+    empresa_operativa_activa_id?: number | null;
   }
 ): Promise<string[] | null> {
   const cuentaId = await resolveCuentaMadreIdForUser(db, user);
-  if (cuentaId) return await getEmpresaNombresActivosPorCuenta(db, cuentaId);
+  if (cuentaId) {
+    const todas = await getEmpresaNombresActivosPorCuenta(db, cuentaId);
+    return await narrowScopePorEmpresaActiva(
+      db,
+      cuentaId,
+      user.empresa_operativa_activa_id,
+      todas,
+      "nombre",
+    );
+  }
   if (user.es_super_admin) return null;
   return [];
 }
@@ -1338,10 +1813,20 @@ export async function getEmpresasCodigosOperativasPermitidas(
     email?: string;
     es_super_admin?: boolean;
     empresa_id?: number | null;
+    empresa_operativa_activa_id?: number | null;
   }
 ): Promise<string[] | null> {
   const cuentaId = await resolveCuentaMadreIdForUser(db, user);
-  if (cuentaId) return await getEmpresaCodigosActivosPorCuenta(db, cuentaId);
+  if (cuentaId) {
+    const todos = await getEmpresaCodigosActivosPorCuenta(db, cuentaId);
+    return await narrowScopePorEmpresaActiva(
+      db,
+      cuentaId,
+      user.empresa_operativa_activa_id,
+      todos,
+      "codigo",
+    );
+  }
   if (user.es_super_admin) return null;
   return [];
 }
@@ -1369,6 +1854,7 @@ export async function getEmpresasScopeFilter(
     email?: string;
     es_super_admin?: boolean;
     empresa_id?: number | null;
+    empresa_operativa_activa_id?: number | null;
   }
 ): Promise<string[] | undefined> {
   const permitidas = await getEmpresasOperativasPermitidas(db, user);
@@ -1385,6 +1871,7 @@ export async function getEmpresasCodigosScopeFilter(
     email?: string;
     es_super_admin?: boolean;
     empresa_id?: number | null;
+    empresa_operativa_activa_id?: number | null;
   }
 ): Promise<string[] | undefined> {
   const permitidas = await getEmpresasCodigosOperativasPermitidas(db, user);

@@ -195,6 +195,7 @@ export function dotacionPromedioPonderada(
 export function formatDotacionPromedio(ugHa: number | null): {
   principal: string;
   secundario: string;
+  etiqueta: string;
   nivel: DotacionNivel;
   tooltip: string;
 } | null {
@@ -203,6 +204,7 @@ export function formatDotacionPromedio(ugHa: number | null): {
   return {
     principal: formatUgHa(ugHa),
     secundario: `Prom. ponderada · ${clasificacion.etiqueta}`,
+    etiqueta: clasificacion.etiqueta,
     nivel: clasificacion.nivel,
     tooltip: `Promedio ponderado en potreros con superficie: ${formatUgHa(ugHa)} según UG por categoría (Configuración SAG).`,
   };
@@ -226,6 +228,11 @@ export function formatDotacionCelda(dotacion: DotacionGanaderaResumen): {
         ? `${formatHectareas(dotacion.hectareas)} · ${dotacion.etiqueta}`
         : dotacion.etiqueta,
   };
+}
+
+export function formatAreaCelda(dotacion: DotacionGanaderaResumen): string | null {
+  if (dotacion.hectareas == null || dotacion.hectareas <= 0) return null;
+  return formatHectareas(dotacion.hectareas);
 }
 
 export function formatOcupacionCelda(dotacion: DotacionGanaderaResumen): {

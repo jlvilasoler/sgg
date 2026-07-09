@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
-import { Layers, Plus, Search } from "lucide-react";
+import { Layers, Plus, RefreshCw, Search, Building2, Users, ChevronRight } from "lucide-react";
 import {
   actualizarEmpresaCuenta,
   crearEmpresaCuenta,
@@ -26,6 +26,8 @@ interface Props {
   titulo?: string;
   onError: (msg: string) => void;
   onSuccess: (msg: string) => void;
+  /** Dentro de Configuración SAG hub (oculta volver duplicado). */
+  embedded?: boolean;
 }
 
 export default function ArquitecturaSistema({
@@ -36,6 +38,7 @@ export default function ArquitecturaSistema({
   titulo = "Arquitectura del sistema",
   onError,
   onSuccess,
+  embedded = false,
 }: Props) {
   const [empresas, setEmpresas] = useState<EmpresaCuenta[]>([]);
   const [loading, setLoading] = useState(true);
@@ -149,6 +152,16 @@ export default function ArquitecturaSistema({
     setDetallePanel(panel);
   };
 
+  const onRowKeyDown = (
+    e: React.KeyboardEvent<HTMLTableRowElement>,
+    cuentaId: number
+  ) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      openCuenta(cuentaId);
+    }
+  };
+
   const handleCrearEmpresa = async (e: React.FormEvent) => {
     e.preventDefault();
     const nombreCompleto = [
@@ -231,6 +244,7 @@ export default function ArquitecturaSistema({
         cuenta={selectedCuenta}
         apiOnline={apiOnline}
         currentUser={currentUser}
+        embedded={embedded}
         initialPanel={detallePanel}
         onVolver={() => {
           setSelectedCuentaId(null);
@@ -256,10 +270,12 @@ export default function ArquitecturaSistema({
   const kpiPlaceholder = loading || !apiOnline ? "—" : undefined;
 
   return (
-    <div className="subseccion-panel arq-sistema-shell">
-      <button type="button" className="subseccion-back" onClick={onVolver}>
-        ‹ {volverLabel}
-      </button>
+    <div className={`subseccion-panel arq-sistema-shell arq-sistema--hub${embedded ? " arq-sistema--embedded" : ""}`}>
+      {!embedded ? (
+        <button type="button" className="subseccion-back" onClick={onVolver}>
+          ‹ {volverLabel}
+        </button>
+      ) : null}
 
       <section className="sg-hub-panel arq-sistema-panel" aria-labelledby="arq-sistema-title">
         <header className="sg-hub-panel-head arq-sistema-head">
@@ -347,164 +363,208 @@ export default function ArquitecturaSistema({
             </div>
           </header>
 
-          <div className="arq-sistema-filtros">
-            <label className="arq-sistema-search">
-              <Search size={16} aria-hidden />
-              <span className="sr-only">Buscar cuenta</span>
-              <input
-                id="arq-filtro-texto"
-                type="search"
-                placeholder="Nombre, código o ID…"
-                value={filtroTexto}
-                disabled={loading || !apiOnline}
-                onChange={(e) => setFiltroTexto(e.target.value)}
-              />
-            </label>
-            <label className="arq-sistema-select-wrap">
-              <span className="arq-sistema-field-label">Estado</span>
-              <select
-                id="arq-filtro-estado"
-                value={filtroEstado}
-                disabled={loading || !apiOnline}
-                onChange={(e) =>
-                  setFiltroEstado(e.target.value as "" | "activo" | "inactivo")
-                }
-              >
-                <option value="">Todos</option>
-                <option value="activo">Activas</option>
-                <option value="inactivo">Inactivas</option>
-              </select>
-            </label>
-            {hayFiltros ? (
+          <div className="arq-sistema-toolbar">
+            <div className="arq-sistema-toolbar-filters">
+              <label className="arq-sistema-search">
+                <Search size={16} aria-hidden />
+                <span className="sr-only">Buscar cuenta</span>
+                <input
+                  id="arq-filtro-texto"
+                  type="search"
+                  placeholder="Buscar por nombre, código, ID o admin…"
+                  value={filtroTexto}
+                  disabled={loading || !apiOnline}
+                  onChange={(e) => setFiltroTexto(e.target.value)}
+                />
+              </label>
+              <label className="arq-sistema-select-wrap">
+                <span className="arq-sistema-field-label">Estado</span>
+                <select
+                  id="arq-filtro-estado"
+                  value={filtroEstado}
+                  disabled={loading || !apiOnline}
+                  onChange={(e) =>
+                    setFiltroEstado(e.target.value as "" | "activo" | "inactivo")
+                  }
+                >
+                  <option value="">Todos</option>
+                  <option value="activo">Activas</option>
+                  <option value="inactivo">Inactivas</option>
+                </select>
+              </label>
+              {hayFiltros ? (
+                <button
+                  type="button"
+                  className="home-hub-link arq-sistema-clear"
+                  disabled={loading}
+                  onClick={limpiarFiltros}
+                >
+                  Limpiar filtros
+                </button>
+              ) : null}
+            </div>
+            <div className="arq-sistema-toolbar-actions">
               <button
                 type="button"
-                className="home-hub-link arq-sistema-clear"
-                disabled={loading}
-                onClick={limpiarFiltros}
+                className="sg-hub-cta sg-hub-cta--ghost sg-hub-cta--compact arq-sistema-refresh-btn"
+                disabled={loading || !apiOnline}
+                onClick={() => void loadEmpresas()}
               >
-                Limpiar filtros
+                <RefreshCw size={14} className={loading ? "is-spinning" : undefined} aria-hidden />
+                Actualizar
               </button>
-            ) : null}
+            </div>
           </div>
 
-          <div className="arq-sistema-table-wrap">
-            <table className="arq-sistema-table">
-              <thead>
-                <tr>
-                  <th>Cuenta</th>
-                  <th>ID cuenta</th>
-                  <th>Código</th>
-                  <th className="num">Empresas</th>
-                  <th className="num">Usuarios</th>
-                  <th>Estado</th>
-                  <th className="col-acciones" />
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
+          <div className="arq-sistema-table-box">
+            <div className="arq-sistema-table-wrap">
+              <table className="arq-sistema-table">
+                <thead>
                   <tr>
-                    <td colSpan={7} className="arq-sistema-empty">
-                      Cargando cuentas…
-                    </td>
+                    <th>Cuenta</th>
+                    <th>Identificación</th>
+                    <th className="num">Empresas</th>
+                    <th className="num">Usuarios</th>
+                    <th>Estado</th>
+                    <th className="col-acciones">Acciones</th>
                   </tr>
-                ) : filteredRows.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="arq-sistema-empty" role="status">
-                      {hayFiltros
-                        ? "No hay cuentas que coincidan con los filtros"
-                        : "No hay cuentas de empresa registradas"}
-                    </td>
-                  </tr>
-                ) : (
-                  filteredRows.map((empresa) => (
-                    <tr
-                      key={empresa.id}
-                      className={`arq-sistema-row arquitectura-sistema-tr${
-                        empresa.activo ? " arq-sistema-row--activa" : " arq-sistema-row--inactiva"
-                      }`}
-                      onClick={() => openCuenta(empresa.id)}
-                    >
-                      <td>
-                        <div className="arq-sistema-account-cell">
-                          <span
-                            className="arquitectura-sistema-empresa-avatar arquitectura-sistema-empresa-avatar--sm"
-                            aria-hidden="true"
-                          >
-                            {iniciales(empresa.nombre)}
-                          </span>
-                          <div className="arq-sistema-account-text">
-                            <div className="arq-sistema-account-name">{empresa.nombre}</div>
-                            {empresa.admin ? (
-                              <div className="arquitectura-sistema-cuenta-propietario">
-                                <span className="arquitectura-sistema-admin-chip">
-                                  <span className="arquitectura-sistema-admin-dot" />
-                                  {empresa.admin.nombre}
-                                  {empresa.admin.es_super_admin ? " · admin SAG" : ""}
-                                </span>
-                                <span className="arquitectura-sistema-admin-email">
-                                  {empresa.admin.email}
-                                </span>
-                              </div>
-                            ) : (
-                              <span className="arquitectura-sistema-admin-chip is-empty">
-                                Sin administrador asignado
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </td>
-                      <td>
-                        <span className="arquitectura-sistema-pill arquitectura-sistema-pill--cuenta">
-                          {empresa.cuenta_numero}
-                        </span>
-                      </td>
-                      <td>
-                        <span className="arquitectura-sistema-pill arquitectura-sistema-pill--codigo">
-                          {empresa.codigo}
-                        </span>
-                      </td>
-                      <td className="num">{empresa.empresas_count}</td>
-                      <td className="num">{empresa.usuarios_count}</td>
-                      <td>
-                        <span
-                          className={`arq-sistema-status ${
-                            empresa.activo
-                              ? "arq-sistema-status--ok"
-                              : "arq-sistema-status--off"
-                          }`}
-                        >
-                          {empresa.activo ? "Activa" : "Inactiva"}
-                        </span>
-                      </td>
-                      <td className="arq-sistema-actions">
-                        <button
-                          type="button"
-                          className="sg-hub-cta sg-hub-cta--ghost sg-hub-cta--compact"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            openCuenta(empresa.id);
-                          }}
-                        >
-                          Abrir
-                        </button>
-                        <button
-                          type="button"
-                          className={`sg-hub-cta sg-hub-cta--compact${
-                            empresa.activo ? " sg-hub-cta--ghost" : ""
-                          }`}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            void handleToggleActiva(empresa);
-                          }}
-                        >
-                          {empresa.activo ? "Desactivar" : "Activar"}
-                        </button>
+                </thead>
+                <tbody>
+                  {loading ? (
+                    <tr>
+                      <td colSpan={6} className="arq-sistema-empty">
+                        Cargando cuentas…
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                  ) : filteredRows.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="arq-sistema-empty" role="status">
+                        {hayFiltros
+                          ? "No hay cuentas que coincidan con los filtros"
+                          : "No hay cuentas de empresa registradas"}
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredRows.map((empresa) => (
+                      <tr
+                        key={empresa.id}
+                        className={`arq-sistema-row arquitectura-sistema-tr${
+                          empresa.activo ? " arq-sistema-row--activa" : " arq-sistema-row--inactiva"
+                        }`}
+                        tabIndex={0}
+                        onClick={() => openCuenta(empresa.id)}
+                        onKeyDown={(e) => onRowKeyDown(e, empresa.id)}
+                      >
+                        <td>
+                          <div className="arq-sistema-account-cell">
+                            <span
+                              className="arquitectura-sistema-empresa-avatar arquitectura-sistema-empresa-avatar--sm"
+                              aria-hidden="true"
+                            >
+                              {iniciales(empresa.nombre)}
+                            </span>
+                            <div className="arq-sistema-account-text">
+                              <div className="arq-sistema-account-name">{empresa.nombre}</div>
+                              {empresa.admin ? (
+                                <div className="arquitectura-sistema-cuenta-propietario">
+                                  <span
+                                    className="arquitectura-sistema-admin-chip"
+                                    title={empresa.admin.nombre}
+                                  >
+                                    <span className="arquitectura-sistema-admin-dot" />
+                                    {empresa.admin.nombre}
+                                    {empresa.admin.es_super_admin ? " · admin SAG" : ""}
+                                  </span>
+                                  <span
+                                    className="arquitectura-sistema-admin-email"
+                                    title={empresa.admin.email}
+                                  >
+                                    {empresa.admin.email}
+                                  </span>
+                                </div>
+                              ) : (
+                                <span className="arquitectura-sistema-admin-chip is-empty">
+                                  Sin administrador asignado
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                        <td>
+                          <div className="arq-sistema-id-stack">
+                            <span
+                              className="arquitectura-sistema-pill arquitectura-sistema-pill--cuenta"
+                              title="ID de cuenta"
+                            >
+                              {empresa.cuenta_numero}
+                            </span>
+                            <span
+                              className="arquitectura-sistema-pill arquitectura-sistema-pill--codigo"
+                              title="Código interno"
+                            >
+                              {empresa.codigo}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="num">
+                          <span className="arq-sistema-metric-pill" title="Empresas operativas">
+                            <Building2 size={13} aria-hidden />
+                            {empresa.empresas_count}
+                          </span>
+                        </td>
+                        <td className="num">
+                          <span className="arq-sistema-metric-pill" title="Usuarios en la cuenta">
+                            <Users size={13} aria-hidden />
+                            {empresa.usuarios_count}
+                          </span>
+                        </td>
+                        <td>
+                          <span
+                            className={`arq-sistema-status ${
+                              empresa.activo
+                                ? "arq-sistema-status--ok"
+                                : "arq-sistema-status--off"
+                            }`}
+                          >
+                            <span className="arq-sistema-status-dot" aria-hidden />
+                            {empresa.activo ? "Activa" : "Inactiva"}
+                          </span>
+                        </td>
+                        <td className="arq-sistema-actions">
+                          <button
+                            type="button"
+                            className="sg-hub-cta sg-hub-cta--ghost sg-hub-cta--compact"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openCuenta(empresa.id);
+                            }}
+                          >
+                            Gestionar
+                          </button>
+                          <button
+                            type="button"
+                            className={`sg-hub-cta sg-hub-cta--compact${
+                              empresa.activo ? " sg-hub-cta--ghost" : ""
+                            }`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              void handleToggleActiva(empresa);
+                            }}
+                          >
+                            {empresa.activo ? "Desactivar" : "Activar"}
+                          </button>
+                          <ChevronRight
+                            size={16}
+                            className="arq-sistema-row-chevron"
+                            aria-hidden
+                          />
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </section>
       </section>
@@ -563,7 +623,7 @@ export default function ArquitecturaSistema({
                           onChange={(e) =>
                             setCuentaNombrePartes((f) => ({ ...f, nombre: e.target.value }))
                           }
-                          placeholder="INGRESAR NOMBRE COMPLETO"
+                          placeholder="Nombre"
                           required
                         />
                       </div>
@@ -640,7 +700,7 @@ export default function ArquitecturaSistema({
                           onChange={(e) =>
                             setOperativaForm((f) => ({ ...f, nombre: e.target.value }))
                           }
-                          placeholder="INGRESAR NOMBRE DE EMPRESA"
+                          placeholder="Nombre de la empresa"
                           required
                         />
                       </div>

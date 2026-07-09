@@ -136,9 +136,12 @@ export function canShowHomePanel(
   panelId: HomePanelId,
 ): boolean {
   if (!user) return false;
-  if (user.rol === "admin" || user.es_super_admin) return true;
   const layout = user.home_paneles;
-  if (!layout) return DEFAULT_HOME_LAYOUT[panelId];
+  if (!layout) {
+    // Fallback solo cuando el servidor no envió el layout efectivo.
+    if (user.rol === "admin" || user.es_super_admin) return true;
+    return DEFAULT_HOME_LAYOUT[panelId];
+  }
   return layout[panelId] !== false;
 }
 
@@ -146,4 +149,14 @@ export interface HomeLayoutRoleConfig {
   rol: HomeLayoutConfigurableRol;
   rol_label: string;
   paneles: HomeLayoutMap;
+}
+
+/** Configuración personal del inicio para el usuario logueado. */
+export interface MyHomeLayoutConfig {
+  rol: Rol;
+  rol_label: string;
+  /** Techo permitido por el rol (definido por el superadministrador). */
+  ceiling: HomeLayoutMap;
+  /** Preferencia personal por bloque (solo aplica donde el techo lo permite). */
+  overrides: HomeLayoutMap;
 }

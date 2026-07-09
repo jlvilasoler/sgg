@@ -6,9 +6,65 @@ export interface CampoMapaLugarResult {
   lng: number;
   /** [minLon, maxLon, minLat, maxLat] cuando está disponible */
   extent?: [number, number, number, number];
+  /** Zoom sugerido cuando no hay extent (provincias, ciudades, etc.) */
+  zoom?: number;
 }
 
-const UY_BBOX = "-58.5,-35.5,-53.0,-30.0";
+/** Uruguay y este de Argentina (región operativa típica en campo). */
+const CONO_SUR_BBOX = "-73.5,-55.5,-53.0,-30.0";
+
+function zoomForFeature(props: Record<string, string | undefined>): number {
+  const osmValue = props.osm_value ?? "";
+  const type = props.type ?? "";
+  if (osmValue === "country" || type === "country") return 6;
+  if (osmValue === "state" || type === "state") return 8;
+  if (osmValue === "county" || type === "county") return 10;
+  if (osmValue === "city" || type === "city" || osmValue === "town") return 12;
+  if (osmValue === "village" || osmValue === "hamlet" || osmValue === "suburb") return 14;
+  if (osmValue === "farm" || osmValue === "isolated_dwelling") return 15;
+  return 13;
+}
+
+function isValidExtent(extent: [number, number, number, number]): boolean {
+  const [minLon, maxLon, minLat, maxLat] = extent;
+  if (
+    !Number.isFinite(minLon) ||
+    !Number.isFinite(maxLon) ||
+    !Number.isFinite(minLat) ||
+    !Number.isFinite(maxLat)
+  ) {
+    return false;
+  }
+  if (minLon >= maxLon || minLat >= maxLat) return false;
+  return maxLon - minLon >= 0.00005 && maxLat - minLat >= 0.00005;
+}
+
+/** Bounds Leaflet [[sur, oeste], [norte, este]] para encuadrar el lugar en el mapa. */
+export function lugarBounds(lugar: CampoMapaLugarResult): [[number, number], [number, number]] {
+  if (lugar.extent && isValidExtent(lugar.extent)) {
+    const [minLon, maxLon, minLat, maxLat] = lugar.extent;
+    return [
+      [minLat, minLon],
+      [maxLat, maxLon],
+    ];
+  }
+
+  const zoom = lugar.zoom ?? 14;
+  const latRad = (lugar.lat * Math.PI) / 180;
+  const scale = 360 / 2 ** (zoom + 1);
+  const lngSpan = scale / Math.max(Math.cos(latRad), 0.2);
+  const latSpan = scale * 0.72;
+
+  return [
+    [lugar.lat - latSpan / 2, lugar.lng - lngSpan / 2],
+    [lugar.lat + latSpan / 2, lugar.lng + lngSpan / 2],
+  ];
+}
+
+export function lugarMaxZoom(lugar: CampoMapaLugarResult): number {
+  const base = lugar.zoom ?? 14;
+  return Math.min(base + 2, 17);
+}
 
 function buildSubtitle(props: Record<string, string | undefined>): string {
   const parts = [props.city, props.state, props.country].filter(Boolean);
@@ -26,8 +82,7 @@ export async function buscarLugaresEnMapa(query: string): Promise<CampoMapaLugar
   const url = new URL("https://photon.komoot.io/api/");
   url.searchParams.set("q", q);
   url.searchParams.set("limit", "8");
-  url.searchParams.set("countrycode", "uy");
-  url.searchParams.set("bbox", UY_BBOX);
+  url.searchParams.set("bbox", CONO_SUR_BBOX);
 
   const res = await fetch(url.toString(), {
     headers: { Accept: "application/json" },
@@ -61,6 +116,7 @@ export async function buscarLugaresEnMapa(query: string): Promise<CampoMapaLugar
       lat,
       lng,
       extent: props.extent,
+      zoom: zoomForFeature(props),
     });
   }
 
@@ -91,6 +147,7 @@ export async function buscarLugaresEnMapa(query: string): Promise<CampoMapaLugar
       lat,
       lng,
       extent: props.extent,
+      zoom: zoomForFeature(props),
     });
   }
 

@@ -1,11 +1,13 @@
 import type { ReactNode } from "react";
+import { useMemo } from "react";
 import SgHubNav from "./SgHubNav";
-import type { SgHubItem } from "./SgHubTypes";
+import type { SgHubItem, SgHubNavSection } from "./SgHubTypes";
 import { SgHubAsideSearchField, useSgHubAsideSearch } from "./SgHubAsideSearch";
 
 interface Props {
   activeId: string;
   items: SgHubItem[];
+  navSections?: SgHubNavSection[];
   onNavigate: (id: string) => void;
   onVolverDashboard: () => void;
   onVolverInicio?: () => void;
@@ -27,6 +29,7 @@ interface Props {
 export default function SgHubShell({
   activeId,
   items,
+  navSections = [],
   onNavigate,
   onVolverDashboard,
   onVolverInicio,
@@ -44,6 +47,11 @@ export default function SgHubShell({
   className = "",
   hubClassName = "",
 }: Props) {
+  const allNavItems = useMemo(
+    () => [...navSections.flatMap((section) => section.items), ...items],
+    [navSections, items]
+  );
+
   const {
     busquedaModulos,
     setBusquedaModulos,
@@ -51,7 +59,7 @@ export default function SgHubShell({
     consultaActiva,
     itemsFiltrados,
     mostrarDashboard,
-  } = useSgHubAsideSearch(items);
+  } = useSgHubAsideSearch(allNavItems);
 
   return (
     <div
@@ -77,7 +85,8 @@ export default function SgHubShell({
         />
 
         <SgHubNav
-          items={itemsFiltrados}
+          items={consultaActiva ? itemsFiltrados : items}
+          sections={consultaActiva ? [] : navSections}
           activeId={activeId}
           onNavigate={onNavigate}
           onVolverDashboard={onVolverDashboard}

@@ -1,5 +1,11 @@
 import type { Db } from "./db/pg-client.js";
 import {
+  appendGastosRubrosReadWhere,
+  migrateAddCuentaIdColumnSagCatalog,
+  migrateGastosRubrosUniqueIndexes,
+  type GastosRubrosReadScope,
+} from "./gastos-rubros-scope.js";
+import {
   getRubroByNombre,
   insertRubro,
   rubroExistsActivo,
@@ -15,6 +21,7 @@ import {
 
 export interface SubRubro {
   id: number;
+  cuenta_id?: number | null;
   nombre: string;
   grupo: string;
   activo: number;
@@ -28,6 +35,8 @@ export interface SubRubroInput {
 }
 
 export async function initSubRubrosTable(db: Db): Promise<void> {
+  await migrateAddCuentaIdColumnSagCatalog(db, "SUB_RUBROS");
+  await migrateGastosRubrosUniqueIndexes(db);
   await seedSubRubrosIfEmpty(db);
   await migrateRenombrarGrupoAlambrados(db);
   await syncSubRubrosFromPresupuesto(db);
@@ -122,21 +131,38 @@ async function syncSubRubrosFromPresupuesto(db: Db): Promise<void> {
   }
 }
 
-export async function listSubRubros(db: Db, soloActivos = false): Promise<SubRubro[]> {
-  let query = "SELECT * FROM SUB_RUBROS";
-  if (soloActivos) query += " WHERE activo = 1";
+export async function listSubRubros(
+  db: Db,
+  soloActivos = false,
+  readScope?: GastosRubrosReadScope
+): Promise<SubRubro[]> {
+  let query = "SELECT * FROM SUB_RUBROS WHERE 1=1";
+  const params: Record<string, string | number> = {};
+  if (soloActivos) query += " AND activo = 1";
+  if (readScope) {
+    query = appendGastosRubrosReadWhere(query, params, readScope);
+  }
   query += " ORDER BY LOWER(grupo) ASC, LOWER(nombre) ASC";
-  return (await db.prepare(query).all()) as SubRubro[];
+  return (await db.prepare(query).all(params)) as SubRubro[];
 }
 
-export async function listSubRubrosNombres(db: Db): Promise<string[]> {
-  return (await listSubRubros(db, true)).map((r) => r.nombre);
+export async function listSubRubrosNombres(
+  db: Db,
+  readScope?: GastosRubrosReadScope
+): Promise<string[]> {
+  return (await listSubRubros(db, true, readScope)).map((r) => r.nombre);
 }
 
-export async function listSubRubrosGrupos(db: Db): Promise<string[]> {
-  const fromDb = (await db
-    .prepare(`SELECT DISTINCT grupo FROM SUB_RUBROS`)
-    .all()) as { grupo: string }[];
+export async function listSubRubrosGrupos(
+  db: Db,
+  readScope?: GastosRubrosReadScope
+): Promise<string[]> {
+  let query = "SELECT DISTINCT grupo FROM SUB_RUBROS WHERE 1=1";
+  const params: Record<string, string | number> = {};
+  if (readScope) {
+    query = appendGastosRubrosReadWhere(query, params, readScope);
+  }
+  const fromDb = (await db.prepare(query).all(params)) as { grupo: string }[];
   const set = new Set<string>([...GRUPOS_SUB_RUBRO, ...fromDb.map((r) => r.grupo)]);
   return [...set].sort((a, b) => a.localeCompare(b, "es"));
 }
@@ -156,11 +182,14 @@ function esSubRubroActivo(activo: unknown): boolean {
 }
 
 /** Grupos (rubros) y sub-rubros activos tal como en Configuración → Rubros. */
-export async function getCatalogoGruposParaGastos(db: Db): Promise<{
+export async function getCatalogoGruposParaGastos(
+  db: Db,
+  readScope?: GastosRubrosReadScope
+): Promise<{
   rubros: string[];
   sub_rubros_por_rubro: Record<string, string[]>;
 }> {
-  const all = await listSubRubros(db, false);
+  const all = await listSubRubros(db, false, readScope);
   if (all.length === 0) {
     return { rubros: [], sub_rubros_por_rubro: {} };
   }
@@ -207,14 +236,18 @@ export async function getCatalogoGruposParaGastos(db: Db): Promise<{
 }
 
 /** Rubro válido al cargar gasto: grupo del catálogo o rubro contable legacy activo. */
-export async function rubroGastoValido(db: Db, nombre: string): Promise<boolean> {
+export async function rubroGastoValido(
+  db: Db,
+  nombre: string,
+  readScope?: GastosRubrosReadScope
+): Promise<boolean> {
   const n = nombre.trim();
   if (!n) return false;
-  const { rubros } = await getCatalogoGruposParaGastos(db);
+  const { rubros } = await getCatalogoGruposParaGastos(db, readScope);
   if (rubros.some((r) => r.localeCompare(n, "es", { sensitivity: "accent" }) === 0)) {
     return true;
   }
-  return rubroExistsActivo(db, n);
+  return rubroExistsActivo(db, n, readScope?.cuentaId ?? null);
 }
 
 export async function getSubRubroById(db: Db, id: number): Promise<SubRubro | undefined> {
@@ -225,54 +258,95 @@ export async function getSubRubroById(db: Db, id: number): Promise<SubRubro | un
 
 export async function getSubRubroByNombre(
   db: Db,
-  nombre: string
+  nombre: string,
+  readScope?: GastosRubrosReadScope
 ): Promise<SubRubro | undefined> {
-  return (await db
-    .prepare("SELECT * FROM SUB_RUBROS WHERE LOWER(nombre) = LOWER(?)")
-    .get(nombre.trim())) as SubRubro | undefined;
+  let query = "SELECT * FROM SUB_RUBROS WHERE LOWER(nombre) = LOWER(@nombre)";
+  const params: Record<string, string | number> = { nombre: nombre.trim() };
+  if (readScope) {
+    query = appendGastosRubrosReadWhere(query, params, readScope);
+    query += " ORDER BY cuenta_id DESC NULLS LAST LIMIT 1";
+    return (await db.prepare(query).get(params)) as SubRubro | undefined;
+  }
+  return (await db.prepare(query).get(params)) as SubRubro | undefined;
 }
 
-export async function insertSubRubro(db: Db, data: SubRubroInput): Promise<number> {
+async function subRubroNombreEnConflicto(
+  db: Db,
+  nombre: string,
+  cuentaId: number | null,
+  excludeId?: number
+): Promise<SubRubro | undefined> {
+  let query =
+    "SELECT * FROM SUB_RUBROS WHERE LOWER(nombre) = LOWER(@nombre)";
+  const params: Record<string, string | number> = { nombre };
+  if (cuentaId == null) {
+    query += " AND cuenta_id IS NULL";
+  } else {
+    query += " AND (cuenta_id IS NULL OR cuenta_id = @cuentaId)";
+    params.cuentaId = cuentaId;
+  }
+  const rows = (await db.prepare(query).all(params)) as SubRubro[];
+  return rows.find((r) => r.id !== excludeId);
+}
+
+export async function insertSubRubro(
+  db: Db,
+  data: SubRubroInput,
+  cuentaId: number | null = null
+): Promise<number> {
   const nombre = normalizarTituloRubro(data.nombre);
   const grupo = normalizarTituloRubro(data.grupo);
   if (!nombre) throw new Error("El nombre del sub-rubro es obligatorio.");
   if (!grupo) throw new Error("El grupo del sub-rubro es obligatorio.");
-  if (await getSubRubroByNombre(db, nombre)) {
+  if (await subRubroNombreEnConflicto(db, nombre, cuentaId)) {
     throw new Error("Ya existe un sub-rubro con ese nombre.");
   }
   const result = await db
     .prepare(
-      "INSERT INTO SUB_RUBROS (nombre, grupo, activo) VALUES (@nombre, @grupo, @activo)"
+      `INSERT INTO SUB_RUBROS (nombre, grupo, activo, cuenta_id)
+       VALUES (@nombre, @grupo, @activo, @cuenta_id)`
     )
-    .run({ nombre, grupo, activo: data.activo === false ? 0 : 1 });
+    .run({
+      nombre,
+      grupo,
+      activo: data.activo === false ? 0 : 1,
+      cuenta_id: cuentaId,
+    });
   return Number(result.lastInsertRowid);
 }
 
 export async function updateSubRubro(
   db: Db,
   id: number,
-  data: SubRubroInput
+  data: SubRubroInput,
+  cuentaId: number | null = null
 ): Promise<boolean> {
+  const prev = await getSubRubroById(db, id);
+  if (!prev) return false;
   const nombre = normalizarTituloRubro(data.nombre);
   const grupo = normalizarTituloRubro(data.grupo);
   if (!nombre) throw new Error("El nombre del sub-rubro es obligatorio.");
   if (!grupo) throw new Error("El grupo del sub-rubro es obligatorio.");
-  const existing = await getSubRubroByNombre(db, nombre);
-  if (existing && existing.id !== id) {
+  const existing = await subRubroNombreEnConflicto(db, nombre, prev.cuenta_id ?? cuentaId, id);
+  if (existing) {
     throw new Error("Ya existe otro sub-rubro con ese nombre.");
   }
-  return (
-    await db
-      .prepare(
-        "UPDATE SUB_RUBROS SET nombre = @nombre, grupo = @grupo, activo = @activo WHERE id = @id"
-      )
-      .run({
-        id,
-        nombre,
-        grupo,
-        activo: data.activo === false ? 0 : 1,
-      })
-  ).changes > 0;
+  let query =
+    "UPDATE SUB_RUBROS SET nombre = @nombre, grupo = @grupo, activo = @activo WHERE id = @id";
+  const params: Record<string, string | number> = {
+    id,
+    nombre,
+    grupo,
+    activo: data.activo === false ? 0 : 1,
+  };
+  if (cuentaId != null) {
+    query += " AND (cuenta_id IS NULL OR cuenta_id = @cuentaId)";
+    params.cuentaId = cuentaId;
+  } else if (prev.cuenta_id == null) {
+    query += " AND cuenta_id IS NULL";
+  }
+  return (await db.prepare(query).run(params)).changes > 0;
 }
 
 export type DeleteGrupoResult = {
@@ -284,7 +358,9 @@ export type DeleteGrupoResult = {
 export async function renameSubRubroGrupo(
   db: Db,
   grupoAnterior: string,
-  grupoNuevo: string
+  grupoNuevo: string,
+  cuentaId: number | null = null,
+  sagMode = false
 ): Promise<number> {
   const anterior = normalizarTituloRubro(grupoAnterior);
   const nuevo = normalizarTituloRubro(grupoNuevo);
@@ -294,9 +370,19 @@ export async function renameSubRubroGrupo(
     return 0;
   }
 
+  let conflictoQuery =
+    "SELECT grupo FROM SUB_RUBROS WHERE LOWER(grupo) = LOWER(@nuevo)";
+  const conflictoParams: Record<string, string | number> = { nuevo };
+  if (!sagMode && cuentaId != null) {
+    conflictoQuery += " AND (cuenta_id IS NULL OR cuenta_id = @cuentaId)";
+    conflictoParams.cuentaId = cuentaId;
+  } else if (!sagMode && cuentaId == null) {
+    conflictoQuery += " AND cuenta_id IS NULL";
+  }
+  conflictoQuery += " LIMIT 1";
   const conflictoGrupo = (await db
-    .prepare(`SELECT grupo FROM SUB_RUBROS WHERE LOWER(grupo) = LOWER(@nuevo) LIMIT 1`)
-    .get({ nuevo })) as { grupo: string } | undefined;
+    .prepare(conflictoQuery)
+    .get(conflictoParams)) as { grupo: string } | undefined;
   if (
     conflictoGrupo &&
     conflictoGrupo.grupo.localeCompare(anterior, "es", { sensitivity: "accent" }) !== 0
@@ -304,26 +390,37 @@ export async function renameSubRubroGrupo(
     throw new Error(`Ya existe el rubro «${conflictoGrupo.grupo}».`);
   }
 
-  const { n: cantSubs } = (await db
-    .prepare("SELECT COUNT(*) AS n FROM SUB_RUBROS WHERE LOWER(grupo) = LOWER(@anterior)")
-    .get({ anterior })) as { n: number };
+  let countQuery =
+    "SELECT COUNT(*) AS n FROM SUB_RUBROS WHERE LOWER(grupo) = LOWER(@anterior)";
+  const countParams: Record<string, string | number> = { anterior };
+  if (!sagMode && cuentaId != null) {
+    countQuery += " AND cuenta_id = @cuentaId";
+    countParams.cuentaId = cuentaId;
+  } else if (!sagMode && cuentaId == null) {
+    countQuery += " AND cuenta_id IS NULL";
+  }
+  const { n: cantSubs } = (await db.prepare(countQuery).get(countParams)) as { n: number };
   if (cantSubs === 0) {
     throw new Error(`No hay sub-rubros bajo «${anterior}».`);
   }
 
-  const rubroOrigen = await getRubroByNombre(db, anterior);
-  const rubroDestino = await getRubroByNombre(db, nuevo);
+  const rubroOrigen = await getRubroByNombre(db, anterior, cuentaId);
+  const rubroDestino = await getRubroByNombre(db, nuevo, cuentaId);
   if (rubroDestino && (!rubroOrigen || rubroDestino.id !== rubroOrigen.id)) {
     throw new Error("Ya existe otro rubro en el catálogo con ese nombre.");
   }
 
   return db.transaction(async (tx) => {
-    const upd = await tx
-      .prepare(
-        `UPDATE SUB_RUBROS SET grupo = @nuevo
-         WHERE LOWER(grupo) = LOWER(@anterior)`
-      )
-      .run({ anterior, nuevo });
+    let updQuery = `UPDATE SUB_RUBROS SET grupo = @nuevo
+         WHERE LOWER(grupo) = LOWER(@anterior)`;
+    const updParams: Record<string, string | number> = { anterior, nuevo };
+    if (!sagMode && cuentaId != null) {
+      updQuery += " AND cuenta_id = @cuentaId";
+      updParams.cuentaId = cuentaId;
+    } else if (!sagMode && cuentaId == null) {
+      updQuery += " AND cuenta_id IS NULL";
+    }
+    const upd = await tx.prepare(updQuery).run(updParams);
 
     await tx.prepare(
       `UPDATE PRESUPUESTO SET rubro = @nuevo
@@ -334,12 +431,12 @@ export async function renameSubRubroGrupo(
       await updateRubro(tx, rubroOrigen.id, {
         nombre: nuevo,
         activo: rubroOrigen.activo !== 0,
-      });
+      }, cuentaId);
     } else if (!rubroDestino) {
       try {
-        await insertRubro(tx, { nombre: nuevo, activo: true });
+        await insertRubro(tx, { nombre: nuevo, activo: true }, cuentaId);
       } catch (e) {
-        if (!(await getRubroByNombre(tx, nuevo))) throw e;
+        if (!(await getRubroByNombre(tx, nuevo, cuentaId))) throw e;
       }
     }
 
@@ -349,18 +446,26 @@ export async function renameSubRubroGrupo(
 
 export async function deleteSubRubrosByGrupo(
   db: Db,
-  grupo: string
+  grupo: string,
+  cuentaId: number | null = null,
+  sagMode = false
 ): Promise<DeleteGrupoResult> {
   const g = grupo.trim();
   if (!g) throw new Error("El nombre del rubro (grupo) es obligatorio.");
-  const rows = (await db
-    .prepare("SELECT id, nombre FROM SUB_RUBROS WHERE LOWER(grupo) = LOWER(?)")
-    .all(g)) as { id: number; nombre: string }[];
+  let query = "SELECT id, nombre FROM SUB_RUBROS WHERE LOWER(grupo) = LOWER(@grupo)";
+  const params: Record<string, string | number> = { grupo: g };
+  if (!sagMode && cuentaId != null) {
+    query += " AND cuenta_id = @cuentaId";
+    params.cuentaId = cuentaId;
+  } else if (!sagMode && cuentaId == null) {
+    query += " AND cuenta_id IS NULL";
+  }
+  const rows = (await db.prepare(query).all(params)) as { id: number; nombre: string }[];
   const blocked: DeleteGrupoResult["blocked"] = [];
   let deleted = 0;
   for (const row of rows) {
     try {
-      if (await deleteSubRubro(db, row.id)) deleted++;
+      if (await deleteSubRubro(db, row.id, cuentaId, sagMode)) deleted++;
     } catch (e) {
       blocked.push({ nombre: row.nombre, razon: (e as Error).message });
     }
@@ -368,9 +473,20 @@ export async function deleteSubRubrosByGrupo(
   return { deleted, blocked };
 }
 
-export async function deleteSubRubro(db: Db, id: number): Promise<boolean> {
+export async function deleteSubRubro(
+  db: Db,
+  id: number,
+  cuentaId: number | null = null,
+  sagMode = false
+): Promise<boolean> {
   const row = await getSubRubroById(db, id);
   if (!row) return false;
+  if (!sagMode && row.cuenta_id == null) {
+    throw new Error("Solo el superadministrador puede eliminar rubros del catálogo base SAG");
+  }
+  if (!sagMode && cuentaId != null && row.cuenta_id != null && row.cuenta_id !== cuentaId) {
+    throw new Error("No tenés permiso para eliminar rubros de otra cuenta");
+  }
   const used = (await db
     .prepare("SELECT COUNT(*) AS n FROM PRESUPUESTO WHERE LOWER(sub_rubro) = LOWER(?)")
     .get(row.nombre)) as { n: number };
@@ -383,11 +499,17 @@ export async function deleteSubRubro(db: Db, id: number): Promise<boolean> {
   return (await db.prepare("DELETE FROM SUB_RUBROS WHERE id = ?").run(id)).changes > 0;
 }
 
-export async function subRubroExistsActivo(db: Db, nombre: string): Promise<boolean> {
-  const row = await db
-    .prepare(
-      "SELECT 1 FROM SUB_RUBROS WHERE LOWER(nombre) = LOWER(?) AND activo = 1"
-    )
-    .get(nombre.trim());
+export async function subRubroExistsActivo(
+  db: Db,
+  nombre: string,
+  readScope?: GastosRubrosReadScope
+): Promise<boolean> {
+  let query =
+    "SELECT 1 FROM SUB_RUBROS WHERE LOWER(nombre) = LOWER(@nombre) AND activo = 1";
+  const params: Record<string, string | number> = { nombre: nombre.trim() };
+  if (readScope) {
+    query = appendGastosRubrosReadWhere(query, params, readScope);
+  }
+  const row = await db.prepare(query).get(params);
   return !!row;
 }

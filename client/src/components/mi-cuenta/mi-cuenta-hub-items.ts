@@ -8,6 +8,12 @@ export const MI_CUENTA_HUB_ITEMS: SgHubItem[] = [
     icon: "config_admin_cuenta",
   },
   {
+    id: "inicio",
+    label: "Mi inicio",
+    subtitle: "Bloques del dashboard",
+    icon: "arquitectura_sistema",
+  },
+  {
     id: "chat",
     label: "Solicitudes Pendiente",
     subtitle: "Solicitudes entre cuentas",
@@ -27,6 +33,10 @@ export const MI_CUENTA_HUB_META: Record<MiCuentaVista, { title: string; subtitle
   perfil: {
     title: "Perfil",
     subtitle: "Tu foto, nombre y rol en el sistema.",
+  },
+  inicio: {
+    title: "Mi inicio",
+    subtitle: "Elegí qué bloques ver en tu dashboard, dentro de lo habilitado por tu rol.",
   },
   chat: {
     title: "Solicitudes Pendiente",

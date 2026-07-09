@@ -39,7 +39,17 @@ import {
   setHomeActividadCache,
   setHomeNotasCache,
 } from "../utils/home-panel-cache";
-import { ejercicioVigente } from "../utils/ejercicio-contable";
+import {
+  HOME_NOTAS_PREVIEW_LIMIT,
+  ordenarNotasDestacadas,
+} from "../utils/home-notas";
+import {
+  ejercicioConfigFromUser,
+  ejercicioVigente,
+  labelEjercicio,
+  anioInicioEjercicioVigente,
+  type EjercicioConfig,
+} from "../utils/ejercicio-contable";
 
 export interface HomeInsight {
   id: string;
@@ -52,8 +62,11 @@ export interface HomeInsight {
 
 const FETCH_TIMEOUT_MS = 18_000;
 const INSIGHTS_TIMEOUT_MS = 30_000;
-const PANEL_TIMEOUT_MS = 10_000;
-const HOME_NOTAS_PREVIEW_LIMIT = 8;
+const PANEL_TIMEOUT_MS = 30_000;
+/** El pizarrón y paneles livianos arrancan primero; KPIs pesados después. */
+const HOME_STAGGER_VENC_MS = 350;
+const HOME_STAGGER_ACTIVIDAD_MS = 500;
+const HOME_STAGGER_KPIS_MS = 900;
 const HOME_ACTIVIDAD_PREVIEW_LIMIT = 7;
 
 function withTimeout<T>(promise: Promise<T>, ms = FETCH_TIMEOUT_MS): Promise<T> {
@@ -82,9 +95,11 @@ function mesActualRango(): { desde: string; hasta: string } {
   return { desde, hasta };
 }
 
-/** Ejercicio contable vigente (1/7–30/6), acumulado hasta fin del mes calendario actual. */
-function ejercicioActualRango(): { desde: string; hasta: string; ejercicioLabel: string } {
-  const ej = ejercicioVigente();
+/** Ejercicio contable vigente (según cuenta), acumulado hasta fin del mes calendario actual. */
+function ejercicioActualRango(
+  cfg?: EjercicioConfig,
+): { desde: string; hasta: string; ejercicioLabel: string } {
+  const ej = ejercicioVigente(new Date(), cfg);
   const { hasta: mesHasta } = mesActualRango();
   const hasta = mesHasta <= ej.hasta ? mesHasta : ej.hasta;
   return { desde: ej.desde, hasta, ejercicioLabel: ej.label };
@@ -143,7 +158,7 @@ export function buildExpectedHomeInsights(user: AuthUser): HomeInsight[] {
       tab: "listado",
       label: "Gastos del año",
       value: formatUsd(0),
-      hint: "Jul–Jun · UYU y BRL en USD",
+      hint: `${labelEjercicio(anioInicioEjercicioVigente(new Date(), ejercicioConfigFromUser(user)), ejercicioConfigFromUser(user))} · UYU y BRL en USD`,
       tone: "default",
     });
   }
@@ -206,15 +221,6 @@ function ordenarInsightsHome(items: HomeInsight[]): HomeInsight[] {
     return idx === -1 ? HOME_INSIGHT_ORDER.length : idx;
   };
   return [...items].sort((a, b) => rank(a.id) - rank(b.id));
-}
-
-function ordenarNotasDestacadas(notas: Nota[]): Nota[] {
-  return [...notas].sort((a, b) => {
-    if (a.fijada !== b.fijada) return a.fijada ? -1 : 1;
-    const aTs = a.actualizado_en ?? "";
-    const bTs = b.actualizado_en ?? "";
-    return bTs.localeCompare(aTs);
-  });
 }
 
 function proximosDesdeCache(): VencImpCuotaConsolidada[] {
@@ -297,19 +303,30 @@ export function useHomeDashboard(user: AuthUser, apiOnline: boolean) {
       setLoadingNotas(true);
     }
 
-    void withTimeout(fetchNotas({ limit: HOME_NOTAS_PREVIEW_LIMIT }), PANEL_TIMEOUT_MS)
-      .then((data) => {
+    const load = async (attempt = 0): Promise<void> => {
+      try {
+        // Sin timeout artificial: misma llamada que la pantalla Notas (que sí carga).
+        const data = await fetchNotas({ limit: HOME_NOTAS_PREVIEW_LIMIT });
         if (cancelled) return;
         const sorted = ordenarNotasDestacadas(data);
         setNotas(sorted);
         setHomeNotasCache(userId, sorted);
-      })
-      .catch(() => {
-        if (!cancelled && cached.length === 0) setNotas([]);
-      })
-      .finally(() => {
+      } catch (err) {
+        if (cancelled) return;
+        if (import.meta.env.DEV) {
+          console.warn("[home-notas] falló carga:", err);
+        }
+        if (attempt < 1) {
+          await new Promise((r) => window.setTimeout(r, 1200));
+          if (!cancelled) return load(attempt + 1);
+        }
+        // No vaciar el pizarrón: conservar caché o estado previo.
+      } finally {
         if (!cancelled) setLoadingNotas(false);
-      });
+      }
+    };
+
+    void load();
 
     return () => {
       cancelled = true;
@@ -332,21 +349,24 @@ export function useHomeDashboard(user: AuthUser, apiOnline: boolean) {
       setLoadingVenc(true);
     }
 
-    void withTimeout(loadVencimientosImpuestosBootstrap())
-      .then((bootstrap) => {
-        if (!cancelled) {
-          setProximosVenc(buildVencimientosProximosHome(bootstrap, 4));
-        }
-      })
-      .catch(() => {
-        if (!cancelled && cached.length === 0) setProximosVenc([]);
-      })
-      .finally(() => {
-        if (!cancelled) setLoadingVenc(false);
-      });
+    const timer = window.setTimeout(() => {
+      void withTimeout(loadVencimientosImpuestosBootstrap(), PANEL_TIMEOUT_MS)
+        .then((bootstrap) => {
+          if (!cancelled) {
+            setProximosVenc(buildVencimientosProximosHome(bootstrap, 4));
+          }
+        })
+        .catch(() => {
+          /* conservar caché previo */
+        })
+        .finally(() => {
+          if (!cancelled) setLoadingVenc(false);
+        });
+    }, HOME_STAGGER_VENC_MS);
 
     return () => {
       cancelled = true;
+      window.clearTimeout(timer);
     };
   }, [apiOnline, puedeVencimientos, userId]);
 
@@ -370,39 +390,42 @@ export function useHomeDashboard(user: AuthUser, apiOnline: boolean) {
       })
     );
 
-    void Promise.all(
-      actividadPanelConfigs.map(async (panel) => {
-        const cached = getHomeActividadCache(userId, panel.cacheKey, panel.fetchParams.cuentaId);
-        try {
-          const result = await withTimeout(
-            fetchAuthActividad({
-              limite: HOME_ACTIVIDAD_PREVIEW_LIMIT,
-              ...panel.fetchParams,
-            }),
-            PANEL_TIMEOUT_MS
-          );
-          if (cancelled) return;
-          setHomeActividadCache(userId, panel.cacheKey, panel.fetchParams.cuentaId, result.items);
-          setActividadPanels((prev) =>
-            prev.map((p) =>
-              p.id === panel.id ? { ...p, items: result.items, loading: false } : p
-            )
-          );
-        } catch {
-          if (cancelled) return;
-          setActividadPanels((prev) =>
-            prev.map((p) =>
-              p.id === panel.id
-                ? { ...p, items: cached.length > 0 ? cached : p.items, loading: false }
-                : p
-            )
-          );
-        }
-      })
-    );
+    const timer = window.setTimeout(() => {
+      void Promise.all(
+        actividadPanelConfigs.map(async (panel) => {
+          const cached = getHomeActividadCache(userId, panel.cacheKey, panel.fetchParams.cuentaId);
+          try {
+            const result = await withTimeout(
+              fetchAuthActividad({
+                limite: HOME_ACTIVIDAD_PREVIEW_LIMIT,
+                ...panel.fetchParams,
+              }),
+              PANEL_TIMEOUT_MS
+            );
+            if (cancelled) return;
+            setHomeActividadCache(userId, panel.cacheKey, panel.fetchParams.cuentaId, result.items);
+            setActividadPanels((prev) =>
+              prev.map((p) =>
+                p.id === panel.id ? { ...p, items: result.items, loading: false } : p
+              )
+            );
+          } catch {
+            if (cancelled) return;
+            setActividadPanels((prev) =>
+              prev.map((p) =>
+                p.id === panel.id
+                  ? { ...p, items: cached.length > 0 ? cached : p.items, loading: false }
+                  : p
+              )
+            );
+          }
+        })
+      );
+    }, HOME_STAGGER_ACTIVIDAD_MS);
 
     return () => {
       cancelled = true;
+      window.clearTimeout(timer);
     };
   }, [apiOnline, userId, actividadPanelConfigs]);
 
@@ -450,189 +473,194 @@ export function useHomeDashboard(user: AuthUser, apiOnline: boolean) {
       setExtraInsights(cached);
     }
 
-    const jobs: Promise<HomeInsight | HomeInsight[] | null>[] = [];
-
-    const runJob = (
-      id: string,
-      promise: Promise<HomeInsight>
-    ): Promise<HomeInsight | null> =>
-      withTimeout(promise, INSIGHTS_TIMEOUT_MS)
-        .then((insight) => insight)
-        .catch((err) => {
-          if (import.meta.env.DEV) {
-            console.warn(`[home-insights] ${id}:`, err);
-          }
-          return null;
-        });
-
-    const runJobs = (
-      id: string,
-      promise: Promise<HomeInsight[]>
-    ): Promise<HomeInsight[] | null> =>
-      withTimeout(promise, INSIGHTS_TIMEOUT_MS)
-        .then((insights) => insights)
-        .catch((err) => {
-          if (import.meta.env.DEV) {
-            console.warn(`[home-insights] ${id}:`, err);
-          }
-          return null;
-        });
-
-    if (canAccessScreen(user, "registro") || canAccessScreen(user, "listado")) {
-      const { desde, hasta } = mesActualRango();
-      const { desde: desdeEjercicio, hasta: hastaEjercicio, ejercicioLabel } =
-        ejercicioActualRango();
-      jobs.push(
-        runJobs(
-          "gastos",
-          Promise.all([
-            fetchResumen({ fecha_desde: desde, fecha_hasta: hasta }),
-            fetchResumen({ fecha_desde: desdeEjercicio, fecha_hasta: hastaEjercicio }),
-          ]).then(([resumenMes, resumenAnio]) => {
-            const totalMes = totalGastosUsdResumen(resumenMes);
-            const totalAnio = totalGastosUsdResumen(resumenAnio);
-            return [
-              {
-                id: "gastos-mes",
-                tab: "listado" as TabId,
-                label: "Gastos del mes",
-                value: formatUsd(totalMes),
-                hint: "Monto incluye UYU y BRL",
-                tone: "default" as const,
-              },
-              {
-                id: "gastos-anio",
-                tab: "listado" as TabId,
-                label: "Gastos del año",
-                value: formatUsd(totalAnio),
-                hint: `${ejercicioLabel} · UYU y BRL en USD`,
-                tone: "default" as const,
-              },
-            ];
-          })
-        )
-      );
-    }
-
-    if (canAccessScreen(user, "stock_ganadero")) {
-      jobs.push(
-        runJob(
-          "stock-ganado-activo",
-          fetchStockGanaderoResumen().then((resumen) => ({
-            id: "stock-ganado-activo",
-            tab: "stock_ganadero",
-            label: "Ganado activo",
-            value: formatEntero(resumen.dispositivos),
-            hint:
-              resumen.lotes > 0
-                ? `${formatEntero(resumen.lotes)} lote(s) · dispositivos vivos`
-                : "Dispositivos activos en stock",
-            tone: "ok" as const,
-          }))
-        )
-      );
-    }
-
-    if (canAccessSimuladorVentaGanado(user)) {
-      jobs.push(
-        runJob(
-          "ganado-por-vender",
-          fetchSimulacionesVentaGanado({ limit: 120 }).then((rows) => {
-            const pendientes = rows.filter((r) => !r.venta_realizada);
-            const animales = pendientes.reduce(
-              (s, r) => s + (r.dispositivos_count || r.cantidad_animales || 0),
-              0
-            );
-            const usd = pendientes.reduce((s, r) => s + (r.total_usd || 0), 0);
-            return {
-              id: "ganado-por-vender",
-              tab: "simulador_venta_ganado",
-              label: "Ganado por vender",
-              value: formatEntero(animales),
-              hint:
-                pendientes.length > 0
-                  ? `${pendientes.length} operación(es) · ${formatUsd(usd)} estimado`
-                  : "Sin operaciones pendientes",
-              tone: "accent" as const,
-            };
-          })
-        )
-      );
-    }
-
-    if (canAccessIngresosVentasModulo(user)) {
-      jobs.push(
-        runJob(
-          "arrendamientos-por-recibir",
-          fetchVentasArrendamientos().then((rows) => {
-            const pendientes = rows.filter((r) => !r.venta_realizada);
-            const usd = pendientes.reduce((s, r) => s + (r.total_usd || 0), 0);
-            return {
-              id: "arrendamientos-por-recibir",
-              tab: "ingresos_ventas",
-              label: "Arrendamientos",
-              value: formatUsd(usd),
-              hint:
-                pendientes.length > 0
-                  ? `${pendientes.length} contrato(s) por recibir`
-                  : "Sin cobros pendientes",
-              tone: "ok" as const,
-            };
-          })
-        ),
-        runJob(
-          "agricultura-por-recibir",
-          fetchVentasAgricultura().then((rows) => {
-            const pendientes = rows.filter((r) => !r.venta_realizada);
-            const usd = pendientes.reduce((s, r) => s + (r.importe_usd || 0), 0);
-            return {
-              id: "agricultura-por-recibir",
-              tab: "ingresos_ventas",
-              label: "Agricultura",
-              value: formatUsd(usd),
-              hint:
-                pendientes.length > 0
-                  ? `${pendientes.length} venta(s) por recibir`
-                  : "Sin ventas pendientes",
-              tone: "ok" as const,
-            };
-          })
-        )
-      );
-    }
-
-    if (jobs.length === 0) {
-      setLoadingInsights(false);
-      setInsightsReady(true);
-      return;
-    }
-
-    setLoadingInsights(true);
-    setInsightsReady(false);
-
-    void Promise.all(jobs).then((results) => {
+    const timer = window.setTimeout(() => {
       if (cancelled) return;
-      const loaded = results.flatMap((item) => {
-        if (item == null) return [];
-        return Array.isArray(item) ? item : [item];
-      });
-      if (loaded.length > 0) {
-        setExtraInsights((prev) => {
-          const byId = new Map(prev.map((item) => [item.id, item]));
-          for (const item of loaded) byId.set(item.id, item);
-          const next = ordenarInsightsHome([...byId.values()]);
-          setHomeInsightsCache(userId, next);
-          return next;
-        });
+
+      const jobs: Promise<HomeInsight | HomeInsight[] | null>[] = [];
+
+      const runJob = (
+        id: string,
+        promise: Promise<HomeInsight>
+      ): Promise<HomeInsight | null> =>
+        withTimeout(promise, INSIGHTS_TIMEOUT_MS)
+          .then((insight) => insight)
+          .catch((err) => {
+            if (import.meta.env.DEV) {
+              console.warn(`[home-insights] ${id}:`, err);
+            }
+            return null;
+          });
+
+      const runJobs = (
+        id: string,
+        promise: Promise<HomeInsight[]>
+      ): Promise<HomeInsight[] | null> =>
+        withTimeout(promise, INSIGHTS_TIMEOUT_MS)
+          .then((insights) => insights)
+          .catch((err) => {
+            if (import.meta.env.DEV) {
+              console.warn(`[home-insights] ${id}:`, err);
+            }
+            return null;
+          });
+
+      if (canAccessScreen(user, "registro") || canAccessScreen(user, "listado")) {
+        const { desde, hasta } = mesActualRango();
+        const { desde: desdeEjercicio, hasta: hastaEjercicio, ejercicioLabel } =
+          ejercicioActualRango(ejercicioConfigFromUser(user));
+        jobs.push(
+          runJobs(
+            "gastos",
+            Promise.all([
+              fetchResumen({ fecha_desde: desde, fecha_hasta: hasta }),
+              fetchResumen({ fecha_desde: desdeEjercicio, fecha_hasta: hastaEjercicio }),
+            ]).then(([resumenMes, resumenAnio]) => {
+              const totalMes = totalGastosUsdResumen(resumenMes);
+              const totalAnio = totalGastosUsdResumen(resumenAnio);
+              return [
+                {
+                  id: "gastos-mes",
+                  tab: "listado" as TabId,
+                  label: "Gastos del mes",
+                  value: formatUsd(totalMes),
+                  hint: "Monto incluye UYU y BRL",
+                  tone: "default" as const,
+                },
+                {
+                  id: "gastos-anio",
+                  tab: "listado" as TabId,
+                  label: "Gastos del año",
+                  value: formatUsd(totalAnio),
+                  hint: `${ejercicioLabel} · UYU y BRL en USD`,
+                  tone: "default" as const,
+                },
+              ];
+            })
+          )
+        );
       }
-      setLoadingInsights(false);
-      setInsightsReady(true);
-    });
+
+      if (canAccessScreen(user, "stock_ganadero")) {
+        jobs.push(
+          runJob(
+            "stock-ganado-activo",
+            fetchStockGanaderoResumen().then((resumen) => ({
+              id: "stock-ganado-activo",
+              tab: "stock_ganadero",
+              label: "Ganado activo",
+              value: formatEntero(resumen.dispositivos),
+              hint:
+                resumen.lotes > 0
+                  ? `${formatEntero(resumen.lotes)} lote(s) · dispositivos vivos`
+                  : "Dispositivos activos en stock",
+              tone: "ok" as const,
+            }))
+          )
+        );
+      }
+
+      if (canAccessSimuladorVentaGanado(user)) {
+        jobs.push(
+          runJob(
+            "ganado-por-vender",
+            fetchSimulacionesVentaGanado({ limit: 120 }).then((rows) => {
+              const pendientes = rows.filter((r) => !r.venta_realizada);
+              const animales = pendientes.reduce(
+                (s, r) => s + (r.dispositivos_count || r.cantidad_animales || 0),
+                0
+              );
+              const usd = pendientes.reduce((s, r) => s + (r.total_usd || 0), 0);
+              return {
+                id: "ganado-por-vender",
+                tab: "simulador_venta_ganado",
+                label: "Ganado por vender",
+                value: formatEntero(animales),
+                hint:
+                  pendientes.length > 0
+                    ? `${pendientes.length} operación(es) · ${formatUsd(usd)} estimado`
+                    : "Sin operaciones pendientes",
+                tone: "accent" as const,
+              };
+            })
+          )
+        );
+      }
+
+      if (canAccessIngresosVentasModulo(user)) {
+        jobs.push(
+          runJob(
+            "arrendamientos-por-recibir",
+            fetchVentasArrendamientos().then((rows) => {
+              const pendientes = rows.filter((r) => !r.venta_realizada);
+              const usd = pendientes.reduce((s, r) => s + (r.total_usd || 0), 0);
+              return {
+                id: "arrendamientos-por-recibir",
+                tab: "ingresos_ventas",
+                label: "Arrendamientos",
+                value: formatUsd(usd),
+                hint:
+                  pendientes.length > 0
+                    ? `${pendientes.length} contrato(s) por recibir`
+                    : "Sin cobros pendientes",
+                tone: "ok" as const,
+              };
+            })
+          ),
+          runJob(
+            "agricultura-por-recibir",
+            fetchVentasAgricultura().then((rows) => {
+              const pendientes = rows.filter((r) => !r.venta_realizada);
+              const usd = pendientes.reduce((s, r) => s + (r.importe_usd || 0), 0);
+              return {
+                id: "agricultura-por-recibir",
+                tab: "ingresos_ventas",
+                label: "Agricultura",
+                value: formatUsd(usd),
+                hint:
+                  pendientes.length > 0
+                    ? `${pendientes.length} venta(s) por recibir`
+                    : "Sin ventas pendientes",
+                tone: "ok" as const,
+              };
+            })
+          )
+        );
+      }
+
+      if (jobs.length === 0) {
+        setLoadingInsights(false);
+        setInsightsReady(true);
+        return;
+      }
+
+      setLoadingInsights(true);
+      setInsightsReady(false);
+
+      void Promise.all(jobs).then((results) => {
+        if (cancelled) return;
+        const loaded = results.flatMap((item) => {
+          if (item == null) return [];
+          return Array.isArray(item) ? item : [item];
+        });
+        if (loaded.length > 0) {
+          setExtraInsights((prev) => {
+            const byId = new Map(prev.map((item) => [item.id, item]));
+            for (const item of loaded) byId.set(item.id, item);
+            const next = ordenarInsightsHome([...byId.values()]);
+            setHomeInsightsCache(userId, next);
+            return next;
+          });
+        }
+        setLoadingInsights(false);
+        setInsightsReady(true);
+      });
+    }, HOME_STAGGER_KPIS_MS);
 
     return () => {
       cancelled = true;
+      window.clearTimeout(timer);
     };
-  }, [apiOnline, userId, permissionsKey]);
+  }, [apiOnline, userId, permissionsKey, user]);
 
   const insights = useMemo(
     () => mergeInsightsWithExpected(user, extraInsights),

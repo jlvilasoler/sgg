@@ -24,13 +24,17 @@ export function dbCapacityHint(): string {
 function poolMaxSize(connectionString: string): number {
   const fromEnv = Number(process.env.SCG_DB_POOL_MAX);
   if (Number.isFinite(fromEnv) && fromEnv > 0) {
-    return Math.min(10, Math.floor(fromEnv));
+    return Math.min(20, Math.floor(fromEnv));
   }
   if (process.env.VERCEL === "1") return 1;
-  // Transaction pooler multiplexa; session pooler (5432) tiene límite bajo en Supabase.
-  if (/pooler\.supabase\.com:6543/i.test(connectionString)) return 5;
+  // Transaction pooler (6543) multiplexa: soporta muchas conexiones cliente.
+  // El dashboard dispara ~10 requests a la vez (x2 con React StrictMode en dev);
+  // con pool chico se saturaba y paneles livianos (pizarrón) expiraban por
+  // inanición. 15 da holgura sin acercarse al límite del pooler.
+  if (/pooler\.supabase\.com:6543/i.test(connectionString)) return 15;
+  // Session pooler (5432) tiene límite bajo en Supabase: conservador.
   if (/pooler\.supabase\.com/i.test(connectionString)) return 3;
-  return 5;
+  return 10;
 }
 
 export function getPool(): PgPool {
@@ -48,8 +52,11 @@ export function getPool(): PgPool {
       connectionString,
       ssl: useSsl ? { rejectUnauthorized: false } : false,
       max,
-      idleTimeoutMillis: process.env.VERCEL === "1" ? 0 : 8_000,
-      allowExitOnIdle: true,
+      // En dev mantenemos conexiones calientes más tiempo: reabrir contra el
+      // pooler de Supabase cuesta varios segundos (SSL + auth) y la ráfaga del
+      // dashboard pagaba ese costo en simultáneo, expirando los paneles.
+      idleTimeoutMillis: process.env.VERCEL === "1" ? 0 : 60_000,
+      allowExitOnIdle: process.env.VERCEL === "1",
       connectionTimeoutMillis: process.env.VERCEL === "1" ? 60_000 : 15_000,
     });
     pool.on("error", (err) => {
@@ -105,6 +112,36 @@ export async function closePool(): Promise<void> {
   if (pool) {
     await pool.end();
     pool = null;
+  }
+}
+
+/**
+ * Pre-establece conexiones al arrancar para que la primera ráfaga (el dashboard
+ * dispara ~15 requests a la vez) no pague el costo de crear todas las conexiones
+ * SSL al pooler de Supabase en simultáneo. Best-effort: si falla no rompe el boot.
+ */
+export async function warmupPool(target?: number): Promise<void> {
+  if (process.env.VERCEL === "1") return;
+  const p = getPool();
+  const n = Math.max(1, Math.min(target ?? p.options.max ?? 5, p.options.max ?? 5));
+  const clients: PgPoolClient[] = [];
+  try {
+    // connect() en paralelo fuerza a crear N conexiones físicas.
+    await Promise.all(
+      Array.from({ length: n }, async () => {
+        const c = await p.connect();
+        clients.push(c);
+        await c.query("SELECT 1");
+      }),
+    );
+    console.info(`[SGG DB] Pool pre-calentado: ${clients.length} conexión(es)`);
+  } catch (err) {
+    console.warn(
+      "[SGG DB] Pre-calentamiento del pool falló (se crearán bajo demanda):",
+      err instanceof Error ? err.message : err,
+    );
+  } finally {
+    for (const c of clients) c.release();
   }
 }
 
@@ -189,7 +226,7 @@ export class PgStatement {
     const skipReturningId =
       isInsert &&
       !hasReturning &&
-      /INSERT\s+INTO\s+("?ROLE_ESCRITURA"?|"?ROLE_PERMISOS"?|"?ROLE_HOME_LAYOUT"?|"?RUBRO_SUB_RUBROS"?|"?USER_SESSIONS"?|"?STOCK_GANADERO_DISPOSITIVO"?|"?STOCK_GANADERO_RAZA"?|"?STOCK_GANADERO_POTRERO"?|"?STOCK_GANADERO_GRUPO"?|"?STOCK_EQUINO_DISPOSITIVO"?|"?CHAT_CHANNEL_MEMBERS"?|"?CHAT_READ_STATE"?|"?CHAT_WALLPAPER"?|"?SIMULADOR_VENTA_GANADO_OP_SEQ"?|"?PRESUPUESTO_DOCUMENTOS"?|"?USER_VENCIMIENTOS_PREFS"?|"?NOTAS_COMPARTIDAS"?)\b/i.test(
+      /INSERT\s+INTO\s+("?ROLE_ESCRITURA"?|"?ROLE_PERMISOS"?|"?ROLE_HOME_LAYOUT"?|"?USER_HOME_LAYOUT"?|"?RUBRO_SUB_RUBROS"?|"?USER_SESSIONS"?|"?STOCK_GANADERO_DISPOSITIVO"?|"?STOCK_GANADERO_RAZA"?|"?STOCK_GANADERO_POTRERO"?|"?STOCK_GANADERO_GRUPO"?|"?STOCK_EQUINO_DISPOSITIVO"?|"?CHAT_CHANNEL_MEMBERS"?|"?CHAT_READ_STATE"?|"?CHAT_WALLPAPER"?|"?SIMULADOR_VENTA_GANADO_OP_SEQ"?|"?PRESUPUESTO_DOCUMENTOS"?|"?USER_VENCIMIENTOS_PREFS"?|"?NOTAS_COMPARTIDAS"?)\b/i.test(
         sql
       );
     if (isInsert && !hasReturning && !skipReturningId) {

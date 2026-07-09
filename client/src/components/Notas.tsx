@@ -4,6 +4,8 @@ import { createNota, deleteNota, fetchNotas, fetchUsuariosMiCuenta, updateNota }
 import type { AuthUser, Nota, NotaColor, NotaInput } from "../types";
 import { NOTA_COLORES } from "../types";
 import { confirmAction } from "../utils/confirm";
+import { setHomeNotasCache } from "../utils/home-panel-cache";
+import { notasPreviewParaHome } from "../utils/home-notas";
 import NotasHub from "./notas/NotasHub";
 import NotaCompartirPanel, {
   esCompartidaConTodoElEquipo,
@@ -133,14 +135,16 @@ export default function Notas({
     setLoading(true);
     try {
       const data = await fetchNotas();
-      setNotas(data.map(normalizarNota));
+      const normalizadas = data.map(normalizarNota);
+      setNotas(normalizadas);
+      setHomeNotasCache(currentUserId, notasPreviewParaHome(normalizadas));
     } catch (e) {
       onError(e instanceof Error ? e.message : "No se pudieron cargar las notas");
       setNotas([]);
     } finally {
       setLoading(false);
     }
-  }, [apiOnline, onError]);
+  }, [apiOnline, onError, currentUserId]);
 
   useEffect(() => {
     void cargar();

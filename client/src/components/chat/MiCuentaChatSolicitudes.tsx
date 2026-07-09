@@ -1,3 +1,4 @@
+import { ThumbsDown, ThumbsUp } from "lucide-react";
 import { useChatExternalRequestsOptional } from "../../context/ChatExternalRequestsContext";
 import UserAvatar from "../UserAvatar";
 
@@ -33,47 +34,71 @@ export default function MiCuentaChatSolicitudes() {
         </p>
       )}
 
-      <div className="mi-cuenta-chat-cards-box" aria-label="Solicitudes para confirmar o eliminar">
-        <ul className="mi-cuenta-chat-panel">
-          {snoozedPending.map((req) => (
-            <li key={req.id} className="mi-cuenta-chat-card">
-            <div className="mi-cuenta-chat-card-main">
-              <UserAvatar
-                nombre={req.requester_nombre}
-                avatar={req.requester_avatar}
-                variant="list"
-                className="mi-cuenta-chat-card-avatar"
-              />
-              <div className="mi-cuenta-chat-card-copy">
-                <p className="mi-cuenta-chat-card-text">
-                  <strong>{req.requester_nombre}</strong> quiere conectarse para chatear entre
-                  cuentas.
-                </p>
-                <p className="mi-cuenta-chat-card-meta">{req.requester_cuenta}</p>
+      <ul
+        className="mi-cuenta-chat-req-list"
+        aria-label="Solicitudes para confirmar o eliminar"
+      >
+        {snoozedPending.map((req) => (
+          <li key={req.id}>
+            <article
+              className="home-auto-pendientes-kpi mi-cuenta-chat-req-card"
+              aria-label={`Solicitud de chat de ${req.requester_nombre}`}
+            >
+              <div className="home-auto-pendientes-kpi-body">
+                <div className="home-auto-pendientes-kpi-head">
+                  <span className="home-auto-pendientes-kpi-link" aria-hidden>
+                    <span className="home-auto-pendientes-kpi-dot" />
+                    <span className="home-auto-pendientes-kpi-kicker">Solicitud de chat</span>
+                  </span>
+                </div>
+
+                <div className="home-auto-pendientes-kpi-main">
+                  <UserAvatar
+                    nombre={req.requester_nombre}
+                    avatar={req.requester_avatar}
+                    variant="list"
+                    className="mi-cuenta-chat-req-avatar"
+                  />
+                  <div className="home-auto-pendientes-kpi-copy">
+                    <p className="home-auto-pendientes-kpi-value" title={req.requester_nombre}>
+                      {req.requester_nombre}
+                    </p>
+                    <p
+                      className="home-auto-pendientes-kpi-meta"
+                      title={`Quiere conectarse · ${req.requester_cuenta}`}
+                    >
+                      Quiere conectarse · {req.requester_cuenta}
+                    </p>
+                  </div>
+
+                  <div className="home-auto-pendientes-kpi-actions">
+                    <button
+                      type="button"
+                      className="home-auto-pendientes-kpi-icon-btn home-auto-pendientes-kpi-icon-btn--no"
+                      disabled={busy}
+                      title="Eliminar solicitud"
+                      aria-label={`Eliminar solicitud de ${req.requester_nombre}`}
+                      onClick={() => void reject(req.id)}
+                    >
+                      <ThumbsDown size={14} aria-hidden />
+                    </button>
+                    <button
+                      type="button"
+                      className="home-auto-pendientes-kpi-icon-btn home-auto-pendientes-kpi-icon-btn--si"
+                      disabled={busy}
+                      title="Confirmar solicitud"
+                      aria-label={`Confirmar solicitud de ${req.requester_nombre}`}
+                      onClick={() => void accept(req.id)}
+                    >
+                      <ThumbsUp size={14} aria-hidden />
+                    </button>
+                  </div>
+                </div>
               </div>
-            </div>
-            <div className="mi-cuenta-chat-card-btns">
-              <button
-                type="button"
-                className="mi-cuenta-chat-card-btn mi-cuenta-chat-card-btn--confirm"
-                disabled={busy}
-                onClick={() => void accept(req.id)}
-              >
-                {busy ? "…" : "Confirmar"}
-              </button>
-              <button
-                type="button"
-                className="mi-cuenta-chat-card-btn mi-cuenta-chat-card-btn--delete"
-                disabled={busy}
-                onClick={() => void reject(req.id)}
-              >
-                Eliminar
-              </button>
-            </div>
+            </article>
           </li>
         ))}
-        </ul>
-      </div>
+      </ul>
     </section>
   );
 }

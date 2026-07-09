@@ -213,6 +213,67 @@ export function moduleFromApiPath(path: string): Modulo | null {
   return null;
 }
 
+// Caché en memoria del usuario resuelto por token de sesión. Colapsa la ráfaga
+// de requests GET del inicio (que dispara ~10 llamadas a la vez) en una sola
+// reconstrucción de toUserPublic, aliviando el pool chico de Postgres. TTL corto;
+// cualquier escritura invalida la entrada para no servir datos stale.
+const SESSION_USER_CACHE_TTL_MS = 5_000;
+const sessionUserCache = new Map<string, { user: UserPublic; exp: number }>();
+
+function getCachedSessionUser(token: string): UserPublic | null {
+  const hit = sessionUserCache.get(token);
+  if (!hit) return null;
+  if (hit.exp <= Date.now()) {
+    sessionUserCache.delete(token);
+    return null;
+  }
+  return hit.user;
+}
+
+function setCachedSessionUser(token: string, user: UserPublic): void {
+  sessionUserCache.set(token, { user, exp: Date.now() + SESSION_USER_CACHE_TTL_MS });
+  if (sessionUserCache.size > 1000) {
+    const now = Date.now();
+    for (const [k, v] of sessionUserCache) {
+      if (v.exp <= now) sessionUserCache.delete(k);
+    }
+  }
+}
+
+export function invalidateSessionUserCache(token?: string): void {
+  if (token) sessionUserCache.delete(token);
+  else sessionUserCache.clear();
+}
+
+// De-duplicación de resoluciones en vuelo: el dashboard dispara ~10 requests GET
+// a la vez y, sin esto, cada una arranca su propio toUserPublic (~15 queries)
+// contra un pool de 5 conexiones → saturación y timeouts. Con esto, la ráfaga
+// concurrente comparte UNA sola resolución por token.
+const sessionUserInflight = new Map<string, Promise<UserPublic | null>>();
+
+async function resolveSessionUser(
+  db: ReturnType<typeof getDb>,
+  token: string,
+): Promise<UserPublic | null> {
+  const cached = getCachedSessionUser(token);
+  if (cached) return cached;
+
+  const inflight = sessionUserInflight.get(token);
+  if (inflight) return inflight;
+
+  const p = (async () => {
+    const u = await authDb.getUserBySessionToken(db, token);
+    if (u) setCachedSessionUser(token, u);
+    return u;
+  })();
+  sessionUserInflight.set(token, p);
+  try {
+    return await p;
+  } finally {
+    sessionUserInflight.delete(token);
+  }
+}
+
 export async function authMiddleware(req: Request, res: Response, next: NextFunction): Promise<void> {
   const path = req.path;
 
@@ -242,7 +303,15 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
     return;
   }
 
-  const user = await authDb.getUserBySessionToken(db, token);
+  const isGet = req.method === "GET";
+  let user: UserPublic | null;
+  if (isGet) {
+    user = await resolveSessionUser(db, token!);
+  } else {
+    // Las escrituras invalidan el caché y reconstruyen el usuario fresco.
+    invalidateSessionUserCache(token!);
+    user = await authDb.getUserBySessionToken(db, token);
+  }
 
   if (!user) {
     res.status(401).json({ ok: false, error: "Sesión no válida o expirada" });
@@ -483,12 +552,27 @@ export function registerAuthRoutes(app: Express): void {
         userAgent: req.headers["user-agent"],
       });
 
+      // En modo "individual" se pregunta la empresa en cada inicio de sesión.
+      // Excepción: si la cuenta tiene una sola empresa, se entra directo a ella
+      // (no tiene sentido preguntar cuando no hay alternativas).
+      let sessionUser = result.user;
+      if (sessionUser.login_mode === "individual") {
+        const cuentaId = await empresasCuenta.resolveCuentaMadreIdForUser(db, sessionUser);
+        const empresas = cuentaId
+          ? (await empresasCuenta.listEmpresasOperativas(db, cuentaId)).filter((e) => e.activo)
+          : [];
+        const empresaActivaId = empresas.length === 1 ? empresas[0].id : null;
+        await authDb.setEmpresaActiva(db, sessionUser.id, empresaActivaId);
+        const refreshed = await authDb.getUserById(db, sessionUser.id);
+        if (refreshed) sessionUser = refreshed;
+      }
+
       res.cookie(SESSION_COOKIE, token, cookieOptions());
-      touchUserPresence(result.user, {
+      touchUserPresence(sessionUser, {
         ip,
         pantalla: PANTALLA_LABELS.home,
       });
-      res.json({ ok: true, data: result.user });
+      res.json({ ok: true, data: sessionUser });
     } catch (e) {
       console.error("[SGG Auth] Error en login:", e);
       if (isDbCapacityError(e)) {
@@ -514,6 +598,7 @@ export function registerAuthRoutes(app: Express): void {
     if (token) {
       user = await authDb.getUserBySessionToken(getDb(), token);
       await authDb.deleteSession(getDb(), token);
+      invalidateSessionUserCache(token);
     }
     if (user) {
       markUserPresenceDisconnected(user.email);
@@ -532,7 +617,7 @@ export function registerAuthRoutes(app: Express): void {
       res.status(401).json({ ok: false, error: "No autenticado" });
       return;
     }
-    const user = await authDb.getUserBySessionToken(getDb(), token);
+    const user = await resolveSessionUser(getDb(), token!);
     if (!user) {
       res.status(401).json({ ok: false, error: "No autenticado" });
       return;
@@ -1318,6 +1403,178 @@ export function registerAuthRoutes(app: Express): void {
     }
   });
 
+  app.get("/api/auth/my-home-layout", async (req, res) => {
+    const user = req.user;
+    if (!user) {
+      res.status(401).json({ ok: false, error: "No autenticado" });
+      return;
+    }
+    const homeLayoutDb = await import("./home-layout-db.js");
+    res.json({
+      ok: true,
+      data: await homeLayoutDb.getUserHomeLayoutConfig(getDb(), user.id, user.rol),
+    });
+  });
+
+  app.patch("/api/auth/my-home-layout", async (req, res) => {
+    const user = req.user;
+    if (!user) {
+      res.status(401).json({ ok: false, error: "No autenticado" });
+      return;
+    }
+    try {
+      const homeLayoutDb = await import("./home-layout-db.js");
+      const config = await homeLayoutDb.updateUserHomeLayout(
+        getDb(),
+        user.id,
+        user.rol,
+        req.body?.paneles ?? {},
+      );
+      const updated = await authDb.getUserById(getDb(), user.id);
+      res.json({ ok: true, data: { config, user: updated } });
+    } catch (e) {
+      res.status(400).json({
+        ok: false,
+        error: e instanceof Error ? e.message : "Error al guardar tu inicio",
+      });
+    }
+  });
+
+  app.patch("/api/auth/mi-ejercicio", async (req, res) => {
+    if (!(await requireCuentaAdmin(req, res))) return;
+    const actor = req.user!;
+    try {
+      const cuentaId = await empresasCuenta.resolveCuentaMadreIdForUser(getDb(), actor);
+      if (cuentaId == null) {
+        res.status(400).json({
+          ok: false,
+          error: "No tenés una cuenta asociada para configurar el ejercicio fiscal",
+        });
+        return;
+      }
+      await empresasCuenta.updateEjercicioFiscalForCuenta(
+        getDb(),
+        cuentaId,
+        req.body?.inicio_mes,
+        req.body?.inicio_dia,
+      );
+      const updated = await authDb.getUserById(getDb(), actor.id);
+      res.json({ ok: true, data: updated });
+    } catch (e) {
+      res.status(400).json({
+        ok: false,
+        error: e instanceof Error ? e.message : "Error al guardar el ejercicio fiscal",
+      });
+    }
+  });
+
+  app.patch("/api/auth/mi-modo-inicio", async (req, res) => {
+    if (!(await requireCuentaAdmin(req, res))) return;
+    const actor = req.user!;
+    try {
+      const cuentaId = await empresasCuenta.resolveCuentaMadreIdForUser(getDb(), actor);
+      if (cuentaId == null) {
+        res.status(400).json({
+          ok: false,
+          error: "No tenés una cuenta asociada para configurar el modo de inicio",
+        });
+        return;
+      }
+      await empresasCuenta.updateLoginModeForCuenta(getDb(), cuentaId, req.body?.login_mode);
+      const updated = await authDb.getUserById(getDb(), actor.id);
+      res.json({ ok: true, data: updated });
+    } catch (e) {
+      res.status(400).json({
+        ok: false,
+        error: e instanceof Error ? e.message : "Error al guardar el modo de inicio",
+      });
+    }
+  });
+
+  app.patch("/api/auth/mi-ejercicio-empresa", async (req, res) => {
+    if (!(await requireCuentaAdmin(req, res))) return;
+    const actor = req.user!;
+    try {
+      const cuentaId = await empresasCuenta.resolveCuentaMadreIdForUser(getDb(), actor);
+      if (cuentaId == null) {
+        res.status(400).json({
+          ok: false,
+          error: "No tenés una cuenta asociada para configurar el ejercicio fiscal",
+        });
+        return;
+      }
+      const rawId = req.body?.empresa_id;
+      const empresaId = rawId == null || rawId === "" ? null : Number(rawId);
+      await empresasCuenta.updateEjercicioEmpresaPrincipal(getDb(), cuentaId, empresaId);
+      const updated = await authDb.getUserById(getDb(), actor.id);
+      res.json({ ok: true, data: updated });
+    } catch (e) {
+      res.status(400).json({
+        ok: false,
+        error: e instanceof Error ? e.message : "Error al configurar el ejercicio fiscal",
+      });
+    }
+  });
+
+  app.get("/api/auth/mis-empresas", async (req, res) => {
+    if (!req.user) {
+      res.status(401).json({ ok: false, error: "No autenticado" });
+      return;
+    }
+    try {
+      const cuentaId = await empresasCuenta.resolveCuentaMadreIdForUser(getDb(), req.user);
+      if (cuentaId == null) {
+        res.json({ ok: true, data: [] });
+        return;
+      }
+      const empresas = (await empresasCuenta.listEmpresasOperativas(getDb(), cuentaId)).filter(
+        (e) => e.activo,
+      );
+      res.json({ ok: true, data: empresas });
+    } catch (e) {
+      res.status(400).json({
+        ok: false,
+        error: e instanceof Error ? e.message : "Error al listar empresas",
+      });
+    }
+  });
+
+  app.post("/api/auth/empresa-activa", async (req, res) => {
+    if (!req.user) {
+      res.status(401).json({ ok: false, error: "No autenticado" });
+      return;
+    }
+    const actor = req.user;
+    try {
+      const cuentaId = await empresasCuenta.resolveCuentaMadreIdForUser(getDb(), actor);
+      const rawId = req.body?.empresa_id;
+      const empresaId =
+        rawId == null || rawId === "" ? null : Number(rawId);
+      if (empresaId != null) {
+        const empresa = await empresasCuenta.getEmpresaActivaForUser(
+          getDb(),
+          cuentaId,
+          empresaId,
+        );
+        if (!empresa) {
+          res.status(400).json({
+            ok: false,
+            error: "La empresa seleccionada no pertenece a tu cuenta o no está activa",
+          });
+          return;
+        }
+      }
+      await authDb.setEmpresaActiva(getDb(), actor.id, empresaId);
+      const updated = await authDb.getUserById(getDb(), actor.id);
+      res.json({ ok: true, data: updated });
+    } catch (e) {
+      res.status(400).json({
+        ok: false,
+        error: e instanceof Error ? e.message : "Error al seleccionar la empresa",
+      });
+    }
+  });
+
   app.get("/api/empresas-cuenta/mi-cuenta", async (req, res) => {
     if (!requireAdmin(req, res)) return;
     const actor = req.user!;
@@ -1558,6 +1815,13 @@ export function registerAuthRoutes(app: Express): void {
       if (body.nombre !== undefined) patch.nombre = String(body.nombre);
       if (body.color !== undefined) patch.color = String(body.color);
       if (body.activo !== undefined) patch.activo = body.activo !== false;
+      if (body.rut !== undefined) patch.rut = String(body.rut ?? "");
+      if (body.ejercicio_inicio_mes !== undefined) {
+        patch.ejercicio_inicio_mes = Number(body.ejercicio_inicio_mes);
+      }
+      if (body.ejercicio_inicio_dia !== undefined) {
+        patch.ejercicio_inicio_dia = Number(body.ejercicio_inicio_dia);
+      }
       const empresa = await empresasCuenta.updateEmpresaOperativa(
         getDb(),
         cuentaId,

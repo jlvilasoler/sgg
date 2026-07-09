@@ -1,0 +1,411 @@
+/* —— Arquitectura del sistema · hub SAG —— */
+
+.arq-sistema--hub {
+  --arq-accent: #0ea5e9;
+  --arq-accent-soft: rgba(14, 165, 233, 0.12);
+  --arq-surface: #ffffff;
+  --arq-workspace: #f3f2ed;
+  --arq-radius-md: 0.65rem;
+  --arq-radius-card: 1.1rem;
+}
+
+.arq-sistema--hub.arq-sistema-shell {
+  max-width: 1320px;
+}
+
+.arq-sistema--hub .arq-sistema-panel {
+  border: 1px solid color-mix(in srgb, var(--bn-border, #eaecef) 92%, transparent);
+  border-radius: var(--arq-radius-card);
+  background: var(--arq-surface);
+  box-shadow: 0 4px 22px rgba(30, 35, 41, 0.06);
+}
+
+.bn-ui .arq-sistema--hub .arq-sistema-kpi-strip.sg-hub-kpi-strip {
+  grid-template-columns: repeat(var(--home-hub-kpi-cols, 4), minmax(0, 1fr));
+  gap: 0.55rem;
+  padding-top: 0.85rem;
+  margin-top: 0.85rem;
+  border-top: 1px solid color-mix(in srgb, var(--bn-border, #eaecef) 88%, transparent);
+}
+
+.bn-ui .arq-sistema--hub .arq-sistema-kpi-strip .sg-hub-kpi {
+  min-width: 0;
+  min-height: 0;
+  padding: 0.8rem 0.9rem 0.72rem;
+  border-radius: var(--arq-radius-card);
+}
+
+/* Toolbar filtros */
+.arq-sistema--hub .arq-sistema-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+  margin-bottom: 0.85rem;
+  padding: 0.85rem 0.95rem;
+  border: 1px solid color-mix(in srgb, var(--bn-border, #eaecef) 92%, transparent);
+  border-radius: var(--arq-radius-md);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--arq-accent) 6%, #fff) 0%, var(--arq-surface) 58%),
+    var(--arq-surface);
+  box-shadow: 0 2px 12px rgba(30, 35, 41, 0.04);
+}
+
+.arq-sistema--hub .arq-sistema-toolbar-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.65rem;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.arq-sistema--hub .arq-sistema-toolbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+
+.arq-sistema--hub .arq-sistema-search {
+  flex: 1 1 260px;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.52rem 0.75rem;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--bn-border, #eaecef) 95%, transparent);
+  background: #fff;
+  color: var(--bn-muted, #707a8a);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.arq-sistema--hub .arq-sistema-search:focus-within {
+  border-color: color-mix(in srgb, var(--arq-accent) 55%, var(--bn-border, #eaecef));
+  box-shadow: 0 0 0 3px var(--arq-accent-soft);
+}
+
+.arq-sistema--hub .arq-sistema-search input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  font: inherit;
+  font-size: 0.88rem;
+  color: var(--bn-text, #1e2329);
+  outline: none;
+}
+
+.arq-sistema--hub .arq-sistema-select-wrap select {
+  min-width: 9.5rem;
+  padding: 0.52rem 0.65rem;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--bn-border, #eaecef) 95%, transparent);
+  background: #fff;
+  font: inherit;
+  font-size: 0.85rem;
+}
+
+.arq-sistema--hub .arq-sistema-refresh-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.arq-sistema--hub .arq-sistema-refresh-btn svg.is-spinning {
+  animation: arq-sistema-spin 0.85s linear infinite;
+}
+
+@keyframes arq-sistema-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Tabla en card */
+.arq-sistema--hub .arq-sistema-table-box {
+  min-width: 0;
+  border: 1px solid color-mix(in srgb, var(--bn-border, #eaecef) 92%, transparent);
+  border-radius: var(--arq-radius-md);
+  background: var(--arq-surface);
+  overflow: hidden;
+  box-shadow: 0 2px 10px rgba(30, 35, 41, 0.04);
+}
+
+.arq-sistema--hub .arq-sistema-table-wrap {
+  overflow-x: auto;
+  margin: 0;
+  padding: 0;
+  max-height: min(68vh, 720px);
+  overflow-y: auto;
+}
+
+.arq-sistema--hub .arq-sistema-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.84rem;
+}
+
+.arq-sistema--hub .arq-sistema-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.arq-sistema--hub .arq-sistema-table thead th {
+  padding: 0.62rem 0.8rem;
+  text-align: left;
+  font-size: 0.67rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--bn-muted, #707a8a);
+  background: color-mix(in srgb, var(--arq-workspace) 48%, #fff);
+  border-bottom: 1px solid var(--bn-border, #eaecef);
+  white-space: nowrap;
+}
+
+.arq-sistema--hub .arq-sistema-table th.num,
+.arq-sistema--hub .arq-sistema-table td.num {
+  text-align: center;
+  width: 6.5rem;
+}
+
+.arq-sistema--hub .arq-sistema-table th.col-acciones,
+.arq-sistema--hub .arq-sistema-table td.arq-sistema-actions {
+  text-align: right;
+  width: 11.5rem;
+  min-width: 11.5rem;
+}
+
+.arq-sistema--hub .arq-sistema-table tbody td {
+  padding: 0.72rem 0.8rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--bn-border, #eaecef) 78%, transparent);
+  vertical-align: middle;
+}
+
+.arq-sistema--hub .arq-sistema-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.arq-sistema--hub .arq-sistema-row {
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+.arq-sistema--hub .arq-sistema-row:focus-visible {
+  outline: 2px solid var(--arq-accent);
+  outline-offset: -2px;
+}
+
+.arq-sistema--hub .arq-sistema-row--activa td:first-child {
+  box-shadow: inset 3px 0 0 var(--arq-accent);
+}
+
+.arq-sistema--hub .arq-sistema-row--inactiva {
+  opacity: 0.78;
+}
+
+.arq-sistema--hub .arq-sistema-row--inactiva td:first-child {
+  box-shadow: inset 3px 0 0 #94a3b8;
+}
+
+.arq-sistema--hub .arq-sistema-table tbody tr:hover td {
+  background: color-mix(in srgb, var(--arq-accent) 4%, #fff);
+}
+
+.arq-sistema--hub .arq-sistema-account-cell {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  min-width: 0;
+  max-width: 22rem;
+}
+
+.arq-sistema--hub .arq-sistema-table .arquitectura-sistema-empresa-avatar--sm {
+  width: 2.35rem;
+  height: 2.35rem;
+  border-radius: 0.7rem;
+  font-size: 0.72rem;
+  margin-top: 0.05rem;
+}
+
+.arq-sistema--hub .arq-sistema-account-name {
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--bn-text, #1e2329);
+  line-height: 1.25;
+}
+
+.arq-sistema--hub .arquitectura-sistema-cuenta-propietario {
+  margin-top: 0.2rem;
+  gap: 0.08rem;
+  max-width: 100%;
+}
+
+.arq-sistema--hub .arquitectura-sistema-admin-chip {
+  font-size: 0.74rem;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.arq-sistema--hub .arquitectura-sistema-admin-email {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.7rem;
+}
+
+.arq-sistema--hub .arq-sistema-id-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.28rem;
+}
+
+.arq-sistema--hub .arq-sistema-metric-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.28rem;
+  min-width: 2.35rem;
+  padding: 0.22rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--bn-text, #1e2329);
+  background: color-mix(in srgb, var(--arq-workspace) 55%, #fff);
+  border: 1px solid color-mix(in srgb, var(--bn-border, #eaecef) 90%, transparent);
+}
+
+.arq-sistema--hub .arq-sistema-metric-pill svg {
+  color: var(--bn-muted, #707a8a);
+  flex-shrink: 0;
+}
+
+.arq-sistema--hub .arq-sistema-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.22rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.arq-sistema--hub .arq-sistema-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.arq-sistema--hub .arq-sistema-status--ok {
+  color: #166534;
+  background: rgba(34, 197, 94, 0.12);
+  border: 1px solid rgba(34, 197, 94, 0.28);
+}
+
+.arq-sistema--hub .arq-sistema-status--ok .arq-sistema-status-dot {
+  background: #22c55e;
+  box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.25);
+}
+
+.arq-sistema--hub .arq-sistema-status--off {
+  color: #64748b;
+  background: rgba(148, 163, 184, 0.12);
+  border: 1px solid rgba(148, 163, 184, 0.32);
+}
+
+.arq-sistema--hub .arq-sistema-status--off .arq-sistema-status-dot {
+  background: #94a3b8;
+}
+
+.arq-sistema--hub .arq-sistema-actions {
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.arq-sistema--hub .arq-sistema-row-chevron {
+  color: var(--bn-muted, #707a8a);
+  opacity: 0;
+  transform: translateX(-2px);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.arq-sistema--hub .arq-sistema-row:hover .arq-sistema-row-chevron,
+.arq-sistema--hub .arq-sistema-row:focus-visible .arq-sistema-row-chevron {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.arq-sistema--hub .arq-sistema-empty {
+  padding: 2.5rem 1rem !important;
+  text-align: center;
+  color: var(--bn-muted, #707a8a);
+  font-size: 0.88rem;
+}
+
+@media (max-width: 1024px) {
+  .bn-ui .arq-sistema--hub .arq-sistema-kpi-strip.sg-hub-kpi-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .arq-sistema--hub .arq-sistema-table th.col-acciones,
+  .arq-sistema--hub .arq-sistema-table td.arq-sistema-actions {
+    width: auto;
+    min-width: 9.5rem;
+  }
+}
+
+@media (max-width: 720px) {
+  .arq-sistema--hub .arq-sistema-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .arq-sistema--hub .arq-sistema-toolbar-filters {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .arq-sistema--hub .arq-sistema-search {
+    flex-basis: auto;
+  }
+
+  .arq-sistema--hub .arq-sistema-select-wrap {
+    width: 100%;
+  }
+
+  .arq-sistema--hub .arq-sistema-select-wrap select {
+    width: 100%;
+  }
+
+  .arq-sistema--hub .arq-sistema-actions {
+    flex-wrap: wrap;
+  }
+
+  .arq-sistema--hub .arq-sistema-account-cell {
+    max-width: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .bn-ui .arq-sistema--hub .arq-sistema-kpi-strip.sg-hub-kpi-strip {
+    grid-template-columns: 1fr;
+  }
+}

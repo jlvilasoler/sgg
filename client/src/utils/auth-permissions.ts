@@ -283,6 +283,31 @@ export function canAccessConfigDotacionGanadera(user: AuthUser | null): boolean 
   return Boolean(user?.es_super_admin);
 }
 
+/** Panel Rubros y sub-rubros SAG (catálogo global): solo superadministrador. */
+export function canAccessConfigRubrosSag(user: AuthUser | null): boolean {
+  return Boolean(user?.es_super_admin);
+}
+
+/** Panel Rubros (Configuración): administrador de cuenta o superadministrador de plataforma. */
+export function canManageRubrosCatalogo(user: AuthUser | null | undefined): boolean {
+  return Boolean(user?.es_super_admin || user?.es_admin_cuenta);
+}
+
+/** Alta de sub-rubros e ítems desde Ingresar gastos: quien puede escribir en presupuesto. */
+export function canCreateRubrosFromGasto(user: AuthUser | null | undefined): boolean {
+  return canWriteModulo(user ?? null, "presupuesto");
+}
+
+/** Baja de rubros y sub-rubros del catálogo de gastos: solo superadministrador de plataforma. */
+export function canDeleteRubrosCatalogo(user: AuthUser | null | undefined): boolean {
+  return Boolean(user?.es_super_admin);
+}
+
+/** Quitar ítems de un sub-rubro: administrador de la cuenta o superadministrador. */
+export function canDeleteSubRubroItems(user: AuthUser | null | undefined): boolean {
+  return Boolean(user?.es_super_admin || user?.es_admin_cuenta);
+}
+
 /** Calendarios de contribución rural (Configuración SAG): solo superadministrador de plataforma. */
 export function canAccessConfigVencimientosImpuestos(user: AuthUser | null): boolean {
   return Boolean(user?.es_super_admin);

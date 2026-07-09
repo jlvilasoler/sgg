@@ -165,7 +165,8 @@ body:has(.layout-content :is(.sg-module-page, .venc-imp-hub-page)) {
   max-height: 100%;
 }
 
-.bn-ui .sg-hub-main--module .sg-hub-embedded .usuarios-actividad--hub {
+.bn-ui .sg-hub-main--module .sg-hub-embedded .usuarios-actividad--hub,
+.bn-ui .sg-hub-main--module .sg-hub-embedded .usuarios-admin--hub {
   margin: 0;
 }
 

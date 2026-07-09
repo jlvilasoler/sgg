@@ -1,0 +1,534 @@
+/* —— Rubros SAG · catálogo + monitor —— */
+
+.rubros-sag--hub {
+  --rubros-sag-accent: #8b5cf6;
+  --rubros-sag-accent-soft: rgba(139, 92, 246, 0.12);
+  --rubros-sag-surface: #ffffff;
+  --rubros-sag-workspace: #f3f2ed;
+  --rubros-sag-radius-md: 0.65rem;
+  --rubros-sag-radius-card: 1.1rem;
+  min-width: 0;
+}
+
+.rubros-sag--hub .rubros-sag-head {
+  margin-bottom: 0.85rem;
+}
+
+.rubros-sag--hub .rubros-sag-lead {
+  margin: 0.35rem 0 0;
+  font-size: 0.88rem;
+  max-width: 52rem;
+}
+
+.rubros-sag-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.85rem;
+  padding: 0.35rem;
+  border: 1px solid color-mix(in srgb, var(--bn-border, #eaecef) 92%, transparent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--rubros-sag-workspace) 42%, #fff);
+}
+
+.rubros-sag-tabs button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.85rem;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--bn-muted, #707a8a);
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.rubros-sag-tabs button:hover {
+  color: var(--bn-text, #1e2329);
+  background: color-mix(in srgb, #fff 80%, transparent);
+}
+
+.rubros-sag-tabs button.is-active {
+  color: var(--bn-text, #1e2329);
+  background: #fff;
+  box-shadow: 0 2px 10px rgba(30, 35, 41, 0.08);
+}
+
+/* Monitor */
+.rubros-sag-monitor {
+  min-width: 0;
+}
+
+.rubros-sag-monitor-kpi-strip {
+  margin-bottom: 0.85rem;
+}
+
+.rubros-sag-monitor-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+  margin-bottom: 0.85rem;
+  padding: 0.85rem 0.95rem;
+  border: 1px solid color-mix(in srgb, var(--bn-border, #eaecef) 92%, transparent);
+  border-radius: var(--rubros-sag-radius-md);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--rubros-sag-accent) 6%, #fff) 0%, var(--rubros-sag-surface) 58%),
+    var(--rubros-sag-surface);
+}
+
+.rubros-sag-monitor-toolbar-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.65rem;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.rubros-sag-monitor-toolbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.rubros-sag-monitor-search {
+  flex: 1 1 240px;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.52rem 0.75rem;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--bn-border, #eaecef) 95%, transparent);
+  background: #fff;
+  color: var(--bn-muted, #707a8a);
+}
+
+.rubros-sag-monitor-search:focus-within {
+  border-color: color-mix(in srgb, var(--rubros-sag-accent) 55%, var(--bn-border, #eaecef));
+  box-shadow: 0 0 0 3px var(--rubros-sag-accent-soft);
+}
+
+.rubros-sag-monitor-search input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  font: inherit;
+  font-size: 0.88rem;
+  color: var(--bn-text, #1e2329);
+  outline: none;
+}
+
+.rubros-sag-monitor-select-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.72rem;
+}
+
+.rubros-sag-monitor-select-wrap select {
+  min-width: 9rem;
+  padding: 0.52rem 0.65rem;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--bn-border, #eaecef) 95%, transparent);
+  background: #fff;
+  font: inherit;
+  font-size: 0.85rem;
+}
+
+.rubros-sag-monitor-refresh {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.rubros-sag-monitor-refresh svg.is-spinning {
+  animation: rubros-sag-spin 0.85s linear infinite;
+}
+
+@keyframes rubros-sag-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.rubros-sag-monitor-sync {
+  font-size: 0.78rem;
+}
+
+.rubros-sag-monitor-split {
+  display: grid;
+  grid-template-columns: minmax(260px, 34%) minmax(0, 1fr);
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+@media (max-width: 960px) {
+  .rubros-sag-monitor-split {
+    grid-template-columns: 1fr;
+  }
+}
+
+.rubros-sag-monitor-list-panel,
+.rubros-sag-monitor-detail-panel {
+  min-width: 0;
+  border: 1px solid color-mix(in srgb, var(--bn-border, #eaecef) 92%, transparent);
+  border-radius: var(--rubros-sag-radius-md);
+  background: var(--rubros-sag-surface);
+  box-shadow: 0 2px 10px rgba(30, 35, 41, 0.04);
+}
+
+.rubros-sag-monitor-list-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.75rem 0.85rem;
+  border-bottom: 1px solid var(--bn-border, #eaecef);
+}
+
+.rubros-sag-monitor-list-head h3 {
+  margin: 0;
+  font-size: 0.92rem;
+}
+
+.rubros-sag-monitor-list-wrap {
+  max-height: min(68vh, 720px);
+  overflow: auto;
+}
+
+.rubros-sag-monitor-cuenta-list {
+  list-style: none;
+  margin: 0;
+  padding: 0.35rem;
+}
+
+.rubros-sag-monitor-cuenta-item {
+  width: 100%;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.65rem 0.7rem;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.rubros-sag-monitor-cuenta-item:hover {
+  background: color-mix(in srgb, var(--rubros-sag-workspace) 55%, #fff);
+}
+
+.rubros-sag-monitor-cuenta-item.is-active {
+  border-color: color-mix(in srgb, var(--rubros-sag-accent) 35%, var(--bn-border, #eaecef));
+  background: color-mix(in srgb, var(--rubros-sag-accent-soft) 65%, #fff);
+}
+
+.rubros-sag-monitor-cuenta-avatar {
+  width: 2.1rem;
+  height: 2.1rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--rubros-sag-accent) 18%, #fff);
+  color: color-mix(in srgb, var(--rubros-sag-accent) 85%, #1e2329);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.rubros-sag-monitor-cuenta-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.rubros-sag-monitor-cuenta-name {
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--bn-text, #1e2329);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rubros-sag-monitor-cuenta-meta,
+.rubros-sag-monitor-cuenta-stats {
+  font-size: 0.74rem;
+}
+
+.rubros-sag-monitor-cuenta-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.rubros-sag-monitor-estado {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.rubros-sag-monitor-estado.is-activo {
+  color: #15803d;
+}
+
+.rubros-sag-monitor-estado.is-inactivo {
+  color: #b45309;
+}
+
+.rubros-sag-monitor-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.12rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.rubros-sag-monitor-badge--sag {
+  background: rgba(14, 165, 233, 0.12);
+  color: #0369a1;
+}
+
+.rubros-sag-monitor-badge--cuenta {
+  background: rgba(139, 92, 246, 0.12);
+  color: #6d28d9;
+}
+
+.rubros-sag-monitor-badge--admin {
+  background: rgba(245, 158, 11, 0.14);
+  color: #b45309;
+}
+
+.rubros-sag-monitor-badge--off {
+  background: rgba(148, 163, 184, 0.18);
+  color: #64748b;
+}
+
+.rubros-sag-monitor-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 280px;
+  padding: 2rem 1.25rem;
+  text-align: center;
+}
+
+.rubros-sag-monitor-placeholder h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.rubros-sag-monitor-detail-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+  padding: 0.85rem 0.95rem;
+  border-bottom: 1px solid var(--bn-border, #eaecef);
+}
+
+.rubros-sag-monitor-detail-head h3 {
+  margin: 0.15rem 0 0;
+  font-size: 1.05rem;
+}
+
+.rubros-sag-monitor-detail-kpis {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem 0.85rem;
+  font-size: 0.8rem;
+  color: var(--bn-muted, #707a8a);
+}
+
+.rubros-sag-monitor-detail-kpis strong {
+  color: var(--bn-text, #1e2329);
+}
+
+.rubros-sag-monitor-detail-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  padding: 0.55rem 0.85rem;
+  border-bottom: 1px solid var(--bn-border, #eaecef);
+}
+
+.rubros-sag-monitor-detail-tabs button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.42rem 0.7rem;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--bn-muted, #707a8a);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.rubros-sag-monitor-detail-tabs button.is-active {
+  border-color: color-mix(in srgb, var(--rubros-sag-accent) 30%, var(--bn-border, #eaecef));
+  background: var(--rubros-sag-accent-soft);
+  color: var(--bn-text, #1e2329);
+}
+
+.rubros-sag-monitor-catalogo,
+.rubros-sag-monitor-usuarios-wrap {
+  padding: 0.75rem 0.95rem 0.95rem;
+  max-height: min(58vh, 640px);
+  overflow: auto;
+}
+
+.rubros-sag-monitor-catalogo-lead {
+  margin: 0 0 0.75rem;
+  font-size: 0.82rem;
+}
+
+.rubros-sag-monitor-grupos {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.rubros-sag-monitor-grupo {
+  border: 1px solid color-mix(in srgb, var(--bn-border, #eaecef) 92%, transparent);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.rubros-sag-monitor-grupo-head {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.55rem 0.7rem;
+  border: none;
+  background: color-mix(in srgb, var(--rubros-sag-workspace) 38%, #fff);
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+
+.rubros-sag-monitor-grupo-name {
+  font-weight: 600;
+  font-size: 0.86rem;
+}
+
+.rubros-sag-monitor-grupo-counts {
+  margin-left: auto;
+  font-size: 0.74rem;
+}
+
+.rubros-sag-monitor-sub-list {
+  list-style: none;
+  margin: 0;
+  padding: 0.35rem 0.55rem 0.45rem;
+}
+
+.rubros-sag-monitor-sub-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.4rem;
+  font-size: 0.82rem;
+  border-radius: 8px;
+}
+
+.rubros-sag-monitor-sub-item.is-inactivo {
+  opacity: 0.72;
+}
+
+.rubros-sag-monitor-usuarios-table-wrap {
+  overflow-x: auto;
+}
+
+.rubros-sag-monitor-usuarios-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+
+.rubros-sag-monitor-usuarios-table thead th {
+  padding: 0.55rem 0.65rem;
+  text-align: left;
+  font-size: 0.67rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--bn-muted, #707a8a);
+  border-bottom: 1px solid var(--bn-border, #eaecef);
+  white-space: nowrap;
+}
+
+.rubros-sag-monitor-usuarios-table tbody td {
+  padding: 0.6rem 0.65rem;
+  vertical-align: top;
+  border-bottom: 1px solid color-mix(in srgb, var(--bn-border, #eaecef) 70%, transparent);
+}
+
+.rubros-sag-monitor-usuarios-table tbody tr.is-inactivo {
+  opacity: 0.7;
+}
+
+.rubros-sag-monitor-user-name {
+  display: block;
+  font-weight: 600;
+}
+
+.rubros-sag-monitor-user-email {
+  display: block;
+  font-size: 0.74rem;
+}
+
+.rubros-sag-monitor-perms {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.rubros-sag-monitor-perm {
+  display: inline-flex;
+  padding: 0.18rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  background: rgba(148, 163, 184, 0.14);
+  color: #94a3b8;
+}
+
+.rubros-sag-monitor-perm--on {
+  background: rgba(34, 197, 94, 0.14);
+  color: #15803d;
+}
+
+.rubros-sag-monitor-empty {
+  padding: 1.25rem;
+  text-align: center;
+}

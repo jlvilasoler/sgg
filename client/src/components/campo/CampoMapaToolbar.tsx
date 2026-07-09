@@ -15,6 +15,10 @@ import {
   CAMPO_MAPA_BORDER_WEIGHTS,
   type CampoMapaBorderWeight,
 } from "./campo-mapa-border-weight";
+import {
+  CAMPO_MAPA_DRAW_COLORS,
+  type CampoMapaDrawColor,
+} from "./campo-mapa-draw-colors";
 import { getToolDef, type CampoMapaTool } from "./campo-mapa-tools";
 
 export const CAMPO_MAPA_TOOL_ICONS: Record<CampoMapaTool, LucideIcon> = {
@@ -32,18 +36,22 @@ export const CAMPO_MAPA_TOOL_ICONS: Record<CampoMapaTool, LucideIcon> = {
 interface Props {
   activeTool: CampoMapaTool;
   borderWeight: CampoMapaBorderWeight;
+  drawColor: CampoMapaDrawColor;
   disabled?: boolean;
   onSelect: (tool: CampoMapaTool) => void;
   onBorderWeightChange: (weight: CampoMapaBorderWeight) => void;
+  onDrawColorChange: (color: CampoMapaDrawColor) => void;
   onSaveClip?: () => void;
 }
 
 export default function CampoMapaToolbar({
   activeTool,
   borderWeight,
+  drawColor,
   disabled,
   onSelect,
   onBorderWeightChange,
+  onDrawColorChange,
   onSaveClip,
 }: Props) {
   const [dibujarMenuOpen, setDibujarMenuOpen] = useState(false);
@@ -104,35 +112,69 @@ export default function CampoMapaToolbar({
                       }}
                     >
                       <Icon size={18} aria-hidden />
+                      <span
+                        className="campo-mapa-toolbar-color-dot"
+                        style={{ backgroundColor: drawColor }}
+                        aria-hidden
+                      />
                     </button>
                     {dibujarMenuOpen ? (
                       <div
-                        className="campo-mapa-border-weight-menu"
+                        className="campo-mapa-draw-style-menu"
                         role="menu"
-                        aria-label="Grosor del borde"
+                        aria-label="Estilo del dibujo"
                       >
-                        {CAMPO_MAPA_BORDER_WEIGHTS.map((weight) => (
-                          <button
-                            key={weight}
-                            type="button"
-                            role="menuitemradio"
-                            className={`campo-mapa-border-weight-option${
-                              borderWeight === weight ? " is-selected" : ""
-                            }`}
-                            aria-checked={borderWeight === weight}
-                            title={`Grosor ${weight}`}
-                            onClick={() => {
-                              onBorderWeightChange(weight);
-                              setDibujarMenuOpen(false);
-                            }}
+                        <div className="campo-mapa-draw-style-section">
+                          <span className="campo-mapa-draw-style-label">Color</span>
+                          <div
+                            className="campo-mapa-draw-color-options"
+                            role="group"
+                            aria-label="Color del trazo"
                           >
-                            <span
-                              className="campo-mapa-border-weight-swatch"
-                              style={{ borderWidth: weight }}
-                              aria-hidden
-                            />
-                          </button>
-                        ))}
+                            {CAMPO_MAPA_DRAW_COLORS.map((color) => (
+                              <button
+                                key={color}
+                                type="button"
+                                role="menuitemradio"
+                                className={`campo-mapa-draw-color-option${
+                                  drawColor === color ? " is-selected" : ""
+                                }`}
+                                aria-checked={drawColor === color}
+                                title={`Color ${color}`}
+                                style={{ backgroundColor: color }}
+                                onClick={() => onDrawColorChange(color)}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                        <div className="campo-mapa-draw-style-section">
+                          <span className="campo-mapa-draw-style-label">Grosor</span>
+                          <div
+                            className="campo-mapa-border-weight-options"
+                            role="group"
+                            aria-label="Grosor del borde"
+                          >
+                            {CAMPO_MAPA_BORDER_WEIGHTS.map((weight) => (
+                              <button
+                                key={weight}
+                                type="button"
+                                role="menuitemradio"
+                                className={`campo-mapa-border-weight-option${
+                                  borderWeight === weight ? " is-selected" : ""
+                                }`}
+                                aria-checked={borderWeight === weight}
+                                title={`Grosor ${weight}`}
+                                onClick={() => onBorderWeightChange(weight)}
+                              >
+                                <span
+                                  className="campo-mapa-border-weight-swatch"
+                                  style={{ borderWidth: weight, borderColor: drawColor }}
+                                  aria-hidden
+                                />
+                              </button>
+                            ))}
+                          </div>
+                        </div>
                       </div>
                     ) : null}
                   </div>

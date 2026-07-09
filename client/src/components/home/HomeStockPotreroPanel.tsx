@@ -15,6 +15,7 @@ import {
   type PotreroStockResumenHome,
 } from "./home-stock-potrero-resumen";
 import {
+  formatAreaCelda,
   formatDotacionCelda,
   formatDotacionPromedio,
   formatOcupacionCelda,
@@ -146,7 +147,7 @@ function DotacionCelda({
     );
   }
 
-  const { principal, secundario } = formatDotacionCelda(resumen.dotacion);
+  const { principal } = formatDotacionCelda(resumen.dotacion);
 
   return (
     <td
@@ -154,9 +155,49 @@ function DotacionCelda({
       title={resumen.dotacion.tooltip}
     >
       <span className="home-stock-potrero-dotacion-valor">{principal}</span>
-      {secundario ? (
-        <span className="home-stock-potrero-dotacion-meta">{secundario}</span>
-      ) : null}
+    </td>
+  );
+}
+
+function AreaCelda({
+  resumen,
+  sinAsignar,
+}: {
+  resumen: PotreroStockResumenHome;
+  sinAsignar: boolean;
+}) {
+  const area = sinAsignar ? null : formatAreaCelda(resumen.dotacion);
+
+  return (
+    <td className="home-stock-potrero-tabla-area" title={resumen.dotacion.tooltip}>
+      {area ? (
+        <span className="home-stock-potrero-dotacion-meta">{area}</span>
+      ) : (
+        <span className="home-stock-potrero-dotacion-vacio">—</span>
+      )}
+    </td>
+  );
+}
+
+function NivelCelda({
+  resumen,
+  sinAsignar,
+}: {
+  resumen: PotreroStockResumenHome;
+  sinAsignar: boolean;
+}) {
+  const mostrarNivel = !sinAsignar && resumen.dotacion.ugPorHa != null;
+
+  return (
+    <td
+      className={`home-stock-potrero-tabla-nivel is-dotacion-${resumen.dotacion.nivel}`}
+      title={resumen.dotacion.tooltip}
+    >
+      {mostrarNivel ? (
+        <span className="home-stock-potrero-nivel-badge">{resumen.dotacion.etiqueta}</span>
+      ) : (
+        <span className="home-stock-potrero-dotacion-vacio">—</span>
+      )}
     </td>
   );
 }
@@ -198,6 +239,20 @@ function PotreroTabla({
             >
               Dotación
             </th>
+            <th
+              scope="col"
+              className="home-stock-potrero-tabla-th-area"
+              title="Superficie del potrero en el mapa satelital"
+            >
+              Área
+            </th>
+            <th
+              scope="col"
+              className="home-stock-potrero-tabla-th-nivel"
+              title="Nivel de carga según la dotación"
+            >
+              Nivel
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -216,6 +271,8 @@ function PotreroTabla({
                 </td>
                 <OcupacionCelda resumen={resumen} sinAsignar={sinAsignar} />
                 <DotacionCelda resumen={resumen} sinAsignar={sinAsignar} />
+                <AreaCelda resumen={resumen} sinAsignar={sinAsignar} />
+                <NivelCelda resumen={resumen} sinAsignar={sinAsignar} />
               </tr>
             );
           })}
@@ -245,10 +302,29 @@ function PotreroTabla({
               title={pieDotacion?.tooltip}
             >
               {pieDotacion ? (
-                <>
-                  <span className="home-stock-potrero-dotacion-valor">{pieDotacion.principal}</span>
-                  <span className="home-stock-potrero-dotacion-meta">{pieDotacion.secundario}</span>
-                </>
+                <span className="home-stock-potrero-dotacion-valor">{pieDotacion.principal}</span>
+              ) : (
+                <span className="home-stock-potrero-dotacion-vacio">—</span>
+              )}
+            </td>
+            <td
+              className="home-stock-potrero-tabla-area home-stock-potrero-tabla-foot-area"
+              title={pieDotacion?.tooltip}
+            >
+              {pieDotacion ? (
+                <span className="home-stock-potrero-dotacion-meta">Prom. ponderada</span>
+              ) : (
+                <span className="home-stock-potrero-dotacion-vacio">—</span>
+              )}
+            </td>
+            <td
+              className={`home-stock-potrero-tabla-nivel home-stock-potrero-tabla-foot-nivel${
+                pieDotacion ? ` is-dotacion-${pieDotacion.nivel}` : " is-dotacion-sin-dato"
+              }`}
+              title={pieDotacion?.tooltip}
+            >
+              {pieDotacion ? (
+                <span className="home-stock-potrero-nivel-badge">{pieDotacion.etiqueta}</span>
               ) : (
                 <span className="home-stock-potrero-dotacion-vacio">—</span>
               )}

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import L from "leaflet";
 import type { LucideIcon } from "lucide-react";
-import { Building2, CircleDot, Cpu, Layers, ListTree, MapPin, Maximize2, Minimize2, Pencil, Plus, Search, Sigma, Tag, Trash2, Undo2, VenusAndMars, X } from "lucide-react";
+import { Building2, CircleDot, Cpu, ListTree, Map, MapPin, Maximize2, Minimize2, Pencil, Plus, Search, Sigma, Tag, Trash2, Undo2, VenusAndMars, X } from "lucide-react";
 import SgHubShell from "../hub/SgHubShell";
 import type { SgHubItem } from "../hub/SgHubTypes";
 import { MenuAppIcon } from "../icons/MenuAppIcons";
@@ -35,8 +35,23 @@ import {
   type MapLatLng,
 } from "./campo-mapa-geo";
 import { mountVertexHandles } from "./campo-mapa-vertex-handles";
-import { buscarLugaresEnMapa, type CampoMapaLugarResult } from "./campo-mapa-geocode";
+import { buscarLugaresEnMapa, lugarBounds, lugarMaxZoom, type CampoMapaLugarResult } from "./campo-mapa-geocode";
+import {
+  CAMPO_MAPA_MEASURE_COLOR,
+  DEFAULT_CAMPO_MAPA_DRAW_COLOR,
+  loadCampoMapaDrawColor,
+  normalizePotreroMapaColor,
+  potreroColorPickerOptions,
+  saveCampoMapaDrawColor,
+  type CampoMapaDrawColor,
+} from "./campo-mapa-draw-colors";
 import { flyToElemento, renderElementoLayer, renderPotreroLayer } from "./campo-mapa-render";
+import {
+  CAMPO_MAPA_DETAILS_TOGGLE_LABEL,
+  createCampoMapaBasemapLayers,
+  loadCampoMapaShowDetails,
+  saveCampoMapaShowDetails,
+} from "./campo-mapa-basemap";
 import {
   applyCampoMapaInitialView,
   CAMPO_MAPA_DEFAULT_CENTER,
@@ -114,7 +129,6 @@ const HUB_ITEMS: SgHubItem[] = [
 
 const DEFAULT_CENTER = CAMPO_MAPA_DEFAULT_CENTER;
 const DEFAULT_ZOOM = CAMPO_MAPA_DEFAULT_ZOOM;
-const SKETCH_COLOR = "#7cb342";
 
 function supportsDispositivosEnMapa(
   potrero: CampoPotreroMapa | null,
@@ -134,29 +148,6 @@ const ELEMENTO_TIPO_ORDER: CampoMapaElementoTipo[] = [
   "medicion_distancia",
   "medicion_area",
 ];
-
-function createSatelliteBaseLayers(): {
-  base: L.LayerGroup;
-  labels: L.TileLayer;
-} {
-  const satellite = L.tileLayer(
-    "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-    {
-      maxZoom: 19,
-      attribution: "Tiles &copy; Esri",
-    },
-  );
-  const labels = L.tileLayer(
-    "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
-    {
-      maxZoom: 19,
-      attribution: "Labels &copy; Esri",
-      opacity: 0.85,
-    },
-  );
-  const base = L.layerGroup([satellite, labels]);
-  return { base, labels };
-}
 
 interface Props {
   apiOnline: boolean;
@@ -223,6 +214,7 @@ export default function CampoMapa({
   const [activeTool, setActiveTool] = useState<CampoMapaTool>("navegar");
   const [selection, setSelection] = useState<MapSelection | null>(null);
   const [sketchVertices, setSketchVertices] = useState<MapLatLng[]>([]);
+  const [sketchCursor, setSketchCursor] = useState<MapLatLng | null>(null);
   const [pendingDraft, setPendingDraft] = useState<PendingDraft | null>(null);
   const [formNombre, setFormNombre] = useState("");
   const [formNotas, setFormNotas] = useState("");
@@ -239,11 +231,12 @@ export default function CampoMapa({
   const [elementos, setElementos] = useState<CampoMapaElemento[]>([]);
   const [loading, setLoading] = useState(true);
   const [mapReady, setMapReady] = useState(false);
-  const [showLabels, setShowLabels] = useState(true);
+  const [showMapDetails, setShowMapDetails] = useState(loadCampoMapaShowDetails);
   const [showFeatureNames, setShowFeatureNames] = useState(true);
   const [borderWeight, setBorderWeight] = useState<CampoMapaBorderWeight>(
     DEFAULT_CAMPO_MAPA_BORDER_WEIGHT,
   );
+  const [drawColor, setDrawColor] = useState<CampoMapaDrawColor>(loadCampoMapaDrawColor);
   const [showDevicesOnMap, setShowDevicesOnMap] = useState(false);
   const [potreroResumenModos, setPotreroResumenModos] = useState<PotreroResumenModo[]>([]);
   const [potreroResumenMenuOpen, setPotreroResumenMenuOpen] = useState(false);
@@ -263,6 +256,7 @@ export default function CampoMapa({
   const [saving, setSaving] = useState(false);
   const [editNombre, setEditNombre] = useState("");
   const [editNotas, setEditNotas] = useState("");
+  const [editColor, setEditColor] = useState(DEFAULT_CAMPO_MAPA_DRAW_COLOR);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<CampoMapaLugarResult[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
@@ -281,7 +275,7 @@ export default function CampoMapa({
   const mapShellRef = useRef<HTMLDivElement | null>(null);
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
-  const labelLayerRef = useRef<L.TileLayer | null>(null);
+  const detailsLayerRef = useRef<L.LayerGroup | null>(null);
   const searchMarkerRef = useRef<L.CircleMarker | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const potreroLayersRef = useRef<Map<number, L.Layer>>(new Map());
@@ -290,6 +284,8 @@ export default function CampoMapa({
   const sketchPolylineRef = useRef<L.Polyline | null>(null);
   const sketchPolygonRef = useRef<L.Polygon | null>(null);
   const sketchMarkersRef = useRef<L.CircleMarker[]>([]);
+  const sketchPreviewLineRef = useRef<L.Polyline | null>(null);
+  const sketchMeasureLabelMarkersRef = useRef<L.Marker[]>([]);
   const dispositivoMarkersLayerRef = useRef<L.LayerGroup | null>(null);
   const potreroResumenLayerRef = useRef<L.LayerGroup | null>(null);
   const initialViewAppliedRef = useRef(false);
@@ -359,6 +355,22 @@ export default function CampoMapa({
   const isSketching = toolUsesSketch(activeTool) && sketchVertices.length > 0 && !pendingDraft;
   const minSketchPoints = toolSketchIsPolygon(activeTool) ? 3 : 2;
 
+  const sketchStrokeColor = useMemo(() => {
+    if (activeTool === "medir_distancia" || activeTool === "medir_area") {
+      return CAMPO_MAPA_MEASURE_COLOR;
+    }
+    if (potreroShapeEdit) {
+      const potrero = potreros.find((item) => item.id === potreroShapeEdit.potreroId);
+      return potrero?.color ?? drawColor;
+    }
+    return drawColor;
+  }, [activeTool, drawColor, potreroShapeEdit, potreros]);
+
+  const handleDrawColorChange = useCallback((color: CampoMapaDrawColor) => {
+    setDrawColor(color);
+    saveCampoMapaDrawColor(color);
+  }, []);
+
   const vertexEditSource = useMemo(() => {
     if (potreroShapeEdit) {
       return {
@@ -374,26 +386,32 @@ export default function CampoMapa({
         vertices: sketchVertices,
         isPolygon: sketchShowsAsPolygon(activeTool, sketchVertices.length),
         minPoints: minSketchPoints,
+        dashLine: activeTool === "medir_distancia",
       };
     }
     return null;
   }, [activeTool, minSketchPoints, pendingDraft, potreroShapeEdit, sketchVertices]);
 
   const measureHint = useMemo(() => {
-    if (activeTool === "medir_distancia" && sketchVertices.length >= 2) {
-      const meters = computeDistanceMeters(sketchVertices);
-      return meters != null ? formatDistance(meters) : null;
+    const measurePath =
+      sketchCursor && sketchVertices.length > 0
+        ? [...sketchVertices, sketchCursor]
+        : sketchVertices;
+
+    if (activeTool === "medir_distancia" && measurePath.length >= 2) {
+      const meters = computeDistanceMeters(measurePath);
+      return meters != null ? `Distancia: ${formatDistance(meters)}` : null;
     }
-    if (activeTool === "medir_area" && sketchVertices.length >= 3) {
-      const ha = computeHectareas(sketchVertices);
-      return ha != null ? formatHectareas(ha) : null;
+    if (activeTool === "medir_area" && measurePath.length >= 3) {
+      const ha = computeHectareas(measurePath);
+      return ha != null ? `Área: ${formatHectareas(ha)}` : null;
     }
     if (activeTool === "dibujar" && sketchVertices.length >= 3) {
       const ha = computeHectareas(sketchVertices);
       return ha != null ? formatHectareas(ha) : null;
     }
     return null;
-  }, [activeTool, sketchVertices]);
+  }, [activeTool, sketchCursor, sketchVertices]);
 
   const refreshData = useCallback(async () => {
     if (!apiOnline) {
@@ -453,6 +471,7 @@ export default function CampoMapa({
     if (!selectedPotrero && !selectedElemento) {
       setEditNombre("");
       setEditNotas("");
+      setEditColor(DEFAULT_CAMPO_MAPA_DRAW_COLOR);
       setEditDispositivos(emptyCampoMapaDispositivosMetadata());
       editDispositivosPrevRef.current = emptyCampoMapaDispositivosMetadata();
       editNombrePrevRef.current = "";
@@ -462,6 +481,11 @@ export default function CampoMapa({
     if (!item) return;
     setEditNombre(item.nombre);
     setEditNotas(item.notas);
+    if (selectedPotrero) {
+      setEditColor(normalizePotreroMapaColor(selectedPotrero.color));
+    } else {
+      setEditColor(drawColor);
+    }
     const metaRaw = selectedPotrero?.metadata ?? selectedElemento?.metadata;
     const dispositivos = enrichDispositivosForFeature(item.nombre, metaRaw);
     setEditDispositivos(dispositivos);
@@ -473,7 +497,7 @@ export default function CampoMapa({
       const target = saveTargetFromElemento(selectedElemento.tipo);
       if (target) setEditSaveTarget(target);
     }
-  }, [enrichDispositivosForFeature, selectedPotrero, selectedElemento]);
+  }, [drawColor, enrichDispositivosForFeature, selectedPotrero, selectedElemento]);
 
   useEffect(() => {
     setEditingSelectionContent(false);
@@ -494,21 +518,31 @@ export default function CampoMapa({
     if (!item) return;
     setEditNombre(item.nombre);
     setEditNotas(item.notas);
+    if (selectedPotrero) {
+      setEditColor(normalizePotreroMapaColor(selectedPotrero.color));
+    } else {
+      setEditColor(drawColor);
+    }
     const metaRaw = selectedPotrero?.metadata ?? selectedElemento?.metadata;
     const dispositivos = enrichDispositivosForFeature(item.nombre, metaRaw);
     setEditDispositivos(dispositivos);
     editDispositivosPrevRef.current = dispositivos;
     editNombrePrevRef.current = item.nombre;
-  }, [enrichDispositivosForFeature, selectedElemento, selectedPotrero]);
+  }, [drawColor, enrichDispositivosForFeature, selectedElemento, selectedPotrero]);
 
   const clearSketchOverlay = useCallback(() => {
     sketchPolylineRef.current?.remove();
     sketchPolylineRef.current = null;
     sketchPolygonRef.current?.remove();
     sketchPolygonRef.current = null;
+    sketchPreviewLineRef.current?.remove();
+    sketchPreviewLineRef.current = null;
+    sketchMeasureLabelMarkersRef.current.forEach((marker) => marker.remove());
+    sketchMeasureLabelMarkersRef.current = [];
     sketchMarkersRef.current.forEach((marker) => marker.remove());
     sketchMarkersRef.current = [];
     setSketchVertices([]);
+    setSketchCursor(null);
     setSelectedVertexIndex(null);
   }, []);
 
@@ -678,9 +712,12 @@ export default function CampoMapa({
       attributionControl: true,
     });
 
-    const { base, labels } = createSatelliteBaseLayers();
-    base.addTo(map);
-    labelLayerRef.current = labels;
+    const { satellite, details } = createCampoMapaBasemapLayers();
+    satellite.addTo(map);
+    detailsLayerRef.current = details;
+    if (loadCampoMapaShowDetails()) {
+      details.addTo(map);
+    }
     mapRef.current = map;
     setMapReady(true);
 
@@ -703,7 +740,7 @@ export default function CampoMapa({
       potreroResumenLayerRef.current = null;
       map.remove();
       mapRef.current = null;
-      labelLayerRef.current = null;
+      detailsLayerRef.current = null;
       searchMarkerRef.current?.remove();
       searchMarkerRef.current = null;
       setMapReady(false);
@@ -850,6 +887,91 @@ export default function CampoMapa({
 
   useEffect(() => {
     const map = mapRef.current;
+    if (!map) return;
+
+    const trackingMeasure =
+      (activeTool === "medir_distancia" || activeTool === "medir_area") &&
+      toolUsesSketch(activeTool) &&
+      sketchVertices.length > 0 &&
+      !pendingDraft;
+
+    const onMouseMove = (event: L.LeafletMouseEvent) => {
+      if (!trackingMeasure) return;
+      setSketchCursor({ lat: event.latlng.lat, lng: event.latlng.lng });
+    };
+
+    const onMouseOut = () => {
+      if (!trackingMeasure) return;
+      setSketchCursor(null);
+    };
+
+    if (trackingMeasure) {
+      map.on("mousemove", onMouseMove);
+      map.on("mouseout", onMouseOut);
+    } else {
+      setSketchCursor(null);
+    }
+
+    return () => {
+      map.off("mousemove", onMouseMove);
+      map.off("mouseout", onMouseOut);
+    };
+  }, [activeTool, mapReady, pendingDraft, sketchVertices.length]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    sketchPreviewLineRef.current?.remove();
+    sketchPreviewLineRef.current = null;
+    sketchMeasureLabelMarkersRef.current.forEach((marker) => marker.remove());
+    sketchMeasureLabelMarkersRef.current = [];
+
+    const showDistanceOverlay =
+      activeTool === "medir_distancia" && !pendingDraft && sketchVertices.length > 0;
+    if (!showDistanceOverlay) return;
+
+    const measurePath =
+      sketchCursor && sketchVertices.length > 0
+        ? [...sketchVertices, sketchCursor]
+        : sketchVertices;
+
+    for (let i = 1; i < measurePath.length; i += 1) {
+      const a = measurePath[i - 1];
+      const b = measurePath[i];
+      const meters = computeDistanceMeters([a, b]);
+      if (meters == null) continue;
+      const isPreview = Boolean(sketchCursor) && i === measurePath.length - 1;
+      const marker = L.marker([(a.lat + b.lat) / 2, (a.lng + b.lng) / 2], {
+        icon: L.divIcon({
+          className: `campo-mapa-measure-label${isPreview ? " is-preview" : ""}`,
+          html: `<span>${formatDistance(meters)}</span>`,
+        }),
+        interactive: false,
+      }).addTo(map);
+      sketchMeasureLabelMarkersRef.current.push(marker);
+    }
+
+    if (sketchCursor && sketchVertices.length >= 1) {
+      const last = sketchVertices[sketchVertices.length - 1];
+      sketchPreviewLineRef.current = L.polyline(pathsToLeafletLatLngs([last, sketchCursor]), {
+        color: CAMPO_MAPA_MEASURE_COLOR,
+        weight: borderWeight,
+        opacity: 0.75,
+        dashArray: "6 6",
+      }).addTo(map);
+    }
+
+    return () => {
+      sketchPreviewLineRef.current?.remove();
+      sketchPreviewLineRef.current = null;
+      sketchMeasureLabelMarkersRef.current.forEach((marker) => marker.remove());
+      sketchMeasureLabelMarkersRef.current = [];
+    };
+  }, [activeTool, borderWeight, mapReady, pendingDraft, sketchCursor, sketchVertices]);
+
+  useEffect(() => {
+    const map = mapRef.current;
     if (!map || !vertexEditSource) return;
 
     sketchPolylineRef.current?.remove();
@@ -864,24 +986,25 @@ export default function CampoMapa({
     if (vertices.length >= 2) {
       if (isPolygon) {
         sketchPolygonRef.current = L.polygon(pathsToLeafletLatLngs(vertices), {
-          color: SKETCH_COLOR,
+          color: sketchStrokeColor,
           weight: borderWeight,
           opacity: 0.95,
-          fillColor: SKETCH_COLOR,
+          fillColor: sketchStrokeColor,
           fillOpacity: vertexEditSource.kind === "potrero" ? 0.28 : 0.18,
           dashArray: vertexEditSource.kind === "potrero" ? undefined : "6 4",
         }).addTo(map);
       } else {
         sketchPolylineRef.current = L.polyline(pathsToLeafletLatLngs(vertices), {
-          color: SKETCH_COLOR,
+          color: sketchStrokeColor,
           weight: borderWeight,
           opacity: 0.95,
+          dashArray: "dashLine" in vertexEditSource && vertexEditSource.dashLine ? "8 6" : undefined,
         }).addTo(map);
       }
     }
 
     const cleanup = mountVertexHandles(map, vertices, {
-      color: SKETCH_COLOR,
+      color: sketchStrokeColor,
       selectedIndex: selectedVertexIndex,
       onMove: moveVertexAt,
       onSelect: setSelectedVertexIndex,
@@ -895,7 +1018,7 @@ export default function CampoMapa({
       sketchPolygonRef.current?.remove();
       sketchPolygonRef.current = null;
     };
-  }, [borderWeight, mapReady, moveVertexAt, removeVertexAt, selectedVertexIndex, vertexEditSource]);
+  }, [borderWeight, mapReady, moveVertexAt, removeVertexAt, selectedVertexIndex, sketchStrokeColor, vertexEditSource]);
 
   useEffect(() => {
     if (!vertexEditSource) return;
@@ -919,13 +1042,14 @@ export default function CampoMapa({
     draftLayerRef.current = null;
     if (!pendingDraft) return;
 
+    const draftColor = pendingDraft.isMeasurement ? CAMPO_MAPA_MEASURE_COLOR : drawColor;
     const { point, paths, sourceTool } = pendingDraft;
     if (point) {
       draftLayerRef.current = L.circleMarker([point.lat, point.lng], {
         radius: sourceTool === "clip" ? 7 : 8,
         color: "#ffffff",
         weight: 3,
-        fillColor: SKETCH_COLOR,
+        fillColor: draftColor,
         fillOpacity: 1,
       }).addTo(map);
       return;
@@ -935,7 +1059,7 @@ export default function CampoMapa({
 
     if (sourceTool === "linea" || sourceTool === "medir_distancia") {
       draftLayerRef.current = L.polyline(pathsToLeafletLatLngs(paths), {
-        color: SKETCH_COLOR,
+        color: draftColor,
         weight: borderWeight,
         opacity: 0.95,
         dashArray: sourceTool === "medir_distancia" ? "8 6" : undefined,
@@ -945,7 +1069,7 @@ export default function CampoMapa({
 
     if (sourceTool === "dibujar" && paths.length < 3) {
       draftLayerRef.current = L.polyline(pathsToLeafletLatLngs(paths), {
-        color: SKETCH_COLOR,
+        color: draftColor,
         weight: borderWeight,
         opacity: 0.95,
       }).addTo(map);
@@ -953,24 +1077,29 @@ export default function CampoMapa({
     }
 
     draftLayerRef.current = L.polygon(pathsToLeafletLatLngs(paths), {
-      color: SKETCH_COLOR,
+      color: draftColor,
       weight: borderWeight,
       opacity: 0.95,
-      fillColor: SKETCH_COLOR,
+      fillColor: draftColor,
       fillOpacity: 0.32,
     }).addTo(map);
-  }, [borderWeight, mapReady, pendingDraft]);
+  }, [borderWeight, drawColor, mapReady, pendingDraft]);
 
   useEffect(() => {
     const map = mapRef.current;
-    const labels = labelLayerRef.current;
-    if (!map || !labels) return;
-    if (showLabels) {
-      if (!map.hasLayer(labels)) labels.addTo(map);
+    const details = detailsLayerRef.current;
+    if (!map || !details) return;
+    if (showMapDetails) {
+      if (!map.hasLayer(details)) details.addTo(map);
     } else {
-      map.removeLayer(labels);
+      map.removeLayer(details);
     }
-  }, [showLabels, mapReady]);
+    saveCampoMapaShowDetails(showMapDetails);
+  }, [showMapDetails, mapReady]);
+
+  const toggleMapDetails = useCallback(() => {
+    setShowMapDetails((visible) => !visible);
+  }, []);
 
   const clearSearchMarker = useCallback(() => {
     searchMarkerRef.current?.remove();
@@ -982,6 +1111,7 @@ export default function CampoMapa({
       const map = mapRef.current;
       if (!map) return;
 
+      initialViewAppliedRef.current = true;
       clearSearchMarker();
       searchMarkerRef.current = L.circleMarker([lugar.lat, lugar.lng], {
         radius: 8,
@@ -991,18 +1121,17 @@ export default function CampoMapa({
         fillOpacity: 1,
       }).addTo(map);
 
-      if (lugar.extent) {
-        const [minLon, maxLon, minLat, maxLat] = lugar.extent;
-        map.fitBounds(
-          L.latLngBounds([
-            [minLat, minLon],
-            [maxLat, maxLon],
-          ]),
-          { padding: [48, 48], maxZoom: 15 },
-        );
-      } else {
-        map.flyTo([lugar.lat, lugar.lng], 14, { duration: 0.8 });
-      }
+      const flyOptions = {
+        padding: [88, 56] as L.PointExpression,
+        maxZoom: lugarMaxZoom(lugar),
+        duration: 0.85,
+        easeLinearity: 0.25,
+      };
+
+      map.invalidateSize({ animate: false });
+      window.requestAnimationFrame(() => {
+        map.flyToBounds(lugarBounds(lugar), flyOptions);
+      });
 
       setSearchQuery(lugar.label);
       setSearchResults([]);
@@ -1040,15 +1169,36 @@ export default function CampoMapa({
     return () => window.clearTimeout(timer);
   }, [searchQuery]);
 
+  const navegarABusqueda = useCallback(
+    async (query: string) => {
+      const q = query.trim();
+      if (q.length < 2) return;
+
+      setSearchLoading(true);
+      setSearchError(null);
+      try {
+        const items = await buscarLugaresEnMapa(q);
+        setSearchResults(items);
+        if (items[0]) {
+          irALugar(items[0]);
+          return;
+        }
+        setSearchError("No se encontraron lugares con ese nombre.");
+        setSearchOpen(true);
+      } catch {
+        setSearchResults([]);
+        setSearchError("No se pudo buscar en el mapa. Probá de nuevo.");
+        setSearchOpen(true);
+      } finally {
+        setSearchLoading(false);
+      }
+    },
+    [irALugar],
+  );
+
   const onSearchSubmit = (event: FormEvent) => {
     event.preventDefault();
-    if (searchResults[0]) {
-      irALugar(searchResults[0]);
-      return;
-    }
-    if (searchQuery.trim().length >= 2) {
-      setSearchOpen(true);
-    }
+    void navegarABusqueda(searchQuery);
   };
 
   const handleToolSelect = (tool: CampoMapaTool) => {
@@ -1163,6 +1313,7 @@ export default function CampoMapa({
         const created = await createCampoPotreroMapa({
           nombre: formNombre.trim(),
           geojson: JSON.parse(pathsToGeoJson(pendingDraft.paths)),
+          color: drawColor,
           hectareas: pendingDraft.hectareas ?? null,
           notas: formNotas,
         });
@@ -1178,6 +1329,7 @@ export default function CampoMapa({
           nombre: formNombre.trim(),
           geojson: JSON.parse(pointToGeoJson(point)),
           notas: formNotas,
+          color: drawColor,
         });
         setElementos((prev) =>
           [...prev, created].sort((a, b) => a.nombre.localeCompare(b.nombre)),
@@ -1189,6 +1341,7 @@ export default function CampoMapa({
           nombre: formNombre.trim(),
           geojson: JSON.parse(pathsToGeoJson(pendingDraft.paths)),
           notas: formNotas,
+          color: drawColor,
           metadata: pendingDraft.metadata,
         });
         setElementos((prev) =>
@@ -1201,6 +1354,7 @@ export default function CampoMapa({
           nombre: formNombre.trim(),
           geojson: JSON.parse(pathsToLineGeoJson(pendingDraft.paths)),
           notas: formNotas,
+          color: drawColor,
         });
         setElementos((prev) =>
           [...prev, created].sort((a, b) => a.nombre.localeCompare(b.nombre)),
@@ -1227,6 +1381,7 @@ export default function CampoMapa({
           nombre: formNombre.trim(),
           geojson,
           notas: formNotas,
+          color: pendingDraft.isMeasurement ? undefined : drawColor,
           metadata: pendingDraft.metadata,
         });
         setElementos((prev) =>
@@ -1306,6 +1461,7 @@ export default function CampoMapa({
         const updated = await updateCampoPotreroMapa(selectedPotrero.id, {
           nombre: editNombre,
           notas: editNotas,
+          color: editColor,
           metadata,
         });
         await syncCampoMapaDispositivosPotrero(
@@ -1350,6 +1506,7 @@ export default function CampoMapa({
         const created = await createCampoPotreroMapa({
           nombre: editNombre.trim(),
           geojson,
+          color: editColor,
           hectareas: computeHectareas(paths),
           notas: editNotas,
           metadata,
@@ -1527,10 +1684,17 @@ export default function CampoMapa({
 
   const mapHint = useMemo(() => {
     if (showFullscreenWorkDock) return null;
+    if (measureHint) return measureHint;
     if (vertexEditSource) {
       return "Arrastrá un punto para moverlo · Doble clic o Supr para eliminar";
     }
-    if (measureHint) return measureHint;
+    if (
+      (activeTool === "medir_distancia" || activeTool === "medir_area") &&
+      toolUsesSketch(activeTool) &&
+      !pendingDraft
+    ) {
+      return toolDef.hint;
+    }
     if (toolUsesSketch(activeTool) && !pendingDraft) return toolDef.hint;
     if (toolSketchIsPoint(activeTool) && !pendingDraft) return toolDef.hint;
     return null;
@@ -1583,7 +1747,8 @@ export default function CampoMapa({
       {puedeEditar && toolUsesSketch(activeTool) && !pendingDraft && !potreroShapeEdit ? (
         <div className="campo-mapa-aside-tools">
           <p className="campo-mapa-aside-hint">
-            {toolDef.hint} Podés arrastrar un punto para moverlo o hacer doble clic para eliminarlo.
+            {measureHint ??
+              `${toolDef.hint} Podés arrastrar un punto para moverlo o hacer doble clic para eliminarlo.`}
           </p>
           <button
             type="button"
@@ -1881,6 +2046,31 @@ export default function CampoMapa({
               maxLength={48}
             />
           </label>
+          {editSaveTarget === "potrero" ? (
+            <div className="campo-mapa-aside-color-field">
+              <span className="campo-mapa-aside-color-label">Color del potrero</span>
+              <div
+                className="campo-mapa-aside-color-options"
+                role="radiogroup"
+                aria-label="Color del potrero"
+              >
+                {potreroColorPickerOptions(editColor).map((color) => (
+                  <button
+                    key={color}
+                    type="button"
+                    role="radio"
+                    className={`campo-mapa-draw-color-option${
+                      editColor === color ? " is-selected" : ""
+                    }`}
+                    style={{ backgroundColor: color }}
+                    aria-checked={editColor === color}
+                    title={`Color ${color}`}
+                    onClick={() => setEditColor(color)}
+                  />
+                ))}
+              </div>
+            </div>
+          ) : null}
           <label>
             Notas
             <textarea value={editNotas} onChange={(e) => setEditNotas(e.target.value)} rows={3} />
@@ -1967,13 +2157,15 @@ export default function CampoMapa({
             <CampoMapaToolbar
               activeTool={activeTool}
               borderWeight={borderWeight}
+              drawColor={drawColor}
               disabled={!puedeEditar || !mapReady || saving || !!pendingDraft}
               onSelect={handleToolSelect}
               onBorderWeightChange={setBorderWeight}
+              onDrawColorChange={handleDrawColorChange}
               onSaveClip={handleSaveClip}
             />
             <form
-              className="campo-mapa-search"
+              className={`campo-mapa-search${searchQuery.trim() ? " has-query" : ""}`}
               onSubmit={onSearchSubmit}
               role="search"
               aria-label="Buscar lugares en el mapa"
@@ -2020,6 +2212,14 @@ export default function CampoMapa({
                   <X size={14} aria-hidden />
                 </button>
               ) : null}
+              <button
+                type="submit"
+                className="campo-mapa-search-submit"
+                disabled={searchQuery.trim().length < 2 || searchLoading}
+                aria-label="Buscar lugar en el mapa"
+              >
+                Buscar
+              </button>
               {searchOpen && (searchLoading || searchResults.length > 0 || searchError) ? (
                 <div className="campo-mapa-search-panel">
                   {searchLoading ? (
@@ -2130,13 +2330,21 @@ export default function CampoMapa({
               </button>
               <button
                 type="button"
-                className={`campo-mapa-map-corner-btn${showLabels ? " is-active" : ""}`}
-                onClick={() => setShowLabels((v) => !v)}
-                title={showLabels ? "Ocultar etiquetas del mapa base" : "Mostrar etiquetas del mapa base"}
-                aria-label={showLabels ? "Ocultar etiquetas del mapa base" : "Mostrar etiquetas del mapa base"}
-                aria-pressed={showLabels}
+                className={`campo-mapa-map-corner-btn${showMapDetails ? " is-active" : ""}`}
+                onClick={toggleMapDetails}
+                title={
+                  showMapDetails
+                    ? CAMPO_MAPA_DETAILS_TOGGLE_LABEL.hide
+                    : CAMPO_MAPA_DETAILS_TOGGLE_LABEL.show
+                }
+                aria-label={
+                  showMapDetails
+                    ? CAMPO_MAPA_DETAILS_TOGGLE_LABEL.hide
+                    : CAMPO_MAPA_DETAILS_TOGGLE_LABEL.show
+                }
+                aria-pressed={showMapDetails}
               >
-                <Layers size={18} aria-hidden />
+                <Map size={18} aria-hidden />
               </button>
             </div>
             {showFullscreenWorkDock ? (
@@ -2145,9 +2353,10 @@ export default function CampoMapa({
                   <>
                     <p className="campo-mapa-map-work-dock-title">Dibujando</p>
                     <p className="campo-mapa-map-work-dock-hint">
-                      {sketchVertices.length > 0
-                        ? "Arrastrá un punto para moverlo · Doble clic o Supr para eliminar"
-                        : toolDef.hint}
+                      {measureHint ??
+                        (sketchVertices.length > 0
+                          ? "Arrastrá un punto para moverlo · Doble clic o Supr para eliminar"
+                          : toolDef.hint)}
                     </p>
                     <div className="campo-mapa-map-work-dock-actions">
                       <button
@@ -2304,7 +2513,13 @@ export default function CampoMapa({
                 ) : null}
               </div>
             ) : null}
-            {mapHint ? <div className="campo-mapa-map-hint">{mapHint}</div> : null}
+            {mapHint ? (
+              <div
+                className={`campo-mapa-map-hint${measureHint ? " campo-mapa-map-hint--measure" : ""}`}
+              >
+                {mapHint}
+              </div>
+            ) : null}
           </div>
         </div>
       </SgHubShell>

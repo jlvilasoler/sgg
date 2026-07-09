@@ -11,17 +11,20 @@ import {
   canAccessClasificacionProveedores,
   canAccessConfigVencimientosImpuestos,
   canAccessConfigHomeLayout,
+  canAccessConfigRubrosSag,
   canAccessConfigDotacionGanadera,
   canAccessControlGlobalCuentas,
   canAccessArquitecturaCuenta,
   canAccessArquitecturaSistema,
   canAccessStockGanaderoAdmin,
+  canManageRubrosCatalogo,
   canManageUsuariosCuenta,
 } from "../utils/auth-permissions";
 import Proveedores from "./Proveedores";
 import ClasificacionProveedores from "./proveedores/ClasificacionProveedores";
 import Responsables from "./Responsables";
 import Rubros from "./Rubros";
+import RubrosSag from "./rubros/RubrosSag";
 import StockGanaderoAdmin from "./stock/StockGanaderoAdmin";
 import StockEquinoAdmin from "./stock-equino/StockEquinoAdmin";
 import AdministradorCuenta from "./AdministradorCuenta";
@@ -65,6 +68,7 @@ type SagModulo =
   | "catalogo_sanitario_productos"
   | "dotacion_ganadera"
   | "home_layout"
+  | "rubros_sag"
   | "vencimientos_impuestos"
   | "billing_mp_settings"
   | "billing_suscripciones_plataforma";
@@ -119,13 +123,13 @@ export default function Configuracion({
       const scope = configNavScopeForModulo(targetModulo);
       if (scope === "sag") {
         setModulo("sag_hub");
-      } else if (scope === "cuenta" && esSuperAdmin) {
+      } else if (scope === "cuenta") {
         setModulo("cuenta_hub");
       } else {
         setModulo("menu");
       }
     },
-    [esSuperAdmin]
+    []
   );
 
   const wrapConfigSubmodule = useCallback(
@@ -151,11 +155,10 @@ export default function Configuracion({
   const headerBackLabel = useMemo(() => {
     const scope = configNavScopeForModulo(modulo);
     if (scope === "sag") return "Configuración SAG";
-    if (scope === "cuenta" && esSuperAdmin && modulo !== "cuenta_hub") {
-      return "Configuración cuenta";
-    }
+    if (modulo === "cuenta_hub") return "Configuración";
+    if (scope === "cuenta") return "Administración de Cuenta";
     return "Configuración";
-  }, [modulo, esSuperAdmin]);
+  }, [modulo]);
 
   useHeaderBackStep(
     modulo !== "menu",
@@ -189,7 +192,7 @@ export default function Configuracion({
       (modulo === "stock_ganadero" || modulo === "stock_equino") &&
       !canAccessStockGanaderoAdmin(currentUser ?? null)
     ) {
-      setModulo(esSuperAdmin ? "cuenta_hub" : "menu");
+      setModulo("cuenta_hub");
     }
     if (
       modulo === "registro_actividad_total" &&
@@ -221,6 +224,9 @@ export default function Configuracion({
     ) {
       setModulo("sag_hub");
     }
+    if (modulo === "rubros_sag" && !canAccessConfigRubrosSag(currentUser ?? null)) {
+      setModulo("sag_hub");
+    }
     if (
       modulo === "vencimientos_impuestos" &&
       !canAccessConfigVencimientosImpuestos(currentUser ?? null)
@@ -239,11 +245,14 @@ export default function Configuracion({
     ) {
       setModulo("sag_hub");
     }
+    if (modulo === "rubros" && !canManageRubrosCatalogo(currentUser ?? null)) {
+      setModulo("cuenta_hub");
+    }
     if (modulo === "usuarios" && !canManageUsuariosCuenta(currentUser ?? null)) {
-      setModulo(esSuperAdmin ? "cuenta_hub" : "menu");
+      setModulo("cuenta_hub");
     }
     if (modulo === "admin_cuenta" && !canAccessArquitecturaCuenta(currentUser ?? null)) {
-      setModulo("menu");
+      setModulo("cuenta_hub");
     }
     if (modulo === "suscripcion" && !canAccessArquitecturaCuenta(currentUser ?? null)) {
       setModulo("menu");
@@ -256,7 +265,7 @@ export default function Configuracion({
       !canAccessActividadCuenta(currentUser ?? null) &&
       !canAccessActividadPropia(currentUser ?? null)
     ) {
-      setModulo(esSuperAdmin ? "cuenta_hub" : "menu");
+      setModulo("cuenta_hub");
     }
   }, [modulo, currentUser, esSuperAdmin]);
 
@@ -298,16 +307,17 @@ export default function Configuracion({
     );
   }
 
-  if (modulo === "rubros") {
+  if (modulo === "rubros" && canManageRubrosCatalogo(currentUser ?? null)) {
     return wrapConfigSubmodule(
       "rubros",
       <Rubros
         apiOnline={apiOnline}
+        currentUser={currentUser}
         onError={onError}
         onSuccess={onSuccess}
         onCatalogosChanged={onCatalogosChanged}
         onVolver={() => volverConfigDashboard("rubros")}
-        volverLabel={esSuperAdmin ? "a Configuración cuenta" : "a Configuración"}
+        volverLabel="a Administración de Cuenta"
       />
     );
   }
@@ -373,9 +383,8 @@ export default function Configuracion({
       <Usuarios
         apiOnline={apiOnline}
         currentUser={currentUser}
-        volverLabel={
-          esSuperAdmin ? "Volver a Configuración cuenta" : "Volver a Configuración"
-        }
+        embedded
+        volverLabel="Volver a Administración de Cuenta"
         onVolver={() => volverConfigDashboard("usuarios")}
         onError={onError}
         onSuccess={onSuccess}
@@ -399,9 +408,7 @@ export default function Configuracion({
         embedded
         titulo={titulo}
         subtituloAmbito={subtituloAmbito}
-        volverLabel={
-          esSuperAdmin ? "Volver a Configuración cuenta" : "Volver a Configuración"
-        }
+        volverLabel="Volver a Administración de Cuenta"
         onError={onError}
         onVolver={() => {
           setActividadModo(null);
@@ -417,6 +424,7 @@ export default function Configuracion({
       <ArquitecturaSistema
         apiOnline={apiOnline}
         currentUser={currentUser}
+        embedded
         volverLabel="Volver a Configuración SAG"
         onVolver={() => volverConfigDashboard("sag_arquitectura")}
         onError={onError}
@@ -504,6 +512,25 @@ export default function Configuracion({
         onVolver={() => volverConfigDashboard("home_layout")}
         onError={onError}
         onSuccess={onSuccess}
+      />
+    );
+  }
+
+  if (
+    modulo === "rubros_sag" &&
+    currentUser &&
+    canAccessConfigRubrosSag(currentUser)
+  ) {
+    return wrapConfigSubmodule(
+      "rubros_sag",
+      <RubrosSag
+        apiOnline={apiOnline}
+        currentUser={currentUser}
+        onError={onError}
+        onSuccess={onSuccess}
+        onCatalogosChanged={onCatalogosChanged}
+        onVolver={() => volverConfigDashboard("rubros_sag")}
+        volverLabel="a Configuración SAG"
       />
     );
   }

@@ -53,9 +53,15 @@ interface Props {
   rubrosApi?: RubrosListadoApi;
   copy?: RubrosListadoCopy;
   puedeEditar?: boolean;
+  /** Eliminar rubros/sub-rubros: solo superadministrador de plataforma. */
+  puedeEliminar?: boolean;
+  /** Quitar ítems de sub-rubro: admin de cuenta o superadmin. */
+  puedeEliminarItems?: boolean;
   /** Layout hub de Ingresos por ventas */
   hubLayout?: boolean;
   embedded?: boolean;
+  /** Panel SAG: muestra si el rubro es base SAG o de una cuenta. */
+  mostrarAmbitoCuenta?: boolean;
 }
 
 export default function SubRubroListado({
@@ -68,8 +74,11 @@ export default function SubRubroListado({
   rubrosApi = GASTOS_RUBROS_API,
   copy = GASTOS_RUBROS_COPY,
   puedeEditar = true,
+  puedeEliminar = false,
+  puedeEliminarItems = false,
   hubLayout = false,
   embedded = false,
+  mostrarAmbitoCuenta = false,
 }: Props) {
   const esHubVentas = hubLayout || embedded;
   const [rows, setRows] = useState<SubRubro[]>([]);
@@ -592,22 +601,24 @@ export default function SubRubroListado({
       >
         <IconCancelar size={17} />
       </button>
-      <button
-        type="button"
-        className="btn btn-sm btn-danger btn-icon-only"
-        disabled={saving || (inline?.mode === "edit" && !apiOnline)}
-        onClick={eliminarInline}
-        aria-label={
-          inline?.mode === "new" ? "Quitar fila sin guardar" : "Eliminar sub-rubro"
-        }
-        title={
-          inline?.mode === "new"
-            ? "Quitar esta fila sin guardar"
-            : "Eliminar este sub-rubro"
-        }
-      >
-        <IconEliminar size={17} />
-      </button>
+      {(inline?.mode === "new" || puedeEliminar) ? (
+        <button
+          type="button"
+          className="btn btn-sm btn-danger btn-icon-only"
+          disabled={saving || (inline?.mode === "edit" && !apiOnline)}
+          onClick={eliminarInline}
+          aria-label={
+            inline?.mode === "new" ? "Quitar fila sin guardar" : "Eliminar sub-rubro"
+          }
+          title={
+            inline?.mode === "new"
+              ? "Quitar esta fila sin guardar"
+              : "Eliminar este sub-rubro"
+          }
+        >
+          <IconEliminar size={17} />
+        </button>
+      ) : null}
     </div>
   );
 
@@ -975,17 +986,19 @@ export default function SubRubroListado({
                               >
                                 + Nuevo sub-rubro
                               </button>
-                              <button
-                                type="button"
-                                className="btn btn-sm btn-danger"
-                                disabled={
-                                  !apiOnline || !!inline || renamingGrupo === grupo
-                                }
-                                onClick={() => borrarRubro(grupo, items.length)}
-                                title="Eliminar este rubro y todos sus sub-rubros"
-                              >
-                                Eliminar rubro
-                              </button>
+                              {puedeEliminar ? (
+                                <button
+                                  type="button"
+                                  className="btn btn-sm btn-danger"
+                                  disabled={
+                                    !apiOnline || !!inline || renamingGrupo === grupo
+                                  }
+                                  onClick={() => borrarRubro(grupo, items.length)}
+                                  title="Eliminar este rubro y todos sus sub-rubros"
+                                >
+                                  Eliminar rubro
+                                </button>
+                              ) : null}
                             </div>
                             )}
                           </div>
@@ -1007,6 +1020,18 @@ export default function SubRubroListado({
                               <span className="sr-only">{grupo}</span>
                             </td>
                             <td className="col-subrubro-name">
+                              {mostrarAmbitoCuenta && (
+                                <span
+                                  className={`subrubro-ambito-badge${r.cuenta_id == null ? " subrubro-ambito-badge--sag" : ""}`}
+                                  title={
+                                    r.cuenta_id == null
+                                      ? "Catálogo base SAG (todas las cuentas)"
+                                      : `Rubro de la cuenta ${r.cuenta_id}`
+                                  }
+                                >
+                                  {r.cuenta_id == null ? "SAG" : `Cta ${r.cuenta_id}`}
+                                </span>
+                              )}
                               {isEditing ? (
                                 <input
                                   ref={nombreRef}
@@ -1034,6 +1059,7 @@ export default function SubRubroListado({
                                 items={itemsBySubRubro[r.id] ?? []}
                                 apiOnline={apiOnline}
                                 puedeEditar={puedeEditar}
+                                puedeEliminarItems={puedeEliminarItems}
                                 createItem={rubrosApi.createSubRubroItem}
                                 deleteItem={rubrosApi.deleteSubRubroItem}
                                 onError={onError}
@@ -1075,16 +1101,18 @@ export default function SubRubroListado({
                                   >
                                     <IconEditar size={17} />
                                   </button>
-                                  <button
-                                    type="button"
-                                    className="btn btn-sm btn-danger btn-icon-only"
-                                    disabled={!!inline}
-                                    onClick={() => borrar(r.id)}
-                                    aria-label="Eliminar"
-                                    title="Eliminar"
-                                  >
-                                    <IconEliminar size={17} />
-                                  </button>
+                                  {puedeEliminar ? (
+                                    <button
+                                      type="button"
+                                      className="btn btn-sm btn-danger btn-icon-only"
+                                      disabled={!!inline}
+                                      onClick={() => borrar(r.id)}
+                                      aria-label="Eliminar"
+                                      title="Eliminar"
+                                    >
+                                      <IconEliminar size={17} />
+                                    </button>
+                                  ) : null}
                                 </div>
                               )}
                             </td>
@@ -1107,7 +1135,10 @@ export default function SubRubroListado({
       <>
         {!puedeEditar && (
           <div className="sim-historial-editing-banner sim-calc-editing-banner" role="status">
-            <span>Solo administradores y gestores nivel 1 pueden modificar este catálogo</span>
+            <span>
+              Solo el administrador de la cuenta y el superadministrador pueden modificar este
+              catálogo desde configuración
+            </span>
           </div>
         )}
         {hubKpiStrip}
@@ -1128,7 +1159,10 @@ export default function SubRubroListado({
 
       {!puedeEditar && (
         <div className="sim-historial-editing-banner sim-calc-editing-banner" role="status">
-          <span>Solo administradores y gestores nivel 1 pueden modificar este catálogo</span>
+          <span>
+            Solo el administrador de la cuenta y el superadministrador pueden modificar este
+            catálogo desde configuración
+          </span>
         </div>
       )}
 

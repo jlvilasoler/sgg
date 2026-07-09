@@ -1028,6 +1028,7 @@ export type RubroForm = {
 
 export interface SubRubro {
   id: number;
+  cuenta_id?: number | null;
   nombre: string;
   grupo: string;
   activo: number;
@@ -1436,6 +1437,16 @@ export interface AuthUser {
   modulos_solo_lectura: Modulo[];
   /** Visibilidad de bloques del inicio según rol (Configuración SAG). */
   home_paneles?: Partial<Record<string, boolean>>;
+  /** Ejercicio fiscal contable EFECTIVO: mes/día de inicio (default 1/7). */
+  ejercicio_inicio_mes?: number;
+  ejercicio_inicio_dia?: number;
+  /** Modo de inicio de sesión de la cuenta. */
+  login_mode?: LoginMode;
+  /** El admin debe elegir el modo de inicio (2+ empresas y aún no elegido). */
+  debe_elegir_modo_inicio?: boolean;
+  /** Empresa operativa activa (modo individual). null = consolidado / sin elegir. */
+  empresa_operativa_activa_id?: number | null;
+  empresa_activa_nombre?: string | null;
   creado_en: string;
   ultimo_acceso: string | null;
   avatar: UserAvatar;
@@ -1448,12 +1459,16 @@ export interface EmpresaCuentaAdmin {
   es_super_admin: boolean;
 }
 
+export type LoginMode = "consolidado" | "individual";
+
 export interface EmpresaCuenta {
   id: number;
   cuenta_numero: string;
   nombre: string;
   codigo: string;
   activo: boolean;
+  login_mode: LoginMode;
+  ejercicio_empresa_id: number | null;
   creado_en: string;
   actualizado_en: string;
   usuarios_count: number;
@@ -1470,6 +1485,9 @@ export interface EmpresaOperativa {
   codigo: string;
   color: string;
   activo: boolean;
+  rut: string;
+  ejercicio_inicio_mes: number;
+  ejercicio_inicio_dia: number;
   creado_en: string;
   actualizado_en: string;
 }
@@ -1511,11 +1529,76 @@ export interface CuentasControlPlataformaResumen {
   };
 }
 
+export interface RubrosMonitorPermisos {
+  ver_en_gastos: boolean;
+  editar_catalogo: boolean;
+  crear_desde_gasto: boolean;
+  eliminar_catalogo: boolean;
+  eliminar_items: boolean;
+}
+
+export interface RubrosMonitorUsuario {
+  id: number;
+  nombre: string;
+  email: string;
+  rol: string;
+  rol_label: string;
+  activo: boolean;
+  es_admin_cuenta: boolean;
+  permisos: RubrosMonitorPermisos;
+}
+
+export interface RubrosMonitorSubRubro {
+  id: number;
+  nombre: string;
+  origen: "sag" | "cuenta";
+  activo: boolean;
+}
+
+export interface RubrosMonitorGrupo {
+  nombre: string;
+  sub_rubros: RubrosMonitorSubRubro[];
+  sub_sag: number;
+  sub_cuenta: number;
+}
+
+export interface RubrosMonitorCuentaResumen {
+  id: number;
+  nombre: string;
+  codigo: string;
+  cuenta_numero: string;
+  activo: boolean;
+  grupos: number;
+  sub_rubros: number;
+  sub_propios: number;
+  rubros_contables: number;
+  usuarios_count: number;
+}
+
+export interface RubrosMonitorCuentaDetalle extends RubrosMonitorCuentaResumen {
+  grupos_catalogo: RubrosMonitorGrupo[];
+  usuarios: RubrosMonitorUsuario[];
+}
+
+export interface RubrosMonitorSnapshot {
+  generado_en: string;
+  cuentas: RubrosMonitorCuentaResumen[];
+  totales: {
+    cuentas: number;
+    cuentas_activas: number;
+    sub_rubros_sag: number;
+    sub_rubros_propios: number;
+  };
+}
+
 export interface EmpresaOperativaForm {
   nombre: string;
   codigo?: string;
   color?: string;
   activo?: boolean;
+  rut?: string | null;
+  ejercicio_inicio_mes?: number | null;
+  ejercicio_inicio_dia?: number | null;
 }
 
 export interface UserForm {

@@ -1,6 +1,6 @@
 import type { AuthActividadLog, Nota } from "../types";
 
-const NOTAS_STORAGE_KEY = "scg-home-notas-cache-v1";
+const NOTAS_STORAGE_KEY = "scg-home-notas-cache-v2";
 const ACTIVIDAD_STORAGE_KEY = "scg-home-actividad-cache-v2";
 
 type NotasPayload = {
@@ -65,6 +65,8 @@ export function getHomeNotasCache(userId: number): Nota[] {
 }
 
 export function setHomeNotasCache(userId: number, items: Nota[]): void {
+  // No persistir caché vacío: un timeout previo no debe “congelar” el pizarrón vacío.
+  if (!items.length) return;
   const key = notasCacheKey(userId);
   notasMemory.set(key, items);
   try {

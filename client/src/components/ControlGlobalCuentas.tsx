@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
-import { Landmark, RefreshCw, Search, ShieldCheck } from "lucide-react";
+import { RefreshCw, Search, ShieldCheck } from "lucide-react";
 import { fetchCuentasControlResumen } from "../api";
 import type { CuentaControlResumen, CuentasControlPlataformaResumen } from "../types";
 import { SgHubKpi, SgMiniBars } from "./stock/SgHubUi";
@@ -150,9 +150,6 @@ export default function ControlGlobalCuentas({
             <p className="bank-control-sync-meta muted">{syncLabel}</p>
           </div>
           <div className="bank-control-head-side">
-            <span className="bank-control-head-icon" aria-hidden>
-              <Landmark size={20} strokeWidth={1.75} />
-            </span>
             <div className="bank-control-head-actions">
               <span className="bank-control-compliance">
                 <ShieldCheck size={14} aria-hidden />

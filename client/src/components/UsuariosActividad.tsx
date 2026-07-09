@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type CSSProperties } from "react";
 import { fetchAuthActividad, fetchEmpresasCuenta, fetchUsuarios, fetchUsuariosOnline } from "../api";
 import type { ActividadAmbito } from "../api";
 import type { AuthActividadLog, AuthUser, EmpresaCuenta, UsuarioOnline } from "../types";
@@ -440,7 +440,11 @@ export default function UsuariosActividad({
   ) : null;
 
   const hubKpiStrip = (
-    <section className="sg-hub-kpi-strip usuarios-actividad-kpi-strip" aria-label="Resumen de actividad">
+    <section
+      className="sg-hub-kpi-strip home-hub-kpi-strip usuarios-actividad-kpi-strip"
+      aria-label="Resumen de actividad"
+      style={{ "--home-hub-kpi-cols": puedeVerOnline ? "5" : "4" } as CSSProperties}
+    >
       {puedeVerOnline ? (
         <article className="sg-hub-kpi sg-hub-kpi--light">
           <div className="sg-hub-kpi-top">

@@ -109,6 +109,7 @@ export interface UserRow {
   rol: Rol;
   activo: number;
   empresa_id: number | null;
+  empresa_operativa_activa_id: number | null;
   creado_en: string;
   actualizado_en: string;
   ultimo_acceso: string | null;
@@ -142,6 +143,16 @@ export interface UserPublic {
   puede_escribir: boolean;
   modulos_solo_lectura: Modulo[];
   home_paneles: Record<string, boolean>;
+  /** Ejercicio fiscal contable EFECTIVO (empresa activa en modo individual, o cuenta). Default 1/7. */
+  ejercicio_inicio_mes: number;
+  ejercicio_inicio_dia: number;
+  /** Modo de inicio de sesión de la cuenta. */
+  login_mode: empresasCuenta.LoginMode;
+  /** El admin de la cuenta debe elegir el modo (2+ empresas y aún no elegido). */
+  debe_elegir_modo_inicio: boolean;
+  /** Empresa operativa activa validada (modo individual). null = consolidado / sin elegir. */
+  empresa_operativa_activa_id: number | null;
+  empresa_activa_nombre: string | null;
   creado_en: string;
   ultimo_acceso: string | null;
   avatar: UserAvatarDto;
@@ -256,47 +267,78 @@ export function canWrite(rol: Rol): boolean {
 }
 
 export async function toUserPublic(row: UserRow, db: Db): Promise<UserPublic> {
-  const caps = await roleCapabilities(db, row.rol);
   const empresaId =
     row.empresa_id != null && Number.isFinite(Number(row.empresa_id))
       ? Number(row.empresa_id)
       : null;
 
-  let empresa_nombre: string | null = null;
-  let empresa_codigo: string | null = null;
-  let empresa_cuenta_numero: string | null = null;
-  if (empresaId) {
-    const empresaRow = (await db
-      .prepare("SELECT nombre, codigo, cuenta_numero FROM EMPRESAS_CUENTA WHERE id = ?")
-      .get(empresaId)) as
-      | { nombre: string; codigo: string; cuenta_numero: string | null }
-      | undefined;
-    if (empresaRow) {
-      empresa_nombre = empresaRow.nombre;
-      empresa_codigo = empresaRow.codigo;
-      empresa_cuenta_numero = empresaRow.cuenta_numero;
-    }
-  }
+  // Fase 1: consultas que sólo dependen de `row` → en paralelo.
+  // Antes eran ~15 round-trips secuenciales al pooler remoto (~5s por request,
+  // saturando el pool en la ráfaga del dashboard). Agrupadas por dependencia
+  // bajan a ~4 fases secuenciales.
+  const [caps, empresaRow, esSuperAdmin, cuentaAdmin, homePaneles] = await Promise.all([
+    roleCapabilities(db, row.rol),
+    empresaId
+      ? db
+          .prepare("SELECT nombre, codigo, cuenta_numero FROM EMPRESAS_CUENTA WHERE id = ?")
+          .get<{ nombre: string; codigo: string; cuenta_numero: string | null }>(empresaId)
+      : Promise.resolve(undefined),
+    empresasCuenta.isPlatformSuperAdmin(db, {
+      id: row.id,
+      rol: row.rol,
+      empresa_id: empresaId,
+      email: row.email,
+    }),
+    empresasCuenta.getEmpresaCuentaByAdminUserId(db, row.id),
+    homeLayoutDb.getEffectiveHomeLayoutForUser(db, row.id, row.rol),
+  ]);
 
-  const esSuperAdmin = await empresasCuenta.isPlatformSuperAdmin(db, {
-    id: row.id,
-    rol: row.rol,
-    empresa_id: empresaId,
-    email: row.email,
-  });
+  const empresa_nombre = empresaRow?.nombre ?? null;
+  const empresa_codigo = empresaRow?.codigo ?? null;
+  const empresa_cuenta_numero = empresaRow?.cuenta_numero ?? null;
+
+  // Fase 2: la cuenta de actividad depende de esSuperAdmin.
   const cuentaActividadId = await empresasCuenta.resolveCuentaMadreIdForUser(db, {
     id: row.id,
     email: row.email,
     es_super_admin: esSuperAdmin,
     empresa_id: empresaId,
   });
-  let cuentaActividadNombre: string | null = null;
-  if (cuentaActividadId != null) {
-    const cuentaRow = await empresasCuenta.getEmpresaCuentaById(db, cuentaActividadId);
-    cuentaActividadNombre = cuentaRow?.nombre ?? null;
+
+  // Fase 3: todo lo que depende de cuentaActividadId → en paralelo.
+  const [cuentaRow, loginMode, empresaActiva, empresasActivasCount] = await Promise.all([
+    cuentaActividadId != null
+      ? empresasCuenta.getEmpresaCuentaById(db, cuentaActividadId)
+      : Promise.resolve(null),
+    empresasCuenta.getLoginModeForCuenta(db, cuentaActividadId),
+    empresasCuenta.getEmpresaActivaForUser(
+      db,
+      cuentaActividadId,
+      row.empresa_operativa_activa_id,
+    ),
+    // Sólo el admin de la cuenta necesita el conteo (para el gate de modo).
+    cuentaAdmin != null && cuentaActividadId != null
+      ? empresasCuenta.countEmpresasOperativasActivas(db, cuentaActividadId)
+      : Promise.resolve(0),
+  ]);
+  const cuentaActividadNombre = cuentaRow?.nombre ?? null;
+
+  // El administrador de la cuenta debe elegir el modo de inicio (una sola vez)
+  // cuando la cuenta pasa a tener 2+ empresas y todavía no lo eligió.
+  let debeElegirModoInicio = false;
+  if (cuentaAdmin != null && cuentaActividadId != null && empresasActivasCount >= 2) {
+    const modoElegido = await empresasCuenta.getLoginModeElegido(db, cuentaActividadId);
+    debeElegirModoInicio = !modoElegido;
   }
 
-  const cuentaAdmin = await empresasCuenta.getEmpresaCuentaByAdminUserId(db, row.id);
+  // Fase 4: ejercicio fiscal (depende de loginMode / empresaActiva).
+  const ejercicioFiscal =
+    loginMode === "individual" && empresaActiva
+      ? {
+          inicio_mes: empresaActiva.ejercicio_inicio_mes,
+          inicio_dia: empresaActiva.ejercicio_inicio_dia,
+        }
+      : await empresasCuenta.getEjercicioFiscalEfectivoParaCuenta(db, cuentaActividadId);
 
   return {
     id: row.id,
@@ -318,7 +360,13 @@ export async function toUserPublic(row: UserRow, db: Db): Promise<UserPublic> {
     permisos: caps.permisos,
     puede_escribir: caps.puede_escribir,
     modulos_solo_lectura: caps.modulos_solo_lectura,
-    home_paneles: await homeLayoutDb.getHomeLayoutForRole(db, row.rol),
+    home_paneles: homePaneles,
+    ejercicio_inicio_mes: ejercicioFiscal.inicio_mes,
+    ejercicio_inicio_dia: ejercicioFiscal.inicio_dia,
+    login_mode: loginMode,
+    debe_elegir_modo_inicio: debeElegirModoInicio,
+    empresa_operativa_activa_id: empresaActiva ? empresaActiva.id : null,
+    empresa_activa_nombre: empresaActiva ? empresaActiva.nombre : null,
     creado_en: pgTimestampString(row.creado_en) ?? "",
     ultimo_acceso: pgTimestampString(row.ultimo_acceso),
     avatar: avatarDtoFromRow(row.id, row),
@@ -678,6 +726,21 @@ async function migrateUserEmpresaId(db: Db): Promise<void> {
   }
 }
 
+async function migrateUserEmpresaActiva(db: Db): Promise<void> {
+  const col = await db
+    .prepare(
+      `SELECT 1 FROM information_schema.columns
+       WHERE table_schema = 'public' AND table_name = 'users' AND column_name = 'empresa_operativa_activa_id'`
+    )
+    .get();
+  if (!col) {
+    await db
+      .prepare("ALTER TABLE USERS ADD COLUMN empresa_operativa_activa_id INTEGER")
+      .run();
+    console.info("[SGG Auth] Migración: columna users.empresa_operativa_activa_id agregada");
+  }
+}
+
 async function migrateUserNumero(db: Db): Promise<void> {
   const col = await db
     .prepare(
@@ -727,6 +790,7 @@ export async function initAuthTables(db: Db): Promise<void> {
   await migrateModulosPreciosGanadoYChat(db);
   await migrateModuloDocumentosDigitales(db);
   await migrateUserEmpresaId(db);
+  await migrateUserEmpresaActiva(db);
   await migrateUserNumero(db);
   await homeLayoutDb.initHomeLayoutTable(db);
   await migratePasswordResetTokens(db);
@@ -1096,7 +1160,21 @@ async function syncPrimaryAdminCredentials(db: Db): Promise<void> {
   }
 }
 
-export async function purgeExpiredSessions(db: Db): Promise<void> {
+let ultimaPurgaSesiones = 0;
+const PURGA_SESIONES_INTERVALO_MS = 60_000;
+
+export async function purgeExpiredSessions(
+  db: Db,
+  opts?: { force?: boolean }
+): Promise<void> {
+  // Se invoca en cada resolución de sesión: sin throttling agrega un DELETE
+  // (round-trip a Postgres) por request y satura el pool chico. Basta con
+  // limpiar cada ~60s; la validación real de expiración ya la hace el SELECT.
+  const ahora = Date.now();
+  if (!opts?.force && ahora - ultimaPurgaSesiones < PURGA_SESIONES_INTERVALO_MS) {
+    return;
+  }
+  ultimaPurgaSesiones = ahora;
   await db
     .prepare(`DELETE FROM USER_SESSIONS WHERE expira_en <= NOW()`)
     .run();
@@ -1348,6 +1426,17 @@ export async function getUserById(db: Db, id: number): Promise<UserPublic | null
     | UserRow
     | undefined;
   return row ? await toUserPublic(row, db) : null;
+}
+
+/** Fija (o limpia con null) la empresa operativa activa del usuario. */
+export async function setEmpresaActiva(
+  db: Db,
+  userId: number,
+  empresaId: number | null,
+): Promise<void> {
+  await db
+    .prepare("UPDATE USERS SET empresa_operativa_activa_id = ? WHERE id = ?")
+    .run(empresaId, userId);
 }
 
 export async function insertUser(db: Db, data: UserInput): Promise<UserPublic> {

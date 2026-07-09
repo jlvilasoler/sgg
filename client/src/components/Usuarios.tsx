@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
+import { RefreshCw, Search, UserPlus } from "lucide-react";
 import {
   actualizarUsuario,
   crearUsuario,
@@ -12,7 +13,7 @@ import {
   validatePasswordStrength,
 } from "../utils/password-policy";
 
-import { PageModuleHeadRow } from "./PageModuleHead";
+import { SgHubKpi, SgMiniBars } from "./stock/SgHubUi";
 import UserAvatar from "./UserAvatar";
 
 interface Props {
@@ -22,6 +23,8 @@ interface Props {
   volverLabel?: string;
   onError: (msg: string) => void;
   onSuccess: (msg: string) => void;
+  /** Sin cabecera legacy: contenido dentro de Configuración hub. */
+  embedded?: boolean;
 }
 
 const ROLES: Rol[] = ALL_ROLES;
@@ -48,6 +51,7 @@ function RolInfoButton({ rol }: { rol: Rol }) {
         className="usuarios-rol-info-btn"
         aria-describedby={panelId}
         title={`Información sobre ${info.titulo}`}
+        onClick={(e) => e.stopPropagation()}
       >
         <IconoInfo />
         <span className="sr-only">Información sobre {info.titulo}</span>
@@ -113,6 +117,7 @@ export default function Usuarios({
   volverLabel = "Volver al menú",
   onError,
   onSuccess,
+  embedded = false,
 }: Props) {
   const [rows, setRows] = useState<AuthUser[]>([]);
   const [loading, setLoading] = useState(true);
@@ -312,112 +317,179 @@ export default function Usuarios({
         ? `${filteredRows.length} de ${rows.length} usuario(s) en pantalla`
         : `${rows.length} usuario(s) registrado${rows.length === 1 ? "" : "s"}`;
 
-  return (
-    <div className="subseccion-panel usuarios-admin">
-      <button type="button" className="subseccion-back" onClick={onVolver}>
-        ‹ {volverLabel}
-      </button>
+  const kpiPlaceholder = loading || !apiOnline ? "—" : undefined;
 
-      <div className="card usuarios-panel listado-pro-shell">
-        <header className="listado-pro-head usuarios-admin-head">
-          <div className="listado-pro-head-main">
-            <PageModuleHeadRow
-              icon={{ source: "app", id: "usuarios" }}
-              title="Administración de Usuarios"
-              subtitle={subtitulo}
-              titleClassName="listado-pro-head-title"
-              subClassName="listado-pro-head-sub"
-              textClassName="listado-pro-head-text"
+  const nuevoUsuarioBtn = (
+    <button
+      type="button"
+      className="sg-hub-cta sg-hub-cta--compact usuarios-admin-cta-new"
+      disabled={!apiOnline}
+      onClick={openCreate}
+    >
+      <UserPlus size={15} aria-hidden />
+      Nuevo usuario
+    </button>
+  );
+
+  const workspace = (
+    <div className="usuarios-admin-hub-workspace">
+      <div className="usuarios-admin-hub-toolbar">
+        <div className="usuarios-admin-hub-toolbar-copy">
+          <p className="usuarios-admin-hub-eyebrow">Equipo de la cuenta</p>
+          <p className="usuarios-admin-hub-status" role="status">
+            {subtitulo}
+          </p>
+        </div>
+        <div className="usuarios-admin-hub-toolbar-actions">
+          <button
+            type="button"
+            className="sg-hub-cta sg-hub-cta--ghost sg-hub-cta--compact"
+            disabled={!apiOnline || loading}
+            onClick={() => void load()}
+            title="Actualizar listado"
+          >
+            <RefreshCw
+              size={15}
+              className={loading ? "usuarios-admin-spin" : undefined}
+              aria-hidden
             />
+            {loading ? "Actualizando…" : "Actualizar"}
+          </button>
+          {nuevoUsuarioBtn}
+        </div>
+      </div>
+
+      <section
+        className="sg-hub-kpi-strip home-hub-kpi-strip usuarios-admin-kpi-strip"
+        aria-label="Resumen de usuarios"
+        style={{ "--home-hub-kpi-cols": "4" } as CSSProperties}
+      >
+        <SgHubKpi
+          variant="dark"
+          kicker="Total registrados"
+          value={kpiPlaceholder ?? stats.total}
+          hint="Cuentas en el sistema"
+          bars={<SgMiniBars highlight="mid" />}
+        />
+        <SgHubKpi
+          variant="dark"
+          kicker="Activos"
+          value={kpiPlaceholder ?? stats.activos}
+          hint="Pueden iniciar sesión"
+          trend={stats.total > 0 && !loading && apiOnline ? `${Math.round((stats.activos / stats.total) * 100)}% del equipo` : undefined}
+          bars={<SgMiniBars />}
+        />
+        <SgHubKpi
+          variant="light"
+          kicker="Inactivos"
+          value={kpiPlaceholder ?? stats.inactivos}
+          hint="Cuentas deshabilitadas"
+          bars={<SgMiniBars highlight="last" />}
+        />
+        <SgHubKpi
+          variant="light"
+          kicker="Activos 7 días"
+          value={kpiPlaceholder ?? stats.recientes}
+          hint="Con ingreso reciente"
+          bars={<SgMiniBars highlight="mid" />}
+        />
+      </section>
+
+      <section className="usuarios-admin-hub-box usuarios-admin-hub-box--roles" aria-label="Distribución por rol">
+        <header className="usuarios-admin-hub-box-head usuarios-admin-hub-box-head--inline">
+          <div>
+            <p className="sg-hub-panel-kicker">Composición</p>
+            <h2 className="usuarios-admin-hub-box-title">Por tipo de usuario</h2>
+            <p className="usuarios-admin-hub-box-sub muted">
+              Tocá un rol para filtrar el listado. Volvé a pulsar para quitar el filtro.
+            </p>
           </div>
-          <div className="usuarios-head-actions">
+          {filtroRol ? (
             <button
               type="button"
-              className="btn btn-primary"
-              disabled={!apiOnline}
-              onClick={openCreate}
+              className="home-hub-link usuarios-admin-rol-clear"
+              onClick={() => setFiltroRol("")}
             >
-              + Nuevo usuario
+              Quitar filtro de rol
             </button>
-          </div>
+          ) : null}
+        </header>
+        <div className="usuarios-admin-roles-grid">
+          {ROLES.map((rol) => {
+            const count = stats.porRol[rol];
+            const pct = stats.total > 0 ? Math.round((count / stats.total) * 100) : 0;
+            const isActive = filtroRol === rol;
+            return (
+              <div
+                key={rol}
+                role="button"
+                tabIndex={loading || !apiOnline ? -1 : 0}
+                className={`usuarios-admin-rol-card usuarios-admin-rol-card--${rol}${
+                  isActive ? " is-active" : ""
+                }${loading || !apiOnline ? " is-disabled" : ""}`}
+                aria-pressed={isActive}
+                onClick={() => {
+                  if (loading || !apiOnline) return;
+                  setFiltroRol(isActive ? "" : rol);
+                }}
+                onKeyDown={(e) => {
+                  if (loading || !apiOnline) return;
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setFiltroRol(isActive ? "" : rol);
+                  }
+                }}
+              >
+                <div className="usuarios-admin-rol-top">
+                  <span className="usuarios-admin-rol-label">
+                    <span className={`usuarios-rol-badge usuarios-rol-badge--${rol}`}>
+                      {ROL_LABELS_DETALLE[rol]}
+                    </span>
+                    <RolInfoButton rol={rol} />
+                  </span>
+                  <strong className="usuarios-admin-rol-count">
+                    {loading || !apiOnline ? "—" : count}
+                  </strong>
+                </div>
+                <div className="usuarios-admin-rol-bar" aria-hidden>
+                  <span
+                    className="usuarios-admin-rol-bar-fill"
+                    style={{ width: `${pct}%` }}
+                  />
+                </div>
+                <span className="usuarios-admin-rol-pct muted">{pct}% del equipo</span>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      <section
+        className="usuarios-admin-hub-box usuarios-admin-hub-box--listado"
+        aria-label="Listado de usuarios"
+      >
+        <header className="usuarios-admin-hub-box-head">
+          <p className="sg-hub-panel-kicker">Cuentas</p>
+          <h2 className="usuarios-admin-hub-box-title">Usuarios de la cuenta</h2>
+          <p className="usuarios-admin-hub-box-sub muted">
+            Altas, edición de rol y activación o desactivación de accesos.
+          </p>
         </header>
 
-        <section className="usuarios-admin-dashboard" aria-label="Resumen de usuarios">
-          <div className="usuarios-admin-kpi-grid">
-            <article className="usuarios-admin-kpi usuarios-admin-kpi--hero">
-              <span className="usuarios-admin-kpi-label">Total registrados</span>
-              <span className="usuarios-admin-kpi-valor">
-                {loading || !apiOnline ? "—" : stats.total}
-              </span>
-              <span className="usuarios-admin-kpi-hint">Cuentas en el sistema</span>
-            </article>
-            <article className="usuarios-admin-kpi usuarios-admin-kpi--activos">
-              <span className="usuarios-admin-kpi-label">Activos</span>
-              <span className="usuarios-admin-kpi-valor">
-                {loading || !apiOnline ? "—" : stats.activos}
-              </span>
-              <span className="usuarios-admin-kpi-hint">Pueden iniciar sesión</span>
-            </article>
-            <article className="usuarios-admin-kpi usuarios-admin-kpi--inactivos">
-              <span className="usuarios-admin-kpi-label">Inactivos</span>
-              <span className="usuarios-admin-kpi-valor">
-                {loading || !apiOnline ? "—" : stats.inactivos}
-              </span>
-              <span className="usuarios-admin-kpi-hint">Cuentas deshabilitadas</span>
-            </article>
-            <article className="usuarios-admin-kpi usuarios-admin-kpi--recientes">
-              <span className="usuarios-admin-kpi-label">Activos 7 días</span>
-              <span className="usuarios-admin-kpi-valor">
-                {loading || !apiOnline ? "—" : stats.recientes}
-              </span>
-              <span className="usuarios-admin-kpi-hint">Con ingreso reciente</span>
-            </article>
-          </div>
-
-          <div className="usuarios-admin-roles" aria-label="Distribución por rol">
-            <p className="usuarios-admin-roles-title">Por tipo de usuario</p>
-            <div className="usuarios-admin-roles-grid">
-              {ROLES.map((rol) => {
-                const count = stats.porRol[rol];
-                const pct = stats.total > 0 ? Math.round((count / stats.total) * 100) : 0;
-                return (
-                  <div key={rol} className={`usuarios-admin-rol-card usuarios-admin-rol-card--${rol}`}>
-                    <div className="usuarios-admin-rol-top">
-                      <span className="usuarios-admin-rol-label">
-                        <span className={`usuarios-rol-badge usuarios-rol-badge--${rol}`}>
-                          {ROL_LABELS_DETALLE[rol]}
-                        </span>
-                        <RolInfoButton rol={rol} />
-                      </span>
-                      <strong className="usuarios-admin-rol-count">
-                        {loading || !apiOnline ? "—" : count}
-                      </strong>
-                    </div>
-                    <div className="usuarios-admin-rol-bar" aria-hidden>
-                      <span
-                        className="usuarios-admin-rol-bar-fill"
-                        style={{ width: `${pct}%` }}
-                      />
-                    </div>
-                    <span className="usuarios-admin-rol-pct muted">{pct}%</span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </section>
-
-        <div className="filters listado-pro-filters usuarios-admin-filters">
+        <div className="usuarios-admin-hub-filters-box mayusculas-auto">
           <div className="field usuarios-admin-search">
             <label htmlFor="usr-filtro-texto">Buscar</label>
-            <input
-              id="usr-filtro-texto"
-              type="search"
-              placeholder="Nombre o email…"
-              value={filtroTexto}
-              disabled={loading || !apiOnline}
-              onChange={(e) => setFiltroTexto(e.target.value)}
-            />
+            <div className="usuarios-admin-search-wrap">
+              <Search size={16} className="usuarios-admin-search-icon" aria-hidden />
+              <input
+                id="usr-filtro-texto"
+                type="search"
+                placeholder="Nombre, email o ID…"
+                value={filtroTexto}
+                disabled={loading || !apiOnline}
+                onChange={(e) => setFiltroTexto(e.target.value)}
+              />
+            </div>
           </div>
           <div className="field">
             <label htmlFor="usr-filtro-rol">Rol</label>
@@ -450,18 +522,21 @@ export default function Usuarios({
               <option value="inactivo">Inactivos</option>
             </select>
           </div>
-          <button
-            type="button"
-            className="btn listado-pro-reset-btn"
-            disabled={!hayFiltros || loading}
-            onClick={limpiarFiltros}
-          >
-            Limpiar
-          </button>
+          <div className="usuarios-admin-hub-filters-actions">
+            <button
+              type="button"
+              className="sg-hub-cta sg-hub-cta--ghost sg-hub-cta--compact"
+              disabled={!hayFiltros || loading}
+              onClick={limpiarFiltros}
+            >
+              Limpiar
+            </button>
+          </div>
         </div>
 
-        <div className="table-wrap listado-pro-table-wrap usuarios-admin-table-wrap">
-          <table className="data-table listado-pro-table usuarios-admin-table">
+        <div className="usuarios-admin-table-box">
+          <div className="usuarios-admin-hub-table-wrap">
+            <table className="data-table usuarios-admin-table usuarios-admin-hub-table">
             <thead>
               <tr>
                 <th>Usuario</th>
@@ -484,9 +559,24 @@ export default function Usuarios({
                 <tr>
                   <td colSpan={7} className="usuarios-admin-empty-cell">
                     <div className="usuarios-admin-empty" role="status">
-                      {hayFiltros
-                        ? "No hay usuarios que coincidan con los filtros"
-                        : "Sin usuarios registrados"}
+                      <span className="usuarios-admin-empty-icon" aria-hidden>
+                        👥
+                      </span>
+                      <span>
+                        {hayFiltros
+                          ? "No hay usuarios que coincidan con los filtros"
+                          : "Sin usuarios registrados"}
+                      </span>
+                      {!hayFiltros && !loading && apiOnline ? (
+                        <button
+                          type="button"
+                          className="sg-hub-cta sg-hub-cta--compact usuarios-admin-empty-cta"
+                          onClick={openCreate}
+                        >
+                          <UserPlus size={15} aria-hidden />
+                          Crear primer usuario
+                        </button>
+                      ) : null}
                     </div>
                   </td>
                 </tr>
@@ -496,7 +586,7 @@ export default function Usuarios({
                   return (
                     <tr
                       key={u.id}
-                      className={`listado-pro-row usuarios-admin-row${
+                      className={`usuarios-admin-row${
                         !u.activo ? " usuarios-row--inactivo" : ""
                       }${u.id === currentUser.id ? " usuarios-admin-row--self" : ""}`}
                     >
@@ -540,23 +630,25 @@ export default function Usuarios({
                         ) : null}
                       </td>
                       <td className="actions-cell usuarios-admin-actions">
-                        <button
-                          type="button"
-                          className="btn btn-ghost btn-xs"
-                          onClick={() => openEdit(u)}
-                        >
-                          Editar
-                        </button>
-                        <button
-                          type="button"
-                          className={`btn btn-xs ${
-                            u.activo ? "btn-ghost" : "btn-primary"
-                          }`}
-                          disabled={u.id === currentUser.id && u.activo}
-                          onClick={() => void toggleActivo(u)}
-                        >
-                          {u.activo ? "Desactivar" : "Activar"}
-                        </button>
+                        <div className="usuarios-admin-row-actions">
+                          <button
+                            type="button"
+                            className="sg-hub-cta sg-hub-cta--ghost sg-hub-cta--compact"
+                            onClick={() => openEdit(u)}
+                          >
+                            Editar
+                          </button>
+                          <button
+                            type="button"
+                            className={`sg-hub-cta sg-hub-cta--compact${
+                              u.activo ? " sg-hub-cta--ghost" : ""
+                            }`}
+                            disabled={u.id === currentUser.id && u.activo}
+                            onClick={() => void toggleActivo(u)}
+                          >
+                            {u.activo ? "Desactivar" : "Activar"}
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -564,150 +656,171 @@ export default function Usuarios({
               )}
             </tbody>
           </table>
+          </div>
         </div>
-      </div>
+      </section>
+    </div>
+  );
 
-      {showForm &&
-        createPortal(
-          <div
-            className="pd-overlay usuarios-form-modal-overlay bn-ui"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="usuarios-form-modal-title"
-            onClick={() => {
-              if (!saving) closeForm();
-            }}
-          >
-            <div
-              className="pd-dialog usuarios-form-modal"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <header className="usuarios-form-modal-head">
-                <div className="usuarios-form-modal-head-main">
-                  <p className="usuarios-form-modal-kicker">Administración de usuarios</p>
-                  <h2 id="usuarios-form-modal-title" className="usuarios-form-modal-title">
-                    {creating ? "Nuevo usuario" : `Editar: ${editing?.nombre}`}
-                  </h2>
-                  <p className="usuarios-form-modal-sub">
-                    {creating
-                      ? "Complete los datos para dar de alta una cuenta en su equipo"
-                      : "Modifique rol, estado o contraseña del usuario"}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  className="usuarios-form-modal-close"
-                  disabled={saving}
-                  onClick={closeForm}
-                  aria-label="Cerrar"
-                >
-                  ×
-                </button>
-              </header>
-              <div className="usuarios-form-modal-body">
-                <div className="usuarios-form-modal-panel">
-                  <div className="usuarios-form-grid">
-                    <div className="field">
-                      <label htmlFor="usr-nombre">Nombre</label>
-                      <input
-                        id="usr-nombre"
-                        value={form.nombre}
-                        autoFocus
-                        placeholder="Nombre completo"
-                        onChange={(e) => setForm((f) => ({ ...f, nombre: e.target.value }))}
-                      />
-                    </div>
-                    <div className="field">
-                      <label htmlFor="usr-email">Email</label>
-                      <input
-                        id="usr-email"
-                        type="email"
-                        value={form.email}
-                        placeholder="usuario@empresa.com"
-                        onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-                      />
-                    </div>
-                    <div className="field">
-                      <label htmlFor="usr-rol">Rol</label>
-                      <select
-                        id="usr-rol"
-                        value={form.rol}
-                        onChange={(e) =>
-                          setForm((f) => ({ ...f, rol: e.target.value as Rol }))
-                        }
-                      >
-                        {ROLES.map((r) => (
-                          <option key={r} value={r}>
-                            {ROL_LABELS_DETALLE[r]}
-                          </option>
-                        ))}
-                      </select>
-                      <p className="usuarios-rol-hint">{ROL_DESCRIPCION[form.rol]}</p>
-                    </div>
-                    <div className="field">
-                      <label htmlFor="usr-pass">
-                        Contraseña {creating ? "" : "(opcional)"}
-                      </label>
-                      <div className="usuarios-password-wrap">
-                        <input
-                          id="usr-pass"
-                          type={showPassword ? "text" : "password"}
-                          autoComplete="new-password"
-                          data-sin-mayusculas="true"
-                          value={form.password ?? ""}
-                          onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
-                          placeholder={creating ? "Contraseña segura" : "Dejar vacío para no cambiar"}
-                        />
-                        <button
-                          type="button"
-                          className="usuarios-password-toggle"
-                          onClick={() => setShowPassword((v) => !v)}
-                          tabIndex={-1}
-                          aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
-                          title={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
-                        >
-                          <IconoOjo visible={showPassword} />
-                        </button>
-                      </div>
-                      <p className="usuarios-rol-hint">{PASSWORD_POLICY_HINT}</p>
-                    </div>
-                    {!creating && (
-                      <label className="inline-check usuarios-activo-check">
-                        <input
-                          type="checkbox"
-                          checked={form.activo !== false}
-                          onChange={(e) =>
-                            setForm((f) => ({ ...f, activo: e.target.checked }))
-                          }
-                        />
-                        Usuario activo
-                      </label>
-                    )}
-                  </div>
-                </div>
-              </div>
-              <footer className="usuarios-form-modal-footer">
-                <button
-                  type="button"
-                  className="btn btn-ghost usuarios-form-modal-cancel"
-                  disabled={saving}
-                  onClick={closeForm}
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  disabled={saving || !apiOnline}
-                  onClick={() => void save()}
-                >
-                  {saving ? "Guardando…" : "Guardar"}
-                </button>
-              </footer>
+  const formModal =
+    showForm &&
+    createPortal(
+      <div
+        className="pd-overlay usuarios-form-modal-overlay bn-ui"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="usuarios-form-modal-title"
+        onClick={() => {
+          if (!saving) closeForm();
+        }}
+      >
+        <div
+          className="pd-dialog usuarios-form-modal"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <header className="usuarios-form-modal-head">
+            <div className="usuarios-form-modal-head-main">
+              <p className="usuarios-form-modal-kicker">Administración de usuarios</p>
+              <h2 id="usuarios-form-modal-title" className="usuarios-form-modal-title">
+                {creating ? "Nuevo usuario" : `Editar: ${editing?.nombre}`}
+              </h2>
+              <p className="usuarios-form-modal-sub">
+                {creating
+                  ? "Complete los datos para dar de alta una cuenta en su equipo"
+                  : "Modifique rol, estado o contraseña del usuario"}
+              </p>
             </div>
-          </div>,
-          document.body
-        )}
+            <button
+              type="button"
+              className="usuarios-form-modal-close"
+              disabled={saving}
+              onClick={closeForm}
+              aria-label="Cerrar"
+            >
+              ×
+            </button>
+          </header>
+          <div className="usuarios-form-modal-body">
+            <div className="usuarios-form-modal-panel">
+              <div className="usuarios-form-grid">
+                <div className="field">
+                  <label htmlFor="usr-nombre">Nombre</label>
+                  <input
+                    id="usr-nombre"
+                    value={form.nombre}
+                    autoFocus
+                    placeholder="Nombre completo"
+                    onChange={(e) => setForm((f) => ({ ...f, nombre: e.target.value }))}
+                  />
+                </div>
+                <div className="field">
+                  <label htmlFor="usr-email">Email</label>
+                  <input
+                    id="usr-email"
+                    type="email"
+                    value={form.email}
+                    placeholder="usuario@empresa.com"
+                    onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+                  />
+                </div>
+                <div className="field">
+                  <label htmlFor="usr-rol">Rol</label>
+                  <select
+                    id="usr-rol"
+                    value={form.rol}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, rol: e.target.value as Rol }))
+                    }
+                  >
+                    {ROLES.map((r) => (
+                      <option key={r} value={r}>
+                        {ROL_LABELS_DETALLE[r]}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="usuarios-rol-hint">{ROL_DESCRIPCION[form.rol]}</p>
+                </div>
+                <div className="field">
+                  <label htmlFor="usr-pass">
+                    Contraseña {creating ? "" : "(opcional)"}
+                  </label>
+                  <div className="usuarios-password-wrap">
+                    <input
+                      id="usr-pass"
+                      type={showPassword ? "text" : "password"}
+                      autoComplete="new-password"
+                      data-sin-mayusculas="true"
+                      value={form.password ?? ""}
+                      onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
+                      placeholder={creating ? "Contraseña segura" : "Dejar vacío para no cambiar"}
+                    />
+                    <button
+                      type="button"
+                      className="usuarios-password-toggle"
+                      onClick={() => setShowPassword((v) => !v)}
+                      tabIndex={-1}
+                      aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                      title={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                    >
+                      <IconoOjo visible={showPassword} />
+                    </button>
+                  </div>
+                  <p className="usuarios-rol-hint">{PASSWORD_POLICY_HINT}</p>
+                </div>
+                {!creating && (
+                  <label className="inline-check usuarios-activo-check">
+                    <input
+                      type="checkbox"
+                      checked={form.activo !== false}
+                      onChange={(e) =>
+                        setForm((f) => ({ ...f, activo: e.target.checked }))
+                      }
+                    />
+                    Usuario activo
+                  </label>
+                )}
+              </div>
+            </div>
+          </div>
+          <footer className="usuarios-form-modal-footer">
+            <button
+              type="button"
+              className="sg-hub-cta sg-hub-cta--ghost usuarios-form-modal-cancel"
+              disabled={saving}
+              onClick={closeForm}
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              className="sg-hub-cta"
+              disabled={saving || !apiOnline}
+              onClick={() => void save()}
+            >
+              {saving ? "Guardando…" : "Guardar"}
+            </button>
+          </footer>
+        </div>
+      </div>,
+      document.body
+    );
+
+  if (embedded) {
+    return (
+      <div className="usuarios-admin usuarios-admin--hub">
+        {workspace}
+        {formModal}
+      </div>
+    );
+  }
+
+  return (
+    <div className="subseccion-panel usuarios-admin usuarios-admin--hub">
+      <button type="button" className="subseccion-back" onClick={onVolver}>
+        ‹ {volverLabel}
+      </button>
+      {workspace}
+      {formModal}
     </div>
   );
 }

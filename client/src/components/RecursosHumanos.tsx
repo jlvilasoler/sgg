@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 import { useHeaderBackStep } from "../header-back";
-import type { Catalogos, Funcionario } from "../types";
+import type { AuthUser, Catalogos, Funcionario } from "../types";
 import RrhhDashboard from "./rrhh/RrhhDashboard";
 import SgHubShell from "./hub/SgHubShell";
 import { MenuAppIcon } from "./icons/MenuAppIcons";
@@ -13,6 +13,7 @@ type VistaRRHH = "menu" | "funcionarios" | "funcionario-form" | "sueldos";
 
 interface Props {
   catalogos: Catalogos;
+  currentUser?: AuthUser | null;
   apiOnline: boolean;
   onError: (msg: string) => void;
   onSuccess: (msg: string) => void;
@@ -23,6 +24,7 @@ interface Props {
 
 export default function RecursosHumanos({
   catalogos,
+  currentUser,
   apiOnline,
   onError,
   onSuccess,
@@ -94,6 +96,7 @@ export default function RecursosHumanos({
         {vista === "menu" ? (
           <RrhhDashboard
             apiOnline={apiOnline}
+            currentUser={currentUser}
             onError={onError}
             onNavigate={(id) => {
               if (id === "funcionarios") {

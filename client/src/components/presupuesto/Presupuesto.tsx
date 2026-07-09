@@ -166,6 +166,7 @@ export default function Presupuesto({
           onDeleted={onDeleted}
           onError={onError}
           onSuccess={(m) => onSuccess(m)}
+          currentUser={currentUser}
         />
       ) : vista === "automatizacion" ? (
         <AutomatizacionGastos

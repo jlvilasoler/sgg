@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
+import { Building2, ChevronLeft, ChevronDown, ShieldCheck, Users } from "lucide-react";
 import {
   actualizarEmpresaCuenta,
   actualizarEmpresaOperativa,
@@ -24,6 +25,7 @@ import {
 import SelectColorEmpresaOperativa from "./SelectColorEmpresaOperativa";
 import { hexColorCaravana } from "./stock/stock-dispositivo-color";
 import UserAvatar from "./UserAvatar";
+import { SgHubKpi, SgMiniBars } from "./stock/SgHubUi";
 import {
   emptyOperativaForm,
   emptyUserForm,
@@ -46,6 +48,8 @@ interface Props {
   onError: (msg: string) => void;
   onSuccess: (msg: string) => void;
   initialPanel?: CuentaDetallePanel;
+  /** Dentro del hub SAG (sin cabecera legacy duplicada). */
+  embedded?: boolean;
 }
 
 const ROLES_EMPRESA: Rol[] = ALL_ROLES;
@@ -61,6 +65,7 @@ export default function ArquitecturaCuentaDetalle({
   onError,
   onSuccess,
   initialPanel = "none",
+  embedded = false,
 }: Props) {
   const esCuentaPropia = modo === "cuentaPropia";
   const puedeGestionarCuenta =
@@ -469,120 +474,116 @@ export default function ArquitecturaCuentaDetalle({
 
   return (
     <div
-      className={`subseccion-panel arquitectura-sistema arquitectura-cuenta-detalle${
+      className={`arq-sistema-shell arq-sistema--hub arq-cuenta-detalle--hub${
         esCuentaPropia ? " is-cuenta-propia" : ""
-      }`}
+      }${embedded ? " arq-sistema--embedded" : ""}`}
     >
-      <button type="button" className="subseccion-back" onClick={onVolver}>
-        ‹ {backLabel}
+      <button type="button" className="arq-cuenta-back" onClick={onVolver}>
+        <ChevronLeft size={16} aria-hidden />
+        {backLabel}
       </button>
 
-      <div className="card cuenta-detalle-shell">
-        <header className="cuenta-detalle-hero">
-          <div className="cuenta-detalle-hero-bg" aria-hidden="true" />
-          <div className="cuenta-detalle-hero-inner">
-            <div className="arquitectura-cuenta-detalle-identidad">
-              <span
-                className="arquitectura-sistema-empresa-avatar cuenta-detalle-avatar"
-                aria-hidden="true"
-              >
-                {iniciales(cuentaActual.nombre)}
-              </span>
-              <div className="cuenta-detalle-hero-text">
-                <p className="cuenta-detalle-eyebrow">
-                  {esCuentaPropia ? "Arquitectura del sistema" : "Administración de cuenta"}
-                </p>
-                <h2>{cuentaActual.nombre}</h2>
-                {!esCuentaPropia && (
-                  <div className="arquitectura-sistema-pills cuenta-detalle-pills">
-                    <span className="arquitectura-sistema-pill arquitectura-sistema-pill--cuenta">
-                      ID cuenta {cuentaActual.cuenta_numero}
-                    </span>
-                    <span className="arquitectura-sistema-pill arquitectura-sistema-pill--codigo">
-                      {cuentaActual.codigo}
-                    </span>
-                    {!cuentaActual.activo && (
-                      <span className="arquitectura-sistema-badge arquitectura-sistema-badge--inactiva">
-                        Inactiva
-                      </span>
-                    )}
-                  </div>
-                )}
-                {cuentaActual.admin && (
-                  <span className="arquitectura-sistema-admin-chip cuenta-detalle-admin-chip">
-                    <span className="arquitectura-sistema-admin-dot" />
-                    {cuentaActual.admin.nombre}
-                    {cuentaActual.admin.es_super_admin ? " · admin SAG" : ""}
+      <section
+        className="sg-hub-panel arq-sistema-panel arq-cuenta-panel"
+        aria-labelledby="arq-cuenta-title"
+      >
+        <header className="arq-cuenta-head">
+          <div className="arq-cuenta-head-main">
+            <span className="arq-cuenta-avatar" aria-hidden="true">
+              {iniciales(cuentaActual.nombre)}
+            </span>
+            <div className="arq-cuenta-head-copy">
+              <p className="sg-hub-panel-kicker">
+                {esCuentaPropia ? "Arquitectura del sistema" : "Administración de cuenta"}
+              </p>
+              <h2 id="arq-cuenta-title" className="sg-hub-panel-title arq-cuenta-title">
+                {cuentaActual.nombre}
+              </h2>
+              {!esCuentaPropia ? (
+                <div className="arq-cuenta-pills">
+                  <span className="arq-cuenta-pill arq-cuenta-pill--id">
+                    ID cuenta {cuentaActual.cuenta_numero}
                   </span>
-                )}
-              </div>
+                  <span className="arq-cuenta-pill arq-cuenta-pill--code">{cuentaActual.codigo}</span>
+                  {!cuentaActual.activo ? (
+                    <span className="arq-cuenta-pill arq-cuenta-pill--off">Inactiva</span>
+                  ) : (
+                    <span className="arq-cuenta-pill arq-cuenta-pill--ok">Activa</span>
+                  )}
+                </div>
+              ) : null}
+              {cuentaActual.admin ? (
+                <span className="arq-cuenta-admin-chip">
+                  <ShieldCheck size={13} aria-hidden />
+                  {cuentaActual.admin.nombre}
+                  {cuentaActual.admin.es_super_admin ? " · admin SAG" : ""}
+                </span>
+              ) : null}
             </div>
-            {(puedeEditarDatosCuenta || !esCuentaPropia) && (
-              <div className="arquitectura-cuenta-detalle-actions">
-                {puedeEditarDatosCuenta ? (
-                  <button
-                    type="button"
-                    className="btn btn-ghost btn-sm"
-                    onClick={openEditarCuentaModal}
-                  >
-                    Editar
-                  </button>
-                ) : null}
-                {!esCuentaPropia ? (
-                  <button
-                    type="button"
-                    className="btn btn-ghost btn-sm"
-                    onClick={() => void handleToggleActiva()}
-                  >
-                    {cuentaActual.activo ? "Desactivar" : "Activar"}
-                  </button>
-                ) : null}
-              </div>
-            )}
           </div>
-          <div className="cuenta-detalle-stats" aria-label="Resumen de la cuenta">
-            <article className="cuenta-detalle-stat">
-              <span className="cuenta-detalle-stat-val">{cuentaActual.cuenta_numero}</span>
-              <span className="cuenta-detalle-stat-lbl">ID cuenta</span>
-            </article>
-            <article className="cuenta-detalle-stat">
-              <span className="cuenta-detalle-stat-val">{cuentaActual.codigo}</span>
-              <span className="cuenta-detalle-stat-lbl">Código</span>
-            </article>
-            <article className="cuenta-detalle-stat cuenta-detalle-stat--empresas">
-              <span className="cuenta-detalle-stat-val">{cuentaActual.empresas_count}</span>
-              <span className="cuenta-detalle-stat-lbl">
-                Empresa{cuentaActual.empresas_count === 1 ? "" : "s"}
-              </span>
-            </article>
-            <article className="cuenta-detalle-stat cuenta-detalle-stat--usuarios">
-              <span className="cuenta-detalle-stat-val">{cuentaActual.usuarios_count}</span>
-              <span className="cuenta-detalle-stat-lbl">
-                Usuario{cuentaActual.usuarios_count === 1 ? "" : "s"}
-              </span>
-            </article>
-          </div>
+          {(puedeEditarDatosCuenta || !esCuentaPropia) && (
+            <div className="arq-cuenta-head-actions">
+              {puedeEditarDatosCuenta ? (
+                <button type="button" className="btn btn-ghost btn-sm" onClick={openEditarCuentaModal}>
+                  Editar
+                </button>
+              ) : null}
+              {!esCuentaPropia ? (
+                <button
+                  type="button"
+                  className={`btn btn-sm${cuentaActual.activo ? " btn-ghost" : " btn-primary"}`}
+                  onClick={() => void handleToggleActiva()}
+                >
+                  {cuentaActual.activo ? "Desactivar" : "Activar"}
+                </button>
+              ) : null}
+            </div>
+          )}
         </header>
 
-        <div className="arquitectura-cuenta-detalle-body">
-          <section className="cuenta-panel cuenta-panel--admin arquitectura-sistema-admin-box">
-            <div className="cuenta-panel-head">
-              <span className="cuenta-panel-icon cuenta-panel-icon--admin" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none">
-                  <circle cx="12" cy="8" r="3.25" stroke="currentColor" strokeWidth="1.65" />
-                  <path
-                    d="M6 19v-.75c0-2.2 2.69-4 6-4s6 1.8 6 4V19"
-                    stroke="currentColor"
-                    strokeWidth="1.65"
-                    strokeLinecap="round"
-                  />
-                  <path
-                    d="M16.5 6.5 18.5 5l2 1.5"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                  />
-                </svg>
+        <section
+          className="sg-hub-kpi-strip home-hub-kpi-strip arq-sistema-kpi-strip arq-cuenta-kpi-strip"
+          aria-label="Resumen de la cuenta"
+          style={{ "--home-hub-kpi-cols": "4" } as CSSProperties}
+        >
+          <SgHubKpi
+            variant="dark"
+            kicker="ID cuenta"
+            value={cuentaActual.cuenta_numero}
+            hint="Identificador numérico"
+            trend="Cuenta madre"
+            bars={<SgMiniBars highlight="mid" />}
+          />
+          <SgHubKpi
+            variant="dark"
+            kicker="Código"
+            value={cuentaActual.codigo}
+            hint="Referencia interna"
+            trend="Plataforma"
+            bars={<SgMiniBars />}
+          />
+          <SgHubKpi
+            variant="light"
+            kicker="Empresas"
+            value={String(cuentaActual.empresas_count)}
+            hint={`Operativa${cuentaActual.empresas_count === 1 ? "" : "s"} en la cuenta`}
+            bars={<SgMiniBars highlight="last" />}
+          />
+          <SgHubKpi
+            variant="light"
+            kicker="Usuarios"
+            value={String(cuentaActual.usuarios_count)}
+            hint="Con acceso a la cuenta"
+            trend="Accesos"
+            bars={<SgMiniBars />}
+          />
+        </section>
+
+        <div className="arq-cuenta-body arquitectura-cuenta-detalle-body">
+          <section className="cuenta-panel cuenta-panel--admin arquitectura-sistema-admin-box arq-cuenta-section arq-cuenta-section--admin">
+            <div className="cuenta-panel-head arq-cuenta-section-head">
+              <span className="cuenta-panel-icon cuenta-panel-icon--admin arq-cuenta-section-icon" aria-hidden="true">
+                <ShieldCheck size={20} strokeWidth={1.75} />
               </span>
               <div>
                 <h3>Administrador de la cuenta</h3>
@@ -668,26 +669,18 @@ export default function ArquitecturaCuentaDetalle({
           </section>
 
           <section
-            className={`cuenta-panel cuenta-panel--collapsible arquitectura-cuenta-seccion${
+            className={`cuenta-panel cuenta-panel--collapsible arquitectura-cuenta-seccion arq-cuenta-section${
               showEmpresasSection ? " is-expanded" : ""
             }`}
           >
             <button
               type="button"
-              className="arquitectura-cuenta-seccion-toggle cuenta-panel-toggle"
+              className="arquitectura-cuenta-seccion-toggle cuenta-panel-toggle arq-cuenta-section-toggle"
               onClick={() => setShowEmpresasSection((v) => !v)}
               aria-expanded={showEmpresasSection}
             >
-              <span className="cuenta-panel-icon cuenta-panel-icon--empresas" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none">
-                  <path
-                    d="M5 20V8.5l7-4.5 7 4.5V20M9 20v-5h6v5"
-                    stroke="currentColor"
-                    strokeWidth="1.65"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
+              <span className="cuenta-panel-icon cuenta-panel-icon--empresas arq-cuenta-section-icon" aria-hidden="true">
+                <Building2 size={20} strokeWidth={1.75} />
               </span>
               <span className="cuenta-panel-toggle-text">
                 <strong>Empresas operativas</strong>
@@ -696,8 +689,8 @@ export default function ArquitecturaCuentaDetalle({
               <span className="arquitectura-cuenta-seccion-count">
                 {cuentaActual.empresas_count}
               </span>
-              <span className="arquitectura-sistema-chevron" aria-hidden="true">
-                ›
+              <span className="arquitectura-sistema-chevron arq-cuenta-chevron" aria-hidden="true">
+                <ChevronDown size={18} />
               </span>
             </button>
             {showEmpresasSection && (
@@ -907,27 +900,18 @@ export default function ArquitecturaCuentaDetalle({
           </section>
 
           <section
-            className={`cuenta-panel cuenta-panel--collapsible arquitectura-cuenta-seccion${
+            className={`cuenta-panel cuenta-panel--collapsible arquitectura-cuenta-seccion arq-cuenta-section${
               showUsuariosSection ? " is-expanded" : ""
             }`}
           >
             <button
               type="button"
-              className="arquitectura-cuenta-seccion-toggle cuenta-panel-toggle"
+              className="arquitectura-cuenta-seccion-toggle cuenta-panel-toggle arq-cuenta-section-toggle"
               onClick={() => setShowUsuariosSection((v) => !v)}
               aria-expanded={showUsuariosSection}
             >
-              <span className="cuenta-panel-icon cuenta-panel-icon--usuarios" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none">
-                  <circle cx="9" cy="9" r="2.75" stroke="currentColor" strokeWidth="1.65" />
-                  <circle cx="16.5" cy="10" r="2.25" stroke="currentColor" strokeWidth="1.65" />
-                  <path
-                    d="M4.5 18.5c.75-2.5 2.75-4 4.5-4s3.75 1.5 4.5 4M13.5 18.5c.5-1.75 1.75-3 3.25-3"
-                    stroke="currentColor"
-                    strokeWidth="1.65"
-                    strokeLinecap="round"
-                  />
-                </svg>
+              <span className="cuenta-panel-icon cuenta-panel-icon--usuarios arq-cuenta-section-icon" aria-hidden="true">
+                <Users size={20} strokeWidth={1.75} />
               </span>
               <span className="cuenta-panel-toggle-text">
                 <strong>Usuarios de la cuenta</strong>
@@ -936,8 +920,8 @@ export default function ArquitecturaCuentaDetalle({
               <span className="arquitectura-cuenta-seccion-count">
                 {cuentaActual.usuarios_count}
               </span>
-              <span className="arquitectura-sistema-chevron" aria-hidden="true">
-                ›
+              <span className="arquitectura-sistema-chevron arq-cuenta-chevron" aria-hidden="true">
+                <ChevronDown size={18} />
               </span>
             </button>
             {showUsuariosSection && (
@@ -1253,7 +1237,7 @@ export default function ArquitecturaCuentaDetalle({
             )}
           </section>
         </div>
-      </div>
+      </section>
 
       {showEditarCuentaModal &&
         puedeEditarDatosCuenta &&

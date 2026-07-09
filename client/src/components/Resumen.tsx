@@ -13,10 +13,12 @@ import type {
 } from "../types";
 import { empresaClass, fmtNum } from "../utils";
 import {
+  ejercicioConfigFromUser,
   ejercicioDesdeHasta,
   ejercicioVigente,
   esEjercicioVigente,
   listarEjerciciosContables,
+  type EjercicioConfig,
 } from "../utils/ejercicio-contable";
 import { PageModuleHeadRow } from "./PageModuleHead";
 
@@ -138,19 +140,22 @@ function lineaSinMovimiento(linea: EstadoFinancieroUsd): boolean {
 
 type ModalidadFecha = "ejercicio" | "periodo";
 
-const EJERCICIOS_OPCIONES = listarEjerciciosContables();
-const EJERCICIO_VIGENTE = ejercicioVigente();
-
-function filtrosInicialesEjercicio() {
+function filtrosInicialesEjercicio(cfg?: EjercicioConfig) {
+  const v = ejercicioVigente(new Date(), cfg);
   return {
-    ejercicio: String(EJERCICIO_VIGENTE.anioInicio),
-    fechaDesde: EJERCICIO_VIGENTE.desde,
-    fechaHasta: EJERCICIO_VIGENTE.hasta,
+    ejercicio: String(v.anioInicio),
+    fechaDesde: v.desde,
+    fechaHasta: v.hasta,
   };
 }
 
 export default function Resumen({ catalogos, currentUser, apiOnline, onError }: Props) {
-  const iniciales = filtrosInicialesEjercicio();
+  const ejCfg = useMemo(() => ejercicioConfigFromUser(currentUser), [currentUser]);
+  const ejerciciosOpciones = useMemo(
+    () => listarEjerciciosContables({ cfg: ejCfg }),
+    [ejCfg],
+  );
+  const iniciales = filtrosInicialesEjercicio(ejCfg);
   const [ejercicio, setEjercicio] = useState(iniciales.ejercicio);
   const [fechaDesde, setFechaDesde] = useState(iniciales.fechaDesde);
   const [fechaHasta, setFechaHasta] = useState(iniciales.fechaHasta);
@@ -232,7 +237,7 @@ export default function Resumen({ catalogos, currentUser, apiOnline, onError }: 
   }, [estadoResultados, fechaDesde, fechaHasta, empresa]);
 
   const resetFiltros = () => {
-    const v = ejercicioVigente();
+    const v = ejercicioVigente(new Date(), ejCfg);
     setModalidadFecha("ejercicio");
     setEjercicio(String(v.anioInicio));
     setFechaDesde(v.desde);
@@ -243,9 +248,9 @@ export default function Resumen({ catalogos, currentUser, apiOnline, onError }: 
   const onModalidadFechaChange = (modalidad: ModalidadFecha) => {
     setModalidadFecha(modalidad);
     if (modalidad === "ejercicio") {
-      const anio = ejercicio || String(ejercicioVigente().anioInicio);
+      const anio = ejercicio || String(ejercicioVigente(new Date(), ejCfg).anioInicio);
       setEjercicio(anio);
-      const { desde, hasta } = ejercicioDesdeHasta(Number(anio));
+      const { desde, hasta } = ejercicioDesdeHasta(Number(anio), ejCfg);
       setFechaDesde(desde);
       setFechaHasta(hasta);
       return;
@@ -260,7 +265,7 @@ export default function Resumen({ catalogos, currentUser, apiOnline, onError }: 
       setFechaHasta("");
       return;
     }
-    const { desde, hasta } = ejercicioDesdeHasta(Number(value));
+    const { desde, hasta } = ejercicioDesdeHasta(Number(value), ejCfg);
     setFechaDesde(desde);
     setFechaHasta(hasta);
   };
@@ -358,7 +363,7 @@ export default function Resumen({ catalogos, currentUser, apiOnline, onError }: 
 
   const periodoFiltroLabel = useMemo(() => {
     if (modalidadFecha === "ejercicio" && ejercicio) {
-      const opt = EJERCICIOS_OPCIONES.find((e) => String(e.anioInicio) === ejercicio);
+      const opt = ejerciciosOpciones.find((e) => String(e.anioInicio) === ejercicio);
       if (opt) return opt.label;
     }
     if (fechaDesde && fechaHasta) {
@@ -465,10 +470,10 @@ export default function Resumen({ catalogos, currentUser, apiOnline, onError }: 
                   title="Período del 1 de julio al 30 de junio"
                 >
                   <option value="">Todos</option>
-                  {EJERCICIOS_OPCIONES.map((e) => (
+                  {ejerciciosOpciones.map((e) => (
                     <option key={e.anioInicio} value={String(e.anioInicio)}>
                       {e.label}
-                      {esEjercicioVigente(e.anioInicio) ? " (vigente)" : ""}
+                      {esEjercicioVigente(e.anioInicio, new Date(), ejCfg) ? " (vigente)" : ""}
                     </option>
                   ))}
                 </select>

@@ -92,6 +92,8 @@ import type {
   EmpresaCuentaForm,
   EmpresaCuentaCreateResult,
   CuentasControlPlataformaResumen,
+  RubrosMonitorCuentaDetalle,
+  RubrosMonitorSnapshot,
   EmpresaOperativa,
   EmpresaOperativaForm,
   UserForm,
@@ -125,10 +127,11 @@ import type { GastoMapeoCampos } from "./utils/gasto-campos";
 import type {
   HomeLayoutConfigurableRol,
   HomeLayoutRoleConfig,
+  MyHomeLayoutConfig,
 } from "./utils/home-layout-config";
 import { apiConnectionError } from "./utils/api-messages";
 
-export type { HomeLayoutRoleConfig };
+export type { HomeLayoutRoleConfig, MyHomeLayoutConfig };
 
 const API = "/api";
 
@@ -2801,6 +2804,151 @@ export async function clearGrupoIcono(grupo: string): Promise<void> {
   });
 }
 
+function gastosRubrosSagQuery(
+  extra: Record<string, string | number | boolean | undefined> = {}
+): string {
+  const params = new URLSearchParams({ ambito: "sag" });
+  for (const [k, v] of Object.entries(extra)) {
+    if (v === undefined || v === "") continue;
+    params.set(k, String(v));
+  }
+  return `?${params.toString()}`;
+}
+
+function sagRubrosBody(data: Record<string, unknown>): string {
+  return JSON.stringify({ ...data, ambito: "sag" });
+}
+
+export async function fetchSagSubRubros(soloActivos = false): Promise<SubRubro[]> {
+  const json = await request<{ data: SubRubro[] }>(
+    `/sub-rubros${gastosRubrosSagQuery({ solo_activos: soloActivos ? 1 : undefined })}`
+  );
+  return json.data;
+}
+
+export async function createSagSubRubro(data: SubRubroForm): Promise<SubRubro> {
+  const json = await request<{ data: SubRubro; message: string }>("/sub-rubros", {
+    method: "POST",
+    body: sagRubrosBody(data),
+  });
+  return json.data;
+}
+
+export async function updateSagSubRubro(id: number, data: SubRubroForm): Promise<SubRubro> {
+  const json = await request<{ data: SubRubro; message: string }>(
+    `/sub-rubros/${id}`,
+    { method: "PUT", body: sagRubrosBody(data) }
+  );
+  return json.data;
+}
+
+export async function deleteSagSubRubro(id: number): Promise<void> {
+  await request(`/sub-rubros/${id}${gastosRubrosSagQuery()}`, { method: "DELETE" });
+}
+
+export async function renameSagSubRubroGrupo(
+  anterior: string,
+  nuevo: string
+): Promise<{ updated: number; nombre: string }> {
+  const json = await request<{
+    data: { updated: number; nombre: string };
+    message: string;
+  }>("/sub-rubros/grupo/rename", {
+    method: "PUT",
+    body: sagRubrosBody({ anterior, nuevo }),
+  });
+  return json.data;
+}
+
+export async function deleteSagSubRubrosGrupo(
+  grupo: string
+): Promise<DeleteSubRubrosGrupoResult> {
+  const json = await request<{
+    data: DeleteSubRubrosGrupoResult;
+    message: string;
+  }>(`/sub-rubros/grupo/${encodeURIComponent(grupo)}${gastosRubrosSagQuery()}`, {
+    method: "DELETE",
+  });
+  return json.data;
+}
+
+export async function fetchSagGrupoIconos(): Promise<Record<string, GrupoIconoInfo>> {
+  const json = await request<{ data: Record<string, GrupoIconoInfo | string> }>(
+    `/grupo-iconos${gastosRubrosSagQuery()}`
+  );
+  return normalizeGrupoIconosMap(json.data ?? {});
+}
+
+export async function uploadSagGrupoIcono(
+  grupo: string,
+  file: File
+): Promise<GrupoIconoInfo> {
+  const fd = new FormData();
+  fd.append("imagen", file);
+  fd.append("ambito", "sag");
+  let res: Response;
+  try {
+    res = await fetch(`${API}/grupo-iconos/${encodeURIComponent(grupo)}/imagen`, {
+      ...FETCH_INIT,
+      method: "POST",
+      body: fd,
+    });
+  } catch {
+    throw new Error(apiConnectionError());
+  }
+  const json = (await res.json()) as {
+    ok?: boolean;
+    error?: string;
+    data?: { icono: GrupoIconoInfo };
+  };
+  if (!json.ok || !json.data?.icono) {
+    throw new Error(json.error || `Error al subir imagen (${res.status})`);
+  }
+  return json.data.icono;
+}
+
+export async function setSagGrupoIconoEmoji(
+  grupo: string,
+  emoji: string
+): Promise<GrupoIconoInfo> {
+  const json = await request<{ data: { icono: GrupoIconoInfo } }>(
+    `/grupo-iconos/${encodeURIComponent(grupo)}/emoji`,
+    { method: "PUT", body: sagRubrosBody({ emoji }) }
+  );
+  return json.data.icono;
+}
+
+export async function clearSagGrupoIcono(grupo: string): Promise<void> {
+  await request(`/grupo-iconos/${encodeURIComponent(grupo)}/imagen${gastosRubrosSagQuery()}`, {
+    method: "DELETE",
+  });
+}
+
+export async function createSagSubRubroItem(
+  subRubroId: number,
+  nombre: string
+): Promise<SubRubroItem> {
+  const json = await request<{ data: SubRubroItem; message: string }>(
+    `/sub-rubros/${subRubroId}/items`,
+    { method: "POST", body: sagRubrosBody({ nombre, activo: true }) }
+  );
+  return json.data;
+}
+
+export async function fetchGastosRubrosMonitorSnapshot(): Promise<RubrosMonitorSnapshot> {
+  const json = await request<{ data: RubrosMonitorSnapshot }>("/gastos-rubros/monitor");
+  return json.data;
+}
+
+export async function fetchGastosRubrosMonitorCuenta(
+  cuentaId: number
+): Promise<RubrosMonitorCuentaDetalle> {
+  const json = await request<{ data: RubrosMonitorCuentaDetalle }>(
+    `/gastos-rubros/monitor/${cuentaId}`
+  );
+  return json.data;
+}
+
 export function resolveGrupoIcono(
   map: Record<string, GrupoIconoInfo>,
   grupo: string
@@ -4199,6 +4347,70 @@ export async function actualizarHomeLayoutRol(
     method: "PATCH",
     body: JSON.stringify({ paneles }),
   });
+  return json.data;
+}
+
+export async function actualizarMiEjercicioFiscal(
+  inicio_mes: number,
+  inicio_dia: number,
+): Promise<AuthUser> {
+  const json = await request<{ data: AuthUser }>("/auth/mi-ejercicio", {
+    method: "PATCH",
+    body: JSON.stringify({ inicio_mes, inicio_dia }),
+  });
+  return json.data;
+}
+
+export async function actualizarMiModoInicio(
+  login_mode: "consolidado" | "individual",
+): Promise<AuthUser> {
+  const json = await request<{ data: AuthUser }>("/auth/mi-modo-inicio", {
+    method: "PATCH",
+    body: JSON.stringify({ login_mode }),
+  });
+  return json.data;
+}
+
+export async function actualizarMiEjercicioEmpresa(
+  empresa_id: number | null,
+): Promise<AuthUser> {
+  const json = await request<{ data: AuthUser }>("/auth/mi-ejercicio-empresa", {
+    method: "PATCH",
+    body: JSON.stringify({ empresa_id }),
+  });
+  return json.data;
+}
+
+export async function fetchMisEmpresas(): Promise<EmpresaOperativa[]> {
+  const json = await request<{ data: EmpresaOperativa[] }>("/auth/mis-empresas");
+  return json.data;
+}
+
+export async function seleccionarEmpresaActiva(
+  empresa_id: number | null,
+): Promise<AuthUser> {
+  const json = await request<{ data: AuthUser }>("/auth/empresa-activa", {
+    method: "POST",
+    body: JSON.stringify({ empresa_id }),
+  });
+  return json.data;
+}
+
+export async function fetchMiHomeLayout(): Promise<MyHomeLayoutConfig> {
+  const json = await request<{ data: MyHomeLayoutConfig }>("/auth/my-home-layout");
+  return json.data;
+}
+
+export async function actualizarMiHomeLayout(
+  paneles: Record<string, boolean>,
+): Promise<{ config: MyHomeLayoutConfig; user: AuthUser }> {
+  const json = await request<{ data: { config: MyHomeLayoutConfig; user: AuthUser } }>(
+    "/auth/my-home-layout",
+    {
+      method: "PATCH",
+      body: JSON.stringify({ paneles }),
+    },
+  );
   return json.data;
 }
 

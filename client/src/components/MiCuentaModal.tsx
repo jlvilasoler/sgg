@@ -12,6 +12,8 @@ import { HubMenuIcon } from "./icons/HubMenuIcons";
 import UserAvatar from "./UserAvatar";
 import PasswordVisibilityToggle from "./PasswordVisibilityToggle";
 import MiCuentaChatSolicitudes from "./chat/MiCuentaChatSolicitudes";
+import MiCuentaInicioLayout from "./mi-cuenta/MiCuentaInicioLayout";
+import MiCuentaEmpresas from "./mi-cuenta/MiCuentaEmpresas";
 import { useChatExternalRequestsOptional } from "../context/ChatExternalRequestsContext";
 import {
   MI_CUENTA_HUB_ITEMS,
@@ -187,6 +189,7 @@ export default function MiCuentaPanel({
             }`}
           >
             {vista === "perfil" ? (
+              <>
               <section className="sg-hub-panel mi-cuenta-panel" aria-label="Perfil">
                 <div className="mi-cuenta-perfil">
                   <div className="mi-cuenta-perfil-avatar-col">
@@ -260,6 +263,23 @@ export default function MiCuentaPanel({
                   </div>
                 </div>
               </section>
+
+              <MiCuentaEmpresas
+                user={user}
+                apiOnline={apiOnline}
+                onUserUpdated={onUserUpdated}
+                onError={onError}
+              />
+              </>
+            ) : null}
+
+            {vista === "inicio" ? (
+              <MiCuentaInicioLayout
+                user={user}
+                apiOnline={apiOnline}
+                onUserUpdated={onUserUpdated}
+                onError={onError}
+              />
             ) : null}
 
             {vista === "chat" ? (

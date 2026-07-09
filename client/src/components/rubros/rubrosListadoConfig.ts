@@ -29,6 +29,17 @@ import {
   setVentaGrupoIconoEmoji,
   updateVentaSubRubro,
   uploadVentaGrupoIcono,
+  fetchSagSubRubros,
+  createSagSubRubro,
+  updateSagSubRubro,
+  deleteSagSubRubro,
+  renameSagSubRubroGrupo,
+  deleteSagSubRubrosGrupo,
+  fetchSagGrupoIconos,
+  uploadSagGrupoIcono,
+  setSagGrupoIconoEmoji,
+  clearSagGrupoIcono,
+  createSagSubRubroItem,
 } from "../../api";
 
 export interface RubrosListadoCopy {
@@ -116,4 +127,31 @@ export const VENTAS_RUBROS_API: RubrosListadoApi = {
   resolveGrupoIcono: resolveVentaGrupoIcono,
   createSubRubroItem: createVentaSubRubroItem,
   deleteSubRubroItem: deleteVentaSubRubroItem,
+};
+
+export const SAG_GASTOS_RUBROS_COPY: RubrosListadoCopy = {
+  title: "Rubros y sub-rubros SAG",
+  subtitleLoading: "Cargando catálogo global…",
+  subtitleLoaded: (filtrados, grupos) =>
+    `${filtrados} sub-rubro(s) en ${grupos} grupo(s). Catálogo base SAG (compartido) y rubros propios de cada cuenta.`,
+  deleteSubRubroMessage:
+    "¿Eliminar este sub-rubro del catálogo? Solo es posible si no tiene gastos asociados.",
+  deleteGrupoBlockedSuffix: "tienen gastos",
+};
+
+export const SAG_GASTOS_RUBROS_API: RubrosListadoApi = {
+  fetchSubRubros: fetchSagSubRubros,
+  createSubRubro: createSagSubRubro,
+  updateSubRubro: updateSagSubRubro,
+  deleteSubRubro: deleteSagSubRubro,
+  renameSubRubroGrupo: renameSagSubRubroGrupo,
+  deleteSubRubrosGrupo: deleteSagSubRubrosGrupo,
+  fetchGrupoIconos: fetchSagGrupoIconos,
+  fetchSubRubroItemsBatch,
+  uploadGrupoIcono: uploadSagGrupoIcono,
+  setGrupoIconoEmoji: setSagGrupoIconoEmoji,
+  clearGrupoIcono: clearSagGrupoIcono,
+  resolveGrupoIcono,
+  createSubRubroItem: createSagSubRubroItem,
+  deleteSubRubroItem,
 };

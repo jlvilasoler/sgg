@@ -9,7 +9,7 @@ import multer from "multer";
 import path from "path";
 import { fileURLToPath } from "url";
 import * as db from "./database.js";
-import { closePool, dbCapacityHint, isDbCapacityError } from "./db/pg-client.js";
+import { closePool, dbCapacityHint, isDbCapacityError, warmupPool } from "./db/pg-client.js";
 import {
   apiRateLimiter,
   authMiddleware,
@@ -54,6 +54,12 @@ import { parseTipoBaja, tipoBajaDesdeEstadoImport, type TipoBaja } from "./stock
 import { auditBajasDispositivos, auditStockMovimiento, historialAutorFromRequest, historialAutorLabelFromRequest } from "./stock-audit.js";
 import { type Empresa, type Presupuesto, type PresupuestoInput } from "./types.js";
 import { empresasCuenta } from "./database.js";
+import {
+  assertGastosRubroRowWritable,
+  gastosRubrosReadScopeFromRequest,
+  gastosRubrosWriteCuentaId,
+  type GastosRubrosReadScope,
+} from "./gastos-rubros-scope.js";
 import type { UserPublic } from "./auth-db.js";
 import * as authDb from "./auth-db.js";
 import {
@@ -175,6 +181,9 @@ function beginDbInit(): Promise<void> {
         dbInitOk = true;
         lastDbInitError = null;
         console.info("[SGG] Base de datos lista");
+        // Pre-calentar conexiones para que la primera ráfaga del dashboard no
+        // pague la creación de todas las conexiones SSL a la vez.
+        void warmupPool();
       })
       .catch((err) => {
         dbInitOk = false;
@@ -388,7 +397,8 @@ async function parseBody(req: Request): Promise<PresupuestoInput> {
   const responsable_gasto = String(body.responsable_gasto ?? "").trim();
   let funcionario_cedula = String(body.funcionario_cedula ?? "").trim();
   if (!rubro) throw new Error("El rubro es obligatorio.");
-  if (!await db.rubros.gastoValido(rubro)) {
+  const rubrosReadScope = gastosRubrosReadScopeForUser(user!);
+  if (!await db.rubros.gastoValido(rubro, rubrosReadScope)) {
     throw new Error(
       "El rubro debe existir en Configuración → Rubros (grupo con sub-rubros activos)."
     );
@@ -400,12 +410,12 @@ async function parseBody(req: Request): Promise<PresupuestoInput> {
       .endsWith("-COM") ||
     sub_rubro.toLowerCase().startsWith("comisiones bancarias");
   if (sub_rubro && !esComisionBancaria) {
-    if (!await db.subRubros.existsActivo(sub_rubro)) {
+    if (!await db.subRubros.existsActivo(sub_rubro, rubrosReadScope)) {
       throw new Error(
         "El sub-rubro debe existir en el catálogo SUB_RUBROS y estar activo."
       );
     }
-    if (!await db.rubroVinculos.isValidPair(rubro, sub_rubro)) {
+    if (!await db.rubroVinculos.isValidPair(rubro, sub_rubro, rubrosReadScope)) {
       throw new Error(
         "El sub-rubro no está vinculado a este rubro. Configuralo en Rubros → Configuración vínculos."
       );
@@ -585,6 +595,40 @@ function requireVentaRubrosManage(req: Request, res: Response): boolean {
 /** Cuenta efectiva para altas/ediciones del catálogo de ventas. */
 async function ventaRubrosCuentaWriteScope(user: UserPublic): Promise<number | null> {
   return (await cuentaIdForUser(user)) ?? (await cuentaIdParaInsert(user));
+}
+
+function gastosRubrosSagMode(req: Request): boolean {
+  const raw = req.query.ambito ?? (req.body as Record<string, unknown> | undefined)?.ambito;
+  return (
+    req.user?.es_super_admin === true &&
+    String(raw ?? "")
+      .trim()
+      .toLowerCase() === "sag"
+  );
+}
+
+function gastosRubrosReadScopeOr403(
+  req: Request,
+  res: Response
+): GastosRubrosReadScope | null {
+  const user = req.user!;
+  const scope = gastosRubrosReadScopeFromRequest(
+    user,
+    req.query as Record<string, unknown>
+  );
+  if (scope.mode === "cuenta" && scope.cuentaId == null && !user.es_super_admin) {
+    res.status(403).json({ ok: false, error: "Sin cuenta operativa asignada" });
+    return null;
+  }
+  return scope;
+}
+
+function gastosRubrosReadScopeForUser(user: UserPublic): GastosRubrosReadScope {
+  const cuentaId = user.cuenta_actividad_id ?? user.empresa_id ?? null;
+  return {
+    mode: "cuenta",
+    cuentaId: cuentaId != null && cuentaId > 0 ? cuentaId : null,
+  };
 }
 
 /** Etiquetas creado_por de todos los usuarios de la cuenta (para marcas más usadas). */
@@ -1004,12 +1048,20 @@ app.get("/api/notas", async (req, res) => {
     res.status(401).json({ ok: false, error: "No autenticado" });
     return;
   }
-  const cuentaId = await cuentaIdParaInsert(req.user);
-  const limitRaw = Number(req.query.limit);
-  const limit =
-    Number.isFinite(limitRaw) && limitRaw > 0 ? Math.min(Math.floor(limitRaw), 50) : undefined;
-  const data = await notasDb.listNotasVisibles(db.getDb(), req.user.id, cuentaId, limit);
-  res.json({ ok: true, data });
+  try {
+    const cuentaId = await cuentaIdParaInsert(req.user);
+    const limitRaw = Number(req.query.limit);
+    const limit =
+      Number.isFinite(limitRaw) && limitRaw > 0 ? Math.min(Math.floor(limitRaw), 50) : undefined;
+    const data = await notasDb.listNotasVisibles(db.getDb(), req.user.id, cuentaId, limit);
+    res.json({ ok: true, data });
+  } catch (e) {
+    console.error("[SGG] /api/notas:", e);
+    res.status(500).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al listar notas",
+    });
+  }
 });
 
 app.post("/api/notas", async (req, res) => {
@@ -2131,6 +2183,7 @@ app.put("/api/venta-sub-rubros/grupo/rename", async (req, res) => {
 
 app.delete("/api/venta-sub-rubros/grupo/:grupo", async (req, res) => {
   if (!requireVentaRubrosManage(req, res)) return;
+  if (!denyUnlessSuperAdminRubrosDelete(req, res)) return;
   try {
     const grupo = decodeURIComponent(req.params.grupo);
     const cuentaId = await ventaRubrosCuentaWriteScope(req.user!);
@@ -2148,6 +2201,7 @@ app.delete("/api/venta-sub-rubros/grupo/:grupo", async (req, res) => {
 
 app.delete("/api/venta-sub-rubros/:id", async (req, res) => {
   if (!requireVentaRubrosManage(req, res)) return;
+  if (!denyUnlessSuperAdminRubrosDelete(req, res)) return;
   try {
     const id = Number(req.params.id);
     const cuentaId = await ventaRubrosCuentaWriteScope(req.user!);
@@ -2307,6 +2361,7 @@ app.put("/api/venta-sub-rubro-items/:id", async (req, res) => {
 
 app.delete("/api/venta-sub-rubro-items/:id", async (req, res) => {
   if (!requireVentaRubrosManage(req, res)) return;
+  if (!denyUnlessCuentaAdminOrSuperAdminItemsDelete(req, res)) return;
   const id = Number(req.params.id);
   const cuentaId = await cuentaIdForUser(req.user!);
   if (!await db.ventaSubRubroItems.delete(id, cuentaId)) {
@@ -5400,8 +5455,12 @@ app.patch("/api/proveedores/id/:id/clasificacion", async (req, res) => {
     if (hasRubroPayload) {
       const rubro = String(body.rubro ?? "").trim();
       const sub_rubro = String(body.sub_rubro ?? "").trim();
+      const rubrosReadScope: GastosRubrosReadScope = {
+        mode: "cuenta",
+        cuentaId,
+      };
 
-      if (rubro && !await db.rubros.gastoValido(rubro)) {
+      if (rubro && !await db.rubros.gastoValido(rubro, rubrosReadScope)) {
         res.status(400).json({
           ok: false,
           error: "El rubro debe existir en Configuración → Rubros (grupo con sub-rubros activos).",
@@ -5413,14 +5472,14 @@ app.patch("/api/proveedores/id/:id/clasificacion", async (req, res) => {
           res.status(400).json({ ok: false, error: "Elegí un rubro antes del sub-rubro." });
           return;
         }
-        if (!await db.subRubros.existsActivo(sub_rubro)) {
+        if (!await db.subRubros.existsActivo(sub_rubro, rubrosReadScope)) {
           res.status(400).json({
             ok: false,
             error: "El sub-rubro debe existir en el catálogo SUB_RUBROS y estar activo.",
           });
           return;
         }
-        if (!await db.rubroVinculos.isValidPair(rubro, sub_rubro)) {
+        if (!await db.rubroVinculos.isValidPair(rubro, sub_rubro, rubrosReadScope)) {
           res.status(400).json({
             ok: false,
             error:
@@ -5852,14 +5911,22 @@ function parseRubroBody(req: Request) {
 }
 
 app.get("/api/rubros", async (req, res) => {
+  const scope = gastosRubrosReadScopeOr403(req, res);
+  if (!scope) return;
   const soloActivos = req.query.solo_activos === "1";
-  res.json({ ok: true, data: await db.rubros.list(soloActivos) });
+  res.json({ ok: true, data: await db.rubros.list(soloActivos, scope) });
 });
 
 app.post("/api/rubros", async (req, res) => {
+  if (!denyUnlessManageRubrosCatalogo(req, res)) return;
   try {
+    const cuentaId = gastosRubrosWriteCuentaId(req.user!, req.body as Record<string, unknown>);
+    if (!req.user!.es_super_admin && cuentaId == null) {
+      res.status(403).json({ ok: false, error: "Sin cuenta operativa asignada" });
+      return;
+    }
     const payload = parseRubroBody(req);
-    const id = await db.rubros.insert(payload);
+    const id = await db.rubros.insert(payload, cuentaId);
     res.status(201).json({
       ok: true,
       data: await db.rubros.getById(id),
@@ -5871,10 +5938,23 @@ app.post("/api/rubros", async (req, res) => {
 });
 
 app.put("/api/rubros/:id", async (req, res) => {
+  if (!denyUnlessManageRubrosCatalogo(req, res)) return;
   try {
     const id = Number(req.params.id);
+    const prev = await db.rubros.getById(id);
+    if (!prev) {
+      res.status(404).json({ ok: false, error: "Rubro no encontrado" });
+      return;
+    }
+    assertGastosRubroRowWritable(
+      prev,
+      req.user!,
+      gastosRubrosWriteCuentaId(req.user!, req.body as Record<string, unknown>),
+      gastosRubrosSagMode(req)
+    );
     const payload = parseRubroBody(req);
-    if (!await db.rubros.update(id, payload)) {
+    const cuentaId = prev.cuenta_id ?? gastosRubrosWriteCuentaId(req.user!, req.body as Record<string, unknown>);
+    if (!await db.rubros.update(id, payload, cuentaId)) {
       res.status(404).json({ ok: false, error: "Rubro no encontrado" });
       return;
     }
@@ -5888,7 +5968,71 @@ app.put("/api/rubros/:id", async (req, res) => {
   }
 });
 
+function denyUnlessSuperAdminRubrosDelete(req: Request, res: Response): boolean {
+  if (!req.user?.es_super_admin) {
+    res.status(403).json({
+      ok: false,
+      error: "Solo el superadministrador puede eliminar rubros del catálogo",
+    });
+    return false;
+  }
+  return true;
+}
+
+function denyUnlessManageRubrosCatalogo(req: Request, res: Response): boolean {
+  if (!req.user) {
+    res.status(401).json({ ok: false, error: "No autenticado" });
+    return false;
+  }
+  if (!req.user.es_super_admin && !req.user.es_admin_cuenta) {
+    res.status(403).json({
+      ok: false,
+      error:
+        "Solo el administrador de la cuenta o el superadministrador puede modificar el catálogo de rubros",
+    });
+    return false;
+  }
+  return true;
+}
+
+function denyUnlessCreateRubrosFromGasto(req: Request, res: Response): boolean {
+  const user = req.user;
+  if (!user) {
+    res.status(401).json({ ok: false, error: "No autenticado" });
+    return false;
+  }
+  if (!user.puede_escribir || user.modulos_solo_lectura.includes("presupuesto")) {
+    res.status(403).json({
+      ok: false,
+      error:
+        "No tenés permiso para crear sub-rubros o ítems al ingresar gastos",
+    });
+    return false;
+  }
+  return true;
+}
+
+function denyUnlessCuentaAdminOrSuperAdminItemsDelete(
+  req: Request,
+  res: Response
+): boolean {
+  if (!req.user) {
+    res.status(401).json({ ok: false, error: "No autenticado" });
+    return false;
+  }
+  if (!req.user.es_super_admin && !req.user.es_admin_cuenta) {
+    res.status(403).json({
+      ok: false,
+      error:
+        "Solo el administrador de la cuenta o el superadministrador puede eliminar ítems del catálogo",
+    });
+    return false;
+  }
+  return true;
+}
+
 app.delete("/api/rubros/:id", async (req, res) => {
+  if (!denyUnlessSuperAdminRubrosDelete(req, res)) return;
   try {
     const id = Number(req.params.id);
     if (!await db.rubros.delete(id)) {
@@ -5910,18 +6054,28 @@ function parseSubRubroBody(req: Request) {
 }
 
 app.get("/api/sub-rubros", async (req, res) => {
+  const scope = gastosRubrosReadScopeOr403(req, res);
+  if (!scope) return;
   const soloActivos = req.query.solo_activos === "1";
-  res.json({ ok: true, data: await db.subRubros.list(soloActivos) });
+  res.json({ ok: true, data: await db.subRubros.list(soloActivos, scope) });
 });
 
-app.get("/api/sub-rubros/grupos", async (_req, res) => {
-  res.json({ ok: true, data: await db.subRubros.listGrupos() });
+app.get("/api/sub-rubros/grupos", async (req, res) => {
+  const scope = gastosRubrosReadScopeOr403(req, res);
+  if (!scope) return;
+  res.json({ ok: true, data: await db.subRubros.listGrupos(scope) });
 });
 
 app.post("/api/sub-rubros", async (req, res) => {
+  if (!denyUnlessManageRubrosCatalogo(req, res)) return;
   try {
+    const cuentaId = gastosRubrosWriteCuentaId(req.user!, req.body as Record<string, unknown>);
+    if (!req.user!.es_super_admin && cuentaId == null) {
+      res.status(403).json({ ok: false, error: "Sin cuenta operativa asignada" });
+      return;
+    }
     const payload = parseSubRubroBody(req);
-    const id = await db.subRubros.insert(payload);
+    const id = await db.subRubros.insert(payload, cuentaId);
     await db.rubroVinculos.syncPorGrupo(id, payload.grupo);
     res.status(201).json({
       ok: true,
@@ -5934,6 +6088,7 @@ app.post("/api/sub-rubros", async (req, res) => {
 });
 
 app.post("/api/sub-rubros/desde-rubro", async (req, res) => {
+  if (!denyUnlessCreateRubrosFromGasto(req, res)) return;
   try {
     const body = req.body as Record<string, unknown>;
     const rubro = String(body.rubro ?? "").trim();
@@ -5945,7 +6100,12 @@ app.post("/api/sub-rubros/desde-rubro", async (req, res) => {
       return;
     }
     const grupo = await db.rubroVinculos.resolveGrupoParaRubro(rubro);
-    const id = await db.subRubros.insert({ nombre, grupo, activo });
+    const cuentaId = gastosRubrosWriteCuentaId(req.user!, req.body as Record<string, unknown>);
+    if (cuentaId == null) {
+      res.status(403).json({ ok: false, error: "Sin cuenta operativa asignada" });
+      return;
+    }
+    const id = await db.subRubros.insert({ nombre, grupo, activo }, cuentaId);
     await db.rubroVinculos.syncPorGrupo(id, grupo);
     res.status(201).json({
       ok: true,
@@ -5958,16 +6118,25 @@ app.post("/api/sub-rubros/desde-rubro", async (req, res) => {
 });
 
 app.put("/api/sub-rubros/:id", async (req, res) => {
+  if (!denyUnlessManageRubrosCatalogo(req, res)) return;
   try {
     const id = Number(req.params.id);
     const prev = await db.subRubros.getById(id);
-    const payload = parseSubRubroBody(req);
-    if (!await db.subRubros.update(id, payload)) {
+    if (!prev) {
       res.status(404).json({ ok: false, error: "Sub-rubro no encontrado" });
       return;
     }
-    if (prev && prev.grupo !== payload.grupo) {
-      await db.grupoIconos.renameGrupo(prev.grupo, payload.grupo);
+    const writeCuentaId = gastosRubrosWriteCuentaId(req.user!, req.body as Record<string, unknown>);
+    const sagMode = gastosRubrosSagMode(req);
+    assertGastosRubroRowWritable(prev, req.user!, writeCuentaId, sagMode);
+    const payload = parseSubRubroBody(req);
+    const cuentaId = prev.cuenta_id ?? writeCuentaId;
+    if (!await db.subRubros.update(id, payload, cuentaId)) {
+      res.status(404).json({ ok: false, error: "Sub-rubro no encontrado" });
+      return;
+    }
+    if (prev.grupo !== payload.grupo) {
+      await db.grupoIconos.renameGrupo(prev.grupo, payload.grupo, cuentaId);
     }
     await db.rubroVinculos.syncPorGrupo(id, payload.grupo);
     res.json({
@@ -5981,16 +6150,24 @@ app.put("/api/sub-rubros/:id", async (req, res) => {
 });
 
 app.put("/api/sub-rubros/grupo/rename", async (req, res) => {
+  if (!denyUnlessManageRubrosCatalogo(req, res)) return;
   try {
     const anterior = String(req.body?.anterior ?? "").trim();
     const nuevo = String(req.body?.nuevo ?? "").trim();
-    const updated = await db.subRubros.renameGrupo(anterior, nuevo);
+    const writeCuentaId = gastosRubrosWriteCuentaId(req.user!, req.body as Record<string, unknown>);
+    const sagMode = gastosRubrosSagMode(req);
+    const cuentaId = sagMode ? writeCuentaId : writeCuentaId;
+    const updated = await db.subRubros.renameGrupo(anterior, nuevo, cuentaId, sagMode);
     const nombreCanon = normalizarTituloRubro(nuevo);
-    await db.grupoIconos.renameGrupo(anterior, nombreCanon);
-    const subs = (await db.subRubros.list(false)).filter(
-        (s) =>
-          s.grupo.localeCompare(nombreCanon, "es", { sensitivity: "accent" }) === 0
-      );
+    await db.grupoIconos.renameGrupo(anterior, nombreCanon, cuentaId);
+    const scope = gastosRubrosReadScopeFromRequest(req.user!, {
+      ambito: sagMode ? "sag" : undefined,
+      cuenta_id: cuentaId ?? undefined,
+    });
+    const subs = (await db.subRubros.list(false, scope)).filter(
+      (s) =>
+        s.grupo.localeCompare(nombreCanon, "es", { sensitivity: "accent" }) === 0
+    );
     for (const s of subs) {
       await db.rubroVinculos.syncPorGrupo(s.id, s.grupo);
     }
@@ -6007,11 +6184,54 @@ app.put("/api/sub-rubros/grupo/rename", async (req, res) => {
   }
 });
 
+app.get("/api/gastos-rubros/monitor", async (req, res) => {
+  if (!req.user?.es_super_admin) {
+    res.status(403).json({
+      ok: false,
+      error: "Solo el superadministrador puede consultar el monitor de rubros",
+    });
+    return;
+  }
+  try {
+    res.json({ ok: true, data: await db.rubrosMonitor.snapshot() });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: (e as Error).message });
+  }
+});
+
+app.get("/api/gastos-rubros/monitor/:cuentaId", async (req, res) => {
+  if (!req.user?.es_super_admin) {
+    res.status(403).json({
+      ok: false,
+      error: "Solo el superadministrador puede consultar el monitor de rubros",
+    });
+    return;
+  }
+  try {
+    const cuentaId = Number(req.params.cuentaId);
+    if (!Number.isFinite(cuentaId) || cuentaId <= 0) {
+      res.status(400).json({ ok: false, error: "Cuenta inválida" });
+      return;
+    }
+    const data = await db.rubrosMonitor.cuenta(cuentaId);
+    if (!data) {
+      res.status(404).json({ ok: false, error: "Cuenta no encontrada" });
+      return;
+    }
+    res.json({ ok: true, data });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: (e as Error).message });
+  }
+});
+
 app.delete("/api/sub-rubros/grupo/:grupo", async (req, res) => {
+  if (!denyUnlessSuperAdminRubrosDelete(req, res)) return;
   try {
     const grupo = decodeURIComponent(req.params.grupo);
-    const result = await db.subRubros.deleteByGrupo(grupo);
-    await db.grupoIconos.deleteByGrupo(grupo);
+    const sagMode = gastosRubrosSagMode(req);
+    const cuentaId = gastosRubrosWriteCuentaId(req.user!, req.query as Record<string, unknown>);
+    const result = await db.subRubros.deleteByGrupo(grupo, cuentaId, sagMode);
+    await db.grupoIconos.deleteByGrupo(grupo, cuentaId);
     const msg =
       result.deleted > 0
         ? `Rubro eliminado (${result.deleted} sub-rubro(s))`
@@ -6023,9 +6243,12 @@ app.delete("/api/sub-rubros/grupo/:grupo", async (req, res) => {
 });
 
 app.delete("/api/sub-rubros/:id", async (req, res) => {
+  if (!denyUnlessSuperAdminRubrosDelete(req, res)) return;
   try {
     const id = Number(req.params.id);
-    if (!await db.subRubros.delete(id)) {
+    const sagMode = gastosRubrosSagMode(req);
+    const cuentaId = gastosRubrosWriteCuentaId(req.user!, req.query as Record<string, unknown>);
+    if (!await db.subRubros.delete(id, cuentaId, sagMode)) {
       res.status(404).json({ ok: false, error: "Sub-rubro no encontrado" });
       return;
     }
@@ -6054,20 +6277,29 @@ app.get("/api/sub-rubros/items-batch", async (req, res) => {
 });
 
 app.get("/api/sub-rubros/items", async (req, res) => {
+  const scope = gastosRubrosReadScopeOr403(req, res);
+  if (!scope) return;
   const nombre = String(req.query.sub_rubro ?? "").trim();
   if (!nombre) {
     res.status(400).json({ ok: false, error: "Falta el sub-rubro." });
     return;
   }
+  const sub = await db.subRubros.getByNombre(nombre, scope);
+  if (!sub) {
+    res.status(404).json({ ok: false, error: "Sub-rubro no encontrado" });
+    return;
+  }
   const soloActivos = req.query.solo_activos !== "0";
   res.json({
     ok: true,
-    data: await db.subRubroItems.listBySubRubroNombre(nombre, soloActivos),
+    data: await db.subRubroItems.listBySubRubroId(sub.id, soloActivos),
   });
 });
 
 app.post("/api/sub-rubros/items", async (req, res) => {
+  if (!denyUnlessCreateRubrosFromGasto(req, res)) return;
   try {
+    const scope = gastosRubrosReadScopeForUser(req.user!);
     const subRubroNombre = String(
       (req.body as { sub_rubro?: string }).sub_rubro ?? ""
     ).trim();
@@ -6076,13 +6308,13 @@ app.post("/api/sub-rubros/items", async (req, res) => {
       res.status(400).json({ ok: false, error: "Falta el sub-rubro." });
       return;
     }
-    const sub = await db.subRubros.getByNombre(subRubroNombre);
-    if (!sub) {
+    const subRow = await db.subRubros.getByNombre(subRubroNombre, scope);
+    if (!subRow) {
       res.status(404).json({ ok: false, error: "Sub-rubro no encontrado" });
       return;
     }
     const activo = (req.body as { activo?: boolean }).activo !== false;
-    const itemId = await db.subRubroItems.insert(sub.id, { nombre, activo });
+    const itemId = await db.subRubroItems.insert(subRow.id, { nombre, activo });
     res.status(201).json({
       ok: true,
       data: await db.subRubroItems.getById(itemId),
@@ -6105,6 +6337,7 @@ app.get("/api/sub-rubros/:id/items", async (req, res) => {
 });
 
 app.post("/api/sub-rubros/:id/items", async (req, res) => {
+  if (!denyUnlessManageRubrosCatalogo(req, res)) return;
   try {
     const id = Number(req.params.id);
     if (!await db.subRubros.getById(id)) {
@@ -6125,6 +6358,7 @@ app.post("/api/sub-rubros/:id/items", async (req, res) => {
 });
 
 app.put("/api/sub-rubro-items/:id", async (req, res) => {
+  if (!denyUnlessManageRubrosCatalogo(req, res)) return;
   try {
     const id = Number(req.params.id);
     const nombre = String((req.body as { nombre?: string }).nombre ?? "").trim();
@@ -6144,6 +6378,7 @@ app.put("/api/sub-rubro-items/:id", async (req, res) => {
 });
 
 app.delete("/api/sub-rubro-items/:id", async (req, res) => {
+  if (!denyUnlessCuentaAdminOrSuperAdminItemsDelete(req, res)) return;
   const id = Number(req.params.id);
   if (!await db.subRubroItems.delete(id)) {
     res.status(404).json({ ok: false, error: "Ítem no encontrado" });
@@ -6152,8 +6387,10 @@ app.delete("/api/sub-rubro-items/:id", async (req, res) => {
   res.json({ ok: true, message: "Ítem eliminado" });
 });
 
-app.get("/api/grupo-iconos", async (_req, res) => {
-  res.json({ ok: true, data: await db.grupoIconos.map() });
+app.get("/api/grupo-iconos", async (req, res) => {
+  const scope = gastosRubrosReadScopeOr403(req, res);
+  if (!scope) return;
+  res.json({ ok: true, data: await db.grupoIconos.map(scope) });
 });
 
 app.get("/api/grupo-iconos/banco", async (_req, res) => {
@@ -6161,6 +6398,7 @@ app.get("/api/grupo-iconos/banco", async (_req, res) => {
 });
 
 app.put("/api/grupo-iconos/:grupo/emoji", async (req, res) => {
+  if (!denyUnlessManageRubrosCatalogo(req, res)) return;
   try {
     const grupo = decodeURIComponent(paramString(req.params.grupo)).trim();
     const emoji = String((req.body as { emoji?: unknown })?.emoji ?? "").trim();
@@ -6168,7 +6406,8 @@ app.put("/api/grupo-iconos/:grupo/emoji", async (req, res) => {
       res.status(400).json({ ok: false, error: "Rubro inválido." });
       return;
     }
-    const dto = await db.grupoIconos.saveEmoji(grupo, emoji);
+    const cuentaId = gastosRubrosWriteCuentaId(req.user!, req.body as Record<string, unknown>);
+    const dto = await db.grupoIconos.saveEmoji(grupo, emoji, cuentaId);
     res.json({
       ok: true,
       data: { grupo, icono: dto },
@@ -6180,8 +6419,11 @@ app.put("/api/grupo-iconos/:grupo/emoji", async (req, res) => {
 });
 
 app.get("/api/grupo-iconos/:grupo/imagen", async (req, res) => {
+  const scope = gastosRubrosReadScopeOr403(req, res);
+  if (!scope) return;
   const grupo = decodeURIComponent(paramString(req.params.grupo));
-  const filePath = await db.grupoIconos.filePath(grupo);
+  const cuentaId = scope.mode === "cuenta" ? scope.cuentaId ?? null : null;
+  const filePath = await db.grupoIconos.filePath(grupo, cuentaId);
   if (!filePath) {
     res.status(404).json({ ok: false, error: "Sin imagen personalizada" });
     return;
@@ -6197,6 +6439,7 @@ app.post(
   "/api/grupo-iconos/:grupo/imagen",
   iconUpload.single("imagen"),
   async (req, res) => {
+    if (!denyUnlessManageRubrosCatalogo(req, res)) return;
     try {
       const grupo = decodeURIComponent(paramString(req.params.grupo)).trim();
       if (!grupo) {
@@ -6208,7 +6451,8 @@ app.post(
         res.status(400).json({ ok: false, error: "Seleccioná una imagen." });
         return;
       }
-      const icono = await db.grupoIconos.save(grupo, file.buffer, file.mimetype);
+      const cuentaId = gastosRubrosWriteCuentaId(req.user!, req.body as Record<string, unknown>);
+      const icono = await db.grupoIconos.save(grupo, file.buffer, file.mimetype, cuentaId);
       res.json({
         ok: true,
         data: { grupo, icono },
@@ -6221,9 +6465,11 @@ app.post(
 );
 
 app.delete("/api/grupo-iconos/:grupo/imagen", async (req, res) => {
+  if (!denyUnlessManageRubrosCatalogo(req, res)) return;
   try {
     const grupo = decodeURIComponent(paramString(req.params.grupo));
-    await db.grupoIconos.deleteByGrupo(grupo);
+    const cuentaId = gastosRubrosWriteCuentaId(req.user!, req.query as Record<string, unknown>);
+    await db.grupoIconos.deleteByGrupo(grupo, cuentaId);
     res.json({ ok: true, message: "Icono restaurado al predeterminado" });
   } catch (e) {
     res.status(400).json({ ok: false, error: (e as Error).message });
@@ -6252,6 +6498,7 @@ app.get("/api/rubros/:id/vinculos-sub-rubros", async (req, res) => {
 });
 
 app.put("/api/rubros/:id/vinculos-sub-rubros", async (req, res) => {
+  if (!denyUnlessManageRubrosCatalogo(req, res)) return;
   try {
     const rubroId = Number(req.params.id);
     const rubroRow = await db.rubros.getById(rubroId);
@@ -7269,20 +7516,28 @@ app.get("/api/simulador-venta-ganado/:id/auditoria", async (req, res) => {
 });
 
 app.get("/api/resumen", async (req, res) => {
-  const fecha_desde = req.query.fecha_desde as string | undefined;
-  const fecha_hasta = req.query.fecha_hasta as string | undefined;
-  const empresa = req.query.empresa as string | undefined;
-  const scope = await resumenEmpresaScope(req.user!, empresa);
-  const estado = await db.buildEstadoFinanciero(scope, fecha_hasta);
-  res.json({
-    ok: true,
-    por_empresa: await db.resumenPorEmpresa(fecha_desde, fecha_hasta, scope),
-    por_empresa_rubro: await db.resumenPorEmpresaRubro(fecha_desde, fecha_hasta, scope),
-    por_rubro: await db.resumenPorRubro(scope, fecha_desde, fecha_hasta),
-    estado_financiero: estado.rubros,
-    estado_financiero_meses: estado.meses,
-    rubros: await db.rubros.listNombres(),
-  });
+  try {
+    const fecha_desde = req.query.fecha_desde as string | undefined;
+    const fecha_hasta = req.query.fecha_hasta as string | undefined;
+    const empresa = req.query.empresa as string | undefined;
+    const scope = await resumenEmpresaScope(req.user!, empresa);
+    const estado = await db.buildEstadoFinanciero(scope, fecha_hasta);
+    res.json({
+      ok: true,
+      por_empresa: await db.resumenPorEmpresa(fecha_desde, fecha_hasta, scope),
+      por_empresa_rubro: await db.resumenPorEmpresaRubro(fecha_desde, fecha_hasta, scope),
+      por_rubro: await db.resumenPorRubro(scope, fecha_desde, fecha_hasta),
+      estado_financiero: estado.rubros,
+      estado_financiero_meses: estado.meses,
+      rubros: await db.rubros.listNombres(),
+    });
+  } catch (e) {
+    console.error("[SGG] /api/resumen:", e);
+    res.status(500).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al construir el resumen",
+    });
+  }
 });
 
 app.get("/api/resumen/gastos-proveedores", async (req, res) => {
@@ -7508,6 +7763,15 @@ if (!IS_VERCEL) {
       void shutdownPool(signal).finally(() => process.exit(0));
     });
   }
+
+  // Red de seguridad: un error async sin capturar en cualquier handler NO debe
+  // tumbar todo el server (en dev no hay supervisor que lo reinicie).
+  process.on("unhandledRejection", (reason) => {
+    console.error("[SGG] unhandledRejection (server sigue vivo):", reason);
+  });
+  process.on("uncaughtException", (err) => {
+    console.error("[SGG] uncaughtException (server sigue vivo):", err);
+  });
 }
 
 if (!IS_VERCEL) {

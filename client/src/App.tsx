@@ -21,6 +21,8 @@ import HomeMarketTicker from "./components/HomeMarketTicker";
 import MainHeaderNav from "./components/MainHeaderNav";
 import AppFooter from "./components/AppFooter";
 import LoginScreen from "./components/LoginScreen";
+import EmpresaSelectGate from "./components/EmpresaSelectGate";
+import LoginModeGate from "./components/LoginModeGate";
 import ForgotPasswordScreen from "./components/ForgotPasswordScreen";
 import ResetPasswordScreen from "./components/ResetPasswordScreen";
 import ArquitecturaSistema from "./components/ArquitecturaSistema";
@@ -522,6 +524,41 @@ export default function App() {
     );
   }
 
+  if (user.debe_elegir_modo_inicio) {
+    return (
+      <div className="app-shell app-shell--login">
+        <LoginModeGate
+          user={user}
+          onChosen={(u) => {
+            setUser(u);
+            resetToHomeScreen();
+          }}
+          onError={(m) => notify(m, false)}
+          onLogout={() => void onLogout()}
+        />
+        <ConfirmDialogHost />
+      </div>
+    );
+  }
+
+  if (user.login_mode === "individual" && !user.empresa_operativa_activa_id) {
+    return (
+      <div className="app-shell app-shell--login">
+        <EmpresaSelectGate
+          user={user}
+          apiOnline={apiOnline}
+          onSelected={(u) => {
+            setUser(u);
+            resetToHomeScreen();
+          }}
+          onError={(m) => notify(m, false)}
+          onLogout={() => void onLogout()}
+        />
+        <ConfirmDialogHost />
+      </div>
+    );
+  }
+
   const chatAccess = user != null && canAccessChat(user);
 
   const appBody = (
@@ -665,6 +702,7 @@ export default function App() {
             {screen === "recursos_humanos" && (
               <RecursosHumanos
                 catalogos={catalogos}
+                currentUser={user}
                 apiOnline={apiOnline}
                 onError={(m) => notify(m, false)}
                 onSuccess={(m) => notify(m, true)}

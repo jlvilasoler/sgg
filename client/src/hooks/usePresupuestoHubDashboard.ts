@@ -1,7 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { fetchPresupuesto } from "../api";
 import type { AuthUser, Presupuesto } from "../types";
-import { ejercicioVigente } from "../utils/ejercicio-contable";
+import {
+  ejercicioConfigFromUser,
+  ejercicioVigente,
+  type EjercicioConfig,
+} from "../utils/ejercicio-contable";
 
 const RECIENTES_LIMIT = 6;
 
@@ -29,8 +33,8 @@ function filtrarMesActual(rows: Presupuesto[]): Presupuesto[] {
 }
 
 /** Meses calendario transcurridos del ejercicio vigente hasta hoy (mín. 1). */
-function mesesTranscurridosEjercicio(ref = new Date()): number {
-  const ej = ejercicioVigente(ref);
+function mesesTranscurridosEjercicio(ref = new Date(), cfg?: EjercicioConfig): number {
+  const ej = ejercicioVigente(ref, cfg);
   const [sy, sm, sd] = ej.desde.split("-").map(Number);
   const [ey, em, ed] = ej.hasta.split("-").map(Number);
   const start = new Date(sy, sm - 1, sd);
@@ -59,6 +63,10 @@ export interface PresupuestoHubStats {
 
 export function usePresupuestoHubDashboard(user: AuthUser, apiOnline: boolean) {
   const puedeVerCuentaMes = canVerPresupuestoKpiCuentaMes(user);
+  const ejCfg = useMemo(
+    () => ejercicioConfigFromUser(user),
+    [user.ejercicio_inicio_mes, user.ejercicio_inicio_dia],
+  );
   const [rowsPropios, setRowsPropios] = useState<Presupuesto[]>([]);
   const [rowsCuentaMes, setRowsCuentaMes] = useState<Presupuesto[]>([]);
   const [loading, setLoading] = useState(() => apiOnline);
@@ -73,7 +81,7 @@ export function usePresupuestoHubDashboard(user: AuthUser, apiOnline: boolean) {
 
     let cancelled = false;
     setLoading(true);
-    const ej = ejercicioVigente();
+    const ej = ejercicioVigente(new Date(), ejCfg);
     const mes = mesActualRango();
 
     const fetchPropios = fetchPresupuesto({
@@ -109,7 +117,7 @@ export function usePresupuestoHubDashboard(user: AuthUser, apiOnline: boolean) {
     return () => {
       cancelled = true;
     };
-  }, [apiOnline, user.id, user.email, user.rol, puedeVerCuentaMes]);
+  }, [apiOnline, user.id, user.email, user.rol, puedeVerCuentaMes, ejCfg]);
 
   const recientes = useMemo(
     () => ordenarPorIngreso(rowsPropios).slice(0, RECIENTES_LIMIT),
@@ -118,8 +126,8 @@ export function usePresupuestoHubDashboard(user: AuthUser, apiOnline: boolean) {
 
   const stats = useMemo((): PresupuestoHubStats => {
     const delMesPropio = filtrarMesActual(rowsPropios);
-    const ej = ejercicioVigente();
-    const mesesEj = mesesTranscurridosEjercicio();
+    const ej = ejercicioVigente(new Date(), ejCfg);
+    const mesesEj = mesesTranscurridosEjercicio(new Date(), ejCfg);
     const propioEjercicioCount = rowsPropios.length;
     return {
       cuentaMesCount: rowsCuentaMes.length,
@@ -131,7 +139,7 @@ export function usePresupuestoHubDashboard(user: AuthUser, apiOnline: boolean) {
       mesesEjercicioTranscurridos: mesesEj,
       ejercicioLabel: ej.label,
     };
-  }, [rowsPropios, rowsCuentaMes]);
+  }, [rowsPropios, rowsCuentaMes, ejCfg]);
 
   return { recientes, loading, stats, puedeVerCuentaMes };
 }

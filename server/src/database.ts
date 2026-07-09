@@ -28,6 +28,8 @@ import * as sub from "./sub-rubros-db.js";
 import * as subItems from "./sub-rubro-items-db.js";
 import * as vinc from "./rubro-sub-rubros-db.js";
 import * as gicon from "./grupo-iconos-db.js";
+import type { GastosRubrosReadScope } from "./gastos-rubros-scope.js";
+import * as rubrosMonitorDb from "./gastos-rubros-monitor-db.js";
 import * as func from "./funcionarios-db.js";
 import * as rrhh from "./rrhh-pagos-db.js";
 import * as ventas from "./ventas-db.js";
@@ -1375,14 +1377,19 @@ export async function buildEstadoResultados(
 }
 
 export const rubros = {
-  list: (soloActivos?: boolean) => rub.listRubros(db, soloActivos ?? false),
-  listNombres: () => rub.listRubrosNombres(db),
+  list: (soloActivos?: boolean, readScope?: GastosRubrosReadScope) =>
+    rub.listRubros(db, soloActivos ?? false, readScope),
+  listNombres: (readScope?: GastosRubrosReadScope) => rub.listRubrosNombres(db, readScope),
   getById: (id: number) => rub.getRubroById(db, id),
-  insert: (data: rub.RubroInput) => rub.insertRubro(db, data),
-  update: (id: number, data: rub.RubroInput) => rub.updateRubro(db, id, data),
+  insert: (data: rub.RubroInput, cuentaId?: number | null) =>
+    rub.insertRubro(db, data, cuentaId ?? null),
+  update: (id: number, data: rub.RubroInput, cuentaId?: number | null) =>
+    rub.updateRubro(db, id, data, cuentaId ?? null),
   delete: (id: number) => rub.deleteRubro(db, id),
-  existsActivo: (nombre: string) => rub.rubroExistsActivo(db, nombre),
-  gastoValido: (nombre: string) => vinc.rubroGastoValido(db, nombre),
+  existsActivo: (nombre: string, cuentaId?: number | null) =>
+    rub.rubroExistsActivo(db, nombre, cuentaId ?? null),
+  gastoValido: (nombre: string, readScope?: GastosRubrosReadScope) =>
+    sub.rubroGastoValido(db, nombre, readScope),
 };
 
 export const responsables = {
@@ -1400,17 +1407,34 @@ export const responsables = {
 };
 
 export const subRubros = {
-  list: (soloActivos?: boolean) => sub.listSubRubros(db, soloActivos ?? false),
-  listNombres: () => sub.listSubRubrosNombres(db),
-  listGrupos: () => sub.listSubRubrosGrupos(db),
+  list: (soloActivos?: boolean, readScope?: GastosRubrosReadScope) =>
+    sub.listSubRubros(db, soloActivos ?? false, readScope),
+  listNombres: (readScope?: GastosRubrosReadScope) => sub.listSubRubrosNombres(db, readScope),
+  listGrupos: (readScope?: GastosRubrosReadScope) => sub.listSubRubrosGrupos(db, readScope),
   getById: (id: number) => sub.getSubRubroById(db, id),
-  getByNombre: (nombre: string) => sub.getSubRubroByNombre(db, nombre),
-  insert: (data: sub.SubRubroInput) => sub.insertSubRubro(db, data),
-  update: (id: number, data: sub.SubRubroInput) => sub.updateSubRubro(db, id, data),
-  delete: (id: number) => sub.deleteSubRubro(db, id),
-  deleteByGrupo: (grupo: string) => sub.deleteSubRubrosByGrupo(db, grupo),
-  renameGrupo: (anterior: string, nuevo: string) => sub.renameSubRubroGrupo(db, anterior, nuevo),
-  existsActivo: (nombre: string) => sub.subRubroExistsActivo(db, nombre),
+  getByNombre: (nombre: string, readScope?: GastosRubrosReadScope) =>
+    sub.getSubRubroByNombre(db, nombre, readScope),
+  insert: (data: sub.SubRubroInput, cuentaId?: number | null) =>
+    sub.insertSubRubro(db, data, cuentaId ?? null),
+  update: (id: number, data: sub.SubRubroInput, cuentaId?: number | null) =>
+    sub.updateSubRubro(db, id, data, cuentaId ?? null),
+  delete: (id: number, cuentaId?: number | null, sagMode?: boolean) =>
+    sub.deleteSubRubro(db, id, cuentaId ?? null, sagMode ?? false),
+  deleteByGrupo: (grupo: string, cuentaId?: number | null, sagMode?: boolean) =>
+    sub.deleteSubRubrosByGrupo(db, grupo, cuentaId ?? null, sagMode ?? false),
+  renameGrupo: (
+    anterior: string,
+    nuevo: string,
+    cuentaId?: number | null,
+    sagMode?: boolean
+  ) => sub.renameSubRubroGrupo(db, anterior, nuevo, cuentaId ?? null, sagMode ?? false),
+  existsActivo: (nombre: string, readScope?: GastosRubrosReadScope) =>
+    sub.subRubroExistsActivo(db, nombre, readScope),
+};
+
+export const rubrosMonitor = {
+  snapshot: () => rubrosMonitorDb.getGastosRubrosMonitorSnapshot(db),
+  cuenta: (cuentaId: number) => rubrosMonitorDb.getGastosRubrosMonitorCuenta(db, cuentaId),
 };
 
 export const subRubroItems = {
@@ -1461,25 +1485,29 @@ export const rrhhPagos = {
 };
 
 export const grupoIconos = {
-  map: () => gicon.getGrupoIconosMap(db),
+  map: (readScope?: GastosRubrosReadScope) => gicon.getGrupoIconosMap(db, readScope),
   banco: () => gicon.listBancoIconos(),
-  save: (grupo: string, buffer: Buffer, mime: string) =>
-    gicon.saveGrupoIcono(db, grupo, buffer, mime),
-  saveEmoji: (grupo: string, emoji: string) =>
-    gicon.saveGrupoIconoEmoji(db, grupo, emoji),
-  filePath: (grupo: string) => gicon.resolveIconFilePath(db, grupo),
-  deleteByGrupo: (grupo: string) => gicon.deleteGrupoIcono(db, grupo),
-  renameGrupo: (anterior: string, nuevo: string) => gicon.renameGrupoIcono(db, anterior, nuevo),
+  save: (grupo: string, buffer: Buffer, mime: string, cuentaId?: number | null) =>
+    gicon.saveGrupoIcono(db, grupo, buffer, mime, cuentaId ?? null),
+  saveEmoji: (grupo: string, emoji: string, cuentaId?: number | null) =>
+    gicon.saveGrupoIconoEmoji(db, grupo, emoji, cuentaId ?? null),
+  filePath: (grupo: string, cuentaId?: number | null) =>
+    gicon.resolveIconFilePath(db, grupo, cuentaId ?? null),
+  deleteByGrupo: (grupo: string, cuentaId?: number | null) =>
+    gicon.deleteGrupoIcono(db, grupo, cuentaId ?? null),
+  renameGrupo: (anterior: string, nuevo: string, cuentaId?: number | null) =>
+    gicon.renameGrupoIcono(db, anterior, nuevo, cuentaId ?? null),
 };
 
 export const rubroVinculos = {
   getSubRubroIds: (rubroId: number) => vinc.getSubRubroIdsForRubro(db, rubroId),
   setSubRubros: (rubroId: number, subRubroIds: number[]) =>
     vinc.setRubroSubRubros(db, rubroId, subRubroIds),
-  mapPorRubro: (soloActivos?: boolean) => vinc.getMapSubRubrosPorRubro(db, soloActivos ?? true),
+  mapPorRubro: (soloActivos?: boolean, readScope?: GastosRubrosReadScope) =>
+    vinc.getMapSubRubrosPorRubro(db, soloActivos ?? true, readScope),
   mapaCompleto: () => vinc.getMapaVinculosCompleto(db),
-  isValidPair: (rubro: string, subRubro: string) =>
-    vinc.isSubRubroValidForRubro(db, rubro, subRubro),
+  isValidPair: (rubro: string, subRubro: string, readScope?: GastosRubrosReadScope) =>
+    vinc.isSubRubroValidForRubro(db, rubro, subRubro, readScope),
   syncPorGrupo: (subRubroId: number, grupo: string) =>
     vinc.syncVinculoSubRubroPorGrupo(db, subRubroId, grupo),
   resolveGrupoParaRubro: (rubroNombre: string) =>
@@ -1511,9 +1539,6 @@ export async function getCatalogos(user?: {
   responsables: string[];
   funcionarios: Awaited<ReturnType<typeof func.listFuncionariosParaSelector>>;
 }> {
-  const { rubros, sub_rubros_por_rubro: porGrupo } =
-    await sub.getCatalogoGruposParaGastos(db);
-  const porRubroContable = await vinc.getMapSubRubrosPorRubro(db, true);
   const scopeUser =
     user && user.id != null
       ? {
@@ -1536,6 +1561,15 @@ export async function getCatalogos(user?: {
     ? await empresasCuenta.resolveCuentaMadreIdForUser(db, scopeUser)
     : null;
 
+  const rubrosReadScope: GastosRubrosReadScope = {
+    mode: "cuenta",
+    cuentaId: cuentaId != null && cuentaId > 0 ? cuentaId : null,
+  };
+
+  const { rubros, sub_rubros_por_rubro: porGrupo } =
+    await sub.getCatalogoGruposParaGastos(db, rubrosReadScope);
+  const porRubroContable = await vinc.getMapSubRubrosPorRubro(db, true, rubrosReadScope);
+
   const sinCuentaOperativa =
     scopeUser && !scopeUser.es_super_admin && cuentaId == null;
   const responsables = sinCuentaOperativa
@@ -1548,7 +1582,7 @@ export async function getCatalogos(user?: {
   return {
     empresas,
     rubros,
-    sub_rubros: await sub.listSubRubrosNombres(db),
+    sub_rubros: await sub.listSubRubrosNombres(db, rubrosReadScope),
     sub_rubros_por_rubro: { ...porRubroContable, ...porGrupo },
     responsables,
     funcionarios,

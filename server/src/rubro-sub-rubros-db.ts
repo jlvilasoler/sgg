@@ -1,4 +1,8 @@
 import type { Db } from "./db/pg-client.js";
+import {
+  appendGastosRubrosReadWhere,
+  type GastosRubrosReadScope,
+} from "./gastos-rubros-scope.js";
 import * as rub from "./rubros-db.js";
 import * as sub from "./sub-rubros-db.js";
 import { normalizarTituloRubro } from "./text-normalize.js";
@@ -213,22 +217,29 @@ export async function getSubRubroIdsForRubro(db: Db, rubroId: number): Promise<n
 export async function getSubRubroNombresForRubro(
   db: Db,
   rubroNombre: string,
-  soloActivos = true
+  soloActivos = true,
+  readScope?: GastosRubrosReadScope
 ): Promise<string[]> {
   const r = rubroNombre.trim();
   if (!r) return [];
 
   const grupos = await gruposAsociadosAlRubro(db, r);
-  const rubroRow = await rub.getRubroByNombre(db, r);
+  const rubroRow = await rub.getRubroByNombre(db, r, readScope?.cuentaId ?? null);
 
   const names = new Set<string>();
 
   if (grupos.length > 0) {
-    const cond = grupos.map(() => "LOWER(TRIM(grupo)) = LOWER(?)").join(" OR ");
-    const activoClause = soloActivos ? " AND activo = 1" : "";
-    const rows = (await db
-      .prepare(`SELECT nombre FROM SUB_RUBROS WHERE (${cond})${activoClause}`)
-      .all(...grupos)) as { nombre: string }[];
+    const cond = grupos.map((_, i) => `LOWER(TRIM(grupo)) = LOWER(@g${i})`).join(" OR ");
+    const params: Record<string, string | number> = {};
+    grupos.forEach((g, i) => {
+      params[`g${i}`] = g;
+    });
+    let query = `SELECT nombre FROM SUB_RUBROS WHERE (${cond})`;
+    if (soloActivos) query += " AND activo = 1";
+    if (readScope) {
+      query = appendGastosRubrosReadWhere(query, params, readScope, "SUB_RUBROS");
+    }
+    const rows = (await db.prepare(query).all(params)) as { nombre: string }[];
     for (const row of rows) names.add(row.nombre);
   }
 
@@ -236,10 +247,14 @@ export async function getSubRubroNombresForRubro(
     let linkQuery = `
       SELECT DISTINCT s.nombre FROM SUB_RUBROS s
       INNER JOIN RUBRO_SUB_RUBROS rsr ON rsr.sub_rubro_id = s.id
-      WHERE rsr.rubro_id = ?
+      WHERE rsr.rubro_id = @rubroId
     `;
+    const linkParams: Record<string, string | number> = { rubroId: rubroRow.id };
     if (soloActivos) linkQuery += " AND s.activo = 1";
-    const linked = (await db.prepare(linkQuery).all(rubroRow.id)) as { nombre: string }[];
+    if (readScope) {
+      linkQuery = appendGastosRubrosReadWhere(linkQuery, linkParams, readScope, "s");
+    }
+    const linked = (await db.prepare(linkQuery).all(linkParams)) as { nombre: string }[];
     for (const l of linked) names.add(l.nombre);
   }
 
@@ -268,10 +283,11 @@ export async function rubroGastoValido(db: Db, nombre: string): Promise<boolean>
 export async function isSubRubroValidForRubro(
   db: Db,
   rubroNombre: string,
-  subRubroNombre: string
+  subRubroNombre: string,
+  readScope?: GastosRubrosReadScope
 ): Promise<boolean> {
   if (!subRubroNombre.trim()) return true;
-  const allowed = await getSubRubroNombresForRubro(db, rubroNombre, true);
+  const allowed = await getSubRubroNombresForRubro(db, rubroNombre, true, readScope);
   if (allowed.length === 0) return true;
   return allowed.some(
     (n) => n.localeCompare(subRubroNombre.trim(), "es", { sensitivity: "accent" }) === 0
@@ -404,12 +420,13 @@ export async function resyncAllVinculosPorGrupo(db: Db): Promise<void> {
 
 export async function getMapSubRubrosPorRubro(
   db: Db,
-  soloActivos = true
+  soloActivos = true,
+  readScope?: GastosRubrosReadScope
 ): Promise<Record<string, string[]>> {
-  const rubrosList = await rub.listRubros(db, soloActivos);
+  const rubrosList = await rub.listRubros(db, soloActivos, readScope);
   const map: Record<string, string[]> = {};
   for (const r of rubrosList) {
-    const subs = await getSubRubroNombresForRubro(db, r.nombre, soloActivos);
+    const subs = await getSubRubroNombresForRubro(db, r.nombre, soloActivos, readScope);
     if (subs.length > 0) {
       map[r.nombre] = subs;
     }

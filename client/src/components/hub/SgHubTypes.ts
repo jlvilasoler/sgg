@@ -8,6 +8,12 @@ export interface SgHubItem {
   featured?: boolean;
 }
 
+export interface SgHubNavSection {
+  id: string;
+  label: string;
+  items: SgHubItem[];
+}
+
 export function findSgHubItem(items: SgHubItem[], id: string): SgHubItem | undefined {
   return items.find((item) => item.id === id);
 }

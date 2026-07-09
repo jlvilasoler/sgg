@@ -1,5 +1,5 @@
 import type { AuthUser } from "../../types";
-import type { SgHubItem } from "../hub/SgHubTypes";
+import type { SgHubItem, SgHubNavSection } from "../hub/SgHubTypes";
 import {
   canAccessActividadCuenta,
   canAccessActividadPropia,
@@ -13,9 +13,11 @@ import {
   canAccessConfigVencimientosImpuestos,
   canAccessConfigDotacionGanadera,
   canAccessConfigHomeLayout,
+  canAccessConfigRubrosSag,
   canAccessControlGlobalCuentas,
   canAccessDocumentosDigitales,
   canAccessStockGanaderoAdmin,
+  canManageRubrosCatalogo,
   canManageUsuariosCuenta,
 } from "../../utils/auth-permissions";
 
@@ -78,6 +80,12 @@ const SAG_ITEMS: SgHubItem[] = [
     icon: "stock_sanidad",
   },
   {
+    id: "rubros_sag",
+    label: "Rubros y sub-rubros SAG",
+    subtitle: "Catálogo base y rubros creados por cada cuenta",
+    icon: "config_rubros",
+  },
+  {
     id: "home_layout",
     label: "Inicio por cuenta",
     subtitle: "Qué ve cada Gestor N1, N2 y Lector en el home",
@@ -128,10 +136,110 @@ export const CONFIG_MI_PERFIL_ITEM: SgHubItem = {
   icon: "config_responsables",
 };
 
+/**
+ * Módulos dentro del hub «Administración de Cuenta».
+ * Orden fijo del catálogo operativo de la cuenta.
+ */
+const CUENTA_ADMIN_NAV_IDS = [
+  "responsables",
+  "proveedores",
+  "rubros",
+  "stock_ganadero",
+  "stock_equino",
+  "admin_cuenta",
+  "usuarios",
+  "registro_actividad",
+] as const;
+
+export const CONFIG_CUENTA_ADMIN_HUB_ITEM: SgHubItem = {
+  id: "cuenta_hub",
+  label: "Administración de Cuenta",
+  subtitle: "Presupuesto, proveedores, rubros, stock, usuarios y arquitectura",
+  icon: "config_admin_cuenta",
+};
+
+function pickCuentaAdminNavItems(items: SgHubItem[]): SgHubItem[] {
+  const byId = new Map(items.map((item) => [item.id, item]));
+  return CUENTA_ADMIN_NAV_IDS.map((id) => byId.get(id)).filter(
+    (item): item is SgHubItem => item != null
+  );
+}
+
+export interface ConfigNavLayout {
+  sections: SgHubNavSection[];
+  items: SgHubItem[];
+}
+
+export interface BuildConfigCuentaNavOptions {
+  /**
+   * true: lista los módulos del hub en el menú lateral.
+   * false: solo el botón «Administración de Cuenta» (dashboard principal).
+   */
+  expandAdmin?: boolean;
+}
+
+export function buildConfigCuentaNavLayout(
+  user: AuthUser | null | undefined,
+  options: BuildConfigCuentaNavOptions = {}
+): ConfigNavLayout {
+  const { expandAdmin = false } = options;
+  const cuentaItems = buildConfigCuentaItems(user);
+  const adminItems = pickCuentaAdminNavItems(cuentaItems);
+  const adminIds = new Set(adminItems.map((item) => item.id));
+  const otherItems = cuentaItems.filter((item) => !adminIds.has(item.id));
+
+  if (!expandAdmin) {
+    return {
+      sections: [],
+      items: [
+        ...(adminItems.length > 0 ? [CONFIG_CUENTA_ADMIN_HUB_ITEM] : []),
+        ...otherItems,
+        CONFIG_MI_PERFIL_ITEM,
+      ],
+    };
+  }
+
+  return {
+    sections:
+      adminItems.length > 0
+        ? [{ id: "cuenta_admin", label: "Administración de Cuenta", items: adminItems }]
+        : [],
+    items: [...otherItems, CONFIG_MI_PERFIL_ITEM],
+  };
+}
+
+export function buildConfigNavLayout(
+  scope: ConfigNavScope,
+  user: AuthUser | null | undefined,
+  esSuperAdmin: boolean,
+  options: BuildConfigCuentaNavOptions = {}
+): ConfigNavLayout {
+  if (scope === "sag") {
+    return {
+      sections: [],
+      items: [...buildConfigSagItems(user), CONFIG_MI_PERFIL_ITEM],
+    };
+  }
+  if (scope === "main" && esSuperAdmin) {
+    return {
+      sections: [],
+      items: [...buildConfigMainItems(true), CONFIG_MI_PERFIL_ITEM],
+    };
+  }
+  return buildConfigCuentaNavLayout(user, options);
+}
+
+export function flattenConfigNavLayout(layout: ConfigNavLayout): SgHubItem[] {
+  return [...layout.sections.flatMap((section) => section.items), ...layout.items];
+}
+
 export function buildConfigCuentaItems(user: AuthUser | null | undefined): SgHubItem[] {
   const items = CATALOGOS.filter((item) => {
     if (item.id === "stock_ganadero" || item.id === "stock_equino") {
       return canAccessStockGanaderoAdmin(user ?? null);
+    }
+    if (item.id === "rubros") {
+      return canManageRubrosCatalogo(user ?? null);
     }
     return true;
   });
@@ -183,6 +291,9 @@ export function buildConfigSagItems(user: AuthUser | null | undefined): SgHubIte
     if (item.id === "home_layout") {
       return canAccessConfigHomeLayout(user ?? null);
     }
+    if (item.id === "rubros_sag") {
+      return canAccessConfigRubrosSag(user ?? null);
+    }
     if (item.id === "clasificacion_proveedores") {
       return canAccessClasificacionProveedores(user ?? null);
     }
@@ -203,10 +314,8 @@ export function buildConfigMainItems(esSuperAdmin: boolean): SgHubItem[] {
   if (!esSuperAdmin) return [];
   return [
     {
-      id: "cuenta_hub",
-      label: "Configuración cuenta",
+      ...CONFIG_CUENTA_ADMIN_HUB_ITEM,
       subtitle: "Catálogos y ajustes operativos de la cuenta",
-      icon: "config_rubros",
     },
     {
       id: "sag_hub",
@@ -215,6 +324,13 @@ export function buildConfigMainItems(esSuperAdmin: boolean): SgHubItem[] {
       icon: "arquitectura_sistema",
     },
   ];
+}
+
+/** Ítems del grid cuando está abierto el hub Administración de Cuenta. */
+export function buildConfigCuentaAdminGridItems(
+  user: AuthUser | null | undefined
+): SgHubItem[] {
+  return pickCuentaAdminNavItems(buildConfigCuentaItems(user));
 }
 
 export function configHubMeta(
@@ -227,8 +343,8 @@ export function configHubMeta(
       subtitle: "Catálogos de apoyo para registrar y controlar gastos.",
     },
     cuenta_hub: {
-      title: `Configuración cuenta ${cuentaNombre}`,
-      subtitle: "Presupuesto asignado, proveedores, rubros y usuarios.",
+      title: "Administración de Cuenta",
+      subtitle: `Catálogos y ajustes operativos de ${cuentaNombre}.`,
     },
     sag_hub: {
       title: "Configuración SAG",
@@ -289,6 +405,10 @@ export function configHubMeta(
       title: "Inicio por tipo de cuenta",
       subtitle: "Bloques visibles del dashboard Inicio por rol.",
     },
+    rubros_sag: {
+      title: "Rubros y sub-rubros SAG",
+      subtitle: "Catálogo base compartido y rubros propios de cada cuenta.",
+    },
     documentos_digitales: {
       title: "Documentos Digitales",
       subtitle: "Archivo documental global.",
@@ -318,17 +438,10 @@ export type ConfigNavScope = "main" | "cuenta" | "sag";
 export function buildConfigNavItems(
   scope: ConfigNavScope,
   user: AuthUser | null | undefined,
-  esSuperAdmin: boolean
+  esSuperAdmin: boolean,
+  options: BuildConfigCuentaNavOptions = {}
 ): SgHubItem[] {
-  let items: SgHubItem[];
-  if (scope === "main") {
-    items = esSuperAdmin ? buildConfigMainItems(true) : buildConfigCuentaItems(user);
-  } else if (scope === "sag") {
-    items = buildConfigSagItems(user);
-  } else {
-    items = buildConfigCuentaItems(user);
-  }
-  return [...items, CONFIG_MI_PERFIL_ITEM];
+  return flattenConfigNavLayout(buildConfigNavLayout(scope, user, esSuperAdmin, options));
 }
 
 const CUENTA_MODULOS = new Set([
@@ -352,6 +465,7 @@ export function configNavScopeForModulo(modulo: string): ConfigNavScope {
     modulo === "catalogo_sanitario_productos" ||
     modulo === "dotacion_ganadera" ||
     modulo === "home_layout" ||
+    modulo === "rubros_sag" ||
     modulo === "clasificacion_proveedores" ||
     modulo === "vencimientos_impuestos" ||
     modulo === "billing_mp_settings" ||
