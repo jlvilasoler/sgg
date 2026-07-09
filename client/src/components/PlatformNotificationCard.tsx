@@ -51,7 +51,7 @@ export default function PlatformNotificationCard({
           </h2>
           {!preview ? (
             <p className="empresa-gate-sub">
-              Mensaje de la plataforma SAG. Se muestra una sola vez al entrar si está vigente.
+              Mensaje de la plataforma SAG.
             </p>
           ) : null}
         </div>
