@@ -1,8 +1,9 @@
 import type { Db } from "./db/pg-client.js";
-import { appendEmpresaScope, type ResumenEmpresaScope } from "./empresa-scope.js";
+import { appendPresupuestoScope, type ResumenEmpresaScope } from "./empresa-scope.js";
 import {
   backfillCuentaIdPorEmpresa,
   migrateAddCuentaIdColumn,
+  resolveCuentaIdForEmpresaNombre,
 } from "./empresas-cuenta-db.js";
 
 export const CULTIVOS_AGRICULTURA_LEGACY = ["TRIGO", "SOJA", "MAIZ", "COLZA"] as const;
@@ -69,6 +70,7 @@ export interface VentaAgriculturaInput {
 export interface VentaAgriculturaFilters {
   empresa?: string;
   empresas?: string[];
+  cuenta_id?: number;
   mes?: number;
   anio?: number;
   cultivo?: string;
@@ -300,11 +302,12 @@ export async function listVentasAgricultura(
 ): Promise<VentaAgriculturaRow[]> {
   let sql = "SELECT * FROM VENTAS_AGRICULTURA WHERE 1=1";
   const params: Record<string, string | number> = {};
-  const scope: ResumenEmpresaScope | undefined =
-    filters.empresas?.length || filters.empresa
-      ? { empresa: filters.empresa, empresas: filters.empresas }
-      : undefined;
-  sql = appendEmpresaScope(sql, params as Record<string, string>, scope);
+  const scope: ResumenEmpresaScope = {
+    empresa: filters.empresa,
+    empresas: filters.empresas,
+    cuenta_id: filters.cuenta_id,
+  };
+  sql = appendPresupuestoScope(sql, params, scope);
 
   if (filters.mes != null && Number.isFinite(filters.mes)) {
     sql += ` AND (
@@ -337,18 +340,21 @@ export async function listVentasAgricultura(
 
 export async function insertVentaAgricultura(
   db: Db,
-  data: VentaAgriculturaInput
+  data: VentaAgriculturaInput,
+  cuentaId?: number | null,
 ): Promise<number> {
   const row = normalizeInput(data);
+  const resolvedCuentaId =
+    cuentaId ?? (await resolveCuentaIdForEmpresaNombre(db, row.empresa, cuentaId));
   const result = await db.prepare(
     `INSERT INTO VENTAS_AGRICULTURA (
       empresa, mes, mes_inicio, mes_fin, anio, anio_inicio, anio_fin, cultivo, hectareas, rendimiento_ton_ha,
-      precio_usd_ton, total_ton, importe_usd
+      precio_usd_ton, total_ton, importe_usd, cuenta_id
     ) VALUES (
       @empresa, @mes_inicio, @mes_inicio, @mes_fin, @anio_inicio, @anio_inicio, @anio_fin, @cultivo, @hectareas, @rendimiento_ton_ha,
-      @precio_usd_ton, @total_ton, @importe_usd
+      @precio_usd_ton, @total_ton, @importe_usd, @cuenta_id
     )`
-  ).run(row);
+  ).run({ ...row, cuenta_id: resolvedCuentaId });
   const id = Number(result.lastInsertRowid);
   if (!id) throw new Error("No se pudo guardar el registro");
   return id;
@@ -356,26 +362,34 @@ export async function insertVentaAgricultura(
 
 export async function getVentaAgriculturaById(
   db: Db,
-  id: number
+  id: number,
+  cuentaId?: number | null,
 ): Promise<VentaAgriculturaRow | undefined> {
-  const row = (await db
-    .prepare("SELECT * FROM VENTAS_AGRICULTURA WHERE id = ?")
-    .get(id)) as Record<string, unknown> | undefined;
+  let sql = "SELECT * FROM VENTAS_AGRICULTURA WHERE id = @id";
+  const params: Record<string, number> = { id };
+  if (cuentaId != null && cuentaId > 0) {
+    sql += " AND cuenta_id = @cuenta_id";
+    params.cuenta_id = cuentaId;
+  }
+  const row = (await db.prepare(sql).get(params)) as Record<string, unknown> | undefined;
   return row ? mapRow(row) : undefined;
 }
 
 export async function updateVentaAgricultura(
   db: Db,
   id: number,
-  data: VentaAgriculturaInput
+  data: VentaAgriculturaInput,
+  cuentaId?: number | null,
 ): Promise<VentaAgriculturaRow> {
-  const existing = await getVentaAgriculturaById(db, id);
+  const existing = await getVentaAgriculturaById(db, id, cuentaId);
   if (!existing) throw new Error("Simulación no encontrada");
   if (existing.venta_realizada) {
     throw new Error("No se puede editar una simulación con venta cerrada");
   }
 
   const row = normalizeInput(data);
+  const resolvedCuentaId =
+    cuentaId ?? (await resolveCuentaIdForEmpresaNombre(db, row.empresa, cuentaId));
   const result = await db.prepare(
     `UPDATE VENTAS_AGRICULTURA SET
       empresa = @empresa,
@@ -390,17 +404,24 @@ export async function updateVentaAgricultura(
       rendimiento_ton_ha = @rendimiento_ton_ha,
       precio_usd_ton = @precio_usd_ton,
       total_ton = @total_ton,
-      importe_usd = @importe_usd
+      importe_usd = @importe_usd,
+      cuenta_id = @cuenta_id
      WHERE id = @id`
-  ).run({ ...row, id });
+  ).run({ ...row, id, cuenta_id: resolvedCuentaId });
 
   if (result.changes === 0) throw new Error("No se pudo actualizar el registro");
-  const updated = await getVentaAgriculturaById(db, id);
+  const updated = await getVentaAgriculturaById(db, id, cuentaId);
   if (!updated) throw new Error("No se pudo actualizar el registro");
   return updated;
 }
 
-export async function deleteVentaAgricultura(db: Db, id: number): Promise<boolean> {
+export async function deleteVentaAgricultura(
+  db: Db,
+  id: number,
+  cuentaId?: number | null,
+): Promise<boolean> {
+  const existing = await getVentaAgriculturaById(db, id, cuentaId);
+  if (!existing) return false;
   return (await db.prepare("DELETE FROM VENTAS_AGRICULTURA WHERE id = ?").run(id)).changes > 0;
 }
 
@@ -467,9 +488,10 @@ export async function patchVentaAgricultura(
     venta_realizada?: boolean;
     valores_reales?: VentaAgriculturaRealInput | null;
     destacada?: boolean;
-  }
+  },
+  cuentaId?: number | null,
 ): Promise<VentaAgriculturaRow> {
-  const existing = await getVentaAgriculturaById(db, id);
+  const existing = await getVentaAgriculturaById(db, id, cuentaId);
   if (!existing) throw new Error("Simulación no encontrada");
 
   let venta_realizada = patch.venta_realizada ?? existing.venta_realizada;
@@ -559,7 +581,7 @@ export async function patchVentaAgricultura(
     real_notas,
   });
 
-  const updated = await getVentaAgriculturaById(db, id);
+  const updated = await getVentaAgriculturaById(db, id, cuentaId);
   if (!updated) throw new Error("No se pudo actualizar el registro");
   return updated;
 }

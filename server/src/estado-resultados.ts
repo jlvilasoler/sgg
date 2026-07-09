@@ -1,5 +1,5 @@
 import type { Db } from "./db/pg-client.js";
-import { appendEmpresaScope, type ResumenEmpresaScope } from "./empresa-scope.js";
+import { appendEmpresaScope, appendPresupuestoScope, type ResumenEmpresaScope } from "./empresa-scope.js";
 import type {
   EstadoResultadosClasificacionDetalle,
   EstadoResultadosPayload,
@@ -127,14 +127,22 @@ async function gastosClasificadosUsd(
         THEN trim(p.codigo_proveedor)::integer
         ELSE NULL
       END
-    )`;
+    LEFT JOIN PROVEEDORES pr ON pr.cod = (
+      CASE
+        WHEN trim(COALESCE(p.codigo_proveedor, '')) ~ '^[0-9]+$'
+        THEN trim(p.codigo_proveedor)::integer
+        ELSE NULL
+      END
+    )
+    AND (p.cuenta_id IS NULL OR pr.cuenta_id IS NULL OR pr.cuenta_id = p.cuenta_id)`;
   const params: Record<string, string | number> = {};
   q += " WHERE 1=1";
-  const scope: ResumenEmpresaScope | undefined =
-    opts.empresas?.length || opts.empresa
-      ? { empresa: opts.empresa, empresas: opts.empresas }
-      : undefined;
-  q = appendEmpresaScope(q, params as Record<string, string>, scope, "p.empresa");
+  const scope: ResumenEmpresaScope = {
+    empresa: opts.empresa,
+    empresas: opts.empresas,
+    cuenta_id: opts.cuentaId ?? undefined,
+  };
+  q = appendPresupuestoScope(q, params, scope, "p.empresa");
   if (opts.fecha_desde) {
     q += " AND p.fecha >= @fecha_desde";
     params.fecha_desde = opts.fecha_desde;

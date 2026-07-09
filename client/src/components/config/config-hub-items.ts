@@ -92,6 +92,12 @@ const SAG_ITEMS: SgHubItem[] = [
     icon: "arquitectura_sistema",
   },
   {
+    id: "home_layout_monitor",
+    label: "Monitor de usuarios",
+    subtitle: "Control de cómo cada usuario tiene su pantalla Inicio",
+    icon: "usuarios_permisos_rol",
+  },
+  {
     id: "dotacion_ganadera",
     label: "Dotación ganadera",
     subtitle: "Unidades ganaderas por categoría etaria",
@@ -291,6 +297,9 @@ export function buildConfigSagItems(user: AuthUser | null | undefined): SgHubIte
     if (item.id === "home_layout") {
       return canAccessConfigHomeLayout(user ?? null);
     }
+    if (item.id === "home_layout_monitor") {
+      return canAccessConfigHomeLayout(user ?? null);
+    }
     if (item.id === "rubros_sag") {
       return canAccessConfigRubrosSag(user ?? null);
     }
@@ -405,6 +414,10 @@ export function configHubMeta(
       title: "Inicio por tipo de cuenta",
       subtitle: "Bloques visibles del dashboard Inicio por rol.",
     },
+    home_layout_monitor: {
+      title: "Monitor de usuarios",
+      subtitle: "Control de la pantalla Inicio de cada usuario.",
+    },
     rubros_sag: {
       title: "Rubros y sub-rubros SAG",
       subtitle: "Catálogo base compartido y rubros propios de cada cuenta.",
@@ -465,6 +478,7 @@ export function configNavScopeForModulo(modulo: string): ConfigNavScope {
     modulo === "catalogo_sanitario_productos" ||
     modulo === "dotacion_ganadera" ||
     modulo === "home_layout" ||
+    modulo === "home_layout_monitor" ||
     modulo === "rubros_sag" ||
     modulo === "clasificacion_proveedores" ||
     modulo === "vencimientos_impuestos" ||

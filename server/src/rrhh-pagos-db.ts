@@ -122,20 +122,34 @@ function clasificarVinculo(
   return null;
 }
 
+function appendPresupuestoCuentaFilter(
+  query: string,
+  params: Record<string, string | number>,
+  cuentaId?: number | null,
+): string {
+  if (cuentaId != null && cuentaId > 0) {
+    params.cuenta_id = cuentaId;
+    return `${query} AND cuenta_id = @cuenta_id`;
+  }
+  return query;
+}
+
 export async function listPagosPorCedula(
   db: Db,
   cedula: string,
-  filters?: { fecha_desde?: string; fecha_hasta?: string; empresa?: string }
+  filters?: { fecha_desde?: string; fecha_hasta?: string; empresa?: string },
+  cuentaId?: number | null,
 ): Promise<ResumenPagosFuncionario> {
   const cedulaNorm = normalizeCedula(cedula);
   if (!cedulaNorm) {
     throw new Error("Ingresá una cédula de identidad válida.");
   }
 
-  const funcionario = (await getFuncionarioByCedula(db, cedula)) ?? null;
+  const funcionario = (await getFuncionarioByCedula(db, cedula, cuentaId)) ?? null;
 
   let query = "SELECT * FROM PRESUPUESTO WHERE 1=1";
-  const params: Record<string, string> = {};
+  const params: Record<string, string | number> = {};
+  query = appendPresupuestoCuentaFilter(query, params, cuentaId);
   if (filters?.empresa) {
     query += " AND empresa = @empresa";
     params.empresa = filters.empresa;
@@ -250,13 +264,14 @@ export async function listPagosPorCedula(
 
 export async function resumenGlobalSueldos(
   db: Db,
+  cuentaId?: number | null,
   filters?: { fecha_desde?: string; fecha_hasta?: string }
 ): Promise<{
   total_registros: number;
   total_pesos: number;
   funcionarios_con_pagos: number;
 }> {
-  const dash = await resumenDashboardRRHH(db, null, filters);
+  const dash = await resumenDashboardRRHH(db, cuentaId, filters);
   return {
     total_registros: dash.pagos_periodo.total_registros,
     total_pesos: dash.pagos_periodo.total_pesos,
@@ -324,7 +339,8 @@ export async function resumenDashboardRRHH(
     COALESCE(SUM(saldo_usd),0) AS saldo_usd,
     COUNT(DISTINCT NULLIF(trim(funcionario_cedula), '')) AS funcs_cedula
     FROM PRESUPUESTO WHERE ${RUBRO_SUELDO_SQL}`;
-  const params: Record<string, string> = {};
+  const params: Record<string, string | number> = {};
+  queryPeriodo = appendPresupuestoCuentaFilter(queryPeriodo, params, cuentaId);
   if (filters?.fecha_desde) {
     queryPeriodo += " AND fecha >= @fecha_desde";
     params.fecha_desde = filters.fecha_desde;
@@ -343,6 +359,7 @@ export async function resumenDashboardRRHH(
   let ultQuery = `SELECT id, fecha, empresa, concepto, rubro, saldo_usd, pesos,
     funcionario_cedula, responsable_gasto
     FROM PRESUPUESTO WHERE ${RUBRO_SUELDO_SQL}`;
+  ultQuery = appendPresupuestoCuentaFilter(ultQuery, params, cuentaId);
   if (filters?.fecha_desde) ultQuery += " AND fecha >= @fecha_desde";
   if (filters?.fecha_hasta) ultQuery += " AND fecha <= @fecha_hasta";
   ultQuery += " ORDER BY fecha DESC, id DESC LIMIT 8";

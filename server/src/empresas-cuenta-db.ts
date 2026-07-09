@@ -1423,6 +1423,45 @@ export async function isValidEmpresaNombre(
   return Boolean(row);
 }
 
+export async function isValidEmpresaNombreForCuenta(
+  db: Db,
+  nombre: string,
+  cuentaId: number,
+): Promise<boolean> {
+  const row = (await db
+    .prepare(
+      `SELECT 1 AS ok
+       FROM EMPRESAS_OPERATIVAS op
+       INNER JOIN EMPRESAS_CUENTA c ON c.id = op.cuenta_id
+       WHERE op.nombre = ? AND op.cuenta_id = ? AND op.activo = 1 AND c.activo = 1`
+    )
+    .get(nombre.trim(), cuentaId)) as { ok: number } | undefined;
+  return Boolean(row);
+}
+
+export async function resolveCuentaIdForEmpresaNombre(
+  db: Db,
+  nombre: string,
+  preferredCuentaId?: number | null,
+): Promise<number | null> {
+  const trimmed = nombre.trim();
+  if (!trimmed) return null;
+  const rows = (await db
+    .prepare(
+      `SELECT DISTINCT cuenta_id
+       FROM EMPRESAS_OPERATIVAS
+       WHERE nombre = ? AND activo = 1`,
+    )
+    .all(trimmed)) as { cuenta_id: number }[];
+  if (rows.length === 0) return preferredCuentaId ?? null;
+  if (preferredCuentaId != null) {
+    const match = rows.find((row) => row.cuenta_id === preferredCuentaId);
+    if (match) return preferredCuentaId;
+  }
+  if (rows.length === 1) return rows[0]!.cuenta_id;
+  return preferredCuentaId ?? rows[0]!.cuenta_id;
+}
+
 export async function isValidEmpresaCodigo(
   db: Db,
   codigo: string

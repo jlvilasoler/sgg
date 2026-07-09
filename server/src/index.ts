@@ -386,7 +386,11 @@ async function parseBody(req: Request): Promise<PresupuestoInput> {
       throw new Error("La empresa seleccionada no pertenece a su cuenta.");
     }
   }
-  if (!(await empresasCuenta.isValidEmpresaNombre(db.getDb(), empresa))) {
+  if (cuentaId != null && cuentaId > 0) {
+    if (!(await empresasCuenta.isValidEmpresaNombreForCuenta(db.getDb(), empresa, cuentaId))) {
+      throw new Error("Empresa inválida o no pertenece a su cuenta.");
+    }
+  } else if (!(await empresasCuenta.isValidEmpresaNombre(db.getDb(), empresa))) {
     throw new Error("Empresa inválida o inactiva.");
   }
   const fecha = String(body.fecha ?? "").trim();
@@ -528,11 +532,18 @@ app.get("/api/empresas-operativas", async (req, res) => {
 });
 
 async function puedeAccederPresupuesto(row: Presupuesto, user: UserPublic): Promise<boolean> {
-  if (!user.es_admin_plataforma) {
-    const permitidas = await empresasPermitidas(user);
-    if (permitidas.length > 0 && !permitidas.includes(row.empresa)) {
-      return false;
-    }
+  const cuentaId = await cuentaIdForScopedRead(user);
+  if (
+    cuentaId != null &&
+    cuentaId > 0 &&
+    row.cuenta_id != null &&
+    Number(row.cuenta_id) !== cuentaId
+  ) {
+    return false;
+  }
+  const permitidas = await empresasPermitidas(user);
+  if (permitidas.length > 0 && !permitidas.includes(row.empresa)) {
+    return false;
   }
   if (
     user.rol === "admin" ||
@@ -561,9 +572,8 @@ async function cuentaIdForUser(user: UserPublic): Promise<number | null> {
   return await empresasCuenta.resolveCuentaMadreIdForUser(db.getDb(), user);
 }
 
-/** Scope de lectura por cuenta: super admin ve todo; resto solo su cuenta (nunca null sin filtro). */
+/** Scope de lectura por cuenta: solo datos de la cuenta del usuario (incl. admin plataforma en su cuenta). */
 async function cuentaIdForScopedRead(user: UserPublic): Promise<number | null> {
-  if (user.es_admin_plataforma) return null;
   return await cuentaIdForUser(user);
 }
 
@@ -707,8 +717,8 @@ async function assertLoteEnCuentaUsuario(req: Request, loteId: number): Promise<
   const lote = await db.stockGanadero.getLote(loteId);
   if (!lote) throw new Error("Lote no encontrado");
   const user = req.user!;
-  if (user.es_super_admin) return;
   const cuentaId = await cuentaIdForUser(user);
+  if (cuentaId == null && user.es_super_admin) return;
   const loteCuenta = lote.cuenta_id ?? null;
   if (!cuentaId || loteCuenta !== cuentaId) {
     throw new Error("Sin permiso sobre esta importación");
@@ -754,7 +764,6 @@ async function applyEmpresaScopeToFilters(
   filters: db.ListFilters,
   user: UserPublic
 ): Promise<db.ListFilters> {
-  if (user.es_admin_plataforma) return filters;
   const permitidas = await empresasPermitidas(user);
   if (permitidas.length === 0) {
     return { ...filters, empresas: ["__sin_empresas__"] };
@@ -769,17 +778,18 @@ async function resumenEmpresaScope(
   user: UserPublic,
   empresa?: string
 ): Promise<db.ResumenEmpresaScope> {
-  if (user.es_admin_plataforma) {
-    return empresa ? { empresa } : {};
-  }
+  const cuentaId = await cuentaIdForScopedRead(user);
+  const cuentaScope: db.ResumenEmpresaScope =
+    cuentaId != null && cuentaId > 0 ? { cuenta_id: cuentaId } : {};
+
   const permitidas = await empresasPermitidas(user);
   if (permitidas.length === 0) {
-    return { empresas: ["__sin_empresas__"] };
+    return { ...cuentaScope, empresas: ["__sin_empresas__"] };
   }
   if (empresa && permitidas.includes(empresa)) {
-    return { empresa };
+    return { ...cuentaScope, empresa };
   }
-  return { empresas: permitidas };
+  return { ...cuentaScope, empresas: permitidas };
 }
 
 async function presupuestoListFilters(req: Request): Promise<db.ListFilters> {
@@ -792,6 +802,10 @@ async function presupuestoListFilters(req: Request): Promise<db.ListFilters> {
     fecha_hasta: req.query.fecha_hasta as string | undefined,
     busqueda: req.query.busqueda as string | undefined,
   };
+  const cuentaId = await cuentaIdForScopedRead(user);
+  if (cuentaId != null && cuentaId > 0) {
+    filters.cuenta_id = cuentaId;
+  }
   const soloMios = queryFlag(req.query.solo_mios);
   const verTodos = queryFlag(req.query.ver_todos);
 
@@ -1467,10 +1481,15 @@ app.post("/api/presupuesto", async (req, res) => {
   try {
     const payload = await parseBody(req);
     const user = req.user!;
-    const reg = await db.insertPresupuesto(payload, {
-      email: user.email,
-      nombre: user.nombre,
-    });
+    const cuentaId = (await cuentaIdParaInsert(user)) ?? (await cuentaIdForUser(user));
+    const reg = await db.insertPresupuesto(
+      payload,
+      {
+        email: user.email,
+        nombre: user.nombre,
+      },
+      cuentaId,
+    );
     res.status(201).json({
       ok: true,
       data: reg,
@@ -1642,6 +1661,7 @@ async function ventasAgriculturaFiltersFromRequest(
   return {
     empresa: scope.empresa,
     empresas: scope.empresas,
+    cuenta_id: scope.cuenta_id,
     mes: Number.isFinite(mesRaw) ? mesRaw : undefined,
     anio: Number.isFinite(anioRaw) ? anioRaw : undefined,
     cultivo: req.query.cultivo as string | undefined,
@@ -1657,23 +1677,36 @@ async function ventasArrendamientoFiltersFromRequest(
   return {
     empresa: scope.empresa,
     empresas: scope.empresas,
+    cuenta_id: scope.cuenta_id,
     departamento: req.query.departamento as string | undefined,
     busqueda: req.query.busqueda as string | undefined,
   };
 }
 
+async function assertStockGanaderoDispositivoEnScope(req: Request, clave: string): Promise<void> {
+  const filters = await stockGanaderoFiltersFromRequest(req, stockGanaderoQueryBase(req));
+  const detalle = await db.stockGanadero.getDispositivo(clave, filters);
+  if (!detalle) throw new Error("Dispositivo no encontrado");
+}
+
+async function assertStockEquinoDispositivoEnScope(req: Request, clave: string): Promise<void> {
+  const filters = await stockGanaderoFiltersFromRequest(req, stockGanaderoQueryBase(req));
+  const detalle = await db.stockEquino.getDispositivo(clave, filters);
+  if (!detalle) throw new Error("Dispositivo no encontrado");
+}
+
 async function assertEmpresaPermitida(user: UserPublic, empresa: string): Promise<void> {
   const nombre = empresa.trim();
   if (!nombre) throw new Error("La empresa es obligatoria.");
-  if (user.es_admin_plataforma) {
-    if (!(await empresasCuenta.isValidEmpresaNombre(db.getDb(), nombre))) {
-      throw new Error("Empresa inválida o inactiva.");
+  const permitidas = await empresasPermitidas(user);
+  if (permitidas.length > 0) {
+    if (!permitidas.includes(nombre)) {
+      throw new Error("Empresa inválida o no pertenece a su cuenta.");
     }
     return;
   }
-  const permitidas = await empresasPermitidas(user);
-  if (!permitidas.includes(nombre)) {
-    throw new Error("Empresa inválida o no pertenece a su cuenta.");
+  if (!(await empresasCuenta.isValidEmpresaNombre(db.getDb(), nombre))) {
+    throw new Error("Empresa inválida o inactiva.");
   }
 }
 
@@ -1694,15 +1727,15 @@ async function assertEmpresaCodigoPermitida(
 ): Promise<void> {
   const normalized = codigo.trim().toUpperCase();
   if (!normalized) return;
-  if (user.es_admin_plataforma) {
-    if (!(await empresasCuenta.isValidEmpresaCodigo(db.getDb(), normalized))) {
-      throw new Error("Empresa inválida o inactiva.");
+  const permitidas = await empresasCodigosPermitidos(user);
+  if (permitidas.length > 0) {
+    if (!permitidas.includes(normalized)) {
+      throw new Error("Empresa inválida o no pertenece a su cuenta.");
     }
     return;
   }
-  const permitidas = await empresasCodigosPermitidos(user);
-  if (!permitidas.includes(normalized)) {
-    throw new Error("Empresa inválida o no pertenece a su cuenta.");
+  if (!(await empresasCuenta.isValidEmpresaCodigo(db.getDb(), normalized))) {
+    throw new Error("Empresa inválida o inactiva.");
   }
 }
 
@@ -1777,7 +1810,7 @@ async function parseVentaArrendamientoBody(req: Request): Promise<ventasArr.Vent
 }
 
 app.get("/api/ingresos-ventas", async (req, res) => {
-  const cuentaId = await cuentaIdForUser(req.user!);
+  const cuentaId = await cuentaIdForScopedRead(req.user!);
   const data = await db.ingresosVentas.list(
     {
       fecha_desde: req.query.fecha_desde as string | undefined,
@@ -1808,8 +1841,9 @@ app.get("/api/ingresos-ventas/ventas-agricultura", async (req, res) => {
 app.post("/api/ingresos-ventas/ventas-agricultura", async (req, res) => {
   try {
     const payload = await parseVentaAgriculturaBody(req);
-    const newId = await db.ventasAgricultura.insert(payload);
-    const reg = await db.ventasAgricultura.getById(newId);
+    const cuentaId = await cuentaIdParaInsert(req.user!);
+    const newId = await db.ventasAgricultura.insert(payload, cuentaId);
+    const reg = await db.ventasAgricultura.getById(newId, await cuentaIdForScopedRead(req.user!));
     res.status(201).json({
       ok: true,
       data: reg,
@@ -1828,7 +1862,8 @@ app.put("/api/ingresos-ventas/ventas-agricultura/:id", async (req, res) => {
   }
   try {
     const payload = await parseVentaAgriculturaBody(req);
-    const row = await db.ventasAgricultura.update(id, payload);
+    const cuentaId = await cuentaIdForScopedRead(req.user!);
+    const row = await db.ventasAgricultura.update(id, payload, cuentaId);
     res.json({ ok: true, data: row, message: "Simulación actualizada" });
   } catch (e) {
     const msg = (e as Error).message;
@@ -1877,7 +1912,8 @@ app.patch("/api/ingresos-ventas/ventas-agricultura/:id", async (req, res) => {
   }
 
   try {
-    const row = await db.ventasAgricultura.patch(id, patch);
+    const cuentaId = await cuentaIdForScopedRead(req.user!);
+    const row = await db.ventasAgricultura.patch(id, patch, cuentaId);
     const message =
       patch.venta_realizada === false
         ? "Venta anulada — la simulación volvió a pendiente"
@@ -1893,7 +1929,8 @@ app.patch("/api/ingresos-ventas/ventas-agricultura/:id", async (req, res) => {
 
 app.delete("/api/ingresos-ventas/ventas-agricultura/:id", async (req, res) => {
   const id = Number(req.params.id);
-  if (!await db.ventasAgricultura.delete(id)) {
+  const cuentaId = await cuentaIdForScopedRead(req.user!);
+  if (!await db.ventasAgricultura.delete(id, cuentaId)) {
     res.status(404).json({ ok: false, error: "Registro no encontrado" });
     return;
   }
@@ -1908,8 +1945,9 @@ app.get("/api/ingresos-ventas/ventas-arrendamientos", async (req, res) => {
 app.post("/api/ingresos-ventas/ventas-arrendamientos", async (req, res) => {
   try {
     const payload = await parseVentaArrendamientoBody(req);
-    const newId = await db.ventasArrendamientos.insert(payload);
-    const reg = await db.ventasArrendamientos.getById(newId);
+    const cuentaId = await cuentaIdParaInsert(req.user!);
+    const newId = await db.ventasArrendamientos.insert(payload, cuentaId);
+    const reg = await db.ventasArrendamientos.getById(newId, await cuentaIdForScopedRead(req.user!));
     res.status(201).json({
       ok: true,
       data: reg,
@@ -1928,7 +1966,8 @@ app.put("/api/ingresos-ventas/ventas-arrendamientos/:id", async (req, res) => {
   }
   try {
     const payload = await parseVentaArrendamientoBody(req);
-    const row = await db.ventasArrendamientos.update(id, payload);
+    const cuentaId = await cuentaIdForScopedRead(req.user!);
+    const row = await db.ventasArrendamientos.update(id, payload, cuentaId);
     res.json({ ok: true, data: row, message: "Simulación actualizada" });
   } catch (e) {
     const msg = (e as Error).message;
@@ -1938,7 +1977,8 @@ app.put("/api/ingresos-ventas/ventas-arrendamientos/:id", async (req, res) => {
 
 app.delete("/api/ingresos-ventas/ventas-arrendamientos/:id", async (req, res) => {
   const id = Number(req.params.id);
-  if (!await db.ventasArrendamientos.delete(id)) {
+  const cuentaId = await cuentaIdForScopedRead(req.user!);
+  if (!await db.ventasArrendamientos.delete(id, cuentaId)) {
     res.status(404).json({ ok: false, error: "Registro no encontrado" });
     return;
   }
@@ -1989,7 +2029,8 @@ app.patch("/api/ingresos-ventas/ventas-arrendamientos/:id", async (req, res) => 
   }
 
   try {
-    const row = await db.ventasArrendamientos.patch(id, patch);
+    const cuentaId = await cuentaIdForScopedRead(req.user!);
+    const row = await db.ventasArrendamientos.patch(id, patch, cuentaId);
     const message =
       patch.venta_realizada === false
         ? "Confirmación anulada — la simulación volvió a pendiente"
@@ -2012,7 +2053,7 @@ app.get("/api/ingresos-ventas/ventas-ganado-cerradas", async (req, res) => {
     fecha_hasta: req.query.fecha_hasta as string | undefined,
     busqueda: req.query.busqueda as string | undefined,
     limit: 500,
-    cuentaId: await cuentaIdForUser(req.user!),
+    cuentaId: await cuentaIdForScopedRead(req.user!),
   });
   res.json({ ok: true, data });
 });
@@ -2032,7 +2073,7 @@ app.patch("/api/ingresos-ventas/ventas-ganado-cerradas/:id", async (req, res) =>
     const row = await db.simuladorVentaGanado.updateDestino(
       id,
       destinoRaw == null ? null : destinoRaw,
-      await cuentaIdForUser(req.user!)
+      await cuentaIdForScopedRead(req.user!)
     );
     res.json({ ok: true, data: row, message: "Destino actualizado" });
   } catch (e) {
@@ -2043,7 +2084,7 @@ app.patch("/api/ingresos-ventas/ventas-ganado-cerradas/:id", async (req, res) =>
 
 app.get("/api/ingresos-ventas/:id", async (req, res) => {
   const id = Number(req.params.id);
-  const cuentaId = await cuentaIdForUser(req.user!);
+  const cuentaId = await cuentaIdForScopedRead(req.user!);
   const reg = await db.ingresosVentas.getById(id, cuentaId);
   if (!reg) {
     res.status(404).json({ ok: false, error: "Registro no encontrado" });
@@ -2073,7 +2114,7 @@ app.put("/api/ingresos-ventas/:id", async (req, res) => {
   try {
     const id = Number(req.params.id);
     const payload = parseIngresoVentaBody(req);
-    const cuentaId = await cuentaIdForUser(req.user!);
+    const cuentaId = await cuentaIdForScopedRead(req.user!);
     if (!await db.ingresosVentas.update(id, payload, cuentaId)) {
       res.status(404).json({ ok: false, error: "Registro no encontrado" });
       return;
@@ -2090,7 +2131,7 @@ app.put("/api/ingresos-ventas/:id", async (req, res) => {
 
 app.delete("/api/ingresos-ventas/:id", async (req, res) => {
   const id = Number(req.params.id);
-  const cuentaId = await cuentaIdForUser(req.user!);
+  const cuentaId = await cuentaIdForScopedRead(req.user!);
   if (!await db.ingresosVentas.delete(id, cuentaId)) {
     res.status(404).json({ ok: false, error: "Registro no encontrado" });
     return;
@@ -2363,7 +2404,7 @@ app.delete("/api/venta-sub-rubro-items/:id", async (req, res) => {
   if (!requireVentaRubrosManage(req, res)) return;
   if (!denyUnlessCuentaAdminOrSuperAdminItemsDelete(req, res)) return;
   const id = Number(req.params.id);
-  const cuentaId = await cuentaIdForUser(req.user!);
+  const cuentaId = await cuentaIdForScopedRead(req.user!);
   if (!await db.ventaSubRubroItems.delete(id, cuentaId)) {
     res.status(404).json({ ok: false, error: "Ítem no encontrado" });
     return;
@@ -2555,6 +2596,7 @@ app.get("/api/stock-ganadero/dispositivos/:clave", async (req, res) => {
 
 app.get("/api/stock-ganadero/dispositivos/:clave/historial-cambios", async (req, res) => {
   try {
+    await assertStockGanaderoDispositivoEnScope(req, req.params.clave);
     const data = await db.stockGanadero.listHistorialCambios(req.params.clave);
     res.json({ ok: true, data });
   } catch (e) {
@@ -2752,6 +2794,7 @@ app.post("/api/stock-ganadero/control-sanitario/fechas-aplicacion", async (req, 
 
 app.get("/api/stock-ganadero/dispositivos/:clave/control-sanitario", async (req, res) => {
   try {
+    await assertStockGanaderoDispositivoEnScope(req, req.params.clave);
     const data = await stockControlSanitario.listStockControlSanitario(
       db.getDb(),
       "ganadero",
@@ -2768,6 +2811,7 @@ app.get("/api/stock-ganadero/dispositivos/:clave/control-sanitario", async (req,
 
 app.post("/api/stock-ganadero/dispositivos/:clave/control-sanitario", async (req, res) => {
   try {
+    await assertStockGanaderoDispositivoEnScope(req, req.params.clave);
     const autor = historialAutorLabelFromRequest(req);
     const data = await stockControlSanitario.createStockControlSanitario(
       db.getDb(),
@@ -2789,6 +2833,7 @@ app.delete(
   "/api/stock-ganadero/dispositivos/:clave/control-sanitario/:id",
   async (req, res) => {
     try {
+      await assertStockGanaderoDispositivoEnScope(req, req.params.clave);
       const id = Number(req.params.id);
       await stockControlSanitario.deleteStockControlSanitario(
         db.getDb(),
@@ -4404,6 +4449,7 @@ app.get("/api/stock-equino/dispositivos/:clave", async (req, res) => {
 
 app.get("/api/stock-equino/dispositivos/:clave/historial-cambios", async (req, res) => {
   try {
+    await assertStockEquinoDispositivoEnScope(req, req.params.clave);
     const data = await db.stockEquino.listHistorialCambios(req.params.clave);
     res.json({ ok: true, data });
   } catch (e) {
@@ -4510,6 +4556,7 @@ app.put("/api/stock-equino/control-sanitario/producto-ficha", async (req, res) =
 
 app.get("/api/stock-equino/dispositivos/:clave/control-sanitario", async (req, res) => {
   try {
+    await assertStockEquinoDispositivoEnScope(req, req.params.clave);
     const data = await stockControlSanitario.listStockControlSanitario(
       db.getDb(),
       "equino",
@@ -4526,6 +4573,7 @@ app.get("/api/stock-equino/dispositivos/:clave/control-sanitario", async (req, r
 
 app.post("/api/stock-equino/dispositivos/:clave/control-sanitario", async (req, res) => {
   try {
+    await assertStockEquinoDispositivoEnScope(req, req.params.clave);
     const autor = historialAutorLabelFromRequest(req);
     const data = await stockControlSanitario.createStockControlSanitario(
       db.getDb(),
@@ -4547,6 +4595,7 @@ app.delete(
   "/api/stock-equino/dispositivos/:clave/control-sanitario/:id",
   async (req, res) => {
     try {
+      await assertStockEquinoDispositivoEnScope(req, req.params.clave);
       const id = Number(req.params.id);
       await stockControlSanitario.deleteStockControlSanitario(
         db.getDb(),
@@ -5359,7 +5408,7 @@ app.get("/api/proveedores", async (req, res) => {
   const busqueda = req.query.busqueda as string | undefined;
   let cuentaId = await proveedoresCuentaId(req.user!);
   if (req.user!.es_super_admin && String(req.query.ambito ?? "") === "cuenta") {
-    cuentaId = (await cuentaIdForUser(req.user!)) ?? 0;
+    cuentaId = (await cuentaIdForScopedRead(req.user!)) ?? 0;
   }
   res.json({ ok: true, data: await db.proveedores.list(busqueda, cuentaId) });
 });
@@ -5442,7 +5491,7 @@ app.patch("/api/proveedores/id/:id/clasificacion", async (req, res) => {
       return;
     }
     const body = req.body ?? {};
-    const cuentaId = await cuentaIdForUser(req.user!);
+    const cuentaId = await cuentaIdForScopedRead(req.user!);
     if (!cuentaId) {
       res.status(403).json({
         ok: false,
@@ -6573,7 +6622,7 @@ app.put("/api/responsables/:id", async (req, res) => {
   try {
     const id = Number(req.params.id);
     const payload = parseResponsableBody(req);
-    const cuentaId = await cuentaIdForUser(req.user!);
+    const cuentaId = await cuentaIdForScopedRead(req.user!);
     if (!await db.responsables.update(id, payload, cuentaId)) {
       res.status(404).json({ ok: false, error: "Nombre no encontrado" });
       return;
@@ -6591,7 +6640,7 @@ app.put("/api/responsables/:id", async (req, res) => {
 app.delete("/api/responsables/:id", async (req, res) => {
   try {
     const id = Number(req.params.id);
-    const cuentaId = await cuentaIdForUser(req.user!);
+    const cuentaId = await cuentaIdForScopedRead(req.user!);
     if (!await db.responsables.delete(id, cuentaId)) {
       res.status(404).json({ ok: false, error: "Nombre no encontrado" });
       return;
@@ -7258,7 +7307,7 @@ app.get("/api/simulador-venta-ganado", async (req, res) => {
   const data = await db.simuladorVentaGanado.list({
     tipo,
     limit,
-    cuentaId: await cuentaIdForUser(req.user!),
+    cuentaId: await cuentaIdForScopedRead(req.user!),
   });
   res.json({ ok: true, data });
 });
@@ -7299,7 +7348,7 @@ app.put("/api/simulador-venta-ganado/:id", async (req, res) => {
       return;
     }
 
-    const cuentaId = await cuentaIdForUser(req.user!);
+    const cuentaId = await cuentaIdForScopedRead(req.user!);
     const antes = await db.simuladorVentaGanado.getById(id, cuentaId);
     if (!antes) {
       res.status(404).json({ ok: false, error: "Simulación no encontrada" });
@@ -7323,7 +7372,7 @@ app.patch("/api/simulador-venta-ganado/:id", async (req, res) => {
   }
   const body = (req.body ?? {}) as Record<string, unknown>;
   const patch: Parameters<typeof db.simuladorVentaGanado.patch>[1] = {};
-  const cuentaId = await cuentaIdForUser(req.user!);
+  const cuentaId = await cuentaIdForScopedRead(req.user!);
 
   const antes = await db.simuladorVentaGanado.getById(id, cuentaId);
   if (!antes) {
@@ -7388,7 +7437,7 @@ app.delete("/api/simulador-venta-ganado/:id", async (req, res) => {
     return;
   }
   try {
-    const cuentaId = await cuentaIdForUser(req.user!);
+    const cuentaId = await cuentaIdForScopedRead(req.user!);
     const existing = await db.simuladorVentaGanado.getById(id, cuentaId);
     if (!existing) {
       res.status(404).json({ ok: false, error: "Simulación no encontrada" });
@@ -7416,7 +7465,7 @@ app.get("/api/simulador-venta-ganado/:id/dispositivos", async (req, res) => {
     res.status(400).json({ ok: false, error: "ID inválido" });
     return;
   }
-  const existing = await db.simuladorVentaGanado.getById(id, await cuentaIdForUser(req.user!));
+  const existing = await db.simuladorVentaGanado.getById(id, await cuentaIdForScopedRead(req.user!));
   if (!existing) {
     res.status(404).json({ ok: false, error: "Simulación no encontrada" });
     return;
@@ -7435,7 +7484,7 @@ app.put("/api/simulador-venta-ganado/:id/dispositivos", async (req, res) => {
     res.status(400).json({ ok: false, error: "ID inválido" });
     return;
   }
-  const existing = await db.simuladorVentaGanado.getById(id, await cuentaIdForUser(req.user!));
+  const existing = await db.simuladorVentaGanado.getById(id, await cuentaIdForScopedRead(req.user!));
   if (!existing) {
     res.status(404).json({ ok: false, error: "Simulación no encontrada" });
     return;
@@ -7504,7 +7553,7 @@ app.get("/api/simulador-venta-ganado/:id/auditoria", async (req, res) => {
     res.status(400).json({ ok: false, error: "ID inválido" });
     return;
   }
-  const existing = await db.simuladorVentaGanado.getById(id, await cuentaIdForUser(req.user!));
+  const existing = await db.simuladorVentaGanado.getById(id, await cuentaIdForScopedRead(req.user!));
   if (!existing) {
     res.status(404).json({ ok: false, error: "Simulación no encontrada" });
     return;
@@ -7569,7 +7618,7 @@ app.get("/api/resumen/estado-resultados", async (req, res) => {
   const fecha_hasta = req.query.fecha_hasta as string | undefined;
   const empresa = req.query.empresa as string | undefined;
   const scope = await resumenEmpresaScope(req.user!, empresa);
-  const cuentaId = await cuentaIdForUser(req.user!);
+  const cuentaId = await cuentaIdForScopedRead(req.user!);
   const data = await db.buildEstadoResultados({
     fecha_desde,
     fecha_hasta,
@@ -7605,13 +7654,13 @@ function parseFuncionarioBody(req: Request) {
 app.get("/api/funcionarios", async (req, res) => {
   const busqueda = req.query.busqueda as string | undefined;
   const soloActivos = req.query.solo_activos === "1";
-  const cuentaId = await cuentaIdForUser(req.user!);
+  const cuentaId = await cuentaIdForScopedRead(req.user!);
   res.json({ ok: true, data: await db.funcionarios.list({ busqueda, soloActivos }, cuentaId) });
 });
 
 app.get("/api/funcionarios/cedula/:cedula", async (req, res) => {
   const cedula = decodeURIComponent(paramString(req.params.cedula));
-  const cuentaId = await cuentaIdForUser(req.user!);
+  const cuentaId = await cuentaIdForScopedRead(req.user!);
   const row = await db.funcionarios.getByCedula(cedula, cuentaId);
   if (!row) {
     res.status(404).json({ ok: false, error: "Funcionario no encontrado" });
@@ -7637,7 +7686,7 @@ app.post("/api/funcionarios", async (req, res) => {
 app.put("/api/funcionarios/:id", async (req, res) => {
   try {
     const id = Number(req.params.id);
-    const cuentaId = await cuentaIdForUser(req.user!);
+    const cuentaId = await cuentaIdForScopedRead(req.user!);
     if (!await db.funcionarios.update(id, parseFuncionarioBody(req), cuentaId)) {
       res.status(404).json({ ok: false, error: "Funcionario no encontrado" });
       return;
@@ -7655,7 +7704,7 @@ app.put("/api/funcionarios/:id", async (req, res) => {
 app.delete("/api/funcionarios/:id", async (req, res) => {
   try {
     const id = Number(req.params.id);
-    const cuentaId = await cuentaIdForUser(req.user!);
+    const cuentaId = await cuentaIdForScopedRead(req.user!);
     if (!await db.funcionarios.delete(id, cuentaId)) {
       res.status(404).json({ ok: false, error: "Funcionario no encontrado" });
       return;
@@ -7669,11 +7718,12 @@ app.delete("/api/funcionarios/:id", async (req, res) => {
 app.get("/api/rrhh/pagos", async (req, res) => {
   try {
     const cedula = String(req.query.cedula ?? "").trim();
+    const cuentaId = await cuentaIdForScopedRead(req.user!);
     const data = await db.rrhhPagos.porCedula(cedula, {
       fecha_desde: req.query.fecha_desde as string | undefined,
       fecha_hasta: req.query.fecha_hasta as string | undefined,
       empresa: req.query.empresa as string | undefined,
-    });
+    }, cuentaId);
     res.json({ ok: true, data });
   } catch (e) {
     res.status(400).json({ ok: false, error: (e as Error).message });
@@ -7681,9 +7731,10 @@ app.get("/api/rrhh/pagos", async (req, res) => {
 });
 
 app.get("/api/rrhh/resumen-global", async (req, res) => {
+  const cuentaId = await cuentaIdForScopedRead(req.user!);
   res.json({
     ok: true,
-    data: await db.rrhhPagos.resumenGlobal({
+    data: await db.rrhhPagos.resumenGlobal(cuentaId, {
       fecha_desde: req.query.fecha_desde as string | undefined,
       fecha_hasta: req.query.fecha_hasta as string | undefined,
     }),
@@ -7692,7 +7743,7 @@ app.get("/api/rrhh/resumen-global", async (req, res) => {
 
 app.get("/api/rrhh/dashboard", async (req, res) => {
   try {
-    const cuentaId = await cuentaIdForUser(req.user!);
+    const cuentaId = await cuentaIdForScopedRead(req.user!);
     res.json({
       ok: true,
       data: await db.rrhhPagos.dashboard(cuentaId, {

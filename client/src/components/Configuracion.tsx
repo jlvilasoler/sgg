@@ -38,6 +38,7 @@ import BillingMercadoPagoSettings from "./config/BillingMercadoPagoSettings";
 import BillingAdminSuscripciones from "./config/BillingAdminSuscripciones";
 import ConfigDotacionGanadera from "./config/ConfigDotacionGanadera";
 import ConfigHomeLayout from "./config/ConfigHomeLayout";
+import ConfigHomeLayoutMonitor from "./config/ConfigHomeLayoutMonitor";
 import Usuarios from "./Usuarios";
 import UsuariosActividad from "./UsuariosActividad";
 import ConfigHubView from "./config/ConfigHubView";
@@ -68,6 +69,7 @@ type SagModulo =
   | "catalogo_sanitario_productos"
   | "dotacion_ganadera"
   | "home_layout"
+  | "home_layout_monitor"
   | "rubros_sag"
   | "vencimientos_impuestos"
   | "billing_mp_settings"
@@ -220,6 +222,12 @@ export default function Configuracion({
     }
     if (
       modulo === "home_layout" &&
+      !canAccessConfigHomeLayout(currentUser ?? null)
+    ) {
+      setModulo("sag_hub");
+    }
+    if (
+      modulo === "home_layout_monitor" &&
       !canAccessConfigHomeLayout(currentUser ?? null)
     ) {
       setModulo("sag_hub");
@@ -512,6 +520,22 @@ export default function Configuracion({
         onVolver={() => volverConfigDashboard("home_layout")}
         onError={onError}
         onSuccess={onSuccess}
+      />
+    );
+  }
+
+  if (
+    modulo === "home_layout_monitor" &&
+    currentUser &&
+    canAccessConfigHomeLayout(currentUser)
+  ) {
+    return wrapConfigSubmodule(
+      "home_layout_monitor",
+      <ConfigHomeLayoutMonitor
+        apiOnline={apiOnline}
+        volverLabel="Volver a Configuración SAG"
+        onVolver={() => volverConfigDashboard("home_layout_monitor")}
+        onError={onError}
       />
     );
   }

@@ -1377,6 +1377,28 @@ export function registerAuthRoutes(app: Express): void {
     res.json({ ok: true, data: await homeLayoutDb.listHomeLayoutConfig(getDb()) });
   });
 
+  app.get("/api/auth/home-layout/monitor", async (req, res) => {
+    if (!requireSuperAdmin(req, res)) return;
+    const monitorDb = await import("./home-layout-monitor-db.js");
+    res.json({ ok: true, data: await monitorDb.getHomeLayoutMonitorSnapshot(getDb()) });
+  });
+
+  app.get("/api/auth/home-layout/monitor/:userId", async (req, res) => {
+    if (!requireSuperAdmin(req, res)) return;
+    const userId = Number(req.params.userId);
+    if (!Number.isFinite(userId) || userId <= 0) {
+      res.status(400).json({ ok: false, error: "Usuario inválido" });
+      return;
+    }
+    const monitorDb = await import("./home-layout-monitor-db.js");
+    const detalle = await monitorDb.getHomeLayoutMonitorUsuario(getDb(), userId);
+    if (!detalle) {
+      res.status(404).json({ ok: false, error: "Usuario no encontrado" });
+      return;
+    }
+    res.json({ ok: true, data: detalle });
+  });
+
   app.patch("/api/auth/home-layout/:rol", async (req, res) => {
     if (!requireSuperAdmin(req, res)) return;
     try {

@@ -30,6 +30,7 @@ import * as vinc from "./rubro-sub-rubros-db.js";
 import * as gicon from "./grupo-iconos-db.js";
 import type { GastosRubrosReadScope } from "./gastos-rubros-scope.js";
 import { migrateGastosRubrosCuentaScope } from "./gastos-rubros-scope.js";
+import { migratePresupuestoCuentaScope } from "./presupuesto-cuenta-scope.js";
 import * as rubrosMonitorDb from "./gastos-rubros-monitor-db.js";
 import * as func from "./funcionarios-db.js";
 import * as rrhh from "./rrhh-pagos-db.js";
@@ -62,7 +63,7 @@ import * as simVentaAud from "./simulador-venta-auditoria-db.js";
 import * as simVentaDisp from "./simulador-venta-dispositivos-db.js";
 import * as simVentaStock from "./simulador-venta-stock-sync.js";
 import { applySchema } from "./db/init-schema.js";
-import { appendEmpresaScope, type ResumenEmpresaScope } from "./empresa-scope.js";
+import { appendPresupuestoScope, type ResumenEmpresaScope } from "./empresa-scope.js";
 
 export type { ResumenEmpresaScope } from "./empresa-scope.js";
 
@@ -214,6 +215,7 @@ export async function initDb(): Promise<void> {
     ]);
     await migratePresupuestoIngresadoPor(db);
     await migrateGastosRubrosCuentaScope(db);
+    await migratePresupuestoCuentaScope(db);
     await prov.initProveedoresTable(db);
     await resp.initResponsablesTable(db);
     await func.initFuncionariosTable(db);
@@ -545,7 +547,7 @@ export const gastosAutomatizacion = {
       db,
       cuentaId,
       pendienteId,
-      insertPresupuesto,
+      (data, ingresadoPor) => insertPresupuesto(data, ingresadoPor, cuentaId),
       gestor,
     ),
   rechazarPendiente: (
@@ -680,27 +682,37 @@ export const ingresosVentas = {
 export const ventasAgricultura = {
   list: (filters?: ventasAgri.VentaAgriculturaFilters) =>
     ventasAgri.listVentasAgricultura(db, filters),
-  getById: (id: number) => ventasAgri.getVentaAgriculturaById(db, id),
-  insert: (data: ventasAgri.VentaAgriculturaInput) =>
-    ventasAgri.insertVentaAgricultura(db, data),
-  update: (id: number, data: ventasAgri.VentaAgriculturaInput) =>
-    ventasAgri.updateVentaAgricultura(db, id, data),
-  patch: (id: number, patch: Parameters<typeof ventasAgri.patchVentaAgricultura>[2]) =>
-    ventasAgri.patchVentaAgricultura(db, id, patch),
-  delete: (id: number) => ventasAgri.deleteVentaAgricultura(db, id),
+  getById: (id: number, cuentaId?: number | null) =>
+    ventasAgri.getVentaAgriculturaById(db, id, cuentaId),
+  insert: (data: ventasAgri.VentaAgriculturaInput, cuentaId?: number | null) =>
+    ventasAgri.insertVentaAgricultura(db, data, cuentaId),
+  update: (id: number, data: ventasAgri.VentaAgriculturaInput, cuentaId?: number | null) =>
+    ventasAgri.updateVentaAgricultura(db, id, data, cuentaId),
+  patch: (
+    id: number,
+    patch: Parameters<typeof ventasAgri.patchVentaAgricultura>[2],
+    cuentaId?: number | null,
+  ) => ventasAgri.patchVentaAgricultura(db, id, patch, cuentaId),
+  delete: (id: number, cuentaId?: number | null) =>
+    ventasAgri.deleteVentaAgricultura(db, id, cuentaId),
 };
 
 export const ventasArrendamientos = {
   list: (filters?: ventasArr.VentaArrendamientoFilters) =>
     ventasArr.listVentasArrendamientos(db, filters),
-  getById: (id: number) => ventasArr.getVentaArrendamientoById(db, id),
-  insert: (data: ventasArr.VentaArrendamientoInput) =>
-    ventasArr.insertVentaArrendamiento(db, data),
-  update: (id: number, data: ventasArr.VentaArrendamientoInput) =>
-    ventasArr.updateVentaArrendamiento(db, id, data),
-  patch: (id: number, patch: Parameters<typeof ventasArr.patchVentaArrendamiento>[2]) =>
-    ventasArr.patchVentaArrendamiento(db, id, patch),
-  delete: (id: number) => ventasArr.deleteVentaArrendamiento(db, id),
+  getById: (id: number, cuentaId?: number | null) =>
+    ventasArr.getVentaArrendamientoById(db, id, cuentaId),
+  insert: (data: ventasArr.VentaArrendamientoInput, cuentaId?: number | null) =>
+    ventasArr.insertVentaArrendamiento(db, data, cuentaId),
+  update: (id: number, data: ventasArr.VentaArrendamientoInput, cuentaId?: number | null) =>
+    ventasArr.updateVentaArrendamiento(db, id, data, cuentaId),
+  patch: (
+    id: number,
+    patch: Parameters<typeof ventasArr.patchVentaArrendamiento>[2],
+    cuentaId?: number | null,
+  ) => ventasArr.patchVentaArrendamiento(db, id, patch, cuentaId),
+  delete: (id: number, cuentaId?: number | null) =>
+    ventasArr.deleteVentaArrendamiento(db, id, cuentaId),
 };
 
 export const proveedores = {
@@ -729,22 +741,27 @@ export const proveedores = {
 
 export async function insertPresupuesto(
   data: PresupuestoInput,
-  ingresadoPor?: { email: string; nombre: string }
+  ingresadoPor?: { email: string; nombre: string },
+  cuentaId?: number | null,
 ): Promise<Presupuesto> {
   const nro_registro = await allocNroRegistro();
+  let resolvedCuentaId = cuentaId ?? null;
+  if (resolvedCuentaId == null) {
+    resolvedCuentaId = await empresasCuenta.resolveCuentaIdForEmpresaNombre(db, data.empresa);
+  }
   const row = (await db.prepare(`
     INSERT INTO PRESUPUESTO (
       nro_registro, empresa, fecha, codigo_proveedor, razon_social_proveedor,
       concepto, observaciones, rubro, sub_rubro, responsable_gasto, funcionario_cedula, nro_factura,
       nro_operacion_origen,
       pesos, dolares_usd, reales, tc_usd, tc_reales, saldo_usd,
-      ingresado_por_email, ingresado_por_nombre
+      ingresado_por_email, ingresado_por_nombre, cuenta_id
     ) VALUES (
       @nro_registro, @empresa, @fecha, @codigo_proveedor, @razon_social_proveedor,
       @concepto, @observaciones, @rubro, @sub_rubro, @responsable_gasto, @funcionario_cedula, @nro_factura,
       @nro_operacion_origen,
       @pesos, @dolares_usd, @reales, @tc_usd, @tc_reales, @saldo_usd,
-      @ingresado_por_email, @ingresado_por_nombre
+      @ingresado_por_email, @ingresado_por_nombre, @cuenta_id
     )
     RETURNING *
   `).get({
@@ -752,6 +769,7 @@ export async function insertPresupuesto(
     nro_registro,
     ingresado_por_email: ingresadoPor?.email?.trim() ?? "",
     ingresado_por_nombre: ingresadoPor?.nombre?.trim() ?? "",
+    cuenta_id: resolvedCuentaId,
   })) as Presupuesto;
   return { ...row, documento_adjunto: null };
 }
@@ -821,6 +839,7 @@ export async function getPresupuesto(id: number): Promise<Presupuesto | undefine
 export interface ListFilters {
   empresa?: string;
   empresas?: string[];
+  cuenta_id?: number;
   rubro?: string;
   responsable_gasto?: string;
   fecha_desde?: string;
@@ -833,6 +852,16 @@ export async function listPresupuesto(filters: ListFilters = {}): Promise<Presup
   let query = `${PRESUPUESTO_SELECT} WHERE 1=1`;
   const params: Record<string, unknown> = {};
 
+  if (filters.cuenta_id != null && filters.cuenta_id > 0) {
+    query += " AND p.cuenta_id = @cuenta_id";
+    params.cuenta_id = filters.cuenta_id;
+    query += ` AND EXISTS (
+      SELECT 1 FROM EMPRESAS_OPERATIVAS eo
+      WHERE eo.cuenta_id = @cuenta_id
+        AND eo.activo = 1
+        AND LOWER(TRIM(eo.nombre)) = LOWER(TRIM(p.empresa))
+    )`;
+  }
   if (filters.ingresado_por_email) {
     query += " AND LOWER(ingresado_por_email) = LOWER(@ingresado_por_email)";
     params.ingresado_por_email = filters.ingresado_por_email.trim();
@@ -892,8 +921,8 @@ export async function resumenPorEmpresa(
       COALESCE(SUM(saldo_usd), 0) AS total_saldo_usd
     FROM PRESUPUESTO WHERE 1=1
   `;
-  const params: Record<string, string> = {};
-  query = appendEmpresaScope(query, params, scope);
+  const params: Record<string, string | number> = {};
+  query = appendPresupuestoScope(query, params, scope);
   if (fecha_desde) {
     query += " AND fecha >= @fecha_desde";
     params.fecha_desde = fecha_desde;
@@ -919,8 +948,8 @@ export async function resumenPorRubro(
       COALESCE(SUM(saldo_usd), 0) AS total_saldo_usd
     FROM PRESUPUESTO WHERE 1=1
   `;
-  const params: Record<string, string> = {};
-  query = appendEmpresaScope(query, params, scope);
+  const params: Record<string, string | number> = {};
+  query = appendPresupuestoScope(query, params, scope);
   if (fecha_desde) {
     query += " AND fecha >= @fecha_desde";
     params.fecha_desde = fecha_desde;
@@ -946,8 +975,8 @@ export async function resumenPorEmpresaRubro(
       COALESCE(SUM(saldo_usd), 0) AS total_saldo_usd
     FROM PRESUPUESTO WHERE 1=1
   `;
-  const params: Record<string, string> = {};
-  query = appendEmpresaScope(query, params, scope);
+  const params: Record<string, string | number> = {};
+  query = appendPresupuestoScope(query, params, scope);
   if (fecha_desde) {
     query += " AND fecha >= @fecha_desde";
     params.fecha_desde = fecha_desde;
@@ -1086,8 +1115,8 @@ export async function resumenPorSubRubro(
       COALESCE(SUM(saldo_usd), 0) AS total_saldo_usd
     FROM PRESUPUESTO WHERE 1=1
   `;
-  const params: Record<string, string> = {};
-  query = appendEmpresaScope(query, params, scope);
+  const params: Record<string, string | number> = {};
+  query = appendPresupuestoScope(query, params, scope);
   if (fecha_desde) {
     query += " AND fecha >= @fecha_desde";
     params.fecha_desde = fecha_desde;
@@ -1113,8 +1142,8 @@ export async function resumenPorSubRubroMensual(
     FROM PRESUPUESTO
     WHERE fecha >= @fecha_inicio
   `;
-  const params: Record<string, string> = { fecha_inicio: estadoFinancieroDesdeAnioAnterior() };
-  query = appendEmpresaScope(query, params, scope);
+  const params: Record<string, string | number> = { fecha_inicio: estadoFinancieroDesdeAnioAnterior() };
+  query = appendPresupuestoScope(query, params, scope);
   if (fecha_hasta) {
     query += " AND fecha <= @fecha_hasta";
     params.fecha_hasta = fecha_hasta;
@@ -1243,13 +1272,13 @@ export async function buildGastosProveedoresReport(
 
   const codStr = codigosUnicos.map(String);
   const placeholders = codStr.map((_, i) => `@cod${i}`).join(", ");
-  const params: Record<string, string> = {};
+  const params: Record<string, string | number> = {};
   codStr.forEach((c, i) => {
     params[`cod${i}`] = c;
   });
 
   let where = ` WHERE trim(codigo_proveedor) IN (${placeholders})`;
-  where = appendEmpresaScope(where, params, scope);
+  where = appendPresupuestoScope(where, params, scope);
   if (fecha_desde?.trim()) {
     where += " AND fecha >= @fecha_desde";
     params.fecha_desde = fecha_desde.trim();
@@ -1301,7 +1330,11 @@ export async function buildGastosProveedoresReport(
     )
     .all(params)) as GastosProveedorDetalleLinea[];
 
-  const catalogoProveedores = await prov.listProveedores(db);
+  const catalogoProveedores = await prov.listProveedores(
+    db,
+    undefined,
+    scope?.cuenta_id ?? undefined,
+  );
   const nombreCatalogo = new Map(
     catalogoProveedores.map((p) => [String(p.cod), p.razon_social])
   );
@@ -1476,10 +1509,13 @@ export const funcionarios = {
 export const rrhhPagos = {
   porCedula: (
     cedula: string,
-    filters?: { fecha_desde?: string; fecha_hasta?: string; empresa?: string }
-  ) => rrhh.listPagosPorCedula(db, cedula, filters),
-  resumenGlobal: (filters?: { fecha_desde?: string; fecha_hasta?: string }) =>
-    rrhh.resumenGlobalSueldos(db, filters),
+    filters?: { fecha_desde?: string; fecha_hasta?: string; empresa?: string },
+    cuentaId?: number | null,
+  ) => rrhh.listPagosPorCedula(db, cedula, filters, cuentaId),
+  resumenGlobal: (
+    cuentaId?: number | null,
+    filters?: { fecha_desde?: string; fecha_hasta?: string },
+  ) => rrhh.resumenGlobalSueldos(db, cuentaId, filters),
   dashboard: (
     cuentaId?: number | null,
     filters?: { fecha_desde?: string; fecha_hasta?: string }
@@ -1554,11 +1590,7 @@ export async function getCatalogos(user?: {
   const empresasScope = scopeUser
     ? await empresasCuenta.getEmpresasOperativasPermitidas(db, scopeUser)
     : null;
-  const empresas =
-    empresasScope ??
-    (scopeUser?.es_admin_plataforma
-      ? await empresasCuenta.getEmpresaNombresActivos(db)
-      : []);
+  const empresas = empresasScope ?? [];
   const cuentaId = scopeUser
     ? await empresasCuenta.resolveCuentaMadreIdForUser(db, scopeUser)
     : null;

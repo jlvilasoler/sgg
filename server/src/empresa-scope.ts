@@ -1,6 +1,8 @@
 export interface ResumenEmpresaScope {
   empresa?: string;
   empresas?: string[];
+  /** Aislamiento multi-tenant: restringe gastos a una cuenta madre. */
+  cuenta_id?: number;
 }
 
 export function assertEmpresaEnScope(
@@ -39,4 +41,28 @@ export function appendEmpresaScope(
     return `${query} AND ${column} = @empresa`;
   }
   return query;
+}
+
+export function appendCuentaScope(
+  query: string,
+  params: Record<string, string | number>,
+  cuentaId?: number,
+  column = "cuenta_id"
+): string {
+  if (cuentaId == null || cuentaId <= 0) return query;
+  params.cuenta_id = cuentaId;
+  return `${query} AND ${column} = @cuenta_id`;
+}
+
+/** Filtro de gastos por empresa operativa y cuenta madre (multi-tenant). */
+export function appendPresupuestoScope(
+  query: string,
+  params: Record<string, string | number>,
+  scope?: ResumenEmpresaScope,
+  empresaColumn = "empresa"
+): string {
+  const empresaParams = params as Record<string, string>;
+  let next = appendEmpresaScope(query, empresaParams, scope, empresaColumn);
+  next = appendCuentaScope(next, params, scope?.cuenta_id);
+  return next;
 }

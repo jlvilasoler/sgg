@@ -94,6 +94,8 @@ import type {
   CuentasControlPlataformaResumen,
   RubrosMonitorCuentaDetalle,
   RubrosMonitorSnapshot,
+  HomeLayoutMonitorSnapshot,
+  HomeLayoutMonitorUsuarioDetalle,
   EmpresaOperativa,
   EmpresaOperativaForm,
   UserForm,
@@ -4349,6 +4351,20 @@ export async function actualizarHomeLayoutRol(
     method: "PATCH",
     body: JSON.stringify({ paneles, orden }),
   });
+  return json.data;
+}
+
+export async function fetchHomeLayoutMonitorSnapshot(): Promise<HomeLayoutMonitorSnapshot> {
+  const json = await request<{ data: HomeLayoutMonitorSnapshot }>("/auth/home-layout/monitor");
+  return json.data;
+}
+
+export async function fetchHomeLayoutMonitorUsuario(
+  userId: number,
+): Promise<HomeLayoutMonitorUsuarioDetalle> {
+  const json = await request<{ data: HomeLayoutMonitorUsuarioDetalle }>(
+    `/auth/home-layout/monitor/${userId}`,
+  );
   return json.data;
 }
 

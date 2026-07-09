@@ -1,8 +1,9 @@
 import type { Db } from "./db/pg-client.js";
-import { appendEmpresaScope, type ResumenEmpresaScope } from "./empresa-scope.js";
+import { appendPresupuestoScope, type ResumenEmpresaScope } from "./empresa-scope.js";
 import {
   backfillCuentaIdPorEmpresa,
   migrateAddCuentaIdColumn,
+  resolveCuentaIdForEmpresaNombre,
 } from "./empresas-cuenta-db.js";
 
 export const DEPARTAMENTOS_ARRENDAMIENTO = ["RIVERA", "RIO_NEGRO"] as const;
@@ -91,6 +92,7 @@ export interface VentaArrendamientoInput {
 export interface VentaArrendamientoFilters {
   empresa?: string;
   empresas?: string[];
+  cuenta_id?: number;
   departamento?: string;
   busqueda?: string;
 }
@@ -394,11 +396,12 @@ export async function listVentasArrendamientos(
 ): Promise<VentaArrendamientoRow[]> {
   let sql = "SELECT * FROM VENTAS_ARRENDAMIENTO WHERE 1=1";
   const params: Record<string, string | number> = {};
-  const scope: ResumenEmpresaScope | undefined =
-    filters.empresas?.length || filters.empresa
-      ? { empresa: filters.empresa, empresas: filters.empresas }
-      : undefined;
-  sql = appendEmpresaScope(sql, params as Record<string, string>, scope);
+  const scope: ResumenEmpresaScope = {
+    empresa: filters.empresa,
+    empresas: filters.empresas,
+    cuenta_id: filters.cuenta_id,
+  };
+  sql = appendPresupuestoScope(sql, params, scope);
 
   if (filters.departamento) {
     sql += " AND departamento = @departamento";
@@ -421,22 +424,25 @@ export async function listVentasArrendamientos(
 
 export async function insertVentaArrendamiento(
   db: Db,
-  data: VentaArrendamientoInput
+  data: VentaArrendamientoInput,
+  cuentaId?: number | null,
 ): Promise<number> {
   const row = normalizeInput(data);
+  const resolvedCuentaId =
+    cuentaId ?? (await resolveCuentaIdForEmpresaNombre(db, row.empresa, cuentaId));
   const result = await db.prepare(
     `INSERT INTO VENTAS_ARRENDAMIENTO (
       empresa, fecha_inicio, fecha_fin, departamento, padron,
       hectareas, precio_usd_ha, total_usd, notas,
       pago_frecuencia, pago_inicio, pago_fin,
-      pago_inicio_monto, pago_inicio_tipo, pago_fin_monto, pago_fin_tipo
+      pago_inicio_monto, pago_inicio_tipo, pago_fin_monto, pago_fin_tipo, cuenta_id
     ) VALUES (
       @empresa, @fecha_inicio, @fecha_fin, @departamento, @padron,
       @hectareas, @precio_usd_ha, @total_usd, @notas,
       @pago_frecuencia, @pago_inicio, @pago_fin,
-      @pago_inicio_monto, @pago_inicio_tipo, @pago_fin_monto, @pago_fin_tipo
+      @pago_inicio_monto, @pago_inicio_tipo, @pago_fin_monto, @pago_fin_tipo, @cuenta_id
     )`
-  ).run(row);
+  ).run({ ...row, cuenta_id: resolvedCuentaId });
   const id = Number(result.lastInsertRowid);
   if (!id) throw new Error("No se pudo guardar el registro");
   return id;
@@ -444,26 +450,34 @@ export async function insertVentaArrendamiento(
 
 export async function getVentaArrendamientoById(
   db: Db,
-  id: number
+  id: number,
+  cuentaId?: number | null,
 ): Promise<VentaArrendamientoRow | undefined> {
-  const row = (await db
-    .prepare("SELECT * FROM VENTAS_ARRENDAMIENTO WHERE id = ?")
-    .get(id)) as Record<string, unknown> | undefined;
+  let sql = "SELECT * FROM VENTAS_ARRENDAMIENTO WHERE id = @id";
+  const params: Record<string, number> = { id };
+  if (cuentaId != null && cuentaId > 0) {
+    sql += " AND cuenta_id = @cuenta_id";
+    params.cuenta_id = cuentaId;
+  }
+  const row = (await db.prepare(sql).get(params)) as Record<string, unknown> | undefined;
   return row ? mapRow(row) : undefined;
 }
 
 export async function updateVentaArrendamiento(
   db: Db,
   id: number,
-  data: VentaArrendamientoInput
+  data: VentaArrendamientoInput,
+  cuentaId?: number | null,
 ): Promise<VentaArrendamientoRow> {
-  const existing = await getVentaArrendamientoById(db, id);
+  const existing = await getVentaArrendamientoById(db, id, cuentaId);
   if (!existing) throw new Error("Simulación no encontrada");
   if (existing.venta_realizada) {
     throw new Error("No se puede editar una simulación con operación confirmada");
   }
 
   const row = normalizeInput(data);
+  const resolvedCuentaId =
+    cuentaId ?? (await resolveCuentaIdForEmpresaNombre(db, row.empresa, cuentaId));
   const result = await db.prepare(
     `UPDATE VENTAS_ARRENDAMIENTO SET
       empresa = @empresa,
@@ -481,17 +495,24 @@ export async function updateVentaArrendamiento(
       pago_inicio_monto = @pago_inicio_monto,
       pago_inicio_tipo = @pago_inicio_tipo,
       pago_fin_monto = @pago_fin_monto,
-      pago_fin_tipo = @pago_fin_tipo
+      pago_fin_tipo = @pago_fin_tipo,
+      cuenta_id = @cuenta_id
      WHERE id = @id`
-  ).run({ ...row, id });
+  ).run({ ...row, id, cuenta_id: resolvedCuentaId });
 
   if (result.changes === 0) throw new Error("No se pudo actualizar el registro");
-  const updated = await getVentaArrendamientoById(db, id);
+  const updated = await getVentaArrendamientoById(db, id, cuentaId);
   if (!updated) throw new Error("No se pudo actualizar el registro");
   return updated;
 }
 
-export async function deleteVentaArrendamiento(db: Db, id: number): Promise<boolean> {
+export async function deleteVentaArrendamiento(
+  db: Db,
+  id: number,
+  cuentaId?: number | null,
+): Promise<boolean> {
+  const existing = await getVentaArrendamientoById(db, id, cuentaId);
+  if (!existing) return false;
   return (await db.prepare("DELETE FROM VENTAS_ARRENDAMIENTO WHERE id = ?").run(id)).changes > 0;
 }
 
@@ -580,9 +601,10 @@ export async function patchVentaArrendamiento(
     venta_realizada?: boolean;
     valores_reales?: VentaArrendamientoRealInput | null;
     destacada?: boolean;
-  }
+  },
+  cuentaId?: number | null,
 ): Promise<VentaArrendamientoRow> {
-  const existing = await getVentaArrendamientoById(db, id);
+  const existing = await getVentaArrendamientoById(db, id, cuentaId);
   if (!existing) throw new Error("Simulación no encontrada");
 
   let venta_realizada = patch.venta_realizada ?? existing.venta_realizada;
@@ -687,7 +709,7 @@ export async function patchVentaArrendamiento(
     real_pago_fin_tipo,
   });
 
-  const updated = await getVentaArrendamientoById(db, id);
+  const updated = await getVentaArrendamientoById(db, id, cuentaId);
   if (!updated) throw new Error("No se pudo actualizar el registro");
   return updated;
 }

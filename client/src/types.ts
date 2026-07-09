@@ -1593,6 +1593,55 @@ export interface RubrosMonitorSnapshot {
   };
 }
 
+export interface HomeLayoutMonitorUsuarioResumen {
+  id: number;
+  nombre: string;
+  email: string;
+  rol: string;
+  rol_label: string;
+  activo: boolean;
+  es_admin_cuenta: boolean;
+  es_super_admin: boolean;
+  cuenta_id: number | null;
+  cuenta_nombre: string | null;
+  cuenta_codigo: string | null;
+  paneles_visibles: number;
+  paneles_total: number;
+  tiene_personalizacion: boolean;
+  ultimo_acceso: string | null;
+}
+
+export interface HomeLayoutMonitorPanelDetalle {
+  id: string;
+  label: string;
+  zone: "top" | "main" | "side";
+  visible_efectivo: boolean;
+  visible_rol: boolean;
+  visible_usuario: boolean | null;
+  personalizado: boolean;
+  fuente: "rol" | "usuario" | "bloqueado_rol";
+}
+
+export interface HomeLayoutMonitorUsuarioDetalle extends HomeLayoutMonitorUsuarioResumen {
+  ceiling: Record<string, boolean>;
+  overrides: Record<string, boolean>;
+  efectivo: Record<string, boolean>;
+  orden: string[];
+  orden_rol: string[];
+  orden_personalizado: boolean;
+  paneles: HomeLayoutMonitorPanelDetalle[];
+}
+
+export interface HomeLayoutMonitorSnapshot {
+  generado_en: string;
+  usuarios: HomeLayoutMonitorUsuarioResumen[];
+  totales: {
+    usuarios: number;
+    usuarios_activos: number;
+    con_personalizacion: number;
+  };
+}
+
 export interface EmpresaOperativaForm {
   nombre: string;
   codigo?: string;
