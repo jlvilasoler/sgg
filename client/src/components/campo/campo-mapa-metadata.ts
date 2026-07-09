@@ -50,6 +50,31 @@ export function mergeCampoMapaMetadata(
   };
 }
 
+/** Marcador/estancia al que pertenece un potrero (clasificación por ubicación). */
+export function parseCampoMapaMarcadorId(raw: string | undefined | null): number | null {
+  if (!raw?.trim()) return null;
+  try {
+    const parsed = JSON.parse(raw) as { marcador_id?: unknown };
+    const id = Number(parsed.marcador_id);
+    return Number.isFinite(id) && id > 0 ? Math.trunc(id) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function withCampoMapaMarcadorId(
+  metadata: Record<string, unknown>,
+  marcadorId: number | null,
+): Record<string, unknown> {
+  const next = { ...metadata };
+  if (marcadorId != null && marcadorId > 0) {
+    next.marcador_id = marcadorId;
+  } else {
+    delete next.marcador_id;
+  }
+  return next;
+}
+
 export function enrichCampoMapaDispositivosFromStock(
   featureNombre: string,
   meta: CampoMapaDispositivosMetadata,

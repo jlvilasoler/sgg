@@ -10,6 +10,7 @@ import {
   Pentagon,
   Ruler,
   Scan,
+  Undo2,
 } from "lucide-react";
 import {
   CAMPO_MAPA_BORDER_WEIGHTS,
@@ -70,9 +71,11 @@ interface Props {
   borderWeight: CampoMapaBorderWeight;
   drawColor: CampoMapaDrawColor;
   disabled?: boolean;
+  canUndo?: boolean;
   onSelect: (tool: CampoMapaTool) => void;
   onBorderWeightChange: (weight: CampoMapaBorderWeight) => void;
   onDrawColorChange: (color: CampoMapaDrawColor) => void;
+  onUndo?: () => void;
   onSaveClip?: () => void;
 }
 
@@ -81,9 +84,11 @@ export default function CampoMapaToolbar({
   borderWeight,
   drawColor,
   disabled,
+  canUndo = false,
   onSelect,
   onBorderWeightChange,
   onDrawColorChange,
+  onUndo,
   onSaveClip,
 }: Props) {
   const [dibujarMenuOpen, setDibujarMenuOpen] = useState(false);
@@ -349,6 +354,19 @@ export default function CampoMapaToolbar({
           </div>
         </div>
       ))}
+      {canUndo && onUndo ? (
+        <div className="campo-mapa-toolbar-group" role="group" aria-label="Edición">
+          <button
+            type="button"
+            className="campo-mapa-toolbar-btn"
+            title="Deshacer último punto o marca (Ctrl+Z)"
+            aria-label="Deshacer último punto o marca"
+            onClick={() => onUndo()}
+          >
+            <Undo2 size={18} aria-hidden />
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }

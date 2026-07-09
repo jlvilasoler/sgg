@@ -113,6 +113,8 @@ import {
   enrichCampoMapaDispositivosFromStock,
   mergeCampoMapaMetadata,
   parseCampoMapaDispositivosMetadata,
+  parseCampoMapaMarcadorId,
+  withCampoMapaMarcadorId,
   type CampoMapaDispositivosMetadata,
 } from "./campo-mapa-metadata";
 import { clearCampoMapaDispositivosPotrero, syncCampoMapaDispositivosPotrero } from "./campo-mapa-sync-dispositivos";
@@ -210,6 +212,7 @@ export default function CampoMapa({
   const [pendingDraft, setPendingDraft] = useState<PendingDraft | null>(null);
   const [formNombre, setFormNombre] = useState("");
   const [formNotas, setFormNotas] = useState("");
+  const [formMarcadorId, setFormMarcadorId] = useState<number | null>(null);
   const [draftSaveTarget, setDraftSaveTarget] = useState<DraftSaveTarget>("area");
   const [editSaveTarget, setEditSaveTarget] = useState<DraftSaveTarget>("area");
   const [editDispositivos, setEditDispositivos] = useState<CampoMapaDispositivosMetadata>(
@@ -249,6 +252,7 @@ export default function CampoMapa({
   const [editNombre, setEditNombre] = useState("");
   const [editNotas, setEditNotas] = useState("");
   const [editColor, setEditColor] = useState<string>(DEFAULT_CAMPO_MAPA_DRAW_COLOR);
+  const [editMarcadorId, setEditMarcadorId] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<CampoMapaLugarResult[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
@@ -342,6 +346,58 @@ export default function CampoMapa({
     }
     return grouped;
   }, [elementos]);
+
+  const marcadoresUbicacion = useMemo(
+    () =>
+      elementos
+        .filter((item) => item.tipo === "marcador")
+        .slice()
+        .sort((a, b) => a.nombre.localeCompare(b.nombre)),
+    [elementos],
+  );
+
+  const marcadorNombreById = useMemo(() => {
+    const map = new globalThis.Map<number, string>();
+    for (const item of marcadoresUbicacion) map.set(item.id, item.nombre);
+    return map;
+  }, [marcadoresUbicacion]);
+
+  const potrerosPorUbicacion = useMemo(() => {
+    type Grupo = { key: string; marcadorId: number | null; label: string; items: CampoPotreroMapa[] };
+    const grupos = new globalThis.Map<string, Grupo>();
+
+    const ensure = (marcadorId: number | null, label: string): Grupo => {
+      const key = marcadorId != null ? `m-${marcadorId}` : "sin-ubicacion";
+      let grupo = grupos.get(key);
+      if (!grupo) {
+        grupo = { key, marcadorId, label, items: [] };
+        grupos.set(key, grupo);
+      }
+      return grupo;
+    };
+
+    for (const potrero of potreros) {
+      const marcadorId = parseCampoMapaMarcadorId(potrero.metadata);
+      if (marcadorId != null && marcadorNombreById.has(marcadorId)) {
+        ensure(marcadorId, marcadorNombreById.get(marcadorId)!).items.push(potrero);
+      } else {
+        ensure(null, "Sin ubicación").items.push(potrero);
+      }
+    }
+
+    const ordered: Grupo[] = [];
+    for (const marcador of marcadoresUbicacion) {
+      const grupo = grupos.get(`m-${marcador.id}`);
+      if (grupo) ordered.push(grupo);
+    }
+    const sinUbicacion = grupos.get("sin-ubicacion");
+    if (sinUbicacion) ordered.push(sinUbicacion);
+
+    for (const grupo of ordered) {
+      grupo.items.sort((a, b) => a.nombre.localeCompare(b.nombre));
+    }
+    return ordered;
+  }, [marcadorNombreById, marcadoresUbicacion, potreros]);
 
   const toolDef = getToolDef(activeTool);
   const isSketching = toolUsesSketch(activeTool) && sketchVertices.length > 0 && !pendingDraft;
@@ -475,10 +531,13 @@ export default function CampoMapa({
     setEditNotas(item.notas);
     if (selectedPotrero) {
       setEditColor(normalizePotreroMapaColor(selectedPotrero.color));
+      setEditMarcadorId(parseCampoMapaMarcadorId(selectedPotrero.metadata));
     } else if (selectedElemento) {
       setEditColor(normalizePotreroMapaColor(selectedElemento.color));
+      setEditMarcadorId(null);
     } else {
       setEditColor(drawColor);
+      setEditMarcadorId(null);
     }
     const metaRaw = selectedPotrero?.metadata ?? selectedElemento?.metadata;
     const dispositivos = enrichDispositivosForFeature(item.nombre, metaRaw);
@@ -514,10 +573,13 @@ export default function CampoMapa({
     setEditNotas(item.notas);
     if (selectedPotrero) {
       setEditColor(normalizePotreroMapaColor(selectedPotrero.color));
+      setEditMarcadorId(parseCampoMapaMarcadorId(selectedPotrero.metadata));
     } else if (selectedElemento) {
       setEditColor(normalizePotreroMapaColor(selectedElemento.color));
+      setEditMarcadorId(null);
     } else {
       setEditColor(drawColor);
+      setEditMarcadorId(null);
     }
     const metaRaw = selectedPotrero?.metadata ?? selectedElemento?.metadata;
     const dispositivos = enrichDispositivosForFeature(item.nombre, metaRaw);
@@ -553,6 +615,7 @@ export default function CampoMapa({
     setPendingDraft(null);
     setFormNombre("");
     setFormNotas("");
+    setFormMarcadorId(null);
     setDraftSaveTarget("area");
   }, []);
 
@@ -1258,9 +1321,67 @@ export default function CampoMapa({
     setFormNotas("");
   };
 
-  const undoSketchPoint = () => {
+  const undoSketchPoint = useCallback(() => {
     setSketchVertices((prev) => prev.slice(0, -1));
-  };
+  }, []);
+
+  const undoLastMarking = useCallback(() => {
+    if (saving) return;
+
+    if (pendingDraft) {
+      if (pendingDraft.paths && pendingDraft.paths.length > 0) {
+        const paths = pendingDraft.paths;
+        const sourceTool = pendingDraft.sourceTool;
+        clearDraftOverlay();
+        setActiveTool(sourceTool);
+        setSketchVertices(paths);
+        return;
+      }
+      if (pendingDraft.point) {
+        clearDraftOverlay();
+        return;
+      }
+      clearDraftOverlay();
+      return;
+    }
+
+    if (potreroShapeEdit) {
+      if (potreroShapeEdit.vertices.length <= 3) {
+        onError("Necesitás al menos 3 puntos en el perímetro.");
+        return;
+      }
+      setPotreroShapeEdit((prev) =>
+        prev
+          ? {
+              ...prev,
+              vertices: prev.vertices.slice(0, -1),
+            }
+          : null,
+      );
+      setSelectedVertexIndex(null);
+      return;
+    }
+
+    if (sketchVertices.length > 0) {
+      undoSketchPoint();
+    }
+  }, [
+    clearDraftOverlay,
+    onError,
+    pendingDraft,
+    potreroShapeEdit,
+    saving,
+    sketchVertices.length,
+    undoSketchPoint,
+  ]);
+
+  const canUndoMarking = useMemo(() => {
+    if (saving) return false;
+    if (pendingDraft) return true;
+    if (potreroShapeEdit && potreroShapeEdit.vertices.length > 3) return true;
+    if (sketchVertices.length > 0) return true;
+    return false;
+  }, [pendingDraft, potreroShapeEdit, saving, sketchVertices.length]);
 
   const cancelSketch = useCallback(() => {
     clearSketchOverlay();
@@ -1269,12 +1390,20 @@ export default function CampoMapa({
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
       const target = event.target as HTMLElement | null;
       const tag = target?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
       if (target?.isContentEditable) return;
       if (!puedeEditar) return;
+
+      if ((event.ctrlKey || event.metaKey) && (event.key === "z" || event.key === "Z") && !event.shiftKey) {
+        if (!canUndoMarking) return;
+        event.preventDefault();
+        undoLastMarking();
+        return;
+      }
+
+      if (event.key !== "Escape") return;
 
       if (potreroShapeEdit) {
         event.preventDefault();
@@ -1300,6 +1429,7 @@ export default function CampoMapa({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [
     activeTool,
+    canUndoMarking,
     cancelPotreroShapeEdit,
     cancelSketch,
     clearDraftOverlay,
@@ -1308,6 +1438,7 @@ export default function CampoMapa({
     potreroShapeEdit,
     puedeEditar,
     sketchVertices.length,
+    undoLastMarking,
   ]);
 
   const finishSketch = () => {
@@ -1397,6 +1528,7 @@ export default function CampoMapa({
           color: drawColor,
           hectareas: pendingDraft.hectareas ?? null,
           notas: formNotas,
+          metadata: withCampoMapaMarcadorId({}, formMarcadorId),
         });
         setPotreros((prev) =>
           [...prev, created].sort((a, b) => a.nombre.localeCompare(b.nombre)),
@@ -1533,9 +1665,12 @@ export default function CampoMapa({
       return;
     }
 
-    const metadata = mergeCampoMapaMetadata(
-      selectedPotrero?.metadata ?? selectedElemento?.metadata,
-      editDispositivos,
+    const metadata = withCampoMapaMarcadorId(
+      mergeCampoMapaMetadata(
+        selectedPotrero?.metadata ?? selectedElemento?.metadata,
+        editDispositivos,
+      ),
+      selectedPotrero || editSaveTarget === "potrero" ? editMarcadorId : null,
     );
     const currentTarget: DraftSaveTarget | null = selectedPotrero
       ? "potrero"
@@ -1793,8 +1928,8 @@ export default function CampoMapa({
     else if (toolSketchIsPoint(activeTool) && !pendingDraft) hint = toolDef.hint;
 
     if (!hint) return null;
-    if (pendingDraft) return hint;
-    return `${hint} · Esc para cancelar`;
+    if (pendingDraft) return `${hint} · Deshacer para corregir`;
+    return `${hint} · Esc para cancelar · Deshacer último punto`;
   }, [activeTool, measureHint, pendingDraft, showFullscreenWorkDock, toolDef.hint, vertexEditSource]);
 
   const renderSaveTargetSelector = (
@@ -1867,8 +2002,8 @@ export default function CampoMapa({
           <button
             type="button"
             className="campo-mapa-aside-btn"
-            onClick={undoSketchPoint}
-            disabled={sketchVertices.length === 0 || saving}
+            onClick={undoLastMarking}
+            disabled={!canUndoMarking || saving}
           >
             <Undo2 size={15} aria-hidden />
             Deshacer último punto
@@ -1918,6 +2053,15 @@ export default function CampoMapa({
           <button
             type="button"
             className="campo-mapa-aside-btn"
+            onClick={undoLastMarking}
+            disabled={!canUndoMarking || saving}
+          >
+            <Undo2 size={15} aria-hidden />
+            Deshacer último punto
+          </button>
+          <button
+            type="button"
+            className="campo-mapa-aside-btn"
             onClick={cancelPotreroShapeEdit}
             disabled={saving}
           >
@@ -1936,27 +2080,41 @@ export default function CampoMapa({
             <p className="campo-mapa-aside-hint">Usá la herramienta Potrero en el mapa.</p>
           </div>
         ) : null}
-        <ul className="campo-mapa-aside-list">
-          {potreros.map((item) => (
-            <li key={item.id}>
-              <button
-                type="button"
-                className={`campo-mapa-aside-item${
-                  selection?.kind === "potrero" && selection.id === item.id ? " is-active" : ""
-                }`}
-                onClick={() => selectPotrero(item.id)}
-              >
-                <span className="campo-mapa-swatch" style={{ background: item.color }} />
-                <span className="campo-mapa-aside-item-text">
-                  <strong>{item.nombre}</strong>
-                  <span>
-                    {item.hectareas != null ? `${item.hectareas} ha` : "Sin superficie"}
-                  </span>
-                </span>
-              </button>
-            </li>
-          ))}
-        </ul>
+        {potrerosPorUbicacion.map((grupo) => (
+          <div key={grupo.key} className="campo-mapa-aside-ubicacion-group">
+            <p className="campo-mapa-aside-ubicacion-label">
+              {grupo.marcadorId != null ? (
+                <>
+                  <MapPin size={12} aria-hidden />
+                  {grupo.label}
+                </>
+              ) : (
+                grupo.label
+              )}
+            </p>
+            <ul className="campo-mapa-aside-list">
+              {grupo.items.map((item) => (
+                <li key={item.id}>
+                  <button
+                    type="button"
+                    className={`campo-mapa-aside-item${
+                      selection?.kind === "potrero" && selection.id === item.id ? " is-active" : ""
+                    }`}
+                    onClick={() => selectPotrero(item.id)}
+                  >
+                    <span className="campo-mapa-swatch" style={{ background: item.color }} />
+                    <span className="campo-mapa-aside-item-text">
+                      <strong>{item.nombre}</strong>
+                      <span>
+                        {item.hectareas != null ? `${item.hectareas} ha` : "Sin superficie"}
+                      </span>
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
       </div>
 
       <div className="campo-mapa-aside-section">
@@ -2065,6 +2223,31 @@ export default function CampoMapa({
                   maxLength={48}
                 />
               </label>
+              {draftSaveTarget === "potrero" && !pendingDraft.isMeasurement ? (
+                <label>
+                  Ubicación / estancia
+                  <select
+                    value={formMarcadorId ?? ""}
+                    onChange={(e) =>
+                      setFormMarcadorId(e.target.value ? Number(e.target.value) : null)
+                    }
+                  >
+                    <option value="">Sin ubicación</option>
+                    {marcadoresUbicacion.map((marcador) => (
+                      <option key={marcador.id} value={marcador.id}>
+                        {marcador.nombre}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : null}
+              {draftSaveTarget === "potrero" &&
+              !pendingDraft.isMeasurement &&
+              marcadoresUbicacion.length === 0 ? (
+                <p className="campo-mapa-aside-hint">
+                  Creá un marcador en el mapa para clasificar potreros por estancia o ubicación.
+                </p>
+              ) : null}
               <label>
                 Notas
                 <textarea
@@ -2122,6 +2305,19 @@ export default function CampoMapa({
               Superficie: {formatHectareas(selectedPotrero.hectareas)}
             </p>
           ) : null}
+          {selectedPotrero ? (
+            <p className="campo-mapa-aside-hint">
+              Ubicación:{" "}
+              <strong>
+                {(() => {
+                  const id = parseCampoMapaMarcadorId(selectedPotrero.metadata);
+                  return id != null && marcadorNombreById.has(id)
+                    ? marcadorNombreById.get(id)
+                    : "Sin ubicación";
+                })()}
+              </strong>
+            </p>
+          ) : null}
           {selectedElemento && !selectedPotrero ? (
             <p className="campo-mapa-aside-hint">{ELEMENTO_TIPO_LABELS[selectedElemento.tipo]}</p>
           ) : null}
@@ -2176,6 +2372,24 @@ export default function CampoMapa({
               <Pencil size={15} aria-hidden />
               Editar perímetro
             </button>
+          ) : null}
+          {editSaveTarget === "potrero" ? (
+            <label>
+              Ubicación / estancia
+              <select
+                value={editMarcadorId ?? ""}
+                onChange={(e) =>
+                  setEditMarcadorId(e.target.value ? Number(e.target.value) : null)
+                }
+              >
+                <option value="">Sin ubicación</option>
+                {marcadoresUbicacion.map((marcador) => (
+                  <option key={marcador.id} value={marcador.id}>
+                    {marcador.nombre}
+                  </option>
+                ))}
+              </select>
+            </label>
           ) : null}
           {editSaveTarget === "potrero" ||
           selectedElemento?.tipo === "nota" ||
@@ -2321,9 +2535,11 @@ export default function CampoMapa({
               borderWeight={borderWeight}
               drawColor={drawColor}
               disabled={!puedeEditar || !mapReady || saving || !!pendingDraft}
+              canUndo={puedeEditar && canUndoMarking}
               onSelect={handleToolSelect}
               onBorderWeightChange={setBorderWeight}
               onDrawColorChange={handleDrawColorChange}
+              onUndo={undoLastMarking}
               onSaveClip={handleSaveClip}
             />
             <form
@@ -2541,8 +2757,8 @@ export default function CampoMapa({
                       <button
                         type="button"
                         className="campo-mapa-map-work-dock-btn"
-                        onClick={undoSketchPoint}
-                        disabled={sketchVertices.length === 0 || saving}
+                        onClick={undoLastMarking}
+                        disabled={!canUndoMarking || saving}
                       >
                         <Undo2 size={15} aria-hidden />
                         Deshacer último
@@ -2591,6 +2807,15 @@ export default function CampoMapa({
                       >
                         <Trash2 size={15} aria-hidden />
                         Eliminar punto
+                      </button>
+                      <button
+                        type="button"
+                        className="campo-mapa-map-work-dock-btn"
+                        onClick={undoLastMarking}
+                        disabled={!canUndoMarking || saving}
+                      >
+                        <Undo2 size={15} aria-hidden />
+                        Deshacer último
                       </button>
                       <button
                         type="button"
@@ -2650,6 +2875,25 @@ export default function CampoMapa({
                         maxLength={48}
                       />
                     </label>
+                    {draftSaveTarget === "potrero" && !pendingDraft.isMeasurement ? (
+                      <label className="campo-mapa-map-work-dock-field">
+                        <span className="sr-only">Ubicación / estancia</span>
+                        <select
+                          className="campo-mapa-map-work-dock-input"
+                          value={formMarcadorId ?? ""}
+                          onChange={(e) =>
+                            setFormMarcadorId(e.target.value ? Number(e.target.value) : null)
+                          }
+                        >
+                          <option value="">Sin ubicación</option>
+                          {marcadoresUbicacion.map((marcador) => (
+                            <option key={marcador.id} value={marcador.id}>
+                              {marcador.nombre}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    ) : null}
                     <div className="campo-mapa-map-work-dock-actions">
                       <button
                         type="button"
