@@ -19,6 +19,7 @@ interface Props {
   asideKicker?: string;
   asideTitle?: string;
   asideLogo?: ReactNode;
+  asideBrandExtra?: ReactNode;
   navAriaLabel?: string;
   showDashboardInNav?: boolean;
   showAsideNav?: boolean;
@@ -42,6 +43,7 @@ export default function SgHubShell({
   asideKicker = "SAG",
   asideTitle = "Módulo",
   asideLogo,
+  asideBrandExtra,
   navAriaLabel,
   showDashboardInNav = true,
   showAsideNav = true,
@@ -78,6 +80,9 @@ export default function SgHubShell({
             <p className="sg-hub-aside-kicker">{asideKicker}</p>
             <p className="sg-hub-aside-title">{asideTitle}</p>
           </div>
+          {asideBrandExtra ? (
+            <div className="sg-hub-aside-brand-extra">{asideBrandExtra}</div>
+          ) : null}
         </div>
 
         {showAsideNav ? (

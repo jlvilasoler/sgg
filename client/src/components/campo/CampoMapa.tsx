@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import L from "leaflet";
 import type { LucideIcon } from "lucide-react";
-import { Building2, CircleDot, Cpu, ListTree, Map, MapPin, Maximize2, MessageSquare, Minimize2, Pencil, Plus, Search, Sigma, Tag, Trash2, Undo2, VenusAndMars, X } from "lucide-react";
+import { Building2, ChevronDown, ChevronRight, CircleDot, Cpu, Info, ListTree, Map, MapPin, Maximize2, MessageSquare, Minimize2, Pencil, Plus, Search, Sigma, Tag, Trash2, Undo2, VenusAndMars, X } from "lucide-react";
 import SgHubShell from "../hub/SgHubShell";
 import { MenuAppIcon } from "../icons/MenuAppIcons";
 import {
@@ -245,6 +245,9 @@ export default function CampoMapa({
   const [empresasOperativas, setEmpresasOperativas] = useState<EmpresaOperativaStock[]>([]);
   const [dispositivosModalOpen, setDispositivosModalOpen] = useState(false);
   const [editingSelectionContent, setEditingSelectionContent] = useState(false);
+  const [mapaInfoOpen, setMapaInfoOpen] = useState(false);
+  const [ubicacionesExpandidas, setUbicacionesExpandidas] = useState<Record<string, boolean>>({});
+  const mapaInfoRef = useRef<HTMLDivElement | null>(null);
   const [modalDispositivos, setModalDispositivos] = useState<CampoMapaDispositivosMetadata>(
     emptyCampoMapaDispositivosMetadata(),
   );
@@ -299,6 +302,24 @@ export default function CampoMapa({
       onError("No se pudo activar pantalla completa en este navegador.");
     }
   }, [onError]);
+
+  useEffect(() => {
+    if (!mapaInfoOpen) return;
+    const onDocClick = (event: MouseEvent) => {
+      if (mapaInfoRef.current && !mapaInfoRef.current.contains(event.target as Node)) {
+        setMapaInfoOpen(false);
+      }
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMapaInfoOpen(false);
+    };
+    document.addEventListener("mousedown", onDocClick);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onDocClick);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [mapaInfoOpen]);
 
   useEffect(() => {
     const onFullscreenChange = () => {
@@ -363,26 +384,37 @@ export default function CampoMapa({
   }, [marcadoresUbicacion]);
 
   const potrerosPorUbicacion = useMemo(() => {
-    type Grupo = { key: string; marcadorId: number | null; label: string; items: CampoPotreroMapa[] };
+    type Grupo = {
+      key: string;
+      marcador: CampoMapaElemento | null;
+      label: string;
+      items: CampoPotreroMapa[];
+    };
     const grupos = new globalThis.Map<string, Grupo>();
 
-    const ensure = (marcadorId: number | null, label: string): Grupo => {
-      const key = marcadorId != null ? `m-${marcadorId}` : "sin-ubicacion";
-      let grupo = grupos.get(key);
-      if (!grupo) {
-        grupo = { key, marcadorId, label, items: [] };
-        grupos.set(key, grupo);
-      }
-      return grupo;
+    for (const marcador of marcadoresUbicacion) {
+      grupos.set(`m-${marcador.id}`, {
+        key: `m-${marcador.id}`,
+        marcador,
+        label: marcador.nombre,
+        items: [],
+      });
+    }
+
+    const sinUbicacion: Grupo = {
+      key: "sin-ubicacion",
+      marcador: null,
+      label: "Sin ubicación",
+      items: [],
     };
 
     for (const potrero of potreros) {
       const marcadorId = parseCampoMapaMarcadorId(potrero.metadata);
-      if (marcadorId != null && marcadorNombreById.has(marcadorId)) {
-        ensure(marcadorId, marcadorNombreById.get(marcadorId)!).items.push(potrero);
-      } else {
-        ensure(null, "Sin ubicación").items.push(potrero);
-      }
+      const grupo =
+        marcadorId != null && grupos.has(`m-${marcadorId}`)
+          ? grupos.get(`m-${marcadorId}`)!
+          : sinUbicacion;
+      grupo.items.push(potrero);
     }
 
     const ordered: Grupo[] = [];
@@ -390,14 +422,64 @@ export default function CampoMapa({
       const grupo = grupos.get(`m-${marcador.id}`);
       if (grupo) ordered.push(grupo);
     }
-    const sinUbicacion = grupos.get("sin-ubicacion");
-    if (sinUbicacion) ordered.push(sinUbicacion);
+    if (sinUbicacion.items.length > 0) ordered.push(sinUbicacion);
 
     for (const grupo of ordered) {
       grupo.items.sort((a, b) => a.nombre.localeCompare(b.nombre));
     }
     return ordered;
-  }, [marcadorNombreById, marcadoresUbicacion, potreros]);
+  }, [marcadoresUbicacion, potreros]);
+
+  const elementosSinMarcadores = useMemo(() => {
+    const grouped = new globalThis.Map<CampoMapaElementoTipo, CampoMapaElemento[]>();
+    for (const tipo of ELEMENTO_TIPO_ORDER) {
+      if (tipo === "marcador") continue;
+      grouped.set(tipo, elementosByTipo.get(tipo) ?? []);
+    }
+    return grouped;
+  }, [elementosByTipo]);
+
+  useEffect(() => {
+    setUbicacionesExpandidas((prev) => {
+      const next = { ...prev };
+      let changed = false;
+      for (const grupo of potrerosPorUbicacion) {
+        if (next[grupo.key] === undefined) {
+          next[grupo.key] = true;
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [potrerosPorUbicacion]);
+
+  useEffect(() => {
+    if (!selection) return;
+    if (selection.kind === "elemento") {
+      const key = `m-${selection.id}`;
+      if (potrerosPorUbicacion.some((g) => g.key === key)) {
+        setUbicacionesExpandidas((prev) => ({ ...prev, [key]: true }));
+      }
+      return;
+    }
+    if (selection.kind === "potrero") {
+      const potrero = potreros.find((p) => p.id === selection.id);
+      if (!potrero) return;
+      const marcadorId = parseCampoMapaMarcadorId(potrero.metadata);
+      const key =
+        marcadorId != null && marcadorNombreById.has(marcadorId)
+          ? `m-${marcadorId}`
+          : "sin-ubicacion";
+      setUbicacionesExpandidas((prev) => ({ ...prev, [key]: true }));
+    }
+  }, [marcadorNombreById, potreros, potrerosPorUbicacion, selection]);
+
+  const toggleUbicacionExpandida = useCallback((key: string) => {
+    setUbicacionesExpandidas((prev) => ({
+      ...prev,
+      [key]: !(prev[key] ?? true),
+    }));
+  }, []);
 
   const toolDef = getToolDef(activeTool);
   const isSketching = toolUsesSketch(activeTool) && sketchVertices.length > 0 && !pendingDraft;
@@ -1969,13 +2051,34 @@ export default function CampoMapa({
     return renderSaveTargetSelector(draftSaveTarget, setDraftSaveTarget, geometry);
   };
 
+  const mapaInfoButton = (
+    <div className="campo-mapa-aside-info" ref={mapaInfoRef}>
+      <button
+        type="button"
+        className={`campo-mapa-aside-info-btn${mapaInfoOpen ? " is-open" : ""}`}
+        aria-label="Información del mapa compartido"
+        aria-expanded={mapaInfoOpen}
+        aria-controls="campo-mapa-aside-info-panel"
+        title="Información del mapa"
+        onClick={() => setMapaInfoOpen((open) => !open)}
+      >
+        <Info size={12} aria-hidden />
+      </button>
+      {mapaInfoOpen ? (
+        <div
+          id="campo-mapa-aside-info-panel"
+          className="campo-mapa-aside-info-panel"
+          role="note"
+        >
+          Mapa compartido de <strong>{cuentaNombre}</strong>. Potreros y ubicaciones los ven y
+          editan todos los integrantes del equipo en esta cuenta.
+        </div>
+      ) : null}
+    </div>
+  );
+
   const sidebarBody = (
     <div className="campo-mapa-aside-body">
-      <p className="campo-mapa-aside-shared">
-        Mapa compartido de <strong>{cuentaNombre}</strong>. Potreros y ubicaciones los ven y
-        editan todos los integrantes del equipo en esta cuenta.
-      </p>
-
       {puedeEditar && toolUsesSketch(activeTool) && !pendingDraft && !potreroShapeEdit ? (
         <div className="campo-mapa-aside-tools">
           <p className="campo-mapa-aside-hint">
@@ -2071,59 +2174,126 @@ export default function CampoMapa({
       ) : null}
 
       <div className="campo-mapa-aside-section">
-        <p className="campo-mapa-aside-label">Potreros</p>
+        <p className="campo-mapa-aside-label">Ubicaciones y potreros</p>
         {loading ? <p className="campo-mapa-aside-hint">Cargando…</p> : null}
-        {!loading && potreros.length === 0 ? (
+        {!loading && potreros.length === 0 && marcadoresUbicacion.length === 0 ? (
           <div className="campo-mapa-aside-empty">
             <MapPin size={18} aria-hidden />
-            <p>Sin potreros todavía.</p>
-            <p className="campo-mapa-aside-hint">Usá la herramienta Potrero en el mapa.</p>
+            <p>Sin ubicaciones ni potreros todavía.</p>
+            <p className="campo-mapa-aside-hint">
+              Creá un marcador de estancia y después asociá potreros.
+            </p>
           </div>
         ) : null}
-        {potrerosPorUbicacion.map((grupo) => (
-          <div key={grupo.key} className="campo-mapa-aside-ubicacion-group">
-            <p className="campo-mapa-aside-ubicacion-label">
-              {grupo.marcadorId != null ? (
-                <>
-                  <MapPin size={12} aria-hidden />
-                  {grupo.label}
-                </>
-              ) : (
-                grupo.label
-              )}
-            </p>
-            <ul className="campo-mapa-aside-list">
-              {grupo.items.map((item) => (
-                <li key={item.id}>
+        <ul className="campo-mapa-aside-tree">
+          {potrerosPorUbicacion.map((grupo) => {
+            const expandida = ubicacionesExpandidas[grupo.key] ?? true;
+            return (
+              <li key={grupo.key} className="campo-mapa-aside-tree-branch">
+                <div className="campo-mapa-aside-tree-parent">
                   <button
                     type="button"
-                    className={`campo-mapa-aside-item${
-                      selection?.kind === "potrero" && selection.id === item.id ? " is-active" : ""
-                    }`}
-                    onClick={() => selectPotrero(item.id)}
+                    className="campo-mapa-aside-tree-toggle"
+                    aria-expanded={expandida}
+                    aria-label={expandida ? "Ocultar potreros" : "Mostrar potreros"}
+                    onClick={() => toggleUbicacionExpandida(grupo.key)}
                   >
-                    <span className="campo-mapa-swatch" style={{ background: item.color }} />
-                    <span className="campo-mapa-aside-item-text">
-                      <strong>{item.nombre}</strong>
-                      <span>
-                        {item.hectareas != null ? `${item.hectareas} ha` : "Sin superficie"}
-                      </span>
-                    </span>
+                    {expandida ? (
+                      <ChevronDown size={14} aria-hidden />
+                    ) : (
+                      <ChevronRight size={14} aria-hidden />
+                    )}
                   </button>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ))}
+                  {grupo.marcador ? (
+                    <button
+                      type="button"
+                      className={`campo-mapa-aside-item campo-mapa-aside-item--ubicacion${
+                        selection?.kind === "elemento" && selection.id === grupo.marcador.id
+                          ? " is-active"
+                          : ""
+                      }`}
+                      onClick={() => selectElemento(grupo.marcador!.id)}
+                    >
+                      <MapPin
+                        size={16}
+                        className="campo-mapa-aside-pin"
+                        style={{ color: grupo.marcador.color }}
+                        aria-hidden
+                      />
+                      <span className="campo-mapa-aside-item-text">
+                        <strong>{grupo.marcador.nombre}</strong>
+                        <span>
+                          {grupo.items.length === 1
+                            ? "1 potrero"
+                            : `${grupo.items.length} potreros`}
+                        </span>
+                      </span>
+                    </button>
+                  ) : (
+                    <div className="campo-mapa-aside-item campo-mapa-aside-item--ubicacion is-static">
+                      <MapPin size={16} className="campo-mapa-aside-pin" aria-hidden />
+                      <span className="campo-mapa-aside-item-text">
+                        <strong>{grupo.label}</strong>
+                        <span>
+                          {grupo.items.length === 1
+                            ? "1 potrero"
+                            : `${grupo.items.length} potreros`}
+                        </span>
+                      </span>
+                    </div>
+                  )}
+                </div>
+                {expandida ? (
+                  grupo.items.length > 0 ? (
+                    <ul className="campo-mapa-aside-tree-children">
+                      {grupo.items.map((item) => (
+                        <li key={item.id} className="campo-mapa-aside-tree-child">
+                          <button
+                            type="button"
+                            className={`campo-mapa-aside-item campo-mapa-aside-item--potrero${
+                              selection?.kind === "potrero" && selection.id === item.id
+                                ? " is-active"
+                                : ""
+                            }`}
+                            onClick={() => selectPotrero(item.id)}
+                          >
+                            <span
+                              className="campo-mapa-swatch"
+                              style={{ background: item.color }}
+                            />
+                            <span className="campo-mapa-aside-item-text">
+                              <strong>{item.nombre}</strong>
+                              <span>
+                                {item.hectareas != null
+                                  ? `${item.hectareas} ha`
+                                  : "Sin superficie"}
+                              </span>
+                            </span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : grupo.marcador ? (
+                    <p className="campo-mapa-aside-hint campo-mapa-aside-hint--nested">
+                      Sin potreros asociados.
+                    </p>
+                  ) : null
+                ) : null}
+              </li>
+            );
+          })}
+        </ul>
       </div>
 
       <div className="campo-mapa-aside-section">
         <p className="campo-mapa-aside-label">Elementos</p>
-        {!loading && elementos.length === 0 ? (
-          <p className="campo-mapa-aside-hint">Sin elementos guardados.</p>
+        {!loading &&
+        [...elementosSinMarcadores.values()].every((items) => items.length === 0) ? (
+          <p className="campo-mapa-aside-hint">Sin otros elementos guardados.</p>
         ) : null}
         {ELEMENTO_TIPO_ORDER.map((tipo) => {
-          const items = elementosByTipo.get(tipo) ?? [];
+          if (tipo === "marcador") return null;
+          const items = elementosSinMarcadores.get(tipo) ?? [];
           if (items.length === 0) return null;
           return (
             <div key={tipo} className="campo-mapa-aside-section">
@@ -2140,14 +2310,7 @@ export default function CampoMapa({
                       }`}
                       onClick={() => selectElemento(item.id)}
                     >
-                      {item.tipo === "marcador" ? (
-                        <MapPin
-                          size={16}
-                          className="campo-mapa-aside-pin"
-                          style={{ color: item.color }}
-                          aria-hidden
-                        />
-                      ) : item.tipo === "nota" ? (
+                      {item.tipo === "nota" ? (
                         <MessageSquare
                           size={16}
                           className="campo-mapa-aside-pin"
@@ -2513,6 +2676,7 @@ export default function CampoMapa({
         asideKicker={hubAsideKicker("CAMPO")}
         asideTitle="Mapa"
         asideLogo={<MenuAppIcon id="campo_mapa" />}
+        asideBrandExtra={mapaInfoButton}
         navAriaLabel="Campo y mapa"
         showDashboardInNav={false}
         showAsideNav={false}

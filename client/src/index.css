@@ -49414,6 +49414,11 @@ button.sg-kpi-card:disabled {
   padding: 0 0.15rem;
 }
 
+.bn-ui .sg-hub-aside-brand-extra {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
 .bn-ui .sg-hub-aside-logo {
   display: inline-flex;
   align-items: center;
