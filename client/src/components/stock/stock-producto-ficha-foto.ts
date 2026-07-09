@@ -1,4 +1,4 @@
-import fotosManifest from "../../data/producto-ficha-fotos.json";
+import fotosManifest from "../../producto-ficha-fotos.json";
 
 const FOTOS_BY_NOMBRE = fotosManifest as Record<string, string>;
 const CATALOG_PREFIX = "/productos-sanitarios/";

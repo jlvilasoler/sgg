@@ -211,7 +211,7 @@ async function main() {
   }
 
   const manifestPath = path.join(ROOT, "server/src/stock-control-sanitario-producto-fichas-fotos.json");
-  const clientManifestPath = path.join(ROOT, "client/src/data/producto-ficha-fotos.json");
+  const clientManifestPath = path.join(ROOT, "client/src/producto-ficha-fotos.json");
 
   for (const nombre of Object.keys(manifest)) {
     const preferida = preferRasterManifestPath(nombre, slug(nombre));
