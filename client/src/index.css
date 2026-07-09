@@ -55485,3 +55485,386 @@ button.sg-kpi-card:disabled {
     transform: none;
   }
 }
+
+/* Configuración SAG — Envío de notificaciones */
+.config-envio-notificaciones-panel {
+  margin-top: 0.75rem;
+}
+
+.config-envio-notificaciones-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.config-envio-notificaciones-head-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--primary) 12%, white);
+  color: var(--primary);
+}
+
+.config-envio-notificaciones-lead {
+  max-width: 52rem;
+  margin-top: 0.35rem;
+}
+
+.config-envio-notificaciones-layout {
+  display: grid;
+  grid-template-columns: minmax(240px, 320px) minmax(0, 1fr);
+  gap: 1.25rem;
+  margin-top: 1.25rem;
+}
+
+.config-envio-notificaciones-list {
+  border: 1px solid var(--bn-border, var(--border));
+  border-radius: 12px;
+  background: var(--bn-surface, #fafafa);
+  padding: 0.85rem;
+}
+
+.config-envio-notificaciones-list-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.config-envio-notificaciones-list-toolbar h3,
+.config-envio-notificaciones-form-wrap h3 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.config-envio-notificaciones-list-actions {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.config-envio-notificaciones-items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.config-envio-notificaciones-item {
+  width: 100%;
+  text-align: left;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: #fff;
+  padding: 0.65rem 0.75rem;
+  cursor: pointer;
+}
+
+.config-envio-notificaciones-item.is-active {
+  border-color: color-mix(in srgb, var(--primary) 35%, white);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--primary) 18%, white);
+}
+
+.config-envio-notificaciones-item-title {
+  display: block;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.config-envio-notificaciones-item-meta {
+  display: block;
+  font-size: 0.78rem;
+  margin-top: 0.2rem;
+}
+
+.config-envio-notificaciones-estado {
+  display: inline-block;
+  margin-top: 0.35rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.config-envio-notificaciones-estado--vigente {
+  color: var(--bn-up, #03a66d);
+}
+
+.config-envio-notificaciones-estado--programada {
+  color: var(--accent);
+}
+
+.config-envio-notificaciones-estado--inactiva,
+.config-envio-notificaciones-estado--vencida {
+  color: var(--bn-muted, var(--muted));
+}
+
+.config-envio-notificaciones-form-wrap {
+  border: 1px solid var(--bn-border, var(--border));
+  border-radius: 12px;
+  background: #fff;
+  padding: 1rem;
+}
+
+.config-envio-notificaciones-form {
+  display: grid;
+  gap: 0.85rem;
+  margin-top: 0.85rem;
+}
+
+.config-envio-notificaciones-form textarea {
+  min-height: 180px;
+  resize: vertical;
+}
+
+.config-envio-notificaciones-delivery {
+  padding: 0.85rem;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--primary) 22%, var(--border));
+  background: color-mix(in srgb, var(--primary) 5%, white);
+}
+
+.config-envio-notificaciones-delivery h4 {
+  margin: 0 0 0.55rem;
+  font-size: 0.88rem;
+}
+
+.config-envio-notificaciones-once {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+}
+
+.config-envio-notificaciones-once strong {
+  display: block;
+}
+
+.config-envio-notificaciones-once small {
+  display: block;
+  margin-top: 0.2rem;
+  line-height: 1.45;
+}
+
+.config-envio-notificaciones-field-hint {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.config-envio-notificaciones-flow {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  padding: 0.65rem 0.75rem;
+  border-radius: 8px;
+  background: var(--bn-surface, #fafafa);
+}
+
+.config-envio-notificaciones-dates {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.config-envio-notificaciones-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  padding: 0.75rem;
+  border-radius: 10px;
+  background: var(--bn-surface, #fafafa);
+  border: 1px solid var(--bn-border-soft, var(--border));
+}
+
+.config-envio-notificaciones-toggle strong {
+  display: block;
+}
+
+.config-envio-notificaciones-toggle small {
+  display: block;
+  margin-top: 0.15rem;
+}
+
+.config-envio-notificaciones-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.config-envio-notificaciones-empty {
+  margin: 0.5rem 0 0;
+  font-size: 0.88rem;
+}
+
+/* Avisos de plataforma (mismo estilo que empresa-gate) */
+.platform-notification-gate {
+  position: fixed;
+  inset: 0;
+  z-index: 12050;
+  min-height: 100vh;
+}
+
+.platform-notification-card {
+  width: min(560px, 100%);
+}
+
+.platform-notification-card-head {
+  margin-bottom: 1rem;
+}
+
+.platform-notification-card-title {
+  font-size: 1.3rem;
+}
+
+.platform-notification-card-body {
+  display: grid;
+  gap: 0.65rem;
+  margin-bottom: 1.1rem;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: var(--text);
+}
+
+.platform-notification-card-body p {
+  margin: 0;
+}
+
+.platform-notification-card-btn {
+  width: 100%;
+  justify-content: center;
+  padding: 0.75rem 1rem;
+  border-radius: 12px;
+}
+
+.platform-notification-preview-kicker {
+  margin: 0 0 0.15rem;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+}
+
+.config-envio-notificaciones-preview {
+  margin: 0.25rem 0 0.5rem;
+}
+
+.config-envio-notificaciones-preview-head h4 {
+  margin: 0;
+  font-size: 0.92rem;
+}
+
+.config-envio-notificaciones-preview-head p {
+  margin: 0.25rem 0 0.65rem;
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.platform-notification-preview-stage {
+  border-radius: 14px;
+  overflow: hidden;
+  padding: 1.35rem 1rem;
+  background: linear-gradient(180deg, #0f172a 0%, #14532d 100%);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+.platform-notification-preview-stage .platform-notification-card {
+  margin: 0 auto;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+}
+
+.platform-notification-preview-stage .platform-notification-card-btn {
+  opacity: 0.72;
+  cursor: default;
+}
+
+@media (max-width: 900px) {
+  .config-envio-notificaciones-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.config-envio-notificaciones-recipients {
+  margin-top: 1.25rem;
+  padding-top: 1.1rem;
+  border-top: 1px solid var(--bn-border, var(--border));
+}
+
+.config-envio-notificaciones-recipients-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.config-envio-notificaciones-recipients-head h4 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.config-envio-notificaciones-recipients-lead {
+  margin: 0.25rem 0 0;
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.config-envio-notificaciones-recipients-search {
+  display: block;
+  margin-bottom: 0.65rem;
+}
+
+.config-envio-notificaciones-recipients-search input {
+  width: 100%;
+}
+
+.config-envio-notificaciones-recipients-empty {
+  margin: 0.5rem 0 0;
+  font-size: 0.88rem;
+}
+
+.config-envio-notificaciones-recipients-table-wrap {
+  overflow: auto;
+  border: 1px solid var(--bn-border, var(--border));
+  border-radius: 10px;
+}
+
+.config-envio-notificaciones-recipients-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.86rem;
+}
+
+.config-envio-notificaciones-recipients-table th,
+.config-envio-notificaciones-recipients-table td {
+  padding: 0.55rem 0.7rem;
+  text-align: left;
+  border-bottom: 1px solid var(--bn-border-soft, var(--border));
+  vertical-align: top;
+}
+
+.config-envio-notificaciones-recipients-table th {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  background: var(--bn-surface, #fafafa);
+}
+
+.config-envio-notificaciones-recipients-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.config-envio-notificaciones-recipients-email {
+  display: block;
+  font-size: 0.78rem;
+  margin-top: 0.1rem;
+}

@@ -97,6 +97,10 @@ import type {
   HomeLayoutMonitorSnapshot,
   HomeLayoutMonitorCampoMapaData,
   HomeLayoutMonitorUsuarioDetalle,
+  PlatformNotificationAdmin,
+  PlatformNotificationInput,
+  PlatformNotificationPending,
+  PlatformNotificationRecipient,
   EmpresaOperativa,
   EmpresaOperativaForm,
   UserForm,
@@ -4894,4 +4898,59 @@ export async function syncBillingAdminAll(): Promise<{
     actualizado_en: string;
   }>("/billing/admin/sync-all", { method: "POST" });
   return json;
+}
+
+export async function fetchPlatformNotificationsAdmin(): Promise<PlatformNotificationAdmin[]> {
+  const json = await request<{ data: PlatformNotificationAdmin[] }>(
+    "/auth/platform-notifications",
+  );
+  return json.data;
+}
+
+export async function createPlatformNotification(
+  input: PlatformNotificationInput,
+): Promise<PlatformNotificationAdmin> {
+  const json = await request<{ data: PlatformNotificationAdmin }>("/auth/platform-notifications", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+  return json.data;
+}
+
+export async function updatePlatformNotification(
+  id: number,
+  input: PlatformNotificationInput,
+): Promise<PlatformNotificationAdmin> {
+  const json = await request<{ data: PlatformNotificationAdmin }>(
+    `/auth/platform-notifications/${id}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    },
+  );
+  return json.data;
+}
+
+export async function deletePlatformNotification(id: number): Promise<void> {
+  await request(`/auth/platform-notifications/${id}`, { method: "DELETE" });
+}
+
+export async function fetchPendingPlatformNotifications(): Promise<PlatformNotificationPending[]> {
+  const json = await request<{ data: PlatformNotificationPending[] }>(
+    "/platform-notifications/pending",
+  );
+  return json.data;
+}
+
+export async function dismissPlatformNotification(id: number): Promise<void> {
+  await request(`/platform-notifications/${id}/dismiss`, { method: "POST" });
+}
+
+export async function fetchPlatformNotificationRecipients(
+  id: number,
+): Promise<PlatformNotificationRecipient[]> {
+  const json = await request<{ data: PlatformNotificationRecipient[] }>(
+    `/auth/platform-notifications/${id}/recipients`,
+  );
+  return json.data;
 }

@@ -46,6 +46,7 @@ import AyudaManual from "./components/ayuda/AyudaManual";
 import ChatExternalRequestHost from "./components/chat/ChatExternalRequestHost";
 import MiCuentaPanel from "./components/MiCuentaModal";
 import ConfirmDialogHost from "./components/ConfirmDialogHost";
+import PlatformNotificationHost from "./components/PlatformNotificationHost";
 import AppBootScreen from "./components/AppBootScreen";
 import { ChatExternalRequestsProvider } from "./context/ChatExternalRequestsContext";
 import { HeaderBackProvider } from "./header-back";
@@ -833,6 +834,7 @@ export default function App() {
         }}
       />
 
+      <PlatformNotificationHost apiOnline={apiOnline} userId={user.id} />
       <ConfirmDialogHost />
       </div>
     </>

@@ -17,6 +17,7 @@ import {
   canAccessControlGlobalCuentas,
   canAccessArquitecturaCuenta,
   canAccessArquitecturaSistema,
+  canAccessEnvioNotificaciones,
   canAccessStockGanaderoAdmin,
   canManageRubrosCatalogo,
   canManageUsuariosCuenta,
@@ -40,6 +41,7 @@ import BillingAdminSuscripciones from "./config/BillingAdminSuscripciones";
 import ConfigDotacionGanadera from "./config/ConfigDotacionGanadera";
 import ConfigHomeLayout from "./config/ConfigHomeLayout";
 import ConfigHomeLayoutMonitor from "./config/ConfigHomeLayoutMonitor";
+import ConfigEnvioNotificaciones from "./config/ConfigEnvioNotificaciones";
 import Usuarios from "./Usuarios";
 import UsuariosActividad from "./UsuariosActividad";
 import ConfigHubView from "./config/ConfigHubView";
@@ -74,7 +76,8 @@ type SagModulo =
   | "rubros_sag"
   | "vencimientos_impuestos"
   | "billing_mp_settings"
-  | "billing_suscripciones_plataforma";
+  | "billing_suscripciones_plataforma"
+  | "envio_notificaciones";
 
 type ModuloConfig =
   | "menu"
@@ -258,6 +261,12 @@ export default function Configuracion({
     if (
       modulo === "billing_suscripciones_plataforma" &&
       !canAccessBillingAdminSuscripciones(currentUser ?? null)
+    ) {
+      setModulo("sag_hub");
+    }
+    if (
+      modulo === "envio_notificaciones" &&
+      !canAccessEnvioNotificaciones(currentUser ?? null)
     ) {
       setModulo("sag_hub");
     }
@@ -626,6 +635,22 @@ export default function Configuracion({
         onError={onError}
         onSuccess={onSuccess}
         onVolver={() => volverConfigDashboard("billing_suscripciones_plataforma")}
+      />
+    );
+  }
+
+  if (
+    modulo === "envio_notificaciones" &&
+    currentUser &&
+    canAccessEnvioNotificaciones(currentUser)
+  ) {
+    return wrapConfigSubmodule(
+      "envio_notificaciones",
+      <ConfigEnvioNotificaciones
+        apiOnline={apiOnline}
+        onError={onError}
+        onSuccess={onSuccess}
+        onVolver={() => volverConfigDashboard("envio_notificaciones")}
       />
     );
   }

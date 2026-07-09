@@ -17,6 +17,7 @@ import {
   canAccessConfiguracionSag,
   canAccessControlGlobalCuentas,
   canAccessDocumentosDigitales,
+  canAccessEnvioNotificaciones,
   canAccessStockGanaderoAdmin,
   canManageRubrosCatalogo,
   canManageUsuariosCuenta,
@@ -133,6 +134,12 @@ const SAG_ITEMS: SgHubItem[] = [
     label: "Suscripciones plataforma",
     subtitle: "Estado en tiempo real de todas las cuentas",
     icon: "config_admin_cuenta",
+  },
+  {
+    id: "envio_notificaciones",
+    label: "Envío de Notificaciones",
+    subtitle: "Avisos puntuales a usuarios de las cuentas",
+    icon: "usuarios_permisos_rol",
   },
 ];
 
@@ -319,6 +326,9 @@ export function buildConfigSagItems(user: AuthUser | null | undefined): SgHubIte
     if (item.id === "billing_suscripciones_plataforma") {
       return canAccessBillingAdminSuscripciones(user ?? null);
     }
+    if (item.id === "envio_notificaciones") {
+      return canAccessEnvioNotificaciones(user ?? null);
+    }
     return true;
   });
 }
@@ -442,6 +452,10 @@ export function configHubMeta(
       title: "Suscripciones plataforma",
       subtitle: "Panel en tiempo real para superadministrador.",
     },
+    envio_notificaciones: {
+      title: "Envío de Notificaciones",
+      subtitle: "Avisos puntuales a usuarios de las cuentas.",
+    },
     mi_perfil: {
       title: "Mi perfil",
       subtitle: "Tu foto, datos y contraseña de acceso.",
@@ -487,7 +501,8 @@ export function configNavScopeForModulo(modulo: string): ConfigNavScope {
     modulo === "clasificacion_proveedores" ||
     modulo === "vencimientos_impuestos" ||
     modulo === "billing_mp_settings" ||
-    modulo === "billing_suscripciones_plataforma"
+    modulo === "billing_suscripciones_plataforma" ||
+    modulo === "envio_notificaciones"
   ) {
     return "sag";
   }

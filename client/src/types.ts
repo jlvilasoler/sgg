@@ -1649,6 +1649,45 @@ export interface HomeLayoutMonitorCampoMapaData {
   elementos: CampoMapaElemento[];
 }
 
+export interface PlatformNotificationAdmin {
+  id: number;
+  titulo: string;
+  mensaje: string;
+  fecha_inicio: string;
+  fecha_fin: string;
+  activo: number;
+  creado_por: number | null;
+  creado_en: string;
+  actualizado_en: string;
+  lecturas: number;
+  usuarios_elegibles: number;
+}
+
+export interface PlatformNotificationInput {
+  titulo: string;
+  mensaje: string;
+  fecha_inicio: string;
+  fecha_fin: string;
+  activo: boolean;
+}
+
+export interface PlatformNotificationPending {
+  id: number;
+  titulo: string;
+  mensaje: string;
+  fecha_inicio: string;
+  fecha_fin: string;
+}
+
+export interface PlatformNotificationRecipient {
+  user_id: number;
+  nombre: string;
+  email: string;
+  rol: string;
+  cuenta_nombre: string | null;
+  leido_en: string;
+}
+
 export interface EmpresaOperativaForm {
   nombre: string;
   codigo?: string;

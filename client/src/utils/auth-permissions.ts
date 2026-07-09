@@ -269,6 +269,11 @@ export function canAccessStockGanaderoAdmin(user: AuthUser | null): boolean {
   return user?.rol === "admin";
 }
 
+/** Envío de notificaciones (Configuración SAG): solo superadministrador. */
+export function canAccessEnvioNotificaciones(user: AuthUser | null): boolean {
+  return canAccessConfiguracionSag(user);
+}
+
 /** Inicio por rol (Configuración SAG): solo superadministrador. */
 export function canAccessConfigHomeLayout(user: AuthUser | null): boolean {
   return Boolean(user?.es_super_admin);

@@ -1487,6 +1487,162 @@ export function registerAuthRoutes(app: Express): void {
     }
   });
 
+  app.get("/api/auth/platform-notifications", async (req, res) => {
+    if (!requireSuperAdmin(req, res)) return;
+    try {
+      const platformNotif = await import("./platform-notifications-db.js");
+      res.json({ ok: true, data: await platformNotif.listPlatformNotificationsAdmin(getDb()) });
+    } catch (e) {
+      res.status(500).json({
+        ok: false,
+        error: e instanceof Error ? e.message : "Error al cargar notificaciones",
+      });
+    }
+  });
+
+  app.post("/api/auth/platform-notifications", async (req, res) => {
+    if (!requireSuperAdmin(req, res)) return;
+    try {
+      const platformNotif = await import("./platform-notifications-db.js");
+      const body = req.body ?? {};
+      const data = await platformNotif.createPlatformNotification(
+        getDb(),
+        {
+          titulo: String(body.titulo ?? ""),
+          mensaje: String(body.mensaje ?? ""),
+          fecha_inicio: String(body.fecha_inicio ?? ""),
+          fecha_fin: String(body.fecha_fin ?? ""),
+          activo: Boolean(body.activo),
+        },
+        req.user!.id,
+      );
+      await authDb.recordAuthEvent(getDb(), "platform_notification_created", {
+        detalle: `id=${data.id}`,
+      });
+      res.json({ ok: true, data });
+    } catch (e) {
+      res.status(400).json({
+        ok: false,
+        error: e instanceof Error ? e.message : "Error al crear la notificación",
+      });
+    }
+  });
+
+  app.patch("/api/auth/platform-notifications/:id", async (req, res) => {
+    if (!requireSuperAdmin(req, res)) return;
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id) || id <= 0) {
+      res.status(400).json({ ok: false, error: "Notificación inválida" });
+      return;
+    }
+    try {
+      const platformNotif = await import("./platform-notifications-db.js");
+      const body = req.body ?? {};
+      const data = await platformNotif.updatePlatformNotification(getDb(), id, {
+        titulo: String(body.titulo ?? ""),
+        mensaje: String(body.mensaje ?? ""),
+        fecha_inicio: String(body.fecha_inicio ?? ""),
+        fecha_fin: String(body.fecha_fin ?? ""),
+        activo: Boolean(body.activo),
+      });
+      await authDb.recordAuthEvent(getDb(), "platform_notification_updated", {
+        detalle: `id=${id}`,
+      });
+      res.json({ ok: true, data });
+    } catch (e) {
+      res.status(400).json({
+        ok: false,
+        error: e instanceof Error ? e.message : "Error al guardar la notificación",
+      });
+    }
+  });
+
+  app.get("/api/auth/platform-notifications/:id/recipients", async (req, res) => {
+    if (!requireSuperAdmin(req, res)) return;
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id) || id <= 0) {
+      res.status(400).json({ ok: false, error: "Notificación inválida" });
+      return;
+    }
+    try {
+      const platformNotif = await import("./platform-notifications-db.js");
+      const data = await platformNotif.listPlatformNotificationRecipients(getDb(), id);
+      res.json({ ok: true, data });
+    } catch (e) {
+      res.status(400).json({
+        ok: false,
+        error: e instanceof Error ? e.message : "Error al cargar destinatarios",
+      });
+    }
+  });
+
+  app.delete("/api/auth/platform-notifications/:id", async (req, res) => {
+    if (!requireSuperAdmin(req, res)) return;
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id) || id <= 0) {
+      res.status(400).json({ ok: false, error: "Notificación inválida" });
+      return;
+    }
+    try {
+      const platformNotif = await import("./platform-notifications-db.js");
+      await platformNotif.deletePlatformNotification(getDb(), id);
+      await authDb.recordAuthEvent(getDb(), "platform_notification_deleted", {
+        detalle: `id=${id}`,
+      });
+      res.json({ ok: true, data: { id } });
+    } catch (e) {
+      res.status(400).json({
+        ok: false,
+        error: e instanceof Error ? e.message : "Error al eliminar la notificación",
+      });
+    }
+  });
+
+  app.get("/api/platform-notifications/pending", async (req, res) => {
+    const user = req.user;
+    if (!user) {
+      res.status(401).json({ ok: false, error: "No autenticado" });
+      return;
+    }
+    try {
+      const platformNotif = await import("./platform-notifications-db.js");
+      const data = await platformNotif.listPendingPlatformNotificationsForUser(
+        getDb(),
+        user.id,
+        user.email,
+      );
+      res.json({ ok: true, data });
+    } catch (e) {
+      res.status(500).json({
+        ok: false,
+        error: e instanceof Error ? e.message : "Error al cargar avisos",
+      });
+    }
+  });
+
+  app.post("/api/platform-notifications/:id/dismiss", async (req, res) => {
+    const user = req.user;
+    if (!user) {
+      res.status(401).json({ ok: false, error: "No autenticado" });
+      return;
+    }
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id) || id <= 0) {
+      res.status(400).json({ ok: false, error: "Notificación inválida" });
+      return;
+    }
+    try {
+      const platformNotif = await import("./platform-notifications-db.js");
+      await platformNotif.dismissPlatformNotificationForUser(getDb(), user.id, id);
+      res.json({ ok: true, data: { id } });
+    } catch (e) {
+      res.status(400).json({
+        ok: false,
+        error: e instanceof Error ? e.message : "Error al marcar el aviso como leído",
+      });
+    }
+  });
+
   app.patch("/api/auth/mi-ejercicio", async (req, res) => {
     if (!(await requireCuentaAdmin(req, res))) return;
     const actor = req.user!;
