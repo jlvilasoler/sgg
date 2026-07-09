@@ -256,7 +256,7 @@ export default function CampoMapa({
   const [saving, setSaving] = useState(false);
   const [editNombre, setEditNombre] = useState("");
   const [editNotas, setEditNotas] = useState("");
-  const [editColor, setEditColor] = useState(DEFAULT_CAMPO_MAPA_DRAW_COLOR);
+  const [editColor, setEditColor] = useState<string>(DEFAULT_CAMPO_MAPA_DRAW_COLOR);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<CampoMapaLugarResult[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
@@ -278,8 +278,8 @@ export default function CampoMapa({
   const detailsLayerRef = useRef<L.LayerGroup | null>(null);
   const searchMarkerRef = useRef<L.CircleMarker | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
-  const potreroLayersRef = useRef<Map<number, L.Layer>>(new Map());
-  const elementoLayersRef = useRef<Map<number, L.Layer>>(new Map());
+  const potreroLayersRef = useRef<globalThis.Map<number, L.Layer>>(new globalThis.Map());
+  const elementoLayersRef = useRef<globalThis.Map<number, L.Layer>>(new globalThis.Map());
   const draftLayerRef = useRef<L.Layer | null>(null);
   const sketchPolylineRef = useRef<L.Polyline | null>(null);
   const sketchPolygonRef = useRef<L.Polygon | null>(null);
@@ -338,7 +338,7 @@ export default function CampoMapa({
   }, [selectedElemento, selectedPotrero]);
 
   const elementosByTipo = useMemo(() => {
-    const grouped = new Map<CampoMapaElementoTipo, CampoMapaElemento[]>();
+    const grouped = new globalThis.Map<CampoMapaElementoTipo, CampoMapaElemento[]>();
     for (const tipo of ELEMENTO_TIPO_ORDER) grouped.set(tipo, []);
     for (const item of elementos) {
       const list = grouped.get(item.tipo) ?? [];
