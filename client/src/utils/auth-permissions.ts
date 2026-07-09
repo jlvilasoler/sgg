@@ -71,7 +71,7 @@ export function canAccessHomeActividadCuenta(user: AuthUser | null): boolean {
   return resolveCuentaActividadId(user) != null;
 }
 
-/** Superadministrador de plataforma (SCG_ADMIN_EMAIL): actividad global de todas las cuentas. */
+/** Superadministrador: actividad global en Configuración SAG (no en Inicio). */
 export function canAccessActividadSagTotal(user: AuthUser | null): boolean {
   return canAccessConfiguracionSag(user);
 }
@@ -207,19 +207,7 @@ export function listHomeActividadPanels(user: AuthUser | null): HomeActividadPan
     });
   }
 
-  if (canAccessActividadSagTotal(user)) {
-    panels.push({
-      id: "total",
-      cacheKey: "total",
-      fetchParams: { ambito: "total", feed: "home" },
-      kicker: "Plataforma SAG",
-      title: "Actividad en todas las cuentas",
-      emptyText:
-        "Todavía no hay cargas recientes en ninguna cuenta de la plataforma (gastos, stock, RRHH, ventas o notas).",
-      verTodoModo: "total",
-      variant: "global",
-    });
-  }
+  // Actividad global de plataforma: solo en Configuración SAG, no en Inicio del superadmin.
 
   return panels;
 }
