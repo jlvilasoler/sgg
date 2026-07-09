@@ -39,6 +39,11 @@ function puedeConfigurar(user: AuthUser): boolean {
   );
 }
 
+/** Hay cuenta madre asociada para cargar empresas en Mi cuenta. */
+function tieneCuentaParaEmpresas(user: AuthUser): boolean {
+  return user.cuenta_actividad_id != null && user.cuenta_actividad_id > 0;
+}
+
 function clampDia(mes: number, dia: number): number {
   const max = DIAS_POR_MES[mes - 1];
   return Math.min(Math.max(1, dia), max);
@@ -75,6 +80,7 @@ export default function MiCuentaEmpresas({
   onError,
 }: Props) {
   const editable = puedeConfigurar(user);
+  const puedeCargar = editable && tieneCuentaParaEmpresas(user);
 
   const [cuenta, setCuenta] = useState<EmpresaCuenta | null>(null);
   const [loading, setLoading] = useState(true);
@@ -87,7 +93,7 @@ export default function MiCuentaEmpresas({
   const [okId, setOkId] = useState<number | null>(null);
 
   const load = useCallback(async () => {
-    if (!editable || !apiOnline) {
+    if (!puedeCargar || !apiOnline) {
       setLoading(false);
       return;
     }
@@ -101,11 +107,16 @@ export default function MiCuentaEmpresas({
       for (const e of data.empresas) map[e.id] = draftFromEmpresa(e);
       setDrafts(map);
     } catch (e) {
-      onError(e instanceof Error ? e.message : "No se pudieron cargar las empresas");
+      const msg = e instanceof Error ? e.message : "No se pudieron cargar las empresas";
+      if (/no tiene una cuenta asignada|cuenta no encontrada/i.test(msg)) {
+        setCuenta(null);
+      } else {
+        onError(msg);
+      }
     } finally {
       setLoading(false);
     }
-  }, [editable, apiOnline, onError]);
+  }, [puedeCargar, apiOnline, onError]);
 
   useEffect(() => {
     void load();
@@ -209,6 +220,25 @@ export default function MiCuentaEmpresas({
             <strong>Empresas de la cuenta</strong>
             <span className="muted">
               Solo el administrador de la cuenta puede ver y configurar las empresas.
+            </span>
+          </div>
+        </header>
+      </section>
+    );
+  }
+
+  if (!tieneCuentaParaEmpresas(user)) {
+    return (
+      <section className="sg-hub-panel mi-cuenta-panel mi-cuenta-empresas" aria-label="Empresas">
+        <header className="mi-cuenta-ejercicio-head">
+          <span className="mi-cuenta-ejercicio-head-icon" aria-hidden="true">
+            <Building2 size={18} strokeWidth={2.2} />
+          </span>
+          <div className="mi-cuenta-ejercicio-head-text">
+            <strong>Empresas de la cuenta</strong>
+            <span className="muted">
+              Como administrador de plataforma sin cuenta propia, gestioná las cuentas desde
+              Configuración SAG → Arquitectura del sistema.
             </span>
           </div>
         </header>

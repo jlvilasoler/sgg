@@ -1578,13 +1578,6 @@ export function registerAuthRoutes(app: Express): void {
   app.get("/api/empresas-cuenta/mi-cuenta", async (req, res) => {
     if (!requireAdmin(req, res)) return;
     const actor = req.user!;
-    if (actor.es_super_admin) {
-      res.status(403).json({
-        ok: false,
-        error: "Use el panel de Administración del sitio",
-      });
-      return;
-    }
     const cuentaId = await empresasCuenta.resolveCuentaMadreIdForUser(getDb(), actor);
     if (!cuentaId) {
       res.status(404).json({ ok: false, error: "No tiene una cuenta asignada" });
