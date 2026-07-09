@@ -4,9 +4,11 @@ export type CampoMapaTool =
   | "navegar"
   | "marcador"
   | "nota"
+  | "objeto"
   | "linea"
   | "area"
   | "dibujar"
+  | "contorno"
   | "medir_distancia"
   | "medir_area"
   | "clip";
@@ -38,9 +40,21 @@ export const CAMPO_MAPA_TOOLS: CampoMapaToolDef[] = [
     group: "dibujar",
   },
   {
+    id: "objeto",
+    label: "Objetos",
+    hint: "Elegí un objeto de campo y ubicálo en el mapa.",
+    group: "dibujar",
+  },
+  {
     id: "dibujar",
     label: "Dibujar",
     hint: "Marcá puntos para dibujar líneas o polígonos; al finalizar elegís cómo guardarlo.",
+    group: "dibujar",
+  },
+  {
+    id: "contorno",
+    label: "Contorno",
+    hint: "Marcá puntos unidos por líneas rectas y finalizá; el área queda vacía (sin relleno).",
     group: "dibujar",
   },
   {
@@ -64,16 +78,17 @@ export const CAMPO_MAPA_TOOLS: CampoMapaToolDef[] = [
 ];
 
 export function toolUsesSketch(tool: CampoMapaTool): boolean {
-  return ["dibujar", "medir_distancia", "medir_area"].includes(tool);
+  return ["dibujar", "contorno", "medir_distancia", "medir_area"].includes(tool);
 }
 
 export function toolSketchIsPolygon(tool: CampoMapaTool): boolean {
-  return tool === "medir_area";
+  return tool === "medir_area" || tool === "contorno";
 }
 
 /** Vista previa del trazo: polígono cerrado o línea abierta según vértices. */
 export function sketchShowsAsPolygon(tool: CampoMapaTool, vertexCount: number): boolean {
   if (tool === "dibujar") return vertexCount >= 3;
+  if (tool === "contorno") return vertexCount >= 3;
   return toolSketchIsPolygon(tool);
 }
 
@@ -90,6 +105,7 @@ export function toolToElementoTipo(tool: CampoMapaTool): CampoMapaElementoTipo |
     case "linea":
       return "linea";
     case "area":
+    case "contorno":
       return "area";
     case "medir_distancia":
       return "medicion_distancia";

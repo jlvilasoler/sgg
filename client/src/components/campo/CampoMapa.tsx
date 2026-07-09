@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import L from "leaflet";
 import type { LucideIcon } from "lucide-react";
-import { Building2, ChevronDown, ChevronRight, CircleDot, Cpu, Info, ListTree, Map, MapPin, Maximize2, MessageSquare, Minimize2, Pencil, Plus, Search, Sigma, Tag, Trash2, Undo2, VenusAndMars, X } from "lucide-react";
+import { Building2, Boxes, ChevronDown, ChevronRight, CircleDot, Cpu, Info, ListTree, Map, MapPin, Maximize2, MessageSquare, Minimize2, Pencil, Plus, Search, Sigma, Tag, Trash2, Undo2, VenusAndMars, X } from "lucide-react";
 import SgHubShell from "../hub/SgHubShell";
 import { MenuAppIcon } from "../icons/MenuAppIcons";
 import {
@@ -111,13 +111,31 @@ import {
 import {
   emptyCampoMapaDispositivosMetadata,
   enrichCampoMapaDispositivosFromStock,
+  isCampoMapaAreaContorno,
   mergeCampoMapaMetadata,
   parseCampoMapaDispositivosMetadata,
+  parseCampoMapaLineaEstilo,
   parseCampoMapaMarcadorId,
+  withCampoMapaAreaContorno,
   withCampoMapaMarcadorId,
   type CampoMapaDispositivosMetadata,
 } from "./campo-mapa-metadata";
-import { clearCampoMapaDispositivosPotrero, syncCampoMapaDispositivosPotrero } from "./campo-mapa-sync-dispositivos";
+import {
+  clearCampoMapaDispositivosPotrero,
+  syncCampoMapaDispositivosPotrero,
+} from "./campo-mapa-sync-dispositivos";
+import {
+  getCampoMapaObjetoDef,
+  parseCampoMapaObjetoTipo,
+  withCampoMapaObjetoTipo,
+  type CampoMapaObjetoTipo,
+  createCampoMapaObjetoLeafletIcon,
+} from "./campo-mapa-objetos";
+import {
+  dashArrayForLineStyle,
+  DEFAULT_CAMPO_MAPA_LINE_STYLE,
+  type CampoMapaLineStyle,
+} from "./campo-mapa-line-style";
 import type { AuthUser } from "../../types";
 import { canWriteCampoMapa } from "../../utils/auth-permissions";
 
@@ -163,14 +181,18 @@ type PendingDraft = {
   isMeasurement?: boolean;
 };
 
-function draftLabel(tool: CampoMapaTool): string {
+function draftLabel(tool: CampoMapaTool, objetoTipo?: CampoMapaObjetoTipo): string {
   switch (tool) {
     case "dibujar":
       return "Nuevo trazo";
+    case "contorno":
+      return "Nuevo contorno";
     case "marcador":
       return "Nuevo marcador";
     case "nota":
       return "Nueva nota";
+    case "objeto":
+      return objetoTipo ? `Nuevo ${getCampoMapaObjetoDef(objetoTipo).label.toLowerCase()}` : "Nuevo objeto";
     case "linea":
       return "Nueva línea";
     case "area":
@@ -188,7 +210,9 @@ function draftLabel(tool: CampoMapaTool): string {
 
 function saveSuccessMessage(tool: CampoMapaTool): string {
   if (tool === "dibujar") return "Trazo guardado en el mapa.";
+  if (tool === "contorno") return "Contorno guardado en el mapa.";
   if (tool === "clip") return "Clip de vista guardado.";
+  if (tool === "objeto") return "Objeto guardado en el mapa.";
   if (tool === "medir_distancia" || tool === "medir_area") return "Medición guardada en el mapa.";
   return "Elemento guardado en el mapa.";
 }
@@ -206,6 +230,8 @@ export default function CampoMapa({
     currentUser.empresa_nombre?.trim() ||
     "tu cuenta";
   const [activeTool, setActiveTool] = useState<CampoMapaTool>("navegar");
+  const [objetoTipo, setObjetoTipo] = useState<CampoMapaObjetoTipo>("molino_agua");
+  const [lineStyle, setLineStyle] = useState<CampoMapaLineStyle>(DEFAULT_CAMPO_MAPA_LINE_STYLE);
   const [selection, setSelection] = useState<MapSelection | null>(null);
   const [sketchVertices, setSketchVertices] = useState<MapLatLng[]>([]);
   const [sketchCursor, setSketchCursor] = useState<MapLatLng | null>(null);
@@ -283,7 +309,7 @@ export default function CampoMapa({
   const sketchPolylineRef = useRef<L.Polyline | null>(null);
   const sketchPolygonRef = useRef<L.Polygon | null>(null);
   const sketchMarkersRef = useRef<L.CircleMarker[]>([]);
-  const sketchPreviewLineRef = useRef<L.Polyline | null>(null);
+  const sketchPreviewLineRef = useRef<L.Layer | null>(null);
   const sketchMeasureLabelMarkersRef = useRef<L.Marker[]>([]);
   const dispositivoMarkersLayerRef = useRef<L.LayerGroup | null>(null);
   const potreroResumenLayerRef = useRef<L.LayerGroup | null>(null);
@@ -371,7 +397,18 @@ export default function CampoMapa({
   const marcadoresUbicacion = useMemo(
     () =>
       elementos
-        .filter((item) => item.tipo === "marcador")
+        .filter(
+          (item) => item.tipo === "marcador" && parseCampoMapaObjetoTipo(item.metadata) == null,
+        )
+        .slice()
+        .sort((a, b) => a.nombre.localeCompare(b.nombre)),
+    [elementos],
+  );
+
+  const objetosEnMapa = useMemo(
+    () =>
+      elementos
+        .filter((item) => parseCampoMapaObjetoTipo(item.metadata) != null)
         .slice()
         .sort((a, b) => a.nombre.localeCompare(b.nombre)),
     [elementos],
@@ -430,11 +467,14 @@ export default function CampoMapa({
     return ordered;
   }, [marcadoresUbicacion, potreros]);
 
-  const elementosSinMarcadores = useMemo(() => {
+  const elementosSinMarcadoresNiObjetos = useMemo(() => {
     const grouped = new globalThis.Map<CampoMapaElementoTipo, CampoMapaElemento[]>();
     for (const tipo of ELEMENTO_TIPO_ORDER) {
       if (tipo === "marcador") continue;
-      grouped.set(tipo, elementosByTipo.get(tipo) ?? []);
+      const items = (elementosByTipo.get(tipo) ?? []).filter(
+        (item) => parseCampoMapaObjetoTipo(item.metadata) == null,
+      );
+      grouped.set(tipo, items);
     }
     return grouped;
   }, [elementosByTipo]);
@@ -481,20 +521,43 @@ export default function CampoMapa({
     }));
   }, []);
 
+  const resumenUbicacionPotreros = useCallback((items: CampoPotreroMapa[]) => {
+    const countLabel =
+      items.length === 1 ? "1 potrero" : `${items.length} potreros`;
+    const totalHa = items.reduce((sum, item) => {
+      const ha = item.hectareas;
+      return typeof ha === "number" && Number.isFinite(ha) ? sum + ha : sum;
+    }, 0);
+    if (items.length === 0 || totalHa <= 0) return countLabel;
+    return `${countLabel} · ${formatHectareas(totalHa)}`;
+  }, []);
+
   const toolDef = getToolDef(activeTool);
-  const isSketching = toolUsesSketch(activeTool) && sketchVertices.length > 0 && !pendingDraft;
-  const minSketchPoints = toolSketchIsPolygon(activeTool) ? 3 : 2;
+  const isSketching =
+    ((toolUsesSketch(activeTool) ||
+      (activeTool === "objeto" && getCampoMapaObjetoDef(objetoTipo).geometry === "line")) &&
+      sketchVertices.length > 0 &&
+      !pendingDraft);
+  const minSketchPoints =
+    activeTool === "objeto" && getCampoMapaObjetoDef(objetoTipo).geometry === "line"
+      ? 2
+      : toolSketchIsPolygon(activeTool)
+        ? 3
+        : 2;
 
   const sketchStrokeColor = useMemo(() => {
     if (activeTool === "medir_distancia" || activeTool === "medir_area") {
       return CAMPO_MAPA_MEASURE_COLOR;
+    }
+    if (activeTool === "objeto") {
+      return getCampoMapaObjetoDef(objetoTipo).color;
     }
     if (potreroShapeEdit) {
       const potrero = potreros.find((item) => item.id === potreroShapeEdit.potreroId);
       return potrero?.color ?? drawColor;
     }
     return drawColor;
-  }, [activeTool, drawColor, potreroShapeEdit, potreros]);
+  }, [activeTool, drawColor, objetoTipo, potreroShapeEdit, potreros]);
 
   const handleDrawColorChange = useCallback((color: CampoMapaDrawColor) => {
     setDrawColor(color);
@@ -510,17 +573,30 @@ export default function CampoMapa({
         minPoints: 3,
       };
     }
-    if (toolUsesSketch(activeTool) && !pendingDraft && sketchVertices.length > 0) {
+    const objetoLine =
+      activeTool === "objeto" && getCampoMapaObjetoDef(objetoTipo).geometry === "line";
+    if (
+      (toolUsesSketch(activeTool) || objetoLine) &&
+      !pendingDraft &&
+      sketchVertices.length > 0
+    ) {
       return {
         kind: "sketch" as const,
         vertices: sketchVertices,
-        isPolygon: sketchShowsAsPolygon(activeTool, sketchVertices.length),
+        isPolygon: objetoLine ? false : sketchShowsAsPolygon(activeTool, sketchVertices.length),
         minPoints: minSketchPoints,
-        dashLine: activeTool === "medir_distancia",
+        dashLine: activeTool === "medir_distancia" || objetoTipo === "camino",
       };
     }
     return null;
-  }, [activeTool, minSketchPoints, pendingDraft, potreroShapeEdit, sketchVertices]);
+  }, [
+    activeTool,
+    minSketchPoints,
+    objetoTipo,
+    pendingDraft,
+    potreroShapeEdit,
+    sketchVertices,
+  ]);
 
   const measureHint = useMemo(() => {
     const measurePath =
@@ -989,6 +1065,25 @@ export default function CampoMapa({
     const onClick = (event: L.LeafletMouseEvent) => {
       if (pendingDraft || potreroShapeEditRef.current) return;
 
+      if (activeTool === "objeto") {
+        const def = getCampoMapaObjetoDef(objetoTipo);
+        if (def.geometry === "point") {
+          const point = { lat: event.latlng.lat, lng: event.latlng.lng };
+          setSelection(null);
+          clearSketchOverlay();
+          setPendingDraft({
+            sourceTool: "objeto",
+            point,
+            metadata: withCampoMapaObjetoTipo({}, objetoTipo),
+          });
+          setFormNombre(def.label);
+          setFormNotas("");
+          return;
+        }
+        setSketchVertices((prev) => [...prev, { lat: event.latlng.lat, lng: event.latlng.lng }]);
+        return;
+      }
+
       if (toolSketchIsPoint(activeTool)) {
         const point = { lat: event.latlng.lat, lng: event.latlng.lng };
         setSelection(null);
@@ -1012,7 +1107,10 @@ export default function CampoMapa({
       }
     };
 
-    const usesMapClick = toolSketchIsPoint(activeTool) || toolUsesSketch(activeTool);
+    const usesMapClick =
+      activeTool === "objeto" ||
+      toolSketchIsPoint(activeTool) ||
+      toolUsesSketch(activeTool);
     if (usesMapClick && !pendingDraft) {
       map.on("click", onClick);
       map.getContainer().style.cursor = "crosshair";
@@ -1024,7 +1122,15 @@ export default function CampoMapa({
       map.off("click", onClick);
       map.getContainer().style.cursor = "";
     };
-  }, [activeTool, clearSketchOverlay, elementos, mapReady, pendingDraft, potreros]);
+  }, [
+    activeTool,
+    clearSketchOverlay,
+    elementos,
+    mapReady,
+    objetoTipo,
+    pendingDraft,
+    potreros,
+  ]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -1123,6 +1229,9 @@ export default function CampoMapa({
     sketchMarkersRef.current = [];
 
     const { vertices, isPolygon } = vertexEditSource;
+    const isContornoSketch =
+      vertexEditSource.kind === "sketch" && activeTool === "contorno";
+    const contornoDash = isContornoSketch ? dashArrayForLineStyle(lineStyle) : undefined;
 
     if (vertices.length >= 2) {
       if (isPolygon) {
@@ -1131,15 +1240,30 @@ export default function CampoMapa({
           weight: borderWeight,
           opacity: 0.95,
           fillColor: sketchStrokeColor,
-          fillOpacity: vertexEditSource.kind === "potrero" ? 0.28 : 0.18,
-          dashArray: vertexEditSource.kind === "potrero" ? undefined : "6 4",
+          fillOpacity: isContornoSketch
+            ? 0
+            : vertexEditSource.kind === "potrero"
+              ? 0.28
+              : 0.18,
+          fill: !isContornoSketch,
+          dashArray:
+            vertexEditSource.kind === "potrero"
+              ? undefined
+              : isContornoSketch
+                ? contornoDash
+                : "6 4",
         }).addTo(map);
       } else {
         sketchPolylineRef.current = L.polyline(pathsToLeafletLatLngs(vertices), {
           color: sketchStrokeColor,
           weight: borderWeight,
           opacity: 0.95,
-          dashArray: "dashLine" in vertexEditSource && vertexEditSource.dashLine ? "8 6" : undefined,
+          dashArray:
+            isContornoSketch
+              ? contornoDash
+              : "dashLine" in vertexEditSource && vertexEditSource.dashLine
+                ? "8 6"
+                : undefined,
         }).addTo(map);
       }
     }
@@ -1159,7 +1283,17 @@ export default function CampoMapa({
       sketchPolygonRef.current?.remove();
       sketchPolygonRef.current = null;
     };
-  }, [borderWeight, mapReady, moveVertexAt, removeVertexAt, selectedVertexIndex, sketchStrokeColor, vertexEditSource]);
+  }, [
+    activeTool,
+    borderWeight,
+    lineStyle,
+    mapReady,
+    moveVertexAt,
+    removeVertexAt,
+    selectedVertexIndex,
+    sketchStrokeColor,
+    vertexEditSource,
+  ]);
 
   useEffect(() => {
     if (!vertexEditSource) return;
@@ -1200,6 +1334,18 @@ export default function CampoMapa({
             !formNotas.trim(),
           ),
         }).addTo(map);
+      } else if (sourceTool === "objeto") {
+        const tipo =
+          parseCampoMapaObjetoTipo(JSON.stringify(pendingDraft.metadata ?? {})) ?? objetoTipo;
+        const def = getCampoMapaObjetoDef(tipo);
+        draftLayerRef.current = L.marker([point.lat, point.lng], {
+          icon: createCampoMapaObjetoLeafletIcon(
+            tipo,
+            def.color,
+            formNombre.trim() || def.label,
+            true,
+          ),
+        }).addTo(map);
       } else {
         draftLayerRef.current = L.circleMarker([point.lat, point.lng], {
           radius: sourceTool === "clip" ? 7 : 8,
@@ -1214,12 +1360,24 @@ export default function CampoMapa({
 
     if (!paths || paths.length === 0) return;
 
-    if (sourceTool === "linea" || sourceTool === "medir_distancia") {
+    if (
+      sourceTool === "linea" ||
+      sourceTool === "medir_distancia" ||
+      sourceTool === "objeto"
+    ) {
+      const objetoMetaTipo =
+        sourceTool === "objeto"
+          ? parseCampoMapaObjetoTipo(JSON.stringify(pendingDraft.metadata ?? {})) ?? objetoTipo
+          : null;
+      const lineColor = objetoMetaTipo
+        ? getCampoMapaObjetoDef(objetoMetaTipo).color
+        : draftColor;
       draftLayerRef.current = L.polyline(pathsToLeafletLatLngs(paths), {
-        color: draftColor,
-        weight: borderWeight,
+        color: lineColor,
+        weight: borderWeight + (objetoMetaTipo === "camino" ? 1 : 0),
         opacity: 0.95,
-        dashArray: sourceTool === "medir_distancia" ? "8 6" : undefined,
+        dashArray:
+          sourceTool === "medir_distancia" || objetoMetaTipo === "camino" ? "8 6" : undefined,
       }).addTo(map);
       return;
     }
@@ -1238,9 +1396,26 @@ export default function CampoMapa({
       weight: borderWeight,
       opacity: 0.95,
       fillColor: draftColor,
-      fillOpacity: 0.32,
+      fillOpacity: sourceTool === "contorno" ? 0 : 0.32,
+      fill: sourceTool !== "contorno",
+      dashArray:
+        sourceTool === "contorno"
+          ? dashArrayForLineStyle(
+              parseCampoMapaLineaEstilo(JSON.stringify(pendingDraft.metadata ?? {})) ??
+                lineStyle,
+            )
+          : undefined,
     }).addTo(map);
-  }, [borderWeight, drawColor, formNotas, mapReady, pendingDraft]);
+  }, [
+    borderWeight,
+    drawColor,
+    formNombre,
+    formNotas,
+    lineStyle,
+    mapReady,
+    objetoTipo,
+    pendingDraft,
+  ]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -1583,10 +1758,40 @@ export default function CampoMapa({
       setFormNotas("");
       return;
     }
+
+    if (activeTool === "contorno") {
+      if (paths.length < 3) {
+        onError("Marcá al menos tres puntos unidos por líneas rectas.");
+        return;
+      }
+      setDraftSaveTarget("area");
+      setPendingDraft({
+        sourceTool: "contorno",
+        paths,
+        hectareas: computeHectareas(paths),
+        metadata: withCampoMapaAreaContorno({}, lineStyle),
+      });
+      setFormNombre("Contorno");
+      setFormNotas("");
+      return;
+    }
+
+    if (activeTool === "objeto") {
+      const def = getCampoMapaObjetoDef(objetoTipo);
+      if (def.geometry !== "line") return;
+      setPendingDraft({
+        sourceTool: "objeto",
+        paths,
+        metadata: withCampoMapaObjetoTipo({}, objetoTipo),
+      });
+      setFormNombre(def.label);
+      setFormNotas("");
+    }
   };
 
   const savePending = async () => {
     const isNotaDraft = pendingDraft?.sourceTool === "nota";
+    const isObjetoDraft = pendingDraft?.sourceTool === "objeto";
     if (!pendingDraft) return;
     if (isNotaDraft) {
       if (!formNotas.trim()) {
@@ -1600,6 +1805,40 @@ export default function CampoMapa({
 
     setSaving(true);
     try {
+      if (isObjetoDraft) {
+        const tipo =
+          parseCampoMapaObjetoTipo(JSON.stringify(pendingDraft.metadata ?? {})) ?? objetoTipo;
+        const def = getCampoMapaObjetoDef(tipo);
+        const metadata = withCampoMapaObjetoTipo(pendingDraft.metadata ?? {}, tipo);
+        let geojson: unknown;
+        let elementoTipo: CampoMapaElementoTipo;
+        if (pendingDraft.point) {
+          geojson = JSON.parse(pointToGeoJson(pendingDraft.point));
+          elementoTipo = "marcador";
+        } else if (pendingDraft.paths && pendingDraft.paths.length >= 2) {
+          geojson = JSON.parse(pathsToLineGeoJson(pendingDraft.paths));
+          elementoTipo = "linea";
+        } else {
+          throw new Error("No se pudo determinar la geometría del objeto.");
+        }
+        const created = await createCampoMapaElemento({
+          tipo: elementoTipo,
+          nombre: formNombre.trim(),
+          geojson,
+          notas: formNotas,
+          color: def.color,
+          metadata,
+        });
+        setElementos((prev) =>
+          [...prev, created].sort((a, b) => a.nombre.localeCompare(b.nombre)),
+        );
+        setSelection({ kind: "elemento", id: created.id });
+        clearDraftOverlay();
+        setActiveTool("navegar");
+        onSuccess(`${def.label} guardado en el mapa.`);
+        return;
+      }
+
       const target =
         pendingDraft.isMeasurement || pendingDraft.point ? null : draftSaveTarget;
 
@@ -1955,6 +2194,8 @@ export default function CampoMapa({
       return ha ? `Potrero · ${ha}` : "Potrero";
     }
     if (selectedElemento) {
+      const objeto = parseCampoMapaObjetoTipo(selectedElemento.metadata);
+      if (objeto) return getCampoMapaObjetoDef(objeto).label;
       return ELEMENTO_TIPO_LABELS[selectedElemento.tipo];
     }
     return undefined;
@@ -1988,14 +2229,22 @@ export default function CampoMapa({
     if (!puedeEditar) return null;
     if (potreroShapeEdit) return "potrero-shape";
     if (pendingDraft) return "draft";
-    if (toolUsesSketch(activeTool)) return "sketch";
+    if (
+      toolUsesSketch(activeTool) ||
+      (activeTool === "objeto" && getCampoMapaObjetoDef(objetoTipo).geometry === "line")
+    ) {
+      return "sketch";
+    }
     return null;
-  }, [activeTool, pendingDraft, potreroShapeEdit, puedeEditar]);
+  }, [activeTool, objetoTipo, pendingDraft, potreroShapeEdit, puedeEditar]);
 
   const showFullscreenWorkDock = isFullscreen && mapWorkMode != null;
 
   const mapHint = useMemo(() => {
     if (showFullscreenWorkDock) return null;
+    const objetoDef = getCampoMapaObjetoDef(objetoTipo);
+    const objetoSketching =
+      activeTool === "objeto" && objetoDef.geometry === "line" && !pendingDraft;
     let hint: string | null = null;
     if (measureHint) hint = measureHint;
     else if (vertexEditSource) {
@@ -2006,13 +2255,23 @@ export default function CampoMapa({
       !pendingDraft
     ) {
       hint = toolDef.hint;
-    } else if (toolUsesSketch(activeTool) && !pendingDraft) hint = toolDef.hint;
+    } else if (objetoSketching) hint = objetoDef.hint;
+    else if (toolUsesSketch(activeTool) && !pendingDraft) hint = toolDef.hint;
     else if (toolSketchIsPoint(activeTool) && !pendingDraft) hint = toolDef.hint;
+    else if (activeTool === "objeto" && !pendingDraft) hint = objetoDef.hint;
 
     if (!hint) return null;
     if (pendingDraft) return `${hint} · Deshacer para corregir`;
     return `${hint} · Esc para cancelar · Deshacer último punto`;
-  }, [activeTool, measureHint, pendingDraft, showFullscreenWorkDock, toolDef.hint, vertexEditSource]);
+  }, [
+    activeTool,
+    measureHint,
+    objetoTipo,
+    pendingDraft,
+    showFullscreenWorkDock,
+    toolDef.hint,
+    vertexEditSource,
+  ]);
 
   const renderSaveTargetSelector = (
     value: DraftSaveTarget,
@@ -2079,11 +2338,19 @@ export default function CampoMapa({
 
   const sidebarBody = (
     <div className="campo-mapa-aside-body">
-      {puedeEditar && toolUsesSketch(activeTool) && !pendingDraft && !potreroShapeEdit ? (
+      {puedeEditar &&
+      ((toolUsesSketch(activeTool) ||
+        (activeTool === "objeto" && getCampoMapaObjetoDef(objetoTipo).geometry === "line")) &&
+        !pendingDraft &&
+        !potreroShapeEdit) ? (
         <div className="campo-mapa-aside-tools">
           <p className="campo-mapa-aside-hint">
             {measureHint ??
-              `${toolDef.hint} Podés arrastrar un punto para moverlo o hacer doble clic para eliminarlo. Presioná Esc para cancelar.`}
+              `${
+                activeTool === "objeto"
+                  ? getCampoMapaObjetoDef(objetoTipo).hint
+                  : toolDef.hint
+              } Podés arrastrar un punto para moverlo o hacer doble clic para eliminarlo. Presioná Esc para cancelar.`}
           </p>
           <button
             type="button"
@@ -2222,11 +2489,7 @@ export default function CampoMapa({
                       />
                       <span className="campo-mapa-aside-item-text">
                         <strong>{grupo.marcador.nombre}</strong>
-                        <span>
-                          {grupo.items.length === 1
-                            ? "1 potrero"
-                            : `${grupo.items.length} potreros`}
-                        </span>
+                        <span>{resumenUbicacionPotreros(grupo.items)}</span>
                       </span>
                     </button>
                   ) : (
@@ -2234,11 +2497,7 @@ export default function CampoMapa({
                       <MapPin size={16} className="campo-mapa-aside-pin" aria-hidden />
                       <span className="campo-mapa-aside-item-text">
                         <strong>{grupo.label}</strong>
-                        <span>
-                          {grupo.items.length === 1
-                            ? "1 potrero"
-                            : `${grupo.items.length} potreros`}
-                        </span>
+                        <span>{resumenUbicacionPotreros(grupo.items)}</span>
                       </span>
                     </div>
                   )}
@@ -2286,14 +2545,55 @@ export default function CampoMapa({
       </div>
 
       <div className="campo-mapa-aside-section">
+        <p className="campo-mapa-aside-label">Objetos</p>
+        {!loading && objetosEnMapa.length === 0 ? (
+          <p className="campo-mapa-aside-hint">Sin objetos en el mapa.</p>
+        ) : null}
+        {objetosEnMapa.length > 0 ? (
+          <ul className="campo-mapa-aside-list">
+            {objetosEnMapa.map((item) => {
+              const tipo = parseCampoMapaObjetoTipo(item.metadata);
+              const def = tipo ? getCampoMapaObjetoDef(tipo) : null;
+              const Icon = def?.icon ?? Boxes;
+              const color = item.color || def?.color || "#7cb342";
+              return (
+                <li key={item.id}>
+                  <button
+                    type="button"
+                    className={`campo-mapa-aside-item${
+                      selection?.kind === "elemento" && selection.id === item.id
+                        ? " is-active"
+                        : ""
+                    }`}
+                    onClick={() => selectElemento(item.id)}
+                  >
+                    <Icon
+                      size={16}
+                      className="campo-mapa-aside-pin"
+                      style={{ color }}
+                      aria-hidden
+                    />
+                    <span className="campo-mapa-aside-item-text">
+                      <strong>{item.nombre}</strong>
+                      <span>{def?.label ?? "Objeto"}</span>
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        ) : null}
+      </div>
+
+      <div className="campo-mapa-aside-section">
         <p className="campo-mapa-aside-label">Elementos</p>
         {!loading &&
-        [...elementosSinMarcadores.values()].every((items) => items.length === 0) ? (
+        [...elementosSinMarcadoresNiObjetos.values()].every((items) => items.length === 0) ? (
           <p className="campo-mapa-aside-hint">Sin otros elementos guardados.</p>
         ) : null}
         {ELEMENTO_TIPO_ORDER.map((tipo) => {
           if (tipo === "marcador") return null;
-          const items = elementosSinMarcadores.get(tipo) ?? [];
+          const items = elementosSinMarcadoresNiObjetos.get(tipo) ?? [];
           if (items.length === 0) return null;
           return (
             <div key={tipo} className="campo-mapa-aside-section">
@@ -2326,7 +2626,11 @@ export default function CampoMapa({
                             ? item.notas.trim() || item.nombre
                             : item.nombre}
                         </strong>
-                        <span>{ELEMENTO_TIPO_LABELS[item.tipo]}</span>
+                        <span>
+                          {item.tipo === "area" && isCampoMapaAreaContorno(item.metadata)
+                            ? "Contorno"
+                            : ELEMENTO_TIPO_LABELS[item.tipo]}
+                        </span>
                       </span>
                     </button>
                   </li>
@@ -2344,9 +2648,21 @@ export default function CampoMapa({
               ? draftLabel(pendingDraft.sourceTool)
               : pendingDraft.sourceTool === "nota"
                 ? "Nueva nota"
-                : draftTitle(draftSaveTarget)}
+                : pendingDraft.sourceTool === "objeto"
+                  ? draftLabel(
+                      "objeto",
+                      parseCampoMapaObjetoTipo(JSON.stringify(pendingDraft.metadata ?? {})) ??
+                        objetoTipo,
+                    )
+                  : pendingDraft.sourceTool === "contorno"
+                    ? "Nuevo contorno"
+                    : draftTitle(draftSaveTarget)}
           </p>
-          {pendingDraft.sourceTool !== "nota" ? renderDraftSaveTargetSelector() : null}
+          {pendingDraft.sourceTool !== "nota" &&
+          pendingDraft.sourceTool !== "objeto" &&
+          pendingDraft.sourceTool !== "contorno"
+            ? renderDraftSaveTargetSelector()
+            : null}
           {pendingDraft.hectareas != null ? (
             <p className="campo-mapa-aside-hint">
               Superficie: {formatHectareas(pendingDraft.hectareas)}
@@ -2482,7 +2798,14 @@ export default function CampoMapa({
             </p>
           ) : null}
           {selectedElemento && !selectedPotrero ? (
-            <p className="campo-mapa-aside-hint">{ELEMENTO_TIPO_LABELS[selectedElemento.tipo]}</p>
+            <p className="campo-mapa-aside-hint">
+              {(() => {
+                const objeto = parseCampoMapaObjetoTipo(selectedElemento.metadata);
+                if (objeto) return getCampoMapaObjetoDef(objeto).label;
+                if (isCampoMapaAreaContorno(selectedElemento.metadata)) return "Contorno";
+                return ELEMENTO_TIPO_LABELS[selectedElemento.tipo];
+              })()}
+            </p>
           ) : null}
           {supportsDispositivosEnMapa(selectedPotrero, selectedElemento) ? (
             <>
@@ -2520,10 +2843,19 @@ export default function CampoMapa({
               Superficie: {formatHectareas(selectedPotrero.hectareas)}
             </p>
           ) : null}
-          {canChangeSaveTarget(selectedPotrero, selectedElemento)
+          {canChangeSaveTarget(selectedPotrero, selectedElemento) &&
+          !(selectedElemento && parseCampoMapaObjetoTipo(selectedElemento.metadata)) &&
+          !(selectedElemento && isCampoMapaAreaContorno(selectedElemento.metadata))
             ? renderSaveTargetSelector(editSaveTarget, setEditSaveTarget, editGeometry)
             : selectedElemento ? (
-                <p className="campo-mapa-aside-hint">{ELEMENTO_TIPO_LABELS[selectedElemento.tipo]}</p>
+                <p className="campo-mapa-aside-hint">
+                  {(() => {
+                    const objeto = parseCampoMapaObjetoTipo(selectedElemento.metadata);
+                    if (objeto) return getCampoMapaObjetoDef(objeto).label;
+                    if (isCampoMapaAreaContorno(selectedElemento.metadata)) return "Contorno";
+                    return ELEMENTO_TIPO_LABELS[selectedElemento.tipo];
+                  })()}
+                </p>
               ) : null}
           {selectedPotrero && editSaveTarget === "potrero" ? (
             <button
@@ -2698,11 +3030,15 @@ export default function CampoMapa({
               activeTool={activeTool}
               borderWeight={borderWeight}
               drawColor={drawColor}
+              lineStyle={lineStyle}
+              objetoTipo={objetoTipo}
               disabled={!puedeEditar || !mapReady || saving || !!pendingDraft}
               canUndo={puedeEditar && canUndoMarking}
               onSelect={handleToolSelect}
               onBorderWeightChange={setBorderWeight}
               onDrawColorChange={handleDrawColorChange}
+              onLineStyleChange={setLineStyle}
+              onObjetoTipoChange={setObjetoTipo}
               onUndo={undoLastMarking}
               onSaveClip={handleSaveClip}
             />
@@ -2893,12 +3229,16 @@ export default function CampoMapa({
               <div className="campo-mapa-map-work-dock" role="region" aria-label="Acciones del mapa">
                 {mapWorkMode === "sketch" ? (
                   <>
-                    <p className="campo-mapa-map-work-dock-title">Dibujando</p>
+                    <p className="campo-mapa-map-work-dock-title">
+                      {activeTool === "contorno" ? "Contorno" : "Dibujando"}
+                    </p>
                     <p className="campo-mapa-map-work-dock-hint">
                       {measureHint ??
                         (sketchVertices.length > 0
                           ? "Arrastrá un punto para moverlo · Doble clic o Supr para eliminar"
-                          : toolDef.hint)}
+                          : activeTool === "objeto"
+                            ? getCampoMapaObjetoDef(objetoTipo).hint
+                            : toolDef.hint)}
                     </p>
                     <div className="campo-mapa-map-work-dock-actions">
                       <button
@@ -2998,9 +3338,20 @@ export default function CampoMapa({
                     <p className="campo-mapa-map-work-dock-title">
                       {pendingDraft.isMeasurement
                         ? draftLabel(pendingDraft.sourceTool)
-                        : draftTitle(draftSaveTarget)}
+                        : pendingDraft.sourceTool === "objeto"
+                          ? draftLabel(
+                              "objeto",
+                              parseCampoMapaObjetoTipo(
+                                JSON.stringify(pendingDraft.metadata ?? {}),
+                              ) ?? objetoTipo,
+                            )
+                          : pendingDraft.sourceTool === "contorno"
+                            ? "Nuevo contorno"
+                            : draftTitle(draftSaveTarget)}
                     </p>
                     {!pendingDraft.isMeasurement &&
+                    pendingDraft.sourceTool !== "objeto" &&
+                    pendingDraft.sourceTool !== "contorno" &&
                     availableSaveTargets(draftGeometryFromDraft(pendingDraft)).length > 1 ? (
                       <div className="campo-mapa-map-work-dock-tipo">
                         {availableSaveTargets(draftGeometryFromDraft(pendingDraft)).map((target) => (

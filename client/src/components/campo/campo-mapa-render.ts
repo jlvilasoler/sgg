@@ -12,6 +12,13 @@ import type { CampoMapaBorderWeight } from "./campo-mapa-border-weight";
 import { DEFAULT_CAMPO_MAPA_BORDER_WEIGHT, strokeWeightForSelection } from "./campo-mapa-border-weight";
 import { createCampoMapaPinIcon } from "./campo-mapa-pin-icon";
 import { createCampoMapaNotaBubbleIcon } from "./campo-mapa-nota-bubble";
+import {
+  createCampoMapaObjetoLeafletIcon,
+  getCampoMapaObjetoDef,
+  parseCampoMapaObjetoTipo,
+} from "./campo-mapa-objetos";
+import { isCampoMapaAreaContorno, parseCampoMapaLineaEstilo } from "./campo-mapa-metadata";
+import { dashArrayForLineStyle } from "./campo-mapa-line-style";
 
 export type MapLayerHandle = L.Layer;
 
@@ -95,6 +102,22 @@ export function renderElementoLayer(
   if (item.tipo === "marcador") {
     const point = geoJsonToPoint(item.geojson);
     if (!point) return null;
+    const objetoTipo = parseCampoMapaObjetoTipo(item.metadata);
+    if (objetoTipo) {
+      const def = getCampoMapaObjetoDef(objetoTipo);
+      const marker = L.marker([point.lat, point.lng], {
+        icon: createCampoMapaObjetoLeafletIcon(
+          objetoTipo,
+          item.color || def.color,
+          item.nombre,
+          selected,
+        ),
+        zIndexOffset: selected ? 420 : 220,
+      }).addTo(map);
+      marker.bindPopup(popupHtml(item.nombre, item.notas, def.label));
+      marker.on("click", onSelect);
+      return marker;
+    }
     const marker = L.marker([point.lat, point.lng], {
       icon: createCampoMapaPinIcon(item.color, selected),
       zIndexOffset: selected ? 400 : 200,
@@ -137,13 +160,27 @@ export function renderElementoLayer(
     } catch {
       return null;
     }
+    const objetoTipo = parseCampoMapaObjetoTipo(item.metadata);
+    const lineColor =
+      objetoTipo != null ? item.color || getCampoMapaObjetoDef(objetoTipo).color : item.color;
     const line = L.polyline(pathsToLeafletLatLngs(paths), {
-      color: item.color,
-      weight: strokeWeightForSelection(baseWeight, selected) + 1,
+      color: lineColor,
+      weight: strokeWeightForSelection(baseWeight, selected) + (objetoTipo === "camino" ? 2 : 1),
       opacity: 0.95,
-      dashArray: item.tipo === "medicion_distancia" ? "8 6" : undefined,
+      dashArray:
+        item.tipo === "medicion_distancia"
+          ? "8 6"
+          : objetoTipo === "camino"
+            ? "10 8"
+            : undefined,
     }).addTo(map);
-    line.bindPopup(popupHtml(item.nombre, item.notas, extra));
+    line.bindPopup(
+      popupHtml(
+        item.nombre,
+        item.notas,
+        objetoTipo ? getCampoMapaObjetoDef(objetoTipo).label : extra,
+      ),
+    );
     line.on("click", onSelect);
     return line;
   }
@@ -154,15 +191,25 @@ export function renderElementoLayer(
   } catch {
     return null;
   }
+  const isContorno = item.tipo === "area" && isCampoMapaAreaContorno(item.metadata);
+  const lineaEstilo = isContorno ? parseCampoMapaLineaEstilo(item.metadata) : null;
   const polygon = L.polygon(pathsToLeafletLatLngs(paths), {
     color: item.color,
-    weight: strokeWeightForSelection(baseWeight, selected),
+    weight: strokeWeightForSelection(baseWeight, selected) + (isContorno ? 1 : 0),
     opacity: 0.95,
     fillColor: item.color,
-    fillOpacity: selected ? 0.32 : 0.2,
-    dashArray: item.tipo === "medicion_area" ? "6 5" : undefined,
+    fillOpacity: isContorno ? 0 : selected ? 0.32 : 0.2,
+    fill: !isContorno,
+    dashArray:
+      item.tipo === "medicion_area"
+        ? "6 5"
+        : isContorno
+          ? dashArrayForLineStyle(lineaEstilo ?? "solida")
+          : undefined,
   }).addTo(map);
-  polygon.bindPopup(popupHtml(item.nombre, item.notas, extra));
+  polygon.bindPopup(
+    popupHtml(item.nombre, item.notas, isContorno ? "Contorno" : extra),
+  );
   if (options?.showName !== false && item.tipo === "area") {
     attachFeatureNameLabel(polygon, item.nombre, selected);
   }

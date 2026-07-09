@@ -2,12 +2,14 @@ import { useEffect, useRef, useState } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
   Bookmark,
+  Boxes,
   Hand,
   LandPlot,
   MapPin,
   MessageSquare,
   Minus,
   Pentagon,
+  PencilRuler,
   Ruler,
   Scan,
   Undo2,
@@ -20,6 +22,15 @@ import {
   CAMPO_MAPA_DRAW_COLORS,
   type CampoMapaDrawColor,
 } from "./campo-mapa-draw-colors";
+import {
+  CAMPO_MAPA_LINE_STYLE_DEFS,
+  type CampoMapaLineStyle,
+} from "./campo-mapa-line-style";
+import {
+  CAMPO_MAPA_OBJETOS,
+  getCampoMapaObjetoDef,
+  type CampoMapaObjetoTipo,
+} from "./campo-mapa-objetos";
 import { getToolDef, type CampoMapaTool } from "./campo-mapa-tools";
 
 function DrawColorPicker({
@@ -54,13 +65,94 @@ function DrawColorPicker({
   );
 }
 
+function DrawBorderWeightPicker({
+  borderWeight,
+  drawColor,
+  onBorderWeightChange,
+}: {
+  borderWeight: CampoMapaBorderWeight;
+  drawColor: CampoMapaDrawColor;
+  onBorderWeightChange: (weight: CampoMapaBorderWeight) => void;
+}) {
+  return (
+    <div className="campo-mapa-draw-style-section">
+      <span className="campo-mapa-draw-style-label">Grosor</span>
+      <div className="campo-mapa-border-weight-options" role="group" aria-label="Grosor del borde">
+        {CAMPO_MAPA_BORDER_WEIGHTS.map((weight) => (
+          <button
+            key={weight}
+            type="button"
+            role="menuitemradio"
+            className={`campo-mapa-border-weight-option${
+              borderWeight === weight ? " is-selected" : ""
+            }`}
+            aria-checked={borderWeight === weight}
+            title={`Grosor ${weight}`}
+            onClick={() => onBorderWeightChange(weight)}
+          >
+            <span
+              className="campo-mapa-border-weight-swatch"
+              style={{ borderWidth: weight, borderColor: drawColor }}
+              aria-hidden
+            />
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function DrawLineStylePicker({
+  drawColor,
+  lineStyle,
+  onLineStyleChange,
+}: {
+  drawColor: CampoMapaDrawColor;
+  lineStyle: CampoMapaLineStyle;
+  onLineStyleChange: (style: CampoMapaLineStyle) => void;
+}) {
+  return (
+    <div className="campo-mapa-draw-style-section">
+      <span className="campo-mapa-draw-style-label">Tipo de línea</span>
+      <div className="campo-mapa-line-style-options" role="group" aria-label="Tipo de línea">
+        {CAMPO_MAPA_LINE_STYLE_DEFS.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            role="menuitemradio"
+            className={`campo-mapa-line-style-option${
+              lineStyle === item.id ? " is-selected" : ""
+            }`}
+            aria-checked={lineStyle === item.id}
+            title={item.label}
+            onClick={() => onLineStyleChange(item.id)}
+          >
+            <span
+              className="campo-mapa-line-style-swatch"
+              style={{
+                borderColor: drawColor,
+                borderTopStyle:
+                  item.id === "solida" ? "solid" : item.id === "punteada" ? "dotted" : "dashed",
+              }}
+              aria-hidden
+            />
+            <span>{item.label}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export const CAMPO_MAPA_TOOL_ICONS: Record<CampoMapaTool, LucideIcon> = {
   navegar: Hand,
   marcador: MapPin,
   nota: MessageSquare,
+  objeto: Boxes,
   linea: Minus,
   area: Pentagon,
   dibujar: LandPlot,
+  contorno: PencilRuler,
   medir_distancia: Ruler,
   medir_area: Scan,
   clip: Bookmark,
@@ -70,11 +162,15 @@ interface Props {
   activeTool: CampoMapaTool;
   borderWeight: CampoMapaBorderWeight;
   drawColor: CampoMapaDrawColor;
+  lineStyle: CampoMapaLineStyle;
+  objetoTipo: CampoMapaObjetoTipo;
   disabled?: boolean;
   canUndo?: boolean;
   onSelect: (tool: CampoMapaTool) => void;
   onBorderWeightChange: (weight: CampoMapaBorderWeight) => void;
   onDrawColorChange: (color: CampoMapaDrawColor) => void;
+  onLineStyleChange: (style: CampoMapaLineStyle) => void;
+  onObjetoTipoChange: (tipo: CampoMapaObjetoTipo) => void;
   onUndo?: () => void;
   onSaveClip?: () => void;
 }
@@ -83,34 +179,43 @@ export default function CampoMapaToolbar({
   activeTool,
   borderWeight,
   drawColor,
+  lineStyle,
+  objetoTipo,
   disabled,
   canUndo = false,
   onSelect,
   onBorderWeightChange,
   onDrawColorChange,
+  onLineStyleChange,
+  onObjetoTipoChange,
   onUndo,
   onSaveClip,
 }: Props) {
   const [dibujarMenuOpen, setDibujarMenuOpen] = useState(false);
+  const [contornoMenuOpen, setContornoMenuOpen] = useState(false);
   const [marcadorMenuOpen, setMarcadorMenuOpen] = useState(false);
   const [notaMenuOpen, setNotaMenuOpen] = useState(false);
+  const [objetoMenuOpen, setObjetoMenuOpen] = useState(false);
   const dibujarMenuRef = useRef<HTMLDivElement | null>(null);
+  const contornoMenuRef = useRef<HTMLDivElement | null>(null);
   const marcadorMenuRef = useRef<HTMLDivElement | null>(null);
   const notaMenuRef = useRef<HTMLDivElement | null>(null);
+  const objetoMenuRef = useRef<HTMLDivElement | null>(null);
 
-  const closeOtherMenus = (except?: "dibujar" | "marcador" | "nota") => {
+  const closeOtherMenus = (
+    except?: "dibujar" | "contorno" | "marcador" | "nota" | "objeto",
+  ) => {
     if (except !== "dibujar") setDibujarMenuOpen(false);
+    if (except !== "contorno") setContornoMenuOpen(false);
     if (except !== "marcador") setMarcadorMenuOpen(false);
     if (except !== "nota") setNotaMenuOpen(false);
+    if (except !== "objeto") setObjetoMenuOpen(false);
   };
 
   useEffect(() => {
     if (!dibujarMenuOpen) return;
     const onDocClick = (event: MouseEvent) => {
-      if (
-        dibujarMenuRef.current &&
-        !dibujarMenuRef.current.contains(event.target as Node)
-      ) {
+      if (dibujarMenuRef.current && !dibujarMenuRef.current.contains(event.target as Node)) {
         setDibujarMenuOpen(false);
       }
     };
@@ -119,12 +224,20 @@ export default function CampoMapaToolbar({
   }, [dibujarMenuOpen]);
 
   useEffect(() => {
+    if (!contornoMenuOpen) return;
+    const onDocClick = (event: MouseEvent) => {
+      if (contornoMenuRef.current && !contornoMenuRef.current.contains(event.target as Node)) {
+        setContornoMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [contornoMenuOpen]);
+
+  useEffect(() => {
     if (!marcadorMenuOpen) return;
     const onDocClick = (event: MouseEvent) => {
-      if (
-        marcadorMenuRef.current &&
-        !marcadorMenuRef.current.contains(event.target as Node)
-      ) {
+      if (marcadorMenuRef.current && !marcadorMenuRef.current.contains(event.target as Node)) {
         setMarcadorMenuOpen(false);
       }
     };
@@ -143,9 +256,23 @@ export default function CampoMapaToolbar({
     return () => document.removeEventListener("mousedown", onDocClick);
   }, [notaMenuOpen]);
 
+  useEffect(() => {
+    if (!objetoMenuOpen) return;
+    const onDocClick = (event: MouseEvent) => {
+      if (objetoMenuRef.current && !objetoMenuRef.current.contains(event.target as Node)) {
+        setObjetoMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [objetoMenuOpen]);
+
+  const objetoDef = getCampoMapaObjetoDef(objetoTipo);
+  const ObjetoIcon = objetoDef.icon;
+
   const groups: { title: string; tools: CampoMapaTool[] }[] = [
     { title: "Navegar", tools: ["navegar"] },
-    { title: "Dibujar", tools: ["marcador", "nota", "dibujar"] },
+    { title: "Dibujar", tools: ["marcador", "nota", "objeto", "dibujar", "contorno"] },
     { title: "Medir", tools: ["medir_distancia", "medir_area"] },
     { title: "Vista", tools: ["clip"] },
   ];
@@ -160,16 +287,14 @@ export default function CampoMapaToolbar({
               const Icon = CAMPO_MAPA_TOOL_ICONS[tool];
               const isClip = tool === "clip";
               const isDibujar = tool === "dibujar";
+              const isContorno = tool === "contorno";
               const isMarcador = tool === "marcador";
               const isNota = tool === "nota";
+              const isObjeto = tool === "objeto";
 
               if (isMarcador) {
                 return (
-                  <div
-                    key={tool}
-                    className="campo-mapa-toolbar-menu-wrap"
-                    ref={marcadorMenuRef}
-                  >
+                  <div key={tool} className="campo-mapa-toolbar-menu-wrap" ref={marcadorMenuRef}>
                     <button
                       type="button"
                       className={`campo-mapa-toolbar-btn${activeTool === tool ? " is-active" : ""}${
@@ -253,27 +378,101 @@ export default function CampoMapaToolbar({
                 );
               }
 
-              if (isDibujar) {
+              if (isObjeto) {
                 return (
-                  <div
-                    key={tool}
-                    className="campo-mapa-toolbar-menu-wrap"
-                    ref={dibujarMenuRef}
-                  >
+                  <div key={tool} className="campo-mapa-toolbar-menu-wrap" ref={objetoMenuRef}>
+                    <button
+                      type="button"
+                      className={`campo-mapa-toolbar-btn campo-mapa-toolbar-btn--objetos${
+                        activeTool === tool ? " is-active" : ""
+                      }${objetoMenuOpen ? " is-menu-open" : ""}`}
+                      disabled={disabled}
+                      title={`Objetos · ${objetoDef.label}`}
+                      aria-label={`Objetos · ${objetoDef.label}`}
+                      aria-haspopup="menu"
+                      aria-expanded={objetoMenuOpen}
+                      onClick={() => {
+                        onSelect(tool);
+                        setObjetoMenuOpen((open) => !open);
+                        closeOtherMenus("objeto");
+                      }}
+                    >
+                      <ObjetoIcon size={18} aria-hidden />
+                      <span
+                        className="campo-mapa-toolbar-color-dot"
+                        style={{ backgroundColor: objetoDef.color }}
+                        aria-hidden
+                      />
+                    </button>
+                    {objetoMenuOpen ? (
+                      <div
+                        className="campo-mapa-draw-style-menu campo-mapa-objetos-menu"
+                        role="menu"
+                        aria-label="Objetos del campo"
+                      >
+                        <div className="campo-mapa-draw-style-section">
+                          <span className="campo-mapa-draw-style-label">Objetos</span>
+                          <div className="campo-mapa-objetos-grid" role="group" aria-label="Tipo de objeto">
+                            {CAMPO_MAPA_OBJETOS.map((item) => {
+                              const ItemIcon = item.icon;
+                              return (
+                                <button
+                                  key={item.id}
+                                  type="button"
+                                  role="menuitemradio"
+                                  className={`campo-mapa-objeto-option${
+                                    objetoTipo === item.id ? " is-selected" : ""
+                                  }`}
+                                  aria-checked={objetoTipo === item.id}
+                                  aria-label={item.label}
+                                  title={item.label}
+                                  onClick={() => {
+                                    onObjetoTipoChange(item.id);
+                                    onSelect("objeto");
+                                    setObjetoMenuOpen(false);
+                                  }}
+                                >
+                                  <span
+                                    className="campo-mapa-objeto-option-icon"
+                                    style={{ color: item.color, borderColor: item.color }}
+                                  >
+                                    <ItemIcon size={16} aria-hidden />
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              }
+
+              if (isDibujar || isContorno) {
+                const menuOpen = isDibujar ? dibujarMenuOpen : contornoMenuOpen;
+                const menuRef = isDibujar ? dibujarMenuRef : contornoMenuRef;
+                const menuKey = isDibujar ? "dibujar" : "contorno";
+                return (
+                  <div key={tool} className="campo-mapa-toolbar-menu-wrap" ref={menuRef}>
                     <button
                       type="button"
                       className={`campo-mapa-toolbar-btn${activeTool === tool ? " is-active" : ""}${
-                        dibujarMenuOpen ? " is-menu-open" : ""
+                        menuOpen ? " is-menu-open" : ""
                       }`}
                       disabled={disabled}
                       title={getToolDef(tool).label}
                       aria-label={getToolDef(tool).label}
                       aria-haspopup="menu"
-                      aria-expanded={dibujarMenuOpen}
+                      aria-expanded={menuOpen}
                       onClick={() => {
                         onSelect(tool);
-                        setDibujarMenuOpen((open) => !open);
-                        closeOtherMenus("dibujar");
+                        if (isDibujar) {
+                          setDibujarMenuOpen((open) => !open);
+                        } else {
+                          setContornoMenuOpen((open) => !open);
+                        }
+                        closeOtherMenus(menuKey);
                       }}
                     >
                       <Icon size={18} aria-hidden />
@@ -283,45 +482,29 @@ export default function CampoMapaToolbar({
                         aria-hidden
                       />
                     </button>
-                    {dibujarMenuOpen ? (
+                    {menuOpen ? (
                       <div
                         className="campo-mapa-draw-style-menu"
                         role="menu"
-                        aria-label="Estilo del dibujo"
+                        aria-label={isContorno ? "Estilo del contorno" : "Estilo del dibujo"}
                       >
                         <DrawColorPicker
                           drawColor={drawColor}
                           label="Color"
                           onDrawColorChange={onDrawColorChange}
                         />
-                        <div className="campo-mapa-draw-style-section">
-                          <span className="campo-mapa-draw-style-label">Grosor</span>
-                          <div
-                            className="campo-mapa-border-weight-options"
-                            role="group"
-                            aria-label="Grosor del borde"
-                          >
-                            {CAMPO_MAPA_BORDER_WEIGHTS.map((weight) => (
-                              <button
-                                key={weight}
-                                type="button"
-                                role="menuitemradio"
-                                className={`campo-mapa-border-weight-option${
-                                  borderWeight === weight ? " is-selected" : ""
-                                }`}
-                                aria-checked={borderWeight === weight}
-                                title={`Grosor ${weight}`}
-                                onClick={() => onBorderWeightChange(weight)}
-                              >
-                                <span
-                                  className="campo-mapa-border-weight-swatch"
-                                  style={{ borderWidth: weight, borderColor: drawColor }}
-                                  aria-hidden
-                                />
-                              </button>
-                            ))}
-                          </div>
-                        </div>
+                        {isContorno ? (
+                          <DrawLineStylePicker
+                            drawColor={drawColor}
+                            lineStyle={lineStyle}
+                            onLineStyleChange={onLineStyleChange}
+                          />
+                        ) : null}
+                        <DrawBorderWeightPicker
+                          borderWeight={borderWeight}
+                          drawColor={drawColor}
+                          onBorderWeightChange={onBorderWeightChange}
+                        />
                       </div>
                     ) : null}
                   </div>
@@ -334,11 +517,7 @@ export default function CampoMapaToolbar({
                   type="button"
                   className={`campo-mapa-toolbar-btn${activeTool === tool ? " is-active" : ""}`}
                   disabled={disabled}
-                  title={
-                    isClip
-                      ? "Guardar clip de la vista actual"
-                      : getToolDef(tool).label
-                  }
+                  title={isClip ? "Guardar clip de la vista actual" : getToolDef(tool).label}
                   onClick={() => {
                     if (isClip) {
                       onSaveClip?.();

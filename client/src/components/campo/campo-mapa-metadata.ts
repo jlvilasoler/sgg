@@ -75,6 +75,42 @@ export function withCampoMapaMarcadorId(
   return next;
 }
 
+/** Área dibujada solo como contorno (sin relleno), para ubicar elementos adentro. */
+export function isCampoMapaAreaContorno(raw: string | undefined | null): boolean {
+  if (!raw?.trim()) return false;
+  try {
+    const parsed = JSON.parse(raw) as { estilo?: unknown };
+    return parsed.estilo === "contorno";
+  } catch {
+    return false;
+  }
+}
+
+export function parseCampoMapaLineaEstilo(
+  raw: string | undefined | null,
+): "solida" | "punteada" | "discontinua" | null {
+  if (!raw?.trim()) return null;
+  try {
+    const parsed = JSON.parse(raw) as { linea_estilo?: unknown };
+    const value = parsed.linea_estilo;
+    if (value === "solida" || value === "punteada" || value === "discontinua") return value;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+export function withCampoMapaAreaContorno(
+  metadata: Record<string, unknown> = {},
+  lineaEstilo: "solida" | "punteada" | "discontinua" = "solida",
+): Record<string, unknown> {
+  return {
+    ...metadata,
+    estilo: "contorno",
+    linea_estilo: lineaEstilo,
+  };
+}
+
 export function enrichCampoMapaDispositivosFromStock(
   featureNombre: string,
   meta: CampoMapaDispositivosMetadata,

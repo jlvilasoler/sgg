@@ -95,7 +95,11 @@ export function draftGeometryFromDraft(draft: {
   return "point";
 }
 
-export function availableSaveTargets(geometry: DraftGeometry): DraftSaveTarget[] {
+export function availableSaveTargets(
+  geometry: DraftGeometry,
+  options?: { contorno?: boolean },
+): DraftSaveTarget[] {
+  if (options?.contorno) return ["area"];
   switch (geometry) {
     case "polygon":
       return ["potrero", "area", "marcador"];
@@ -111,7 +115,8 @@ export function defaultSaveTarget(
   sourceTool: CampoMapaTool,
 ): DraftSaveTarget {
   if (geometry === "polygon") {
-    return sourceTool === "dibujar" ? "area" : "potrero";
+    if (sourceTool === "dibujar" || sourceTool === "contorno") return "area";
+    return "potrero";
   }
   if (geometry === "line") return "linea";
   return "marcador";
