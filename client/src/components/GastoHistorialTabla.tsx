@@ -256,10 +256,27 @@ export default function GastoHistorialTabla({
                       <CeldaTexto value={r.razon_social_proveedor} vacio="" />
                     </td>
                     <td data-col="concepto">
-                      <CeldaTexto value={r.concepto} vacio="" />
+                      <span className="listado-concepto-cell">
+                        {(r.tipo_comprobante ?? "FACTURA") === "NOTA_CREDITO" ? (
+                          <span className="gasto-nc-inline-badge" title="Nota de crédito">
+                            NC
+                          </span>
+                        ) : null}
+                        <CeldaTexto value={r.concepto} vacio="" />
+                      </span>
                     </td>
                     <td data-col="fact">
-                      <CeldaTexto value={r.nro_factura} vacio="" />
+                      {(r.tipo_comprobante ?? "FACTURA") === "NOTA_CREDITO" &&
+                      r.nro_nota_credito?.trim() ? (
+                        <CeldaTexto
+                          value={`${r.nro_nota_credito}${
+                            r.nro_factura?.trim() ? ` · Fact. ${r.nro_factura}` : ""
+                          }`}
+                          vacio=""
+                        />
+                      ) : (
+                        <CeldaTexto value={r.nro_factura} vacio="" />
+                      )}
                     </td>
                     <td className="num listado-pro-num" data-col="pesos">
                       {fmtNum(r.pesos)}

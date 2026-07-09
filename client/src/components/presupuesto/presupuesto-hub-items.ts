@@ -8,6 +8,12 @@ export const PRESUPUESTO_HUB_ITEMS: SgHubItem[] = [
     icon: "prov_ingresar",
   },
   {
+    id: "nota_credito",
+    label: "Notas de crédito",
+    subtitle: "Anular · Parcial · Por factura",
+    icon: "presupuesto_nota_credito",
+  },
+  {
     id: "listado",
     label: "Presupuesto",
     subtitle: "Consultar · Filtrar · Editar",
@@ -34,6 +40,11 @@ export const PRESUPUESTO_HUB_META: Record<
   registro: {
     title: "Registrar gasto",
     subtitle: "Carga de gastos en el presupuesto con rubros, proveedores y documentos.",
+  },
+  nota_credito: {
+    title: "Notas de crédito",
+    subtitle:
+      "Anulá total o parcialmente una factura ya ingresada, vinculada al mismo proveedor.",
   },
   listado: {
     title: "Listado de gastos",

@@ -5,6 +5,7 @@ import type {
   ParDivisa,
   Presupuesto,
   PresupuestoDocumentoAdjunto,
+  PresupuestoFacturaParaNc,
   PresupuestoForm,
   GastoAutomatizacion,
   GastoAutoPendiente,
@@ -329,6 +330,19 @@ export async function fetchPresupuesto(filters: {
 
 export async function fetchPresupuestoById(id: number): Promise<Presupuesto> {
   const json = await request<{ data: Presupuesto }>(`/presupuesto/${id}`);
+  return json.data;
+}
+
+export async function fetchFacturasParaNc(filters: {
+  codigo_proveedor: string;
+  empresa?: string;
+}): Promise<PresupuestoFacturaParaNc[]> {
+  const params = new URLSearchParams();
+  params.set("codigo_proveedor", filters.codigo_proveedor);
+  if (filters.empresa) params.set("empresa", filters.empresa);
+  const json = await request<{ data: PresupuestoFacturaParaNc[] }>(
+    `/presupuesto/facturas-para-nc?${params.toString()}`,
+  );
   return json.data;
 }
 

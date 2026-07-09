@@ -10478,6 +10478,98 @@ select optgroup {
   box-shadow: 0 4px 10px -4px rgba(45, 106, 79, 0.6);
 }
 
+.gasto-nc-badge {
+  background: #b91c1c;
+  box-shadow: 0 4px 10px -4px rgba(185, 28, 28, 0.55);
+}
+
+.gasto-nc-inline-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  min-width: 1.55rem;
+  height: 1.15rem;
+  padding: 0 0.28rem;
+  margin-right: 0.35rem;
+  border-radius: 0.3rem;
+  background: rgba(185, 28, 28, 0.14);
+  border: 1px solid rgba(185, 28, 28, 0.45);
+  color: #b91c1c;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  vertical-align: middle;
+}
+
+.listado-concepto-cell {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  gap: 0.15rem;
+}
+
+.form-grid .field-action-label {
+  display: block;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #475569;
+}
+
+.form-grid .listado-fecha-modalidad-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.nc-origen-resumen {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.35rem;
+  margin: 0.45rem 0 0;
+  padding: 0.55rem 0.7rem;
+  border-radius: 8px;
+  border: 1px solid rgba(185, 28, 28, 0.16);
+  background: rgba(254, 242, 242, 0.55);
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: #64748b;
+}
+
+.nc-origen-resumen strong {
+  color: #991b1b;
+  font-weight: 700;
+}
+
+.nc-origen-resumen-sep {
+  color: #cbd5e1;
+}
+
+.nc-origen-resumen-rubro {
+  color: #475569;
+}
+
+.nc-saldo-total-hint {
+  margin: 0;
+  padding: 0.65rem 0.8rem;
+  border-radius: 8px;
+  border: 1px solid rgba(45, 106, 79, 0.18);
+  background: rgba(45, 106, 79, 0.06);
+  font-size: 0.84rem;
+  color: #334155;
+  line-height: 1.4;
+}
+
+.nc-saldo-total-hint strong {
+  color: #166534;
+}
+
+.nc-importe-max-hint {
+  grid-column: 1 / -1;
+  margin: -0.35rem 0 0;
+}
+
 .rrhh-empty-icon {
   display: flex;
   align-items: center;
@@ -20502,6 +20594,11 @@ button.sg-kpi-card:disabled {
 .bn-ui form.card.form-card.gasto-factura-card {
   border: 2px solid #2d6a4f;
   box-shadow: 0 6px 18px -10px rgba(45, 106, 79, 0.5);
+}
+
+.bn-ui form.card.form-card.gasto-factura-card.gasto-nc-card {
+  border-color: #b91c1c;
+  box-shadow: 0 6px 18px -10px rgba(185, 28, 28, 0.4);
 }
 
 /* ===== Detalle de operación — modal claro/pro ===== */

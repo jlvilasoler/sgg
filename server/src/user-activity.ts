@@ -248,6 +248,7 @@ export function attachApiActivityLogger(req: Request, res: import("express").Res
 export const PANTALLA_LABELS: Record<string, string> = {
   home: "Inicio",
   registro: "Ingresar gasto",
+  nota_credito: "Notas de crédito",
   listado: "Presupuesto / listado de gastos",
   resumen: "Resumen",
   vencimientos_impuestos: "Vencimientos Impuestos",

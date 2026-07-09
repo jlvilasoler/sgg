@@ -24,6 +24,10 @@ CREATE TABLE IF NOT EXISTS PRESUPUESTO (
   ingresado_por_email TEXT NOT NULL DEFAULT '',
   ingresado_por_nombre TEXT NOT NULL DEFAULT '',
   nro_operacion_origen TEXT NOT NULL DEFAULT '',
+  tipo_comprobante TEXT NOT NULL DEFAULT 'FACTURA'
+    CHECK (tipo_comprobante IN ('FACTURA', 'NOTA_CREDITO')),
+  presupuesto_origen_id INTEGER REFERENCES PRESUPUESTO(id) ON DELETE SET NULL,
+  nro_nota_credito TEXT NOT NULL DEFAULT '',
   creado_en TIMESTAMPTZ DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_presupuesto_empresa ON PRESUPUESTO(empresa);
@@ -33,6 +37,8 @@ CREATE INDEX IF NOT EXISTS idx_presupuesto_responsable ON PRESUPUESTO(responsabl
 CREATE INDEX IF NOT EXISTS idx_presupuesto_sub_rubro ON PRESUPUESTO(sub_rubro);
 CREATE INDEX IF NOT EXISTS idx_presupuesto_funcionario_cedula ON PRESUPUESTO(funcionario_cedula);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_presupuesto_nro_registro ON PRESUPUESTO(nro_registro);
+CREATE INDEX IF NOT EXISTS idx_presupuesto_tipo_comprobante ON PRESUPUESTO(tipo_comprobante);
+CREATE INDEX IF NOT EXISTS idx_presupuesto_origen ON PRESUPUESTO(presupuesto_origen_id);
 
 CREATE TABLE IF NOT EXISTS PRESUPUESTO_REGISTRO_SEQ (
   id INTEGER PRIMARY KEY CHECK (id = 1),

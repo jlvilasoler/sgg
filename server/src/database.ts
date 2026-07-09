@@ -142,12 +142,34 @@ async function migratePresupuestoIngresadoPor(db: PgDb): Promise<void> {
       name: "nro_operacion_origen",
       ddl: `ALTER TABLE presupuesto ADD COLUMN nro_operacion_origen TEXT NOT NULL DEFAULT ''`,
     },
+    {
+      name: "tipo_comprobante",
+      ddl: `ALTER TABLE presupuesto ADD COLUMN tipo_comprobante TEXT NOT NULL DEFAULT 'FACTURA'`,
+    },
+    {
+      name: "presupuesto_origen_id",
+      ddl: `ALTER TABLE presupuesto ADD COLUMN presupuesto_origen_id INTEGER REFERENCES presupuesto(id) ON DELETE SET NULL`,
+    },
+    {
+      name: "nro_nota_credito",
+      ddl: `ALTER TABLE presupuesto ADD COLUMN nro_nota_credito TEXT NOT NULL DEFAULT ''`,
+    },
   ];
   for (const col of cols) {
     if (await presupuestoColumnExists(col.name)) continue;
     await db.prepare(col.ddl).run();
     console.info(`[SGG] Migración: columna ${col.name} agregada a presupuesto`);
   }
+  await db
+    .prepare(
+      `CREATE INDEX IF NOT EXISTS idx_presupuesto_tipo_comprobante ON presupuesto(tipo_comprobante)`,
+    )
+    .run();
+  await db
+    .prepare(
+      `CREATE INDEX IF NOT EXISTS idx_presupuesto_origen ON presupuesto(presupuesto_origen_id)`,
+    )
+    .run();
 }
 
 async function connectWithRetry(attempts = 4): Promise<void> {
@@ -751,17 +773,26 @@ export async function insertPresupuesto(
   if (resolvedCuentaId == null) {
     resolvedCuentaId = await empresasCuenta.resolveCuentaIdForEmpresaNombre(db, data.empresa);
   }
+  const tipo_comprobante = data.tipo_comprobante === "NOTA_CREDITO" ? "NOTA_CREDITO" : "FACTURA";
+  const presupuesto_origen_id =
+    tipo_comprobante === "NOTA_CREDITO" && data.presupuesto_origen_id != null
+      ? Number(data.presupuesto_origen_id)
+      : null;
+  const nro_nota_credito =
+    tipo_comprobante === "NOTA_CREDITO"
+      ? String(data.nro_nota_credito ?? "").trim()
+      : "";
   const row = (await db.prepare(`
     INSERT INTO PRESUPUESTO (
       nro_registro, empresa, fecha, codigo_proveedor, razon_social_proveedor,
       concepto, observaciones, rubro, sub_rubro, responsable_gasto, funcionario_cedula, nro_factura,
-      nro_operacion_origen,
+      nro_operacion_origen, tipo_comprobante, presupuesto_origen_id, nro_nota_credito,
       pesos, dolares_usd, reales, tc_usd, tc_reales, saldo_usd,
       ingresado_por_email, ingresado_por_nombre, cuenta_id
     ) VALUES (
       @nro_registro, @empresa, @fecha, @codigo_proveedor, @razon_social_proveedor,
       @concepto, @observaciones, @rubro, @sub_rubro, @responsable_gasto, @funcionario_cedula, @nro_factura,
-      @nro_operacion_origen,
+      @nro_operacion_origen, @tipo_comprobante, @presupuesto_origen_id, @nro_nota_credito,
       @pesos, @dolares_usd, @reales, @tc_usd, @tc_reales, @saldo_usd,
       @ingresado_por_email, @ingresado_por_nombre, @cuenta_id
     )
@@ -769,6 +800,9 @@ export async function insertPresupuesto(
   `).get({
     ...data,
     nro_registro,
+    tipo_comprobante,
+    presupuesto_origen_id,
+    nro_nota_credito,
     ingresado_por_email: ingresadoPor?.email?.trim() ?? "",
     ingresado_por_nombre: ingresadoPor?.nombre?.trim() ?? "",
     cuenta_id: resolvedCuentaId,
@@ -777,6 +811,15 @@ export async function insertPresupuesto(
 }
 
 export async function updatePresupuesto(id: number, data: PresupuestoInput): Promise<boolean> {
+  const tipo_comprobante = data.tipo_comprobante === "NOTA_CREDITO" ? "NOTA_CREDITO" : "FACTURA";
+  const presupuesto_origen_id =
+    tipo_comprobante === "NOTA_CREDITO" && data.presupuesto_origen_id != null
+      ? Number(data.presupuesto_origen_id)
+      : null;
+  const nro_nota_credito =
+    tipo_comprobante === "NOTA_CREDITO"
+      ? String(data.nro_nota_credito ?? "").trim()
+      : "";
   const result = await db.prepare(`
     UPDATE PRESUPUESTO SET
       empresa = @empresa, fecha = @fecha,
@@ -785,11 +828,105 @@ export async function updatePresupuesto(id: number, data: PresupuestoInput): Pro
       concepto = @concepto, observaciones = @observaciones, rubro = @rubro, sub_rubro = @sub_rubro,
       responsable_gasto = @responsable_gasto, funcionario_cedula = @funcionario_cedula,
       nro_factura = @nro_factura, nro_operacion_origen = @nro_operacion_origen,
+      tipo_comprobante = @tipo_comprobante,
+      presupuesto_origen_id = @presupuesto_origen_id,
+      nro_nota_credito = @nro_nota_credito,
       pesos = @pesos, dolares_usd = @dolares_usd, reales = @reales,
       tc_usd = @tc_usd, tc_reales = @tc_reales, saldo_usd = @saldo_usd
     WHERE id = @id
-  `).run({ ...data, id });
+  `).run({
+    ...data,
+    id,
+    tipo_comprobante,
+    presupuesto_origen_id,
+    nro_nota_credito,
+  });
   return result.changes > 0;
+}
+
+export async function sumNcAplicadasUsd(
+  origenId: number,
+  excludeId?: number | null,
+): Promise<number> {
+  let q = `
+    SELECT COALESCE(SUM(saldo_usd), 0) AS total
+    FROM PRESUPUESTO
+    WHERE presupuesto_origen_id = @origenId
+      AND COALESCE(tipo_comprobante, 'FACTURA') = 'NOTA_CREDITO'
+  `;
+  const params: Record<string, number> = { origenId };
+  if (excludeId != null && excludeId > 0) {
+    q += " AND id != @excludeId";
+    params.excludeId = excludeId;
+  }
+  const row = (await db.prepare(q).get(params)) as { total?: number } | undefined;
+  return Number(row?.total ?? 0);
+}
+
+export async function saldoPendienteFacturaUsd(
+  origen: Pick<Presupuesto, "id" | "saldo_usd">,
+  excludeNcId?: number | null,
+): Promise<number> {
+  const ncAplicadas = await sumNcAplicadasUsd(origen.id, excludeNcId);
+  // NC rows are negative; pendiente = origen + sum(NC)
+  return Math.round((Number(origen.saldo_usd) + ncAplicadas) * 100) / 100;
+}
+
+export async function listFacturasParaNc(filters: {
+  codigo_proveedor: string;
+  empresa?: string;
+  cuenta_id?: number | null;
+}): Promise<
+  Array<
+    Presupuesto & {
+      saldo_pendiente_usd: number;
+      nc_aplicadas_usd: number;
+    }
+  >
+> {
+  const codigo = String(filters.codigo_proveedor ?? "").trim();
+  if (!codigo) return [];
+
+  let q = `
+    SELECT p.*,
+      COALESCE((
+        SELECT SUM(nc.saldo_usd)
+        FROM PRESUPUESTO nc
+        WHERE nc.presupuesto_origen_id = p.id
+          AND COALESCE(nc.tipo_comprobante, 'FACTURA') = 'NOTA_CREDITO'
+      ), 0) AS nc_aplicadas_usd
+    FROM PRESUPUESTO p
+    WHERE COALESCE(p.tipo_comprobante, 'FACTURA') = 'FACTURA'
+      AND TRIM(COALESCE(p.codigo_proveedor, '')) = @codigo_proveedor
+  `;
+  const params: Record<string, string | number> = { codigo_proveedor: codigo };
+  if (filters.empresa?.trim()) {
+    q += " AND p.empresa = @empresa";
+    params.empresa = filters.empresa.trim();
+  }
+  if (filters.cuenta_id != null && filters.cuenta_id > 0) {
+    q += " AND p.cuenta_id = @cuenta_id";
+    params.cuenta_id = filters.cuenta_id;
+  }
+  q += " ORDER BY p.fecha DESC, p.nro_registro DESC";
+
+  const rows = (await db.prepare(q).all(params)) as Array<
+    Presupuesto & { nc_aplicadas_usd?: number }
+  >;
+  return rows
+    .map((row) => {
+      const nc_aplicadas_usd = Number(row.nc_aplicadas_usd ?? 0);
+      const saldo_pendiente_usd =
+        Math.round((Number(row.saldo_usd) + nc_aplicadas_usd) * 100) / 100;
+      const { nc_aplicadas_usd: _nc, ...base } = row;
+      return {
+        ...base,
+        tipo_comprobante: (base.tipo_comprobante ?? "FACTURA") as Presupuesto["tipo_comprobante"],
+        nc_aplicadas_usd,
+        saldo_pendiente_usd,
+      };
+    })
+    .filter((row) => row.saldo_pendiente_usd > 0.0001);
 }
 
 export async function deletePresupuesto(id: number): Promise<boolean> {

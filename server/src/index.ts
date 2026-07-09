@@ -375,7 +375,7 @@ function addDaysIso(iso: string, dias: number): string {
   return `${y}-${m}-${day}`;
 }
 
-async function parseBody(req: Request): Promise<PresupuestoInput> {
+async function parseFacturaBody(req: Request): Promise<PresupuestoInput> {
   const body = req.body as Record<string, unknown>;
   const user = req.user;
   const cuentaId = user ? await cuentaIdForUser(user) : null;
@@ -489,7 +489,103 @@ async function parseBody(req: Request): Promise<PresupuestoInput> {
     tc_usd: parseNum(body.tc_usd),
     tc_reales: parseNum(body.tc_reales),
     saldo_usd: parseNum(body.saldo_usd),
+    tipo_comprobante: "FACTURA" as const,
+    presupuesto_origen_id: null,
+    nro_nota_credito: "",
   };
+}
+
+async function parseNotaCreditoBody(
+  req: Request,
+  excludeNcId?: number | null,
+): Promise<PresupuestoInput> {
+  const body = req.body as Record<string, unknown>;
+  const user = req.user!;
+  const origenId = Number(body.presupuesto_origen_id);
+  if (!Number.isFinite(origenId) || origenId <= 0) {
+    throw new Error("Seleccioná la factura o gasto a anular.");
+  }
+  const origen = await db.getPresupuesto(origenId);
+  if (!origen) throw new Error("La factura/gasto origen no existe.");
+  if (!(await puedeAccederPresupuesto(origen, user))) {
+    throw new Error("No tenés permiso para anular ese registro.");
+  }
+  if ((origen.tipo_comprobante ?? "FACTURA") === "NOTA_CREDITO") {
+    throw new Error("No se puede aplicar una nota de crédito sobre otra nota de crédito.");
+  }
+
+  const fecha = String(body.fecha ?? "").trim() || origen.fecha;
+  if (!fecha) throw new Error("La fecha es obligatoria.");
+  const nro_nota_credito = String(body.nro_nota_credito ?? "").trim();
+  if (!nro_nota_credito) throw new Error("Ingresá el número de la nota de crédito.");
+
+  const modo = String(body.modo_nc ?? body.modo ?? "total").trim().toLowerCase();
+  const esTotal = modo !== "parcial";
+  const pendiente = await db.saldoPendienteFacturaUsd(origen, excludeNcId);
+  if (pendiente <= 0.0001) {
+    throw new Error("Esa factura ya está totalmente anulada por notas de crédito.");
+  }
+
+  const saldoFinal = esTotal
+    ? Math.round(-pendiente * 100) / 100
+    : (() => {
+        const montoNcUsd = Math.abs(parseNum(body.saldo_usd));
+        if (!(montoNcUsd > 0)) {
+          throw new Error("Ingresá el importe de la nota de crédito parcial.");
+        }
+        if (montoNcUsd > pendiente + 0.02) {
+          throw new Error(
+            `El importe supera el saldo pendiente (USD ${pendiente.toFixed(2)}).`,
+          );
+        }
+        return Math.round(-montoNcUsd * 100) / 100;
+      })();
+
+  const scale =
+    Math.abs(origen.saldo_usd) > 0.0001
+      ? Math.abs(saldoFinal) / Math.abs(origen.saldo_usd)
+      : 1;
+  const scaleNeg = (n: number) => Math.round(-Math.abs(n) * scale * 100) / 100;
+
+  const conceptoDefault = origen.nro_factura?.trim()
+    ? `NC — Factura ${origen.nro_factura.trim()}`
+    : `NC — Op. ${origen.nro_registro}`;
+  const concepto = String(body.concepto ?? "").trim() || conceptoDefault;
+
+  return {
+    empresa: origen.empresa,
+    fecha,
+    codigo_proveedor: origen.codigo_proveedor,
+    razon_social_proveedor: origen.razon_social_proveedor,
+    concepto,
+    observaciones: String(body.observaciones ?? "").trim(),
+    rubro: origen.rubro,
+    sub_rubro: origen.sub_rubro,
+    responsable_gasto: origen.responsable_gasto,
+    funcionario_cedula: origen.funcionario_cedula,
+    nro_factura: origen.nro_factura,
+    nro_operacion_origen: String(body.nro_operacion_origen ?? "").trim(),
+    pesos: scaleNeg(origen.pesos),
+    dolares_usd: scaleNeg(origen.dolares_usd),
+    reales: scaleNeg(origen.reales),
+    tc_usd: origen.tc_usd,
+    tc_reales: origen.tc_reales,
+    saldo_usd: saldoFinal,
+    tipo_comprobante: "NOTA_CREDITO",
+    presupuesto_origen_id: origen.id,
+    nro_nota_credito,
+  };
+}
+
+async function parseBody(req: Request): Promise<PresupuestoInput> {
+  const body = req.body as Record<string, unknown>;
+  const tipo = String(body.tipo_comprobante ?? "FACTURA").trim().toUpperCase();
+  if (tipo === "NOTA_CREDITO") {
+    const excludeId =
+      req.method === "PUT" && req.params.id ? Number(req.params.id) : null;
+    return parseNotaCreditoBody(req, excludeId);
+  }
+  return parseFacturaBody(req);
 }
 
 app.get("/api/catalogos", async (req, res) => {
@@ -1161,6 +1257,29 @@ app.get("/api/presupuesto/siguiente-operacion", async (_req, res) => {
       numero_operacion: db.formatNumeroOperacion(nro),
     },
   });
+});
+
+app.get("/api/presupuesto/facturas-para-nc", async (req, res) => {
+  try {
+    const codigo_proveedor = String(req.query.codigo_proveedor ?? "").trim();
+    if (!codigo_proveedor) {
+      res.status(400).json({ ok: false, error: "Indicá el proveedor." });
+      return;
+    }
+    const empresa = String(req.query.empresa ?? "").trim() || undefined;
+    const lecturasScope = await presupuestoListFilters(req);
+    const data = await db.listFacturasParaNc({
+      codigo_proveedor,
+      empresa,
+      cuenta_id: lecturasScope.cuenta_id ?? null,
+    });
+    res.json({ ok: true, data });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "No se pudieron cargar las facturas",
+    });
+  }
 });
 
 async function cuentaIdPresupuestoWrite(user: UserPublic): Promise<number | null> {

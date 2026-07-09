@@ -54,7 +54,7 @@ function construirDetalleGastos(
 
   for (const row of filas) {
     const monto = row.total;
-    if (monto <= 0) continue;
+    if (!Number.isFinite(monto) || monto === 0) continue;
     const clase = clasificarGastoEnResultado(row);
     buckets[clase].total += monto;
     const rubro = row.rubro.trim() || "(Sin rubro)";
@@ -76,16 +76,17 @@ function construirDetalleGastos(
           sub_rubro,
           total: Math.round(total * 100) / 100,
         }))
-        .filter((s) => s.total > 0)
+        .filter((s) => Math.abs(s.total) > 0.0001)
         .sort((a, b) => a.sub_rubro.localeCompare(b.sub_rubro, "es"));
       const total = sub_rubros.reduce((acc, s) => acc + s.total, 0);
+      if (Math.abs(total) <= 0.0001 && sub_rubros.length === 0) continue;
       rubros.push({
         rubro,
         total: Math.round(total * 100) / 100,
         sub_rubros,
       });
     }
-    rubros.sort((a, b) => b.total - a.total || a.rubro.localeCompare(b.rubro, "es"));
+    rubros.sort((a, b) => Math.abs(b.total) - Math.abs(a.total) || a.rubro.localeCompare(b.rubro, "es"));
     buckets[clase].total = Math.round(buckets[clase].total * 100) / 100;
     buckets[clase].rubros = rubros;
   }

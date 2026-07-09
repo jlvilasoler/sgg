@@ -3,6 +3,7 @@ import { useHeaderBackStep } from "../../header-back";
 import type { TabId } from "../Header";
 import type { Catalogos, AuthUser, Presupuesto as PresupuestoRow } from "../../types";
 import FormGasto from "../FormGasto";
+import FormNotaCredito from "../FormNotaCredito";
 import Listado from "../Listado";
 import Resumen from "../Resumen";
 import PresupuestoHub from "./PresupuestoHub";
@@ -95,7 +96,7 @@ export default function Presupuesto({
       setVista(id);
       if (id === "listado" || id === "resumen") {
         onScreenChange(id as TabId);
-      } else if (id === "registro") {
+      } else if (id === "registro" || id === "nota_credito" || id === "automatizacion") {
         onScreenChange("registro");
       }
     },
@@ -123,7 +124,13 @@ export default function Presupuesto({
       }
       volverMenu();
     },
-    vista === "registro" ? "Ingresar gasto" : vista === "automatizacion" ? "Automatización" : "Presupuesto y gastos"
+    vista === "registro"
+      ? "Ingresar gasto"
+      : vista === "nota_credito"
+        ? "Notas de crédito"
+        : vista === "automatizacion"
+          ? "Automatización"
+          : "Presupuesto y gastos"
   );
 
   return (
@@ -154,6 +161,15 @@ export default function Presupuesto({
           onCancelEdit={onCancelEdit}
           onEdit={onEdit}
           onCatalogosChanged={onCatalogosChanged}
+          onError={onError}
+          onSuccess={onSuccess}
+        />
+      ) : vista === "nota_credito" ? (
+        <FormNotaCredito
+          catalogos={catalogos}
+          currentUser={currentUser}
+          apiOnline={apiOnline}
+          onSaved={onSaved}
           onError={onError}
           onSuccess={onSuccess}
         />

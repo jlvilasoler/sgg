@@ -1,5 +1,7 @@
 export type Empresa = string;
 
+export type TipoComprobantePresupuesto = "FACTURA" | "NOTA_CREDITO";
+
 export interface Presupuesto {
   id: number;
   nro_registro: number;
@@ -21,10 +23,36 @@ export interface Presupuesto {
   tc_usd: number;
   tc_reales: number;
   saldo_usd: number;
+  tipo_comprobante?: TipoComprobantePresupuesto;
+  presupuesto_origen_id?: number | null;
+  nro_nota_credito?: string;
   creado_en?: string;
   ingresado_por_email?: string;
   ingresado_por_nombre?: string;
   documento_adjunto?: PresupuestoDocumentoAdjunto | null;
+}
+
+export interface PresupuestoFacturaParaNc {
+  id: number;
+  nro_registro: number;
+  empresa: Empresa;
+  fecha: string;
+  codigo_proveedor: string;
+  razon_social_proveedor: string;
+  nro_factura: string;
+  concepto: string;
+  rubro: string;
+  sub_rubro: string;
+  responsable_gasto: string;
+  funcionario_cedula: string;
+  pesos: number;
+  dolares_usd: number;
+  reales: number;
+  tc_usd: number;
+  tc_reales: number;
+  saldo_usd: number;
+  saldo_pendiente_usd: number;
+  nc_aplicadas_usd: number;
 }
 
 export interface PresupuestoDocumentoAdjunto {
