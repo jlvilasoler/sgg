@@ -328,8 +328,8 @@ export default function ConfigEnvioNotificaciones({
                 <header className="config-envio-notificaciones-preview-head">
                   <h4 id="config-envio-notif-preview-title">Vista previa</h4>
                   <p className="muted">
-                    Ejemplo de cómo verá el aviso el usuario al entrar, antes de activar la
-                    campaña.
+                    Ejemplo de cómo verá el aviso el usuario al iniciar sesión (antes de elegir
+                    empresa o entrar al Inicio).
                   </p>
                 </header>
                 <div className="platform-notification-preview-stage">
@@ -397,8 +397,8 @@ export default function ConfigEnvioNotificaciones({
 
               <p className="config-envio-notificaciones-flow muted">
                 <CheckCircle2 size={14} aria-hidden />
-                Flujo: usuario entra → si está activo y en vigencia → modal una vez → «Entendido» →
-                fin para ese usuario.
+                Flujo: inicia sesión → aviso (lo primero que ve) → «Entendido» → elegir
+                empresa / Inicio.
               </p>
 
               {lecturaPct != null ? (
@@ -449,7 +449,10 @@ export default function ConfigEnvioNotificaciones({
                   <button
                     type="button"
                     className="btn btn-ghost btn-sm"
-                    onClick={() => void loadRecipients(editingId)}
+                    onClick={() => {
+                      void load();
+                      if (editingId != null) void loadRecipients(editingId);
+                    }}
                     disabled={loadingRecipients || !apiOnline}
                   >
                     <RefreshCw size={14} aria-hidden />

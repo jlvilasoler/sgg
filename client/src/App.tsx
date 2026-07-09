@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useFormularioMayusculas } from "./hooks/useFormularioMayusculas";
 import { useAppTopChrome } from "./hooks/useAppTopChrome";
 import {
@@ -46,7 +46,7 @@ import AyudaManual from "./components/ayuda/AyudaManual";
 import ChatExternalRequestHost from "./components/chat/ChatExternalRequestHost";
 import MiCuentaPanel from "./components/MiCuentaModal";
 import ConfirmDialogHost from "./components/ConfirmDialogHost";
-import PlatformNotificationHost from "./components/PlatformNotificationHost";
+import PlatformNotificationGate from "./components/PlatformNotificationGate";
 import AppBootScreen from "./components/AppBootScreen";
 import { ChatExternalRequestsProvider } from "./context/ChatExternalRequestsContext";
 import { HeaderBackProvider } from "./header-back";
@@ -83,6 +83,7 @@ function parseBillingReturnFromUrl(): boolean {
 export default function App() {
   useFormularioMayusculas();
   const [user, setUser] = useState<AuthUser | null>(null);
+  const [loginSessionKey, setLoginSessionKey] = useState(0);
   const [authChecked, setAuthChecked] = useState(false);
   const [screen, setScreen] = useState<ScreenId>("home");
   const [navHistory, setNavHistory] = useState<ScreenId[]>([]);
@@ -391,6 +392,7 @@ export default function App() {
   const onLogin = (u: AuthUser) => {
     freshLoginRef.current = true;
     sessionUserIdRef.current = null;
+    setLoginSessionKey((k) => k + 1);
     setUser(u);
     resetToHomeScreen();
     void (async () => {
@@ -525,8 +527,10 @@ export default function App() {
     );
   }
 
+  let authenticatedApp: ReactNode;
+
   if (user.debe_elegir_modo_inicio) {
-    return (
+    authenticatedApp = (
       <div className="app-shell app-shell--login">
         <LoginModeGate
           user={user}
@@ -540,10 +544,8 @@ export default function App() {
         <ConfirmDialogHost />
       </div>
     );
-  }
-
-  if (user.login_mode === "individual" && !user.empresa_operativa_activa_id) {
-    return (
+  } else if (user.login_mode === "individual" && !user.empresa_operativa_activa_id) {
+    authenticatedApp = (
       <div className="app-shell app-shell--login">
         <EmpresaSelectGate
           user={user}
@@ -558,11 +560,10 @@ export default function App() {
         <ConfirmDialogHost />
       </div>
     );
-  }
+  } else {
+    const chatAccess = canAccessChat(user);
 
-  const chatAccess = user != null && canAccessChat(user);
-
-  const appBody = (
+    const appBody = (
     <>
       <div className="app-shell">
         <div id="app-chrome-top" className="app-chrome-top">
@@ -834,29 +835,39 @@ export default function App() {
         }}
       />
 
-      <PlatformNotificationHost apiOnline={apiOnline} userId={user.id} />
       <ConfirmDialogHost />
       </div>
     </>
-  );
+    );
+
+    authenticatedApp = (
+      <HeaderBackProvider>
+        {chatAccess ? (
+          <ChatExternalRequestsProvider
+            key={user.id}
+            userId={user.id}
+            enabled
+            onAccepted={(_requesterId, requesterNombre) => {
+              showToast(`Autorizaste a ${requesterNombre}. Ya pueden chatear.`, true);
+            }}
+          >
+            {appBody}
+            <ChatExternalRequestHost />
+          </ChatExternalRequestsProvider>
+        ) : (
+          appBody
+        )}
+      </HeaderBackProvider>
+    );
+  }
 
   return (
-    <HeaderBackProvider>
-      {chatAccess ? (
-        <ChatExternalRequestsProvider
-          key={user.id}
-          userId={user.id}
-          enabled
-          onAccepted={(_requesterId, requesterNombre) => {
-            showToast(`Autorizaste a ${requesterNombre}. Ya pueden chatear.`, true);
-          }}
-        >
-          {appBody}
-          <ChatExternalRequestHost />
-        </ChatExternalRequestsProvider>
-      ) : (
-        appBody
-      )}
-    </HeaderBackProvider>
+    <PlatformNotificationGate
+      key={loginSessionKey}
+      apiOnline={apiOnline}
+      userId={user.id}
+    >
+      {authenticatedApp}
+    </PlatformNotificationGate>
   );
 }

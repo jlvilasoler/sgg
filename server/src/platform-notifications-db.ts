@@ -295,11 +295,6 @@ export async function dismissPlatformNotificationForUser(
 ): Promise<void> {
   const notif = await getPlatformNotificationById(db, notificationId);
   if (!notif) throw new Error("Notificación no encontrada");
-  if (notif.activo !== 1) throw new Error("La notificación no está activa");
-  const today = new Date().toISOString().slice(0, 10);
-  if (notif.fecha_inicio > today || notif.fecha_fin < today) {
-    throw new Error("La notificación no está vigente");
-  }
 
   await db
     .prepare(
