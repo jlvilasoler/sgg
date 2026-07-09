@@ -2,7 +2,7 @@ import type { Modulo, Rol, RolPermisosConfig, RolPermisosInput } from "../types"
 import { MODULOS_SOLO_ADMIN } from "./auth-permissions";
 
 /** Secciones del menú que el superadmin puede asignar por tipo de cuenta. */
-export const MODULOS_CONFIGURABLES: Modulo[] = [
+export const MODULOS_CONFIGURABLES = [
   "presupuesto",
   "configuracion",
   "divisas",
@@ -11,14 +11,16 @@ export const MODULOS_CONFIGURABLES: Modulo[] = [
   "rrhh",
   "ventas",
   "stock",
-];
+] as const satisfies readonly Modulo[];
+
+export type ModuloConfigurable = (typeof MODULOS_CONFIGURABLES)[number];
 
 /** Siempre habilitado — no configurable. */
 export const MODULO_TODOS: Modulo = "chat";
 
 export type ModoEdicionModulo = "lectura" | "edicion";
 
-export const MODULO_PERMISO_HINTS: Record<(typeof MODULOS_CONFIGURABLES)[number], string> = {
+export const MODULO_PERMISO_HINTS: Record<ModuloConfigurable, string> = {
   presupuesto: "Gastos, listados, resumen y vencimientos impositivos.",
   configuracion: "Proveedores, rubros, catálogos y parámetros operativos.",
   divisas: "Cotizaciones y tipos de cambio.",

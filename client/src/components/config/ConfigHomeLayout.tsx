@@ -25,7 +25,6 @@ import {
   toggleModuloPermiso,
   type ModoEdicionModulo,
 } from "../../utils/rol-modulos-config";
-import type { Modulo } from "../../types";
 import ConfigRolAlcancePanel from "./ConfigRolAlcancePanel";
 import ConfigRolModulosPanel from "./ConfigRolModulosPanel";
 import HomeLayoutScreenPreview from "./HomeLayoutScreenPreview";
