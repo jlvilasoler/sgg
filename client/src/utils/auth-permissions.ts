@@ -73,7 +73,15 @@ export function canAccessHomeActividadCuenta(user: AuthUser | null): boolean {
 
 /** Superadministrador de plataforma (SCG_ADMIN_EMAIL): actividad global de todas las cuentas. */
 export function canAccessActividadSagTotal(user: AuthUser | null): boolean {
-  return Boolean(user?.es_admin_plataforma);
+  return canAccessConfiguracionSag(user);
+}
+
+/**
+ * Hub «Configuración SAG»: administración y monitoreo transversal de la plataforma.
+ * Solo el superadministrador (SCG_ADMIN_EMAIL). Distinto de «Administración de Cuenta».
+ */
+export function canAccessConfiguracionSag(user: AuthUser | null): boolean {
+  return Boolean(user?.es_super_admin);
 }
 
 /** Administrador de cuenta: actividad de su equipo (Gestores, Lectores, etc.). */

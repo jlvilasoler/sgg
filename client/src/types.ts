@@ -1642,6 +1642,13 @@ export interface HomeLayoutMonitorSnapshot {
   };
 }
 
+export interface HomeLayoutMonitorCampoMapaData {
+  cuenta_id: number | null;
+  cuenta_nombre: string | null;
+  potreros: CampoPotreroMapa[];
+  elementos: CampoMapaElemento[];
+}
+
 export interface EmpresaOperativaForm {
   nombre: string;
   codigo?: string;

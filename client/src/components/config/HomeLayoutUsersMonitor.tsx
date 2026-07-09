@@ -25,6 +25,8 @@ import {
   type HomePanelId,
 } from "../../utils/home-layout-config";
 import HomeLayoutScreenPreview from "./HomeLayoutScreenPreview";
+import HomeLayoutMonitorActividadSection from "./HomeLayoutMonitorActividadSection";
+import HomeLayoutMonitorCampoMapaSection from "./HomeLayoutMonitorCampoMapaSection";
 import { SgHubKpi, SgMiniBars } from "../stock/SgHubUi";
 
 interface Props {
@@ -205,7 +207,10 @@ export default function HomeLayoutUsersMonitor({ apiOnline, onError }: Props) {
       HomeLayoutMonitorUsuarioDetalle["paneles"]
     > = { top: [], main: [], side: [] };
     if (!detalle) return empty;
-    const buckets = { top: [] as typeof detalle.paneles, main: [], side: [] };
+    const buckets: Record<
+      "top" | "main" | "side",
+      HomeLayoutMonitorUsuarioDetalle["paneles"]
+    > = { top: [], main: [], side: [] };
     const order = previewOrden;
     const byId = new Map(detalle.paneles.map((p) => [p.id, p]));
     for (const id of order) {
@@ -224,27 +229,23 @@ export default function HomeLayoutUsersMonitor({ apiOnline, onError }: Props) {
       >
         <SgHubKpi
           kicker="Usuarios"
-          label="Total en plataforma"
           value={kpiPlaceholder ?? fmtEntero(totales?.usuarios ?? 0)}
-          hint="Cuentas con acceso a SAG"
-          trend="neutral"
-          bars={<SgMiniBars count={5} active={3} />}
+          hint="Total en plataforma con acceso a SAG"
+          trend="Cuentas"
+          bars={<SgMiniBars highlight="mid" />}
         />
         <SgHubKpi
           kicker="Activos"
-          label="Usuarios activos"
           value={kpiPlaceholder ?? fmtEntero(totales?.usuarios_activos ?? 0)}
-          hint="Pueden iniciar sesión"
-          trend="up"
-          bars={<SgMiniBars count={5} active={4} />}
+          hint="Usuarios que pueden iniciar sesión"
+          trend="En línea"
+          bars={<SgMiniBars highlight="last" />}
         />
         <SgHubKpi
           kicker="Personalización"
-          label="Con inicio propio"
           value={kpiPlaceholder ?? fmtEntero(totales?.con_personalizacion ?? 0)}
-          hint="Ajustaron bloques u orden"
-          trend="neutral"
-          bars={<SgMiniBars count={5} active={2} />}
+          hint="Ajustaron bloques u orden del Inicio"
+          bars={<SgMiniBars />}
         />
       </section>
 
@@ -490,6 +491,20 @@ export default function HomeLayoutUsersMonitor({ apiOnline, onError }: Props) {
                     );
                   })}
                 </aside>
+              </div>
+
+              <div className="home-layout-users-monitor-extra-stack">
+                <HomeLayoutMonitorActividadSection
+                  apiOnline={apiOnline}
+                  email={detalle.email}
+                  onError={onError}
+                />
+                <HomeLayoutMonitorCampoMapaSection
+                  apiOnline={apiOnline}
+                  userId={detalle.id}
+                  cuentaNombre={detalle.cuenta_nombre}
+                  onError={onError}
+                />
               </div>
             </>
           )}

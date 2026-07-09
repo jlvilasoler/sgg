@@ -251,6 +251,8 @@
 
 .home-layout-users-monitor-detail {
   padding: 0.85rem;
+  max-height: none;
+  overflow: visible;
 }
 
 .home-layout-users-monitor-detail-empty {
@@ -459,6 +461,115 @@
   text-align: center;
 }
 
+.home-layout-users-monitor-extra-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  margin-top: 0.85rem;
+}
+
+.home-layout-users-monitor-extra {
+  border: 1px solid color-mix(in srgb, var(--bn-border, #eaecef) 92%, transparent);
+  border-radius: 0.75rem;
+  background: #fff;
+  padding: 0.75rem 0.85rem;
+  min-width: 0;
+}
+
+.home-layout-users-monitor-extra-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem 0.75rem;
+  margin-bottom: 0.65rem;
+}
+
+.home-layout-users-monitor-extra-head h4 {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0.2rem 0 0;
+  font-size: 0.92rem;
+}
+
+.home-layout-users-monitor-extra-head p {
+  margin: 0.25rem 0 0;
+  font-size: 0.78rem;
+}
+
+.home-layout-users-monitor-extra-count {
+  font-size: 0.76rem;
+  white-space: nowrap;
+}
+
+.home-layout-users-monitor-actividad-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  max-height: 16rem;
+  overflow: auto;
+}
+
+.home-layout-users-monitor-actividad-item {
+  display: grid;
+  grid-template-columns: minmax(6.5rem, auto) minmax(5.5rem, auto) minmax(0, 1fr);
+  gap: 0.45rem 0.65rem;
+  align-items: start;
+  padding: 0.45rem 0.55rem;
+  border-radius: 0.55rem;
+  background: color-mix(in srgb, #f8fafc 80%, #fff);
+  font-size: 0.78rem;
+}
+
+.home-layout-users-monitor-actividad-fecha {
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+
+.home-layout-users-monitor-actividad-tipo {
+  font-weight: 700;
+  color: #15803d;
+  white-space: nowrap;
+}
+
+.home-layout-users-monitor-actividad-detalle {
+  min-width: 0;
+  line-height: 1.35;
+}
+
+.home-layout-users-monitor-mapa-frame {
+  position: relative;
+  min-height: 16rem;
+  border-radius: 0.65rem;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--bn-border, #eaecef) 92%, transparent);
+  background: #0f172a;
+}
+
+.home-layout-users-monitor-mapa-canvas {
+  width: 100%;
+  height: 16rem;
+  z-index: 0;
+}
+
+.home-layout-users-monitor-mapa-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  text-align: center;
+  background: color-mix(in srgb, #f8fafc 88%, transparent);
+  font-size: 0.84rem;
+  z-index: 1;
+  pointer-events: none;
+}
+
 @media (max-width: 1100px) {
   .home-layout-users-monitor-split {
     grid-template-columns: 1fr;
@@ -470,6 +581,15 @@
 
   .home-layout-users-monitor-workspace {
     grid-template-columns: 1fr;
+  }
+
+  .home-layout-users-monitor-actividad-item {
+    grid-template-columns: 1fr;
+    gap: 0.2rem;
+  }
+
+  .home-layout-users-monitor-mapa-canvas {
+    height: 14rem;
   }
 }
 

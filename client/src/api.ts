@@ -95,6 +95,7 @@ import type {
   RubrosMonitorCuentaDetalle,
   RubrosMonitorSnapshot,
   HomeLayoutMonitorSnapshot,
+  HomeLayoutMonitorCampoMapaData,
   HomeLayoutMonitorUsuarioDetalle,
   EmpresaOperativa,
   EmpresaOperativaForm,
@@ -4364,6 +4365,15 @@ export async function fetchHomeLayoutMonitorUsuario(
 ): Promise<HomeLayoutMonitorUsuarioDetalle> {
   const json = await request<{ data: HomeLayoutMonitorUsuarioDetalle }>(
     `/auth/home-layout/monitor/${userId}`,
+  );
+  return json.data;
+}
+
+export async function fetchHomeLayoutMonitorCampoMapa(
+  userId: number,
+): Promise<HomeLayoutMonitorCampoMapaData> {
+  const json = await request<{ data: HomeLayoutMonitorCampoMapaData }>(
+    `/auth/home-layout/monitor/${userId}/campo-mapa`,
   );
   return json.data;
 }

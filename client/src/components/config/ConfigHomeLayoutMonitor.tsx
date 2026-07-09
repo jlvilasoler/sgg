@@ -31,8 +31,9 @@ export default function ConfigHomeLayoutMonitor({
               Monitor de usuarios
             </h2>
             <p className="config-home-layout-monitor-lead muted">
-              Supervisá cómo tiene configurado el <strong>Inicio</strong> cada usuario: bloques
-              visibles, orden y si personalizó su pantalla respecto al perfil asignado.
+              Supervisá cómo tiene configurado el <strong>Inicio</strong> cada usuario, sus{" "}
+              <strong>actividades recientes</strong> y el <strong>mapa del campo</strong> de su
+              cuenta.
             </p>
           </div>
           <div className="config-home-layout-monitor-head-badge" aria-hidden>

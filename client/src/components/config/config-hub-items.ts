@@ -14,6 +14,7 @@ import {
   canAccessConfigDotacionGanadera,
   canAccessConfigHomeLayout,
   canAccessConfigRubrosSag,
+  canAccessConfiguracionSag,
   canAccessControlGlobalCuentas,
   canAccessDocumentosDigitales,
   canAccessStockGanaderoAdmin,
@@ -221,6 +222,9 @@ export function buildConfigNavLayout(
   options: BuildConfigCuentaNavOptions = {}
 ): ConfigNavLayout {
   if (scope === "sag") {
+    if (!canAccessConfiguracionSag(user ?? null)) {
+      return { sections: [], items: [CONFIG_MI_PERFIL_ITEM] };
+    }
     return {
       sections: [],
       items: [...buildConfigSagItems(user), CONFIG_MI_PERFIL_ITEM],

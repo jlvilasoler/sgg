@@ -435,7 +435,7 @@ function requireAdmin(req: Request, res: Response): boolean {
 }
 
 function requireSuperAdmin(req: Request, res: Response): boolean {
-  if (!req.user?.es_super_admin) {
+  if (!req.user?.es_super_admin && !req.user?.es_admin_plataforma) {
     res.status(403).json({
       ok: false,
       error: "Solo el administrador del sistema puede realizar esta acción",
@@ -1397,6 +1397,29 @@ export function registerAuthRoutes(app: Express): void {
       return;
     }
     res.json({ ok: true, data: detalle });
+  });
+
+  app.get("/api/auth/home-layout/monitor/:userId/campo-mapa", async (req, res) => {
+    if (!requireSuperAdmin(req, res)) return;
+    const userId = Number(req.params.userId);
+    if (!Number.isFinite(userId) || userId <= 0) {
+      res.status(400).json({ ok: false, error: "Usuario inválido" });
+      return;
+    }
+    try {
+      const monitorDb = await import("./home-layout-monitor-db.js");
+      const data = await monitorDb.getHomeLayoutMonitorCampoMapa(getDb(), userId);
+      if (!data) {
+        res.status(404).json({ ok: false, error: "Usuario no encontrado" });
+        return;
+      }
+      res.json({ ok: true, data });
+    } catch (e) {
+      res.status(400).json({
+        ok: false,
+        error: e instanceof Error ? e.message : "Error al cargar mapa del campo",
+      });
+    }
   });
 
   app.patch("/api/auth/home-layout/:rol", async (req, res) => {

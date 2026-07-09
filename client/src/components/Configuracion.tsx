@@ -13,6 +13,7 @@ import {
   canAccessConfigHomeLayout,
   canAccessConfigRubrosSag,
   canAccessConfigDotacionGanadera,
+  canAccessConfiguracionSag,
   canAccessControlGlobalCuentas,
   canAccessArquitecturaCuenta,
   canAccessArquitecturaSistema,
@@ -184,6 +185,13 @@ export default function Configuracion({
   }, [moduloInicial, actividadModoInicial, onModuloInicialConsumido]);
 
   useEffect(() => {
+    if (
+      (modulo === "sag_hub" || configNavScopeForModulo(modulo) === "sag") &&
+      !canAccessConfiguracionSag(currentUser ?? null)
+    ) {
+      setModulo("menu");
+      return;
+    }
     if (
       modulo === "clasificacion_proveedores" &&
       !canAccessClasificacionProveedores(currentUser ?? null)

@@ -1,5 +1,8 @@
 import * as auth from "./auth-db.js";
 import type { Db } from "./db/pg-client.js";
+import * as empresasCuenta from "./empresas-cuenta-db.js";
+import * as campoMapaElementosDb from "./campo-mapa-elementos-db.js";
+import * as campoPotreroMapaDb from "./campo-potrero-mapa-db.js";
 import * as homeLayoutDb from "./home-layout-db.js";
 import type { HomeLayoutMap, HomePanelId } from "./home-layout-db.js";
 
@@ -177,5 +180,49 @@ export async function getHomeLayoutMonitorUsuario(
     orden_rol: ordenRol,
     orden_personalizado: hasRows && ordersDiffer(config.orden, ordenRol),
     paneles: buildPanelDetalle(config.ceiling, config.overrides, efectivo, rawOverrides),
+  };
+}
+
+export interface HomeLayoutMonitorCampoMapaData {
+  cuenta_id: number | null;
+  cuenta_nombre: string | null;
+  potreros: Awaited<ReturnType<typeof campoPotreroMapaDb.listCampoPotrerosMapa>>;
+  elementos: Awaited<ReturnType<typeof campoMapaElementosDb.listCampoMapaElementos>>;
+}
+
+export async function getHomeLayoutMonitorCampoMapa(
+  db: Db,
+  userId: number,
+): Promise<HomeLayoutMonitorCampoMapaData | null> {
+  const user = await auth.getUserById(db, userId);
+  if (!user) return null;
+
+  const cuentaId = await empresasCuenta.resolveCuentaMadreIdForUser(db, {
+    id: user.id,
+    email: user.email,
+    es_super_admin: user.es_super_admin,
+    empresa_id: user.empresa_id,
+  });
+
+  if (!cuentaId) {
+    return {
+      cuenta_id: null,
+      cuenta_nombre: user.empresa_nombre,
+      potreros: [],
+      elementos: [],
+    };
+  }
+
+  const cuenta = await empresasCuenta.getEmpresaCuentaById(db, cuentaId);
+  const [potreros, elementos] = await Promise.all([
+    campoPotreroMapaDb.listCampoPotrerosMapa(db, cuentaId),
+    campoMapaElementosDb.listCampoMapaElementos(db, cuentaId),
+  ]);
+
+  return {
+    cuenta_id: cuentaId,
+    cuenta_nombre: cuenta?.nombre ?? user.empresa_nombre,
+    potreros,
+    elementos,
   };
 }

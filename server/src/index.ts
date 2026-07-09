@@ -572,7 +572,7 @@ async function cuentaIdForUser(user: UserPublic): Promise<number | null> {
   return await empresasCuenta.resolveCuentaMadreIdForUser(db.getDb(), user);
 }
 
-/** Scope de lectura por cuenta: solo datos de la cuenta del usuario (incl. admin plataforma en su cuenta). */
+/** Scope de lectura OPERATIVA: gastos, stock, RRHH, etc. Siempre acotado a la cuenta del usuario. */
 async function cuentaIdForScopedRead(user: UserPublic): Promise<number | null> {
   return await cuentaIdForUser(user);
 }
@@ -6234,7 +6234,7 @@ app.put("/api/sub-rubros/grupo/rename", async (req, res) => {
 });
 
 app.get("/api/gastos-rubros/monitor", async (req, res) => {
-  if (!req.user?.es_super_admin) {
+  if (!req.user?.es_super_admin && !req.user?.es_admin_plataforma) {
     res.status(403).json({
       ok: false,
       error: "Solo el superadministrador puede consultar el monitor de rubros",
@@ -6249,7 +6249,7 @@ app.get("/api/gastos-rubros/monitor", async (req, res) => {
 });
 
 app.get("/api/gastos-rubros/monitor/:cuentaId", async (req, res) => {
-  if (!req.user?.es_super_admin) {
+  if (!req.user?.es_super_admin && !req.user?.es_admin_plataforma) {
     res.status(403).json({
       ok: false,
       error: "Solo el superadministrador puede consultar el monitor de rubros",
