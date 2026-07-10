@@ -212,7 +212,8 @@ export function useAsistenteVoz({
               startRecognition(Ctor, "es", sessionId);
             } catch {
               forceStop();
-              onErrorRef.current?.(mensajeErrorVoz("network"));
+              const msg = mensajeErrorVoz("network");
+              if (msg) onErrorRef.current?.(msg);
             }
           }, 180);
           return;
