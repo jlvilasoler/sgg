@@ -32,8 +32,12 @@ export default function ConfigRolModulosPanel({
   onMarcarTodos,
   onDesmarcarTodos,
 }: Props) {
-  const habilitados = countModulosHabilitados(draft);
-  const edicionBloqueada = rol === "consulta" || !draft?.puede_escribir;
+  const esAdmin = rol === "admin";
+  const habilitados = countModulosHabilitados(draft, rol);
+  const totalModulos = esAdmin
+    ? MODULOS_CONFIGURABLES.length + MODULOS_SOLO_ADMIN.length
+    : MODULOS_CONFIGURABLES.length;
+  const edicionBloqueada = esAdmin || rol === "consulta" || !draft?.puede_escribir;
 
   return (
     <section
@@ -45,19 +49,30 @@ export default function ConfigRolModulosPanel({
           <p className="config-home-layout-section-kicker">Módulos de la cuenta</p>
           <h3 id={`config-rol-modulos-${rol}`}>Menú y permisos</h3>
           <p className="config-home-layout-section-lead muted">
-            {habilitados} de {MODULOS_CONFIGURABLES.length} secciones habilitadas en el menú
-            principal.
+            {esAdmin
+              ? `Acceso total a la cuenta. Solo el Asistente se puede prender o apagar (${habilitados} de ${totalModulos} secciones).`
+              : `${habilitados} de ${totalModulos} secciones habilitadas en el menú principal.`}
           </p>
         </div>
-        <div className="config-home-layout-bulk">
-          <button type="button" className="home-hub-link" onClick={onMarcarTodos}>
-            Activar todas
-          </button>
-          <button type="button" className="home-hub-link" onClick={onDesmarcarTodos}>
-            Quitar todas
-          </button>
-        </div>
+        {!esAdmin ? (
+          <div className="config-home-layout-bulk">
+            <button type="button" className="home-hub-link" onClick={onMarcarTodos}>
+              Activar todas
+            </button>
+            <button type="button" className="home-hub-link" onClick={onDesmarcarTodos}>
+              Quitar todas
+            </button>
+          </div>
+        ) : null}
       </header>
+
+      {esAdmin ? (
+        <p className="config-home-layout-readonly-note">
+          El resto de módulos del Administrador es fijo. El Asistente se habilita o deshabilita igual
+          que en Gestor N1; al apagarlo desaparece del menú y del Inicio de los administradores de
+          cuenta.
+        </p>
+      ) : null}
 
       {draft && (rol === "editor" || rol === "gestor_n2") ? (
         <label className="config-home-layout-write-toggle">
@@ -76,7 +91,7 @@ export default function ConfigRolModulosPanel({
         </p>
       ) : null}
 
-      {draft && habilitados === 0 ? (
+      {!esAdmin && draft && habilitados === 0 ? (
         <p className="config-home-layout-modules-warn" role="status">
           Activá al menos una sección para este tipo de cuenta.
         </p>
@@ -84,6 +99,28 @@ export default function ConfigRolModulosPanel({
 
       <ul className="config-home-layout-toggle-list config-home-layout-module-list">
         {MODULOS_CONFIGURABLES.map((modulo) => {
+          const esAsistenteAdmin = esAdmin && modulo === "asistente";
+
+          if (esAdmin && !esAsistenteAdmin) {
+            return (
+              <li key={modulo}>
+                <div className="config-home-layout-toggle is-on is-locked">
+                  <span className="config-home-layout-toggle-icon" aria-hidden>
+                    <Lock size={15} />
+                  </span>
+                  <span className="config-home-layout-toggle-copy">
+                    <strong>{MODULO_LABELS[modulo]}</strong>
+                    <small>{MODULO_PERMISO_HINTS[modulo]}</small>
+                  </span>
+                  <span className="config-home-layout-locked-tag">Total</span>
+                </div>
+                <div className="config-home-layout-module-modo">
+                  <span className="config-home-layout-module-modo-pill">Ver y editar</span>
+                </div>
+              </li>
+            );
+          }
+
           if (!draft) return null;
           const on = isModuloHabilitado(draft, modulo);
           const modo = modoEdicionModulo(draft, rol, modulo);
@@ -108,22 +145,31 @@ export default function ConfigRolModulosPanel({
               </button>
               {on ? (
                 <div className="config-home-layout-module-modo">
-                  <label className="config-home-layout-module-modo-label" htmlFor={`modo-${rol}-${modulo}`}>
-                    Acceso
-                  </label>
-                  <select
-                    id={`modo-${rol}-${modulo}`}
-                    className="config-home-layout-module-modo-select"
-                    value={modo}
-                    disabled={edicionBloqueada}
-                    onChange={(e) => onSetModo(modulo, e.target.value as ModoEdicionModulo)}
-                  >
-                    <option value="lectura">Solo lectura</option>
-                    <option value="edicion">Ver y editar</option>
-                  </select>
-                  <span className="config-home-layout-module-modo-pill">
-                    {modoEdicionModuloLabel(modo)}
-                  </span>
+                  {esAsistenteAdmin ? (
+                    <span className="config-home-layout-module-modo-pill">Ver y editar</span>
+                  ) : (
+                    <>
+                      <label
+                        className="config-home-layout-module-modo-label"
+                        htmlFor={`modo-${rol}-${modulo}`}
+                      >
+                        Acceso
+                      </label>
+                      <select
+                        id={`modo-${rol}-${modulo}`}
+                        className="config-home-layout-module-modo-select"
+                        value={modo}
+                        disabled={edicionBloqueada}
+                        onChange={(e) => onSetModo(modulo, e.target.value as ModoEdicionModulo)}
+                      >
+                        <option value="lectura">Solo lectura</option>
+                        <option value="edicion">Ver y editar</option>
+                      </select>
+                      <span className="config-home-layout-module-modo-pill">
+                        {modoEdicionModuloLabel(modo)}
+                      </span>
+                    </>
+                  )}
                 </div>
               ) : (
                 <p className="config-home-layout-module-off muted">Sin acceso al módulo</p>
@@ -139,7 +185,11 @@ export default function ConfigRolModulosPanel({
             </span>
             <span className="config-home-layout-toggle-copy">
               <strong>{MODULO_LABELS[MODULO_TODOS]}</strong>
-              <small>Siempre disponible para todos los usuarios de la cuenta.</small>
+              <small>
+                {esAdmin
+                  ? "Incluido en el acceso total del administrador."
+                  : "Siempre disponible para todos los usuarios de la cuenta."}
+              </small>
             </span>
             <span className="config-home-layout-locked-tag">Fijo</span>
           </div>
@@ -147,16 +197,25 @@ export default function ConfigRolModulosPanel({
 
         {MODULOS_SOLO_ADMIN.map((modulo) => (
           <li key={modulo}>
-            <div className="config-home-layout-toggle is-locked">
+            <div className={`config-home-layout-toggle is-locked${esAdmin ? " is-on" : ""}`}>
               <span className="config-home-layout-toggle-icon" aria-hidden>
                 <Lock size={15} />
               </span>
               <span className="config-home-layout-toggle-copy">
                 <strong>{MODULO_LABELS[modulo]}</strong>
-                <small>Reservado al administrador de la cuenta.</small>
+                <small>
+                  {esAdmin
+                    ? "Exclusivo del administrador de la cuenta."
+                    : "Reservado al administrador de la cuenta."}
+                </small>
               </span>
-              <span className="config-home-layout-locked-tag">Admin</span>
+              <span className="config-home-layout-locked-tag">{esAdmin ? "Exclusivo" : "Admin"}</span>
             </div>
+            {esAdmin ? (
+              <div className="config-home-layout-module-modo">
+                <span className="config-home-layout-module-modo-pill">Ver y editar</span>
+              </div>
+            ) : null}
           </li>
         ))}
       </ul>

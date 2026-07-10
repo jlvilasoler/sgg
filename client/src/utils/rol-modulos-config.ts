@@ -41,7 +41,13 @@ export function rolPermisosToInput(config: RolPermisosConfig): RolPermisosInput 
   const modulos: Partial<Record<Modulo, boolean>> = {};
   const modulos_solo_lectura: Partial<Record<Modulo, boolean>> = {};
   for (const m of config.modulos) {
-    if (isModuloSoloAdmin(m.modulo) || m.modulo === MODULO_TODOS) continue;
+    if (m.modulo === MODULO_TODOS) continue;
+    // Admin: solo se edita Asistente; el resto se ignora en el draft.
+    if (config.rol === "admin") {
+      if (m.modulo === "asistente") modulos.asistente = m.acceso;
+      continue;
+    }
+    if (isModuloSoloAdmin(m.modulo)) continue;
     modulos[m.modulo] = m.acceso;
     if (m.solo_lectura) modulos_solo_lectura[m.modulo] = true;
   }
@@ -70,7 +76,15 @@ export function modoEdicionModuloLabel(modo: ModoEdicionModulo): string {
   return modo === "edicion" ? "Ver y editar" : "Solo lectura";
 }
 
-export function countModulosHabilitados(draft: RolPermisosInput | null | undefined): number {
+export function countModulosHabilitados(
+  draft: RolPermisosInput | null | undefined,
+  rol?: Rol,
+): number {
+  if (rol === "admin") {
+    const base = MODULOS_CONFIGURABLES.length - 1 + MODULOS_SOLO_ADMIN.length;
+    const asistenteOn = draft ? isModuloHabilitado(draft, "asistente") : true;
+    return base + (asistenteOn ? 1 : 0);
+  }
   if (!draft) return 0;
   return MODULOS_CONFIGURABLES.filter((m) => isModuloHabilitado(draft, m)).length;
 }
@@ -81,7 +95,17 @@ export function toggleModuloPermiso(
   modulo: Modulo,
   activo: boolean,
 ): RolPermisosInput {
-  if (isModuloSoloAdmin(modulo) || modulo === MODULO_TODOS) return draft;
+  if (modulo === MODULO_TODOS) return draft;
+  // Superadmin: único permiso editable del Administrador = Asistente.
+  if (rol === "admin") {
+    if (modulo !== "asistente") return draft;
+    return {
+      ...draft,
+      modulos: { ...draft.modulos, asistente: activo },
+      modulos_solo_lectura: { ...draft.modulos_solo_lectura, asistente: false },
+    };
+  }
+  if (isModuloSoloAdmin(modulo)) return draft;
   if (activo) {
     const modo: ModoEdicionModulo =
       rol === "consulta" || !draft.puede_escribir ? "lectura" : "edicion";

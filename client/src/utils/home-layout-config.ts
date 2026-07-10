@@ -18,7 +18,7 @@ export type HomePanelId = (typeof HOME_PANEL_IDS)[number];
 
 export type HomeLayoutMap = Record<HomePanelId, boolean>;
 
-export const HOME_LAYOUT_ROLES = ["editor", "gestor_n2", "consulta"] as const;
+export const HOME_LAYOUT_ROLES = ["admin", "editor", "gestor_n2", "consulta"] as const;
 
 export type HomeLayoutConfigurableRol = (typeof HOME_LAYOUT_ROLES)[number];
 

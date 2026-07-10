@@ -223,7 +223,16 @@ export async function roleCapabilities(
   rol: Rol
 ): Promise<{ permisos: Modulo[]; puede_escribir: boolean; modulos_solo_lectura: Modulo[] }> {
   if (rol === "admin") {
-    return { permisos: [...MODULOS], puede_escribir: true, modulos_solo_lectura: [] };
+    // Acceso total, salvo Asistente: el superadmin puede prenderlo/apagarlo en Inicio por tipo de cuenta.
+    const asistenteRow = (await db
+      .prepare("SELECT acceso FROM ROLE_PERMISOS WHERE rol = ? AND modulo = 'asistente'")
+      .get(rol)) as { acceso: number } | undefined;
+    const asistenteOn = asistenteRow == null ? true : pgNum(asistenteRow.acceso) === 1;
+    return {
+      permisos: MODULOS.filter((m) => m !== "asistente" || asistenteOn),
+      puede_escribir: true,
+      modulos_solo_lectura: [],
+    };
   }
 
   const escRow = (await db
@@ -1000,7 +1009,9 @@ export async function listRolePermissions(db: Db): Promise<RolPermisosConfig[]> 
         label: MODULO_LABELS[modulo],
         acceso:
           rol === "admin"
-            ? true
+            ? modulo === "asistente"
+              ? (accesoMap.get(modulo) ?? true)
+              : true
             : MODULOS_SOLO_ADMIN.includes(modulo)
               ? false
               : MODULOS_TODOS_LOS_USUARIOS.includes(modulo)
@@ -1011,6 +1022,7 @@ export async function listRolePermissions(db: Db): Promise<RolPermisosConfig[]> 
             ? false
             : (soloLecturaMap.get(modulo) ?? false) || !caps.puede_escribir,
       })),
+      // Admin: solo Asistente es editable (desde Configuración SAG / superadmin).
       editable: rol !== "admin",
     });
   }
@@ -1024,7 +1036,17 @@ export async function updateRolePermissions(
   input: RolPermisosInput
 ): Promise<RolPermisosConfig> {
   if (rol === "admin") {
-    throw new Error("Los permisos del administrador no se pueden modificar");
+    const acceso = Boolean(input.modulos?.asistente);
+    await db
+      .prepare(
+        `INSERT INTO ROLE_PERMISOS (rol, modulo, acceso, solo_lectura)
+         VALUES (?, 'asistente', ?, 0)
+         ON CONFLICT (rol, modulo) DO UPDATE SET
+           acceso = excluded.acceso,
+           solo_lectura = excluded.solo_lectura`,
+      )
+      .run(rol, acceso ? 1 : 0);
+    return (await listRolePermissions(db)).find((r) => r.rol === rol)!;
   }
 
   const modulosInput = input.modulos ?? {};

@@ -484,7 +484,9 @@ export function detectAsistenteIntent(pregunta: string): AsistenteIntentId {
 }
 
 function canAccess(user: UserPublic, modulo: Modulo): boolean {
-  if (user.es_super_admin || user.rol === "admin") return true;
+  if (user.es_super_admin) return true;
+  // Admin de cuenta: acceso total a datos operativos (salvo el módulo Asistente, gateado en auth).
+  if (user.rol === "admin") return true;
   return user.permisos.includes(modulo);
 }
 

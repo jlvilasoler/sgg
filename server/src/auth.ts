@@ -90,6 +90,11 @@ function canAccessModulo(user: UserPublic, modulo: Modulo): boolean {
   if (authDb.MODULOS_TODOS_LOS_USUARIOS.includes(modulo)) return true;
   if (modulo === "documentos_digitales") return Boolean(user.es_super_admin);
   if (authDb.MODULOS_SOLO_ADMIN.includes(modulo)) return user.rol === "admin";
+  // Asistente del Administrador: respeta el flag configurado por el superadmin.
+  if (modulo === "asistente") {
+    if (user.es_super_admin) return true;
+    return user.permisos.includes("asistente");
+  }
   if (user.rol === "admin") return true;
   return user.permisos.includes(modulo);
 }

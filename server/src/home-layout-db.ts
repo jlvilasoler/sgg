@@ -16,7 +16,7 @@ export const HOME_PANEL_IDS = [
 export type HomePanelId = (typeof HOME_PANEL_IDS)[number];
 export type HomeLayoutMap = Record<HomePanelId, boolean>;
 
-export const HOME_LAYOUT_ROLES: Rol[] = ["editor", "gestor_n2", "consulta"];
+export const HOME_LAYOUT_ROLES: Rol[] = ["admin", "editor", "gestor_n2", "consulta"];
 
 const DEFAULT_HOME_LAYOUT: HomeLayoutMap = {
   kpis_operativos: true,
@@ -117,7 +117,7 @@ export async function initHomeLayoutTable(db: Db): Promise<void> {
   await db
     .prepare(
       `CREATE TABLE IF NOT EXISTS ROLE_HOME_LAYOUT (
-        rol TEXT NOT NULL CHECK (rol IN ('editor', 'gestor_n2', 'consulta')),
+        rol TEXT NOT NULL CHECK (rol IN ('admin', 'editor', 'gestor_n2', 'consulta')),
         panel_id TEXT NOT NULL,
         visible INTEGER NOT NULL DEFAULT 1,
         sort_order INTEGER,
@@ -142,10 +142,56 @@ export async function initHomeLayoutTable(db: Db): Promise<void> {
 
   await migrateHomeLayoutSortOrderColumn(db, "ROLE_HOME_LAYOUT");
   await migrateHomeLayoutSortOrderColumn(db, "USER_HOME_LAYOUT");
+  await migrateRoleHomeLayoutAllowAdmin(db);
 
   await seedHomeLayoutIfEmpty(db);
+  await ensureHomeLayoutRolesSeeded(db);
   await backfillHomeLayoutSortOrder(db, "ROLE_HOME_LAYOUT");
   await backfillHomeLayoutSortOrder(db, "USER_HOME_LAYOUT");
+}
+
+/** Amplía el CHECK de roles para incluir Administrador en bases ya creadas. */
+async function migrateRoleHomeLayoutAllowAdmin(db: Db): Promise<void> {
+  try {
+    const constraints = (await db
+      .prepare(
+        `SELECT c.conname AS name
+         FROM pg_constraint c
+         JOIN pg_class t ON t.oid = c.conrelid
+         WHERE t.relname = 'role_home_layout' AND c.contype = 'c'`,
+      )
+      .all()) as { name: string }[];
+    for (const row of constraints) {
+      if (!row?.name) continue;
+      try {
+        await db.prepare(`ALTER TABLE ROLE_HOME_LAYOUT DROP CONSTRAINT IF EXISTS ${row.name}`).run();
+      } catch {
+        /* ignore */
+      }
+    }
+  } catch {
+    for (const name of ["role_home_layout_rol_check", "ROLE_HOME_LAYOUT_rol_check"]) {
+      try {
+        await db.prepare(`ALTER TABLE ROLE_HOME_LAYOUT DROP CONSTRAINT IF EXISTS ${name}`).run();
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+  try {
+    await db
+      .prepare(
+        `ALTER TABLE ROLE_HOME_LAYOUT
+         ADD CONSTRAINT role_home_layout_rol_check
+         CHECK (rol IN ('admin', 'editor', 'gestor_n2', 'consulta'))`,
+      )
+      .run();
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (!/already exists|duplicate/i.test(msg)) {
+      console.warn("[SGG] migrateRoleHomeLayoutAllowAdmin:", msg);
+    }
+  }
 }
 
 async function seedHomeLayoutIfEmpty(db: Db): Promise<void> {
@@ -165,9 +211,22 @@ async function seedHomeLayoutIfEmpty(db: Db): Promise<void> {
   }
 }
 
-export async function getHomeLayoutOrderForRole(db: Db, rol: Rol): Promise<HomePanelId[]> {
-  if (rol === "admin") return [...DEFAULT_HOME_PANEL_ORDER];
+/** Asegura filas de layout para roles nuevos (p. ej. admin) en DBs ya sembradas. */
+async function ensureHomeLayoutRolesSeeded(db: Db): Promise<void> {
+  const ins = await db.prepare(
+    `INSERT INTO ROLE_HOME_LAYOUT (rol, panel_id, visible, sort_order)
+     VALUES (?, ?, ?, ?)
+     ON CONFLICT (rol, panel_id) DO NOTHING`,
+  );
+  for (const rol of HOME_LAYOUT_ROLES) {
+    for (let i = 0; i < HOME_PANEL_IDS.length; i++) {
+      const panelId = HOME_PANEL_IDS[i]!;
+      await ins.run(rol, panelId, DEFAULT_HOME_LAYOUT[panelId] ? 1 : 0, i);
+    }
+  }
+}
 
+export async function getHomeLayoutOrderForRole(db: Db, rol: Rol): Promise<HomePanelId[]> {
   const rows = (await db
     .prepare(
       "SELECT panel_id, sort_order FROM ROLE_HOME_LAYOUT WHERE rol = ? ORDER BY sort_order ASC NULLS LAST, panel_id ASC",
@@ -223,8 +282,6 @@ export async function getEffectiveHomeLayoutOrderForUser(
 }
 
 export async function getHomeLayoutForRole(db: Db, rol: Rol): Promise<HomeLayoutMap> {
-  if (rol === "admin") return { ...DEFAULT_HOME_LAYOUT };
-
   const rows = (await db
     .prepare(
       "SELECT panel_id, visible FROM ROLE_HOME_LAYOUT WHERE rol = ?",
@@ -372,7 +429,9 @@ export async function updateHomeLayoutForRole(
   orden?: readonly string[] | null,
 ): Promise<HomeLayoutRoleConfig> {
   if (!HOME_LAYOUT_ROLES.includes(rol)) {
-    throw new Error("Solo se puede configurar el inicio de Gestor N1, Gestor N2 y Consulta.");
+    throw new Error(
+      "Solo se puede configurar el inicio de Administrador, Gestor N1, Gestor N2 y Consulta.",
+    );
   }
 
   const normalized = normalizeHomeLayoutMap(paneles);

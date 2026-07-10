@@ -38,6 +38,7 @@ interface Props {
 }
 
 const ROL_ACCENT: Record<HomeLayoutConfigurableRol, string> = {
+  admin: "#16a34a",
   editor: "#2563eb",
   gestor_n2: "#7c3aed",
   consulta: "#0f766e",
@@ -81,10 +82,26 @@ export default function ConfigHomeLayout({
         nextDrafts[row.rol] = normalizeHomeLayoutMap(row.paneles);
         nextOrders[row.rol] = normalizeHomePanelOrder(row.orden);
       }
+      for (const rol of HOME_LAYOUT_ROLES) {
+        if (!nextDrafts[rol]) nextDrafts[rol] = normalizeHomeLayoutMap(null);
+        if (!nextOrders[rol]) nextOrders[rol] = normalizeHomePanelOrder(null);
+      }
       const nextPerms: Partial<Record<HomeLayoutConfigurableRol, RolPermisosInput>> = {};
       for (const row of permData) {
         if (!isHomeLayoutConfigurableRol(row.rol)) continue;
         nextPerms[row.rol] = rolPermisosToInput(row);
+      }
+      if (!nextPerms.admin) {
+        nextPerms.admin = {
+          puede_escribir: true,
+          modulos: { asistente: true },
+          modulos_solo_lectura: {},
+        };
+      } else if (typeof nextPerms.admin.modulos.asistente !== "boolean") {
+        nextPerms.admin = {
+          ...nextPerms.admin,
+          modulos: { ...nextPerms.admin.modulos, asistente: true },
+        };
       }
       setDrafts(nextDrafts);
       setOrderDrafts(nextOrders);
@@ -151,11 +168,21 @@ export default function ConfigHomeLayout({
     const draft = drafts[activeRol];
     const orden = orderDrafts[activeRol];
     const permDraft = permDrafts[activeRol];
-    if (!draft || !orden || !permDraft) return;
-    if (permDirty && countModulosHabilitados(permDraft) === 0) {
+    const puedeGuardarPermisos =
+      permDirty &&
+      Boolean(permDraft) &&
+      (activeRol !== "admin" || typeof permDraft?.modulos.asistente === "boolean");
+    if (!draft || !orden) return;
+    if (puedeGuardarPermisos && !permDraft) return;
+    if (
+      puedeGuardarPermisos &&
+      activeRol !== "admin" &&
+      countModulosHabilitados(permDraft, activeRol) === 0
+    ) {
       onError("Activá al menos un módulo para este tipo de cuenta.");
       return;
     }
+    if (!layoutDirty && !puedeGuardarPermisos) return;
 
     setSaving(true);
     try {
@@ -174,9 +201,17 @@ export default function ConfigHomeLayout({
           }),
         );
       }
-      if (permDirty) {
+      if (puedeGuardarPermisos && permDraft) {
+        const payload: RolPermisosInput =
+          activeRol === "admin"
+            ? {
+                puede_escribir: true,
+                modulos: { asistente: Boolean(permDraft.modulos.asistente) },
+                modulos_solo_lectura: {},
+              }
+            : permDraft;
         tasks.push(
-          actualizarRolePermissions(activeRol, permDraft).then((updated) => {
+          actualizarRolePermissions(activeRol, payload).then((updated) => {
             setPermDrafts((prev) => ({
               ...prev,
               [activeRol]: rolPermisosToInput(updated),
@@ -210,8 +245,10 @@ export default function ConfigHomeLayout({
             </h2>
             <p className="config-home-layout-lead muted">
               Definí el <strong>alcance</strong>, los <strong>módulos del menú</strong> y los{" "}
-              <strong>bloques del Inicio</strong> para Gestor N1, Gestor N2 y Consulta. Arrastrá con
-              el ícono <strong>⠿</strong> para reordenar los bloques del dashboard.
+              <strong>bloques del Inicio</strong> para Administrador, Gestor N1, Gestor N2 y Consulta.
+              Arrastrá con el ícono <strong>⠿</strong> para reordenar los bloques del dashboard. En
+              Administrador el resto de módulos es fijo; solo el <strong>Asistente</strong> se puede
+              prender o apagar.
             </p>
           </div>
           <div className="config-home-layout-head-badge" aria-hidden>
@@ -225,7 +262,7 @@ export default function ConfigHomeLayout({
             const isActive = activeRol === rol;
             const blocks =
               Object.values(drafts[rol] ?? {}).filter(Boolean).length || HOME_PANEL_META.length;
-            const modules = countModulosHabilitados(permDrafts[rol]);
+            const modules = countModulosHabilitados(permDrafts[rol], rol);
             return (
               <button
                 key={rol}
