@@ -27,6 +27,7 @@ export type Modulo =
   | "precios_ganado"
   | "simulador_venta_ganado"
   | "chat"
+  | "asistente"
   | "rrhh"
   | "ventas"
   | "stock"
@@ -40,6 +41,7 @@ export const MODULOS: Modulo[] = [
   "precios_ganado",
   "simulador_venta_ganado",
   "chat",
+  "asistente",
   "rrhh",
   "ventas",
   "stock",
@@ -61,6 +63,7 @@ export const MODULO_LABELS: Record<Modulo, string> = {
   precios_ganado: "Precios de Ganado",
   simulador_venta_ganado: "Simulador venta ganado",
   chat: "Chat interno",
+  asistente: "Asistente",
   rrhh: "Recursos Humanos",
   ventas: "Ingresos por ventas",
   stock: "Stock ganadero",
@@ -191,6 +194,7 @@ const GESTOR_N2_MODULOS: Modulo[] = [
   "precios_ganado",
   "simulador_venta_ganado",
   "chat",
+  "asistente",
   "rrhh",
   "stock",
 ];
@@ -793,6 +797,7 @@ export async function initAuthTables(db: Db): Promise<void> {
   await ensureGestorN2RolePermissions(db);
   await migrateModulosPreciosGanadoYChat(db);
   await migrateModuloDocumentosDigitales(db);
+  await migrateModuloAsistente(db);
   await migrateUserEmpresaId(db);
   await migrateUserEmpresaActiva(db);
   await migrateUserNumero(db);
@@ -925,6 +930,21 @@ async function migrateModuloDocumentosDigitales(db: Db): Promise<void> {
 
   for (const rol of ALL_ROLES) {
     const acceso = rol === "admin" ? 1 : 0;
+    await ins.run(rol, acceso);
+  }
+}
+
+/** Asistente: configurable por rol; se siembra habilitado para no romper cuentas existentes. */
+async function migrateModuloAsistente(db: Db): Promise<void> {
+  const ins = await db.prepare(
+    `INSERT INTO ROLE_PERMISOS (rol, modulo, acceso, solo_lectura)
+     VALUES (?, 'asistente', ?, 0)
+     ON CONFLICT (rol, modulo) DO NOTHING`
+  );
+
+  for (const rol of ALL_ROLES) {
+    const def = DEFAULT_ROLE_ACCESS[rol];
+    const acceso = def.modulos.includes("asistente") ? 1 : 0;
     await ins.run(rol, acceso);
   }
 }

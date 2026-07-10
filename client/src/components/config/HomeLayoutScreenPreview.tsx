@@ -519,6 +519,7 @@ const QUICK_MODULE_LABELS: Partial<Record<TabId, string>> = {
   notas: "Notas",
   chat: "Chat",
   ayuda: "Ayuda",
+  asistente: "Asistente",
 };
 
 function PreviewModulos({ quickModules }: { quickModules: TabId[] }) {

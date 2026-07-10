@@ -43,6 +43,7 @@ import ChatPanel from "./components/ChatPanel";
 import ChatInterno from "./components/ChatInterno";
 import Notas from "./components/Notas";
 import AyudaManual from "./components/ayuda/AyudaManual";
+import Asistente from "./components/asistente/Asistente";
 import ChatExternalRequestHost from "./components/chat/ChatExternalRequestHost";
 import MiCuentaPanel from "./components/MiCuentaModal";
 import ConfirmDialogHost from "./components/ConfirmDialogHost";
@@ -806,6 +807,14 @@ export default function App() {
                 currentUser={user}
                 onVolver={goHome}
                 onOpenModulo={navigate}
+              />
+            )}
+            {screen === "asistente" && user && (
+              <Asistente
+                apiOnline={apiOnline}
+                currentUser={user}
+                onVolver={goHome}
+                onError={(m) => notify(m, false)}
               />
             )}
           </main>

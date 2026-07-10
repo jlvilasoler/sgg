@@ -1174,6 +1174,38 @@ app.get("/api/notas", async (req, res) => {
   }
 });
 
+app.post("/api/asistente/consultar", async (req, res) => {
+  if (!req.user) {
+    res.status(401).json({ ok: false, error: "No autenticado" });
+    return;
+  }
+  try {
+    const pregunta = String((req.body as { pregunta?: string } | null)?.pregunta ?? "").trim();
+    if (!pregunta) {
+      res.status(400).json({ ok: false, error: "Escribí una pregunta." });
+      return;
+    }
+    if (pregunta.length > 500) {
+      res.status(400).json({ ok: false, error: "La pregunta es demasiado larga." });
+      return;
+    }
+    const { consultarAsistente } = await import("./asistente.js");
+    const stockFilters = await stockGanaderoFiltersFromRequest(req);
+    const resumenScope = await resumenEmpresaScope(req.user);
+    const data = await consultarAsistente(db.getDb(), req.user, pregunta, {
+      stockFilters,
+      resumenScope,
+    });
+    res.json({ ok: true, data });
+  } catch (e) {
+    console.error("[SGG] /api/asistente/consultar:", e);
+    res.status(500).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al consultar el asistente",
+    });
+  }
+});
+
 app.post("/api/notas", async (req, res) => {
   if (!req.user) {
     res.status(401).json({ ok: false, error: "No autenticado" });

@@ -267,6 +267,7 @@ export const PANTALLA_LABELS: Record<string, string> = {
   chat: "Chat interno",
   notas: "Notas",
   ayuda: "Ayuda",
+  asistente: "Asistente",
   documentos_digitales: "Documentos Digitales",
   campo_mapa: "Mapa del campo",
   tareas_operativas: "Tareas operativas",

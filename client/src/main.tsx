@@ -19,6 +19,7 @@ import "./campo-mapa-hub.css";
 import "./rubros-sag-monitor.css";
 import "./home-layout-users-monitor.css";
 import "./ayuda-hub.css";
+import "./asistente-hub.css";
 import "./tareas-operativas-hub.css";
 import "./responsive.css";
 

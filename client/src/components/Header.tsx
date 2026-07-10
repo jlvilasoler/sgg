@@ -20,4 +20,5 @@ export type TabId =
   | "notas"
   | "campo_mapa"
   | "tareas_operativas"
-  | "ayuda";
+  | "ayuda"
+  | "asistente";

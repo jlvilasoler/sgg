@@ -1485,6 +1485,7 @@ export type Modulo =
   | "precios_ganado"
   | "simulador_venta_ganado"
   | "chat"
+  | "asistente"
   | "rrhh"
   | "ventas"
   | "stock"
@@ -1615,6 +1616,69 @@ export interface CuentasControlPlataformaResumen {
     gastos_registros: number;
     gastos_pesos: number;
   };
+}
+
+export type CategoriaStockMonitorKey =
+  | "TERNERA"
+  | "VAQUILLONA_1_2"
+  | "VAQUILLONA_MAS_2"
+  | "VACA"
+  | "TERNERO"
+  | "MACHO_1_2"
+  | "MACHO_MAS_2"
+  | "SIN_SEXO"
+  | "SIN_EDAD";
+
+export interface CategoriaStockMonitorFila {
+  key: CategoriaStockMonitorKey;
+  label: string;
+  grupo: "hembra" | "macho" | "otro";
+  machos: number;
+  hembras: number;
+  sin_definir: number;
+  total: number;
+}
+
+export interface CuentaStockGanaderoMonitorResumen {
+  cuenta_id: number;
+  cuenta_numero: string;
+  nombre: string;
+  codigo: string;
+  activo: boolean;
+  total: number;
+  machos: number;
+  hembras: number;
+  sin_definir: number;
+  categorias: CategoriaStockMonitorFila[];
+}
+
+export interface HomeLayoutMonitorStockGanaderoSnapshot {
+  generado_en: string;
+  totales: {
+    total: number;
+    machos: number;
+    hembras: number;
+    sin_definir: number;
+    cuentas_con_stock: number;
+    categorias: CategoriaStockMonitorFila[];
+  };
+  cuentas: CuentaStockGanaderoMonitorResumen[];
+}
+
+export type AsistenteIntentId =
+  | "ayuda"
+  | "stock_activo"
+  | "stock_sexo"
+  | "gastos_mes"
+  | "gastos_ejercicio"
+  | "precios_ganado"
+  | "divisas"
+  | "desconocido";
+
+export interface AsistenteConsultaResult {
+  intent: AsistenteIntentId;
+  respuesta: string;
+  sugerencias: string[];
 }
 
 export interface RubrosMonitorPermisos {

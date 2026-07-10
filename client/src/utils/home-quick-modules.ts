@@ -17,6 +17,7 @@ const PROFILE_MODULO_ORDER: Modulo[] = [
   "precios_ganado",
   "simulador_venta_ganado",
   "chat",
+  "asistente",
   "usuarios",
   "documentos_digitales",
 ];
@@ -28,6 +29,7 @@ const MODULO_MENU_SCREENS: Record<Modulo, TabId[]> = {
   precios_ganado: ["precios_ganado"],
   simulador_venta_ganado: ["ingresos_ventas"],
   chat: ["chat", "notas"],
+  asistente: ["asistente"],
   rrhh: ["recursos_humanos"],
   ventas: ["ingresos_ventas"],
   stock: ["stock_ganadero", "stock_equino", "campo_mapa", "tareas_operativas"],
@@ -75,6 +77,7 @@ const NAV_LABEL_TO_SCREEN: Record<string, TabId> = {
   "Vencimientos Impuestos": "vencimientos_impuestos",
   Ayuda: "ayuda",
   "Centro de ayuda": "ayuda",
+  Asistente: "asistente",
 };
 
 const MENU_SCREEN_IDS = new Set<TabId>([
@@ -92,6 +95,7 @@ const MENU_SCREEN_IDS = new Set<TabId>([
   "notas",
   "chat",
   "ayuda",
+  "asistente",
 ]);
 
 function recentStorageKey(userId: number): string {

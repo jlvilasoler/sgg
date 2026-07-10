@@ -27,6 +27,7 @@ import {
 import HomeLayoutScreenPreview from "./HomeLayoutScreenPreview";
 import HomeLayoutMonitorActividadSection from "./HomeLayoutMonitorActividadSection";
 import HomeLayoutMonitorCampoMapaSection from "./HomeLayoutMonitorCampoMapaSection";
+import HomeLayoutMonitorStockSection from "./HomeLayoutMonitorStockSection";
 import { SgHubKpi, SgMiniBars } from "../stock/SgHubUi";
 
 interface Props {
@@ -91,6 +92,7 @@ export default function HomeLayoutUsersMonitor({ apiOnline, onError }: Props) {
   const [filtroEstado, setFiltroEstado] = useState<"" | "activo" | "inactivo">("");
   const [filtroPersonalizado, setFiltroPersonalizado] = useState<"" | "si" | "no">("");
   const [ultimaActualizacion, setUltimaActualizacion] = useState<Date | null>(null);
+  const [stockRefreshKey, setStockRefreshKey] = useState(0);
 
   const loadSnapshot = useCallback(async () => {
     if (!apiOnline) {
@@ -185,6 +187,7 @@ export default function HomeLayoutUsersMonitor({ apiOnline, onError }: Props) {
 
   const refreshAll = () => {
     void loadSnapshot();
+    setStockRefreshKey((k) => k + 1);
     if (selectedId != null) void loadDetalle(selectedId);
   };
 
@@ -248,6 +251,12 @@ export default function HomeLayoutUsersMonitor({ apiOnline, onError }: Props) {
           bars={<SgMiniBars />}
         />
       </section>
+
+      <HomeLayoutMonitorStockSection
+        apiOnline={apiOnline}
+        onError={onError}
+        refreshKey={stockRefreshKey}
+      />
 
       <div className="home-layout-users-monitor-toolbar">
         <div className="home-layout-users-monitor-toolbar-filters">

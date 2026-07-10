@@ -23,6 +23,7 @@ import {
 import { formatActividadDetalle } from "../utils/format-actividad-detalle";
 import { fmtDate } from "../utils/format";
 import HomeAutoPendientesPanel from "./home/HomeAutoPendientesPanel";
+import HomeAsistentePanel from "./home/HomeAsistentePanel";
 import HomeVencProximoBanner from "./home/HomeVencProximoBanner";
 import { useHomeAutoPendientes } from "../hooks/useHomeAutoPendientes";
 import type { PresupuestoVista } from "./presupuesto/presupuesto-hub-items";
@@ -107,6 +108,11 @@ export const MENU_APPS: MenuApp[] = [
     label: "Ayuda",
     subtitle: "Manual de uso y guía de cada módulo",
   },
+  {
+    id: "asistente",
+    label: "Asistente",
+    subtitle: "Consultas de tu cuenta y del mercado",
+  },
 ];
 
 export const MENU_SECTIONS: { id: string; label: string; appIds: TabId[] }[] = [
@@ -126,6 +132,7 @@ export const MENU_SECTIONS: { id: string; label: string; appIds: TabId[] }[] = [
       "notas",
       "chat",
       "ayuda",
+      "asistente",
     ],
   },
   {
@@ -176,6 +183,7 @@ const SCREEN_TITLES: Record<TabId, string> = {
   panel_admin_sitio: "Administración del sitio",
   chat: "Chat",
   ayuda: "Ayuda",
+  asistente: "Asistente",
   documentos_digitales: "Documentos Digitales",
 };
 
@@ -311,6 +319,9 @@ export default function HomeMenu({
   const showModulosRapidos = canShowHomePanel(user, "modulos_rapidos");
   const showKpisOperativos = canShowHomePanel(user, "kpis_operativos");
   const showKpisGastos = canShowHomePanel(user, "kpis_gastos");
+  /** Acceso directo al Asistente: solo Administrador y Gestor N1, si el módulo está habilitado. */
+  const showAsistenteHome =
+    (user.rol === "admin" || user.rol === "editor") && canAccessScreen(user, "asistente");
 
   const recentMerged = useMemo(
     () => mergeRecentModuleLists(getRecentHomeModules(user.id), recentScreens),
@@ -543,7 +554,7 @@ export default function HomeMenu({
                   }
                 >
                   <div
-                    className="home-hub-gastos-kpi-row__gastos"
+                    className="sg-hub-kpi-strip home-hub-kpi-strip home-hub-gastos-kpi-row__gastos"
                     aria-label="Gastos"
                     aria-busy={loadingInsights}
                   >
@@ -566,39 +577,51 @@ export default function HomeMenu({
           <div className="sg-hub-panels home-hub-panels">
             <div className="home-hub-col">
               {mainPanelOrder.map((panelId) => {
-                if (panelId === "pizarron" && puedeNotas) {
+                if (panelId === "pizarron") {
+                  if (!puedeNotas && !showAsistenteHome) return null;
                   return (
-                    <section
-                      key="pizarron"
-                      className="sg-hub-panel home-hub-panel--notes"
-                      aria-label="Notas principales"
-                    >
-                      <div className="sg-hub-panel-head home-hub-panel-head-row">
-                        <div>
-                          <p className="sg-hub-panel-kicker">Recordatorios</p>
-                          <h2 className="sg-hub-panel-title">Pizarrón</h2>
-                        </div>
-                        <button type="button" className="home-hub-link" onClick={() => onOpen("notas")}>
-                          Ver todas
-                        </button>
-                      </div>
-                      <HomeNotasBoard
-                        notas={notasDestacadas}
-                        loading={loadingNotas}
-                        currentUserId={user.id}
-                        onOpenNota={(nota) => setNotaModal(nota)}
-                        onNewNota={() => setNotaModal(null)}
-                      />
-                      <HomeNotaModal
-                        open={notaModal !== undefined}
-                        nota={notaModal ?? null}
-                        currentUser={user}
-                        apiOnline={apiOnline}
-                        onClose={() => setNotaModal(undefined)}
-                        onSaved={applyNotaHome}
-                        onDeleted={removeNotaHome}
-                      />
-                    </section>
+                    <Fragment key="pizarron">
+                      {puedeNotas ? (
+                        <section
+                          className="sg-hub-panel home-hub-panel--notes"
+                          aria-label="Notas principales"
+                        >
+                          <div className="sg-hub-panel-head home-hub-panel-head-row">
+                            <div>
+                              <p className="sg-hub-panel-kicker">Recordatorios</p>
+                              <h2 className="sg-hub-panel-title">Pizarrón</h2>
+                            </div>
+                            <button type="button" className="home-hub-link" onClick={() => onOpen("notas")}>
+                              Ver todas
+                            </button>
+                          </div>
+                          <HomeNotasBoard
+                            notas={notasDestacadas}
+                            loading={loadingNotas}
+                            currentUserId={user.id}
+                            onOpenNota={(nota) => setNotaModal(nota)}
+                            onNewNota={() => setNotaModal(null)}
+                          />
+                          <HomeNotaModal
+                            open={notaModal !== undefined}
+                            nota={notaModal ?? null}
+                            currentUser={user}
+                            apiOnline={apiOnline}
+                            onClose={() => setNotaModal(undefined)}
+                            onSaved={applyNotaHome}
+                            onDeleted={removeNotaHome}
+                          />
+                        </section>
+                      ) : null}
+
+                      {showAsistenteHome ? (
+                        <HomeAsistentePanel
+                          apiOnline={apiOnline}
+                          onError={onError}
+                          onOpenFull={() => onOpen("asistente")}
+                        />
+                      ) : null}
+                    </Fragment>
                   );
                 }
                 if (panelId === "auto_pendientes" && showAutoPendientes) {

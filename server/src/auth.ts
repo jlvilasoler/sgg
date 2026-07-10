@@ -192,6 +192,7 @@ export function moduleFromApiPath(path: string): Modulo | null {
   if (p.startsWith("/api/precios-ganado")) return "precios_ganado";
   if (p.startsWith("/api/simulador-venta-ganado")) return "simulador_venta_ganado";
   if (p.startsWith("/api/chat")) return "chat";
+  if (p.startsWith("/api/asistente")) return "asistente";
   if (p.startsWith("/api/funcionarios") || p.startsWith("/api/rrhh")) {
     return "rrhh";
   }
@@ -1382,6 +1383,23 @@ export function registerAuthRoutes(app: Express): void {
     if (!requireSuperAdmin(req, res)) return;
     const monitorDb = await import("./home-layout-monitor-db.js");
     res.json({ ok: true, data: await monitorDb.getHomeLayoutMonitorSnapshot(getDb()) });
+  });
+
+  app.get("/api/auth/home-layout/monitor/stock-ganadero", async (req, res) => {
+    if (!requireSuperAdmin(req, res)) return;
+    try {
+      const stockDb = await import("./home-layout-monitor-stock-db.js");
+      res.json({
+        ok: true,
+        data: await stockDb.summarizeStockGanaderoMonitorPlataforma(getDb()),
+      });
+    } catch (err) {
+      console.error("[SGG] monitor stock-ganadero:", err);
+      res.status(500).json({
+        ok: false,
+        error: err instanceof Error ? err.message : "Error al cargar stock ganadero",
+      });
+    }
   });
 
   app.get("/api/auth/home-layout/monitor/:userId", async (req, res) => {

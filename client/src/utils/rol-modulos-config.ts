@@ -11,6 +11,7 @@ export const MODULOS_CONFIGURABLES = [
   "rrhh",
   "ventas",
   "stock",
+  "asistente",
 ] as const satisfies readonly Modulo[];
 
 export type ModuloConfigurable = (typeof MODULOS_CONFIGURABLES)[number];
@@ -29,6 +30,7 @@ export const MODULO_PERMISO_HINTS: Record<ModuloConfigurable, string> = {
   rrhh: "Personal, sueldos y nómina.",
   ventas: "Ingresos por ventas, arrendamientos y agricultura.",
   stock: "Stock ganadero y equino, potreros y movimientos.",
+  asistente: "Consultas rápidas sobre stock, gastos, precios y cotizaciones.",
 };
 
 export function isModuloSoloAdmin(modulo: Modulo): boolean {
