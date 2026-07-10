@@ -1639,6 +1639,14 @@ export interface CategoriaStockMonitorFila {
   total: number;
 }
 
+export interface StockEspecieMonitorResumen {
+  total: number;
+  machos: number;
+  hembras: number;
+  sin_definir: number;
+  categorias: CategoriaStockMonitorFila[];
+}
+
 export interface CuentaStockGanaderoMonitorResumen {
   cuenta_id: number;
   cuenta_numero: string;
@@ -1650,6 +1658,8 @@ export interface CuentaStockGanaderoMonitorResumen {
   hembras: number;
   sin_definir: number;
   categorias: CategoriaStockMonitorFila[];
+  equino: StockEspecieMonitorResumen;
+  total_animales: number;
 }
 
 export interface HomeLayoutMonitorStockGanaderoSnapshot {
@@ -1661,8 +1671,22 @@ export interface HomeLayoutMonitorStockGanaderoSnapshot {
     sin_definir: number;
     cuentas_con_stock: number;
     categorias: CategoriaStockMonitorFila[];
+    equino: StockEspecieMonitorResumen & { cuentas_con_stock: number };
+    total_animales: number;
   };
   cuentas: CuentaStockGanaderoMonitorResumen[];
+}
+
+export interface HomeLayoutMonitorStockCuentaDetalle {
+  generado_en: string;
+  cuenta_id: number;
+  cuenta_numero: string;
+  nombre: string;
+  codigo: string;
+  activo: boolean;
+  ganadero: StockEspecieMonitorResumen;
+  equino: StockEspecieMonitorResumen;
+  total_animales: number;
 }
 
 export type AsistenteIntentId =

@@ -1358,6 +1358,56 @@ function dispositivoPerteneceCuenta(
   return clavesLecturas.has(d.clave);
 }
 
+export interface StockGanaderoCuentaScope {
+  empresaSet: Set<string>;
+  clavesLecturas: Set<string>;
+}
+
+async function clavesLecturasGanaderoPorCuenta(db: Db, cuentaId: number): Promise<Set<string>> {
+  const rows = (await db
+    .prepare(
+      `SELECT r.eid, r.vid
+       FROM STOCK_GANADERO_REGISTRO r
+       INNER JOIN STOCK_GANADERO_LOTE l ON l.id = r.lote_id
+       WHERE l.cuenta_id = ?`,
+    )
+    .all(cuentaId)) as { eid: string; vid: string }[];
+  const claves = new Set<string>();
+  for (const r of rows) {
+    const k = dispositivoClave(r.eid, r.vid);
+    if (k) claves.add(k);
+  }
+  return claves;
+}
+
+export async function getStockGanaderoCuentaScope(
+  db: Db,
+  cuentaId: number,
+): Promise<StockGanaderoCuentaScope> {
+  return {
+    empresaSet: await empresaCodigosSetPorCuenta(db, cuentaId),
+    clavesLecturas: await clavesLecturasGanaderoPorCuenta(db, cuentaId),
+  };
+}
+
+export function stockGanaderoDispositivoEnCuenta(
+  d: { clave: string; empresa: string },
+  scope: StockGanaderoCuentaScope,
+): boolean {
+  return dispositivoPerteneceCuenta(d, scope.empresaSet, scope.clavesLecturas);
+}
+
+/** Dispositivos del stock ganadero que pertenecen a una cuenta (lotes + empresas operativas). */
+export async function listStockGanaderaDispositivosPorCuenta(
+  db: Db,
+  cuentaId: number,
+): Promise<StockGanaderaDispositivo[]> {
+  const scope = await getStockGanaderoCuentaScope(db, cuentaId);
+  if (scope.empresaSet.size === 0 && scope.clavesLecturas.size === 0) return [];
+  const dispositivos = await listStockGanaderaDispositivos(db);
+  return dispositivos.filter((d) => stockGanaderoDispositivoEnCuenta(d, scope));
+}
+
 async function gatherBackupPayloadForCuenta(
   db: Db,
   cuentaId: number

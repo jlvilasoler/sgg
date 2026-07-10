@@ -27,6 +27,7 @@ import {
 import HomeLayoutScreenPreview from "./HomeLayoutScreenPreview";
 import HomeLayoutMonitorActividadSection from "./HomeLayoutMonitorActividadSection";
 import HomeLayoutMonitorCampoMapaSection from "./HomeLayoutMonitorCampoMapaSection";
+import HomeLayoutMonitorCuentaStockSection from "./HomeLayoutMonitorCuentaStockSection";
 import HomeLayoutMonitorStockSection from "./HomeLayoutMonitorStockSection";
 import { SgHubKpi, SgMiniBars } from "../stock/SgHubUi";
 
@@ -204,6 +205,12 @@ export default function HomeLayoutUsersMonitor({ apiOnline, onError }: Props) {
     [detalle],
   );
 
+  const selectedCuentaId = useMemo(() => {
+    if (detalle?.cuenta_id != null) return detalle.cuenta_id;
+    if (selectedId == null) return null;
+    return snapshot?.usuarios.find((u) => u.id === selectedId)?.cuenta_id ?? null;
+  }, [detalle?.cuenta_id, selectedId, snapshot?.usuarios]);
+
   const panelesPorZona = useMemo(() => {
     const empty: Record<
       "top" | "main" | "side",
@@ -256,6 +263,7 @@ export default function HomeLayoutUsersMonitor({ apiOnline, onError }: Props) {
         apiOnline={apiOnline}
         onError={onError}
         refreshKey={stockRefreshKey}
+        selectedCuentaId={selectedCuentaId}
       />
 
       <div className="home-layout-users-monitor-toolbar">
@@ -503,6 +511,13 @@ export default function HomeLayoutUsersMonitor({ apiOnline, onError }: Props) {
               </div>
 
               <div className="home-layout-users-monitor-extra-stack">
+                <HomeLayoutMonitorCuentaStockSection
+                  apiOnline={apiOnline}
+                  cuentaId={detalle.cuenta_id}
+                  cuentaNombre={detalle.cuenta_nombre}
+                  onError={onError}
+                  refreshKey={stockRefreshKey}
+                />
                 <HomeLayoutMonitorActividadSection
                   apiOnline={apiOnline}
                   email={detalle.email}

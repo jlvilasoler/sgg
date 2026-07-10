@@ -1,8 +1,9 @@
 import type { Db } from "./db/pg-client.js";
 import * as empresasCuenta from "./empresas-cuenta-db.js";
 import * as stockGanadero from "./stock-ganadero-db.js";
-import { SIN_EMPRESAS_SCOPE } from "./stock-ganadero-db.js";
 import type { StockGanaderaDispositivo } from "./stock-ganadero-db.js";
+import * as stockEquino from "./stock-equino-db.js";
+import type { StockEquinaDispositivo } from "./stock-equino-db.js";
 import { listClavesDispositivosEnVentasCerradas } from "./simulador-venta-dispositivos-db.js";
 
 export type CategoriaStockMonitorKey =
@@ -26,17 +27,28 @@ export interface CategoriaStockMonitorFila {
   total: number;
 }
 
+export interface StockEspecieMonitorResumen {
+  total: number;
+  machos: number;
+  hembras: number;
+  sin_definir: number;
+  categorias: CategoriaStockMonitorFila[];
+}
+
 export interface CuentaStockGanaderoMonitorResumen {
   cuenta_id: number;
   cuenta_numero: string;
   nombre: string;
   codigo: string;
   activo: boolean;
+  /** Ganadero activo (compatibilidad con UI existente). */
   total: number;
   machos: number;
   hembras: number;
   sin_definir: number;
   categorias: CategoriaStockMonitorFila[];
+  equino: StockEspecieMonitorResumen;
+  total_animales: number;
 }
 
 export interface HomeLayoutMonitorStockGanaderoSnapshot {
@@ -48,8 +60,22 @@ export interface HomeLayoutMonitorStockGanaderoSnapshot {
     sin_definir: number;
     cuentas_con_stock: number;
     categorias: CategoriaStockMonitorFila[];
+    equino: StockEspecieMonitorResumen & { cuentas_con_stock: number };
+    total_animales: number;
   };
   cuentas: CuentaStockGanaderoMonitorResumen[];
+}
+
+export interface HomeLayoutMonitorStockCuentaDetalle {
+  generado_en: string;
+  cuenta_id: number;
+  cuenta_numero: string;
+  nombre: string;
+  codigo: string;
+  activo: boolean;
+  ganadero: StockEspecieMonitorResumen;
+  equino: StockEspecieMonitorResumen;
+  total_animales: number;
 }
 
 const MACHO_FRONTERA_TERNERO = 12;
@@ -76,8 +102,19 @@ const CATEGORIA_META: {
 
 type SexoBucket = { machos: number; hembras: number; sin_definir: number };
 
+type DispositivoStockMonitor = {
+  sexo: string;
+  edad: number | null;
+  nacimiento_mes: number | null;
+  nacimiento_anio: number | null;
+};
+
 function emptySexo(): SexoBucket {
   return { machos: 0, hembras: 0, sin_definir: 0 };
+}
+
+function emptyEspecie(): StockEspecieMonitorResumen {
+  return { total: 0, machos: 0, hembras: 0, sin_definir: 0, categorias: [] };
 }
 
 function addSexo(bucket: SexoBucket, sexo: string): void {
@@ -86,7 +123,7 @@ function addSexo(bucket: SexoBucket, sexo: string): void {
   else bucket.sin_definir += 1;
 }
 
-function categoriaKey(d: StockGanaderaDispositivo): CategoriaStockMonitorKey {
+function categoriaKey(d: DispositivoStockMonitor): CategoriaStockMonitorKey {
   if (!d.sexo) return "SIN_SEXO";
   if (!d.nacimiento_mes || !d.nacimiento_anio) return "SIN_EDAD";
   if (d.edad === null || d.edad === undefined) return "SIN_EDAD";
@@ -126,7 +163,7 @@ function buildCategorias(
   return rows;
 }
 
-function aggregateActivos(dispositivos: StockGanaderaDispositivo[]): {
+function aggregateActivos(dispositivos: DispositivoStockMonitor[]): {
   sexo: SexoBucket & { total: number };
   categorias: CategoriaStockMonitorFila[];
   catBuckets: Map<CategoriaStockMonitorKey, SexoBucket>;
@@ -153,6 +190,16 @@ function aggregateActivos(dispositivos: StockGanaderaDispositivo[]): {
   };
 }
 
+function toEspecieResumen(agg: ReturnType<typeof aggregateActivos>): StockEspecieMonitorResumen {
+  return {
+    total: agg.sexo.total,
+    machos: agg.sexo.machos,
+    hembras: agg.sexo.hembras,
+    sin_definir: agg.sexo.sin_definir,
+    categorias: agg.categorias,
+  };
+}
+
 function mergeCatBuckets(
   into: Map<CategoriaStockMonitorKey, SexoBucket>,
   from: Map<CategoriaStockMonitorKey, SexoBucket>,
@@ -166,30 +213,102 @@ function mergeCatBuckets(
   }
 }
 
+function mergeEspecieTotales(
+  into: StockEspecieMonitorResumen & { cuentas_con_stock: number },
+  from: StockEspecieMonitorResumen,
+  cuentaTieneStock: boolean,
+): void {
+  into.machos += from.machos;
+  into.hembras += from.hembras;
+  into.sin_definir += from.sin_definir;
+  into.total += from.total;
+  if (cuentaTieneStock) into.cuentas_con_stock += 1;
+}
+
+async function listActivosGanaderoPorCuenta(
+  db: Db,
+  cuentaId: number,
+  ventas: Set<string>,
+): Promise<StockGanaderaDispositivo[]> {
+  const dispositivos = await stockGanadero.listStockGanaderaDispositivosPorCuenta(db, cuentaId);
+  return dispositivos.filter((d) => d.estado === "VIVO" && !ventas.has(d.clave));
+}
+
+async function listActivosEquinoPorCuenta(
+  db: Db,
+  cuentaId: number,
+): Promise<StockEquinaDispositivo[]> {
+  const dispositivos = await stockEquino.listStockEquinaDispositivosPorCuenta(db, cuentaId);
+  return dispositivos.filter((d) => d.estado === "VIVO");
+}
+
+async function summarizeStockPorCuenta(
+  db: Db,
+  cuentaId: number,
+  ventas: Set<string>,
+): Promise<{
+  ganadero: StockEspecieMonitorResumen;
+  equino: StockEspecieMonitorResumen;
+  ganaderoCatBuckets: Map<CategoriaStockMonitorKey, SexoBucket>;
+}> {
+  const [ganaderoActivos, equinoActivos] = await Promise.all([
+    listActivosGanaderoPorCuenta(db, cuentaId, ventas),
+    listActivosEquinoPorCuenta(db, cuentaId),
+  ]);
+  const ganaderoAgg = aggregateActivos(ganaderoActivos);
+  const equinoAgg = aggregateActivos(equinoActivos);
+  return {
+    ganadero: toEspecieResumen(ganaderoAgg),
+    equino: toEspecieResumen(equinoAgg),
+    ganaderoCatBuckets: ganaderoAgg.catBuckets,
+  };
+}
+
 export async function summarizeStockGanaderoMonitorPlataforma(
   db: Db,
 ): Promise<HomeLayoutMonitorStockGanaderoSnapshot> {
-  const [cuentas, ventasClaves] = await Promise.all([
+  const [cuentas, ventasClaves, allGanaderoRaw, allEquinoRaw] = await Promise.all([
     empresasCuenta.listEmpresasCuenta(db),
     listClavesDispositivosEnVentasCerradas(db),
+    stockGanadero.listStockGanaderaDispositivos(db),
+    stockEquino.listStockEquinaDispositivos(db),
   ]);
   const ventas = new Set(ventasClaves);
+  const allGanadero = allGanaderoRaw.filter((d) => d.estado === "VIVO" && !ventas.has(d.clave));
+  const allEquino = allEquinoRaw.filter((d) => d.estado === "VIVO");
+
+  const scopes = await Promise.all(
+    cuentas.map(async (cuenta) => ({
+      cuenta,
+      ganadero: await stockGanadero.getStockGanaderoCuentaScope(db, cuenta.id),
+      equino: await stockEquino.getStockEquinoCuentaScope(db, cuenta.id),
+    })),
+  );
 
   const filas: CuentaStockGanaderoMonitorResumen[] = [];
   const totalesSexo = emptySexo();
   const totalesCat = new Map<CategoriaStockMonitorKey, SexoBucket>();
   for (const meta of CATEGORIA_META) totalesCat.set(meta.key, emptySexo());
+  const totalesEquino: StockEspecieMonitorResumen & { cuentas_con_stock: number } = {
+    ...emptyEspecie(),
+    cuentas_con_stock: 0,
+  };
   let cuentasConStock = 0;
 
-  for (const cuenta of cuentas) {
-    const empresas = await empresasCuenta.getEmpresaCodigosActivosPorCuenta(db, cuenta.id);
-    const dispositivos = await stockGanadero.listStockGanaderaDispositivos(db, {
-      empresas: empresas.length > 0 ? empresas : [SIN_EMPRESAS_SCOPE],
-    });
-    const activos = dispositivos.filter((d) => d.estado === "VIVO" && !ventas.has(d.clave));
-    const agg = aggregateActivos(activos);
+  for (const { cuenta, ganadero: gScope, equino: eScope } of scopes) {
+    const ganaderoActivos = allGanadero.filter((d) =>
+      stockGanadero.stockGanaderoDispositivoEnCuenta(d, gScope),
+    );
+    const equinoActivos = allEquino.filter((d) =>
+      stockEquino.stockEquinoDispositivoEnCuenta(d, eScope),
+    );
+    const ganaderoAgg = aggregateActivos(ganaderoActivos);
+    const equinoAgg = aggregateActivos(equinoActivos);
+    const ganadero = toEspecieResumen(ganaderoAgg);
+    const equino = toEspecieResumen(equinoAgg);
 
-    if (agg.sexo.total > 0) cuentasConStock += 1;
+    const tieneStock = ganadero.total > 0 || equino.total > 0;
+    if (tieneStock) cuentasConStock += 1;
 
     filas.push({
       cuenta_id: cuenta.id,
@@ -197,37 +316,66 @@ export async function summarizeStockGanaderoMonitorPlataforma(
       nombre: cuenta.nombre,
       codigo: cuenta.codigo,
       activo: cuenta.activo,
-      total: agg.sexo.total,
-      machos: agg.sexo.machos,
-      hembras: agg.sexo.hembras,
-      sin_definir: agg.sexo.sin_definir,
-      categorias: agg.categorias,
+      total: ganadero.total,
+      machos: ganadero.machos,
+      hembras: ganadero.hembras,
+      sin_definir: ganadero.sin_definir,
+      categorias: ganadero.categorias,
+      equino,
+      total_animales: ganadero.total + equino.total,
     });
 
-    totalesSexo.machos += agg.sexo.machos;
-    totalesSexo.hembras += agg.sexo.hembras;
-    totalesSexo.sin_definir += agg.sexo.sin_definir;
-    mergeCatBuckets(totalesCat, agg.catBuckets);
+    totalesSexo.machos += ganadero.machos;
+    totalesSexo.hembras += ganadero.hembras;
+    totalesSexo.sin_definir += ganadero.sin_definir;
+    mergeCatBuckets(totalesCat, ganaderoAgg.catBuckets);
+    mergeEspecieTotales(totalesEquino, equino, equino.total > 0);
   }
 
   filas.sort(
     (a, b) =>
-      b.total - a.total ||
+      b.total_animales - a.total_animales ||
       a.nombre.localeCompare(b.nombre, "es", { sensitivity: "base" }),
   );
 
-  const total = totalesSexo.machos + totalesSexo.hembras + totalesSexo.sin_definir;
+  const totalGanadero = totalesSexo.machos + totalesSexo.hembras + totalesSexo.sin_definir;
 
   return {
     generado_en: new Date().toISOString(),
     totales: {
-      total,
+      total: totalGanadero,
       machos: totalesSexo.machos,
       hembras: totalesSexo.hembras,
       sin_definir: totalesSexo.sin_definir,
       cuentas_con_stock: cuentasConStock,
       categorias: buildCategorias(totalesCat, true),
+      equino: totalesEquino,
+      total_animales: totalGanadero + totalesEquino.total,
     },
     cuentas: filas,
+  };
+}
+
+export async function getHomeLayoutMonitorStockCuenta(
+  db: Db,
+  cuentaId: number,
+): Promise<HomeLayoutMonitorStockCuentaDetalle | null> {
+  const cuenta = await empresasCuenta.getEmpresaCuentaById(db, cuentaId);
+  if (!cuenta) return null;
+
+  const ventasClaves = await listClavesDispositivosEnVentasCerradas(db);
+  const ventas = new Set(ventasClaves);
+  const { ganadero, equino } = await summarizeStockPorCuenta(db, cuentaId, ventas);
+
+  return {
+    generado_en: new Date().toISOString(),
+    cuenta_id: cuenta.id,
+    cuenta_numero: cuenta.cuenta_numero,
+    nombre: cuenta.nombre,
+    codigo: cuenta.codigo,
+    activo: cuenta.activo,
+    ganadero,
+    equino,
+    total_animales: ganadero.total + equino.total,
   };
 }

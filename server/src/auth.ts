@@ -1407,6 +1407,30 @@ export function registerAuthRoutes(app: Express): void {
     }
   });
 
+  app.get("/api/auth/home-layout/monitor/stock/cuenta/:cuentaId", async (req, res) => {
+    if (!requireSuperAdmin(req, res)) return;
+    const cuentaId = Number(req.params.cuentaId);
+    if (!Number.isFinite(cuentaId) || cuentaId <= 0) {
+      res.status(400).json({ ok: false, error: "Cuenta inválida" });
+      return;
+    }
+    try {
+      const stockDb = await import("./home-layout-monitor-stock-db.js");
+      const data = await stockDb.getHomeLayoutMonitorStockCuenta(getDb(), cuentaId);
+      if (!data) {
+        res.status(404).json({ ok: false, error: "Cuenta no encontrada" });
+        return;
+      }
+      res.json({ ok: true, data });
+    } catch (err) {
+      console.error("[SGG] monitor stock cuenta:", err);
+      res.status(500).json({
+        ok: false,
+        error: err instanceof Error ? err.message : "Error al cargar stock de la cuenta",
+      });
+    }
+  });
+
   app.get("/api/auth/home-layout/monitor/:userId", async (req, res) => {
     if (!requireSuperAdmin(req, res)) return;
     const userId = Number(req.params.userId);

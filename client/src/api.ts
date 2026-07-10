@@ -94,6 +94,7 @@ import type {
   EmpresaCuentaCreateResult,
   CuentasControlPlataformaResumen,
   HomeLayoutMonitorStockGanaderoSnapshot,
+  HomeLayoutMonitorStockCuentaDetalle,
   AsistenteConsultaResult,
   RubrosMonitorCuentaDetalle,
   RubrosMonitorSnapshot,
@@ -4383,6 +4384,15 @@ export async function fetchHomeLayoutMonitorSnapshot(): Promise<HomeLayoutMonito
 export async function fetchHomeLayoutMonitorStockGanadero(): Promise<HomeLayoutMonitorStockGanaderoSnapshot> {
   const json = await request<{ data: HomeLayoutMonitorStockGanaderoSnapshot }>(
     "/auth/home-layout/monitor/stock-ganadero",
+  );
+  return json.data;
+}
+
+export async function fetchHomeLayoutMonitorStockCuenta(
+  cuentaId: number,
+): Promise<HomeLayoutMonitorStockCuentaDetalle> {
+  const json = await request<{ data: HomeLayoutMonitorStockCuentaDetalle }>(
+    `/auth/home-layout/monitor/stock/cuenta/${cuentaId}`,
   );
   return json.data;
 }

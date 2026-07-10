@@ -4,14 +4,19 @@ import { fetchHomeLayoutMonitorStockGanadero } from "../../api";
 import type {
   CuentaStockGanaderoMonitorResumen,
   HomeLayoutMonitorStockGanaderoSnapshot,
+  StockEspecieMonitorResumen,
 } from "../../types";
 import { SgHubKpi, SgMiniBars } from "../stock/SgHubUi";
+import { HomeLayoutMonitorEspecieStockBlock } from "./HomeLayoutMonitorStockBlocks";
 
 interface Props {
   apiOnline: boolean;
   onError: (msg: string) => void;
   /** Incrementar para forzar recarga (p.ej. botón Actualizar del monitor). */
   refreshKey?: number;
+  /** Cuenta resaltada (p.ej. la del usuario seleccionado). */
+  selectedCuentaId?: number | null;
+  onSelectCuenta?: (cuentaId: number) => void;
 }
 
 function fmtEntero(n: number): string {
@@ -25,6 +30,14 @@ function inicialesCuenta(nombre: string): string {
   return (parts[0][0] + parts[1][0]).toUpperCase();
 }
 
+const EMPTY_ESPECIE: StockEspecieMonitorResumen = {
+  total: 0,
+  machos: 0,
+  hembras: 0,
+  sin_definir: 0,
+  categorias: [],
+};
+
 const EMPTY_TOTALES: HomeLayoutMonitorStockGanaderoSnapshot["totales"] = {
   total: 0,
   machos: 0,
@@ -32,12 +45,16 @@ const EMPTY_TOTALES: HomeLayoutMonitorStockGanaderoSnapshot["totales"] = {
   sin_definir: 0,
   cuentas_con_stock: 0,
   categorias: [],
+  equino: { ...EMPTY_ESPECIE, cuentas_con_stock: 0 },
+  total_animales: 0,
 };
 
 export default function HomeLayoutMonitorStockSection({
   apiOnline,
   onError,
   refreshKey = 0,
+  selectedCuentaId = null,
+  onSelectCuenta,
 }: Props) {
   const [data, setData] = useState<HomeLayoutMonitorStockGanaderoSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
@@ -56,7 +73,7 @@ export default function HomeLayoutMonitorStockSection({
     try {
       setData(await fetchHomeLayoutMonitorStockGanadero());
     } catch (e) {
-      onError(e instanceof Error ? e.message : "Error al cargar stock ganadero de cuentas");
+      onError(e instanceof Error ? e.message : "Error al cargar stock de cuentas");
       setData(null);
     } finally {
       setLoading(false);
@@ -67,13 +84,19 @@ export default function HomeLayoutMonitorStockSection({
     void load();
   }, [load, refreshKey]);
 
+  useEffect(() => {
+    if (selectedCuentaId != null && selectedCuentaId > 0) {
+      setExpandedId(selectedCuentaId);
+    }
+  }, [selectedCuentaId]);
+
   const filas = useMemo(() => {
     const q = filtroTexto.trim().toLowerCase();
     const base = data?.cuentas ?? [];
     return base.filter((row) => {
       if (filtroEstado === "activo" && !row.activo) return false;
       if (filtroEstado === "inactivo" && row.activo) return false;
-      if (filtroConStock && row.total <= 0) return false;
+      if (filtroConStock && row.total_animales <= 0) return false;
       if (!q) return true;
       return (
         row.nombre.toLowerCase().includes(q) ||
@@ -88,8 +111,10 @@ export default function HomeLayoutMonitorStockSection({
   const hayFiltros = Boolean(filtroTexto.trim() || filtroEstado || filtroConStock);
 
   const toggleExpand = (row: CuentaStockGanaderoMonitorResumen) => {
-    if (row.total <= 0) return;
-    setExpandedId((prev) => (prev === row.cuenta_id ? null : row.cuenta_id));
+    if (row.total_animales <= 0) return;
+    const next = expandedId === row.cuenta_id ? null : row.cuenta_id;
+    setExpandedId(next);
+    if (next != null) onSelectCuenta?.(next);
   };
 
   return (
@@ -99,12 +124,12 @@ export default function HomeLayoutMonitorStockSection({
     >
       <header className="home-layout-monitor-stock-head">
         <div>
-          <p className="sg-hub-panel-kicker">Stock ganadero · Plataforma</p>
+          <p className="sg-hub-panel-kicker">Stock ganadero y equino · Plataforma</p>
           <h3 id="home-layout-monitor-stock-title" className="home-layout-monitor-stock-title">
             Stock de las cuentas
           </h3>
           <p className="muted home-layout-monitor-stock-lead">
-            Animales activos (vivos, sin venta cerrada) por cuenta madre: totales, macho / hembra y
+            Animales activos por cuenta madre: ganadero y equino, con totales, macho / hembra y
             categoría etaria. Solo visible para superadministrador.
           </p>
         </div>
@@ -121,39 +146,45 @@ export default function HomeLayoutMonitorStockSection({
 
       <section
         className="sg-hub-kpi-strip home-hub-kpi-strip home-layout-monitor-stock-kpi"
-        aria-label="Totales de stock ganadero"
-        style={{ "--home-hub-kpi-cols": "4" } as CSSProperties}
+        aria-label="Totales de stock"
+        style={{ "--home-hub-kpi-cols": "5" } as CSSProperties}
       >
         <SgHubKpi
           variant="dark"
           kicker="Total activos"
-          value={kpiPlaceholder ?? fmtEntero(totales.total)}
-          hint="Ganado vivo en todas las cuentas"
+          value={kpiPlaceholder ?? fmtEntero(totales.total_animales)}
+          hint="Ganadero + equino en todas las cuentas"
           trend="Plataforma"
           bars={<SgMiniBars highlight="last" />}
         />
         <SgHubKpi
-          kicker="Machos"
-          value={kpiPlaceholder ?? fmtEntero(totales.machos)}
+          kicker="Ganadero"
+          value={kpiPlaceholder ?? fmtEntero(totales.total)}
           hint={
             kpiPlaceholder
               ? "—"
-              : totales.total > 0
-                ? `${Math.round((totales.machos / totales.total) * 100)}% del stock`
+              : totales.total_animales > 0
+                ? `${Math.round((totales.total / totales.total_animales) * 100)}% del total`
                 : "Sin stock"
           }
           bars={<SgMiniBars highlight="mid" />}
         />
         <SgHubKpi
-          kicker="Hembras"
-          value={kpiPlaceholder ?? fmtEntero(totales.hembras)}
+          kicker="Equino"
+          value={kpiPlaceholder ?? fmtEntero(totales.equino.total)}
           hint={
             kpiPlaceholder
               ? "—"
-              : totales.total > 0
-                ? `${Math.round((totales.hembras / totales.total) * 100)}% del stock`
+              : totales.total_animales > 0
+                ? `${Math.round((totales.equino.total / totales.total_animales) * 100)}% del total`
                 : "Sin stock"
           }
+          bars={<SgMiniBars />}
+        />
+        <SgHubKpi
+          kicker="Hembras"
+          value={kpiPlaceholder ?? fmtEntero(totales.hembras + totales.equino.hembras)}
+          hint="Ganadero + equino"
           bars={<SgMiniBars />}
         />
         <SgHubKpi
@@ -169,8 +200,24 @@ export default function HomeLayoutMonitorStockSection({
       </section>
 
       {totales.categorias.length > 0 && !loading ? (
-        <div className="home-layout-monitor-stock-cats" aria-label="Totales por categoría">
+        <div className="home-layout-monitor-stock-cats" aria-label="Ganadero por categoría">
+          <span className="home-layout-monitor-stock-cats-label muted">Ganadero:</span>
           {totales.categorias.map((cat) => (
+            <span
+              key={cat.key}
+              className={`home-layout-monitor-stock-chip home-layout-monitor-stock-chip--${cat.grupo}`}
+            >
+              <strong>{cat.label}</strong>
+              <span>{fmtEntero(cat.total)}</span>
+            </span>
+          ))}
+        </div>
+      ) : null}
+
+      {totales.equino.categorias.length > 0 && !loading ? (
+        <div className="home-layout-monitor-stock-cats" aria-label="Equino por categoría">
+          <span className="home-layout-monitor-stock-cats-label muted">Equino:</span>
+          {totales.equino.categorias.map((cat) => (
             <span
               key={cat.key}
               className={`home-layout-monitor-stock-chip home-layout-monitor-stock-chip--${cat.grupo}`}
@@ -216,14 +263,14 @@ export default function HomeLayoutMonitorStockSection({
 
       <div className="home-layout-monitor-stock-table-wrap">
         {loading ? (
-          <p className="home-layout-users-monitor-empty muted">Cargando stock ganadero…</p>
+          <p className="home-layout-users-monitor-empty muted">Cargando stock de cuentas…</p>
         ) : filas.length === 0 ? (
           <div className="home-layout-monitor-stock-empty">
             <Beef size={26} strokeWidth={1.5} aria-hidden />
             <p className="muted">
               {hayFiltros
                 ? "Ninguna cuenta coincide con los filtros."
-                : "No hay cuentas con stock ganadero cargado."}
+                : "No hay cuentas con stock cargado."}
             </p>
           </div>
         ) : (
@@ -233,13 +280,10 @@ export default function HomeLayoutMonitorStockSection({
                 <th scope="col">Cuenta</th>
                 <th scope="col">Estado</th>
                 <th scope="col" className="is-num">
-                  Machos
+                  Ganadero
                 </th>
                 <th scope="col" className="is-num">
-                  Hembras
-                </th>
-                <th scope="col" className="is-num">
-                  Sin def.
+                  Equino
                 </th>
                 <th scope="col" className="is-num">
                   Total
@@ -249,17 +293,18 @@ export default function HomeLayoutMonitorStockSection({
             <tbody>
               {filas.map((row) => {
                 const open = expandedId === row.cuenta_id;
+                const selected = selectedCuentaId === row.cuenta_id;
                 return (
                   <Fragment key={row.cuenta_id}>
                     <tr
-                      className={`${row.total > 0 ? "is-clickable" : ""}${
+                      className={`${row.total_animales > 0 ? "is-clickable" : ""}${
                         !row.activo ? " is-off" : ""
-                      }${open ? " is-open" : ""}`}
+                      }${open ? " is-open" : ""}${selected ? " is-selected" : ""}`}
                       onClick={() => toggleExpand(row)}
                     >
                       <th scope="row">
                         <span className="home-layout-monitor-stock-cuenta">
-                          {row.total > 0 ? (
+                          {row.total_animales > 0 ? (
                             open ? (
                               <ChevronDown size={14} aria-hidden />
                             ) : (
@@ -288,50 +333,31 @@ export default function HomeLayoutMonitorStockSection({
                           {row.activo ? "Activa" : "Suspendida"}
                         </span>
                       </td>
-                      <td className="is-num">{fmtEntero(row.machos)}</td>
-                      <td className="is-num">{fmtEntero(row.hembras)}</td>
-                      <td className="is-num">
-                        {row.sin_definir > 0 ? fmtEntero(row.sin_definir) : "—"}
-                      </td>
-                      <td className="is-num is-total">{fmtEntero(row.total)}</td>
+                      <td className="is-num">{fmtEntero(row.total)}</td>
+                      <td className="is-num">{fmtEntero(row.equino.total)}</td>
+                      <td className="is-num is-total">{fmtEntero(row.total_animales)}</td>
                     </tr>
                     {open ? (
                       <tr className="home-layout-monitor-stock-detail-row">
-                        <td colSpan={6}>
-                          {row.categorias.length === 0 ? (
-                            <p className="muted">Sin desglose por categoría.</p>
-                          ) : (
-                            <table className="home-layout-monitor-stock-cat-table">
-                              <thead>
-                                <tr>
-                                  <th scope="col">Categoría</th>
-                                  <th scope="col" className="is-num">
-                                    Machos
-                                  </th>
-                                  <th scope="col" className="is-num">
-                                    Hembras
-                                  </th>
-                                  <th scope="col" className="is-num">
-                                    Total
-                                  </th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {row.categorias.map((cat) => (
-                                  <tr key={cat.key}>
-                                    <th scope="row">{cat.label}</th>
-                                    <td className="is-num">
-                                      {cat.machos > 0 ? fmtEntero(cat.machos) : "—"}
-                                    </td>
-                                    <td className="is-num">
-                                      {cat.hembras > 0 ? fmtEntero(cat.hembras) : "—"}
-                                    </td>
-                                    <td className="is-num is-total">{fmtEntero(cat.total)}</td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          )}
+                        <td colSpan={5}>
+                          <div className="home-layout-monitor-cuenta-stock-grid home-layout-monitor-cuenta-stock-grid--inline">
+                            <HomeLayoutMonitorEspecieStockBlock
+                              kicker="Ganadero"
+                              titulo={row.nombre}
+                              especie={{
+                                total: row.total,
+                                machos: row.machos,
+                                hembras: row.hembras,
+                                sin_definir: row.sin_definir,
+                                categorias: row.categorias,
+                              }}
+                            />
+                            <HomeLayoutMonitorEspecieStockBlock
+                              kicker="Equino"
+                              titulo={row.nombre}
+                              especie={row.equino}
+                            />
+                          </div>
                         </td>
                       </tr>
                     ) : null}
@@ -344,17 +370,12 @@ export default function HomeLayoutMonitorStockSection({
                 <th scope="row" colSpan={2}>
                   Total{hayFiltros ? " (filtrado)" : ""}
                 </th>
+                <td className="is-num">{fmtEntero(filas.reduce((s, r) => s + r.total, 0))}</td>
                 <td className="is-num">
-                  {fmtEntero(filas.reduce((s, r) => s + r.machos, 0))}
-                </td>
-                <td className="is-num">
-                  {fmtEntero(filas.reduce((s, r) => s + r.hembras, 0))}
-                </td>
-                <td className="is-num">
-                  {fmtEntero(filas.reduce((s, r) => s + r.sin_definir, 0))}
+                  {fmtEntero(filas.reduce((s, r) => s + r.equino.total, 0))}
                 </td>
                 <td className="is-num is-total">
-                  {fmtEntero(filas.reduce((s, r) => s + r.total, 0))}
+                  {fmtEntero(filas.reduce((s, r) => s + r.total_animales, 0))}
                 </td>
               </tr>
             </tfoot>

@@ -32,8 +32,9 @@ export default function ConfigHomeLayoutMonitor({
             </h2>
             <p className="config-home-layout-monitor-lead muted">
               Supervisá cómo tiene configurado el <strong>Inicio</strong> cada usuario, sus{" "}
-              <strong>actividades recientes</strong>, el <strong>mapa del campo</strong> de su
-              cuenta y el <strong>stock ganadero</strong> consolidado de todas las cuentas.
+              <strong>actividades recientes</strong>, el <strong>mapa del campo</strong> y el{" "}
+              <strong>stock ganadero y equino</strong> de su cuenta. Arriba ves el consolidado de
+              todas las cuentas; al elegir un usuario, el detalle incluye el stock de su cuenta.
             </p>
           </div>
           <div className="config-home-layout-monitor-head-badge" aria-hidden>
