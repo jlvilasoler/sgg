@@ -2315,7 +2315,7 @@ app.post("/api/venta-sub-rubros", async (req, res) => {
   if (!requireVentaRubrosManage(req, res)) return;
   try {
     const payload = parseSubRubroBody(req);
-    const cuentaId = await cuentaIdParaInsert(req.user!);
+    const cuentaId = await ventaRubrosCuentaWriteScope(req.user!);
     const id = await db.ventaSubRubros.insert(payload, cuentaId);
     res.status(201).json({
       ok: true,

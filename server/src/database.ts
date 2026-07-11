@@ -244,6 +244,9 @@ export async function initDb(): Promise<void> {
     await resp.initResponsablesTable(db);
     await func.initFuncionariosTable(db);
     await ventas.initVentasTable(db);
+    await vsub.initVentaSubRubrosTable(db);
+    await vsubItems.initVentaSubRubroItemsTable(db);
+    await vgicon.initVentaGrupoIconosTable(db);
     await presDoc.initPresupuestoDocumentosTable(db);
   } finally {
     if (locked) await releaseAdvisoryLock();
