@@ -1905,7 +1905,10 @@ async function parseVentaAgriculturaBody(req: Request): Promise<ventasAgri.Venta
   const rendimiento_ton_ha = Number(body.rendimiento_ton_ha);
   const precio_usd_ton = Number(body.precio_usd_ton);
   const total_ton = hectareas * rendimiento_ton_ha;
-  const importe_usd = (total_ton * precio_usd_ton) / 1000;
+  const importe_bruto = (total_ton * precio_usd_ton) / 1000;
+  const costo_impuestos_usd = Math.max(0, Number(body.costo_impuestos_usd) || 0);
+  const costo_flete_usd = Math.max(0, Number(body.costo_flete_usd) || 0);
+  const importe_usd = Math.max(0, importe_bruto - costo_impuestos_usd - costo_flete_usd);
   const empresa = String(body.empresa ?? "").trim();
   await assertEmpresaPermitida(req.user!, empresa);
   return {
@@ -1920,6 +1923,8 @@ async function parseVentaAgriculturaBody(req: Request): Promise<ventasAgri.Venta
     precio_usd_ton,
     total_ton,
     importe_usd,
+    costo_impuestos_usd,
+    costo_flete_usd,
   };
 }
 

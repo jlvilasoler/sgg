@@ -24,6 +24,8 @@ export interface VentaAgriculturaRow {
   precio_usd_ton: number;
   total_ton: number;
   importe_usd: number;
+  costo_impuestos_usd: number;
+  costo_flete_usd: number;
   venta_realizada: boolean;
   venta_realizada_en: string | null;
   real_mes_inicio: number | null;
@@ -65,6 +67,8 @@ export interface VentaAgriculturaInput {
   precio_usd_ton: number;
   total_ton: number;
   importe_usd: number;
+  costo_impuestos_usd?: number;
+  costo_flete_usd?: number;
 }
 
 export interface VentaAgriculturaFilters {
@@ -121,6 +125,8 @@ export async function initVentasAgriculturaTable(db: Db): Promise<void> {
     "real_importe_usd DOUBLE PRECISION",
     "real_notas TEXT",
     "destacada INTEGER NOT NULL DEFAULT 0",
+    "costo_impuestos_usd DOUBLE PRECISION NOT NULL DEFAULT 0",
+    "costo_flete_usd DOUBLE PRECISION NOT NULL DEFAULT 0",
   ] as const) {
     try {
       await db.prepare(`ALTER TABLE VENTAS_AGRICULTURA ADD COLUMN ${col}`).run();
@@ -212,6 +218,8 @@ function mapRow(row: Record<string, unknown>): VentaAgriculturaRow {
     precio_usd_ton: Number(row.precio_usd_ton),
     total_ton: Number(row.total_ton),
     importe_usd: Number(row.importe_usd),
+    costo_impuestos_usd: Number(row.costo_impuestos_usd ?? 0),
+    costo_flete_usd: Number(row.costo_flete_usd ?? 0),
     venta_realizada: Number(row.venta_realizada ?? 0) === 1,
     venta_realizada_en: row.venta_realizada_en != null ? String(row.venta_realizada_en) : null,
     real_mes_inicio: row.real_mes_inicio != null ? Number(row.real_mes_inicio) : null,
@@ -230,12 +238,20 @@ function mapRow(row: Record<string, unknown>): VentaAgriculturaRow {
   };
 }
 
+function parseCostoUsd(value: unknown): number {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n < 0) return 0;
+  return Math.round(n * 100) / 100;
+}
+
 function normalizeInput(data: VentaAgriculturaInput): VentaAgriculturaInput {
   const hectareas = Number(data.hectareas);
   const rendimiento_ton_ha = Number(data.rendimiento_ton_ha);
   const precio_usd_ton = Number(data.precio_usd_ton);
   const total_ton = Number(data.total_ton);
   const importe_usd = Number(data.importe_usd);
+  const costo_impuestos_usd = parseCostoUsd(data.costo_impuestos_usd);
+  const costo_flete_usd = parseCostoUsd(data.costo_flete_usd);
   const mes_inicio = Number(data.mes_inicio);
   const mes_fin = Number(data.mes_fin);
   const anio_inicio = Number(data.anio_inicio);
@@ -277,8 +293,11 @@ function normalizeInput(data: VentaAgriculturaInput): VentaAgriculturaInput {
   if (!Number.isFinite(total_ton) || total_ton <= 0) {
     throw new Error("El total en toneladas es inválido");
   }
-  if (!Number.isFinite(importe_usd) || importe_usd <= 0) {
+  if (!Number.isFinite(importe_usd) || importe_usd < 0) {
     throw new Error("El importe estimado es inválido");
+  }
+  if (costo_impuestos_usd + costo_flete_usd > (total_ton * precio_usd_ton) / 1000 + 0.01) {
+    throw new Error("Impuestos y flete no pueden superar el importe bruto");
   }
 
   return {
@@ -293,6 +312,8 @@ function normalizeInput(data: VentaAgriculturaInput): VentaAgriculturaInput {
     precio_usd_ton,
     total_ton,
     importe_usd,
+    costo_impuestos_usd,
+    costo_flete_usd,
   };
 }
 
@@ -349,10 +370,10 @@ export async function insertVentaAgricultura(
   const result = await db.prepare(
     `INSERT INTO VENTAS_AGRICULTURA (
       empresa, mes, mes_inicio, mes_fin, anio, anio_inicio, anio_fin, cultivo, hectareas, rendimiento_ton_ha,
-      precio_usd_ton, total_ton, importe_usd, cuenta_id
+      precio_usd_ton, total_ton, importe_usd, costo_impuestos_usd, costo_flete_usd, cuenta_id
     ) VALUES (
       @empresa, @mes_inicio, @mes_inicio, @mes_fin, @anio_inicio, @anio_inicio, @anio_fin, @cultivo, @hectareas, @rendimiento_ton_ha,
-      @precio_usd_ton, @total_ton, @importe_usd, @cuenta_id
+      @precio_usd_ton, @total_ton, @importe_usd, @costo_impuestos_usd, @costo_flete_usd, @cuenta_id
     )`
   ).run({ ...row, cuenta_id: resolvedCuentaId });
   const id = Number(result.lastInsertRowid);
@@ -405,6 +426,8 @@ export async function updateVentaAgricultura(
       precio_usd_ton = @precio_usd_ton,
       total_ton = @total_ton,
       importe_usd = @importe_usd,
+      costo_impuestos_usd = @costo_impuestos_usd,
+      costo_flete_usd = @costo_flete_usd,
       cuenta_id = @cuenta_id
      WHERE id = @id`
   ).run({ ...row, id, cuenta_id: resolvedCuentaId });
