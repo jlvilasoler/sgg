@@ -14,6 +14,7 @@ import {
   Users,
   X,
 } from "lucide-react";
+import { SgHubKpi, SgMiniBars } from "../stock/SgHubUi";
 import SgHubShell from "../hub/SgHubShell";
 import type { SgHubItem } from "../hub/SgHubTypes";
 import { MenuAppIcon } from "../icons/MenuAppIcons";
@@ -38,6 +39,9 @@ import type {
 import { OPERATIVA_DIA_SEMANA_LABELS } from "../../types";
 import { hubAsideKicker } from "../../brand";
 import { canWriteTareasOperativas } from "../../utils/auth-permissions";
+import { confirmAction } from "../../utils/confirm";
+import StockControlSanitarioSectionTitle from "../stock/StockControlSanitarioSectionTitle";
+import NotaCompartirPanel, { nombresCompartidos } from "../notas/NotaCompartirPanel";
 import {
   buildMonthCells,
   DIAS_SEMANA_CORTO,
@@ -81,7 +85,7 @@ type FormState = {
   titulo: string;
   notas: string;
   dia_semana: OperativaDiaSemana;
-  asignado_user_id: string;
+  asignados_user_ids: number[];
   potrero_id: string;
   ubicacion: string;
 };
@@ -100,10 +104,26 @@ function emptyForm(diaSemana: OperativaDiaSemana): FormState {
     titulo: "",
     notas: "",
     dia_semana: diaSemana,
-    asignado_user_id: "",
+    asignados_user_ids: [],
     potrero_id: "",
     ubicacion: "",
   };
+}
+
+function responsablesFromTarea(t: OperativaTarea): number[] {
+  if (t.asignados?.length) return t.asignados.map((a) => a.id);
+  return t.asignado_user_id != null ? [t.asignado_user_id] : [];
+}
+
+function responsablesLabel(t: OperativaTarea, totalEquipo?: number): string | null {
+  if (t.asignados?.length) {
+    const label = nombresCompartidos(
+      t.asignados.map((a) => ({ id: a.id, nombre: a.nombre })),
+      totalEquipo,
+    );
+    return label || null;
+  }
+  return t.asignado_nombre;
 }
 
 function tareaToForm(t: OperativaTarea): FormState {
@@ -111,7 +131,7 @@ function tareaToForm(t: OperativaTarea): FormState {
     titulo: t.titulo,
     notas: t.notas,
     dia_semana: (t.dia_semana ?? 0) as OperativaDiaSemana,
-    asignado_user_id: t.asignado_user_id != null ? String(t.asignado_user_id) : "",
+    asignados_user_ids: responsablesFromTarea(t),
     potrero_id: t.potrero_id != null ? String(t.potrero_id) : "",
     ubicacion: t.ubicacion,
   };
@@ -161,6 +181,7 @@ export default function TareasOperativas({
   const [registroResultados, setRegistroResultados] = useState("");
   const [filtroAsignado, setFiltroAsignado] = useState("");
   const [dayPopover, setDayPopover] = useState<DayPopoverState | null>(null);
+  const tituloInputRef = useRef<HTMLInputElement>(null);
 
   const monthCells = useMemo(
     () => buildMonthCells(viewYear, viewMonth),
@@ -353,6 +374,21 @@ export default function TareasOperativas({
     setEditing(null);
   };
 
+  useEffect(() => {
+    if (!modalOpen || modalMode !== "rutina" || !puedeEditar) return;
+    const t = window.setTimeout(() => tituloInputRef.current?.focus(), 80);
+    return () => window.clearTimeout(t);
+  }, [modalOpen, modalMode, puedeEditar]);
+
+  useEffect(() => {
+    if (!modalOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !saving) closeModal();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [modalOpen, saving]);
+
   const saveRutina = async () => {
     if (!puedeEditar) return;
     if (!form.titulo.trim()) {
@@ -365,7 +401,7 @@ export default function TareasOperativas({
         titulo: form.titulo.trim(),
         notas: form.notas.trim(),
         dia_semana: form.dia_semana,
-        asignado_user_id: form.asignado_user_id ? Number(form.asignado_user_id) : null,
+        asignados_user_ids: form.asignados_user_ids,
         potrero_id: form.potrero_id ? Number(form.potrero_id) : null,
         ubicacion: form.ubicacion.trim(),
       };
@@ -392,7 +428,13 @@ export default function TareasOperativas({
 
   const removeRutina = async (t: OperativaTarea) => {
     if (!puedeEditar) return;
-    if (!window.confirm(`¿Eliminar la rutina "${t.titulo}"?`)) return;
+    const ok = await confirmAction({
+      title: "Eliminar rutina",
+      message: `¿Eliminar la rutina «${t.titulo}»? No se puede deshacer.`,
+      confirmText: "Eliminar",
+      variant: "danger",
+    });
+    if (!ok) return;
     setSaving(true);
     try {
       await deleteOperativaTarea(t.id);
@@ -506,37 +548,71 @@ export default function TareasOperativas({
         hubClassName="tareas-op-hub"
       >
         <div className="tareas-op-workspace">
-          <p className="tareas-op-periodo muted" role="status">
-            {loading
-              ? "Actualizando almanaque…"
-              : !apiOnline
-                ? "Sin conexión con la API"
-                : `${stats.totalRutinas} rutina${stats.totalRutinas === 1 ? "" : "s"} activas · ${MESES_ES[viewMonth]} ${viewYear}`}
-          </p>
+          <section className="tareas-op-hero" aria-label="Resumen del almanaque">
+            <div className="tareas-op-hero-glow" aria-hidden />
+            <div className="tareas-op-hero-inner">
+              <div className="tareas-op-hero-copy">
+                <span className="tareas-op-hero-badge">
+                  <Repeat size={14} aria-hidden />
+                  Rutinas semanales
+                </span>
+                <h2 className="tareas-op-hero-title">
+                  {stats.diaSemana}
+                  {isToday(selectedDate) ? (
+                    <span className="tareas-op-hero-today"> · Hoy</span>
+                  ) : null}
+                </h2>
+                <p className="tareas-op-hero-lead" role="status">
+                  {loading
+                    ? "Actualizando almanaque…"
+                    : !apiOnline
+                      ? "Sin conexión con la API"
+                      : `${stats.totalRutinas} rutina${stats.totalRutinas === 1 ? "" : "s"} activas en ${cuentaNombre}`}
+                </p>
+              </div>
+              <div className="tareas-op-hero-month" aria-hidden>
+                <CalendarDays size={22} />
+                <span>
+                  {MESES_ES[viewMonth]} {viewYear}
+                </span>
+              </div>
+            </div>
+          </section>
 
           <div className="sg-hub-kpi-strip tareas-op-kpi-strip" aria-label="Resumen del día">
-            <article className="sg-hub-kpi">
-              <p className="sg-hub-kpi-kicker">Rutinas activas</p>
-              <p className="sg-hub-kpi-value">{loading ? "—" : stats.totalRutinas}</p>
-              <p className="sg-hub-kpi-hint">Programadas por día de la semana</p>
-            </article>
-            <article className="sg-hub-kpi">
-              <p className="sg-hub-kpi-kicker">Hoy · {stats.diaSemana}</p>
-              <p className="sg-hub-kpi-value">{loading ? "—" : stats.delDia}</p>
-              <p className="sg-hub-kpi-hint">Tareas previstas para el día seleccionado</p>
-            </article>
-            <article className="sg-hub-kpi">
-              <p className="sg-hub-kpi-kicker">Pendientes</p>
-              <p className="sg-hub-kpi-value">{loading ? "—" : stats.pendientes}</p>
-              <p className="sg-hub-kpi-hint">Sin registro de trabajo todavía</p>
-            </article>
-            <article className="sg-hub-kpi sg-hub-kpi--dark">
-              <p className="sg-hub-kpi-kicker">Registradas</p>
-              <p className="sg-hub-kpi-value">{loading ? "—" : stats.registradas}</p>
-              <p className="sg-hub-kpi-hint">
-                {stats.delDia > 0 ? `${stats.pct}% del día completado` : "Sin tareas este día"}
-              </p>
-            </article>
+            <SgHubKpi
+              kicker="Rutinas activas"
+              value={loading ? "—" : stats.totalRutinas}
+              hint="Programadas por día de la semana"
+              trend="Semanal"
+              bars={<SgMiniBars highlight="mid" />}
+            />
+            <SgHubKpi
+              kicker={`Hoy · ${stats.diaSemana}`}
+              value={loading ? "—" : stats.delDia}
+              hint="Tareas previstas para el día seleccionado"
+              trend="Día"
+              bars={<SgMiniBars />}
+            />
+            <SgHubKpi
+              kicker="Pendientes"
+              value={loading ? "—" : stats.pendientes}
+              hint="Sin registro de trabajo todavía"
+              trend="Por hacer"
+              bars={<SgMiniBars highlight="last" />}
+            />
+            <SgHubKpi
+              variant="dark"
+              kicker="Registradas"
+              value={loading ? "—" : stats.registradas}
+              hint={
+                stats.delDia > 0
+                  ? `${stats.pct}% del día completado`
+                  : "Sin tareas este día"
+              }
+              trend={stats.delDia > 0 ? `${stats.pct}%` : "—"}
+              bars={<SgMiniBars highlight="last" />}
+            />
           </div>
 
           <div className="tareas-op-toolbar">
@@ -722,9 +798,9 @@ export default function TareasOperativas({
                                       {lugarLabel(t) ? (
                                         <small>{lugarLabel(t)}</small>
                                       ) : null}
-                                      {t.asignado_nombre ? (
+                                      {responsablesLabel(t, equipo.length) ? (
                                         <small className="tareas-op-day-popover-assignee">
-                                          {t.asignado_nombre}
+                                          {responsablesLabel(t, equipo.length)}
                                         </small>
                                       ) : null}
                                     </span>
@@ -757,6 +833,16 @@ export default function TareasOperativas({
                     </div>
                   </div>
                 ) : null}
+              </div>
+              <div className="tareas-op-calendar-legend" aria-hidden>
+                <span>
+                  <i className="tareas-op-legend-dot tareas-op-legend-dot--rutina" />
+                  Con rutinas
+                </span>
+                <span>
+                  <i className="tareas-op-legend-ring" />
+                  Hoy
+                </span>
               </div>
             </section>
 
@@ -803,12 +889,12 @@ export default function TareasOperativas({
               {!loading && rutinasDelDia.length === 0 ? (
                 <div className="tareas-op-empty">
                   <span className="tareas-op-empty-icon" aria-hidden>
-                    <ClipboardList size={22} />
+                    <ClipboardList size={26} strokeWidth={1.5} />
                   </span>
-                  <p className="tareas-op-empty-title">Sin rutinas este día</p>
+                  <p className="tareas-op-empty-title">Día tranquilo en el campo</p>
                   <p className="tareas-op-empty-text">
-                    No hay tareas programadas para los {stats.diaSemana.toLowerCase()}. Creá una rutina
-                    semanal para que aparezca acá cada semana.
+                    No hay rutinas para los {stats.diaSemana.toLowerCase()}. Creá una tarea semanal
+                    y aparecerá acá cada semana, con registro de lo hecho.
                   </p>
                   {puedeEditar ? (
                     <button
@@ -816,8 +902,8 @@ export default function TareasOperativas({
                       className="sg-hub-cta tareas-op-empty-cta"
                       onClick={() => openCreateRutina(selectedDate)}
                     >
+                      <Plus size={15} aria-hidden />
                       Crear rutina
-                      <ArrowRight size={15} aria-hidden />
                     </button>
                   ) : null}
                 </div>
@@ -828,7 +914,7 @@ export default function TareasOperativas({
                   {rutinasDelDia.map((t) => {
                     const registrado = tareasRegistradasIds.has(t.id);
                     return (
-                      <li key={t.id}>
+                      <li key={t.id} className="tareas-op-task-row">
                         <button
                           type="button"
                           className={`tareas-op-task-item${registrado ? " is-done" : ""}`}
@@ -858,10 +944,10 @@ export default function TareasOperativas({
                                 <Repeat size={13} aria-hidden />
                                 Cada {OPERATIVA_DIA_SEMANA_LABELS[(t.dia_semana ?? 0) as OperativaDiaSemana]}
                               </span>
-                              {t.asignado_nombre ? (
+                              {responsablesLabel(t, equipo.length) ? (
                                 <span>
                                   <Users size={13} aria-hidden />
-                                  {t.asignado_nombre}
+                                  {responsablesLabel(t, equipo.length)}
                                 </span>
                               ) : null}
                               {lugarLabel(t) ? (
@@ -874,6 +960,18 @@ export default function TareasOperativas({
                           </div>
                           <ArrowRight size={16} className="tareas-op-task-chevron" aria-hidden />
                         </button>
+                        {puedeEditar ? (
+                          <button
+                            type="button"
+                            className="tareas-op-task-delete"
+                            onClick={() => void removeRutina(t)}
+                            disabled={saving}
+                            aria-label={`Eliminar rutina ${t.titulo}`}
+                            title="Eliminar rutina"
+                          >
+                            <Trash2 size={16} aria-hidden />
+                          </button>
+                        ) : null}
                       </li>
                     );
                   })}
@@ -886,28 +984,35 @@ export default function TareasOperativas({
 
       {modalOpen ? (
         <div
-          className="pd-overlay usuarios-form-modal-overlay bn-ui"
+          className="pd-overlay usuarios-form-modal-overlay tareas-op-modal-overlay bn-ui"
           onClick={closeModal}
           role="presentation"
         >
           <div
-            className="pd-dialog usuarios-form-modal tareas-op-form-modal"
+            className={`pd-dialog tareas-op-sanidad-modal${
+              modalMode === "rutina" ? " tareas-op-sanidad-modal--rutina" : ""
+            }`}
             role="dialog"
             aria-modal="true"
             aria-labelledby="tareas-op-modal-title"
             onClick={(e) => e.stopPropagation()}
           >
-            <header className="usuarios-form-modal-head">
-              <div className="usuarios-form-modal-head-main">
-                <p className="usuarios-form-modal-kicker">Operaciones</p>
-                <h2 id="tareas-op-modal-title" className="usuarios-form-modal-title">
-                  {modalTitle}
-                </h2>
-                <p className="usuarios-form-modal-sub">{modalSub}</p>
+            <header className="stock-sanidad-hub-head-box tareas-op-sanidad-modal-head">
+              <div className="tareas-op-sanidad-modal-head-row">
+                <span className="stock-sanidad-panel-head-icon tareas-op-sanidad-modal-head-icon" aria-hidden>
+                  {modalMode === "rutina" ? <Repeat size={20} /> : <ClipboardList size={20} />}
+                </span>
+                <div className="tareas-op-sanidad-modal-head-copy">
+                  <p className="sg-hub-panel-kicker">Operaciones</p>
+                  <h2 id="tareas-op-modal-title" className="stock-sanidad-hub-title">
+                    {modalTitle}
+                  </h2>
+                  <p className="stock-sanidad-hub-sub muted">{modalSub}</p>
+                </div>
               </div>
               <button
                 type="button"
-                className="usuarios-form-modal-close"
+                className="tareas-op-sanidad-modal-close"
                 onClick={closeModal}
                 aria-label="Cerrar"
                 disabled={saving}
@@ -916,14 +1021,27 @@ export default function TareasOperativas({
               </button>
             </header>
 
-            <div className="usuarios-form-modal-body">
-              {(modalMode === "rutina" || puedeEditar) && (
-                <div className="usuarios-form-modal-panel">
-                  <p className="usuarios-form-modal-section-title">
-                    {modalMode === "ejecucion" ? "Rutina semanal" : "Planificación"}
+            <div className="tareas-op-sanidad-modal-body">
+              {modalMode === "rutina" && !editing ? (
+                <div className="stock-sanidad-seleccion-bar tareas-op-sanidad-modal-guide">
+                  <p>
+                    Programá una tarea que se repita cada semana el mismo día. El equipo la verá en
+                    el calendario operativo.
                   </p>
+                </div>
+              ) : null}
+
+              {(modalMode === "rutina" || puedeEditar) && (
+                <div className="stock-sanidad-hub-box stock-sanidad-hub-box--registro-form">
+                  <header className="stock-sanidad-hub-head-box stock-sanidad-hub-head-box--panel">
+                    <p className="sg-hub-panel-kicker">Planificación</p>
+                    <h3 className="stock-sanidad-hub-title">
+                      {modalMode === "ejecucion" ? "Rutina semanal" : "Datos de la rutina"}
+                    </h3>
+                  </header>
+
                   {modalMode === "ejecucion" && !puedeEditar ? (
-                    <div className="tareas-op-rutina-resumen">
+                    <div className="tareas-op-rutina-resumen tareas-op-sanidad-modal-resumen">
                       <p>
                         <strong>{form.titulo}</strong>
                       </p>
@@ -933,179 +1051,254 @@ export default function TareasOperativas({
                       </p>
                     </div>
                   ) : (
-                    <div className="usuarios-form-grid">
-                      <div className="field">
-                        <label htmlFor="rutina-dia">Día de la semana</label>
-                        <select
-                          id="rutina-dia"
-                          value={form.dia_semana}
-                          onChange={(e) =>
-                            setForm((f) => ({
-                              ...f,
-                              dia_semana: Number(e.target.value) as OperativaDiaSemana,
-                            }))
-                          }
-                          disabled={!puedeEditar || saving}
-                        >
-                          {DIAS_SEMANA.map((d) => (
-                            <option key={d} value={d}>
-                              {OPERATIVA_DIA_SEMANA_LABELS[d]}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div className="field">
-                        <label htmlFor="rutina-asignado">Responsable</label>
-                        <select
-                          id="rutina-asignado"
-                          value={form.asignado_user_id}
-                          onChange={(e) =>
-                            setForm((f) => ({ ...f, asignado_user_id: e.target.value }))
-                          }
-                          disabled={!puedeEditar || saving}
-                        >
-                          <option value="">Sin asignar</option>
-                          {equipo.map((u) => (
-                            <option key={u.id} value={u.id}>
-                              {u.nombre}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
+                    <div className="stock-sanidad-form-fields-box">
+                      <div className="stock-sanidad-form-body stock-sanidad-form-body--band">
+                        <section className="stock-control-sanitario-section stock-sanidad-form-section--admin">
+                          <div className="stock-control-sanitario-section-head stock-control-sanitario-section-head--solo-titulo">
+                            <StockControlSanitarioSectionTitle icon="admin">
+                              Cuándo
+                            </StockControlSanitarioSectionTitle>
+                          </div>
+                          <div className="field">
+                            <label htmlFor="rutina-dia">Día de la semana</label>
+                            <select
+                              id="rutina-dia"
+                              value={form.dia_semana}
+                              onChange={(e) =>
+                                setForm((f) => ({
+                                  ...f,
+                                  dia_semana: Number(e.target.value) as OperativaDiaSemana,
+                                }))
+                              }
+                              disabled={!puedeEditar || saving}
+                            >
+                              {DIAS_SEMANA.map((d) => (
+                                <option key={d} value={d}>
+                                  {OPERATIVA_DIA_SEMANA_LABELS[d]}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </section>
 
-                      <div className="field usuarios-form-grid-span-full">
-                        <label htmlFor="rutina-titulo">Qué hacer</label>
-                        <input
-                          id="rutina-titulo"
-                          value={form.titulo}
-                          onChange={(e) => setForm((f) => ({ ...f, titulo: e.target.value }))}
-                          maxLength={120}
-                          disabled={!puedeEditar || saving}
-                          placeholder="Ej. Revisar bebederos y alambrados"
-                        />
-                      </div>
+                        <section className="stock-control-sanitario-section stock-sanidad-form-section--controles tareas-op-responsables-section">
+                          <div className="stock-control-sanitario-section-head stock-control-sanitario-section-head--solo-titulo">
+                            <h3 className="stock-control-sanitario-section-title stock-control-sanitario-section-title--controles">
+                              <span className="stock-control-sanitario-section-title-icon" aria-hidden>
+                                <Users size={14} />
+                              </span>
+                              <span className="stock-control-sanitario-section-title-text">
+                                Responsables
+                              </span>
+                            </h3>
+                          </div>
+                          <NotaCompartirPanel
+                            miembros={equipo}
+                            seleccionados={form.asignados_user_ids}
+                            disabled={!puedeEditar || saving}
+                            onChange={(ids) =>
+                              setForm((f) => ({ ...f, asignados_user_ids: ids }))
+                            }
+                            label="Involucrados en la rutina"
+                            ariaLabel="Responsables de la rutina"
+                            equipoNombre="Todo el equipo"
+                            equipoDetalle={`${equipo.filter((u) => u.activo !== false).length} personas`}
+                            emptyMessage="No hay usuarios en tu cuenta para asignar."
+                            showMiembroRolLabel={false}
+                          />
+                        </section>
 
-                      <div className="field">
-                        <label htmlFor="rutina-potrero">Potrero / lugar</label>
-                        <select
-                          id="rutina-potrero"
-                          value={form.potrero_id}
-                          onChange={(e) => setForm((f) => ({ ...f, potrero_id: e.target.value }))}
-                          disabled={!puedeEditar || saving}
-                        >
-                          <option value="">Sin potrero del mapa</option>
-                          {potreros.map((p) => (
-                            <option key={p.id} value={p.id}>
-                              {p.nombre}
-                              {p.hectareas != null ? ` (${p.hectareas} ha)` : ""}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div className="field">
-                        <label htmlFor="rutina-ubicacion">Ubicación (texto)</label>
-                        <input
-                          id="rutina-ubicacion"
-                          value={form.ubicacion}
-                          onChange={(e) => setForm((f) => ({ ...f, ubicacion: e.target.value }))}
-                          placeholder="Ej. Molino, casa del capataz"
-                          maxLength={120}
-                          disabled={!puedeEditar || saving}
-                        />
-                      </div>
+                        <section className="stock-control-sanitario-section stock-sanidad-form-section--controles">
+                          <StockControlSanitarioSectionTitle icon="controles">
+                            La tarea
+                          </StockControlSanitarioSectionTitle>
+                          <div className="field">
+                            <label htmlFor="rutina-titulo">Qué hacer</label>
+                            <input
+                              ref={tituloInputRef}
+                              id="rutina-titulo"
+                              value={form.titulo}
+                              onChange={(e) => setForm((f) => ({ ...f, titulo: e.target.value }))}
+                              maxLength={120}
+                              disabled={!puedeEditar || saving}
+                              placeholder="Ej. Revisar bebederos y alambrados"
+                            />
+                          </div>
+                        </section>
 
-                      <div className="field usuarios-form-grid-span-full">
-                        <label htmlFor="rutina-notas">Notas (opcional)</label>
-                        <textarea
-                          id="rutina-notas"
-                          value={form.notas}
-                          onChange={(e) => setForm((f) => ({ ...f, notas: e.target.value }))}
-                          rows={2}
-                          placeholder="Indicaciones para el equipo…"
-                          disabled={!puedeEditar || saving}
-                        />
+                        <section className="stock-control-sanitario-section stock-sanidad-form-section--producto">
+                          <h3 className="stock-control-sanitario-section-title stock-control-sanitario-section-title--producto">
+                            <span className="stock-control-sanitario-section-title-icon" aria-hidden>
+                              <MapPin size={14} />
+                            </span>
+                            <span className="stock-control-sanitario-section-title-text">Dónde</span>
+                          </h3>
+                          <p className="stock-sanidad-form-hint muted tareas-op-sanidad-section-hint">
+                            Elegí un potrero del mapa o describí el lugar en texto libre.
+                          </p>
+                          <div className="stock-sanidad-form-band-row">
+                            <div className="field">
+                              <label htmlFor="rutina-potrero">Potrero / lugar</label>
+                              <select
+                                id="rutina-potrero"
+                                value={form.potrero_id}
+                                onChange={(e) =>
+                                  setForm((f) => ({ ...f, potrero_id: e.target.value }))
+                                }
+                                disabled={!puedeEditar || saving}
+                              >
+                                <option value="">Sin potrero del mapa</option>
+                                {potreros.map((p) => (
+                                  <option key={p.id} value={p.id}>
+                                    {p.nombre}
+                                    {p.hectareas != null ? ` (${p.hectareas} ha)` : ""}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                            <div className="field">
+                              <label htmlFor="rutina-ubicacion">Ubicación (texto)</label>
+                              <input
+                                id="rutina-ubicacion"
+                                value={form.ubicacion}
+                                onChange={(e) =>
+                                  setForm((f) => ({ ...f, ubicacion: e.target.value }))
+                                }
+                                placeholder="Ej. Molino, casa del capataz"
+                                maxLength={120}
+                                disabled={!puedeEditar || saving}
+                              />
+                            </div>
+                          </div>
+                        </section>
+
+                        <section className="stock-control-sanitario-section stock-sanidad-form-section--admin">
+                          <div className="stock-control-sanitario-section-head stock-control-sanitario-section-head--solo-titulo">
+                            <h3 className="stock-control-sanitario-section-title stock-control-sanitario-section-title--admin">
+                              <span className="stock-control-sanitario-section-title-icon" aria-hidden>
+                                <ClipboardList size={14} />
+                              </span>
+                              <span className="stock-control-sanitario-section-title-text">
+                                Indicaciones
+                                <span className="tareas-op-sanidad-optional">opcional</span>
+                              </span>
+                            </h3>
+                          </div>
+                          <div className="field">
+                            <label htmlFor="rutina-notas" className="sr-only">
+                              Notas
+                            </label>
+                            <textarea
+                              id="rutina-notas"
+                              value={form.notas}
+                              onChange={(e) => setForm((f) => ({ ...f, notas: e.target.value }))}
+                              rows={2}
+                              placeholder="Indicaciones para el equipo…"
+                              disabled={!puedeEditar || saving}
+                            />
+                          </div>
+                        </section>
                       </div>
                     </div>
                   )}
+
                   {modalMode === "ejecucion" && puedeEditar ? (
-                    <button
-                      type="button"
-                      className="btn btn-ghost sg-hub-cta sg-hub-cta--ghost sg-hub-cta--compact tareas-op-save-rutina-inline"
-                      onClick={() => void saveRutina()}
-                      disabled={saving}
-                    >
-                      Guardar cambios de rutina
-                    </button>
+                    <div className="stock-sanidad-form-actions stock-sanidad-form-actions--head tareas-op-sanidad-inline-actions">
+                      <button
+                        type="button"
+                        className="sg-hub-cta sg-hub-cta--ghost sg-hub-cta--compact"
+                        onClick={() => void saveRutina()}
+                        disabled={saving}
+                      >
+                        Guardar cambios de rutina
+                      </button>
+                    </div>
                   ) : null}
                 </div>
               )}
 
               {modalMode === "ejecucion" && editing ? (
-                <div className="usuarios-form-modal-panel usuarios-form-modal-panel--secondary tareas-op-registros-panel">
-                  <p className="usuarios-form-modal-section-title">
-                    Registro del {formatFechaCorta(selectedDate)}
-                  </p>
-                  <p className="usuarios-form-modal-section-hint">
-                    Qué se hizo en el campo y qué resultados se obtuvieron.
-                  </p>
-                  {registros.length === 0 ? (
-                    <p className="tareas-op-hint">Sin registro para este día.</p>
-                  ) : (
-                    <ul className="tareas-op-registros-list">
-                      {registros.map((r) => (
-                        <li key={r.id}>
-                          <strong>{r.user_nombre ?? "Equipo"}</strong>
-                          <p>{r.texto}</p>
-                          {r.ganado_detalle ? (
-                            <small>Resultados: {r.ganado_detalle}</small>
-                          ) : null}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                  {puedeEditar ? (
-                    <div className="tareas-op-registro-form">
-                      <div className="field">
-                        <label htmlFor="registro-hecho">Qué se hizo</label>
-                        <textarea
-                          id="registro-hecho"
-                          value={registroTexto}
-                          onChange={(e) => setRegistroTexto(e.target.value)}
-                          rows={3}
-                          placeholder="Ej. Se revisaron 8 km de alambrado, se repararon 2 postes…"
-                          disabled={saving}
-                        />
+                <div className="stock-sanidad-hub-box tareas-op-sanidad-registros-box">
+                  <header className="stock-sanidad-hub-head-box stock-sanidad-hub-head-box--panel">
+                    <p className="sg-hub-panel-kicker">Registro</p>
+                    <h3 className="stock-sanidad-hub-title">
+                      Trabajo del {formatFechaCorta(selectedDate)}
+                    </h3>
+                    <p className="stock-sanidad-hub-sub muted">
+                      Qué se hizo en el campo y qué resultados se obtuvieron.
+                    </p>
+                  </header>
+
+                  <div className="stock-sanidad-form-fields-box">
+                    {registros.length === 0 ? (
+                      <div className="tareas-op-sanidad-empty-registro">
+                        <CircleDashed size={20} aria-hidden />
+                        <p>Sin registro para este día todavía.</p>
                       </div>
-                      <div className="field">
-                        <label htmlFor="registro-resultados">Resultados / observaciones</label>
-                        <textarea
-                          id="registro-resultados"
-                          value={registroResultados}
-                          onChange={(e) => setRegistroResultados(e.target.value)}
-                          rows={2}
-                          placeholder="Ej. Potrero listo para entrar 80 novillos el jueves…"
-                          disabled={saving}
-                        />
+                    ) : (
+                      <ul className="tareas-op-registros-list">
+                        {registros.map((r) => (
+                          <li key={r.id}>
+                            <strong>{r.user_nombre ?? "Equipo"}</strong>
+                            <p>{r.texto}</p>
+                            {r.ganado_detalle ? (
+                              <small>Resultados: {r.ganado_detalle}</small>
+                            ) : null}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+
+                    {puedeEditar ? (
+                      <div className="stock-sanidad-form-body stock-sanidad-form-body--band tareas-op-registro-form">
+                        <section className="stock-control-sanitario-section stock-sanidad-form-section--controles">
+                          <StockControlSanitarioSectionTitle icon="controles">
+                            Nuevo registro
+                          </StockControlSanitarioSectionTitle>
+                          <div className="field">
+                            <label htmlFor="registro-hecho">Qué se hizo</label>
+                            <textarea
+                              id="registro-hecho"
+                              value={registroTexto}
+                              onChange={(e) => setRegistroTexto(e.target.value)}
+                              rows={3}
+                              placeholder="Ej. Se revisaron 8 km de alambrado, se repararon 2 postes…"
+                              disabled={saving}
+                            />
+                          </div>
+                          <div className="field">
+                            <label htmlFor="registro-resultados">Resultados / observaciones</label>
+                            <textarea
+                              id="registro-resultados"
+                              value={registroResultados}
+                              onChange={(e) => setRegistroResultados(e.target.value)}
+                              rows={2}
+                              placeholder="Ej. Potrero listo para entrar 80 novillos el jueves…"
+                              disabled={saving}
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            className="sg-hub-cta sg-hub-cta--compact"
+                            onClick={() => void addRegistro()}
+                            disabled={saving}
+                          >
+                            <CheckCircle2 size={15} aria-hidden />
+                            Guardar registro
+                          </button>
+                        </section>
                       </div>
-                      <button
-                        type="button"
-                        className="btn btn-primary"
-                        onClick={() => void addRegistro()}
-                        disabled={saving}
-                      >
-                        Guardar registro
-                      </button>
-                    </div>
-                  ) : null}
+                    ) : null}
+                  </div>
                 </div>
               ) : null}
             </div>
 
-            <footer className="usuarios-form-modal-footer tareas-op-form-modal-footer">
+            <footer className="stock-sanidad-form-actions tareas-op-sanidad-modal-footer">
               {editing && puedeEditar ? (
                 <button
                   type="button"
-                  className="btn btn-ghost sg-hub-cta sg-hub-cta--danger sg-hub-cta--compact"
+                  className="sg-hub-cta sg-hub-cta--danger sg-hub-cta--compact"
                   onClick={() => void removeRutina(editing)}
                   disabled={saving}
                 >
@@ -1115,10 +1308,10 @@ export default function TareasOperativas({
               ) : (
                 <span />
               )}
-              <div className="tareas-op-form-modal-footer-actions">
+              <div className="tareas-op-sanidad-modal-footer-actions">
                 <button
                   type="button"
-                  className="btn btn-ghost usuarios-form-modal-cancel"
+                  className="sg-hub-cta sg-hub-cta--ghost"
                   onClick={closeModal}
                   disabled={saving}
                 >
@@ -1127,11 +1320,21 @@ export default function TareasOperativas({
                 {puedeEditar && modalMode === "rutina" ? (
                   <button
                     type="button"
-                    className="btn btn-primary"
+                    className="sg-hub-cta"
                     onClick={() => void saveRutina()}
                     disabled={saving}
                   >
-                    {editing ? "Guardar rutina" : "Crear rutina"}
+                    {editing ? (
+                      <>
+                        <CheckCircle2 size={15} aria-hidden />
+                        Guardar rutina
+                      </>
+                    ) : (
+                      <>
+                        <Plus size={15} aria-hidden />
+                        Crear rutina
+                      </>
+                    )}
                   </button>
                 ) : null}
               </div>

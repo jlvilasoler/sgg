@@ -26,6 +26,8 @@ function toBool(value: unknown): boolean {
 export function normalizeVentaAgriculturaRow(row: VentaAgriculturaRow): VentaAgriculturaRow {
   return {
     ...row,
+    costo_impuestos_usd: Number(row.costo_impuestos_usd ?? 0),
+    costo_flete_usd: Number(row.costo_flete_usd ?? 0),
     venta_realizada: toBool(row.venta_realizada),
     destacada: toBool(row.destacada),
     real_importe_usd:

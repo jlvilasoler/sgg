@@ -579,11 +579,37 @@
 }
 
 .bn-ui .ventas-agricultura-form-hub .ventas-agricultura-zafra,
+.bn-ui .ventas-agricultura-form-hub .ventas-agricultura-costos,
 .bn-ui .ventas-agricultura-form-hub .ventas-arrendamiento-fechas,
 .bn-ui .ventas-agricultura-form-hub .ventas-arrendamiento-pagos {
   background: color-mix(in srgb, var(--sg-hub-workspace) 50%, var(--sg-hub-surface));
   border: 1px solid color-mix(in srgb, var(--bn-border, #eaecef) 92%, transparent);
   border-radius: var(--sg-hub-radius-md);
+}
+
+.bn-ui .ventas-agricultura-form-hub .ventas-agricultura-costos-grid .field > input {
+  height: var(--form-control-h);
+  min-height: var(--form-control-h);
+  box-sizing: border-box;
+  padding: 0.48rem 0.55rem;
+  font-size: 0.84rem;
+  border-color: var(--bn-border, #eaecef);
+  border-radius: var(--sg-hub-radius-md);
+  background: var(--sg-hub-surface);
+}
+
+.bn-ui .ventas-agricultura-form-hub .ventas-agricultura-costos-grid .field > input:focus {
+  outline: none;
+  border-color: color-mix(in srgb, var(--sg-hub-accent) 45%, var(--bn-border, #eaecef));
+  box-shadow: 0 0 0 2px var(--sg-hub-accent-soft);
+}
+
+.bn-ui .ventas-agricultura-form-hub .ventas-agricultura-costos-title {
+  margin: 0 0 0.75rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--bn-text, #1e2329);
+  text-transform: none;
 }
 
 .bn-ui .ventas-agricultura-form-hub .ventas-agricultura-resumen {
@@ -604,31 +630,6 @@
   background: var(--sg-hub-accent) !important;
   border-color: var(--sg-hub-accent) !important;
   color: #fff !important;
-}
-
-.bn-ui .ventas-agricultura-form-hub .ventas-agricultura-cultivo-select {
-  position: relative;
-}
-
-.bn-ui .ventas-agricultura-form-hub .ventas-agricultura-cultivo-select .stock-control-sanitario-field-trigger {
-  width: 100%;
-  min-height: 2.45rem;
-  padding: 0.55rem 2rem 0.55rem 0.75rem;
-  border-radius: var(--sg-hub-radius-md, 0.65rem);
-  border: 1px solid color-mix(in srgb, var(--bn-border, #eaecef) 92%, transparent);
-  background: var(--sg-hub-surface, #fff);
-  text-align: left;
-  font-size: 0.92rem;
-}
-
-.bn-ui .ventas-agricultura-form-hub .ventas-agricultura-cultivo-select .stock-control-sanitario-field-trigger:focus-visible {
-  outline: none;
-  border-color: color-mix(in srgb, var(--sg-hub-accent) 45%, var(--bn-border, #eaecef));
-  box-shadow: 0 0 0 2px var(--sg-hub-accent-soft);
-}
-
-.bn-ui .ventas-agricultura-form-hub .ventas-agricultura-cultivo-select .proveedor-panel {
-  z-index: 40;
 }
 
 .bn-ui .ventas-module-page .ventas-ingresos-list-panel .table-pagination {

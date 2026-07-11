@@ -155,11 +155,16 @@ export default function VentasAgriculturaCultivoSelect({
     return () => document.removeEventListener("mousedown", onDocClick);
   }, [abierto, cerrar]);
 
-  const textoSeleccion = normalizeCultivoNombre(value) || "— Seleccionar —";
-  const tieneValor = Boolean(normalizeCultivoNombre(value));
+  const cultivo = normalizeCultivoNombre(value);
+  const textoSeleccion = cultivo || "— Seleccionar —";
+  const metaLabel = cargando
+    ? "Cargando catálogo…"
+    : busqueda.trim()
+      ? `${listaFiltrada.length} coincidencia(s) de ${todasLasOpciones.length}`
+      : `${todasLasOpciones.length} cultivo(s) — del rubro Venta agricultura`;
 
   return (
-    <div className="ventas-agricultura-cultivo-select stock-control-sanitario-marca-select" ref={rootRef}>
+    <div className="stock-control-sanitario-marca-select" ref={rootRef}>
       <div className="stock-control-sanitario-select-shell">
         <button
           type="button"
@@ -170,15 +175,11 @@ export default function VentasAgriculturaCultivoSelect({
           onClick={() => (abierto ? cerrar() : abrir())}
           disabled={disabled}
         >
-          {tieneValor ? (
-            <span className="stock-control-sanitario-field-trigger-value">{textoSeleccion}</span>
-          ) : (
-            <span className="stock-control-sanitario-field-trigger-placeholder">
-              {textoSeleccion}
-            </span>
-          )}
+          <span className={cultivo ? "" : "stock-control-sanitario-field-trigger-placeholder"}>
+            {textoSeleccion}
+          </span>
         </button>
-        {tieneValor && !disabled ? (
+        {cultivo && !disabled ? (
           <button
             type="button"
             className="stock-control-sanitario-field-clear"
@@ -217,13 +218,7 @@ export default function VentasAgriculturaCultivoSelect({
               }}
             />
           </div>
-          <p className="proveedor-panel-meta">
-            {cargando
-              ? "Cargando catálogo…"
-              : busqueda.trim()
-                ? `${listaFiltrada.length} coincidencia(s) de ${todasLasOpciones.length}`
-                : `${todasLasOpciones.length} cultivo(s) — del rubro Venta agricultura`}
-          </p>
+          <p className="proveedor-panel-meta">{metaLabel}</p>
 
           {modoNuevo && puedeAgregar ? (
             <div
@@ -239,12 +234,9 @@ export default function VentasAgriculturaCultivoSelect({
             >
               <div className="proveedor-panel-nuevo-head">
                 <p className="proveedor-panel-nuevo-title">Nuevo cultivo</p>
-                <p className="muted proveedor-panel-nuevo-hint">
-                  Se guarda en Rubros de ingresos por ventas (Venta agricultura).
-                </p>
               </div>
               <div className="field">
-                <label htmlFor={`${id}-nuevo`}>Nombre</label>
+                <label htmlFor={`${id}-nuevo`}>Cultivo</label>
                 <input
                   ref={nuevaRef}
                   id={`${id}-nuevo`}
@@ -259,7 +251,7 @@ export default function VentasAgriculturaCultivoSelect({
               <div className="proveedor-panel-nuevo-actions">
                 <button
                   type="button"
-                  className="btn btn-primary btn-sm sg-hub-cta"
+                  className="btn btn-primary btn-sm"
                   disabled={!nuevoCultivo.trim() || guardando}
                   onClick={() => void guardarNueva()}
                 >
@@ -309,11 +301,10 @@ export default function VentasAgriculturaCultivoSelect({
                     <button
                       type="button"
                       role="option"
-                      aria-selected={normalizeCultivoNombre(value) === nombre}
-                      className="stock-control-sanitario-marca-row-btn"
+                      aria-selected={cultivo === nombre}
                       onClick={() => elegir(nombre)}
                     >
-                      <span className="stock-control-sanitario-marca-row-label">{nombre}</span>
+                      {nombre}
                     </button>
                   </li>
                 ))

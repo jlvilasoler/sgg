@@ -19,6 +19,7 @@ import {
   empresasSelectOptions,
   MESES_AGRICULTURA,
   calcularImporteAgricultura,
+  calcularImporteNetoAgricultura,
   calcularTotalProduccionAgricultura,
   calcUsdPorHa,
   OPCIONES_MES_ANIO_AGRICULTURA,
@@ -31,6 +32,7 @@ import {
   labelCultivoAgricultura,
   labelEmpresaAgricultura,
   parsePositiveDecimal,
+  parseNonNegativeDecimal,
   VENTAS_AGRICULTURA_COPY,
   type EmpresaAgricultura,
   type MesAgricultura,
@@ -96,6 +98,8 @@ export default function VentasAgricultura({
   const [cultivosCatalogo, setCultivosCatalogo] = useState<string[]>([]);
   const [rendimiento, setRendimiento] = useState("");
   const [precio, setPrecio] = useState("");
+  const [impuestos, setImpuestos] = useState("");
+  const [flete, setFlete] = useState("");
   const [saving, setSaving] = useState(false);
 
   const [rows, setRows] = useState<VentaAgriculturaRow[]>([]);
@@ -152,15 +156,22 @@ export default function VentasAgricultura({
   const hasNum = useMemo(() => parsePositiveDecimal(hectareas), [hectareas]);
   const rendimientoNum = useMemo(() => parsePositiveDecimal(rendimiento), [rendimiento]);
   const precioNum = useMemo(() => parsePositiveDecimal(precio), [precio]);
+  const impuestosNum = useMemo(() => parseNonNegativeDecimal(impuestos), [impuestos]);
+  const fleteNum = useMemo(() => parseNonNegativeDecimal(flete), [flete]);
 
   const totalProduccion = useMemo(
     () => calcularTotalProduccionAgricultura(hasNum, rendimientoNum),
     [hasNum, rendimientoNum]
   );
 
-  const importeTotal = useMemo(
+  const importeBruto = useMemo(
     () => calcularImporteAgricultura(totalProduccion, precioNum),
     [totalProduccion, precioNum]
+  );
+
+  const importeTotal = useMemo(
+    () => calcularImporteNetoAgricultura(importeBruto, impuestosNum, fleteNum),
+    [importeBruto, impuestosNum, fleteNum]
   );
 
   const puedeGuardar =
@@ -182,6 +193,8 @@ export default function VentasAgricultura({
     setCultivo("");
     setRendimiento("");
     setPrecio("");
+    setImpuestos("");
+    setFlete("");
     setEditingId(null);
   };
 
@@ -193,6 +206,8 @@ export default function VentasAgricultura({
     setHectareas(String(row.hectareas));
     setRendimiento(String(row.rendimiento_ton_ha));
     setPrecio(String(row.precio_usd_ton));
+    setImpuestos(row.costo_impuestos_usd > 0 ? String(row.costo_impuestos_usd) : "");
+    setFlete(row.costo_flete_usd > 0 ? String(row.costo_flete_usd) : "");
     setEditingId(row.id);
     setEditingRealId(null);
     formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -247,6 +262,10 @@ export default function VentasAgricultura({
       onError("El mes final debe ser posterior o igual al mes de inicio");
       return;
     }
+    if (importeBruto != null && impuestosNum + fleteNum > importeBruto) {
+      onError("Impuestos y flete no pueden superar el importe bruto");
+      return;
+    }
     setSaving(true);
     try {
       const payload = {
@@ -259,6 +278,8 @@ export default function VentasAgricultura({
         hectareas: hasNum!,
         rendimiento_ton_ha: rendimientoNum!,
         precio_usd_ton: precioNum!,
+        costo_impuestos_usd: impuestosNum,
+        costo_flete_usd: fleteNum,
       };
       if (editingId != null) {
         await updateVentaAgricultura(editingId, payload);
@@ -690,7 +711,7 @@ export default function VentasAgricultura({
           </div>
 
           <div className="field">
-            <label htmlFor="va-cultivo">Tipo de cultivo</label>
+            <label htmlFor="va-cultivo-trigger">Tipo de cultivo</label>
             <VentasAgriculturaCultivoSelect
               id="va-cultivo"
               value={cultivo}
@@ -744,6 +765,37 @@ export default function VentasAgricultura({
               aria-readonly="true"
             />
           </div>
+
+          <div className="ventas-agricultura-costos span-3">
+            <h3 className="ventas-agricultura-costos-title">Costos de producción</h3>
+            <div className="ventas-agricultura-costos-grid">
+              <div className="field">
+                <label htmlFor="va-impuestos">Impuestos (USD)</label>
+                <input
+                  id="va-impuestos"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="Ej: 120"
+                  value={impuestos}
+                  onChange={(e) => setImpuestos(e.target.value)}
+                />
+              </div>
+
+              <div className="field">
+                <label htmlFor="va-flete">Flete (USD)</label>
+                <input
+                  id="va-flete"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="Ej: 80"
+                  value={flete}
+                  onChange={(e) => setFlete(e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
         </div>
 
         <div className="ventas-agricultura-resumen" aria-live="polite">
@@ -762,7 +814,23 @@ export default function VentasAgricultura({
             </strong>
           </div>
           <div className="ventas-agricultura-resumen-item">
-            <span className="ventas-agricultura-resumen-label">Importe estimado</span>
+            <span className="ventas-agricultura-resumen-label">Importe bruto</span>
+            <strong>{importeBruto != null ? `USD ${fmtNum(importeBruto, 2)}` : "—"}</strong>
+          </div>
+          {(impuestosNum > 0 || fleteNum > 0) && (
+            <>
+              <div className="ventas-agricultura-resumen-item ventas-agricultura-resumen-item--costo">
+                <span className="ventas-agricultura-resumen-label">Impuestos</span>
+                <strong>− USD {fmtNum(impuestosNum, 2)}</strong>
+              </div>
+              <div className="ventas-agricultura-resumen-item ventas-agricultura-resumen-item--costo">
+                <span className="ventas-agricultura-resumen-label">Flete</span>
+                <strong>− USD {fmtNum(fleteNum, 2)}</strong>
+              </div>
+            </>
+          )}
+          <div className="ventas-agricultura-resumen-item ventas-agricultura-resumen-item--neto">
+            <span className="ventas-agricultura-resumen-label">Importe neto estimado</span>
             <strong>
               {importeTotal != null ? `USD ${fmtNum(importeTotal, 2)}` : "—"}
             </strong>

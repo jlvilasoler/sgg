@@ -546,6 +546,8 @@ export async function createVentaAgricultura(data: {
   hectareas: number;
   rendimiento_ton_ha: number;
   precio_usd_ton: number;
+  costo_impuestos_usd?: number;
+  costo_flete_usd?: number;
 }): Promise<VentaAgriculturaRow> {
   const json = await request<{ ok: boolean; data: VentaAgriculturaRow; message: string }>(
     "/ingresos-ventas/ventas-agricultura",
@@ -569,6 +571,8 @@ export async function updateVentaAgricultura(
     hectareas: number;
     rendimiento_ton_ha: number;
     precio_usd_ton: number;
+    costo_impuestos_usd?: number;
+    costo_flete_usd?: number;
   }
 ): Promise<VentaAgriculturaRow> {
   const json = await request<{ ok: boolean; data: VentaAgriculturaRow; message: string }>(

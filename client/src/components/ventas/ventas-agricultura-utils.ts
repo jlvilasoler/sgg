@@ -41,6 +41,14 @@ export function parsePositiveDecimal(value: string): number | null {
   return n;
 }
 
+export function parseNonNegativeDecimal(value: string): number {
+  const trimmed = value.replace(",", ".").trim();
+  if (!trimmed) return 0;
+  const n = Number(trimmed);
+  if (!Number.isFinite(n) || n < 0) return 0;
+  return n;
+}
+
 export function formatOperacionAgricultura(id: number): string {
   return `VA${String(Math.max(1, Math.floor(id))).padStart(3, "0")}`;
 }
@@ -64,6 +72,15 @@ export function calcularImporteAgricultura(
 ): number | null {
   if (totalProduccion == null || precio == null) return null;
   return (totalProduccion * precio) / 1000;
+}
+
+export function calcularImporteNetoAgricultura(
+  importeBruto: number | null,
+  impuestos: number,
+  flete: number
+): number | null {
+  if (importeBruto == null) return null;
+  return Math.max(0, importeBruto - impuestos - flete);
 }
 
 /** Total producción en toneladas: ej. 20,0 ton (valor interno en kg). */

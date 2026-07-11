@@ -417,16 +417,16 @@ export default function HomeMenu({
 
   const renderNavApp = (app: MenuApp) => (
     <button
-      key={app.id}
+            key={app.id}
       type="button"
       className="sg-hub-nav-item"
-      onClick={() => onOpen(app.id)}
-      onMouseEnter={
-        app.id === "vencimientos_impuestos" ? prefetchVencimientosImpuestos : undefined
-      }
-      onFocus={
-        app.id === "vencimientos_impuestos" ? prefetchVencimientosImpuestos : undefined
-      }
+            onClick={() => onOpen(app.id)}
+            onMouseEnter={
+              app.id === "vencimientos_impuestos" ? prefetchVencimientosImpuestos : undefined
+            }
+            onFocus={
+              app.id === "vencimientos_impuestos" ? prefetchVencimientosImpuestos : undefined
+            }
     >
       <span className="sg-hub-nav-icon home-hub-nav-icon" aria-hidden>
         <MenuAppIcon id={app.id} className="menu-app-icon-svg" />

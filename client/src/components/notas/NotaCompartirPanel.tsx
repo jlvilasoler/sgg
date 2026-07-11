@@ -8,6 +8,12 @@ interface Props {
   seleccionados: number[];
   disabled?: boolean;
   onChange: (ids: number[]) => void;
+  label?: string;
+  ariaLabel?: string;
+  equipoNombre?: string;
+  equipoDetalle?: string;
+  emptyMessage?: string;
+  showMiembroRolLabel?: boolean;
 }
 
 export function idsTodoElEquipo(miembros: AuthUser[]): number[] {
@@ -28,6 +34,12 @@ export default function NotaCompartirPanel({
   seleccionados,
   disabled = false,
   onChange,
+  label = "Compartir con",
+  ariaLabel = "Compartir con usuarios del equipo",
+  equipoNombre = "Todo el equipo",
+  equipoDetalle,
+  emptyMessage = "No hay otros usuarios en tu cuenta para compartir notas.",
+  showMiembroRolLabel = true,
 }: Props) {
   const equipo = useMemo(
     () => miembros.filter((m) => m.activo !== false),
@@ -56,14 +68,14 @@ export default function NotaCompartirPanel({
   if (!equipo.length) {
     return (
       <p className="notas-share-panel-empty">
-        No hay otros usuarios en tu cuenta para compartir notas.
+        {emptyMessage}
       </p>
     );
   }
 
   return (
-    <div className="notas-share-panel" role="group" aria-label="Compartir con usuarios del equipo">
-      <p className="notas-share-panel-label">Compartir con</p>
+    <div className="notas-share-panel" role="group" aria-label={ariaLabel}>
+      <p className="notas-share-panel-label">{label}</p>
 
       <ul className="notas-share-panel-list">
         <li>
@@ -82,8 +94,8 @@ export default function NotaCompartirPanel({
               <Users size={16} />
             </span>
             <span className="notas-share-panel-meta">
-              <span className="notas-share-panel-name">Todo el equipo</span>
-              <span className="notas-share-panel-rol">{equipo.length} personas</span>
+              <span className="notas-share-panel-name">{equipoNombre}</span>
+              <span className="notas-share-panel-rol">{equipoDetalle ?? `${equipo.length} personas`}</span>
             </span>
           </label>
         </li>
@@ -109,7 +121,9 @@ export default function NotaCompartirPanel({
                 />
                 <span className="notas-share-panel-meta">
                   <span className="notas-share-panel-name">{m.nombre}</span>
-                  <span className="notas-share-panel-rol">{m.rol_label}</span>
+                  {showMiembroRolLabel && m.rol_label ? (
+                    <span className="notas-share-panel-rol">{m.rol_label}</span>
+                  ) : null}
                 </span>
               </label>
             </li>

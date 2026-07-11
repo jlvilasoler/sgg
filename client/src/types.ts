@@ -290,6 +290,8 @@ export interface VentaAgriculturaRow {
   precio_usd_ton: number;
   total_ton: number;
   importe_usd: number;
+  costo_impuestos_usd: number;
+  costo_flete_usd: number;
   venta_realizada: boolean;
   venta_realizada_en: string | null;
   real_mes_inicio: number | null;
@@ -459,6 +461,11 @@ export type OperativaTareaPrioridad = "baja" | "normal" | "alta";
 
 export type OperativaDiaSemana = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 
+export interface OperativaTareaAsignado {
+  id: number;
+  nombre: string;
+}
+
 export interface OperativaTarea {
   id: number;
   cuenta_id: number;
@@ -472,6 +479,7 @@ export interface OperativaTarea {
   prioridad: OperativaTareaPrioridad;
   asignado_user_id: number | null;
   asignado_nombre: string | null;
+  asignados: OperativaTareaAsignado[];
   creado_por_user_id: number | null;
   creado_por_nombre: string | null;
   potrero_id: number | null;
@@ -507,6 +515,7 @@ export interface OperativaTareaInput {
   estado?: OperativaTareaEstado;
   prioridad?: OperativaTareaPrioridad;
   asignado_user_id?: number | null;
+  asignados_user_ids?: number[];
   potrero_id?: number | null;
   ubicacion?: string;
   ganado_cantidad?: number | null;
