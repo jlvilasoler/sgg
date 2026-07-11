@@ -16,6 +16,11 @@ export type OperativaTareaPrioridad = (typeof OPERATIVA_TAREA_PRIORIDADES)[numbe
 /** 0 = lunes … 6 = domingo (calendario es-UY). */
 export type OperativaDiaSemana = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 
+export interface OperativaTareaAsignado {
+  id: number;
+  nombre: string;
+}
+
 export interface OperativaTareaRow {
   id: number;
   cuenta_id: number;
@@ -29,6 +34,7 @@ export interface OperativaTareaRow {
   prioridad: OperativaTareaPrioridad;
   asignado_user_id: number | null;
   asignado_nombre: string | null;
+  asignados: OperativaTareaAsignado[];
   creado_por_user_id: number | null;
   creado_por_nombre: string | null;
   potrero_id: number | null;
@@ -51,6 +57,7 @@ export interface OperativaTareaInput {
   estado?: OperativaTareaEstado;
   prioridad?: OperativaTareaPrioridad;
   asignado_user_id?: number | null;
+  asignados_user_ids?: number[];
   potrero_id?: number | null;
   ubicacion?: string;
   ganado_cantidad?: number | null;
@@ -148,6 +155,7 @@ function rowToTarea(row: Record<string, unknown>): OperativaTareaRow {
     asignado_user_id:
       row.asignado_user_id != null ? Number(row.asignado_user_id) : null,
     asignado_nombre: row.asignado_nombre ? String(row.asignado_nombre) : null,
+    asignados: [],
     creado_por_user_id:
       row.creado_por_user_id != null ? Number(row.creado_por_user_id) : null,
     creado_por_nombre: row.creado_por_nombre ? String(row.creado_por_nombre) : null,
@@ -197,6 +205,106 @@ const TAREA_SELECT = `
   LEFT JOIN USERS uc ON uc.id = t.creado_por_user_id
   LEFT JOIN CAMPO_POTRERO_MAPA p ON p.id = t.potrero_id AND p.cuenta_id = t.cuenta_id
 `;
+
+async function listAsignadosByTareaIds(
+  db: Db,
+  tareaIds: number[],
+): Promise<Map<number, OperativaTareaAsignado[]>> {
+  const map = new Map<number, OperativaTareaAsignado[]>();
+  if (!tareaIds.length) return map;
+
+  const placeholders = tareaIds.map(() => "?").join(", ");
+  const rows = (await db
+    .prepare(
+      `SELECT a.tarea_id, u.id, u.nombre
+       FROM OPERATIVA_TAREA_ASIGNADO a
+       JOIN USERS u ON u.id = a.user_id
+       WHERE a.tarea_id IN (${placeholders})
+       ORDER BY u.nombre COLLATE NOCASE ASC, u.id ASC`,
+    )
+    .all(...tareaIds)) as Record<string, unknown>[];
+
+  for (const row of rows) {
+    const tareaId = Number(row.tarea_id);
+    const item: OperativaTareaAsignado = {
+      id: Number(row.id),
+      nombre: String(row.nombre ?? ""),
+    };
+    const list = map.get(tareaId) ?? [];
+    list.push(item);
+    map.set(tareaId, list);
+  }
+  return map;
+}
+
+function attachAsignadosToTareas(
+  tareas: OperativaTareaRow[],
+  asignadosMap: Map<number, OperativaTareaAsignado[]>,
+): OperativaTareaRow[] {
+  return tareas.map((t) => {
+    const asignados = asignadosMap.get(t.id) ?? [];
+    const asignadoNombre =
+      asignados.length > 0 ? asignados.map((a) => a.nombre).join(", ") : t.asignado_nombre;
+    return {
+      ...t,
+      asignados,
+      asignado_nombre: asignadoNombre,
+      asignado_user_id: asignados[0]?.id ?? t.asignado_user_id,
+    };
+  });
+}
+
+async function normalizeAsignadosIds(
+  db: Db,
+  cuentaId: number,
+  ids: number[] | undefined,
+  fallbackUserId?: number | null,
+): Promise<number[]> {
+  const raw =
+    ids !== undefined
+      ? ids
+      : fallbackUserId != null
+        ? [fallbackUserId]
+        : [];
+  const unique = [...new Set(raw.map((id) => Number(id)).filter((id) => Number.isFinite(id) && id > 0))];
+  const validated: number[] = [];
+  for (const id of unique) {
+    const userId = await validateAsignado(db, cuentaId, id);
+    if (userId) validated.push(userId);
+  }
+  validated.sort((a, b) => a - b);
+  return validated;
+}
+
+async function replaceTareaAsignados(
+  db: Db,
+  cuentaId: number,
+  tareaId: number,
+  userIds: number[],
+): Promise<void> {
+  await db.prepare(`DELETE FROM OPERATIVA_TAREA_ASIGNADO WHERE tarea_id = ?`).run(tareaId);
+  for (const userId of userIds) {
+    await db
+      .prepare(
+        `INSERT INTO OPERATIVA_TAREA_ASIGNADO (tarea_id, user_id, cuenta_id) VALUES (?, ?, ?)`,
+      )
+      .run(tareaId, userId, cuentaId);
+  }
+}
+
+async function enrichTarea(db: Db, tarea: OperativaTareaRow): Promise<OperativaTareaRow> {
+  const map = await listAsignadosByTareaIds(db, [tarea.id]);
+  return attachAsignadosToTareas([tarea], map)[0] ?? tarea;
+}
+
+async function enrichTareas(db: Db, tareas: OperativaTareaRow[]): Promise<OperativaTareaRow[]> {
+  if (!tareas.length) return tareas;
+  const map = await listAsignadosByTareaIds(
+    db,
+    tareas.map((t) => t.id),
+  );
+  return attachAsignadosToTareas(tareas, map);
+}
 
 export async function initOperativaTareasTables(db: Db): Promise<void> {
   await db
@@ -278,6 +386,53 @@ export async function initOperativaTareasTables(db: Db): Promise<void> {
        WHERE fecha_ejecucion IS NULL`,
     )
     .run();
+
+  await db
+    .prepare(
+      `CREATE TABLE IF NOT EXISTS OPERATIVA_TAREA_ASIGNADO (
+         tarea_id INTEGER NOT NULL REFERENCES OPERATIVA_TAREA(id) ON DELETE CASCADE,
+         user_id INTEGER NOT NULL REFERENCES USERS(id) ON DELETE CASCADE,
+         cuenta_id INTEGER NOT NULL REFERENCES EMPRESAS_CUENTA(id) ON DELETE CASCADE,
+         PRIMARY KEY (tarea_id, user_id)
+       )`,
+    )
+    .run();
+
+  await db
+    .prepare(
+      `CREATE INDEX IF NOT EXISTS idx_operativa_tarea_asignado_user
+       ON OPERATIVA_TAREA_ASIGNADO(user_id)`,
+    )
+    .run();
+
+  await db
+    .prepare(
+      `ALTER TABLE OPERATIVA_TAREA_ASIGNADO ADD COLUMN IF NOT EXISTS cuenta_id INTEGER REFERENCES EMPRESAS_CUENTA(id) ON DELETE CASCADE`,
+    )
+    .run();
+
+  await db
+    .prepare(
+      `UPDATE OPERATIVA_TAREA_ASIGNADO a
+       SET cuenta_id = t.cuenta_id
+       FROM OPERATIVA_TAREA t
+       WHERE a.tarea_id = t.id AND a.cuenta_id IS NULL`,
+    )
+    .run();
+
+  await db
+    .prepare(
+      `INSERT INTO OPERATIVA_TAREA_ASIGNADO (tarea_id, user_id, cuenta_id)
+       SELECT t.id, t.asignado_user_id, t.cuenta_id
+       FROM OPERATIVA_TAREA t
+       WHERE t.asignado_user_id IS NOT NULL
+       ON CONFLICT (tarea_id, user_id) DO NOTHING`,
+    )
+    .run()
+    .catch((err: unknown) => {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (!/duplicate|unique|already exists/i.test(msg)) throw err;
+    });
 }
 
 export async function listOperativaTareas(
@@ -297,7 +452,10 @@ export async function listOperativaTareas(
     params.push(normalizeFecha(filters.hasta));
   }
   if (filters.asignado_user_id != null && Number.isFinite(filters.asignado_user_id)) {
-    sql += ` AND t.asignado_user_id = ?`;
+    sql += ` AND EXISTS (
+      SELECT 1 FROM OPERATIVA_TAREA_ASIGNADO a
+      WHERE a.tarea_id = t.id AND a.user_id = ?
+    )`;
     params.push(filters.asignado_user_id);
   }
   if (filters.estado && isEstado(filters.estado)) {
@@ -308,7 +466,7 @@ export async function listOperativaTareas(
   sql += ` ORDER BY COALESCE(t.dia_semana, 7) ASC, t.titulo ASC, t.id ASC`;
 
   const rows = (await db.prepare(sql).all(...params)) as Record<string, unknown>[];
-  return rows.map(rowToTarea);
+  return enrichTareas(db, rows.map(rowToTarea));
 }
 
 export async function getOperativaTareaById(
@@ -319,7 +477,7 @@ export async function getOperativaTareaById(
   const row = (await db
     .prepare(`${TAREA_SELECT} WHERE t.cuenta_id = ? AND t.id = ? LIMIT 1`)
     .get(cuentaId, id)) as Record<string, unknown> | undefined;
-  return row ? rowToTarea(row) : null;
+  return row ? enrichTarea(db, rowToTarea(row)) : null;
 }
 
 async function validatePotrero(
@@ -380,7 +538,13 @@ export async function createOperativaTarea(
   const fechaHasta = null;
   const estado = "pendiente";
   const prioridad = "normal";
-  const asignadoUserId = await validateAsignado(db, cuentaId, input.asignado_user_id);
+  const asignadosIds = await normalizeAsignadosIds(
+    db,
+    cuentaId,
+    input.asignados_user_ids,
+    input.asignado_user_id,
+  );
+  const asignadoUserId = asignadosIds[0] ?? null;
   const potreroId = await validatePotrero(db, cuentaId, input.potrero_id);
   const descripcion = String(input.descripcion ?? "").trim().slice(0, 2000);
   const notas = String(input.notas ?? "").trim().slice(0, 4000);
@@ -420,6 +584,8 @@ export async function createOperativaTarea(
       completadoEn,
     )) as { id: number };
 
+  await replaceTareaAsignados(db, cuentaId, Number(inserted.id), asignadosIds);
+
   const created = await getOperativaTareaById(db, cuentaId, Number(inserted.id));
   if (!created) throw new Error("No se pudo crear la tarea.");
   return created;
@@ -448,10 +614,19 @@ export async function updateOperativaTarea(
   }
   const estado = existing.estado;
   const prioridad = existing.prioridad;
-  const asignadoUserId =
-    input.asignado_user_id !== undefined
-      ? await validateAsignado(db, cuentaId, input.asignado_user_id)
-      : existing.asignado_user_id;
+  const shouldSyncAsignados =
+    input.asignados_user_ids !== undefined || input.asignado_user_id !== undefined;
+  let asignadoUserId = existing.asignado_user_id;
+  let asignadosToSave: number[] | undefined;
+  if (shouldSyncAsignados) {
+    asignadosToSave = await normalizeAsignadosIds(
+      db,
+      cuentaId,
+      input.asignados_user_ids,
+      input.asignado_user_id ?? null,
+    );
+    asignadoUserId = asignadosToSave[0] ?? null;
+  }
   const potreroId =
     input.potrero_id !== undefined
       ? await validatePotrero(db, cuentaId, input.potrero_id)
@@ -511,6 +686,10 @@ export async function updateOperativaTarea(
       cuentaId,
       id,
     );
+
+  if (asignadosToSave !== undefined) {
+    await replaceTareaAsignados(db, cuentaId, id, asignadosToSave);
+  }
 
   const updated = await getOperativaTareaById(db, cuentaId, id);
   if (!updated) throw new Error("Tarea no encontrada.");

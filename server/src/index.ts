@@ -3915,6 +3915,9 @@ app.post("/api/operativa-tareas", async (req, res) => {
       fecha: typeof body.fecha === "string" ? body.fecha : undefined,
       dia_semana: body.dia_semana,
       asignado_user_id: body.asignado_user_id,
+      asignados_user_ids: Array.isArray(body.asignados_user_ids)
+        ? body.asignados_user_ids.map((id: unknown) => Number(id)).filter((id: number) => Number.isFinite(id))
+        : undefined,
       potrero_id: body.potrero_id,
       ubicacion: typeof body.ubicacion === "string" ? body.ubicacion : undefined,
     });
@@ -3946,6 +3949,9 @@ app.put("/api/operativa-tareas/:id", async (req, res) => {
       notas: typeof body.notas === "string" ? body.notas : undefined,
       dia_semana: body.dia_semana,
       asignado_user_id: body.asignado_user_id,
+      asignados_user_ids: Array.isArray(body.asignados_user_ids)
+        ? body.asignados_user_ids.map((id: unknown) => Number(id)).filter((id: number) => Number.isFinite(id))
+        : undefined,
       potrero_id: body.potrero_id,
       ubicacion: typeof body.ubicacion === "string" ? body.ubicacion : undefined,
     });
