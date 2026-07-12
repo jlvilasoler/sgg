@@ -466,6 +466,8 @@ export const stockGanadero = {
     stock.getStockGanaderaDispositivoDetalle(db, clave, filters),
   countDispositivos: (filters?: stock.StockGanaderoFilters) =>
     stock.countStockGanaderaDispositivosActivos(db, filters),
+  countDispositivosActivosDetalle: (filters?: stock.StockGanaderoFilters) =>
+    stock.countStockGanaderaDispositivosActivosDetalle(db, filters),
   countDispositivosTotal: (filters?: stock.StockGanaderoFilters) =>
     stock.countStockGanaderaDispositivos(db, filters),
   updateDispositivoSexo: (

@@ -71,11 +71,13 @@ function PanelHead({
         <span className="home-hub-dashboard-panel__icon" aria-hidden>
           {icon}
         </span>
-        <div>
-          <p className="home-hub-dashboard-panel__kicker">{kicker}</p>
-          <p className="home-hub-dashboard-panel__title">{title}</p>
-          <p className="home-hub-dashboard-panel__subtitle">{subtitle}</p>
-        </div>
+        <p className="home-hub-dashboard-panel__title-row">
+          <span className="home-hub-dashboard-panel__kicker">{kicker}</span>
+          <span className="home-hub-dashboard-panel__title">{title}</span>
+          {subtitle ? (
+            <span className="home-hub-dashboard-panel__subtitle">{subtitle}</span>
+          ) : null}
+        </p>
       </div>
       {badge ? (
         <span className="home-hub-dashboard-panel__badge">{badge}</span>
@@ -247,7 +249,7 @@ export default function HomeHubDashboard({ insights, loading = false, onOpen }: 
       {porCobrarInsight && (porCobrarTiles.length > 0 || loading) && (
         <article className="home-hub-dashboard-panel home-hub-dashboard-panel--cobros">
           <PanelHead
-            icon={<Wallet size={17} strokeWidth={1.75} />}
+            icon={<Wallet size={15} strokeWidth={1.75} />}
             kicker="Tesorería"
             title="Por cobrar"
             subtitle={
@@ -274,7 +276,7 @@ export default function HomeHubDashboard({ insights, loading = false, onOpen }: 
       {(financieroTiles.length > 0 || loading) && (
         <article className="home-hub-dashboard-panel home-hub-dashboard-panel--financiero">
           <PanelHead
-            icon={<BarChart3 size={17} strokeWidth={1.75} />}
+            icon={<BarChart3 size={15} strokeWidth={1.75} />}
             kicker="Financiero"
             title="Gastos y ventas"
             subtitle={financieroTiles[0]?.hint?.split(" · ")[0] ?? "Acumulado del ejercicio"}

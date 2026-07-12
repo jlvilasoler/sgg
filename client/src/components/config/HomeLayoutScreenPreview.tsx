@@ -66,11 +66,11 @@ const PANEL_LABEL = HOME_PANEL_META.reduce(
 const EMPTY_MIN_HEIGHT: Partial<Record<HomePanelId, string>> = {
   kpis_operativos: "3.4rem",
   kpis_gastos: "3.4rem",
-  pizarron: "5.5rem",
+  pizarron: "6rem",
   auto_pendientes: "4rem",
   actividad: "5.5rem",
   mapa_campo: "6rem",
-  vencimientos: "4.5rem",
+  vencimientos: "3.6rem",
   stock_potrero: "6.5rem",
   modulos_rapidos: "4.5rem",
 };
@@ -253,41 +253,72 @@ function PreviewKpiStrip({
           <header className="home-ganado-dash__head">
             <div className="home-ganado-dash__brand">
               <span className="home-ganado-dash__icon" aria-hidden>
-                <Beef size={16} strokeWidth={1.75} />
+                <Beef size={15} strokeWidth={1.75} />
               </span>
-              <div>
-                <p className="home-ganado-dash__kicker">Ganado</p>
-                <p className="home-ganado-dash__subtitle">1/7/2026 al 30/6/2027</p>
-              </div>
+              <p className="home-ganado-dash__title-row">
+                <span className="home-ganado-dash__kicker">Ganado</span>
+                <span className="home-ganado-dash__subtitle">1/7/2026 al 30/6/2027</span>
+              </p>
             </div>
             <span className="home-ganado-dash__badge">525 cab.</span>
           </header>
-          <HomeKpiStripBar
-            label="Indicadores de ganado"
-            cells={[
-              {
-                id: "stock",
-                label: "En stock",
-                value: "525",
-                trend: "25 lote(s)",
-                tone: "lime",
-              },
-              {
-                id: "vendidos",
-                label: "Vendidos",
-                value: "0",
-                trend: "Sin ventas en ej.",
-                tone: "neutral",
-              },
-              {
-                id: "por-vender",
-                label: "Por vender",
-                value: "0",
-                trend: "Sin operaciones abiertas",
-                tone: "neutral",
-              },
-            ]}
-          />
+          <div className="home-ganado-dash__strips is-split">
+            <section className="home-ganado-dash__strip-group home-ganado-dash__strip-group--stock">
+              <HomeKpiStripBar
+                label="Stock en campo"
+                cells={[
+                  {
+                    id: "stock",
+                    label: "En stock",
+                    value: "525",
+                    trend: "25 lote(s)",
+                    tone: "lime",
+                  },
+                  {
+                    id: "machos",
+                    label: "Machos",
+                    value: "198",
+                    valueAside: "38%",
+                    sharePct: 38,
+                    shareTone: "macho",
+                    trend: "♂ En stock",
+                    tone: "neutral",
+                  },
+                  {
+                    id: "hembras",
+                    label: "Hembras",
+                    value: "327",
+                    valueAside: "62%",
+                    sharePct: 62,
+                    shareTone: "hembra",
+                    trend: "♀ En stock",
+                    tone: "neutral",
+                  },
+                ]}
+              />
+            </section>
+            <section className="home-ganado-dash__strip-group home-ganado-dash__strip-group--ventas">
+              <HomeKpiStripBar
+                label="Ventas y operaciones"
+                cells={[
+                  {
+                    id: "vendidos",
+                    label: "Vendidos",
+                    value: "0",
+                    trend: "Sin ventas en ej.",
+                    tone: "neutral",
+                  },
+                  {
+                    id: "por-vender",
+                    label: "Por vender",
+                    value: "0",
+                    trend: "Sin operaciones abiertas",
+                    tone: "neutral",
+                  },
+                ]}
+              />
+            </section>
+          </div>
         </article>
       </div>
       <div className="config-home-screen-kpi-card config-home-screen-kpi-card--wide">
@@ -464,22 +495,46 @@ function PreviewKpiStrip({
 
 function PreviewPizarron() {
   return (
-    <section className="config-home-screen-panel">
-      <header className="config-home-screen-panel-head">
-        <div>
-          <p className="config-home-screen-panel-kicker">Recordatorios</p>
-          <h4>Pizarrón</h4>
-        </div>
-        <span className="config-home-screen-panel-link">Ver todas</span>
-      </header>
-      <div className="config-home-screen-notes">
-        <div className="config-home-screen-note is-pin" style={{ "--note-hue": "48" } as CSSProperties}>
-          <strong>Vacunación potrero 3</strong>
-          <span>Mié 15 · equipo campo</span>
-        </div>
-        <div className="config-home-screen-note" style={{ "--note-hue": "210" } as CSSProperties}>
-          <strong>Revisar DGI abril</strong>
-          <span>Ayer · administración</span>
+    <section className="config-home-screen-panel config-home-screen-panel--notes-full">
+      <div className="home-hub-notes-shell">
+        <header className="home-hub-notes-head">
+          <div className="home-hub-notes-head-main">
+            <p className="home-hub-notes-head-kicker">Recordatorios</p>
+            <h2 className="home-hub-notes-head-title">Pizarrón</h2>
+          </div>
+          <span className="home-hub-notes-head-link">Ver todas</span>
+        </header>
+        <div className="home-hub-notes-board">
+          <div className="home-hub-notes-carousel">
+            <div className="home-hub-notes-carousel-fade">
+              <div className="home-hub-notes-carousel-viewport">
+                <ul className="home-hub-notes-list">
+                  <li>
+                    <div className="home-hub-note-card home-hub-note-card--yellow" style={{ transform: "rotate(-1.4deg)" }}>
+                      <span className="home-hub-note-tape" aria-hidden />
+                      <span className="home-hub-note-body">
+                        <span className="home-hub-note-head">
+                          <span className="home-hub-note-title">Vacunación potrero 3</span>
+                        </span>
+                        <span className="home-hub-note-preview">Mié 15 · equipo campo</span>
+                      </span>
+                    </div>
+                  </li>
+                  <li>
+                    <div className="home-hub-note-card home-hub-note-card--blue" style={{ transform: "rotate(1deg)" }}>
+                      <span className="home-hub-note-tape" aria-hidden />
+                      <span className="home-hub-note-body">
+                        <span className="home-hub-note-head">
+                          <span className="home-hub-note-title">Revisar DGI abril</span>
+                        </span>
+                        <span className="home-hub-note-preview">Ayer · administración</span>
+                      </span>
+                    </div>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </section>
@@ -556,22 +611,25 @@ function PreviewMapa() {
 
 function PreviewVencimientos() {
   return (
-    <section className="config-home-screen-panel">
-      <header className="config-home-screen-panel-head">
-        <div>
-          <p className="config-home-screen-panel-kicker">Calendario tributario</p>
-          <h4>Próximos vencimientos</h4>
-        </div>
-        <span className="config-home-screen-panel-link">Abrir</span>
-      </header>
-      <div className="config-home-screen-venc">
-        <div className="config-home-screen-venc-item is-urgent">
-          <strong>DGI · IVA</strong>
-          <span>En 3 días</span>
-        </div>
-        <div className="config-home-screen-venc-item">
-          <strong>BPS · Aportes</strong>
-          <span>En 11 días</span>
+    <section className="config-home-screen-panel config-home-screen-panel--venc-full">
+      <div className="home-hub-venc-shell">
+        <header className="home-hub-venc-head">
+          <div className="home-hub-venc-head-main">
+            <p className="home-hub-venc-head-kicker">Próximos vencimientos</p>
+          </div>
+          <span className="home-hub-venc-head-link">Abrir</span>
+        </header>
+        <div className="home-hub-venc-body">
+          <div className="config-home-screen-venc">
+            <div className="config-home-screen-venc-item is-urgent">
+              <strong>DGI · IVA</strong>
+              <span>En 3 días</span>
+            </div>
+            <div className="config-home-screen-venc-item">
+              <strong>BPS · Aportes</strong>
+              <span>En 11 días</span>
+            </div>
+          </div>
         </div>
       </div>
     </section>

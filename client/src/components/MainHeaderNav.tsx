@@ -3,7 +3,7 @@ import MainHeader from "./MainHeader";
 import type { AuthUser } from "../types";
 import type { TabId } from "./Header";
 import type { ScreenId } from "./HomeMenu";
-import { getScreenTitle } from "./HomeMenu";
+import { getScreenTitle } from "../utils/screen-titles";
 
 interface Props {
   user: AuthUser;

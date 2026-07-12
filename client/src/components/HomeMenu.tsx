@@ -6,7 +6,7 @@ import {
 } from "lucide-react";
 import type { TabId } from "./Header";
 import type { AuthUser, GastoAutoPendiente, Nota } from "../types";
-import { canAccessScreen, type ActividadVistaModo } from "../utils/auth-permissions";
+import { canAccessScreen, type ActividadVistaModo, canWriteTareasOperativas } from "../utils/auth-permissions";
 import { canShowHomePanel, normalizeHomePanelOrder, orderPanelsInZone } from "../utils/home-layout-config";
 import { buildHomeQuickApps, mergeRecentModuleLists, getRecentHomeModules } from "../utils/home-quick-modules";
 import { MENU_APP_THEMES, MenuAppIcon } from "./icons/MenuAppIcons";
@@ -23,7 +23,6 @@ import { formatActividadDetalle } from "../utils/format-actividad-detalle";
 import { fmtDate } from "../utils/format";
 import HomeAutoPendientesPanel from "./home/HomeAutoPendientesPanel";
 import HomeAsistentePanel from "./home/HomeAsistentePanel";
-import HomeVencProximoBanner from "./home/HomeVencProximoBanner";
 import { useHomeAutoPendientes } from "../hooks/useHomeAutoPendientes";
 import type { PresupuestoVista } from "./presupuesto/presupuesto-hub-items";
 import {
@@ -36,6 +35,8 @@ import HomeCampoMapaPanel from "./home/HomeCampoMapaPanel";
 import HomeStockPotreroPanel from "./home/HomeStockPotreroPanel";
 import HomeNotasBoard from "./home/HomeNotasBoard";
 import HomeNotaModal from "./home/HomeNotaModal";
+import HomeTareasDiaPanel from "./home/HomeTareasDiaPanel";
+import HomeVencProximosPanel from "./home/HomeVencProximosPanel";
 
 export type ScreenId = "home" | TabId;
 
@@ -158,36 +159,6 @@ const MENU_APPS_EXTENDED: MenuApp[] = [
     subtitle: "Almanaque, asignaciones y registro de trabajo en el campo",
   },
 ];
-
-const SCREEN_TITLES: Record<TabId, string> = {
-  registro: "Registrar gasto",
-  listado: "Listado de gastos",
-  vencimientos_impuestos: "Vencimientos Impuestos",
-  resumen: "Resumen",
-  configuracion: "Configuración",
-  divisas: "Divisas",
-  precios_ganado: "Precios de Ganado",
-  simulador_venta_ganado: "Simulador de Ventas",
-  recursos_humanos: "Recursos Humanos",
-  ingresos_ventas: "Ingresos por ventas",
-  stock_ganadero: "Stock Ganadero",
-  campo_mapa: "Mapa del campo",
-  tareas_operativas: "Tareas operativas",
-  stock_equino: "Stock Equino",
-  stock_movimientos: "Movimientos de Dispositivos",
-  registro_actividad: "Registro de actividad",
-  notas: "Notas",
-  usuarios: "Usuarios",
-  panel_admin_sitio: "Administración del sitio",
-  chat: "Chat",
-  ayuda: "Ayuda",
-  asistente: "Asistente",
-  documentos_digitales: "Documentos Digitales",
-};
-
-export function getScreenTitle(id: TabId): string {
-  return SCREEN_TITLES[id];
-}
 
 interface Props {
   user: AuthUser;
@@ -312,6 +283,7 @@ export default function HomeMenu({
 
   const puedeMapaCampo =
     canAccessScreen(user, "campo_mapa") && canShowHomePanel(user, "mapa_campo");
+  const puedeTareasOperativas = canAccessScreen(user, "tareas_operativas");
   const puedeStockGanadero =
     canAccessScreen(user, "stock_ganadero") && canShowHomePanel(user, "stock_potrero");
   const showModulosRapidos = canShowHomePanel(user, "modulos_rapidos");
@@ -483,7 +455,7 @@ export default function HomeMenu({
             <div className="home-hub-col">
               {mainPanelOrder.map((panelId) => {
                 if (panelId === "pizarron") {
-                  if (!puedeNotas && !showAsistenteHome) return null;
+                  if (!puedeNotas && !showAsistenteHome && !puedeTareasOperativas) return null;
                   return (
                     <Fragment key="pizarron">
                       {puedeNotas ? (
@@ -491,22 +463,28 @@ export default function HomeMenu({
                           className="sg-hub-panel home-hub-panel--notes"
                           aria-label="Notas principales"
                         >
-                          <div className="sg-hub-panel-head home-hub-panel-head-row">
-                            <div>
-                              <p className="sg-hub-panel-kicker">Recordatorios</p>
-                              <h2 className="sg-hub-panel-title">Pizarrón</h2>
-                            </div>
-                            <button type="button" className="home-hub-link" onClick={() => onOpen("notas")}>
-                              Ver todas
-                            </button>
+                          <div className="home-hub-notes-shell">
+                            <header className="home-hub-notes-head">
+                              <div className="home-hub-notes-head-main">
+                                <p className="home-hub-notes-head-kicker">Recordatorios</p>
+                                <h2 className="home-hub-notes-head-title">Pizarrón</h2>
+                              </div>
+                              <button
+                                type="button"
+                                className="home-hub-link home-hub-notes-head-link"
+                                onClick={() => onOpen("notas")}
+                              >
+                                Ver todas
+                              </button>
+                            </header>
+                            <HomeNotasBoard
+                              notas={notasDestacadas}
+                              loading={loadingNotas}
+                              currentUserId={user.id}
+                              onOpenNota={(nota) => setNotaModal(nota)}
+                              onNewNota={() => setNotaModal(null)}
+                            />
                           </div>
-                          <HomeNotasBoard
-                            notas={notasDestacadas}
-                            loading={loadingNotas}
-                            currentUserId={user.id}
-                            onOpenNota={(nota) => setNotaModal(nota)}
-                            onNewNota={() => setNotaModal(null)}
-                          />
                           <HomeNotaModal
                             open={notaModal !== undefined}
                             nota={notaModal ?? null}
@@ -517,6 +495,14 @@ export default function HomeMenu({
                             onDeleted={removeNotaHome}
                           />
                         </section>
+                      ) : null}
+
+                      {puedeTareasOperativas ? (
+                        <HomeTareasDiaPanel
+                          apiOnline={apiOnline}
+                          canEdit={canWriteTareasOperativas(user)}
+                          onOpen={() => onOpen("tareas_operativas")}
+                        />
                       ) : null}
 
                       {showAsistenteHome ? (
@@ -646,45 +632,12 @@ export default function HomeMenu({
                 }
                 if (panelId === "vencimientos" && puedeVencimientos) {
                   return (
-                    <section
+                    <HomeVencProximosPanel
                       key="vencimientos"
-                      className="sg-hub-panel home-hub-panel--venc"
-                      aria-label="Próximos vencimientos"
-                    >
-                      <div className="sg-hub-panel-head home-hub-panel-head-row">
-                        <div>
-                          <p className="sg-hub-panel-kicker">Calendario tributario</p>
-                          <h2 className="sg-hub-panel-title">Próximos vencimientos</h2>
-                        </div>
-                        <button
-                          type="button"
-                          className="home-hub-link"
-                          onClick={() => onOpen("vencimientos_impuestos")}
-                        >
-                          Abrir
-                        </button>
-                      </div>
-                      {loadingVenc ? (
-                        <p className="home-hub-empty">Cargando vencimientos…</p>
-                      ) : proximosVenc.length === 0 ? (
-                        <p className="home-hub-empty">
-                          No hay vencimientos urgentes en los próximos días.
-                        </p>
-                      ) : (
-                        <div className="home-hub-venc-proximos vencimientos-impuestos-page">
-                          <div className="venc-imp-user-banner-proximos-wrap">
-                            {proximosVenc.map((item) => (
-                              <div key={item.key} className="venc-imp-user-banner-proximo-box">
-                                <HomeVencProximoBanner
-                                  item={item}
-                                  onClick={() => onOpen("vencimientos_impuestos")}
-                                />
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </section>
+                      items={proximosVenc}
+                      loading={loadingVenc}
+                      onOpen={() => onOpen("vencimientos_impuestos")}
+                    />
                   );
                 }
                 if (panelId === "stock_potrero" && puedeStockGanadero) {

@@ -4191,12 +4191,16 @@ app.get("/api/stock-ganadero/resumen", async (req, res) => {
   const filters = await stockGanaderoFiltersFromRequest(req);
   const lecturasFilters = await stockLecturasFiltersFromRequest(req);
   const lotes = await db.stockGanadero.listLotes(lecturasFilters);
+  const activosDetalle = await db.stockGanadero.countDispositivosActivosDetalle(filters);
   res.json({
     ok: true,
     data: {
       lotes: lotes.length,
       registros: await db.stockGanadero.countRegistros(lecturasFilters),
-      dispositivos: await db.stockGanadero.countDispositivos(filters),
+      dispositivos: activosDetalle.total,
+      machos: activosDetalle.machos,
+      hembras: activosDetalle.hembras,
+      sin_definir: activosDetalle.sin_definir,
       dispositivos_total: await db.stockGanadero.countDispositivosTotal(filters),
       ventas_dispositivos: await db.simuladorVentaDispositivos.countEnVentasCerradas(),
     },

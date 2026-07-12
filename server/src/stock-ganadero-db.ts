@@ -2232,12 +2232,38 @@ export async function countStockGanaderaDispositivosActivos(
   db: Db,
   filters?: StockGanaderoFilters
 ): Promise<number> {
+  const counts = await countStockGanaderaDispositivosActivosDetalle(db, filters);
+  return counts.total;
+}
+
+export interface StockGanaderaActivosDetalle {
+  total: number;
+  machos: number;
+  hembras: number;
+  sin_definir: number;
+}
+
+export async function countStockGanaderaDispositivosActivosDetalle(
+  db: Db,
+  filters?: StockGanaderoFilters
+): Promise<StockGanaderaActivosDetalle> {
   const [dispositivos, ventasClaves] = await Promise.all([
     listStockGanaderaDispositivos(db, filters),
     listClavesDispositivosEnVentasCerradas(db),
   ]);
   const ventas = new Set(ventasClaves);
-  return dispositivos.filter((d) => d.estado === "VIVO" && !ventas.has(d.clave)).length;
+  let total = 0;
+  let machos = 0;
+  let hembras = 0;
+  let sin_definir = 0;
+  for (const d of dispositivos) {
+    if (d.estado !== "VIVO" || ventas.has(d.clave)) continue;
+    total += 1;
+    if (d.sexo === "MACHO") machos += 1;
+    else if (d.sexo === "HEMBRA") hembras += 1;
+    else sin_definir += 1;
+  }
+  return { total, machos, hembras, sin_definir };
 }
 
 export interface ImportBajaDispositivosResult {

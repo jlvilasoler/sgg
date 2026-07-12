@@ -84,6 +84,9 @@ export function normalizeGanadoStockData(
   return {
     activos: num(src.activos, fallback.activos),
     lotes: num(src.lotes, fallback.lotes),
+    machos: num(src.machos, fallback.machos),
+    hembras: num(src.hembras, fallback.hembras),
+    sinDefinir: num(src.sinDefinir, fallback.sinDefinir),
     ejercicioLabel: String(src.ejercicioLabel ?? fallback.ejercicioLabel),
     tieneStock: bool(src.tieneStock, fallback.tieneStock),
     tieneSimulador: bool(src.tieneSimulador, fallback.tieneSimulador),

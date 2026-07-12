@@ -1183,14 +1183,14 @@ textarea {
     line-height: 1.45;
   }
 
-  .home-hub-notes-list {
-    grid-template-columns: 1fr;
-    gap: 0.75rem;
+  .home-hub-notes-list > li {
+    flex-basis: min(11.75rem, 78vw);
+    width: min(11.75rem, 78vw);
   }
 
   .home-hub-notes-board {
     min-height: auto;
-    padding-bottom: 3rem;
+    padding-bottom: 0.55rem;
   }
 
   .home-hub-venc-proximos .venc-imp-user-banner-proximos-wrap {
@@ -1219,8 +1219,9 @@ textarea {
 }
 
 @media (min-width: 641px) and (max-width: 900px) {
-  .home-hub-notes-list {
-    grid-template-columns: repeat(auto-fill, minmax(8.75rem, 1fr));
+  .home-hub-notes-list > li {
+    flex-basis: 10.75rem;
+    width: 10.75rem;
   }
 }
 

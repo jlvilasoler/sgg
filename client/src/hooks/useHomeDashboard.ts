@@ -68,6 +68,9 @@ import { mergeHomeInsight, isHomeInsightsCacheComplete } from "../utils/home-kpi
 export interface HomeGanadoStockData {
   activos: number;
   lotes: number;
+  machos: number;
+  hembras: number;
+  sinDefinir: number;
   ejercicioLabel: string;
   tieneStock: boolean;
   tieneSimulador: boolean;
@@ -217,7 +220,13 @@ function puedeHomePorCobrar(user: AuthUser): boolean {
 }
 
 function buildGanadoStockInsight(
-  resumen: { dispositivos: number; lotes: number } | null,
+  resumen: {
+    dispositivos: number;
+    lotes: number;
+    machos?: number;
+    hembras?: number;
+    sin_definir?: number;
+  } | null,
   simRows: Awaited<ReturnType<typeof fetchSimulacionesVentaGanado>> | null,
   flags: {
     tieneStock: boolean;
@@ -238,6 +247,9 @@ function buildGanadoStockInsight(
   const ganadoStock: HomeGanadoStockData = {
     activos,
     lotes,
+    machos: resumen?.machos ?? 0,
+    hembras: resumen?.hembras ?? 0,
+    sinDefinir: resumen?.sin_definir ?? 0,
     ejercicioLabel: ejercicio.ejercicioLabel,
     tieneStock: flags.tieneStock,
     tieneSimulador: flags.tieneSimulador,
@@ -446,6 +458,9 @@ export function buildExpectedHomeInsights(user: AuthUser): HomeInsight[] {
       ganadoStock: {
         activos: 0,
         lotes: 0,
+        machos: 0,
+        hembras: 0,
+        sinDefinir: 0,
         ejercicioLabel,
         tieneStock,
         tieneSimulador,

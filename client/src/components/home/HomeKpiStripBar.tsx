@@ -7,10 +7,59 @@ export interface HomeKpiStripCell {
   id: string;
   label: string;
   value: string;
+  /** Texto al costado del valor (ej. "% del stock"). */
+  valueAside?: string;
+  /** Porcentaje 0–100 para mini gráfico de participación. */
+  sharePct?: number;
+  /** Tono del gráfico de participación. */
+  shareTone?: "macho" | "hembra";
   trend?: string;
   tone?: HomeKpiStripTone;
   onClick?: () => void;
   ariaLabel?: string;
+}
+
+function ShareDonut({
+  pct,
+  tone,
+}: {
+  pct: number;
+  tone: "macho" | "hembra";
+}) {
+  const size = 36;
+  const stroke = 4;
+  const radius = (size - stroke) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const clamped = Math.min(100, Math.max(0, pct));
+  const filled = (clamped / 100) * circumference;
+
+  return (
+    <svg
+      className={`home-kpi-strip-bar__share-donut home-kpi-strip-bar__share-donut--${tone}`}
+      width={size}
+      height={size}
+      viewBox={`0 0 ${size} ${size}`}
+      aria-hidden
+    >
+      <g transform={`rotate(-90 ${size / 2} ${size / 2})`}>
+        <circle
+          className="home-kpi-strip-bar__share-donut-track"
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          strokeWidth={stroke}
+        />
+        <circle
+          className="home-kpi-strip-bar__share-donut-fill"
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          strokeWidth={stroke}
+          strokeDasharray={`${filled} ${circumference}`}
+        />
+      </g>
+    </svg>
+  );
 }
 
 function TrendIcon({ tone }: { tone: HomeKpiStripTone }) {
@@ -46,16 +95,43 @@ function StripCell({
   showDivider: boolean;
 }) {
   const tone = cell.tone ?? "neutral";
+  const shareTone = cell.shareTone ?? "macho";
   const content = (
     <>
       <span className="home-kpi-strip-bar__label">{cell.label}</span>
-      <span className="home-kpi-strip-bar__value">{cell.value}</span>
-      {cell.trend ? (
-        <span className="home-kpi-strip-bar__trend">
-          <TrendIcon tone={tone} />
-          <span className="home-kpi-strip-bar__trend-text">{cell.trend}</span>
-        </span>
-      ) : null}
+      <div
+        className={`home-kpi-strip-bar__body${cell.sharePct != null ? " home-kpi-strip-bar__body--share" : ""}`}
+      >
+        <div className="home-kpi-strip-bar__main">
+          <span className="home-kpi-strip-bar__value-row">
+            <span className="home-kpi-strip-bar__value">{cell.value}</span>
+            {cell.valueAside ? (
+              <span
+                className={`home-kpi-strip-bar__value-aside${cell.shareTone ? ` home-kpi-strip-bar__value-aside--${cell.shareTone}` : ""}`}
+              >
+                {cell.valueAside}
+              </span>
+            ) : null}
+          </span>
+          {cell.trend ? (
+            <span className="home-kpi-strip-bar__trend">
+              <TrendIcon tone={tone} />
+              <span className="home-kpi-strip-bar__trend-text">{cell.trend}</span>
+            </span>
+          ) : null}
+          {cell.sharePct != null ? (
+            <span className="home-kpi-strip-bar__share-meter" aria-hidden>
+              <span
+                className={`home-kpi-strip-bar__share-meter-fill home-kpi-strip-bar__share-meter-fill--${shareTone}`}
+                style={{ width: `${cell.sharePct}%` }}
+              />
+            </span>
+          ) : null}
+        </div>
+        {cell.sharePct != null ? (
+          <ShareDonut pct={cell.sharePct} tone={shareTone} />
+        ) : null}
+      </div>
     </>
   );
 
@@ -65,7 +141,7 @@ function StripCell({
       {cell.onClick ? (
         <button
           type="button"
-          className={`home-kpi-strip-bar__cell home-kpi-strip-bar__cell--${tone}`}
+          className={`home-kpi-strip-bar__cell home-kpi-strip-bar__cell--${tone}${cell.sharePct != null ? " home-kpi-strip-bar__cell--share" : ""}`}
           onClick={cell.onClick}
           aria-label={cell.ariaLabel ?? `${cell.label}: ${cell.value}`}
         >
@@ -73,7 +149,7 @@ function StripCell({
         </button>
       ) : (
         <div
-          className={`home-kpi-strip-bar__cell home-kpi-strip-bar__cell--${tone}`}
+          className={`home-kpi-strip-bar__cell home-kpi-strip-bar__cell--${tone}${cell.sharePct != null ? " home-kpi-strip-bar__cell--share" : ""}`}
           aria-label={cell.ariaLabel ?? `${cell.label}: ${cell.value}`}
         >
           {content}
@@ -95,7 +171,7 @@ export function HomeKpiStripBar({ cells, className = "", label, footer }: StripP
 
   return (
     <div
-      className={`home-kpi-strip-bar is-count-${Math.min(cells.length, 4)}${className ? ` ${className}` : ""}`}
+      className={`home-kpi-strip-bar is-count-${Math.min(cells.length, 5)}${className ? ` ${className}` : ""}`}
       role="group"
       aria-label={label}
     >

@@ -827,6 +827,9 @@ export async function fetchStockGanaderoResumen(): Promise<{
   dispositivos: number;
   dispositivos_total: number;
   ventas_dispositivos: number;
+  machos: number;
+  hembras: number;
+  sin_definir: number;
 }> {
   const json = await request<{
     data: {
@@ -835,6 +838,9 @@ export async function fetchStockGanaderoResumen(): Promise<{
       dispositivos: number;
       dispositivos_total?: number;
       ventas_dispositivos: number;
+      machos?: number;
+      hembras?: number;
+      sin_definir?: number;
     };
   }>("/stock-ganadero/resumen");
   return {
@@ -843,6 +849,9 @@ export async function fetchStockGanaderoResumen(): Promise<{
     dispositivos: json.data.dispositivos,
     dispositivos_total: json.data.dispositivos_total ?? json.data.dispositivos,
     ventas_dispositivos: json.data.ventas_dispositivos,
+    machos: json.data.machos ?? 0,
+    hembras: json.data.hembras ?? 0,
+    sin_definir: json.data.sin_definir ?? 0,
   };
 }
 
