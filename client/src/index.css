@@ -1268,12 +1268,6 @@ body {
   min-width: 0;
 }
 
-.home-hub-fs-head {
-  position: sticky;
-  top: 0;
-  z-index: 5;
-}
-
 .home-hub-fs-actions {
   flex-shrink: 0;
   margin-left: auto;
@@ -1282,16 +1276,14 @@ body {
 .home-hub-fs-btn {
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
+  justify-content: center;
+  width: 2rem;
   height: 2rem;
-  padding: 0 0.65rem;
+  padding: 0;
   border-radius: 0.55rem;
   border: 1px solid rgba(15, 23, 42, 0.12);
   background: #fff;
   color: #334155;
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.01em;
   cursor: pointer;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
   transition: border-color 0.15s, background 0.15s, color 0.15s, box-shadow 0.15s;
@@ -1315,11 +1307,6 @@ body {
   box-shadow: 0 6px 16px rgba(22, 163, 74, 0.14);
 }
 
-.home-hub-fs-btn-label {
-  white-space: nowrap;
-}
-
-.home-hub-fs-stage:fullscreen,
 .home-hub-fs-stage.is-fullscreen:fullscreen {
   width: 100%;
   height: 100%;
@@ -1332,50 +1319,97 @@ body {
 }
 
 .home-hub-fs-stage:fullscreen .home-hub-fs-head {
+  position: sticky;
+  top: 0;
+  z-index: 5;
   margin: -0.35rem -0.35rem 0;
   padding: 0.55rem 0.65rem;
   border-radius: 0.75rem;
   background: color-mix(in srgb, #f8fafc 92%, transparent);
   border: 1px solid rgba(15, 23, 42, 0.06);
   backdrop-filter: blur(8px);
+  align-items: center;
 }
 
-.home-hub-fs-stage:fullscreen .sg-hub-main-title {
-  font-size: 1.85rem;
+.home-hub-fs-head--fullscreen {
+  justify-content: space-between;
+}
+
+.home-hub-fs-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-width: 0;
+}
+
+.home-hub-fs-brand-logo {
+  width: 2.75rem;
+  height: 2.75rem;
+  flex-shrink: 0;
+  display: block;
+  border-radius: 50%;
+  filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.22));
+}
+
+.home-hub-fs-brand-name {
+  font-size: 1.45rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  line-height: 1;
+  color: var(--bn-text, #1e2329);
 }
 
 .home-hub-fs-stage:fullscreen .home-hub-dashboard {
   gap: 0.85rem;
 }
 
+.home-hub-fs-stage:fullscreen .home-hub-dashboard-wrap--fs-stock {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+  margin-bottom: 0.35rem;
+  align-items: start;
+}
+
+.home-hub-fs-stage:fullscreen .home-hub-dashboard-wrap--fs-stock > .home-hub-dashboard {
+  display: contents;
+}
+
+.home-hub-fs-stage:fullscreen .home-hub-dashboard-fs-stock {
+  grid-column: 1;
+  grid-row: 3;
+  min-width: 0;
+  align-self: start;
+}
+
+.home-hub-fs-stage:fullscreen .home-hub-dashboard-fs-side {
+  grid-column: 2;
+  grid-row: 3;
+  min-width: 0;
+  align-self: start;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.home-hub-fs-stage:fullscreen
+  .home-hub-dashboard-wrap--fs-stock:not(:has(.home-hub-dashboard-fs-stock))
+  .home-hub-dashboard-fs-side {
+  grid-column: 1 / -1;
+}
+
 .home-hub-fs-stage:fullscreen .home-kpi-strip-bar__value,
-.home-hub-fs-stage:fullscreen .sg-hub-kpi-value,
-.home-hub-fs-stage:fullscreen .home-ganado-dash-kpi__value {
-  font-size: 1.15em;
+.home-hub-fs-stage:fullscreen .sg-hub-kpi-value {
+  font-size: 1.06em;
+}
+
+.home-hub-fs-stage:fullscreen .home-kpi-strip-bar.is-count-4 .home-kpi-strip-bar__value,
+.home-hub-fs-stage:fullscreen .home-kpi-strip-bar.is-count-5 .home-kpi-strip-bar__value {
+  font-size: clamp(0.95rem, 1.05vw + 0.4rem, 1.28rem);
 }
 
 .home-hub-fs-stage:fullscreen .home-hub-panels {
   gap: 0.9rem;
-}
-
-@media (max-width: 640px) {
-  .home-hub-fs-btn-label {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
-    border: 0;
-  }
-
-  .home-hub-fs-btn {
-    width: 2rem;
-    padding: 0;
-    justify-content: center;
-  }
 }
 
 /* Dashboard unificado: ganado + paneles verdes */
@@ -1394,6 +1428,12 @@ body {
   max-width: 100%;
 }
 
+.home-hub-dashboard-panel--cobros,
+.home-hub-dashboard-panel--financiero {
+  min-width: 0;
+  overflow: hidden;
+}
+
 .home-hub-dashboard-panel--cobros {
   grid-column: 1;
   grid-row: 2;
@@ -1402,6 +1442,11 @@ body {
 .home-hub-dashboard-panel--financiero {
   grid-column: 2;
   grid-row: 2;
+}
+
+.home-hub-dashboard-panel--cobros .home-kpi-strip-bar,
+.home-hub-dashboard-panel--financiero .home-kpi-strip-bar {
+  padding-inline: 0.28rem;
 }
 
 .home-hub-dashboard.has-ganado:not(:has(.home-hub-dashboard-panel--cobros))
@@ -1611,6 +1656,7 @@ body {
   flex: 1 1 0;
   min-width: 0;
   display: flex;
+  overflow: hidden;
 }
 
 .home-kpi-strip-bar__divider {
@@ -1621,6 +1667,7 @@ body {
   width: 1px;
   background: rgba(163, 230, 53, 0.22);
   pointer-events: none;
+  z-index: 1;
 }
 
 .home-kpi-strip-bar__cell {
@@ -1631,13 +1678,15 @@ body {
   gap: 0.4rem;
   width: 100%;
   min-width: 0;
+  max-width: 100%;
   margin: 0;
-  padding: 0.34rem 0.62rem;
+  padding: 0.34rem 0.55rem;
   border: none;
   border-radius: 0.55rem;
   background: transparent;
   cursor: default;
   text-align: left;
+  overflow: hidden;
   transition:
     background 0.14s ease,
     transform 0.14s ease;
@@ -1675,15 +1724,20 @@ button.home-kpi-strip-bar__cell:focus-visible {
   gap: 0.38rem;
   min-width: 0;
   max-width: 100%;
+  overflow: hidden;
 }
 
 .home-kpi-strip-bar__value {
-  font-size: clamp(1.28rem, 1.55vw + 0.48rem, 1.92rem);
+  font-size: clamp(1.05rem, 1.1vw + 0.42rem, 1.55rem);
   font-weight: 800;
-  line-height: 1;
+  line-height: 1.05;
   color: #fff;
   letter-spacing: -0.025em;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .home-kpi-strip-bar__value-aside {
@@ -1848,19 +1902,33 @@ button.home-kpi-strip-bar__cell:focus-visible {
   stroke: #34d399;
 }
 
+.home-kpi-strip-bar.is-count-3 .home-kpi-strip-bar__value {
+  font-size: clamp(1rem, 1.05vw + 0.4rem, 1.42rem);
+}
+
 .home-kpi-strip-bar.is-count-4 .home-kpi-strip-bar__value,
 .home-kpi-strip-bar.is-count-5 .home-kpi-strip-bar__value {
-  font-size: clamp(1.18rem, 1.35vw + 0.44rem, 1.72rem);
+  font-size: clamp(0.88rem, 0.85vw + 0.38rem, 1.18rem);
 }
 
 .home-kpi-strip-bar.is-count-4 .home-kpi-strip-bar__label,
 .home-kpi-strip-bar.is-count-5 .home-kpi-strip-bar__label {
-  font-size: 0.78rem;
+  font-size: 0.72rem;
+}
+
+.home-kpi-strip-bar.is-count-4 .home-kpi-strip-bar__cell {
+  padding: 0.28rem 0.42rem;
+  gap: 0.32rem;
 }
 
 .home-kpi-strip-bar.is-count-5 .home-kpi-strip-bar__cell {
-  padding: 0.3rem 0.52rem;
-  gap: 0.36rem;
+  padding: 0.26rem 0.36rem;
+  gap: 0.3rem;
+}
+
+.home-kpi-strip-bar.is-count-4 .home-kpi-strip-bar__trend-text,
+.home-kpi-strip-bar.is-count-5 .home-kpi-strip-bar__trend-text {
+  font-size: 0.62rem;
 }
 
 .home-kpi-strip-bar__trend {
@@ -1881,7 +1949,7 @@ button.home-kpi-strip-bar__cell:focus-visible {
 }
 
 .home-kpi-strip-bar.is-count-5 .home-kpi-strip-bar__trend-text {
-  font-size: 0.64rem;
+  font-size: 0.6rem;
 }
 
 .home-kpi-strip-bar__trend-icon {
@@ -41988,22 +42056,34 @@ button.sg-kpi-card:disabled {
 }
 
 .mi-cuenta-pw-form {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.75rem 1rem;
+  display: block;
   max-width: 36rem;
 }
 
-.mi-cuenta-pw-form .field:first-child {
+.mi-cuenta-pw-fields-box {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem 1rem;
+  padding: 0.85rem 0.95rem 0.95rem;
+  border: 1px solid color-mix(in srgb, var(--bn-border, #eaecef) 88%, #fff);
+  border-radius: var(--sg-hub-radius-md, 0.65rem);
+  background: color-mix(in srgb, var(--bn-border, #eaecef) 8%, #fff);
+}
+
+.mi-cuenta-pw-fields-box .field:first-child {
   grid-column: 1 / -1;
 }
 
-.mi-cuenta-pw-form .field label {
+.mi-cuenta-pw-fields-box .field label {
   font-size: 0.72rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: #4a5c52;
+}
+
+.mi-cuenta-pw-fields-box .password-field-row input {
+  background: #fff;
 }
 
 .mi-cuenta-page-foot {
@@ -42117,11 +42197,14 @@ button.sg-kpi-card:disabled {
 
 @media (max-width: 640px) {
   .mi-cuenta-pw-form {
-    grid-template-columns: 1fr;
     max-width: none;
   }
 
-  .mi-cuenta-pw-form .field:first-child {
+  .mi-cuenta-pw-fields-box {
+    grid-template-columns: 1fr;
+  }
+
+  .mi-cuenta-pw-fields-box .field:first-child {
     grid-column: auto;
   }
 

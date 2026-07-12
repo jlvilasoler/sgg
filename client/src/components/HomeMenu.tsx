@@ -38,6 +38,8 @@ import HomeStockPotreroPanel from "./home/HomeStockPotreroPanel";
 import HomeNotasBoard from "./home/HomeNotasBoard";
 import HomeNotaModal from "./home/HomeNotaModal";
 import HomeTareasDiaPanel from "./home/HomeTareasDiaPanel";
+import LogoSgg from "./LogoSgg";
+import { APP_FULL_NAME, APP_NAME } from "../brand";
 import HomeVencProximosPanel from "./home/HomeVencProximosPanel";
 
 export type ScreenId = "home" | TabId;
@@ -370,6 +372,55 @@ export default function HomeMenu({
     />
   );
 
+  const renderStockPotreroPanel = () => (
+    <HomeStockPotreroPanel
+      apiOnline={apiOnline}
+      onOpenStock={() => onOpen("stock_ganadero")}
+      onOpenMapa={puedeMapaCampo ? () => onOpen("campo_mapa") : undefined}
+    />
+  );
+
+  const renderMapaCampoPanel = () => (
+    <HomeCampoMapaPanel
+      apiOnline={apiOnline}
+      onOpenMapa={() => onOpen("campo_mapa")}
+    />
+  );
+
+  const renderVencimientosPanel = () => (
+    <HomeVencProximosPanel
+      items={proximosVenc}
+      loading={loadingVenc}
+      onOpen={() => onOpen("vencimientos_impuestos")}
+    />
+  );
+
+  const renderTareasOperativasPanel = () => (
+    <HomeTareasDiaPanel
+      apiOnline={apiOnline}
+      canEdit={canWriteTareasOperativas(user)}
+      onOpen={() => onOpen("tareas_operativas")}
+    />
+  );
+
+  const showStockInDashboardFs =
+    dashboardFullscreen && puedeStockGanadero && showKpiDashboardPanel;
+  const showFsSideStack =
+    dashboardFullscreen &&
+    showKpiDashboardPanel &&
+    (puedeMapaCampo || puedeVencimientos || puedeTareasOperativas);
+  const showFsDashboardExtras = showStockInDashboardFs || showFsSideStack;
+
+  const homeFullscreenBrand = (
+    <div
+      className="home-hub-fs-brand"
+      aria-label={`${APP_NAME} — ${APP_FULL_NAME}`}
+    >
+      <LogoSgg className="home-hub-fs-brand-logo" variant="badge" />
+      <span className="home-hub-fs-brand-name">{APP_NAME}</span>
+    </div>
+  );
+
   const renderNavApp = (app: MenuApp) => (
     <button
             key={app.id}
@@ -468,14 +519,20 @@ export default function HomeMenu({
             ref={dashboardStageRef}
             className={`home-hub-fs-stage${dashboardFullscreen ? " is-fullscreen" : ""}`}
           >
-            <header className="sg-hub-main-head home-hub-fs-head">
-              <div>
-                <h1 className="sg-hub-main-title">Inicio</h1>
-                <p className="sg-hub-main-sub">
-                  {saludoPorHora()}, {nombreCorto}. Resumen de {cuentaLabel} para arrancar con lo
-                  esencial.
-                </p>
-              </div>
+            <header
+              className={`sg-hub-main-head home-hub-fs-head${dashboardFullscreen ? " home-hub-fs-head--fullscreen" : ""}`}
+            >
+              {dashboardFullscreen ? (
+                homeFullscreenBrand
+              ) : (
+                <div>
+                  <h1 className="sg-hub-main-title">Inicio</h1>
+                  <p className="sg-hub-main-sub">
+                    {saludoPorHora()}, {nombreCorto}. Resumen de {cuentaLabel} para arrancar con lo
+                    esencial.
+                  </p>
+                </div>
+              )}
               <div className="sg-hub-main-actions home-hub-fs-actions">
                 <button
                   type="button"
@@ -498,16 +555,26 @@ export default function HomeMenu({
                   ) : (
                     <Maximize2 size={15} strokeWidth={2.25} aria-hidden />
                   )}
-                  <span className="home-hub-fs-btn-label">
-                    {dashboardFullscreen ? "Salir" : "Pantalla completa"}
-                  </span>
                 </button>
               </div>
             </header>
 
             {showKpiDashboardPanel ? (
-              <div key="home-hub-dashboard" aria-busy={loadingInsights}>
+              <div
+                className={`home-hub-dashboard-wrap${showFsDashboardExtras ? " home-hub-dashboard-wrap--fs-stock" : ""}`}
+                aria-busy={loadingInsights}
+              >
                 {renderKpiDashboard()}
+                {showStockInDashboardFs ? (
+                  <div className="home-hub-dashboard-fs-stock">{renderStockPotreroPanel()}</div>
+                ) : null}
+                {showFsSideStack ? (
+                  <div className="home-hub-dashboard-fs-side">
+                    {puedeMapaCampo ? renderMapaCampoPanel() : null}
+                    {puedeVencimientos ? renderVencimientosPanel() : null}
+                    {puedeTareasOperativas ? renderTareasOperativasPanel() : null}
+                  </div>
+                ) : null}
               </div>
             ) : null}
 
@@ -516,9 +583,10 @@ export default function HomeMenu({
                 {mainPanelOrder.map((panelId) => {
                   if (panelId === "pizarron") {
                     if (!puedeNotas && !showAsistenteHome && !puedeTareasOperativas) return null;
+                    if (dashboardFullscreen && !showAsistenteHome) return null;
                     return (
                       <Fragment key="pizarron">
-                        {puedeNotas ? (
+                        {puedeNotas && !dashboardFullscreen ? (
                           <section
                             className="sg-hub-panel home-hub-panel--notes"
                             aria-label="Notas principales"
@@ -557,12 +625,8 @@ export default function HomeMenu({
                           </section>
                         ) : null}
 
-                        {puedeTareasOperativas ? (
-                          <HomeTareasDiaPanel
-                            apiOnline={apiOnline}
-                            canEdit={canWriteTareasOperativas(user)}
-                            onOpen={() => onOpen("tareas_operativas")}
-                          />
+                        {puedeTareasOperativas && !dashboardFullscreen ? (
+                          renderTareasOperativasPanel()
                         ) : null}
 
                         {showAsistenteHome ? (
@@ -593,7 +657,7 @@ export default function HomeMenu({
                       </section>
                     );
                   }
-                  if (panelId === "actividad" && canShowHomePanel(user, "actividad")) {
+                  if (panelId === "actividad" && canShowHomePanel(user, "actividad") && !dashboardFullscreen) {
                     return (
                       <Fragment key="actividad">
                         {actividadPanels.map((panel) => (
@@ -691,36 +755,16 @@ export default function HomeMenu({
 
               <div className="home-hub-col home-hub-col--side">
                 {sidePanelOrder.map((panelId) => {
-                  if (panelId === "mapa_campo" && puedeMapaCampo) {
-                    return (
-                      <HomeCampoMapaPanel
-                        key="mapa_campo"
-                        apiOnline={apiOnline}
-                        onOpenMapa={() => onOpen("campo_mapa")}
-                      />
-                    );
+                  if (panelId === "mapa_campo" && puedeMapaCampo && !dashboardFullscreen) {
+                    return <Fragment key="mapa_campo">{renderMapaCampoPanel()}</Fragment>;
                   }
-                  if (panelId === "vencimientos" && puedeVencimientos) {
-                    return (
-                      <HomeVencProximosPanel
-                        key="vencimientos"
-                        items={proximosVenc}
-                        loading={loadingVenc}
-                        onOpen={() => onOpen("vencimientos_impuestos")}
-                      />
-                    );
+                  if (panelId === "vencimientos" && puedeVencimientos && !dashboardFullscreen) {
+                    return <Fragment key="vencimientos">{renderVencimientosPanel()}</Fragment>;
                   }
-                  if (panelId === "stock_potrero" && puedeStockGanadero) {
-                    return (
-                      <HomeStockPotreroPanel
-                        key="stock_potrero"
-                        apiOnline={apiOnline}
-                        onOpenStock={() => onOpen("stock_ganadero")}
-                        onOpenMapa={puedeMapaCampo ? () => onOpen("campo_mapa") : undefined}
-                      />
-                    );
+                  if (panelId === "stock_potrero" && puedeStockGanadero && !dashboardFullscreen) {
+                    return <Fragment key="stock_potrero">{renderStockPotreroPanel()}</Fragment>;
                   }
-                  if (panelId === "modulos_rapidos" && showModulosRapidos) {
+                  if (panelId === "modulos_rapidos" && showModulosRapidos && !dashboardFullscreen) {
                     return (
                       <section
                         key="modulos_rapidos"

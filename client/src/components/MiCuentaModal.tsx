@@ -311,57 +311,59 @@ export default function MiCuentaPanel({
                   className="mi-cuenta-pw-form"
                   onSubmit={(e) => void submitPassword(e)}
                 >
-                  <div className="field">
-                    <label htmlFor="pw-actual">Actual</label>
-                    <div className="password-field-row">
-                      <input
-                        id="pw-actual"
-                        type={showActual ? "text" : "password"}
-                        autoComplete="current-password"
-                        value={actual}
-                        disabled={busy}
-                        onChange={(e) => setActual(e.target.value)}
-                      />
-                      <PasswordVisibilityToggle
-                        visible={showActual}
-                        onToggle={() => setShowActual((v) => !v)}
-                      />
+                  <div className="mi-cuenta-pw-fields-box">
+                    <div className="field">
+                      <label htmlFor="pw-actual">Actual</label>
+                      <div className="password-field-row">
+                        <input
+                          id="pw-actual"
+                          type={showActual ? "text" : "password"}
+                          autoComplete="current-password"
+                          value={actual}
+                          disabled={busy}
+                          onChange={(e) => setActual(e.target.value)}
+                        />
+                        <PasswordVisibilityToggle
+                          visible={showActual}
+                          onToggle={() => setShowActual((v) => !v)}
+                        />
+                      </div>
                     </div>
-                  </div>
 
-                  <div className="field">
-                    <label htmlFor="pw-nueva">Nueva</label>
-                    <div className="password-field-row">
-                      <input
-                        id="pw-nueva"
-                        type={showNueva ? "text" : "password"}
-                        autoComplete="new-password"
-                        value={nueva}
-                        disabled={busy}
-                        onChange={(e) => setNueva(e.target.value)}
-                      />
-                      <PasswordVisibilityToggle
-                        visible={showNueva}
-                        onToggle={() => setShowNueva((v) => !v)}
-                      />
+                    <div className="field">
+                      <label htmlFor="pw-nueva">Nueva</label>
+                      <div className="password-field-row">
+                        <input
+                          id="pw-nueva"
+                          type={showNueva ? "text" : "password"}
+                          autoComplete="new-password"
+                          value={nueva}
+                          disabled={busy}
+                          onChange={(e) => setNueva(e.target.value)}
+                        />
+                        <PasswordVisibilityToggle
+                          visible={showNueva}
+                          onToggle={() => setShowNueva((v) => !v)}
+                        />
+                      </div>
                     </div>
-                  </div>
 
-                  <div className="field">
-                    <label htmlFor="pw-confirmar">Confirmar</label>
-                    <div className="password-field-row">
-                      <input
-                        id="pw-confirmar"
-                        type={showConfirmar ? "text" : "password"}
-                        autoComplete="new-password"
-                        value={confirmar}
-                        disabled={busy}
-                        onChange={(e) => setConfirmar(e.target.value)}
-                      />
-                      <PasswordVisibilityToggle
-                        visible={showConfirmar}
-                        onToggle={() => setShowConfirmar((v) => !v)}
-                      />
+                    <div className="field">
+                      <label htmlFor="pw-confirmar">Confirmar</label>
+                      <div className="password-field-row">
+                        <input
+                          id="pw-confirmar"
+                          type={showConfirmar ? "text" : "password"}
+                          autoComplete="new-password"
+                          value={confirmar}
+                          disabled={busy}
+                          onChange={(e) => setConfirmar(e.target.value)}
+                        />
+                        <PasswordVisibilityToggle
+                          visible={showConfirmar}
+                          onToggle={() => setShowConfirmar((v) => !v)}
+                        />
+                      </div>
                     </div>
                   </div>
                 </form>
