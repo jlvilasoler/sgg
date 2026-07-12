@@ -3,7 +3,9 @@ import { Save } from "lucide-react";
 import { actualizarMiHomeLayout, fetchMiHomeLayout } from "../../api";
 import type { AuthUser, Rol } from "../../types";
 import {
-  HOME_PANEL_META,
+  HOME_PANEL_TOGGLE_META,
+  applyHomePanelToggle,
+  countVisibleHomeTogglePanels,
   homeLayoutAllVisible,
   normalizeHomePanelOrder,
   type HomeLayoutMap,
@@ -89,7 +91,7 @@ export default function MiCuentaInicioLayout({
   }, [load]);
 
   const panelState = useMemo(() => {
-    return HOME_PANEL_META.map((panel) => {
+    return HOME_PANEL_TOGGLE_META.map((panel) => {
       const permitidoRol = config ? config.ceiling[panel.id] !== false : true;
       const permitidoPermiso = panelPermitidoPorPermisos(user, panel.id);
       const disponible = permitidoRol && permitidoPermiso;
@@ -130,7 +132,9 @@ export default function MiCuentaInicioLayout({
 
   const setPanelVisible = (panelId: HomePanelId, next: boolean) => {
     if (lockedPanels[panelId]) return;
-    setDraft((prev) => (prev ? { ...prev, [panelId]: next } : prev));
+    setDraft((prev) =>
+      prev ? applyHomePanelToggle(prev, panelId, next) : prev,
+    );
     setDirty(true);
     setGuardadoOk(false);
   };

@@ -1,9 +1,10 @@
-import { Beef, Building2, Clock3, GripVertical, LayoutGrid, Plus, Search, Sprout, Wallet, X } from "lucide-react";
+import { BarChart3, Clock3, GripVertical, LayoutGrid, Plus, Search, Wallet, X } from "lucide-react";
 import { useState, type CSSProperties, type DragEvent, type ReactNode } from "react";
 import type { Rol } from "../../types";
 import type { TabId } from "../Header";
 import { MenuAppIcon, MENU_APP_THEMES } from "../icons/MenuAppIcons";
 import {
+  countVisibleHomeTogglePanels,
   DEFAULT_HOME_PANEL_ORDER,
   HOME_PANEL_META,
   moveHomePanelInOrder,
@@ -11,8 +12,9 @@ import {
   type HomeLayoutMap,
   type HomePanelId,
 } from "../../utils/home-layout-config";
-import { HomeKpiStripBar } from "../home/HomeKpiStripBar";
-import { SgHubKpi, SgMiniBars } from "../stock/SgHubUi";
+import type { HomeGanadoStockData } from "../../hooks/useHomeDashboard";
+import HomeGanadoDashKpi from "../home/HomeGanadoDashKpi";
+import { HomeKpiStripBar, type HomeKpiStripCell } from "../home/HomeKpiStripBar";
 
 interface Props {
   paneles: HomeLayoutMap;
@@ -64,8 +66,7 @@ const PANEL_LABEL = HOME_PANEL_META.reduce(
 );
 
 const EMPTY_MIN_HEIGHT: Partial<Record<HomePanelId, string>> = {
-  kpis_operativos: "3.4rem",
-  kpis_gastos: "3.4rem",
+  kpis_operativos: "6.75rem",
   pizarron: "6rem",
   auto_pendientes: "4rem",
   actividad: "5.5rem",
@@ -77,6 +78,156 @@ const EMPTY_MIN_HEIGHT: Partial<Record<HomePanelId, string>> = {
 
 function panelOn(paneles: HomeLayoutMap, id: HomePanelId): boolean {
   return paneles[id] !== false;
+}
+
+const PREVIEW_GANADO_DATA: HomeGanadoStockData = {
+  activos: 525,
+  lotes: 25,
+  machos: 37,
+  hembras: 483,
+  sinDefinir: 5,
+  ejercicioLabel: "1/7/2026 al 30/6/2027",
+  tieneStock: true,
+  tieneSimulador: true,
+  tieneVendido: true,
+  animalesPorVender: 0,
+  porVenderOperaciones: 0,
+  animalesVendidosEjercicio: 0,
+  vendidoOperacionesEjercicio: 0,
+  stockEjercicioAnterior: null,
+  crecimientoStockPct: null,
+  tieneComparacionStock: false,
+};
+
+const PREVIEW_TESORERIA_CELLS: HomeKpiStripCell[] = [
+  {
+    id: "por-cobrar-total",
+    label: "Por cobrar",
+    value: "US$ 31.547",
+    trend: "Cobr. ej. US$ 0",
+    tone: "gold",
+  },
+  {
+    id: "por-cobrar-arrend",
+    label: "Arrendamientos",
+    value: "US$ 7.150",
+    trend: "Cobr. ej. US$ 0",
+    tone: "neutral",
+  },
+  {
+    id: "por-cobrar-ganado",
+    label: "Ganado",
+    value: "US$ 0",
+    trend: "Sin pendientes",
+    tone: "neutral",
+  },
+  {
+    id: "por-cobrar-agric",
+    label: "Agricultura",
+    value: "US$ 24.397",
+    trend: "Cobr. ej. US$ 0",
+    tone: "neutral",
+  },
+];
+
+const PREVIEW_FINANCIERO_CELLS: HomeKpiStripCell[] = [
+  {
+    id: "gastos-mes",
+    label: "Gastos del mes",
+    value: "US$ 2.000",
+    trend: "Mes actual",
+    tone: "neutral",
+  },
+  {
+    id: "gastos-anio",
+    label: "Gastos del año",
+    value: "US$ 2.000",
+    trend: "Ejercicio en curso",
+    tone: "neutral",
+  },
+  {
+    id: "ventas-anio",
+    label: "Ventas del año",
+    value: "US$ 0",
+    trend: "Ventas cobradas",
+    tone: "up",
+  },
+];
+
+function PreviewHubDashboard({
+  showGanado,
+  showTesoreria,
+  showFinanciero,
+}: {
+  showGanado: boolean;
+  showTesoreria: boolean;
+  showFinanciero: boolean;
+}) {
+  const noop = (_tab: TabId) => {};
+
+  return (
+    <section
+      className={`home-hub-dashboard config-home-screen-dashboard-preview${showGanado ? " has-ganado" : ""}`}
+      aria-label="Vista previa KPIs del inicio"
+    >
+      {showGanado ? (
+        <div className="home-hub-dashboard__ganado">
+          <HomeGanadoDashKpi data={PREVIEW_GANADO_DATA} onOpen={noop} />
+        </div>
+      ) : null}
+
+      {showTesoreria ? (
+        <article className="home-hub-dashboard-panel home-hub-dashboard-panel--cobros">
+          <header className="home-hub-dashboard-panel__head">
+            <div className="home-hub-dashboard-panel__brand">
+              <span className="home-hub-dashboard-panel__icon" aria-hidden>
+                <Wallet size={15} strokeWidth={1.75} />
+              </span>
+              <p className="home-hub-dashboard-panel__title-row">
+                <span className="home-hub-dashboard-panel__kicker">Tesorería</span>
+                <span className="home-hub-dashboard-panel__title">Por cobrar</span>
+                <span className="home-hub-dashboard-panel__subtitle">2026/2027</span>
+              </p>
+            </div>
+            <span className="home-hub-dashboard-panel__badge">US$ 31.547</span>
+          </header>
+          <HomeKpiStripBar cells={PREVIEW_TESORERIA_CELLS} label="Por cobrar" />
+        </article>
+      ) : null}
+
+      {showFinanciero ? (
+        <article className="home-hub-dashboard-panel home-hub-dashboard-panel--financiero">
+          <header className="home-hub-dashboard-panel__head">
+            <div className="home-hub-dashboard-panel__brand">
+              <span className="home-hub-dashboard-panel__icon" aria-hidden>
+                <BarChart3 size={15} strokeWidth={1.75} />
+              </span>
+              <p className="home-hub-dashboard-panel__title-row">
+                <span className="home-hub-dashboard-panel__kicker">Financiero</span>
+                <span className="home-hub-dashboard-panel__title">Gastos y ventas</span>
+                <span className="home-hub-dashboard-panel__subtitle">Acumulado del ejercicio</span>
+              </p>
+            </div>
+          </header>
+          <HomeKpiStripBar cells={PREVIEW_FINANCIERO_CELLS} label="Gastos y ventas" />
+        </article>
+      ) : null}
+    </section>
+  );
+}
+
+function renderKpiDashboardPreview(paneles: HomeLayoutMap): ReactNode | null {
+  const showOps = panelOn(paneles, "kpis_operativos");
+  const showGastos = panelOn(paneles, "kpis_gastos");
+  if (!showOps && !showGastos) return null;
+
+  return (
+    <PreviewHubDashboard
+      showGanado={showOps}
+      showTesoreria={showOps}
+      showFinanciero={showGastos || showOps}
+    />
+  );
 }
 
 /** Envoltorio editable de un bloque en modo interactivo. */
@@ -219,13 +370,11 @@ function PreviewKpiStrip({
   setDragId: (id: HomePanelId | null) => void;
   setDropTargetId: (id: HomePanelId | null) => void;
 }) {
-  const topOrder = orderPanelsInZone(orden, "top");
-  const showOps = panelOn(paneles, "kpis_operativos");
-  const showGastos = panelOn(paneles, "kpis_gastos");
-  if (!interactive && !showOps && !showGastos) return null;
+  const kpiOn = panelOn(paneles, "kpis_operativos");
+  const kpiContent = renderKpiDashboardPreview(paneles);
 
   const dragProps = (id: HomePanelId) => ({
-    draggable: Boolean(interactive && onReorder),
+    draggable: Boolean(interactive && onReorder && id === "kpis_operativos"),
     isDragging: dragId === id,
     isDropTarget: dropTargetId === id && dragId !== id,
     onDragHandleStart: setDragId,
@@ -234,310 +383,111 @@ function PreviewKpiStrip({
       setDropTargetId(null);
     },
     onDragOverSlot: (slotId: HomePanelId, e: DragEvent) => {
-      if (!dragId || dragId === slotId) return;
+      if (!dragId || dragId === slotId || slotId !== "kpis_operativos") return;
       e.preventDefault();
       setDropTargetId(slotId);
     },
     onDropOnSlot: (slotId: HomePanelId) => {
-      if (!dragId || !onReorder) return;
+      if (!dragId || !onReorder || slotId !== "kpis_operativos") return;
       onReorder(moveHomePanelInOrder(orden, dragId, slotId));
       setDragId(null);
       setDropTargetId(null);
     },
   });
 
-  const opsRow = (
-    <div className="config-home-screen-kpi-row config-home-screen-kpi-row--ops">
-      <div className="config-home-screen-kpi-card">
-        <article className="home-ganado-dash home-ganado-dash--preview" aria-label="Vista previa ganado">
-          <header className="home-ganado-dash__head">
-            <div className="home-ganado-dash__brand">
-              <span className="home-ganado-dash__icon" aria-hidden>
-                <Beef size={15} strokeWidth={1.75} />
-              </span>
-              <p className="home-ganado-dash__title-row">
-                <span className="home-ganado-dash__kicker">Ganado</span>
-                <span className="home-ganado-dash__subtitle">1/7/2026 al 30/6/2027</span>
-              </p>
-            </div>
-            <span className="home-ganado-dash__badge">525 cab.</span>
-          </header>
-          <div className="home-ganado-dash__strips is-split">
-            <section className="home-ganado-dash__strip-group home-ganado-dash__strip-group--stock">
-              <HomeKpiStripBar
-                label="Stock en campo"
-                cells={[
-                  {
-                    id: "stock",
-                    label: "En stock",
-                    value: "525",
-                    trend: "25 lote(s)",
-                    tone: "lime",
-                  },
-                  {
-                    id: "machos",
-                    label: "Machos",
-                    value: "198",
-                    valueAside: "38%",
-                    sharePct: 38,
-                    shareTone: "macho",
-                    trend: "♂ En stock",
-                    tone: "neutral",
-                  },
-                  {
-                    id: "hembras",
-                    label: "Hembras",
-                    value: "327",
-                    valueAside: "62%",
-                    sharePct: 62,
-                    shareTone: "hembra",
-                    trend: "♀ En stock",
-                    tone: "neutral",
-                  },
-                ]}
-              />
-            </section>
-            <section className="home-ganado-dash__strip-group home-ganado-dash__strip-group--ventas">
-              <HomeKpiStripBar
-                label="Ventas y operaciones"
-                cells={[
-                  {
-                    id: "vendidos",
-                    label: "Vendidos",
-                    value: "0",
-                    trend: "Sin ventas en ej.",
-                    tone: "neutral",
-                  },
-                  {
-                    id: "por-vender",
-                    label: "Por vender",
-                    value: "0",
-                    trend: "Sin operaciones abiertas",
-                    tone: "neutral",
-                  },
-                ]}
-              />
-            </section>
-          </div>
-        </article>
-      </div>
-      <div className="config-home-screen-kpi-card config-home-screen-kpi-card--wide">
-        <article className="sg-hub-kpi sg-hub-kpi--light home-por-cobrar-kpi">
-          <div className="home-por-cobrar-kpi-head">
-            <div className="home-por-cobrar-kpi-brand">
-              <span className="home-por-cobrar-kpi-icon" aria-hidden>
-                <Wallet size={18} strokeWidth={1.75} />
-              </span>
-              <div>
-                <p className="home-por-cobrar-kpi-kicker">Por cobrar</p>
-                <p className="home-por-cobrar-kpi-subtitle">2026/2027</p>
-              </div>
-            </div>
-            <div className="home-por-cobrar-kpi-head-end">
-              <span className="home-por-cobrar-kpi-head-total">US$ 7.150</span>
-              <SgMiniBars highlight="mid" />
-            </div>
-          </div>
-          <div className="home-por-cobrar-kpi-split is-count-3">
-            <div className="home-por-cobrar-kpi-zone home-por-cobrar-kpi-zone--arrend">
-              <span className="home-por-cobrar-kpi-zone-top">
-                <Building2 size={13} strokeWidth={2} aria-hidden />
-                <span className="home-por-cobrar-kpi-zone-eyebrow">Arrend.</span>
-              </span>
-              <span className="home-por-cobrar-kpi-zone-row">
-                <span className="home-por-cobrar-kpi-zone-pair">
-                  <span className="home-por-cobrar-kpi-zone-pair-label">Pend.</span>
-                  <span className="home-por-cobrar-kpi-zone-value">US$ 7.150</span>
-                </span>
-                <span className="home-por-cobrar-kpi-zone-pair home-por-cobrar-kpi-zone-pair--ej">
-                  <span className="home-por-cobrar-kpi-zone-pair-label">Cobr. ej.</span>
-                  <span className="home-por-cobrar-kpi-zone-value home-por-cobrar-kpi-zone-value--ej">US$ 4.200</span>
-                </span>
-              </span>
-              <span className="home-por-cobrar-kpi-zone-hint">1 contrato(s)</span>
-            </div>
-            <div className="home-por-cobrar-kpi-zone home-por-cobrar-kpi-zone--ganado">
-              <span className="home-por-cobrar-kpi-zone-top">
-                <Beef size={13} strokeWidth={2} aria-hidden />
-                <span className="home-por-cobrar-kpi-zone-eyebrow">Ganado</span>
-              </span>
-              <span className="home-por-cobrar-kpi-zone-row">
-                <span className="home-por-cobrar-kpi-zone-pair">
-                  <span className="home-por-cobrar-kpi-zone-pair-label">Pend.</span>
-                  <span className="home-por-cobrar-kpi-zone-value">US$ 0</span>
-                </span>
-                <span className="home-por-cobrar-kpi-zone-pair home-por-cobrar-kpi-zone-pair--ej">
-                  <span className="home-por-cobrar-kpi-zone-pair-label">Cobr. ej.</span>
-                  <span className="home-por-cobrar-kpi-zone-value home-por-cobrar-kpi-zone-value--ej">US$ 142.000</span>
-                </span>
-              </span>
-              <span className="home-por-cobrar-kpi-zone-hint">Al día</span>
-            </div>
-            <div className="home-por-cobrar-kpi-zone home-por-cobrar-kpi-zone--agric">
-              <span className="home-por-cobrar-kpi-zone-top">
-                <Sprout size={13} strokeWidth={2} aria-hidden />
-                <span className="home-por-cobrar-kpi-zone-eyebrow">Agric.</span>
-              </span>
-              <span className="home-por-cobrar-kpi-zone-row">
-                <span className="home-por-cobrar-kpi-zone-pair">
-                  <span className="home-por-cobrar-kpi-zone-pair-label">Pend.</span>
-                  <span className="home-por-cobrar-kpi-zone-value">US$ 0</span>
-                </span>
-                <span className="home-por-cobrar-kpi-zone-pair home-por-cobrar-kpi-zone-pair--ej">
-                  <span className="home-por-cobrar-kpi-zone-pair-label">Cobr. ej.</span>
-                  <span className="home-por-cobrar-kpi-zone-value home-por-cobrar-kpi-zone-value--ej">US$ 40.300</span>
-                </span>
-              </span>
-              <span className="home-por-cobrar-kpi-zone-hint">Al día</span>
-            </div>
-          </div>
-        </article>
-      </div>
-      <div className="config-home-screen-kpi-card config-home-screen-kpi-card--wide">
-        <article className="sg-hub-kpi sg-hub-kpi--dark home-resultado-ejercicio-kpi home-exec-kpi">
-          <div className="home-ganado-stock-kpi-head">
-            <div className="home-ganado-stock-kpi-brand">
-              <span className="home-ganado-stock-kpi-icon" aria-hidden>📊</span>
-              <div>
-                <p className="home-ganado-stock-kpi-kicker">Resumen financiero</p>
-                <p className="home-ganado-stock-kpi-subtitle">2026/2027 · acumulado</p>
-              </div>
-            </div>
-          </div>
-          <div className="home-ganado-stock-kpi-metrics is-count-3">
-            <div className="home-ganado-stock-kpi-metric">
-              <span className="home-ganado-stock-kpi-metric-eyebrow">Gastos del mes</span>
-              <span className="home-ganado-stock-kpi-metric-value">US$ 12.400</span>
-            </div>
-            <div className="home-ganado-stock-kpi-metric">
-              <span className="home-ganado-stock-kpi-metric-eyebrow">Gastos del año</span>
-              <span className="home-ganado-stock-kpi-metric-value">US$ 98.200</span>
-            </div>
-            <div className="home-ganado-stock-kpi-metric home-ganado-stock-kpi-metric--ok">
-              <span className="home-ganado-stock-kpi-metric-eyebrow">Ventas del año</span>
-              <span className="home-ganado-stock-kpi-metric-value">US$ 186.500</span>
-            </div>
-          </div>
-        </article>
-      </div>
-    </div>
-  );
-
-  const gastosRow = (
-    <div className="config-home-screen-kpi-row config-home-screen-kpi-row--gastos">
-      <div className="config-home-screen-kpi-card">
-        <SgHubKpi
-          variant="dark"
-          kicker="Gastos del mes"
-          value="USD 12.400"
-          hint="Mes actual"
-          trend="Mes actual"
-          bars={<SgMiniBars highlight="last" />}
-        />
-      </div>
-      <div className="config-home-screen-kpi-card">
-        <SgHubKpi
-          variant="dark"
-          kicker="Gastos del ejercicio"
-          value="USD 98.200"
-          hint="Ejercicio en curso"
-          trend="Ejercicio en curso"
-          bars={<SgMiniBars />}
-        />
-      </div>
-    </div>
-  );
-
   if (!interactive) {
-    const nodes: ReactNode[] = [];
-    for (const id of topOrder) {
-      if (id === "kpis_operativos" && showOps) nodes.push(<div key={id}>{opsRow}</div>);
-      if (id === "kpis_gastos" && showGastos) nodes.push(<div key={id}>{gastosRow}</div>);
-    }
-    return <div className="config-home-screen-kpis">{nodes}</div>;
+    return kpiContent ? <div className="config-home-screen-kpis">{kpiContent}</div> : null;
   }
 
   return (
     <div className="config-home-screen-kpis">
-      {topOrder.map((id) => {
-        if (id === "kpis_operativos") {
-          return (
-            <EditableBlock
-              key={id}
-              id={id}
-              label={PANEL_LABEL.kpis_operativos}
-              on={showOps}
-              lockedReason={lockedPanels?.kpis_operativos}
-              onToggle={onToggle}
-              {...dragProps(id)}
-            >
-              {opsRow}
-            </EditableBlock>
-          );
-        }
-        return (
-          <EditableBlock
-            key={id}
-            id={id}
-            label={PANEL_LABEL.kpis_gastos}
-            on={showGastos}
-            lockedReason={lockedPanels?.kpis_gastos}
-            onToggle={onToggle}
-            {...dragProps(id)}
-          >
-            {gastosRow}
-          </EditableBlock>
-        );
-      })}
+      <EditableBlock
+        id="kpis_operativos"
+        label={PANEL_LABEL.kpis_operativos}
+        on={kpiOn}
+        lockedReason={lockedPanels?.kpis_operativos}
+        onToggle={onToggle}
+        {...dragProps("kpis_operativos")}
+      >
+        {kpiContent}
+      </EditableBlock>
     </div>
   );
 }
 
 function PreviewPizarron() {
   return (
-    <section className="config-home-screen-panel config-home-screen-panel--notes-full">
-      <div className="home-hub-notes-shell">
-        <header className="home-hub-notes-head">
-          <div className="home-hub-notes-head-main">
-            <p className="home-hub-notes-head-kicker">Recordatorios</p>
-            <h2 className="home-hub-notes-head-title">Pizarrón</h2>
-          </div>
-          <span className="home-hub-notes-head-link">Ver todas</span>
-        </header>
-        <div className="home-hub-notes-board">
-          <div className="home-hub-notes-carousel">
-            <div className="home-hub-notes-carousel-fade">
-              <div className="home-hub-notes-carousel-viewport">
-                <ul className="home-hub-notes-list">
-                  <li>
-                    <div className="home-hub-note-card home-hub-note-card--yellow" style={{ transform: "rotate(-1.4deg)" }}>
-                      <span className="home-hub-note-tape" aria-hidden />
-                      <span className="home-hub-note-body">
-                        <span className="home-hub-note-head">
-                          <span className="home-hub-note-title">Vacunación potrero 3</span>
+    <div className="config-home-screen-pizarron-stack">
+      <section className="config-home-screen-panel config-home-screen-panel--notes-full">
+        <div className="home-hub-notes-shell">
+          <header className="home-hub-notes-head">
+            <div className="home-hub-notes-head-main">
+              <p className="home-hub-notes-head-kicker">Recordatorios</p>
+              <h2 className="home-hub-notes-head-title">Pizarrón</h2>
+            </div>
+            <span className="home-hub-notes-head-link">Ver todas</span>
+          </header>
+          <div className="home-hub-notes-board">
+            <div className="home-hub-notes-carousel">
+              <div className="home-hub-notes-carousel-fade">
+                <div className="home-hub-notes-carousel-viewport">
+                  <ul className="home-hub-notes-list">
+                    <li>
+                      <div className="home-hub-note-card home-hub-note-card--yellow" style={{ transform: "rotate(-1.4deg)" }}>
+                        <span className="home-hub-note-tape" aria-hidden />
+                        <span className="home-hub-note-body">
+                          <span className="home-hub-note-head">
+                            <span className="home-hub-note-title">Vacunación potrero 3</span>
+                          </span>
+                          <span className="home-hub-note-preview">Mié 15 · equipo campo</span>
                         </span>
-                        <span className="home-hub-note-preview">Mié 15 · equipo campo</span>
-                      </span>
-                    </div>
-                  </li>
-                  <li>
-                    <div className="home-hub-note-card home-hub-note-card--blue" style={{ transform: "rotate(1deg)" }}>
-                      <span className="home-hub-note-tape" aria-hidden />
-                      <span className="home-hub-note-body">
-                        <span className="home-hub-note-head">
-                          <span className="home-hub-note-title">Revisar DGI abril</span>
+                      </div>
+                    </li>
+                    <li>
+                      <div className="home-hub-note-card home-hub-note-card--blue" style={{ transform: "rotate(1deg)" }}>
+                        <span className="home-hub-note-tape" aria-hidden />
+                        <span className="home-hub-note-body">
+                          <span className="home-hub-note-head">
+                            <span className="home-hub-note-title">Revisar DGI abril</span>
+                          </span>
+                          <span className="home-hub-note-preview">Ayer · administración</span>
                         </span>
-                        <span className="home-hub-note-preview">Ayer · administración</span>
-                      </span>
-                    </div>
-                  </li>
-                </ul>
+                      </div>
+                    </li>
+                  </ul>
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
-    </section>
+      </section>
+
+      <section className="config-home-screen-panel config-home-screen-panel--tareas-preview">
+        <header className="config-home-screen-panel-head">
+          <div>
+            <p className="config-home-screen-panel-kicker">Tareas operativas</p>
+            <h4>Tareas del día</h4>
+          </div>
+          <span className="config-home-screen-panel-link">Abrir</span>
+        </header>
+        <ul className="config-home-screen-tareas-preview">
+          <li>Sanidad potrero norte</li>
+          <li>Control alambrado sur</li>
+        </ul>
+      </section>
+
+      <section className="config-home-screen-panel config-home-screen-panel--asistente-preview">
+        <header className="config-home-screen-panel-head">
+          <div>
+            <p className="config-home-screen-panel-kicker">Asistente</p>
+            <h4>Consultas rápidas</h4>
+          </div>
+        </header>
+        <p className="config-home-screen-asistente-preview-text muted">
+          Preguntá por indicadores, stock, gastos o dólar.
+        </p>
+      </section>
+    </div>
   );
 }
 
@@ -593,11 +543,8 @@ function PreviewActividad() {
 function PreviewMapa() {
   return (
     <section className="config-home-screen-panel config-home-screen-panel--mapa">
-      <header className="config-home-screen-panel-head">
-        <div>
-          <p className="config-home-screen-panel-kicker">Campo</p>
-          <h4>Mapa de potreros</h4>
-        </div>
+      <header className="config-home-screen-panel-head config-home-screen-panel-head--inline">
+        <p className="config-home-screen-panel-kicker">Tu predio</p>
         <span className="config-home-screen-panel-link">Abrir mapa</span>
       </header>
       <div className="config-home-screen-mapa" aria-hidden>
@@ -615,7 +562,8 @@ function PreviewVencimientos() {
       <div className="home-hub-venc-shell">
         <header className="home-hub-venc-head">
           <div className="home-hub-venc-head-main">
-            <p className="home-hub-venc-head-kicker">Próximos vencimientos</p>
+            <p className="home-hub-venc-head-kicker">Calendario tributario</p>
+            <h2 className="home-hub-venc-head-title">Próximos vencimientos</h2>
           </div>
           <span className="home-hub-venc-head-link">Abrir</span>
         </header>
@@ -736,7 +684,7 @@ export default function HomeLayoutScreenPreview({
   const [dragId, setDragId] = useState<HomePanelId | null>(null);
   const [dropTargetId, setDropTargetId] = useState<HomePanelId | null>(null);
   const roleMeta = ROLE_PREVIEW[rol];
-  const visibleCount = HOME_PANEL_META.filter((p) => panelOn(paneles, p.id)).length;
+  const visibleCount = countVisibleHomeTogglePanels(paneles);
 
   const mainPanels: { id: HomePanelId; node: ReactNode }[] = [
     { id: "pizarron", node: <PreviewPizarron /> },

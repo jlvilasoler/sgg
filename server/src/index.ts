@@ -4192,6 +4192,15 @@ app.get("/api/stock-ganadero/resumen", async (req, res) => {
   const lecturasFilters = await stockLecturasFiltersFromRequest(req);
   const lotes = await db.stockGanadero.listLotes(lecturasFilters);
   const activosDetalle = await db.stockGanadero.countDispositivosActivosDetalle(filters);
+  const inicioMes = req.user?.ejercicio_inicio_mes ?? 7;
+  const inicioDia = req.user?.ejercicio_inicio_dia ?? 1;
+  const comparacion_ejercicio_anterior =
+    await db.stockGanadero.comparacionEjercicioAnterior(
+      filters,
+      activosDetalle.total,
+      inicioMes,
+      inicioDia,
+    );
   res.json({
     ok: true,
     data: {
@@ -4203,6 +4212,7 @@ app.get("/api/stock-ganadero/resumen", async (req, res) => {
       sin_definir: activosDetalle.sin_definir,
       dispositivos_total: await db.stockGanadero.countDispositivosTotal(filters),
       ventas_dispositivos: await db.simuladorVentaDispositivos.countEnVentasCerradas(),
+      comparacion_ejercicio_anterior,
     },
   });
 });

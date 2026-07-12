@@ -830,6 +830,12 @@ export async function fetchStockGanaderoResumen(): Promise<{
   machos: number;
   hembras: number;
   sin_definir: number;
+  comparacion_ejercicio_anterior: {
+    disponible: boolean;
+    fecha_referencia: string;
+    stock_anterior: number | null;
+    crecimiento_pct: number | null;
+  };
 }> {
   const json = await request<{
     data: {
@@ -841,8 +847,15 @@ export async function fetchStockGanaderoResumen(): Promise<{
       machos?: number;
       hembras?: number;
       sin_definir?: number;
+      comparacion_ejercicio_anterior?: {
+        disponible?: boolean;
+        fecha_referencia?: string;
+        stock_anterior?: number | null;
+        crecimiento_pct?: number | null;
+      };
     };
   }>("/stock-ganadero/resumen");
+  const cmp = json.data.comparacion_ejercicio_anterior;
   return {
     lotes: json.data.lotes,
     registros: json.data.registros,
@@ -852,6 +865,12 @@ export async function fetchStockGanaderoResumen(): Promise<{
     machos: json.data.machos ?? 0,
     hembras: json.data.hembras ?? 0,
     sin_definir: json.data.sin_definir ?? 0,
+    comparacion_ejercicio_anterior: {
+      disponible: cmp?.disponible === true,
+      fecha_referencia: cmp?.fecha_referencia ?? "",
+      stock_anterior: cmp?.stock_anterior ?? null,
+      crecimiento_pct: cmp?.crecimiento_pct ?? null,
+    },
   };
 }
 

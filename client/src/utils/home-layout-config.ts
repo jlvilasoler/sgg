@@ -38,22 +38,22 @@ export const HOME_PANEL_META: HomePanelMeta[] = [
   {
     id: "kpis_operativos",
     kicker: "Indicadores",
-    label: "KPIs operativos",
-    hint: "Ganado, ventas del ejercicio e ingresos por cobrar",
+    label: "Indicadores del inicio",
+    hint: "Ganado, por cobrar, gastos y ventas del ejercicio",
     zone: "top",
   },
   {
     id: "kpis_gastos",
     kicker: "Presupuesto",
-    label: "KPIs de gastos",
-    hint: "Gastos del mes y del ejercicio",
+    label: "Gastos y ventas (KPIs)",
+    hint: "Sección financiera dentro de Indicadores del inicio",
     zone: "top",
   },
   {
     id: "pizarron",
     kicker: "Recordatorios",
-    label: "Pizarrón de notas",
-    hint: "Notas fijadas y recientes",
+    label: "Pizarrón, tareas y asistente",
+    hint: "Notas, tareas del día y chat del asistente (según perfil)",
     zone: "main",
   },
   {
@@ -73,8 +73,8 @@ export const HOME_PANEL_META: HomePanelMeta[] = [
   {
     id: "mapa_campo",
     kicker: "Campo",
-    label: "Mapa de potreros",
-    hint: "Vista previa del mapa ganadero",
+    label: "Mapa del predio",
+    hint: "Vista previa satelital del mapa ganadero",
     zone: "side",
   },
   {
@@ -94,11 +94,33 @@ export const HOME_PANEL_META: HomePanelMeta[] = [
   {
     id: "modulos_rapidos",
     kicker: "Accesos",
-    label: "Módulos rápidos",
-    hint: "Atajos según perfil y uso reciente",
+    label: "Accesos rápidos",
+    hint: "Atajos a módulos según perfil y uso reciente",
     zone: "side",
   },
 ];
+
+/** Bloques que se muestran en la UI de configuración (1:1 con contenedores del Home). */
+export const HOME_PANEL_TOGGLE_META: HomePanelMeta[] = HOME_PANEL_META.filter(
+  (panel) => panel.id !== "kpis_gastos",
+);
+
+export function countVisibleHomeTogglePanels(map: HomeLayoutMap): number {
+  return HOME_PANEL_TOGGLE_META.filter((panel) => map[panel.id]).length;
+}
+
+/** Al cambiar un toggle visible, aplica flags internos acoplados. */
+export function applyHomePanelToggle(
+  map: HomeLayoutMap,
+  panelId: HomePanelId,
+  visible: boolean,
+): HomeLayoutMap {
+  const next = { ...map, [panelId]: visible };
+  if (panelId === "kpis_operativos") {
+    next.kpis_gastos = visible;
+  }
+  return next;
+}
 
 export const DEFAULT_HOME_LAYOUT: HomeLayoutMap = {
   kpis_operativos: true,

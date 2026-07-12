@@ -79,6 +79,11 @@ export interface HomeGanadoStockData {
   porVenderOperaciones: number;
   animalesVendidosEjercicio: number;
   vendidoOperacionesEjercicio: number;
+  /** Stock en la misma fecha del ejercicio anterior (null si no hay datos). */
+  stockEjercicioAnterior: number | null;
+  /** % de variación vs ejercicio anterior (null si no hay comparación). */
+  crecimientoStockPct: number | null;
+  tieneComparacionStock: boolean;
 }
 
 export interface HomeResultadoEjercicioData {
@@ -226,6 +231,11 @@ function buildGanadoStockInsight(
     machos?: number;
     hembras?: number;
     sin_definir?: number;
+    comparacion_ejercicio_anterior?: {
+      disponible?: boolean;
+      stock_anterior?: number | null;
+      crecimiento_pct?: number | null;
+    };
   } | null,
   simRows: Awaited<ReturnType<typeof fetchSimulacionesVentaGanado>> | null,
   flags: {
@@ -244,6 +254,8 @@ function buildGanadoStockInsight(
     ? resumenGanadoCobradoEjercicio(simRows, ejercicio.desde, ejercicio.hasta)
     : { operaciones: 0, animales: 0, usd: 0 };
 
+  const comparacion = resumen?.comparacion_ejercicio_anterior;
+
   const ganadoStock: HomeGanadoStockData = {
     activos,
     lotes,
@@ -258,6 +270,9 @@ function buildGanadoStockInsight(
     porVenderOperaciones: porVender.operaciones,
     animalesVendidosEjercicio: vendido.animales,
     vendidoOperacionesEjercicio: vendido.operaciones,
+    stockEjercicioAnterior: comparacion?.stock_anterior ?? null,
+    crecimientoStockPct: comparacion?.crecimiento_pct ?? null,
+    tieneComparacionStock: comparacion?.disponible === true,
   };
 
   const hintPartes: string[] = [];
@@ -469,6 +484,9 @@ export function buildExpectedHomeInsights(user: AuthUser): HomeInsight[] {
         porVenderOperaciones: 0,
         animalesVendidosEjercicio: 0,
         vendidoOperacionesEjercicio: 0,
+        stockEjercicioAnterior: null,
+        crecimientoStockPct: null,
+        tieneComparacionStock: false,
       },
     });
   }

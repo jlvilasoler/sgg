@@ -468,6 +468,19 @@ export const stockGanadero = {
     stock.countStockGanaderaDispositivosActivos(db, filters),
   countDispositivosActivosDetalle: (filters?: stock.StockGanaderoFilters) =>
     stock.countStockGanaderaDispositivosActivosDetalle(db, filters),
+  comparacionEjercicioAnterior: (
+    filters: stock.StockGanaderoFilters | undefined,
+    stockActual: number,
+    inicioMes?: number,
+    inicioDia?: number,
+  ) =>
+    stock.stockGanaderaComparacionEjercicioAnterior(
+      db,
+      filters,
+      stockActual,
+      inicioMes,
+      inicioDia,
+    ),
   countDispositivosTotal: (filters?: stock.StockGanaderoFilters) =>
     stock.countStockGanaderaDispositivos(db, filters),
   updateDispositivoSexo: (

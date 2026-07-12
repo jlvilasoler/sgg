@@ -1,5 +1,9 @@
 import { Minus, TrendingDown, TrendingUp } from "lucide-react";
 import type { ReactNode } from "react";
+import {
+  HomeKpiStockGrowthChart,
+  type HomeKpiStockGrowth,
+} from "./HomeKpiStockGrowthChart";
 
 export type HomeKpiStripTone = "up" | "down" | "neutral" | "lime" | "gold" | "ok";
 
@@ -13,6 +17,8 @@ export interface HomeKpiStripCell {
   sharePct?: number;
   /** Tono del gráfico de participación. */
   shareTone?: "macho" | "hembra";
+  /** Gráfico de crecimiento vs ejercicio anterior (solo celda En stock). */
+  stockGrowth?: HomeKpiStockGrowth;
   trend?: string;
   tone?: HomeKpiStripTone;
   onClick?: () => void;
@@ -96,11 +102,12 @@ function StripCell({
 }) {
   const tone = cell.tone ?? "neutral";
   const shareTone = cell.shareTone ?? "macho";
+  const hasAside = cell.sharePct != null || cell.stockGrowth != null;
   const content = (
     <>
       <span className="home-kpi-strip-bar__label">{cell.label}</span>
       <div
-        className={`home-kpi-strip-bar__body${cell.sharePct != null ? " home-kpi-strip-bar__body--share" : ""}`}
+        className={`home-kpi-strip-bar__body${hasAside ? " home-kpi-strip-bar__body--share" : ""}`}
       >
         <div className="home-kpi-strip-bar__main">
           <span className="home-kpi-strip-bar__value-row">
@@ -128,6 +135,7 @@ function StripCell({
             </span>
           ) : null}
         </div>
+        {cell.stockGrowth ? <HomeKpiStockGrowthChart growth={cell.stockGrowth} /> : null}
         {cell.sharePct != null ? (
           <ShareDonut pct={cell.sharePct} tone={shareTone} />
         ) : null}
@@ -141,7 +149,7 @@ function StripCell({
       {cell.onClick ? (
         <button
           type="button"
-          className={`home-kpi-strip-bar__cell home-kpi-strip-bar__cell--${tone}${cell.sharePct != null ? " home-kpi-strip-bar__cell--share" : ""}`}
+          className={`home-kpi-strip-bar__cell home-kpi-strip-bar__cell--${tone}${hasAside ? " home-kpi-strip-bar__cell--share" : ""}`}
           onClick={cell.onClick}
           aria-label={cell.ariaLabel ?? `${cell.label}: ${cell.value}`}
         >
@@ -149,7 +157,7 @@ function StripCell({
         </button>
       ) : (
         <div
-          className={`home-kpi-strip-bar__cell home-kpi-strip-bar__cell--${tone}${cell.sharePct != null ? " home-kpi-strip-bar__cell--share" : ""}`}
+          className={`home-kpi-strip-bar__cell home-kpi-strip-bar__cell--${tone}${hasAside ? " home-kpi-strip-bar__cell--share" : ""}`}
           aria-label={cell.ariaLabel ?? `${cell.label}: ${cell.value}`}
         >
           {content}

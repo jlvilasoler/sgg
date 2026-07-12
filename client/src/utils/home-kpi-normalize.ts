@@ -101,6 +101,13 @@ export function normalizeGanadoStockData(
       src.vendidoOperacionesEjercicio,
       fallback.vendidoOperacionesEjercicio,
     ),
+    stockEjercicioAnterior:
+      src.stockEjercicioAnterior != null
+        ? num(src.stockEjercicioAnterior)
+        : fallback.stockEjercicioAnterior,
+    crecimientoStockPct:
+      src.crecimientoStockPct != null ? num(src.crecimientoStockPct) : fallback.crecimientoStockPct,
+    tieneComparacionStock: bool(src.tieneComparacionStock, fallback.tieneComparacionStock),
   };
 }
 

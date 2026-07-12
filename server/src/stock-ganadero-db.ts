@@ -2266,6 +2266,88 @@ export async function countStockGanaderaDispositivosActivosDetalle(
   return { total, machos, hembras, sin_definir };
 }
 
+export interface StockGanaderaComparacionEjercicio {
+  disponible: boolean;
+  fecha_referencia: string;
+  stock_anterior: number | null;
+  crecimiento_pct: number | null;
+}
+
+/** Misma fecha relativa en el ejercicio anterior (mismos días desde el inicio). */
+export function fechaComparacionEjercicioAnterior(
+  ref: Date = new Date(),
+  inicioMes = 7,
+  inicioDia = 1,
+): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const y = ref.getFullYear();
+  const inicioEsteAnio = new Date(y, inicioMes - 1, inicioDia);
+  const anioInicio = ref < inicioEsteAnio ? y - 1 : y;
+  const anioAnterior = anioInicio - 1;
+  const inicioVigente = new Date(anioInicio, inicioMes - 1, inicioDia);
+  const dias = Math.floor((ref.getTime() - inicioVigente.getTime()) / 86_400_000);
+  const fechaRef = new Date(anioAnterior, inicioMes - 1, inicioDia);
+  fechaRef.setDate(fechaRef.getDate() + Math.max(0, dias));
+  return `${fechaRef.getFullYear()}-${pad(fechaRef.getMonth() + 1)}-${pad(fechaRef.getDate())}`;
+}
+
+function dispositivoActivoEnFecha(d: StockGanaderaDispositivo, fechaIso: string): boolean {
+  if (d.primera_fecha > fechaIso) return false;
+  if (d.estado === "VIVO") return true;
+  if (!d.baja_mes || !d.baja_anio) return false;
+  const bajaIso = fechaBajaIsoDesdeMesAnio(d.baja_mes, d.baja_anio);
+  return bajaIso > fechaIso;
+}
+
+export async function countStockGanaderaDispositivosActivosEnFecha(
+  db: Db,
+  filters: StockGanaderoFilters | undefined,
+  fechaIso: string,
+): Promise<number> {
+  const filtrosHistoricos: StockGanaderoFilters = {
+    ...filters,
+    fecha_hasta: fechaIso,
+  };
+  const dispositivos = await listStockGanaderaDispositivos(db, filtrosHistoricos);
+  let total = 0;
+  for (const d of dispositivos) {
+    if (dispositivoActivoEnFecha(d, fechaIso)) total += 1;
+  }
+  return total;
+}
+
+export async function stockGanaderaComparacionEjercicioAnterior(
+  db: Db,
+  filters: StockGanaderoFilters | undefined,
+  stockActual: number,
+  inicioMes = 7,
+  inicioDia = 1,
+): Promise<StockGanaderaComparacionEjercicio> {
+  const fecha_referencia = fechaComparacionEjercicioAnterior(new Date(), inicioMes, inicioDia);
+  const stock_anterior = await countStockGanaderaDispositivosActivosEnFecha(
+    db,
+    filters,
+    fecha_referencia,
+  );
+
+  if (stock_anterior <= 0) {
+    return {
+      disponible: false,
+      fecha_referencia,
+      stock_anterior: null,
+      crecimiento_pct: null,
+    };
+  }
+
+  const crecimiento_pct = Math.round(((stockActual - stock_anterior) / stock_anterior) * 100);
+  return {
+    disponible: true,
+    fecha_referencia,
+    stock_anterior,
+    crecimiento_pct,
+  };
+}
+
 export interface ImportBajaDispositivosResult {
   actualizados: number;
   no_encontrados: number;

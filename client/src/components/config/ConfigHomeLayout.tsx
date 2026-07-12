@@ -9,7 +9,9 @@ import {
 import type { HomeLayoutConfigurableRol, HomeLayoutMap, HomePanelId } from "../../utils/home-layout-config";
 import {
   HOME_LAYOUT_ROLES,
-  HOME_PANEL_META,
+  HOME_PANEL_TOGGLE_META,
+  applyHomePanelToggle,
+  countVisibleHomeTogglePanels,
   isHomeLayoutConfigurableRol,
   normalizeHomeLayoutMap,
   normalizeHomePanelOrder,
@@ -25,7 +27,7 @@ import {
   toggleModuloPermiso,
   type ModoEdicionModulo,
 } from "../../utils/rol-modulos-config";
-import ConfigRolAlcancePanel from "./ConfigRolAlcancePanel";
+import ConfigRolAlcanceInfoButton from "./ConfigRolAlcanceInfoButton";
 import ConfigRolModulosPanel from "./ConfigRolModulosPanel";
 import HomeLayoutScreenPreview from "./HomeLayoutScreenPreview";
 
@@ -132,20 +134,21 @@ export default function ConfigHomeLayout({
   const activePermDraft = permDrafts[activeRol] ?? null;
 
   const visibleBlocks = useMemo(
-    () => HOME_PANEL_META.filter((p) => activeDraft[p.id]).length,
+    () => countVisibleHomeTogglePanels(activeDraft),
     [activeDraft],
   );
 
   const dirty = layoutDirty || permDirty;
 
   const togglePanel = (panelId: HomePanelId) => {
-    setDrafts((prev) => ({
-      ...prev,
-      [activeRol]: {
-        ...(prev[activeRol] ?? normalizeHomeLayoutMap(null)),
-        [panelId]: !(prev[activeRol]?.[panelId] ?? true),
-      },
-    }));
+    setDrafts((prev) => {
+      const current = prev[activeRol] ?? normalizeHomeLayoutMap(null);
+      const nextVisible = !(current[panelId] ?? true);
+      return {
+        ...prev,
+        [activeRol]: applyHomePanelToggle(current, panelId, nextVisible),
+      };
+    });
     setLayoutDirty(true);
   };
 
@@ -261,24 +264,31 @@ export default function ConfigHomeLayout({
             const accent = ROL_ACCENT[rol];
             const isActive = activeRol === rol;
             const blocks =
-              Object.values(drafts[rol] ?? {}).filter(Boolean).length || HOME_PANEL_META.length;
+              countVisibleHomeTogglePanels(drafts[rol] ?? normalizeHomeLayoutMap(null)) ||
+              HOME_PANEL_TOGGLE_META.length;
             const modules = countModulosHabilitados(permDrafts[rol], rol);
+            const rolLabel = rolHomeLayoutLabel(rol);
             return (
-              <button
+              <div
                 key={rol}
-                type="button"
-                role="tab"
-                aria-selected={isActive}
-                className={`config-home-layout-role-tab${isActive ? " is-active" : ""}`}
+                className={`config-home-layout-role-tab-wrap${isActive ? " is-active" : ""}`}
                 style={{ "--role-tab-accent": accent } as CSSProperties}
-                onClick={() => setActiveRol(rol)}
               >
-                <span className="config-home-layout-role-tab-label">{rolHomeLayoutLabel(rol)}</span>
-                <span className="config-home-layout-role-tab-meta">
-                  {blocks} bloque{blocks === 1 ? "" : "s"} · {modules} módulo
-                  {modules === 1 ? "" : "s"}
-                </span>
-              </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={isActive}
+                  className={`config-home-layout-role-tab${isActive ? " is-active" : ""}`}
+                  onClick={() => setActiveRol(rol)}
+                >
+                  <span className="config-home-layout-role-tab-label">{rolLabel}</span>
+                  <span className="config-home-layout-role-tab-meta">
+                    {blocks} bloque{blocks === 1 ? "" : "s"} · {modules} módulo
+                    {modules === 1 ? "" : "s"}
+                  </span>
+                </button>
+                <ConfigRolAlcanceInfoButton rol={rol} accent={accent} rolLabel={rolLabel} />
+              </div>
             );
           })}
         </div>
@@ -287,34 +297,96 @@ export default function ConfigHomeLayout({
           <p className="config-home-layout-loading">Cargando configuración del inicio…</p>
         ) : (
           <div className="config-home-layout-workspace">
-            <div className="config-home-layout-preview-wrap">
-              <HomeLayoutScreenPreview
-                paneles={activeDraft}
-                orden={activeOrder}
-                rol={activeRol}
-                rolLabel={rolHomeLayoutLabel(activeRol)}
-                accent={ROL_ACCENT[activeRol]}
-                interactive
-                onTogglePanel={(id, next) => {
-                  setDrafts((prev) => ({
-                    ...prev,
-                    [activeRol]: {
-                      ...(prev[activeRol] ?? normalizeHomeLayoutMap(null)),
-                      [id]: next,
-                    },
-                  }));
-                  setLayoutDirty(true);
-                }}
-                onReorder={(next) => {
-                  setOrderDrafts((prev) => ({ ...prev, [activeRol]: next }));
-                  setLayoutDirty(true);
-                }}
-              />
+            <div className="config-home-layout-top">
+              <div className="config-home-layout-preview-wrap">
+                <HomeLayoutScreenPreview
+                  paneles={activeDraft}
+                  orden={activeOrder}
+                  rol={activeRol}
+                  rolLabel={rolHomeLayoutLabel(activeRol)}
+                  accent={ROL_ACCENT[activeRol]}
+                  interactive
+                  onTogglePanel={(id, next) => {
+                    setDrafts((prev) => ({
+                      ...prev,
+                      [activeRol]: applyHomePanelToggle(
+                        prev[activeRol] ?? normalizeHomeLayoutMap(null),
+                        id,
+                        next,
+                      ),
+                    }));
+                    setLayoutDirty(true);
+                  }}
+                  onReorder={(next) => {
+                    setOrderDrafts((prev) => ({ ...prev, [activeRol]: next }));
+                    setLayoutDirty(true);
+                  }}
+                />
+              </div>
+
+              <div className="config-home-layout-sidebar">
+                <section
+                  className="config-home-layout-section config-home-layout-section--blocks"
+                  aria-label="Bloques del inicio"
+                >
+                  <header className="config-home-layout-section-head config-home-layout-section-head--split">
+                    <div>
+                      <p className="config-home-layout-section-kicker">Dashboard Inicio</p>
+                      <h3>Bloques visibles</h3>
+                      <p className="config-home-layout-section-lead muted">
+                        {visibleBlocks} de {HOME_PANEL_TOGGLE_META.length} bloques visibles en el
+                        inicio.
+                      </p>
+                    </div>
+                    <div className="config-home-layout-bulk">
+                      <button
+                        type="button"
+                        className="home-hub-link"
+                        onClick={() => setAllPanels(true)}
+                      >
+                        Mostrar todos
+                      </button>
+                      <button
+                        type="button"
+                        className="home-hub-link"
+                        onClick={() => setAllPanels(false)}
+                      >
+                        Ocultar todos
+                      </button>
+                    </div>
+                  </header>
+
+                  <ul className="config-home-layout-toggle-list">
+                    {HOME_PANEL_TOGGLE_META.map((panel) => {
+                      const on = activeDraft[panel.id];
+                      return (
+                        <li key={panel.id}>
+                          <button
+                            type="button"
+                            className={`config-home-layout-toggle${on ? " is-on" : ""}`}
+                            onClick={() => togglePanel(panel.id)}
+                            aria-pressed={on}
+                          >
+                            <span className="config-home-layout-toggle-icon" aria-hidden>
+                              {on ? <Eye size={16} /> : <EyeOff size={16} />}
+                            </span>
+                            <span className="config-home-layout-toggle-copy">
+                              <strong>{panel.label}</strong>
+                              <small>{panel.hint}</small>
+                            </span>
+                            <span className={`config-home-layout-switch${on ? " is-on" : ""}`}>
+                              <span className="config-home-layout-switch-thumb" />
+                            </span>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </section>
+              </div>
             </div>
 
-            <div className="config-home-layout-sidebar">
-              <ConfigRolAlcancePanel rol={activeRol} accent={ROL_ACCENT[activeRol]} />
-
+            <div className="config-home-layout-bottom">
               <ConfigRolModulosPanel
                 rol={activeRol}
                 draft={activePermDraft}
@@ -340,57 +412,7 @@ export default function ConfigHomeLayout({
                 }}
               />
 
-              <section
-                className="config-home-layout-section config-home-layout-section--blocks"
-                aria-label="Bloques del inicio"
-              >
-                <header className="config-home-layout-section-head config-home-layout-section-head--split">
-                  <div>
-                    <p className="config-home-layout-section-kicker">Dashboard Inicio</p>
-                    <h3>Bloques visibles</h3>
-                    <p className="config-home-layout-section-lead muted">
-                      {visibleBlocks} de {HOME_PANEL_META.length} bloques visibles en el inicio.
-                    </p>
-                  </div>
-                  <div className="config-home-layout-bulk">
-                    <button type="button" className="home-hub-link" onClick={() => setAllPanels(true)}>
-                      Mostrar todos
-                    </button>
-                    <button type="button" className="home-hub-link" onClick={() => setAllPanels(false)}>
-                      Ocultar todos
-                    </button>
-                  </div>
-                </header>
-
-                <ul className="config-home-layout-toggle-list">
-                  {HOME_PANEL_META.map((panel) => {
-                    const on = activeDraft[panel.id];
-                    return (
-                      <li key={panel.id}>
-                        <button
-                          type="button"
-                          className={`config-home-layout-toggle${on ? " is-on" : ""}`}
-                          onClick={() => togglePanel(panel.id)}
-                          aria-pressed={on}
-                        >
-                          <span className="config-home-layout-toggle-icon" aria-hidden>
-                            {on ? <Eye size={16} /> : <EyeOff size={16} />}
-                          </span>
-                          <span className="config-home-layout-toggle-copy">
-                            <strong>{panel.label}</strong>
-                            <small>{panel.hint}</small>
-                          </span>
-                          <span className={`config-home-layout-switch${on ? " is-on" : ""}`}>
-                            <span className="config-home-layout-switch-thumb" />
-                          </span>
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </section>
-
-              <div className="config-home-layout-actions config-home-layout-actions--sticky">
+              <div className="config-home-layout-actions">
                 <button
                   type="button"
                   className="sg-hub-cta"

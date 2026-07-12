@@ -41,6 +41,9 @@ export default function HomeGanadoDashKpi({ data, onOpen }: Props) {
     porVenderOperaciones,
     animalesVendidosEjercicio,
     vendidoOperacionesEjercicio,
+    stockEjercicioAnterior,
+    crecimientoStockPct,
+    tieneComparacionStock,
   } = data;
 
   const stockCells: HomeKpiStripCell[] = [];
@@ -58,8 +61,17 @@ export default function HomeGanadoDashKpi({ data, onOpen }: Props) {
       value: formatEnteroSafe(activos),
       trend: lotes > 0 ? `${lotes} lote(s)` : "Activos vivos",
       tone: "lime",
+      stockGrowth: {
+        pct: crecimientoStockPct,
+        anterior: stockEjercicioAnterior,
+        actual: activos,
+        disponible: tieneComparacionStock,
+      },
       onClick: () => onOpen("stock_ganadero"),
-      ariaLabel: `En stock: ${formatEnteroSafe(activos)}. ${lotes > 0 ? `${lotes} lote(s)` : "Activos vivos"}`,
+      ariaLabel:
+        tieneComparacionStock && crecimientoStockPct != null
+          ? `En stock: ${formatEnteroSafe(activos)}. Variación ${crecimientoStockPct > 0 ? "+" : ""}${crecimientoStockPct}% vs ejercicio anterior`
+          : `En stock: ${formatEnteroSafe(activos)}. ${lotes > 0 ? `${lotes} lote(s)` : "Activos vivos"}`,
     });
 
     stockCells.push({

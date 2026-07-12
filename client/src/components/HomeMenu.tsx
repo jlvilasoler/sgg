@@ -541,75 +541,85 @@ export default function HomeMenu({
                           key={panel.id}
                           className={
                             panel.variant === "global"
-                              ? "sg-hub-panel sg-hub-panel--actividad-global"
-                              : "sg-hub-panel"
+                              ? "sg-hub-panel home-hub-panel--actividad sg-hub-panel--actividad-global"
+                              : "sg-hub-panel home-hub-panel--actividad"
                           }
                           aria-label={panel.title}
                         >
-                          <div className="sg-hub-panel-head home-hub-panel-head-row">
-                            <div>
-                              <p className="sg-hub-panel-kicker">{panel.kicker}</p>
-                              <h2 className="sg-hub-panel-title">{panel.title}</h2>
+                          <div className="home-hub-compact-shell">
+                            <header className="home-hub-compact-head">
+                              <div className="home-hub-compact-head-main">
+                                <p className="home-hub-compact-head-kicker">{panel.kicker}</p>
+                                <h2 className="home-hub-compact-head-title">{panel.title}</h2>
+                              </div>
+                              <button
+                                type="button"
+                                className="home-hub-link home-hub-compact-head-link"
+                                onClick={() =>
+                                  onOpen("registro_actividad", { actividadModo: panel.verTodoModo })
+                                }
+                              >
+                                Ver todo
+                                <ArrowRight size={14} aria-hidden />
+                              </button>
+                            </header>
+                            <div className="home-hub-compact-body home-hub-actividad-body">
+                              {panel.loading && panel.items.length === 0 ? (
+                                <ul
+                                  className="home-hub-activity-skeleton-list"
+                                  aria-busy="true"
+                                  aria-label="Cargando actividad"
+                                >
+                                  {Array.from({ length: 4 }).map((_, i) => (
+                                    <li key={`act-skeleton-${panel.id}-${i}`}>
+                                      <div className="home-hub-activity-skeleton" aria-hidden>
+                                        <span className="home-hub-activity-skeleton-icon" />
+                                        <span className="home-hub-activity-skeleton-lines">
+                                          <span />
+                                          <span />
+                                        </span>
+                                      </div>
+                                    </li>
+                                  ))}
+                                </ul>
+                              ) : panel.items.length === 0 ? (
+                                <p className="home-hub-empty">{panel.emptyText}</p>
+                              ) : (
+                                <ul className="home-cmd-activity-list">
+                                  {panel.items.map((item) => (
+                                    <li key={item.id}>
+                                      <button
+                                        type="button"
+                                        className="home-cmd-activity-item"
+                                        onClick={() =>
+                                          onOpen("registro_actividad", {
+                                            actividadModo: panel.verTodoModo,
+                                          })
+                                        }
+                                      >
+                                        <span className="home-cmd-activity-icon" aria-hidden>
+                                          <Clock3 size={14} />
+                                        </span>
+                                        <span className="home-cmd-activity-body">
+                                          <span className="home-cmd-activity-text">
+                                            {formatActividadDetalle(item.detalle, item.evento)}
+                                          </span>
+                                        </span>
+                                        <span className="home-cmd-activity-aside">
+                                          <span className="home-cmd-activity-meta">
+                                            {item.user_nombre || item.email || "Usuario"}
+                                          </span>
+                                          <span className="home-cmd-activity-time">
+                                            {formatFechaRelativa(item.creado_en)}
+                                          </span>
+                                        </span>
+                                      </button>
+                                    </li>
+                                  ))}
+                                </ul>
+                              )}
                             </div>
-                            <button
-                              type="button"
-                              className="home-hub-link"
-                              onClick={() =>
-                                onOpen("registro_actividad", { actividadModo: panel.verTodoModo })
-                              }
-                            >
-                              Ver todo
-                              <ArrowRight size={14} aria-hidden />
-                            </button>
                           </div>
-                          {panel.loading && panel.items.length === 0 ? (
-                            <ul
-                              className="home-hub-activity-skeleton-list"
-                              aria-busy="true"
-                              aria-label="Cargando actividad"
-                            >
-                              {Array.from({ length: 4 }).map((_, i) => (
-                                <li key={`act-skeleton-${panel.id}-${i}`}>
-                                  <div className="home-hub-activity-skeleton" aria-hidden>
-                                    <span className="home-hub-activity-skeleton-icon" />
-                                    <span className="home-hub-activity-skeleton-lines">
-                                      <span />
-                                      <span />
-                                    </span>
-                                  </div>
-                                </li>
-                              ))}
-                            </ul>
-                          ) : panel.items.length === 0 ? (
-                            <p className="home-hub-empty">{panel.emptyText}</p>
-                          ) : (
-                            <ul className="home-cmd-activity-list">
-                              {panel.items.map((item) => (
-                                <li key={item.id}>
-                                  <button
-                                    type="button"
-                                    className="home-cmd-activity-item"
-                                    onClick={() =>
-                                      onOpen("registro_actividad", { actividadModo: panel.verTodoModo })
-                                    }
-                                  >
-                                    <span className="home-cmd-activity-icon" aria-hidden>
-                                      <Clock3 size={15} />
-                                    </span>
-                                    <span className="home-cmd-activity-body">
-                                      <span className="home-cmd-activity-text">
-                                        {formatActividadDetalle(item.detalle, item.evento)}
-                                      </span>
-                                      <span className="home-cmd-activity-meta">
-                                        {item.user_nombre || item.email || "Usuario"} ·{" "}
-                                        {formatFechaRelativa(item.creado_en)}
-                                      </span>
-                                    </span>
-                                  </button>
-                                </li>
-                              ))}
-                            </ul>
-                          )}
                         </section>
                       ))}
                     </Fragment>
@@ -654,66 +664,70 @@ export default function HomeMenu({
                   return (
                     <section
                       key="modulos_rapidos"
-                      className="sg-hub-panel sg-hub-panel--modules home-hub-panel--quick"
+                      className="sg-hub-panel home-hub-panel--quick"
                       aria-labelledby="home-hub-mod-title"
                     >
-                      <div className="sg-hub-panel-head">
-                        <div>
-                          <p className="sg-hub-panel-kicker">Accesos rápidos</p>
-                          <h2 id="home-hub-mod-title" className="sg-hub-panel-title">
-                            Módulos
-                          </h2>
-                          <p className="home-hub-modules-hint muted">
+                      <div className="home-hub-compact-shell">
+                        <header className="home-hub-compact-head">
+                          <div className="home-hub-compact-head-main">
+                            <p className="home-hub-compact-head-kicker">Accesos rápidos</p>
+                            <h2 id="home-hub-mod-title" className="home-hub-compact-head-title">
+                              Módulos
+                            </h2>
+                          </div>
+                        </header>
+                        <div className="home-hub-compact-body home-hub-quick-body">
+                          <p className="home-hub-quick-hint muted">
                             Según tu perfil y lo que usaste últimamente
                           </p>
+                          <div className="sg-hub-module-grid sg-hub-module-grid--primary home-hub-quick-grid">
+                            {quickApps.map((app) => {
+                              const theme = MENU_APP_THEMES[app.id];
+                              return (
+                                <button
+                                  key={app.id}
+                                  type="button"
+                                  className="sg-hub-module-card sg-hub-module-card--featured"
+                                  onClick={() => onOpen(app.id)}
+                                  onMouseEnter={
+                                    app.id === "vencimientos_impuestos"
+                                      ? prefetchVencimientosImpuestos
+                                      : undefined
+                                  }
+                                  onFocus={
+                                    app.id === "vencimientos_impuestos"
+                                      ? prefetchVencimientosImpuestos
+                                      : undefined
+                                  }
+                                >
+                                  <span
+                                    className="sg-hub-module-icon"
+                                    style={
+                                      {
+                                        "--sg-hub-icon-bg": theme.accentSoft,
+                                        "--sg-hub-icon-fg": theme.accent,
+                                      } as CSSProperties
+                                    }
+                                  >
+                                    <MenuAppIcon id={app.id} className="menu-app-icon-svg" />
+                                  </span>
+                                  <span className="sg-hub-module-copy">
+                                    <strong>{app.label}</strong>
+                                    <small>{app.subtitle}</small>
+                                  </span>
+                                  {app.id === "vencimientos_impuestos" && vencProximosCount > 0 ? (
+                                    <span className="home-hub-module-badge" aria-hidden>
+                                      {vencProximosCount > 99 ? "99+" : vencProximosCount}
+                                    </span>
+                                  ) : null}
+                                  <span className="sg-hub-module-arrow" aria-hidden>
+                                    →
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
                         </div>
-                      </div>
-                      <div className="sg-hub-module-grid sg-hub-module-grid--primary">
-                        {quickApps.map((app) => {
-                          const theme = MENU_APP_THEMES[app.id];
-                          return (
-                            <button
-                              key={app.id}
-                              type="button"
-                              className="sg-hub-module-card sg-hub-module-card--featured"
-                              onClick={() => onOpen(app.id)}
-                              onMouseEnter={
-                                app.id === "vencimientos_impuestos"
-                                  ? prefetchVencimientosImpuestos
-                                  : undefined
-                              }
-                              onFocus={
-                                app.id === "vencimientos_impuestos"
-                                  ? prefetchVencimientosImpuestos
-                                  : undefined
-                              }
-                            >
-                              <span
-                                className="sg-hub-module-icon"
-                                style={
-                                  {
-                                    "--sg-hub-icon-bg": theme.accentSoft,
-                                    "--sg-hub-icon-fg": theme.accent,
-                                  } as CSSProperties
-                                }
-                              >
-                                <MenuAppIcon id={app.id} className="menu-app-icon-svg" />
-                              </span>
-                              <span className="sg-hub-module-copy">
-                                <strong>{app.label}</strong>
-                                <small>{app.subtitle}</small>
-                              </span>
-                              {app.id === "vencimientos_impuestos" && vencProximosCount > 0 ? (
-                                <span className="home-hub-module-badge" aria-hidden>
-                                  {vencProximosCount > 99 ? "99+" : vencProximosCount}
-                                </span>
-                              ) : null}
-                              <span className="sg-hub-module-arrow" aria-hidden>
-                                →
-                              </span>
-                            </button>
-                          );
-                        })}
                       </div>
                     </section>
                   );
