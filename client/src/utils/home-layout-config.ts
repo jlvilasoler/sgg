@@ -39,7 +39,7 @@ export const HOME_PANEL_META: HomePanelMeta[] = [
     id: "kpis_operativos",
     kicker: "Indicadores",
     label: "KPIs operativos",
-    hint: "Ganado, ventas simuladas e ingresos por cobrar",
+    hint: "Ganado, ventas del ejercicio e ingresos por cobrar",
     zone: "top",
   },
   {

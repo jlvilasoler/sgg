@@ -358,6 +358,22 @@ function parseNum(value: unknown, fallback = 0): number {
   return Number.isFinite(n) ? n : fallback;
 }
 
+/** Alinea saldo_usd con montos en moneda (misma lógica que TOTAL USD del listado). */
+function resolveSaldoUsdFromMontos(montos: {
+  pesos: number;
+  dolares_usd: number;
+  reales: number;
+  tc_usd: number;
+  tc_reales: number;
+  saldo_usd: number;
+}): number {
+  if (Math.abs(montos.saldo_usd) > 0.0001) return montos.saldo_usd;
+  if (montos.dolares_usd > 0) return montos.dolares_usd;
+  if (montos.pesos > 0 && montos.tc_usd > 0) return montos.pesos / montos.tc_usd;
+  if (montos.reales > 0 && montos.tc_reales > 0) return montos.reales / montos.tc_reales;
+  return 0;
+}
+
 function isoDateLocal(): string {
   const d = new Date();
   const y = d.getFullYear();
@@ -488,7 +504,14 @@ async function parseFacturaBody(req: Request): Promise<PresupuestoInput> {
     reales: parseNum(body.reales),
     tc_usd: parseNum(body.tc_usd),
     tc_reales: parseNum(body.tc_reales),
-    saldo_usd: parseNum(body.saldo_usd),
+    saldo_usd: resolveSaldoUsdFromMontos({
+      pesos: parseNum(body.pesos),
+      dolares_usd: parseNum(body.dolares_usd),
+      reales: parseNum(body.reales),
+      tc_usd: parseNum(body.tc_usd),
+      tc_reales: parseNum(body.tc_reales),
+      saldo_usd: parseNum(body.saldo_usd),
+    }),
     tipo_comprobante: "FACTURA" as const,
     presupuesto_origen_id: null,
     nro_nota_credito: "",
@@ -1904,8 +1927,18 @@ async function parseVentaAgriculturaBody(req: Request): Promise<ventasAgri.Venta
   const hectareas = Number(body.hectareas);
   const rendimiento_ton_ha = Number(body.rendimiento_ton_ha);
   const precio_usd_ton = Number(body.precio_usd_ton);
+  const forma_pago_agricultura =
+    body.forma_pago_agricultura === "AL_FINAL" ? "AL_FINAL" : "FRACCIONADO";
+  const precio_ingreso_usd_ton =
+    forma_pago_agricultura === "AL_FINAL"
+      ? precio_usd_ton
+      : Number(body.precio_ingreso_usd_ton ?? body.precio_usd_ton);
   const total_ton = hectareas * rendimiento_ton_ha;
-  const importe_bruto = (total_ton * precio_usd_ton) / 1000;
+  const tonTotal = total_ton / 1000;
+  const importe_bruto =
+    forma_pago_agricultura === "AL_FINAL"
+      ? tonTotal * precio_usd_ton
+      : tonTotal * 0.4 * precio_ingreso_usd_ton + tonTotal * 0.6 * precio_usd_ton;
   const costo_impuestos_usd = Math.max(0, Number(body.costo_impuestos_usd) || 0);
   const costo_flete_usd = Math.max(0, Number(body.costo_flete_usd) || 0);
   const importe_usd = Math.max(0, importe_bruto - costo_impuestos_usd - costo_flete_usd);
@@ -1921,10 +1954,14 @@ async function parseVentaAgriculturaBody(req: Request): Promise<ventasAgri.Venta
     hectareas,
     rendimiento_ton_ha,
     precio_usd_ton,
+    precio_ingreso_usd_ton,
+    forma_pago_agricultura,
     total_ton,
     importe_usd,
     costo_impuestos_usd,
     costo_flete_usd,
+    pago_ingreso_cobrado:
+      forma_pago_agricultura === "FRACCIONADO" && body.pago_ingreso_cobrado === true,
   };
 }
 
@@ -2042,6 +2079,9 @@ app.patch("/api/ingresos-ventas/ventas-agricultura/:id", async (req, res) => {
   if (typeof body.destacada === "boolean") {
     patch.destacada = body.destacada;
   }
+  if (typeof body.pago_ingreso_cobrado === "boolean") {
+    patch.pago_ingreso_cobrado = body.pago_ingreso_cobrado;
+  }
 
   if (body.valores_reales != null && typeof body.valores_reales === "object") {
     const v = body.valores_reales as Record<string, unknown>;
@@ -2062,7 +2102,7 @@ app.patch("/api/ingresos-ventas/ventas-agricultura/:id", async (req, res) => {
   if (Object.keys(patch).length === 0) {
     res.status(400).json({
       ok: false,
-      error: "Indicá venta_realizada o valores_reales",
+      error: "Indicá venta_realizada, valores_reales o pago_ingreso_cobrado",
     });
     return;
   }
@@ -2075,7 +2115,11 @@ app.patch("/api/ingresos-ventas/ventas-agricultura/:id", async (req, res) => {
         ? "Venta anulada — la simulación volvió a pendiente"
         : patch.valores_reales
           ? "Venta registrada con datos reales"
-          : "Simulación actualizada";
+          : patch.pago_ingreso_cobrado === true
+            ? "Pago 1 (40%) marcado como cobrado"
+            : patch.pago_ingreso_cobrado === false
+              ? "Pago 1 desmarcado — vuelve a pendiente de cobro"
+              : "Simulación actualizada";
     res.json({ ok: true, data: row, message });
   } catch (e) {
     const msg = (e as Error).message;

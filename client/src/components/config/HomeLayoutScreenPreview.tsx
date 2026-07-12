@@ -1,4 +1,4 @@
-import { Clock3, GripVertical, LayoutGrid, Plus, Search, X } from "lucide-react";
+import { Beef, Building2, Clock3, GripVertical, LayoutGrid, Plus, Search, Sprout, Wallet, X } from "lucide-react";
 import { useState, type CSSProperties, type DragEvent, type ReactNode } from "react";
 import type { Rol } from "../../types";
 import type { TabId } from "../Header";
@@ -11,6 +11,7 @@ import {
   type HomeLayoutMap,
   type HomePanelId,
 } from "../../utils/home-layout-config";
+import { HomeKpiStripBar } from "../home/HomeKpiStripBar";
 import { SgHubKpi, SgMiniBars } from "../stock/SgHubUi";
 
 interface Props {
@@ -248,34 +249,145 @@ function PreviewKpiStrip({
   const opsRow = (
     <div className="config-home-screen-kpi-row config-home-screen-kpi-row--ops">
       <div className="config-home-screen-kpi-card">
-        <SgHubKpi
-          variant="dark"
-          kicker="Ganado activo"
-          value="1.240"
-          hint="Cabezas en stock"
-          trend="En stock"
-          bars={<SgMiniBars highlight="mid" />}
-        />
+        <article className="home-ganado-dash home-ganado-dash--preview" aria-label="Vista previa ganado">
+          <header className="home-ganado-dash__head">
+            <div className="home-ganado-dash__brand">
+              <span className="home-ganado-dash__icon" aria-hidden>
+                <Beef size={16} strokeWidth={1.75} />
+              </span>
+              <div>
+                <p className="home-ganado-dash__kicker">Ganado</p>
+                <p className="home-ganado-dash__subtitle">1/7/2026 al 30/6/2027</p>
+              </div>
+            </div>
+            <span className="home-ganado-dash__badge">525 cab.</span>
+          </header>
+          <HomeKpiStripBar
+            label="Indicadores de ganado"
+            cells={[
+              {
+                id: "stock",
+                label: "En stock",
+                value: "525",
+                trend: "25 lote(s)",
+                tone: "lime",
+              },
+              {
+                id: "vendidos",
+                label: "Vendidos",
+                value: "0",
+                trend: "Sin ventas en ej.",
+                tone: "neutral",
+              },
+              {
+                id: "por-vender",
+                label: "Por vender",
+                value: "0",
+                trend: "Sin operaciones abiertas",
+                tone: "neutral",
+              },
+            ]}
+          />
+        </article>
       </div>
-      <div className="config-home-screen-kpi-card">
-        <SgHubKpi
-          variant="dark"
-          kicker="Por vender"
-          value="86"
-          hint="Pendiente de cierre"
-          trend="Pendiente de venta"
-          bars={<SgMiniBars highlight="last" />}
-        />
+      <div className="config-home-screen-kpi-card config-home-screen-kpi-card--wide">
+        <article className="sg-hub-kpi sg-hub-kpi--light home-por-cobrar-kpi">
+          <div className="home-por-cobrar-kpi-head">
+            <div className="home-por-cobrar-kpi-brand">
+              <span className="home-por-cobrar-kpi-icon" aria-hidden>
+                <Wallet size={18} strokeWidth={1.75} />
+              </span>
+              <div>
+                <p className="home-por-cobrar-kpi-kicker">Por cobrar</p>
+                <p className="home-por-cobrar-kpi-subtitle">2026/2027</p>
+              </div>
+            </div>
+            <div className="home-por-cobrar-kpi-head-end">
+              <span className="home-por-cobrar-kpi-head-total">US$ 7.150</span>
+              <SgMiniBars highlight="mid" />
+            </div>
+          </div>
+          <div className="home-por-cobrar-kpi-split is-count-3">
+            <div className="home-por-cobrar-kpi-zone home-por-cobrar-kpi-zone--arrend">
+              <span className="home-por-cobrar-kpi-zone-top">
+                <Building2 size={13} strokeWidth={2} aria-hidden />
+                <span className="home-por-cobrar-kpi-zone-eyebrow">Arrend.</span>
+              </span>
+              <span className="home-por-cobrar-kpi-zone-row">
+                <span className="home-por-cobrar-kpi-zone-pair">
+                  <span className="home-por-cobrar-kpi-zone-pair-label">Pend.</span>
+                  <span className="home-por-cobrar-kpi-zone-value">US$ 7.150</span>
+                </span>
+                <span className="home-por-cobrar-kpi-zone-pair home-por-cobrar-kpi-zone-pair--ej">
+                  <span className="home-por-cobrar-kpi-zone-pair-label">Cobr. ej.</span>
+                  <span className="home-por-cobrar-kpi-zone-value home-por-cobrar-kpi-zone-value--ej">US$ 4.200</span>
+                </span>
+              </span>
+              <span className="home-por-cobrar-kpi-zone-hint">1 contrato(s)</span>
+            </div>
+            <div className="home-por-cobrar-kpi-zone home-por-cobrar-kpi-zone--ganado">
+              <span className="home-por-cobrar-kpi-zone-top">
+                <Beef size={13} strokeWidth={2} aria-hidden />
+                <span className="home-por-cobrar-kpi-zone-eyebrow">Ganado</span>
+              </span>
+              <span className="home-por-cobrar-kpi-zone-row">
+                <span className="home-por-cobrar-kpi-zone-pair">
+                  <span className="home-por-cobrar-kpi-zone-pair-label">Pend.</span>
+                  <span className="home-por-cobrar-kpi-zone-value">US$ 0</span>
+                </span>
+                <span className="home-por-cobrar-kpi-zone-pair home-por-cobrar-kpi-zone-pair--ej">
+                  <span className="home-por-cobrar-kpi-zone-pair-label">Cobr. ej.</span>
+                  <span className="home-por-cobrar-kpi-zone-value home-por-cobrar-kpi-zone-value--ej">US$ 142.000</span>
+                </span>
+              </span>
+              <span className="home-por-cobrar-kpi-zone-hint">Al día</span>
+            </div>
+            <div className="home-por-cobrar-kpi-zone home-por-cobrar-kpi-zone--agric">
+              <span className="home-por-cobrar-kpi-zone-top">
+                <Sprout size={13} strokeWidth={2} aria-hidden />
+                <span className="home-por-cobrar-kpi-zone-eyebrow">Agric.</span>
+              </span>
+              <span className="home-por-cobrar-kpi-zone-row">
+                <span className="home-por-cobrar-kpi-zone-pair">
+                  <span className="home-por-cobrar-kpi-zone-pair-label">Pend.</span>
+                  <span className="home-por-cobrar-kpi-zone-value">US$ 0</span>
+                </span>
+                <span className="home-por-cobrar-kpi-zone-pair home-por-cobrar-kpi-zone-pair--ej">
+                  <span className="home-por-cobrar-kpi-zone-pair-label">Cobr. ej.</span>
+                  <span className="home-por-cobrar-kpi-zone-value home-por-cobrar-kpi-zone-value--ej">US$ 40.300</span>
+                </span>
+              </span>
+              <span className="home-por-cobrar-kpi-zone-hint">Al día</span>
+            </div>
+          </div>
+        </article>
       </div>
-      <div className="config-home-screen-kpi-card">
-        <SgHubKpi
-          variant="light"
-          kicker="Arrendamientos"
-          value="USD 4.200"
-          hint="Por cobrar"
-          trend="Por cobrar"
-          bars={<SgMiniBars />}
-        />
+      <div className="config-home-screen-kpi-card config-home-screen-kpi-card--wide">
+        <article className="sg-hub-kpi sg-hub-kpi--dark home-resultado-ejercicio-kpi home-exec-kpi">
+          <div className="home-ganado-stock-kpi-head">
+            <div className="home-ganado-stock-kpi-brand">
+              <span className="home-ganado-stock-kpi-icon" aria-hidden>📊</span>
+              <div>
+                <p className="home-ganado-stock-kpi-kicker">Resumen financiero</p>
+                <p className="home-ganado-stock-kpi-subtitle">2026/2027 · acumulado</p>
+              </div>
+            </div>
+          </div>
+          <div className="home-ganado-stock-kpi-metrics is-count-3">
+            <div className="home-ganado-stock-kpi-metric">
+              <span className="home-ganado-stock-kpi-metric-eyebrow">Gastos del mes</span>
+              <span className="home-ganado-stock-kpi-metric-value">US$ 12.400</span>
+            </div>
+            <div className="home-ganado-stock-kpi-metric">
+              <span className="home-ganado-stock-kpi-metric-eyebrow">Gastos del año</span>
+              <span className="home-ganado-stock-kpi-metric-value">US$ 98.200</span>
+            </div>
+            <div className="home-ganado-stock-kpi-metric home-ganado-stock-kpi-metric--ok">
+              <span className="home-ganado-stock-kpi-metric-eyebrow">Ventas del año</span>
+              <span className="home-ganado-stock-kpi-metric-value">US$ 186.500</span>
+            </div>
+          </div>
+        </article>
       </div>
     </div>
   );

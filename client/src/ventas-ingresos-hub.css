@@ -579,6 +579,7 @@
 }
 
 .bn-ui .ventas-agricultura-form-hub .ventas-agricultura-zafra,
+.bn-ui .ventas-agricultura-form-hub .ventas-agricultura-pagos,
 .bn-ui .ventas-agricultura-form-hub .ventas-agricultura-costos,
 .bn-ui .ventas-agricultura-form-hub .ventas-arrendamiento-fechas,
 .bn-ui .ventas-agricultura-form-hub .ventas-arrendamiento-pagos {
@@ -587,7 +588,8 @@
   border-radius: var(--sg-hub-radius-md);
 }
 
-.bn-ui .ventas-agricultura-form-hub .ventas-agricultura-costos-grid .field > input {
+.bn-ui .ventas-agricultura-form-hub .ventas-agricultura-costos-grid .field > input,
+.bn-ui .ventas-agricultura-form-hub .ventas-agricultura-pago-fields .field > input {
   height: var(--form-control-h);
   min-height: var(--form-control-h);
   box-sizing: border-box;
@@ -598,18 +600,69 @@
   background: var(--sg-hub-surface);
 }
 
-.bn-ui .ventas-agricultura-form-hub .ventas-agricultura-costos-grid .field > input:focus {
+.bn-ui .ventas-agricultura-form-hub .ventas-agricultura-costos-grid .field > input:focus,
+.bn-ui .ventas-agricultura-form-hub .ventas-agricultura-pago-fields .field > input:focus {
   outline: none;
   border-color: color-mix(in srgb, var(--sg-hub-accent) 45%, var(--bn-border, #eaecef));
   box-shadow: 0 0 0 2px var(--sg-hub-accent-soft);
 }
 
-.bn-ui .ventas-agricultura-form-hub .ventas-agricultura-costos-title {
+.bn-ui .ventas-agricultura-form-hub .ventas-agricultura-costos-title,
+.bn-ui .ventas-agricultura-form-hub .ventas-agricultura-pagos-title {
   margin: 0 0 0.75rem;
   font-size: 0.82rem;
   font-weight: 700;
   color: var(--bn-text, #1e2329);
   text-transform: none;
+}
+
+.bn-ui .ventas-agricultura-form-hub .ventas-agricultura-forma-pago-modalidad {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-bottom: 0.35rem;
+}
+
+.bn-ui .ventas-agricultura-form-hub .ventas-agricultura-forma-pago-btn.is-active,
+.bn-ui .ventas-agricultura-form-hub .ventas-agricultura-forma-pago-btn.is-active:hover:not(:disabled) {
+  background: var(--sg-hub-accent) !important;
+  border-color: var(--sg-hub-accent) !important;
+  color: #fff !important;
+}
+
+.bn-ui .ventas-agricultura-form-hub .ventas-agricultura-forma-pago-activa {
+  margin: 0 0 0.75rem;
+  font-size: 0.68rem;
+  color: var(--bn-muted, #707a8a);
+}
+
+.bn-ui .ventas-agricultura-form-hub .ventas-agricultura-pago-name {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--bn-text, #1e2329);
+}
+
+.bn-ui .ventas-agricultura-form-hub .ventas-agricultura-pago-hint {
+  margin: 0.2rem 0 0;
+  font-size: 0.68rem;
+  color: var(--bn-muted, #707a8a);
+}
+
+.bn-ui .ventas-agricultura-form-hub .ventas-agricultura-pago-card {
+  background: var(--sg-hub-surface);
+  border-color: color-mix(in srgb, var(--bn-border, #eaecef) 92%, transparent);
+}
+
+.bn-ui .ventas-agricultura-form-hub .ventas-agricultura-pago-importe-value {
+  min-height: var(--form-control-h);
+  padding: 0.48rem 0.55rem;
+  border-radius: var(--sg-hub-radius-md);
+  background: color-mix(in srgb, var(--sg-hub-accent-soft) 45%, var(--sg-hub-surface));
+  border: 1px solid color-mix(in srgb, var(--bn-border, #eaecef) 92%, transparent);
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: var(--sg-hub-accent);
 }
 
 .bn-ui .ventas-agricultura-form-hub .ventas-agricultura-resumen {
@@ -627,6 +680,13 @@
 
 .bn-ui .ventas-agricultura-form-hub .ventas-arrendamiento-modalidad-btn.is-active,
 .bn-ui .ventas-agricultura-form-hub .ventas-arrendamiento-modalidad-btn.is-active:hover:not(:disabled) {
+  background: var(--sg-hub-accent) !important;
+  border-color: var(--sg-hub-accent) !important;
+  color: #fff !important;
+}
+
+.bn-ui .ventas-agricultura-form-hub .ventas-agricultura-forma-pago-btn.is-active,
+.bn-ui .ventas-agricultura-form-hub .ventas-agricultura-forma-pago-btn.is-active:hover:not(:disabled) {
   background: var(--sg-hub-accent) !important;
   border-color: var(--sg-hub-accent) !important;
   color: #fff !important;

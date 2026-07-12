@@ -1198,7 +1198,7 @@ textarea {
   }
 
   .home-hub-venc-proximos .venc-imp-user-banner-proximo-box:only-child {
-    grid-column: auto;
+    max-width: 100%;
   }
 
   .bn-ui .home-module-page .home-hub-venc-proximos .home-venc-proximo-titulo {

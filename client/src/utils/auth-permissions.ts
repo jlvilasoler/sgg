@@ -352,6 +352,16 @@ export function canAccessSimuladorVentaGanado(user: AuthUser | null): boolean {
   return Boolean(user?.permisos.includes("simulador_venta_ganado"));
 }
 
+/** KPI de ventas realizadas en el ejercicio (Inicio). */
+export function canAccessHomeVentasEjercicio(user: AuthUser | null): boolean {
+  if (!user) return false;
+  return (
+    canAccessScreen(user, "resumen") ||
+    canAccessIngresosVentasModulo(user) ||
+    canAccessSimuladorVentaGanado(user)
+  );
+}
+
 /** Simulador venta: escritura según permisos del rol. */
 export function canWriteSimuladorVentaGanado(user: AuthUser | null): boolean {
   return canWriteModulo(user, "simulador_venta_ganado");

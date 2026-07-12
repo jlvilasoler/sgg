@@ -1050,6 +1050,16 @@ export async function listPresupuesto(filters: ListFilters = {}): Promise<Presup
   return rows.map(mapPresupuestoRow);
 }
 
+/** Equivalente USD por fila (alineado con columna TOTAL USD del listado). */
+const PRESUPUESTO_IMPORTE_USD_SQL = `
+  CASE
+    WHEN COALESCE(dolares_usd, 0) > 0 THEN dolares_usd
+    WHEN COALESCE(pesos, 0) > 0 AND COALESCE(tc_usd, 0) > 0 THEN pesos / tc_usd
+    WHEN COALESCE(reales, 0) > 0 AND COALESCE(tc_reales, 0) > 0 THEN reales / tc_reales
+    ELSE COALESCE(saldo_usd, 0)
+  END
+`;
+
 export async function resumenPorEmpresa(
   fecha_desde?: string,
   fecha_hasta?: string,
@@ -1060,7 +1070,7 @@ export async function resumenPorEmpresa(
       COALESCE(SUM(pesos), 0) AS total_pesos,
       COALESCE(SUM(dolares_usd), 0) AS total_usd,
       COALESCE(SUM(reales), 0) AS total_reales,
-      COALESCE(SUM(saldo_usd), 0) AS total_saldo_usd
+      COALESCE(SUM(${PRESUPUESTO_IMPORTE_USD_SQL}), 0) AS total_saldo_usd
     FROM PRESUPUESTO WHERE 1=1
   `;
   const params: Record<string, string | number> = {};
@@ -1087,7 +1097,7 @@ export async function resumenPorRubro(
       COALESCE(SUM(pesos), 0) AS total_pesos,
       COALESCE(SUM(dolares_usd), 0) AS total_usd,
       COALESCE(SUM(reales), 0) AS total_reales,
-      COALESCE(SUM(saldo_usd), 0) AS total_saldo_usd
+      COALESCE(SUM(${PRESUPUESTO_IMPORTE_USD_SQL}), 0) AS total_saldo_usd
     FROM PRESUPUESTO WHERE 1=1
   `;
   const params: Record<string, string | number> = {};
@@ -1114,7 +1124,7 @@ export async function resumenPorEmpresaRubro(
       COALESCE(SUM(pesos), 0) AS total_pesos,
       COALESCE(SUM(dolares_usd), 0) AS total_usd,
       COALESCE(SUM(reales), 0) AS total_reales,
-      COALESCE(SUM(saldo_usd), 0) AS total_saldo_usd
+      COALESCE(SUM(${PRESUPUESTO_IMPORTE_USD_SQL}), 0) AS total_saldo_usd
     FROM PRESUPUESTO WHERE 1=1
   `;
   const params: Record<string, string | number> = {};

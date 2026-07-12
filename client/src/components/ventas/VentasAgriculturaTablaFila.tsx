@@ -26,6 +26,10 @@ import {
 } from "./ventas-agricultura-utils";
 import {
   agriculturaHasVentaReal,
+  importeNetoSimulacionAgricultura,
+  importeNetoRealAgricultura,
+  importePago1NetoAgricultura,
+  importePendienteAgricultura,
   buildAgriculturaRealPayload,
   computeAgriculturaRealTotals,
   deltaClass,
@@ -74,6 +78,12 @@ export default function VentasAgriculturaTablaFila({
 }: Props) {
   const hasReal = agriculturaHasVentaReal(row);
   const showSimRow = !hasReal;
+  const cobroParcial40 =
+    !hasReal &&
+    row.forma_pago_agricultura === "FRACCIONADO" &&
+    row.pago_ingreso_cobrado === true;
+  const pendienteUsd = cobroParcial40 ? importePendienteAgricultura(row) : null;
+  const cobradoParcialUsd = cobroParcial40 ? importePago1NetoAgricultura(row) : null;
   const rowSpan = showSimRow ? 2 : 1;
   const cultivoColor = colorCultivoAgricultura(row.cultivo);
   const cultivoLabel = labelCultivoAgricultura(row.cultivo);
@@ -89,18 +99,31 @@ export default function VentasAgriculturaTablaFila({
     }
   }, [isEditingReal, row, hasReal]);
 
-  const totals = useMemo(() => computeAgriculturaRealTotals(form), [form]);
-  const canSave = totals.importeUsd != null && !isSavingReal;
+  const totals = useMemo(
+    () =>
+      computeAgriculturaRealTotals(form, {
+        impuestos: row.costo_impuestos_usd,
+        flete: row.costo_flete_usd,
+      }),
+    [form, row.costo_impuestos_usd, row.costo_flete_usd],
+  );
+  const canSave = totals.importeNetoUsd != null && !isSavingReal;
 
-  const simUsdHa = calcUsdPorHa(row.importe_usd, row.hectareas);
+  const simNetUsd = importeNetoSimulacionAgricultura(row);
+  const simUsdHa = calcUsdPorHa(simNetUsd, row.hectareas);
+  const realNetUsd = importeNetoRealAgricultura(row);
   const realUsdHa =
-    hasReal && row.real_importe_usd != null && row.real_hectareas != null
-      ? calcUsdPorHa(row.real_importe_usd, row.real_hectareas)
+    hasReal && row.real_hectareas != null && realNetUsd != null
+      ? calcUsdPorHa(realNetUsd, row.real_hectareas)
       : null;
+  const editNetUsd = totals.importeNetoUsd;
   const editUsdHa =
-    totals.importeUsd != null && totals.hectareas != null
-      ? calcUsdPorHa(totals.importeUsd, totals.hectareas)
+    editNetUsd != null && totals.hectareas != null
+      ? calcUsdPorHa(editNetUsd, totals.hectareas)
       : null;
+
+  const costImp = row.costo_impuestos_usd;
+  const costFlete = row.costo_flete_usd;
 
   const groupClass = [
     "sim-historial-op",
@@ -113,7 +136,10 @@ export default function VentasAgriculturaTablaFila({
     .join(" ");
 
   const handleSave = () => {
-    const payload = buildAgriculturaRealPayload(form, parseMesAnioAgricultura);
+    const payload = buildAgriculturaRealPayload(form, parseMesAnioAgricultura, {
+      impuestos: row.costo_impuestos_usd,
+      flete: row.costo_flete_usd,
+    });
     if (payload) onSaveReal(payload);
   };
 
@@ -134,8 +160,24 @@ export default function VentasAgriculturaTablaFila({
     </td>
   );
 
+  const costMetric = (value: number, muted = false) => (
+    <td
+      className={`num sim-historial-metric sim-historial-metric--cost${muted ? " is-muted" : ""}`}
+    >
+      <span className="sim-historial-metric-val">{value > 0 ? fmtUsd(value) : "—"}</span>
+    </td>
+  );
+
   const idleCell = (className = "") => (
     <td className={`num sim-historial-metric sim-historial-metric--idle${className ? ` ${className}` : ""}`}>
+      <span className="sim-historial-metric-val">—</span>
+    </td>
+  );
+
+  const idleCostCell = (muted = false) => (
+    <td
+      className={`num sim-historial-metric sim-historial-metric--idle sim-historial-metric--cost${muted ? " is-muted" : ""}`}
+    >
       <span className="sim-historial-metric-val">—</span>
     </td>
   );
@@ -204,6 +246,18 @@ export default function VentasAgriculturaTablaFila({
         )}
         {!hasReal && (
           <span className="sim-historial-op-chip sim-historial-op-chip--pending">Pendiente</span>
+        )}
+        {cobroParcial40 && (
+          <span
+            className="sim-historial-op-chip sim-historial-op-chip--partial"
+            title={
+              cobradoParcialUsd != null && pendienteUsd != null
+                ? `Cobrado 40%: ${fmtUsd(cobradoParcialUsd)} · Por cobrar 60%: ${fmtUsd(pendienteUsd)}`
+                : "40% cobrado al ingresar"
+            }
+          >
+            40% cobr.
+          </span>
         )}
       </div>
     </td>
@@ -475,14 +529,16 @@ export default function VentasAgriculturaTablaFila({
           {totals.totalTon != null ? formatTotalProduccionAgricultura(totals.totalTon) : "—"}
         </span>
       </td>
+      {costMetric(costImp, true)}
+      {costMetric(costFlete, true)}
       <td className="num sim-historial-metric sim-historial-metric--real sim-historial-metric--hero sim-historial-inline-cell">
         <span className="sim-historial-real-edit-result">
-          <strong className={totals.importeUsd == null ? "sim-historial-inline-idle" : ""}>
-            {totals.importeUsd != null ? fmtUsd(totals.importeUsd) : "—"}
+          <strong className={editNetUsd == null ? "sim-historial-inline-idle" : ""}>
+            {editNetUsd != null ? fmtUsd(editNetUsd) : "—"}
           </strong>
-          {totals.importeUsd != null && (
-            <span className={`sim-historial-delta ${deltaClass(row.importe_usd, totals.importeUsd)}`}>
-              {fmtDeltaPct(row.importe_usd, totals.importeUsd)}
+          {editNetUsd != null && (
+            <span className={`sim-historial-delta ${deltaClass(simNetUsd, editNetUsd)}`}>
+              {fmtDeltaPct(simNetUsd, editNetUsd)}
             </span>
           )}
         </span>
@@ -499,11 +555,13 @@ export default function VentasAgriculturaTablaFila({
       {realMetric(formatRendimientoAgricultura(row.real_rendimiento_ton_ha!))}
       {realMetric(fmtNum(row.real_precio_usd_ton!, 2))}
       {realMetric(formatTotalProduccionAgricultura(row.real_total_ton!))}
+      {costMetric(costImp)}
+      {costMetric(costFlete)}
       <td className="num sim-historial-metric sim-historial-metric--real sim-historial-metric--hero">
         <span className="sim-historial-metric-total">
-          <strong>{fmtUsd(row.real_importe_usd!)}</strong>
-          <span className={`sim-historial-delta ${deltaClass(row.importe_usd, row.real_importe_usd!)}`}>
-            {fmtDeltaPct(row.importe_usd, row.real_importe_usd!)}
+          <strong>{fmtUsd(realNetUsd!)}</strong>
+          <span className={`sim-historial-delta ${deltaClass(simNetUsd, realNetUsd!)}`}>
+            {fmtDeltaPct(simNetUsd, realNetUsd!)}
           </span>
         </span>
       </td>
@@ -515,6 +573,8 @@ export default function VentasAgriculturaTablaFila({
       {idleCell()}
       {idleCell()}
       {idleCell()}
+      {idleCostCell(true)}
+      {idleCostCell(true)}
       {idleCell("sim-historial-total-idle")}
       {idleCell()}
     </>
@@ -535,13 +595,22 @@ export default function VentasAgriculturaTablaFila({
       {showSimRow && (
         <tr className={`sim-historial-row sim-historial-row--sim ${groupClass}`.trim()}>
           {opMetaCell}
-          <td className="sim-historial-tipo-cell">{tipoBadge("sim")}</td>
+          <td className="sim-historial-tipo-cell">
+            {tipoBadge("sim")}
+            {cobroParcial40 && (
+              <span className="sim-historial-fecha-sub sim-historial-cobro-parcial">
+                40% cobrado · saldo {pendienteUsd != null ? fmtUsd(pendienteUsd) : "—"}
+              </span>
+            )}
+          </td>
           {catCellTd}
           {simMetric(fmtNum(row.hectareas, 2))}
           {simMetric(formatRendimientoAgricultura(row.rendimiento_ton_ha))}
           {simMetric(fmtNum(row.precio_usd_ton, 2))}
           {simMetric(formatTotalProduccionAgricultura(row.total_ton))}
-          {simMetric(fmtUsd(row.importe_usd), true)}
+          {costMetric(costImp)}
+          {costMetric(costFlete)}
+          {simMetric(fmtUsd(simNetUsd), true)}
           {simMetric(simUsdHa != null ? fmtUsd(simUsdHa) : "—")}
           {actionsCell}
         </tr>

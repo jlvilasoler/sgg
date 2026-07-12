@@ -74,6 +74,120 @@ export function calcularImporteAgricultura(
   return (totalProduccion * precio) / 1000;
 }
 
+/** 40% al ingresar (precio del momento) + 60% al finalizar (precio de venta). */
+export const FORMA_PAGO_AGRICULTURA_FRACCION_INGRESO = 0.4;
+export const FORMA_PAGO_AGRICULTURA_FRACCION_SALDO = 0.6;
+
+export type FormaPagoAgricultura = "FRACCIONADO" | "AL_FINAL";
+
+export const FORMAS_PAGO_AGRICULTURA: ReadonlyArray<{
+  id: FormaPagoAgricultura;
+  label: string;
+  hint: string;
+}> = [
+  {
+    id: "FRACCIONADO",
+    label: "Fraccionado",
+    hint: "40% al ingresar y 60% al finalizar",
+  },
+  {
+    id: "AL_FINAL",
+    label: "Al final",
+    hint: "100% del cobro al cerrar la venta",
+  },
+];
+
+export function normalizeFormaPagoAgricultura(value: unknown): FormaPagoAgricultura {
+  return value === "AL_FINAL" ? "AL_FINAL" : "FRACCIONADO";
+}
+
+export function labelFormaPagoAgricultura(forma: FormaPagoAgricultura): string {
+  return FORMAS_PAGO_AGRICULTURA.find((f) => f.id === forma)?.label ?? "Fraccionado";
+}
+
+export interface PagosAgriculturaCalculados {
+  tonTotal: number | null;
+  pago1Ton: number | null;
+  pago2Ton: number | null;
+  pago1Usd: number | null;
+  pago2Usd: number | null;
+  importeBruto: number | null;
+}
+
+export function calcularPagosAgricultura(
+  totalProduccionKg: number | null,
+  precioIngresoUsdTon: number | null,
+  precioVentaUsdTon: number | null,
+  formaPago: FormaPagoAgricultura = "FRACCIONADO"
+): PagosAgriculturaCalculados {
+  if (totalProduccionKg == null || precioVentaUsdTon == null) {
+    return {
+      tonTotal: null,
+      pago1Ton: null,
+      pago2Ton: null,
+      pago1Usd: null,
+      pago2Usd: null,
+      importeBruto: null,
+    };
+  }
+
+  const tonTotal = totalProduccionKg / 1000;
+
+  if (formaPago === "AL_FINAL") {
+    const pago2Usd = tonTotal * precioVentaUsdTon;
+    return {
+      tonTotal,
+      pago1Ton: 0,
+      pago2Ton: tonTotal,
+      pago1Usd: 0,
+      pago2Usd,
+      importeBruto: pago2Usd,
+    };
+  }
+
+  if (precioIngresoUsdTon == null) {
+    return {
+      tonTotal: null,
+      pago1Ton: null,
+      pago2Ton: null,
+      pago1Usd: null,
+      pago2Usd: null,
+      importeBruto: null,
+    };
+  }
+
+  const pago1Ton = tonTotal * FORMA_PAGO_AGRICULTURA_FRACCION_INGRESO;
+  const pago2Ton = tonTotal * FORMA_PAGO_AGRICULTURA_FRACCION_SALDO;
+  const pago1Usd = pago1Ton * precioIngresoUsdTon;
+  const pago2Usd = pago2Ton * precioVentaUsdTon;
+  return {
+    tonTotal,
+    pago1Ton,
+    pago2Ton,
+    pago1Usd,
+    pago2Usd,
+    importeBruto: pago1Usd + pago2Usd,
+  };
+}
+
+export function calcularImporteBrutoAgricultura(
+  totalProduccionKg: number | null,
+  precioIngresoUsdTon: number | null,
+  precioVentaUsdTon: number | null,
+  formaPago: FormaPagoAgricultura = "FRACCIONADO"
+): number | null {
+  return calcularPagosAgricultura(
+    totalProduccionKg,
+    precioIngresoUsdTon,
+    precioVentaUsdTon,
+    formaPago
+  ).importeBruto;
+}
+
+export function formatTonAgricultura(value: number): string {
+  return `${fmtNum(value, 1)} ton`;
+}
+
 export function calcularImporteNetoAgricultura(
   importeBruto: number | null,
   impuestos: number,
@@ -81,6 +195,50 @@ export function calcularImporteNetoAgricultura(
 ): number | null {
   if (importeBruto == null) return null;
   return Math.max(0, importeBruto - impuestos - flete);
+}
+
+/** Desglose neto de pagos 1 y 2 (costos prorrateados al bruto de cada tramo). */
+export function pagosNetosAgriculturaDesdePagos(
+  pagos: PagosAgriculturaCalculados,
+  impuestos: number,
+  flete: number,
+): { pago1Neto: number; pago2Neto: number; totalNeto: number } {
+  const bruto = pagos.importeBruto ?? 0;
+  const p1b = pagos.pago1Usd ?? 0;
+  const p2b = pagos.pago2Usd ?? 0;
+  const costos = impuestos + flete;
+  const costP1 = bruto > 0 ? (costos * p1b) / bruto : 0;
+  const costP2 = bruto > 0 ? (costos * p2b) / bruto : 0;
+  const pago1Neto = Math.max(0, Math.round((p1b - costP1) * 100) / 100);
+  const pago2Neto = Math.max(0, Math.round((p2b - costP2) * 100) / 100);
+  return {
+    pago1Neto,
+    pago2Neto,
+    totalNeto: Math.round((pago1Neto + pago2Neto) * 100) / 100,
+  };
+}
+
+export function pagosNetosSimulacionAgricultura(row: {
+  hectareas: number;
+  rendimiento_ton_ha: number;
+  precio_usd_ton: number;
+  precio_ingreso_usd_ton: number;
+  forma_pago_agricultura: FormaPagoAgricultura;
+  costo_impuestos_usd: number;
+  costo_flete_usd: number;
+}): { pago1Neto: number; pago2Neto: number; totalNeto: number } {
+  const totalKg = calcularTotalProduccionAgricultura(row.hectareas, row.rendimiento_ton_ha);
+  const pagos = calcularPagosAgricultura(
+    totalKg,
+    row.precio_ingreso_usd_ton,
+    row.precio_usd_ton,
+    row.forma_pago_agricultura,
+  );
+  return pagosNetosAgriculturaDesdePagos(
+    pagos,
+    row.costo_impuestos_usd,
+    row.costo_flete_usd,
+  );
 }
 
 /** Total producción en toneladas: ej. 20,0 ton (valor interno en kg). */

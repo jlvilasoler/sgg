@@ -174,6 +174,21 @@ export default function HomeCampoMapaPanel({ apiOnline, onOpenMapa }: Props) {
 
   useEffect(() => {
     const map = mapRef.current;
+    const shell = mapContainerRef.current?.closest(".home-hub-mapa-preview");
+    if (!map || !shell) return;
+
+    const resize = () => map.invalidateSize();
+    const ro = new ResizeObserver(resize);
+    ro.observe(shell);
+    window.addEventListener("resize", resize);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", resize);
+    };
+  }, [loading]);
+
+  useEffect(() => {
+    const map = mapRef.current;
     if (!map) return;
 
     const onViewChange = () => syncVisibleDevices();
@@ -189,48 +204,46 @@ export default function HomeCampoMapaPanel({ apiOnline, onOpenMapa }: Props) {
 
   return (
     <section className="sg-hub-panel home-hub-panel--mapa" aria-label="Mapa del predio">
-      <div className="sg-hub-panel-head home-hub-panel-head-row">
-        <div>
-          <p className="sg-hub-panel-kicker">Mapa del campo</p>
-          <h2 className="sg-hub-panel-title">Tu predio</h2>
-        </div>
-        <button type="button" className="home-hub-link" onClick={onOpenMapa}>
-          Abrir mapa
-          <ArrowRight size={14} aria-hidden />
+      <div className="home-hub-mapa-shell">
+        <header className="home-hub-mapa-head">
+          <p className="home-hub-mapa-head-kicker">Tu predio</p>
+          <button type="button" className="home-hub-link home-hub-mapa-head-link" onClick={onOpenMapa}>
+            Abrir mapa
+            <ArrowRight size={14} aria-hidden />
+          </button>
+        </header>
+
+        <button
+          type="button"
+          className="home-hub-mapa-preview"
+          onClick={onOpenMapa}
+          aria-label="Abrir mapa del campo en pantalla completa"
+        >
+          <div ref={mapContainerRef} className="home-hub-mapa-canvas" aria-hidden />
+          {loading ? (
+            <div className="home-hub-mapa-overlay">Cargando mapa del predio…</div>
+          ) : null}
+          {!loading && error ? (
+            <div className="home-hub-mapa-overlay home-hub-mapa-overlay--muted">{error}</div>
+          ) : null}
+          {!loading && !error && totalMarcaciones === 0 ? (
+            <div className="home-hub-mapa-overlay home-hub-mapa-overlay--muted">
+              Todavía no hay potreros ni marcaciones. Abrí el mapa del campo para dibujar tu predio.
+            </div>
+          ) : null}
+          {!loading && !error && totalMarcaciones > 0 ? (
+            <p className="home-hub-mapa-meta">
+              {potreros.length > 0
+                ? `${potreros.length} potrero${potreros.length === 1 ? "" : "s"}`
+                : "Sin potreros"}
+              {" · "}
+              {elementos.length > 0
+                ? `${elementos.length} marcación${elementos.length === 1 ? "" : "es"}`
+                : "Sin marcaciones"}
+            </p>
+          ) : null}
         </button>
       </div>
-
-      <button
-        type="button"
-        className="home-hub-mapa-preview"
-        onClick={onOpenMapa}
-        aria-label="Abrir mapa del campo en pantalla completa"
-      >
-        <div ref={mapContainerRef} className="home-hub-mapa-canvas" aria-hidden />
-        {loading ? (
-          <div className="home-hub-mapa-overlay">Cargando mapa del predio…</div>
-        ) : null}
-        {!loading && error ? (
-          <div className="home-hub-mapa-overlay home-hub-mapa-overlay--muted">{error}</div>
-        ) : null}
-        {!loading && !error && totalMarcaciones === 0 ? (
-          <div className="home-hub-mapa-overlay home-hub-mapa-overlay--muted">
-            Todavía no hay potreros ni marcaciones. Abrí el mapa del campo para dibujar tu predio.
-          </div>
-        ) : null}
-      </button>
-
-      {!loading && !error && totalMarcaciones > 0 ? (
-        <p className="home-hub-mapa-meta">
-          {potreros.length > 0
-            ? `${potreros.length} potrero${potreros.length === 1 ? "" : "s"}`
-            : "Sin potreros"}
-          {" · "}
-          {elementos.length > 0
-            ? `${elementos.length} marcación${elementos.length === 1 ? "" : "es"}`
-            : "Sin marcaciones"}
-        </p>
-      ) : null}
     </section>
   );
 }

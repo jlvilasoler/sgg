@@ -18,10 +18,17 @@ import {
   ANIOS_AGRICULTURA,
   empresasSelectOptions,
   MESES_AGRICULTURA,
-  calcularImporteAgricultura,
   calcularImporteNetoAgricultura,
+  calcularPagosAgricultura,
   calcularTotalProduccionAgricultura,
   calcUsdPorHa,
+  FORMA_PAGO_AGRICULTURA_FRACCION_INGRESO,
+  FORMA_PAGO_AGRICULTURA_FRACCION_SALDO,
+  FORMAS_PAGO_AGRICULTURA,
+  formatTonAgricultura,
+  normalizeFormaPagoAgricultura,
+  pagosNetosAgriculturaDesdePagos,
+  type FormaPagoAgricultura,
   OPCIONES_MES_ANIO_AGRICULTURA,
   parseMesAnioAgricultura,
   encodeMesAnioAgricultura,
@@ -97,7 +104,10 @@ export default function VentasAgricultura({
   const [cultivo, setCultivo] = useState("");
   const [cultivosCatalogo, setCultivosCatalogo] = useState<string[]>([]);
   const [rendimiento, setRendimiento] = useState("");
+  const [precioIngreso, setPrecioIngreso] = useState("");
   const [precio, setPrecio] = useState("");
+  const [formaPago, setFormaPago] = useState<FormaPagoAgricultura>("FRACCIONADO");
+  const [pagoIngresoCobrado, setPagoIngresoCobrado] = useState(false);
   const [impuestos, setImpuestos] = useState("");
   const [flete, setFlete] = useState("");
   const [saving, setSaving] = useState(false);
@@ -155,6 +165,7 @@ export default function VentasAgricultura({
 
   const hasNum = useMemo(() => parsePositiveDecimal(hectareas), [hectareas]);
   const rendimientoNum = useMemo(() => parsePositiveDecimal(rendimiento), [rendimiento]);
+  const precioIngresoNum = useMemo(() => parsePositiveDecimal(precioIngreso), [precioIngreso]);
   const precioNum = useMemo(() => parsePositiveDecimal(precio), [precio]);
   const impuestosNum = useMemo(() => parseNonNegativeDecimal(impuestos), [impuestos]);
   const fleteNum = useMemo(() => parseNonNegativeDecimal(flete), [flete]);
@@ -164,14 +175,29 @@ export default function VentasAgricultura({
     [hasNum, rendimientoNum]
   );
 
-  const importeBruto = useMemo(
-    () => calcularImporteAgricultura(totalProduccion, precioNum),
-    [totalProduccion, precioNum]
+  const esPagoFraccionado = formaPago === "FRACCIONADO";
+
+  const pagos = useMemo(
+    () =>
+      calcularPagosAgricultura(
+        totalProduccion,
+        esPagoFraccionado ? precioIngresoNum : precioNum,
+        precioNum,
+        formaPago
+      ),
+    [totalProduccion, precioIngresoNum, precioNum, formaPago, esPagoFraccionado]
   );
+
+  const importeBruto = pagos.importeBruto;
 
   const importeTotal = useMemo(
     () => calcularImporteNetoAgricultura(importeBruto, impuestosNum, fleteNum),
     [importeBruto, impuestosNum, fleteNum]
+  );
+
+  const pagosNetos = useMemo(
+    () => pagosNetosAgriculturaDesdePagos(pagos, impuestosNum, fleteNum),
+    [pagos, impuestosNum, fleteNum]
   );
 
   const puedeGuardar =
@@ -183,7 +209,18 @@ export default function VentasAgricultura({
     hasNum != null &&
     rendimientoNum != null &&
     precioNum != null &&
+    (!esPagoFraccionado || precioIngresoNum != null) &&
     cultivo.trim() !== "";
+
+  const handleFormaPagoChange = (next: FormaPagoAgricultura) => {
+    setFormaPago(next);
+    if (next === "AL_FINAL") {
+      setPagoIngresoCobrado(false);
+    }
+    if (next === "FRACCIONADO" && !precioIngreso.trim() && precio.trim()) {
+      setPrecioIngreso(precio);
+    }
+  };
 
   const limpiar = () => {
     setEmpresa("");
@@ -192,7 +229,10 @@ export default function VentasAgricultura({
     setHectareas("");
     setCultivo("");
     setRendimiento("");
+    setPrecioIngreso("");
     setPrecio("");
+    setFormaPago("FRACCIONADO");
+    setPagoIngresoCobrado(false);
     setImpuestos("");
     setFlete("");
     setEditingId(null);
@@ -205,7 +245,10 @@ export default function VentasAgricultura({
     setCultivo(normalizeCultivoNombre(row.cultivo));
     setHectareas(String(row.hectareas));
     setRendimiento(String(row.rendimiento_ton_ha));
+    setPrecioIngreso(String(row.precio_ingreso_usd_ton ?? row.precio_usd_ton));
     setPrecio(String(row.precio_usd_ton));
+    setFormaPago(normalizeFormaPagoAgricultura(row.forma_pago_agricultura));
+    setPagoIngresoCobrado(row.pago_ingreso_cobrado === true);
     setImpuestos(row.costo_impuestos_usd > 0 ? String(row.costo_impuestos_usd) : "");
     setFlete(row.costo_flete_usd > 0 ? String(row.costo_flete_usd) : "");
     setEditingId(row.id);
@@ -278,8 +321,11 @@ export default function VentasAgricultura({
         hectareas: hasNum!,
         rendimiento_ton_ha: rendimientoNum!,
         precio_usd_ton: precioNum!,
+        precio_ingreso_usd_ton: esPagoFraccionado ? precioIngresoNum! : precioNum!,
+        forma_pago_agricultura: formaPago,
         costo_impuestos_usd: impuestosNum,
         costo_flete_usd: fleteNum,
+        pago_ingreso_cobrado: esPagoFraccionado && pagoIngresoCobrado,
       };
       if (editingId != null) {
         await updateVentaAgricultura(editingId, payload);
@@ -366,7 +412,7 @@ export default function VentasAgricultura({
     }
   };
 
-  const historialColSpan = 10;
+  const historialColSpan = 12;
 
   const rowsVisibles = useMemo(
     () =>
@@ -386,12 +432,17 @@ export default function VentasAgricultura({
 
   const totales = useMemo(() => {
     const base = rowsVisibles.reduce(
-      (acc, r) => ({
-        has: acc.has + (r.real_hectareas ?? r.hectareas),
-        ton: acc.ton + tonEfectivaAgricultura(r),
-        usd: acc.usd + importeEfectivoAgricultura(r),
-      }),
-      { has: 0, ton: 0, usd: 0 }
+      (acc, r) => {
+        const n = normalizeVentaAgriculturaRow(r);
+        return {
+          has: acc.has + (r.real_hectareas ?? r.hectareas),
+          ton: acc.ton + tonEfectivaAgricultura(r),
+          imp: acc.imp + n.costo_impuestos_usd,
+          flete: acc.flete + n.costo_flete_usd,
+          usd: acc.usd + importeEfectivoAgricultura(r),
+        };
+      },
+      { has: 0, ton: 0, imp: 0, flete: 0, usd: 0 },
     );
     return {
       ...base,
@@ -737,20 +788,7 @@ export default function VentasAgricultura({
             />
           </div>
 
-          <div className="field">
-            <label htmlFor="va-precio">Precio del cultivo (USD/ton)</label>
-            <input
-              id="va-precio"
-              type="number"
-              min="0"
-              step="0.01"
-              placeholder="Ej: 401"
-              value={precio}
-              onChange={(e) => setPrecio(e.target.value)}
-            />
-          </div>
-
-          <div className="field">
+          <div className="field span-3">
             <label htmlFor="va-total-prod">Total (ton)</label>
             <input
               id="va-total-prod"
@@ -764,6 +802,143 @@ export default function VentasAgricultura({
               placeholder="Has × Rendimiento"
               aria-readonly="true"
             />
+          </div>
+
+          <div className="ventas-agricultura-pagos span-3">
+            <h3 className="ventas-agricultura-pagos-title">Forma de pago</h3>
+            <div
+              className="ventas-agricultura-forma-pago-modalidad"
+              role="group"
+              aria-label="Modalidad de cobro"
+            >
+              {FORMAS_PAGO_AGRICULTURA.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  className={`btn btn-secondary btn-sm ventas-agricultura-forma-pago-btn${
+                    formaPago === item.id ? " is-active" : ""
+                  }`}
+                  aria-pressed={formaPago === item.id}
+                  title={item.hint}
+                  onClick={() => handleFormaPagoChange(item.id)}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+            <p className="ventas-agricultura-forma-pago-activa muted">
+              {FORMAS_PAGO_AGRICULTURA.find((f) => f.id === formaPago)?.hint}
+            </p>
+            <div
+              className={`ventas-agricultura-pagos-grid${
+                esPagoFraccionado ? "" : " ventas-agricultura-pagos-grid--solo-final"
+              }`}
+            >
+              {esPagoFraccionado ? (
+              <article className="ventas-agricultura-pago-card ventas-agricultura-pago-card--ingreso">
+                <header className="ventas-agricultura-pago-head">
+                  <h4 className="ventas-agricultura-pago-name">Pago 1</h4>
+                  <p className="ventas-agricultura-pago-hint">
+                    Al ingresar · {Math.round(FORMA_PAGO_AGRICULTURA_FRACCION_INGRESO * 100)}% de la
+                    producción · precio del momento
+                  </p>
+                </header>
+                <div className="ventas-agricultura-pago-fields">
+                  <div className="field">
+                    <label htmlFor="va-precio-ingreso">Precio al ingresar (USD/ton)</label>
+                    <input
+                      id="va-precio-ingreso"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      placeholder="Ej: 350"
+                      value={precioIngreso}
+                      onChange={(e) => setPrecioIngreso(e.target.value)}
+                    />
+                  </div>
+                  <div className="field">
+                    <label htmlFor="va-pago1-ton">Cantidad</label>
+                    <input
+                      id="va-pago1-ton"
+                      type="text"
+                      readOnly
+                      data-sin-mayusculas="true"
+                      className="input-readonly"
+                      value={pagos.pago1Ton != null ? formatTonAgricultura(pagos.pago1Ton) : ""}
+                      placeholder="40% de la producción"
+                      aria-readonly="true"
+                    />
+                  </div>
+                  <div className="field ventas-agricultura-pago-importe">
+                    <label>Importe estimado</label>
+                    <output className="ventas-agricultura-pago-importe-value">
+                      {pagos.pago1Usd != null ? `USD ${fmtNum(pagos.pago1Usd, 2)}` : "—"}
+                    </output>
+                  </div>
+                </div>
+                <label className="ventas-agricultura-pago-cobro-check">
+                  <input
+                    type="checkbox"
+                    checked={pagoIngresoCobrado}
+                    onChange={(e) => setPagoIngresoCobrado(e.target.checked)}
+                  />
+                  <span className="ventas-agricultura-pago-cobro-check-text">
+                    <strong>Pago 1 ({Math.round(FORMA_PAGO_AGRICULTURA_FRACCION_INGRESO * 100)}%) cobrado</strong>
+                    <span className="muted">
+                      Marcá si ya cobraste al ingresar. En Por cobrar queda solo el saldo (
+                      {Math.round(FORMA_PAGO_AGRICULTURA_FRACCION_SALDO * 100)}%).
+                    </span>
+                  </span>
+                </label>
+              </article>
+              ) : null}
+
+              <article className="ventas-agricultura-pago-card ventas-agricultura-pago-card--saldo">
+                <header className="ventas-agricultura-pago-head">
+                  <h4 className="ventas-agricultura-pago-name">
+                    {esPagoFraccionado ? "Pago 2" : "Cobro al finalizar"}
+                  </h4>
+                  <p className="ventas-agricultura-pago-hint">
+                    {esPagoFraccionado
+                      ? `Al finalizar · saldo (${Math.round(FORMA_PAGO_AGRICULTURA_FRACCION_SALDO * 100)}%) · precio de venta al cerrar`
+                      : "100% de la producción · precio de venta al cerrar"}
+                  </p>
+                </header>
+                <div className="ventas-agricultura-pago-fields">
+                  <div className="field">
+                    <label htmlFor="va-precio">Precio de venta (USD/ton)</label>
+                    <input
+                      id="va-precio"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      placeholder="Ej: 401"
+                      value={precio}
+                      onChange={(e) => setPrecio(e.target.value)}
+                    />
+                  </div>
+                  <div className="field">
+                    <label htmlFor="va-pago2-ton">Cantidad</label>
+                    <input
+                      id="va-pago2-ton"
+                      type="text"
+                      readOnly
+                      data-sin-mayusculas="true"
+                      className="input-readonly"
+                      value={pagos.pago2Ton != null ? formatTonAgricultura(pagos.pago2Ton) : ""}
+                      placeholder={esPagoFraccionado ? "Saldo de la producción" : "100% de la producción"}
+                      aria-readonly="true"
+                    />
+                  </div>
+                  <div className="field ventas-agricultura-pago-importe">
+                    <label>Importe estimado</label>
+                    <output className="ventas-agricultura-pago-importe-value">
+                      {pagos.pago2Usd != null ? `USD ${fmtNum(pagos.pago2Usd, 2)}` : "—"}
+                    </output>
+                  </div>
+                </div>
+              </article>
+            </div>
           </div>
 
           <div className="ventas-agricultura-costos span-3">
@@ -813,6 +988,18 @@ export default function VentasAgricultura({
               {totalProduccion != null ? formatTotalProduccionAgricultura(totalProduccion) : "—"}
             </strong>
           </div>
+          {esPagoFraccionado ? (
+            <div className="ventas-agricultura-resumen-item">
+              <span className="ventas-agricultura-resumen-label">Pago 1 (ingreso)</span>
+              <strong>{pagos.pago1Usd != null ? `USD ${fmtNum(pagos.pago1Usd, 2)}` : "—"}</strong>
+            </div>
+          ) : null}
+          <div className="ventas-agricultura-resumen-item">
+            <span className="ventas-agricultura-resumen-label">
+              {esPagoFraccionado ? "Pago 2 (saldo)" : "Cobro al finalizar"}
+            </span>
+            <strong>{pagos.pago2Usd != null ? `USD ${fmtNum(pagos.pago2Usd, 2)}` : "—"}</strong>
+          </div>
           <div className="ventas-agricultura-resumen-item">
             <span className="ventas-agricultura-resumen-label">Importe bruto</span>
             <strong>{importeBruto != null ? `USD ${fmtNum(importeBruto, 2)}` : "—"}</strong>
@@ -835,6 +1022,22 @@ export default function VentasAgricultura({
               {importeTotal != null ? `USD ${fmtNum(importeTotal, 2)}` : "—"}
             </strong>
           </div>
+          {esPagoFraccionado && pagoIngresoCobrado && pagos.pago1Usd != null ? (
+            <>
+              <div className="ventas-agricultura-resumen-item ventas-agricultura-resumen-item--cobrado">
+                <span className="ventas-agricultura-resumen-label">
+                  Cobrado ({Math.round(FORMA_PAGO_AGRICULTURA_FRACCION_INGRESO * 100)}% neto)
+                </span>
+                <strong>USD {fmtNum(pagosNetos.pago1Neto, 2)}</strong>
+              </div>
+              <div className="ventas-agricultura-resumen-item ventas-agricultura-resumen-item--pendiente">
+                <span className="ventas-agricultura-resumen-label">
+                  Por cobrar ({Math.round(FORMA_PAGO_AGRICULTURA_FRACCION_SALDO * 100)}% neto)
+                </span>
+                <strong>USD {fmtNum(pagosNetos.pago2Neto, 2)}</strong>
+              </div>
+            </>
+          ) : null}
         </div>
 
         <div className="form-actions ventas-agricultura-form-actions">
@@ -887,8 +1090,14 @@ export default function VentasAgricultura({
                     <th className="num" title="Total toneladas">
                       Total ton
                     </th>
-                    <th className="num" title="Total USD">
-                      USD
+                    <th className="num" title="Impuestos USD">
+                      Imp.
+                    </th>
+                    <th className="num" title="Flete USD">
+                      Flete
+                    </th>
+                    <th className="num" title="Importe neto USD (bruto − impuestos − flete)">
+                      USD neto
                     </th>
                     <th className="num" title="USD por hectárea">
                       USD/ha
@@ -898,19 +1107,19 @@ export default function VentasAgricultura({
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan={9} className="empty">
+                      <td colSpan={11} className="empty">
                         Cargando...
                       </td>
                     </tr>
                   ) : !apiOnline ? (
                     <tr>
-                      <td colSpan={9} className="empty">
+                      <td colSpan={11} className="empty">
                         API no conectada
                       </td>
                     </tr>
                   ) : rowsVisibles.length === 0 ? (
                     <tr>
-                      <td colSpan={9} className="empty">
+                      <td colSpan={11} className="empty">
                         {copy.sinFilas}
                       </td>
                     </tr>
@@ -928,6 +1137,7 @@ export default function VentasAgricultura({
                       const has = r.real_hectareas ?? r.hectareas;
                       const rend = r.real_rendimiento_ton_ha ?? r.rendimiento_ton_ha;
                       const precio = r.real_precio_usd_ton ?? r.precio_usd_ton;
+                      const n = normalizeVentaAgriculturaRow(r);
                       const usdHa = calcUsdPorHa(importeEfectivoAgricultura(r), has);
                       return (
                         <tr key={r.id}>
@@ -944,6 +1154,14 @@ export default function VentasAgricultura({
                           <td className="num">{fmtNum(precio, 2)}</td>
                           <td className="num">
                             {formatTotalProduccionAgricultura(tonEfectivaAgricultura(r))}
+                          </td>
+                          <td className="num">
+                            {n.costo_impuestos_usd > 0
+                              ? `USD ${fmtNum(n.costo_impuestos_usd, 2)}`
+                              : "—"}
+                          </td>
+                          <td className="num">
+                            {n.costo_flete_usd > 0 ? `USD ${fmtNum(n.costo_flete_usd, 2)}` : "—"}
                           </td>
                           <td className="num">
                             <strong>USD {fmtNum(importeEfectivoAgricultura(r), 2)}</strong>
@@ -968,6 +1186,16 @@ export default function VentasAgricultura({
                       <td colSpan={2} />
                       <td className="num">
                         <strong>{formatTotalProduccionAgricultura(totales.ton)}</strong>
+                      </td>
+                      <td className="num">
+                        <strong>
+                          {totales.imp > 0 ? `USD ${fmtNum(totales.imp, 2)}` : "—"}
+                        </strong>
+                      </td>
+                      <td className="num">
+                        <strong>
+                          {totales.flete > 0 ? `USD ${fmtNum(totales.flete, 2)}` : "—"}
+                        </strong>
                       </td>
                       <td className="num">
                         <strong>USD {fmtNum(totales.usd, 2)}</strong>
@@ -1023,16 +1251,18 @@ export default function VentasAgricultura({
           >
             {esSimulador && (
               <colgroup>
-                <col style={{ width: "11.5%" }} />
-                <col style={{ width: "8.5%" }} />
                 <col style={{ width: "10.5%" }} />
+                <col style={{ width: "7.5%" }} />
+                <col style={{ width: "9.5%" }} />
+                <col style={{ width: "6.5%" }} />
+                <col style={{ width: "6.5%" }} />
+                <col style={{ width: "6.5%" }} />
                 <col style={{ width: "7%" }} />
-                <col style={{ width: "7.5%" }} />
-                <col style={{ width: "7.5%" }} />
-                <col style={{ width: "8%" }} />
-                <col style={{ width: "12%" }} />
-                <col style={{ width: "7.5%" }} />
-                <col style={{ width: "12.5%" }} />
+                <col style={{ width: "6.5%" }} />
+                <col style={{ width: "6.5%" }} />
+                <col style={{ width: "9%" }} />
+                <col style={{ width: "6.5%" }} />
+                <col style={{ width: "11.5%" }} />
               </colgroup>
             )}
             <thead>
@@ -1053,8 +1283,14 @@ export default function VentasAgricultura({
                 <th className="num" title="Total toneladas">
                   {esSimulador ? "Ton" : "Total ton"}
                 </th>
-                <th className="num" title="Total USD">
-                  USD
+                <th className="num" title="Impuestos USD">
+                  Imp.
+                </th>
+                <th className="num" title="Flete USD">
+                  Flete
+                </th>
+                <th className="num" title="Importe neto USD (bruto − impuestos − flete)">
+                  {esSimulador ? "USD neto" : "USD neto"}
                 </th>
                 <th className="num" title="USD por hectárea">
                   {esSimulador ? "$/ha" : "USD/ha"}
@@ -1067,19 +1303,19 @@ export default function VentasAgricultura({
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={esSimulador ? historialColSpan : 9} className={esSimulador ? "sim-historial-empty" : "empty"}>
+                  <td colSpan={esSimulador ? historialColSpan : 11} className={esSimulador ? "sim-historial-empty" : "empty"}>
                     Cargando...
                   </td>
                 </tr>
               ) : !apiOnline ? (
                 <tr>
-                  <td colSpan={esSimulador ? historialColSpan : 9} className={esSimulador ? "sim-historial-empty" : "empty"}>
+                  <td colSpan={esSimulador ? historialColSpan : 11} className={esSimulador ? "sim-historial-empty" : "empty"}>
                     API no conectada
                   </td>
                 </tr>
               ) : rowsVisibles.length === 0 ? (
                 <tr>
-                  <td colSpan={esSimulador ? historialColSpan : 9} className={esSimulador ? "sim-historial-empty" : "empty"}>
+                  <td colSpan={esSimulador ? historialColSpan : 11} className={esSimulador ? "sim-historial-empty" : "empty"}>
                     {copy.sinFilas}
                   </td>
                 </tr>
@@ -1120,6 +1356,7 @@ export default function VentasAgricultura({
                   const has = r.real_hectareas ?? r.hectareas;
                   const rend = r.real_rendimiento_ton_ha ?? r.rendimiento_ton_ha;
                   const precio = r.real_precio_usd_ton ?? r.precio_usd_ton;
+                  const n = normalizeVentaAgriculturaRow(r);
                   const usdHa = calcUsdPorHa(importeEfectivoAgricultura(r), has);
                   return (
                   <tr key={r.id}>
@@ -1135,6 +1372,14 @@ export default function VentasAgricultura({
                     <td className="num">{formatRendimientoAgricultura(rend)}</td>
                     <td className="num">{fmtNum(precio, 2)}</td>
                     <td className="num">{formatTotalProduccionAgricultura(tonEfectivaAgricultura(r))}</td>
+                    <td className="num">
+                      {n.costo_impuestos_usd > 0
+                        ? `USD ${fmtNum(n.costo_impuestos_usd, 2)}`
+                        : "—"}
+                    </td>
+                    <td className="num">
+                      {n.costo_flete_usd > 0 ? `USD ${fmtNum(n.costo_flete_usd, 2)}` : "—"}
+                    </td>
                     <td className="num">
                       <strong>USD {fmtNum(importeEfectivoAgricultura(r), 2)}</strong>
                     </td>
@@ -1156,6 +1401,16 @@ export default function VentasAgricultura({
                   <td colSpan={2} />
                   <td className="num">
                     <strong>{formatTotalProduccionAgricultura(totales.ton)}</strong>
+                  </td>
+                  <td className="num">
+                    <strong>
+                      {totales.imp > 0 ? `USD ${fmtNum(totales.imp, 2)}` : "—"}
+                    </strong>
+                  </td>
+                  <td className="num">
+                    <strong>
+                      {totales.flete > 0 ? `USD ${fmtNum(totales.flete, 2)}` : "—"}
+                    </strong>
                   </td>
                   <td className="num">
                     <strong>USD {fmtNum(totales.usd, 2)}</strong>

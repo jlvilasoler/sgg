@@ -9,6 +9,8 @@ import {
 export const CULTIVOS_AGRICULTURA_LEGACY = ["TRIGO", "SOJA", "MAIZ", "COLZA"] as const;
 export type CultivoAgricultura = string;
 
+export type FormaPagoAgricultura = "FRACCIONADO" | "AL_FINAL";
+
 export type EmpresaAgricultura = string;
 
 export interface VentaAgriculturaRow {
@@ -22,10 +24,14 @@ export interface VentaAgriculturaRow {
   hectareas: number;
   rendimiento_ton_ha: number;
   precio_usd_ton: number;
+  precio_ingreso_usd_ton: number;
+  forma_pago_agricultura: FormaPagoAgricultura;
   total_ton: number;
   importe_usd: number;
   costo_impuestos_usd: number;
   costo_flete_usd: number;
+  pago_ingreso_cobrado: boolean;
+  pago_ingreso_cobrado_en: string | null;
   venta_realizada: boolean;
   venta_realizada_en: string | null;
   real_mes_inicio: number | null;
@@ -65,10 +71,13 @@ export interface VentaAgriculturaInput {
   hectareas: number;
   rendimiento_ton_ha: number;
   precio_usd_ton: number;
+  precio_ingreso_usd_ton: number;
+  forma_pago_agricultura: FormaPagoAgricultura;
   total_ton: number;
   importe_usd: number;
   costo_impuestos_usd?: number;
   costo_flete_usd?: number;
+  pago_ingreso_cobrado?: boolean;
 }
 
 export interface VentaAgriculturaFilters {
@@ -127,6 +136,10 @@ export async function initVentasAgriculturaTable(db: Db): Promise<void> {
     "destacada INTEGER NOT NULL DEFAULT 0",
     "costo_impuestos_usd DOUBLE PRECISION NOT NULL DEFAULT 0",
     "costo_flete_usd DOUBLE PRECISION NOT NULL DEFAULT 0",
+    "precio_ingreso_usd_ton DOUBLE PRECISION",
+    "forma_pago_agricultura TEXT NOT NULL DEFAULT 'FRACCIONADO'",
+    "pago_ingreso_cobrado INTEGER NOT NULL DEFAULT 0",
+    "pago_ingreso_cobrado_en TIMESTAMPTZ",
   ] as const) {
     try {
       await db.prepare(`ALTER TABLE VENTAS_AGRICULTURA ADD COLUMN ${col}`).run();
@@ -146,6 +159,16 @@ export async function initVentasAgriculturaTable(db: Db): Promise<void> {
 
   await migrateAddCuentaIdColumn(db, "VENTAS_AGRICULTURA");
   await backfillCuentaIdPorEmpresa(db, "VENTAS_AGRICULTURA");
+  await db.prepare(
+    `UPDATE VENTAS_AGRICULTURA
+     SET precio_ingreso_usd_ton = precio_usd_ton
+     WHERE precio_ingreso_usd_ton IS NULL`
+  ).run();
+  await db.prepare(
+    `UPDATE VENTAS_AGRICULTURA
+     SET forma_pago_agricultura = 'FRACCIONADO'
+     WHERE forma_pago_agricultura IS NULL OR TRIM(forma_pago_agricultura) = ''`
+  ).run();
   await migrateCultivoLibre(db);
 }
 
@@ -216,10 +239,15 @@ function mapRow(row: Record<string, unknown>): VentaAgriculturaRow {
     hectareas: Number(row.hectareas),
     rendimiento_ton_ha: Number(row.rendimiento_ton_ha),
     precio_usd_ton: Number(row.precio_usd_ton),
+    precio_ingreso_usd_ton: Number(row.precio_ingreso_usd_ton ?? row.precio_usd_ton ?? 0),
+    forma_pago_agricultura: normalizeFormaPagoAgricultura(row.forma_pago_agricultura),
     total_ton: Number(row.total_ton),
     importe_usd: Number(row.importe_usd),
     costo_impuestos_usd: Number(row.costo_impuestos_usd ?? 0),
     costo_flete_usd: Number(row.costo_flete_usd ?? 0),
+    pago_ingreso_cobrado: Number(row.pago_ingreso_cobrado ?? 0) === 1,
+    pago_ingreso_cobrado_en:
+      row.pago_ingreso_cobrado_en != null ? String(row.pago_ingreso_cobrado_en) : null,
     venta_realizada: Number(row.venta_realizada ?? 0) === 1,
     venta_realizada_en: row.venta_realizada_en != null ? String(row.venta_realizada_en) : null,
     real_mes_inicio: row.real_mes_inicio != null ? Number(row.real_mes_inicio) : null,
@@ -244,10 +272,34 @@ function parseCostoUsd(value: unknown): number {
   return Math.round(n * 100) / 100;
 }
 
+function normalizeFormaPagoAgricultura(value: unknown): FormaPagoAgricultura {
+  return value === "AL_FINAL" ? "AL_FINAL" : "FRACCIONADO";
+}
+
+function calcularImporteBrutoPagosAgricultura(
+  totalKg: number,
+  precioIngresoUsdTon: number,
+  precioVentaUsdTon: number,
+  formaPago: FormaPagoAgricultura = "FRACCIONADO"
+): number {
+  const tonTotal = totalKg / 1000;
+  if (formaPago === "AL_FINAL") {
+    return Math.round(tonTotal * precioVentaUsdTon * 100) / 100;
+  }
+  const pago1Usd = tonTotal * 0.4 * precioIngresoUsdTon;
+  const pago2Usd = tonTotal * 0.6 * precioVentaUsdTon;
+  return Math.round((pago1Usd + pago2Usd) * 100) / 100;
+}
+
 function normalizeInput(data: VentaAgriculturaInput): VentaAgriculturaInput {
   const hectareas = Number(data.hectareas);
   const rendimiento_ton_ha = Number(data.rendimiento_ton_ha);
   const precio_usd_ton = Number(data.precio_usd_ton);
+  const forma_pago_agricultura = normalizeFormaPagoAgricultura(data.forma_pago_agricultura);
+  const precio_ingreso_usd_ton =
+    forma_pago_agricultura === "AL_FINAL"
+      ? Number(data.precio_usd_ton)
+      : Number(data.precio_ingreso_usd_ton);
   const total_ton = Number(data.total_ton);
   const importe_usd = Number(data.importe_usd);
   const costo_impuestos_usd = parseCostoUsd(data.costo_impuestos_usd);
@@ -288,7 +340,12 @@ function normalizeInput(data: VentaAgriculturaInput): VentaAgriculturaInput {
     throw new Error("El rendimiento debe ser mayor a cero");
   }
   if (!Number.isFinite(precio_usd_ton) || precio_usd_ton <= 0) {
-    throw new Error("El precio debe ser mayor a cero");
+    throw new Error("El precio de venta debe ser mayor a cero");
+  }
+  if (forma_pago_agricultura === "FRACCIONADO") {
+    if (!Number.isFinite(precio_ingreso_usd_ton) || precio_ingreso_usd_ton <= 0) {
+      throw new Error("El precio al ingresar debe ser mayor a cero");
+    }
   }
   if (!Number.isFinite(total_ton) || total_ton <= 0) {
     throw new Error("El total en toneladas es inválido");
@@ -296,9 +353,18 @@ function normalizeInput(data: VentaAgriculturaInput): VentaAgriculturaInput {
   if (!Number.isFinite(importe_usd) || importe_usd < 0) {
     throw new Error("El importe estimado es inválido");
   }
-  if (costo_impuestos_usd + costo_flete_usd > (total_ton * precio_usd_ton) / 1000 + 0.01) {
+  const importe_bruto = calcularImporteBrutoPagosAgricultura(
+    total_ton,
+    precio_ingreso_usd_ton,
+    precio_usd_ton,
+    forma_pago_agricultura
+  );
+  if (costo_impuestos_usd + costo_flete_usd > importe_bruto + 0.01) {
     throw new Error("Impuestos y flete no pueden superar el importe bruto");
   }
+
+  const pago_ingreso_cobrado =
+    forma_pago_agricultura === "FRACCIONADO" && data.pago_ingreso_cobrado === true;
 
   return {
     empresa: data.empresa,
@@ -310,11 +376,23 @@ function normalizeInput(data: VentaAgriculturaInput): VentaAgriculturaInput {
     hectareas,
     rendimiento_ton_ha,
     precio_usd_ton,
+    precio_ingreso_usd_ton,
+    forma_pago_agricultura,
     total_ton,
     importe_usd,
     costo_impuestos_usd,
     costo_flete_usd,
+    pago_ingreso_cobrado,
   };
+}
+
+function pagoIngresoCobradoEn(
+  cobrado: boolean,
+  forma: FormaPagoAgricultura,
+  existingEn: string | null,
+): string | null {
+  if (forma !== "FRACCIONADO" || !cobrado) return null;
+  return existingEn ?? new Date().toISOString();
 }
 
 export async function listVentasAgricultura(
@@ -367,15 +445,27 @@ export async function insertVentaAgricultura(
   const row = normalizeInput(data);
   const resolvedCuentaId =
     cuentaId ?? (await resolveCuentaIdForEmpresaNombre(db, row.empresa, cuentaId));
+  const pago_ingreso_cobrado_en = pagoIngresoCobradoEn(
+    row.pago_ingreso_cobrado === true,
+    row.forma_pago_agricultura,
+    null,
+  );
   const result = await db.prepare(
     `INSERT INTO VENTAS_AGRICULTURA (
       empresa, mes, mes_inicio, mes_fin, anio, anio_inicio, anio_fin, cultivo, hectareas, rendimiento_ton_ha,
-      precio_usd_ton, total_ton, importe_usd, costo_impuestos_usd, costo_flete_usd, cuenta_id
+      precio_usd_ton, precio_ingreso_usd_ton, forma_pago_agricultura, total_ton, importe_usd,
+      costo_impuestos_usd, costo_flete_usd, pago_ingreso_cobrado, pago_ingreso_cobrado_en, cuenta_id
     ) VALUES (
       @empresa, @mes_inicio, @mes_inicio, @mes_fin, @anio_inicio, @anio_inicio, @anio_fin, @cultivo, @hectareas, @rendimiento_ton_ha,
-      @precio_usd_ton, @total_ton, @importe_usd, @costo_impuestos_usd, @costo_flete_usd, @cuenta_id
+      @precio_usd_ton, @precio_ingreso_usd_ton, @forma_pago_agricultura, @total_ton, @importe_usd,
+      @costo_impuestos_usd, @costo_flete_usd, @pago_ingreso_cobrado, @pago_ingreso_cobrado_en, @cuenta_id
     )`
-  ).run({ ...row, cuenta_id: resolvedCuentaId });
+  ).run({
+    ...row,
+    pago_ingreso_cobrado: row.pago_ingreso_cobrado ? 1 : 0,
+    pago_ingreso_cobrado_en,
+    cuenta_id: resolvedCuentaId,
+  });
   const id = Number(result.lastInsertRowid);
   if (!id) throw new Error("No se pudo guardar el registro");
   return id;
@@ -411,6 +501,12 @@ export async function updateVentaAgricultura(
   const row = normalizeInput(data);
   const resolvedCuentaId =
     cuentaId ?? (await resolveCuentaIdForEmpresaNombre(db, row.empresa, cuentaId));
+  const pago_ingreso_cobrado = row.pago_ingreso_cobrado === true;
+  const pago_ingreso_cobrado_en = pagoIngresoCobradoEn(
+    pago_ingreso_cobrado,
+    row.forma_pago_agricultura,
+    existing.pago_ingreso_cobrado_en,
+  );
   const result = await db.prepare(
     `UPDATE VENTAS_AGRICULTURA SET
       empresa = @empresa,
@@ -424,13 +520,23 @@ export async function updateVentaAgricultura(
       hectareas = @hectareas,
       rendimiento_ton_ha = @rendimiento_ton_ha,
       precio_usd_ton = @precio_usd_ton,
+      precio_ingreso_usd_ton = @precio_ingreso_usd_ton,
+      forma_pago_agricultura = @forma_pago_agricultura,
       total_ton = @total_ton,
       importe_usd = @importe_usd,
       costo_impuestos_usd = @costo_impuestos_usd,
       costo_flete_usd = @costo_flete_usd,
+      pago_ingreso_cobrado = @pago_ingreso_cobrado,
+      pago_ingreso_cobrado_en = @pago_ingreso_cobrado_en,
       cuenta_id = @cuenta_id
      WHERE id = @id`
-  ).run({ ...row, id, cuenta_id: resolvedCuentaId });
+  ).run({
+    ...row,
+    id,
+    pago_ingreso_cobrado: pago_ingreso_cobrado ? 1 : 0,
+    pago_ingreso_cobrado_en,
+    cuenta_id: resolvedCuentaId,
+  });
 
   if (result.changes === 0) throw new Error("No se pudo actualizar el registro");
   const updated = await getVentaAgriculturaById(db, id, cuentaId);
@@ -511,6 +617,7 @@ export async function patchVentaAgricultura(
     venta_realizada?: boolean;
     valores_reales?: VentaAgriculturaRealInput | null;
     destacada?: boolean;
+    pago_ingreso_cobrado?: boolean;
   },
   cuentaId?: number | null,
 ): Promise<VentaAgriculturaRow> {
@@ -571,11 +678,38 @@ export async function patchVentaAgricultura(
     throw new Error("Completá los valores reales de la venta");
   }
 
+  let pago_ingreso_cobrado = existing.pago_ingreso_cobrado;
+  let pago_ingreso_cobrado_en = existing.pago_ingreso_cobrado_en;
+  if (patch.venta_realizada === false) {
+    pago_ingreso_cobrado = false;
+    pago_ingreso_cobrado_en = null;
+  } else if (patch.valores_reales) {
+    pago_ingreso_cobrado = true;
+    if (!pago_ingreso_cobrado_en) {
+      pago_ingreso_cobrado_en = new Date().toISOString();
+    }
+  } else if (typeof patch.pago_ingreso_cobrado === "boolean") {
+    if (existing.venta_realizada) {
+      throw new Error("No se puede modificar el cobro parcial con la venta cerrada");
+    }
+    if (existing.forma_pago_agricultura !== "FRACCIONADO" && patch.pago_ingreso_cobrado) {
+      throw new Error("El cobro parcial solo aplica a forma de pago fraccionada");
+    }
+    pago_ingreso_cobrado = patch.pago_ingreso_cobrado;
+    pago_ingreso_cobrado_en = pagoIngresoCobradoEn(
+      pago_ingreso_cobrado,
+      existing.forma_pago_agricultura,
+      existing.pago_ingreso_cobrado_en,
+    );
+  }
+
   await db.prepare(
     `UPDATE VENTAS_AGRICULTURA SET
       venta_realizada = @venta_realizada,
       venta_realizada_en = @venta_realizada_en,
       destacada = @destacada,
+      pago_ingreso_cobrado = @pago_ingreso_cobrado,
+      pago_ingreso_cobrado_en = @pago_ingreso_cobrado_en,
       real_mes_inicio = @real_mes_inicio,
       real_mes_fin = @real_mes_fin,
       real_anio_inicio = @real_anio_inicio,
@@ -592,6 +726,8 @@ export async function patchVentaAgricultura(
     venta_realizada: venta_realizada ? 1 : 0,
     venta_realizada_en,
     destacada: destacada ? 1 : 0,
+    pago_ingreso_cobrado: pago_ingreso_cobrado ? 1 : 0,
+    pago_ingreso_cobrado_en,
     real_mes_inicio,
     real_mes_fin,
     real_anio_inicio,

@@ -6,6 +6,7 @@ import {
   ejercicioVigente,
   type EjercicioConfig,
 } from "../utils/ejercicio-contable";
+import { sumTotalUsdPresupuesto } from "../utils/presupuesto-total-usd";
 
 const RECIENTES_LIMIT = 6;
 
@@ -132,8 +133,8 @@ export function usePresupuestoHubDashboard(user: AuthUser, apiOnline: boolean) {
     return {
       cuentaMesCount: rowsCuentaMes.length,
       propioMesCount: delMesPropio.length,
-      propioMesUsd: delMesPropio.reduce((s, r) => s + (Number(r.saldo_usd) || 0), 0),
-      propioEjercicioUsd: rowsPropios.reduce((s, r) => s + (Number(r.saldo_usd) || 0), 0),
+      propioMesUsd: sumTotalUsdPresupuesto(delMesPropio),
+      propioEjercicioUsd: sumTotalUsdPresupuesto(rowsPropios),
       propioEjercicioCount,
       propioPromedioMesDocs: propioEjercicioCount / mesesEj,
       mesesEjercicioTranscurridos: mesesEj,

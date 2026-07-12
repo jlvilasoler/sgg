@@ -1,4 +1,5 @@
 import type { TabId } from "../components/Header";
+import type { HomeGanadoStockData, HomePorCobrarData, HomeResultadoEjercicioData } from "../hooks/useHomeDashboard";
 
 export type HomeInsightCacheItem = {
   id: string;
@@ -7,9 +8,13 @@ export type HomeInsightCacheItem = {
   value: string;
   hint: string;
   tone: "default" | "danger" | "accent" | "ok";
+  amountUsd?: number;
+  ganadoStock?: HomeGanadoStockData;
+  porCobrar?: HomePorCobrarData;
+  resultadoEjercicio?: HomeResultadoEjercicioData;
 };
 
-const STORAGE_KEY = "scg-home-insights-cache-v2";
+const STORAGE_KEY = "scg-home-insights-cache-v13";
 const CACHE_TTL_MS = 5 * 60 * 1000;
 
 type CachedPayload = {

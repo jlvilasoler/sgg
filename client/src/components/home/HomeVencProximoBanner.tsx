@@ -34,22 +34,25 @@ export default function HomeVencProximoBanner({ item, onClick }: Props) {
         decoding="async"
       />
       <div className="venc-imp-banner-next-body home-venc-proximo-body">
-        <div className="home-venc-proximo-main">
+        <div className="home-venc-proximo-top">
           <span className="venc-imp-banner-next-label">
             <span className="venc-imp-banner-next-dot" aria-hidden />
             Próximo vencimiento
           </span>
-          <strong className="home-venc-proximo-titulo">{item.titulo}</strong>
-          <span className="venc-imp-banner-next-sub home-venc-proximo-sub">{subtitulo}</span>
-          <span className="venc-imp-banner-next-fecha home-venc-proximo-fecha">
-            {item.fechaLabel}
-          </span>
-        </div>
-        <div className="home-venc-proximo-footer">
           <span className="venc-imp-banner-next-dias home-venc-proximo-dias">
             {diasRestantesLabel(item.diasRestantes)}
           </span>
         </div>
+        <strong className="home-venc-proximo-titulo">{item.titulo}</strong>
+        <span className="home-venc-proximo-meta">
+          <span className="venc-imp-banner-next-sub home-venc-proximo-sub">{subtitulo}</span>
+          <span className="home-venc-proximo-meta-sep" aria-hidden>
+            ·
+          </span>
+          <span className="venc-imp-banner-next-fecha home-venc-proximo-fecha">
+            {item.fechaLabel}
+          </span>
+        </span>
       </div>
     </>
   );

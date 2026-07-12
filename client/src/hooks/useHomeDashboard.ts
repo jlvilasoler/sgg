@@ -1,16 +1,18 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   fetchAuthActividad,
+  fetchEstadoResultados,
   fetchNotas,
-  fetchResumen,
+  fetchPresupuesto,
   fetchSimulacionesVentaGanado,
   fetchStockGanaderoResumen,
   fetchVentasAgricultura,
   fetchVentasArrendamientos,
 } from "../api";
-import type { AuthUser, Nota } from "../types";
+import type { AuthUser, EstadoResultadosVentasDetalle, Nota } from "../types";
 import type { TabId } from "../components/Header";
 import {
+  canAccessHomeVentasEjercicio,
   canAccessIngresosVentasModulo,
   canAccessScreen,
   canAccessSimuladorVentaGanado,
@@ -50,6 +52,60 @@ import {
   anioInicioEjercicioVigente,
   type EjercicioConfig,
 } from "../utils/ejercicio-contable";
+import { sumTotalUsdPresupuesto } from "../utils/presupuesto-total-usd";
+import {
+  hintVentasEjercicio,
+  mergeVentasDetalleEjercicio,
+  resumenAgriculturaPorRecibir,
+  resumenArrendamientosPorRecibir,
+  resumenGanadoCobradoEjercicio,
+  resumenGanadoPorVender,
+  totalGastosEstadoResultados,
+  ventasDetalleCobradasEjercicio,
+} from "../utils/home-kpi-utils";
+import { mergeHomeInsight, isHomeInsightsCacheComplete } from "../utils/home-kpi-normalize";
+
+export interface HomeGanadoStockData {
+  activos: number;
+  lotes: number;
+  ejercicioLabel: string;
+  tieneStock: boolean;
+  tieneSimulador: boolean;
+  tieneVendido: boolean;
+  animalesPorVender: number;
+  porVenderOperaciones: number;
+  animalesVendidosEjercicio: number;
+  vendidoOperacionesEjercicio: number;
+}
+
+export interface HomeResultadoEjercicioData {
+  ejercicioLabel: string;
+  gastosMes: number;
+  gastosAnio: number;
+  ventasAnio: number;
+}
+
+export interface HomePorCobrarModuloData {
+  pendienteUsd: number;
+  cobradoEjercicioUsd: number;
+  tiene: boolean;
+  /** Arrendamientos: contratos pendientes. */
+  contratos?: number;
+  /** Ganado: operaciones pendientes. */
+  operaciones?: number;
+  /** Agricultura: ventas pendientes. */
+  ventas?: number;
+}
+
+export interface HomePorCobrarData {
+  totalUsd: number;
+  ejercicioLabel: string;
+  /** Muestra columna «Cobr. ej.» (ventas realizadas en el ejercicio). */
+  muestraCobradoEjercicio: boolean;
+  arrendamientos: HomePorCobrarModuloData;
+  ganado: HomePorCobrarModuloData;
+  agricultura: HomePorCobrarModuloData;
+}
 
 export interface HomeInsight {
   id: string;
@@ -58,6 +114,14 @@ export interface HomeInsight {
   value: string;
   hint: string;
   tone: "default" | "danger" | "accent" | "ok";
+  /** Valor numérico USD cuando aplica (gastos, etc.). */
+  amountUsd?: number;
+  /** KPI stock ganadero activo. */
+  ganadoStock?: HomeGanadoStockData;
+  /** KPI unificado por cobrar (arrend. + ganado + agric.). */
+  porCobrar?: HomePorCobrarData;
+  /** KPI P&amp;L del ejercicio (ventas, gastos, utilidad, margen). */
+  resultadoEjercicio?: HomeResultadoEjercicioData;
 }
 
 const FETCH_TIMEOUT_MS = 18_000;
@@ -68,6 +132,10 @@ const HOME_STAGGER_VENC_MS = 350;
 const HOME_STAGGER_ACTIVIDAD_MS = 500;
 const HOME_STAGGER_KPIS_MS = 900;
 const HOME_ACTIVIDAD_PREVIEW_LIMIT = 7;
+
+function fetchSafe<T>(promise: Promise<T>): Promise<T | null> {
+  return promise.catch(() => null);
+}
 
 function withTimeout<T>(promise: Promise<T>, ms = FETCH_TIMEOUT_MS): Promise<T> {
   return new Promise<T>((resolve, reject) => {
@@ -105,16 +173,17 @@ function ejercicioActualRango(
   return { desde: ej.desde, hasta, ejercicioLabel: ej.label };
 }
 
-function totalGastosUsdResumen(resumen: {
-  por_empresa?: { total_saldo_usd: number }[];
-  por_rubro?: { total_saldo_usd: number }[];
-}): number {
-  const porEmpresa = resumen.por_empresa ?? [];
-  const porRubro = resumen.por_rubro ?? [];
-  if (porEmpresa.length > 0) {
-    return porEmpresa.reduce((s, e) => s + (Number(e.total_saldo_usd) || 0), 0);
+function totalGastosUsdRows(rows: Parameters<typeof sumTotalUsdPresupuesto>[0]): number {
+  return sumTotalUsdPresupuesto(rows);
+}
+
+/** Gastos de toda la cuenta en KPIs del inicio (no solo los propios). */
+function presupuestoFiltroCuentaHome(user: AuthUser): { ver_todos?: boolean } {
+  if (user.rol === "admin") return {};
+  if (user.rol === "editor" || user.rol === "gestor_n2" || user.rol === "consulta") {
+    return { ver_todos: true };
   }
-  return porRubro.reduce((s, r) => s + (Number(r.total_saldo_usd) || 0), 0);
+  return {};
 }
 
 function formatEntero(n: number): string {
@@ -130,13 +199,211 @@ function formatUsd(n: number): string {
 }
 
 const HOME_INSIGHT_ORDER = [
-  "stock-ganado-activo",
-  "ganado-por-vender",
-  "arrendamientos-por-recibir",
-  "agricultura-por-recibir",
+  "ganado-stock",
+  "por-cobrar",
+  "ventas-ejercicio",
   "gastos-mes",
   "gastos-anio",
 ] as const;
+
+function puedeHomeGanadoStock(user: AuthUser): boolean {
+  if (!canShowHomePanel(user, "kpis_operativos")) return false;
+  return canAccessScreen(user, "stock_ganadero") || canAccessSimuladorVentaGanado(user);
+}
+
+function puedeHomePorCobrar(user: AuthUser): boolean {
+  if (!canShowHomePanel(user, "kpis_operativos")) return false;
+  return canAccessIngresosVentasModulo(user) || canAccessSimuladorVentaGanado(user);
+}
+
+function buildGanadoStockInsight(
+  resumen: { dispositivos: number; lotes: number } | null,
+  simRows: Awaited<ReturnType<typeof fetchSimulacionesVentaGanado>> | null,
+  flags: {
+    tieneStock: boolean;
+    tieneSimulador: boolean;
+    tieneVendido: boolean;
+  },
+  ejercicio: { desde: string; hasta: string; ejercicioLabel: string },
+): HomeInsight {
+  const activos = resumen?.dispositivos ?? 0;
+  const lotes = resumen?.lotes ?? 0;
+  const porVender = simRows
+    ? resumenGanadoPorVender(simRows)
+    : { operaciones: 0, animales: 0, usd: 0 };
+  const vendido = simRows
+    ? resumenGanadoCobradoEjercicio(simRows, ejercicio.desde, ejercicio.hasta)
+    : { operaciones: 0, animales: 0, usd: 0 };
+
+  const ganadoStock: HomeGanadoStockData = {
+    activos,
+    lotes,
+    ejercicioLabel: ejercicio.ejercicioLabel,
+    tieneStock: flags.tieneStock,
+    tieneSimulador: flags.tieneSimulador,
+    tieneVendido: flags.tieneVendido,
+    animalesPorVender: porVender.animales,
+    porVenderOperaciones: porVender.operaciones,
+    animalesVendidosEjercicio: vendido.animales,
+    vendidoOperacionesEjercicio: vendido.operaciones,
+  };
+
+  const hintPartes: string[] = [];
+  if (flags.tieneStock && activos > 0) hintPartes.push(`${formatEntero(activos)} en stock`);
+  if (flags.tieneVendido && vendido.animales > 0) {
+    hintPartes.push(`${formatEntero(vendido.animales)} vendidos`);
+  }
+  if (flags.tieneSimulador && porVender.animales > 0) {
+    hintPartes.push(`${formatEntero(porVender.animales)} por vender`);
+  }
+
+  return {
+    id: "ganado-stock",
+    tab: "stock_ganadero",
+    label: "Ganado",
+    value: formatEntero(activos),
+    hint:
+      hintPartes.length > 0
+        ? `${ejercicio.ejercicioLabel} · ${hintPartes.join(" · ")}`
+        : `${ejercicio.ejercicioLabel} · stock y ventas`,
+    tone: "ok",
+    ganadoStock,
+  };
+}
+
+function hintPorCobrar(data: HomePorCobrarData): string {
+  const partes: string[] = [];
+  if (data.arrendamientos.tiene && data.arrendamientos.pendienteUsd > 0.5) {
+    partes.push(`Arrend. ${formatUsd(data.arrendamientos.pendienteUsd)}`);
+  }
+  if (data.ganado.tiene && data.ganado.pendienteUsd > 0.5) {
+    partes.push(`Ganado ${formatUsd(data.ganado.pendienteUsd)}`);
+  }
+  if (data.agricultura.tiene && data.agricultura.pendienteUsd > 0.5) {
+    partes.push(`Agric. ${formatUsd(data.agricultura.pendienteUsd)}`);
+  }
+  if (partes.length === 0) {
+    return `${data.ejercicioLabel} · sin cobros pendientes`;
+  }
+  return `${data.ejercicioLabel} · ${partes.join(" + ")}`;
+}
+
+function buildPorCobrarInsight(
+  arrendRows: Awaited<ReturnType<typeof fetchVentasArrendamientos>> | null,
+  agricRows: Awaited<ReturnType<typeof fetchVentasAgricultura>> | null,
+  simRows: Awaited<ReturnType<typeof fetchSimulacionesVentaGanado>> | null,
+  er: Awaited<ReturnType<typeof fetchEstadoResultados>> | null,
+  flags: {
+    tieneArrendamientos: boolean;
+    tieneAgricultura: boolean;
+    tieneGanado: boolean;
+    tieneCobrado: boolean;
+  },
+  ejercicio: { desde: string; hasta: string; ejercicioLabel: string },
+): HomeInsight {
+  const { ejercicioLabel, desde, hasta } = ejercicio;
+  const arrend = arrendRows
+    ? resumenArrendamientosPorRecibir(arrendRows)
+    : { contratos: 0, usd: 0 };
+  const agric = agricRows
+    ? resumenAgriculturaPorRecibir(agricRows)
+    : { ventas: 0, usd: 0 };
+  const ganado = simRows
+    ? resumenGanadoPorVender(simRows)
+    : { operaciones: 0, animales: 0, usd: 0 };
+  const detalleFilas =
+    flags.tieneCobrado && (arrendRows || agricRows || simRows)
+      ? ventasDetalleCobradasEjercicio(arrendRows, agricRows, simRows, desde, hasta)
+      : null;
+  const detalle = mergeVentasDetalleEjercicio(er?.ventas_detalle, detalleFilas);
+
+  const porCobrar: HomePorCobrarData = {
+    totalUsd: arrend.usd + agric.usd + ganado.usd,
+    ejercicioLabel,
+    muestraCobradoEjercicio: flags.tieneCobrado,
+    arrendamientos: {
+      contratos: arrend.contratos,
+      pendienteUsd: arrend.usd,
+      cobradoEjercicioUsd: flags.tieneCobrado ? detalle.arrendamientos : 0,
+      tiene: flags.tieneArrendamientos,
+    },
+    ganado: {
+      operaciones: ganado.operaciones,
+      pendienteUsd: ganado.usd,
+      cobradoEjercicioUsd: flags.tieneCobrado ? detalle.ganado : 0,
+      tiene: flags.tieneGanado,
+    },
+    agricultura: {
+      ventas: agric.ventas,
+      pendienteUsd: agric.usd,
+      cobradoEjercicioUsd: flags.tieneCobrado ? detalle.agricultura : 0,
+      tiene: flags.tieneAgricultura,
+    },
+  };
+
+  return {
+    id: "por-cobrar",
+    tab: "ingresos_ventas",
+    label: "Por cobrar",
+    value: formatUsd(porCobrar.totalUsd),
+    hint: hintPorCobrar(porCobrar),
+    tone: "ok",
+    porCobrar,
+  };
+}
+
+function buildResultadoEjercicioInsight(
+  er: Awaited<ReturnType<typeof fetchEstadoResultados>>,
+  ejercicioLabel: string,
+  gastosMes: number,
+  detalleOverride?: EstadoResultadosVentasDetalle,
+): HomeInsight {
+  const detalle = detalleOverride ?? er.ventas_detalle;
+  const ventas =
+    Math.round((detalle.ganado + detalle.agricultura + detalle.arrendamientos) * 100) / 100;
+  const gastos = totalGastosEstadoResultados(er);
+  const resultadoEjercicio: HomeResultadoEjercicioData = {
+    ejercicioLabel,
+    gastosMes,
+    gastosAnio: gastos,
+    ventasAnio: ventas,
+  };
+
+  return {
+    id: "ventas-ejercicio",
+    tab: "resumen",
+    label: "Resumen financiero",
+    value: formatUsd(ventas),
+    hint: `${ejercicioLabel} · ${hintVentasEjercicio(detalle, ejercicioLabel)}`,
+    tone: "ok",
+    resultadoEjercicio,
+  };
+}
+
+function buildResultadoEjercicioFallback(
+  gastosUsd: number,
+  ejercicioLabel: string,
+  gastosMes: number,
+): HomeInsight {
+  const resultadoEjercicio: HomeResultadoEjercicioData = {
+    ejercicioLabel,
+    gastosMes,
+    gastosAnio: gastosUsd,
+    ventasAnio: 0,
+  };
+  return {
+    id: "ventas-ejercicio",
+    tab: "resumen",
+    label: "Resumen financiero",
+    value: formatUsd(0),
+    hint:
+      gastosUsd > 0.5
+        ? `${ejercicioLabel} · gastos ${formatUsd(gastosUsd)} · sin ventas registradas`
+        : `${ejercicioLabel} · sin movimientos`,
+    tone: "ok",
+    resultadoEjercicio,
+  };
+}
 
 export function buildExpectedHomeInsights(user: AuthUser): HomeInsight[] {
   const items: HomeInsight[] = [];
@@ -163,44 +430,88 @@ export function buildExpectedHomeInsights(user: AuthUser): HomeInsight[] {
     });
   }
 
-  if (canShowHomePanel(user, "kpis_operativos") && canAccessScreen(user, "stock_ganadero")) {
+  if (puedeHomeGanadoStock(user)) {
+    const ejCfg = ejercicioConfigFromUser(user);
+    const { ejercicioLabel } = ejercicioActualRango(ejCfg);
+    const tieneStock = canAccessScreen(user, "stock_ganadero");
+    const tieneSimulador = canAccessSimuladorVentaGanado(user);
+    const tieneVendido = canAccessHomeVentasEjercicio(user);
     items.push({
-      id: "stock-ganado-activo",
+      id: "ganado-stock",
       tab: "stock_ganadero",
-      label: "Ganado activo",
+      label: "Ganado",
       value: formatEntero(0),
-      hint: "Dispositivos activos en stock",
+      hint: `${ejercicioLabel} · stock y ventas`,
       tone: "ok",
+      ganadoStock: {
+        activos: 0,
+        lotes: 0,
+        ejercicioLabel,
+        tieneStock,
+        tieneSimulador,
+        tieneVendido,
+        animalesPorVender: 0,
+        porVenderOperaciones: 0,
+        animalesVendidosEjercicio: 0,
+        vendidoOperacionesEjercicio: 0,
+      },
     });
   }
 
-  if (canShowHomePanel(user, "kpis_operativos") && canAccessSimuladorVentaGanado(user)) {
+  if (puedeHomePorCobrar(user)) {
+    const ejCfg = ejercicioConfigFromUser(user);
+    const { ejercicioLabel } = ejercicioActualRango(ejCfg);
+    const tieneIngresos = canAccessIngresosVentasModulo(user);
+    const tieneGanado = canAccessSimuladorVentaGanado(user);
     items.push({
-      id: "ganado-por-vender",
-      tab: "simulador_venta_ganado",
-      label: "Ganado por vender",
-      value: formatEntero(0),
-      hint: "Sin operaciones pendientes",
-      tone: "accent",
+      id: "por-cobrar",
+      tab: "ingresos_ventas",
+      label: "Por cobrar",
+      value: formatUsd(0),
+      hint: `${ejercicioLabel} · sin cobros pendientes`,
+      tone: "ok",
+      porCobrar: {
+        totalUsd: 0,
+        ejercicioLabel,
+        muestraCobradoEjercicio: canAccessHomeVentasEjercicio(user),
+        arrendamientos: {
+          contratos: 0,
+          pendienteUsd: 0,
+          cobradoEjercicioUsd: 0,
+          tiene: tieneIngresos,
+        },
+        ganado: {
+          operaciones: 0,
+          pendienteUsd: 0,
+          cobradoEjercicioUsd: 0,
+          tiene: tieneGanado,
+        },
+        agricultura: {
+          ventas: 0,
+          pendienteUsd: 0,
+          cobradoEjercicioUsd: 0,
+          tiene: tieneIngresos,
+        },
+      },
     });
   }
 
-  if (canShowHomePanel(user, "kpis_operativos") && canAccessIngresosVentasModulo(user)) {
+  if (canShowHomePanel(user, "kpis_operativos") && canAccessHomeVentasEjercicio(user)) {
+    const ejCfg = ejercicioConfigFromUser(user);
+    const { ejercicioLabel } = ejercicioActualRango(ejCfg);
     items.push({
-      id: "arrendamientos-por-recibir",
-      tab: "ingresos_ventas",
-      label: "Arrendamientos",
+      id: "ventas-ejercicio",
+      tab: "resumen",
+      label: "Resumen financiero",
       value: formatUsd(0),
-      hint: "Sin cobros pendientes",
+      hint: `${ejercicioLabel} · gastos y ventas`,
       tone: "ok",
-    });
-    items.push({
-      id: "agricultura-por-recibir",
-      tab: "ingresos_ventas",
-      label: "Agricultura",
-      value: formatUsd(0),
-      hint: "Sin ventas pendientes",
-      tone: "ok",
+      resultadoEjercicio: {
+        ejercicioLabel,
+        gastosMes: 0,
+        gastosAnio: 0,
+        ventasAnio: 0,
+      },
     });
   }
 
@@ -210,7 +521,8 @@ export function buildExpectedHomeInsights(user: AuthUser): HomeInsight[] {
 function mergeInsightsWithExpected(user: AuthUser, loaded: HomeInsight[]): HomeInsight[] {
   const byId = new Map(buildExpectedHomeInsights(user).map((item) => [item.id, { ...item }]));
   for (const item of loaded) {
-    if (byId.has(item.id)) byId.set(item.id, item);
+    const expected = byId.get(item.id);
+    if (expected) byId.set(item.id, mergeHomeInsight(expected, item));
   }
   return ordenarInsightsHome([...byId.values()]).slice(0, HOME_INSIGHT_ORDER.length);
 }
@@ -269,12 +581,18 @@ export function useHomeDashboard(user: AuthUser, apiOnline: boolean) {
 
   const [recentScreens, setRecentScreens] = useState<TabId[]>(() => getRecentHomeModules(userId));
 
-  const [extraInsights, setExtraInsights] = useState<HomeInsight[]>(() =>
-    getHomeInsightsCache(userId)
-  );
-  const [loadingInsights, setLoadingInsights] = useState(
-    () => apiOnline && getHomeInsightsCache(userId).length === 0
-  );
+  const [extraInsights, setExtraInsights] = useState<HomeInsight[]>(() => {
+    const cached = getHomeInsightsCache(userId);
+    const expected = buildExpectedHomeInsights(user);
+    if (!isHomeInsightsCacheComplete(expected, cached)) return expected;
+    return mergeInsightsWithExpected(user, cached);
+  });
+  const [loadingInsights, setLoadingInsights] = useState(() => {
+    if (!apiOnline) return false;
+    const cached = getHomeInsightsCache(userId);
+    const expected = buildExpectedHomeInsights(user);
+    return cached.length === 0 || !isHomeInsightsCacheComplete(expected, cached);
+  });
   const [insightsReady, setInsightsReady] = useState(false);
 
   const permissionsKey = useMemo(
@@ -469,8 +787,9 @@ export function useHomeDashboard(user: AuthUser, apiOnline: boolean) {
 
     let cancelled = false;
     const cached = getHomeInsightsCache(userId);
-    if (cached.length > 0) {
-      setExtraInsights(cached);
+    const expected = buildExpectedHomeInsights(user);
+    if (cached.length > 0 && isHomeInsightsCacheComplete(expected, cached)) {
+      setExtraInsights(mergeInsightsWithExpected(user, cached));
     }
 
     const timer = window.setTimeout(() => {
@@ -504,7 +823,10 @@ export function useHomeDashboard(user: AuthUser, apiOnline: boolean) {
             return null;
           });
 
-      if (canAccessScreen(user, "registro") || canAccessScreen(user, "listado")) {
+      if (
+        canShowHomePanel(user, "kpis_gastos") &&
+        (canAccessScreen(user, "registro") || canAccessScreen(user, "listado"))
+      ) {
         const { desde, hasta } = mesActualRango();
         const { desde: desdeEjercicio, hasta: hastaEjercicio, ejercicioLabel } =
           ejercicioActualRango(ejercicioConfigFromUser(user));
@@ -512,17 +834,26 @@ export function useHomeDashboard(user: AuthUser, apiOnline: boolean) {
           runJobs(
             "gastos",
             Promise.all([
-              fetchResumen({ fecha_desde: desde, fecha_hasta: hasta }),
-              fetchResumen({ fecha_desde: desdeEjercicio, fecha_hasta: hastaEjercicio }),
-            ]).then(([resumenMes, resumenAnio]) => {
-              const totalMes = totalGastosUsdResumen(resumenMes);
-              const totalAnio = totalGastosUsdResumen(resumenAnio);
+              fetchPresupuesto({
+                fecha_desde: desde,
+                fecha_hasta: hasta,
+                ...presupuestoFiltroCuentaHome(user),
+              }),
+              fetchPresupuesto({
+                fecha_desde: desdeEjercicio,
+                fecha_hasta: hastaEjercicio,
+                ...presupuestoFiltroCuentaHome(user),
+              }),
+            ]).then(([rowsMes, rowsAnio]) => {
+              const totalMes = totalGastosUsdRows(rowsMes);
+              const totalAnio = totalGastosUsdRows(rowsAnio);
               return [
                 {
                   id: "gastos-mes",
                   tab: "listado" as TabId,
                   label: "Gastos del mes",
                   value: formatUsd(totalMes),
+                  amountUsd: totalMes,
                   hint: "Monto incluye UYU y BRL",
                   tone: "default" as const,
                 },
@@ -531,6 +862,7 @@ export function useHomeDashboard(user: AuthUser, apiOnline: boolean) {
                   tab: "listado" as TabId,
                   label: "Gastos del año",
                   value: formatUsd(totalAnio),
+                  amountUsd: totalAnio,
                   hint: `${ejercicioLabel} · UYU y BRL en USD`,
                   tone: "default" as const,
                 },
@@ -540,90 +872,151 @@ export function useHomeDashboard(user: AuthUser, apiOnline: boolean) {
         );
       }
 
-      if (canAccessScreen(user, "stock_ganadero")) {
+      if (puedeHomeGanadoStock(user)) {
+        const tieneStock = canAccessScreen(user, "stock_ganadero");
+        const tieneSimulador = canAccessSimuladorVentaGanado(user);
+        const tieneVendido = canAccessHomeVentasEjercicio(user);
+        const ejCfg = ejercicioConfigFromUser(user);
+        const { desde: desdeEjercicio, hasta: hastaEjercicio, ejercicioLabel } =
+          ejercicioActualRango(ejCfg);
         jobs.push(
           runJob(
-            "stock-ganado-activo",
-            fetchStockGanaderoResumen().then((resumen) => ({
-              id: "stock-ganado-activo",
-              tab: "stock_ganadero",
-              label: "Ganado activo",
-              value: formatEntero(resumen.dispositivos),
-              hint:
-                resumen.lotes > 0
-                  ? `${formatEntero(resumen.lotes)} lote(s) · dispositivos vivos`
-                  : "Dispositivos activos en stock",
-              tone: "ok" as const,
-            }))
+            "ganado-stock",
+            Promise.all([
+              tieneStock ? fetchSafe(fetchStockGanaderoResumen()) : Promise.resolve(null),
+              tieneSimulador || tieneVendido
+                ? fetchSafe(fetchSimulacionesVentaGanado({ limit: 500 }))
+                : Promise.resolve(null),
+            ]).then(([resumen, simRows]) =>
+              buildGanadoStockInsight(resumen, simRows, {
+                tieneStock,
+                tieneSimulador,
+                tieneVendido,
+              }, { desde: desdeEjercicio, hasta: hastaEjercicio, ejercicioLabel })
+            )
           )
         );
       }
 
-      if (canAccessSimuladorVentaGanado(user)) {
+      if (puedeHomePorCobrar(user)) {
+        const tieneIngresos = canAccessIngresosVentasModulo(user);
+        const tieneGanado = canAccessSimuladorVentaGanado(user);
+        const tieneCobrado = canAccessHomeVentasEjercicio(user);
+        const ejCfg = ejercicioConfigFromUser(user);
+        const { desde: desdeEjercicio, hasta: hastaEjercicio, ejercicioLabel } =
+          ejercicioActualRango(ejCfg);
         jobs.push(
           runJob(
-            "ganado-por-vender",
-            fetchSimulacionesVentaGanado({ limit: 120 }).then((rows) => {
-              const pendientes = rows.filter((r) => !r.venta_realizada);
-              const animales = pendientes.reduce(
-                (s, r) => s + (r.dispositivos_count || r.cantidad_animales || 0),
-                0
+            "por-cobrar",
+            Promise.all([
+              tieneIngresos ? fetchSafe(fetchVentasArrendamientos()) : Promise.resolve(null),
+              tieneIngresos ? fetchSafe(fetchVentasAgricultura()) : Promise.resolve(null),
+              tieneGanado
+                ? fetchSafe(fetchSimulacionesVentaGanado({ limit: 500 }))
+                : Promise.resolve(null),
+              tieneCobrado
+                ? fetchSafe(
+                    fetchEstadoResultados({
+                      fecha_desde: desdeEjercicio,
+                      fecha_hasta: hastaEjercicio,
+                    })
+                  )
+                : Promise.resolve(null),
+            ]).then(([arrendRows, agricRows, simRows, er]) =>
+              buildPorCobrarInsight(arrendRows, agricRows, simRows, er, {
+                tieneArrendamientos: tieneIngresos,
+                tieneAgricultura: tieneIngresos,
+                tieneGanado,
+                tieneCobrado,
+              }, {
+                desde: desdeEjercicio,
+                hasta: hastaEjercicio,
+                ejercicioLabel,
+              })
+            )
+          )
+        );
+      }
+
+      if (canShowHomePanel(user, "kpis_operativos") && canAccessHomeVentasEjercicio(user)) {
+        const tieneIngresos = canAccessIngresosVentasModulo(user);
+        const tieneGanado = canAccessSimuladorVentaGanado(user);
+        const { desde: desdeMes, hasta: hastaMes } = mesActualRango();
+        const { desde: desdeEjercicio, hasta: hastaEjercicio, ejercicioLabel } =
+          ejercicioActualRango(ejercicioConfigFromUser(user));
+        jobs.push(
+          runJob(
+            "ventas-ejercicio",
+            Promise.all([
+              fetchSafe(
+                fetchEstadoResultados({
+                  fecha_desde: desdeEjercicio,
+                  fecha_hasta: hastaEjercicio,
+                }),
+              ),
+              tieneIngresos ? fetchSafe(fetchVentasArrendamientos()) : Promise.resolve(null),
+              tieneIngresos ? fetchSafe(fetchVentasAgricultura()) : Promise.resolve(null),
+              tieneGanado
+                ? fetchSafe(fetchSimulacionesVentaGanado({ limit: 500 }))
+                : Promise.resolve(null),
+              fetchSafe(
+                fetchPresupuesto({
+                  fecha_desde: desdeMes,
+                  fecha_hasta: hastaMes,
+                  ...presupuestoFiltroCuentaHome(user),
+                }),
+              ),
+            ]).then(async ([er, arrendRows, agricRows, simRows, gastosMesRows]) => {
+              const gastosMes = gastosMesRows ? sumTotalUsdPresupuesto(gastosMesRows) : 0;
+              const detalleFilas = ventasDetalleCobradasEjercicio(
+                arrendRows,
+                agricRows,
+                simRows,
+                desdeEjercicio,
+                hastaEjercicio,
               );
-              const usd = pendientes.reduce((s, r) => s + (r.total_usd || 0), 0);
-              return {
-                id: "ganado-por-vender",
-                tab: "simulador_venta_ganado",
-                label: "Ganado por vender",
-                value: formatEntero(animales),
-                hint:
-                  pendientes.length > 0
-                    ? `${pendientes.length} operación(es) · ${formatUsd(usd)} estimado`
-                    : "Sin operaciones pendientes",
-                tone: "accent" as const,
-              };
-            })
-          )
-        );
-      }
-
-      if (canAccessIngresosVentasModulo(user)) {
-        jobs.push(
-          runJob(
-            "arrendamientos-por-recibir",
-            fetchVentasArrendamientos().then((rows) => {
-              const pendientes = rows.filter((r) => !r.venta_realizada);
-              const usd = pendientes.reduce((s, r) => s + (r.total_usd || 0), 0);
-              return {
-                id: "arrendamientos-por-recibir",
-                tab: "ingresos_ventas",
-                label: "Arrendamientos",
-                value: formatUsd(usd),
-                hint:
-                  pendientes.length > 0
-                    ? `${pendientes.length} contrato(s) por recibir`
-                    : "Sin cobros pendientes",
-                tone: "ok" as const,
-              };
-            })
+              if (er) {
+                const detalle = mergeVentasDetalleEjercicio(er.ventas_detalle, detalleFilas);
+                return buildResultadoEjercicioInsight(er, ejercicioLabel, gastosMes, detalle);
+              }
+              const ventasTotal =
+                detalleFilas.ganado + detalleFilas.agricultura + detalleFilas.arrendamientos;
+              if (ventasTotal > 0.5) {
+                const gastosRows = await fetchSafe(
+                  fetchPresupuesto({
+                    fecha_desde: desdeEjercicio,
+                    fecha_hasta: hastaEjercicio,
+                    ...presupuestoFiltroCuentaHome(user),
+                  }),
+                );
+                const gastosUsd = gastosRows ? sumTotalUsdPresupuesto(gastosRows) : 0;
+                return {
+                  id: "ventas-ejercicio",
+                  tab: "resumen" as TabId,
+                  label: "Resumen financiero",
+                  value: formatUsd(ventasTotal),
+                  hint: `${ejercicioLabel} · ${hintVentasEjercicio(detalleFilas, ejercicioLabel)}`,
+                  tone: "ok" as const,
+                  resultadoEjercicio: {
+                    ejercicioLabel,
+                    gastosMes,
+                    gastosAnio: gastosUsd,
+                    ventasAnio: ventasTotal,
+                  },
+                };
+              }
+              const rows = await fetchSafe(
+                fetchPresupuesto({
+                  fecha_desde: desdeEjercicio,
+                  fecha_hasta: hastaEjercicio,
+                  ...presupuestoFiltroCuentaHome(user),
+                }),
+              );
+              const gastosUsd = rows ? sumTotalUsdPresupuesto(rows) : 0;
+              if (gastosUsd <= 0.5) throw new Error("estado-resultados no disponible");
+              return buildResultadoEjercicioFallback(gastosUsd, ejercicioLabel, gastosMes);
+            }),
           ),
-          runJob(
-            "agricultura-por-recibir",
-            fetchVentasAgricultura().then((rows) => {
-              const pendientes = rows.filter((r) => !r.venta_realizada);
-              const usd = pendientes.reduce((s, r) => s + (r.importe_usd || 0), 0);
-              return {
-                id: "agricultura-por-recibir",
-                tab: "ingresos_ventas",
-                label: "Agricultura",
-                value: formatUsd(usd),
-                hint:
-                  pendientes.length > 0
-                    ? `${pendientes.length} venta(s) por recibir`
-                    : "Sin ventas pendientes",
-                tone: "ok" as const,
-              };
-            })
-          )
         );
       }
 
@@ -646,8 +1039,11 @@ export function useHomeDashboard(user: AuthUser, apiOnline: boolean) {
           setExtraInsights((prev) => {
             const byId = new Map(prev.map((item) => [item.id, item]));
             for (const item of loaded) byId.set(item.id, item);
-            const next = ordenarInsightsHome([...byId.values()]);
-            setHomeInsightsCache(userId, next);
+            const next = mergeInsightsWithExpected(user, [...byId.values()]);
+            const expected = buildExpectedHomeInsights(user);
+            if (isHomeInsightsCacheComplete(expected, next)) {
+              setHomeInsightsCache(userId, next);
+            }
             return next;
           });
         }

@@ -288,10 +288,15 @@ export interface VentaAgriculturaRow {
   hectareas: number;
   rendimiento_ton_ha: number;
   precio_usd_ton: number;
+  precio_ingreso_usd_ton: number;
+  forma_pago_agricultura: "FRACCIONADO" | "AL_FINAL";
   total_ton: number;
   importe_usd: number;
   costo_impuestos_usd: number;
   costo_flete_usd: number;
+  /** Pago 1 (40% al ingresar) ya cobrado — solo forma FRACCIONADO. */
+  pago_ingreso_cobrado: boolean;
+  pago_ingreso_cobrado_en: string | null;
   venta_realizada: boolean;
   venta_realizada_en: string | null;
   real_mes_inicio: number | null;

@@ -1,5 +1,5 @@
 import type { Db } from "./db/pg-client.js";
-import { appendEmpresaScope, appendPresupuestoScope, type ResumenEmpresaScope } from "./empresa-scope.js";
+import { appendCuentaScope, appendEmpresaScope, type ResumenEmpresaScope } from "./empresa-scope.js";
 import type {
   EstadoResultadosClasificacionDetalle,
   EstadoResultadosPayload,
@@ -14,6 +14,16 @@ import {
 } from "./clasificacion-resultado.js";
 
 type ClasificacionEr = (typeof CLASIFICACIONES_RESULTADO)[number];
+
+/** Equivalente USD por fila de PRESUPUESTO (misma regla que TOTAL USD del listado). */
+const PRESUPUESTO_FILA_USD_SQL = `
+  CASE
+    WHEN COALESCE(p.dolares_usd, 0) > 0 THEN p.dolares_usd
+    WHEN COALESCE(p.pesos, 0) > 0 AND COALESCE(p.tc_usd, 0) > 0 THEN p.pesos / p.tc_usd
+    WHEN COALESCE(p.reales, 0) > 0 AND COALESCE(p.tc_reales, 0) > 0 THEN p.reales / p.tc_reales
+    ELSE COALESCE(p.saldo_usd, 0)
+  END
+`;
 
 interface GastoFila {
   rubro: string;
@@ -120,14 +130,8 @@ async function gastosClasificadosUsd(
       COALESCE(NULLIF(trim(p.sub_rubro), ''), '') AS sub_rubro,
       pr.rubro AS proveedor_rubro,
       pr.clasificacion_resultado,
-      COALESCE(SUM(p.saldo_usd), 0) AS total
+      COALESCE(SUM(${PRESUPUESTO_FILA_USD_SQL}), 0) AS total
     FROM PRESUPUESTO p
-    LEFT JOIN PROVEEDORES pr ON pr.cod = (
-      CASE
-        WHEN trim(COALESCE(p.codigo_proveedor, '')) ~ '^[0-9]+$'
-        THEN trim(p.codigo_proveedor)::integer
-        ELSE NULL
-      END
     LEFT JOIN PROVEEDORES pr ON pr.cod = (
       CASE
         WHEN trim(COALESCE(p.codigo_proveedor, '')) ~ '^[0-9]+$'
@@ -143,7 +147,8 @@ async function gastosClasificadosUsd(
     empresas: opts.empresas,
     cuenta_id: opts.cuentaId ?? undefined,
   };
-  q = appendPresupuestoScope(q, params, scope, "p.empresa");
+  q = appendEmpresaScope(q, params as Record<string, string>, scope, "p.empresa");
+  q = appendCuentaScope(q, params, scope.cuenta_id, "p.cuenta_id");
   if (opts.fecha_desde) {
     q += " AND p.fecha >= @fecha_desde";
     params.fecha_desde = opts.fecha_desde;
@@ -190,7 +195,7 @@ async function ventasIngresosSeccionUsd(
   let qSim = `
     SELECT COALESCE(SUM(real_total_usd), 0) AS total
     FROM SIMULADOR_VENTA_GANADO
-    WHERE real_total_usd IS NOT NULL`;
+    WHERE venta_realizada = 1 AND real_total_usd IS NOT NULL`;
   if (opts.cuentaId != null) {
     qSim += " AND cuenta_id = @cuentaId";
     paramsSim.cuentaId = opts.cuentaId;
@@ -208,7 +213,12 @@ async function ventasIngresosSeccionUsd(
 
   const paramsAgri: Record<string, string | number> = {};
   let qAgri = `
-    SELECT COALESCE(SUM(COALESCE(real_importe_usd, importe_usd)), 0) AS total
+    SELECT COALESCE(SUM(
+      CASE
+        WHEN real_importe_usd IS NOT NULL THEN real_importe_usd
+        ELSE GREATEST(0, importe_usd)
+      END
+    ), 0) AS total
     FROM VENTAS_AGRICULTURA
     WHERE venta_realizada = 1`;
   qAgri = appendEmpresaScope(qAgri, paramsAgri as Record<string, string>, scope);

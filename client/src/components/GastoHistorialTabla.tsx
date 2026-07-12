@@ -3,6 +3,7 @@ import { deletePresupuesto, fetchPresupuesto, presupuestoDocumentoUrl } from "..
 import type { AuthUser, Presupuesto } from "../types";
 import { confirmAction } from "../utils/confirm";
 import { empresaClass, empresaCorta, fmtDate, fmtNum } from "../utils";
+import { totalUsdPresupuesto } from "../utils/presupuesto-total-usd";
 import GastoAccionesMenu from "./GastoAccionesMenu";
 import { PageModuleHeadRow } from "./PageModuleHead";
 import { PresupuestoDetalleModalView } from "./PresupuestoDetalleModal";
@@ -25,11 +26,7 @@ interface Props {
 
 /** Total en USD del registro: dólares directos + pesos/TC + reales/TC. */
 function totalUsdDe(r: Presupuesto): number {
-  const desdePesos = r.pesos > 0 && r.tc_usd > 0 ? r.pesos / r.tc_usd : 0;
-  const desdeReales = r.reales > 0 && r.tc_reales > 0 ? r.reales / r.tc_reales : 0;
-  const directo = r.dolares_usd > 0 ? r.dolares_usd : 0;
-  const total = directo + desdePesos + desdeReales;
-  return total > 0 ? total : r.saldo_usd;
+  return totalUsdPresupuesto(r);
 }
 
 function CeldaTexto({
