@@ -5,7 +5,6 @@ import type { AuthUser, Rol } from "../../types";
 import {
   HOME_PANEL_TOGGLE_META,
   applyHomePanelToggle,
-  countVisibleHomeTogglePanels,
   homeLayoutAllVisible,
   normalizeHomePanelOrder,
   type HomeLayoutMap,

@@ -1260,6 +1260,124 @@ body {
   gap: 0.55rem;
 }
 
+/* Pantalla completa del dashboard Inicio */
+.home-hub-fs-stage {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.home-hub-fs-head {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
+.home-hub-fs-actions {
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.home-hub-fs-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  height: 2rem;
+  padding: 0 0.65rem;
+  border-radius: 0.55rem;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  background: #fff;
+  color: #334155;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  transition: border-color 0.15s, background 0.15s, color 0.15s, box-shadow 0.15s;
+}
+
+.home-hub-fs-btn:hover {
+  border-color: rgba(22, 163, 74, 0.35);
+  color: #166534;
+  background: color-mix(in srgb, #16a34a 7%, #fff);
+}
+
+.home-hub-fs-btn:focus-visible {
+  outline: 2px solid color-mix(in srgb, #16a34a 55%, transparent);
+  outline-offset: 2px;
+}
+
+.home-hub-fs-btn.is-active {
+  border-color: rgba(22, 163, 74, 0.45);
+  color: #166534;
+  background: color-mix(in srgb, #16a34a 12%, #fff);
+  box-shadow: 0 6px 16px rgba(22, 163, 74, 0.14);
+}
+
+.home-hub-fs-btn-label {
+  white-space: nowrap;
+}
+
+.home-hub-fs-stage:fullscreen,
+.home-hub-fs-stage.is-fullscreen:fullscreen {
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  padding: 1.15rem 1.35rem 1.5rem;
+  overflow: auto;
+  background:
+    linear-gradient(180deg, #f4f7fa 0%, #e8eef4 100%);
+  scrollbar-width: thin;
+}
+
+.home-hub-fs-stage:fullscreen .home-hub-fs-head {
+  margin: -0.35rem -0.35rem 0;
+  padding: 0.55rem 0.65rem;
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, #f8fafc 92%, transparent);
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  backdrop-filter: blur(8px);
+}
+
+.home-hub-fs-stage:fullscreen .sg-hub-main-title {
+  font-size: 1.85rem;
+}
+
+.home-hub-fs-stage:fullscreen .home-hub-dashboard {
+  gap: 0.85rem;
+}
+
+.home-hub-fs-stage:fullscreen .home-kpi-strip-bar__value,
+.home-hub-fs-stage:fullscreen .sg-hub-kpi-value,
+.home-hub-fs-stage:fullscreen .home-ganado-dash-kpi__value {
+  font-size: 1.15em;
+}
+
+.home-hub-fs-stage:fullscreen .home-hub-panels {
+  gap: 0.9rem;
+}
+
+@media (max-width: 640px) {
+  .home-hub-fs-btn-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .home-hub-fs-btn {
+    width: 2rem;
+    padding: 0;
+    justify-content: center;
+  }
+}
+
 /* Dashboard unificado: ganado + paneles verdes */
 .home-hub-dashboard {
   display: grid;

@@ -1,8 +1,10 @@
-import { useMemo, useRef, useState, type CSSProperties, Fragment } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, Fragment } from "react";
 import {
   ArrowRight,
   Clock3,
   LayoutGrid,
+  Maximize2,
+  Minimize2,
 } from "lucide-react";
 import type { TabId } from "./Header";
 import type { AuthUser, GastoAutoPendiente, Nota } from "../types";
@@ -200,6 +202,33 @@ export default function HomeMenu({
   const consultaActiva = busquedaModulos.trim().length > 0;
   const [notaModal, setNotaModal] = useState<Nota | null | undefined>(undefined);
   const [autoBusyId, setAutoBusyId] = useState<number | null>(null);
+  const [dashboardFullscreen, setDashboardFullscreen] = useState(false);
+  const dashboardStageRef = useRef<HTMLDivElement>(null);
+
+  const toggleDashboardFullscreen = useCallback(async () => {
+    const stage = dashboardStageRef.current;
+    if (!stage) return;
+    try {
+      if (document.fullscreenElement === stage) {
+        await document.exitFullscreen();
+        return;
+      }
+      if (document.fullscreenElement) {
+        await document.exitFullscreen();
+      }
+      await stage.requestFullscreen();
+    } catch {
+      onError?.("No se pudo activar pantalla completa en este navegador.");
+    }
+  }, [onError]);
+
+  useEffect(() => {
+    const onFullscreenChange = () => {
+      setDashboardFullscreen(document.fullscreenElement === dashboardStageRef.current);
+    };
+    document.addEventListener("fullscreenchange", onFullscreenChange);
+    return () => document.removeEventListener("fullscreenchange", onFullscreenChange);
+  }, []);
 
   const {
     pendientes: autoPendientes,
@@ -435,305 +464,337 @@ export default function HomeMenu({
         </aside>
 
         <main className="sg-hub-main sg-hub-main--module">
-          <header className="sg-hub-main-head">
-            <div>
-              <h1 className="sg-hub-main-title">Inicio</h1>
-              <p className="sg-hub-main-sub">
-                {saludoPorHora()}, {nombreCorto}. Resumen de {cuentaLabel} para arrancar con lo
-                esencial.
-              </p>
-            </div>
-          </header>
+          <div
+            ref={dashboardStageRef}
+            className={`home-hub-fs-stage${dashboardFullscreen ? " is-fullscreen" : ""}`}
+          >
+            <header className="sg-hub-main-head home-hub-fs-head">
+              <div>
+                <h1 className="sg-hub-main-title">Inicio</h1>
+                <p className="sg-hub-main-sub">
+                  {saludoPorHora()}, {nombreCorto}. Resumen de {cuentaLabel} para arrancar con lo
+                  esencial.
+                </p>
+              </div>
+              <div className="sg-hub-main-actions home-hub-fs-actions">
+                <button
+                  type="button"
+                  className={`home-hub-fs-btn${dashboardFullscreen ? " is-active" : ""}`}
+                  onClick={() => void toggleDashboardFullscreen()}
+                  title={
+                    dashboardFullscreen
+                      ? "Salir de pantalla completa (Esc)"
+                      : "Ver dashboards en pantalla completa"
+                  }
+                  aria-label={
+                    dashboardFullscreen
+                      ? "Salir de pantalla completa"
+                      : "Ver dashboards en pantalla completa"
+                  }
+                  aria-pressed={dashboardFullscreen}
+                >
+                  {dashboardFullscreen ? (
+                    <Minimize2 size={15} strokeWidth={2.25} aria-hidden />
+                  ) : (
+                    <Maximize2 size={15} strokeWidth={2.25} aria-hidden />
+                  )}
+                  <span className="home-hub-fs-btn-label">
+                    {dashboardFullscreen ? "Salir" : "Pantalla completa"}
+                  </span>
+                </button>
+              </div>
+            </header>
 
-          {showKpiDashboardPanel ? (
-            <div key="home-hub-dashboard" aria-busy={loadingInsights}>
-              {renderKpiDashboard()}
-            </div>
-          ) : null}
+            {showKpiDashboardPanel ? (
+              <div key="home-hub-dashboard" aria-busy={loadingInsights}>
+                {renderKpiDashboard()}
+              </div>
+            ) : null}
 
-          <div className="sg-hub-panels home-hub-panels">
-            <div className="home-hub-col">
-              {mainPanelOrder.map((panelId) => {
-                if (panelId === "pizarron") {
-                  if (!puedeNotas && !showAsistenteHome && !puedeTareasOperativas) return null;
-                  return (
-                    <Fragment key="pizarron">
-                      {puedeNotas ? (
-                        <section
-                          className="sg-hub-panel home-hub-panel--notes"
-                          aria-label="Notas principales"
-                        >
-                          <div className="home-hub-notes-shell">
-                            <header className="home-hub-notes-head">
-                              <div className="home-hub-notes-head-main">
-                                <p className="home-hub-notes-head-kicker">Recordatorios</p>
-                                <h2 className="home-hub-notes-head-title">Pizarrón</h2>
-                              </div>
-                              <button
-                                type="button"
-                                className="home-hub-link home-hub-notes-head-link"
-                                onClick={() => onOpen("notas")}
-                              >
-                                Ver todas
-                              </button>
-                            </header>
-                            <HomeNotasBoard
-                              notas={notasDestacadas}
-                              loading={loadingNotas}
-                              currentUserId={user.id}
-                              onOpenNota={(nota) => setNotaModal(nota)}
-                              onNewNota={() => setNotaModal(null)}
-                            />
-                          </div>
-                          <HomeNotaModal
-                            open={notaModal !== undefined}
-                            nota={notaModal ?? null}
-                            currentUser={user}
-                            apiOnline={apiOnline}
-                            onClose={() => setNotaModal(undefined)}
-                            onSaved={applyNotaHome}
-                            onDeleted={removeNotaHome}
-                          />
-                        </section>
-                      ) : null}
-
-                      {puedeTareasOperativas ? (
-                        <HomeTareasDiaPanel
-                          apiOnline={apiOnline}
-                          canEdit={canWriteTareasOperativas(user)}
-                          onOpen={() => onOpen("tareas_operativas")}
-                        />
-                      ) : null}
-
-                      {showAsistenteHome ? (
-                        <HomeAsistentePanel
-                          apiOnline={apiOnline}
-                          onError={onError}
-                          onOpenFull={() => onOpen("asistente")}
-                        />
-                      ) : null}
-                    </Fragment>
-                  );
-                }
-                if (panelId === "auto_pendientes" && showAutoPendientes) {
-                  return (
-                    <section
-                      key="auto_pendientes"
-                      className="home-auto-pendientes-section"
-                      aria-label="Pendientes de aprobación"
-                    >
-                      <HomeAutoPendientesPanel
-                        pendientes={autoPendientes}
-                        loading={loadingAutoPendientes}
-                        busyId={autoBusyId}
-                        onAprobar={(p) => void aprobarAutoDesdeHome(p)}
-                        onRechazar={(p) => void rechazarAutoDesdeHome(p)}
-                        onVerTodos={irAutomatizacion}
-                      />
-                    </section>
-                  );
-                }
-                if (panelId === "actividad" && canShowHomePanel(user, "actividad")) {
-                  return (
-                    <Fragment key="actividad">
-                      {actividadPanels.map((panel) => (
-                        <section
-                          key={panel.id}
-                          className={
-                            panel.variant === "global"
-                              ? "sg-hub-panel home-hub-panel--actividad sg-hub-panel--actividad-global"
-                              : "sg-hub-panel home-hub-panel--actividad"
-                          }
-                          aria-label={panel.title}
-                        >
-                          <div className="home-hub-compact-shell">
-                            <header className="home-hub-compact-head">
-                              <div className="home-hub-compact-head-main">
-                                <p className="home-hub-compact-head-kicker">{panel.kicker}</p>
-                                <h2 className="home-hub-compact-head-title">{panel.title}</h2>
-                              </div>
-                              <button
-                                type="button"
-                                className="home-hub-link home-hub-compact-head-link"
-                                onClick={() =>
-                                  onOpen("registro_actividad", { actividadModo: panel.verTodoModo })
-                                }
-                              >
-                                Ver todo
-                                <ArrowRight size={14} aria-hidden />
-                              </button>
-                            </header>
-                            <div className="home-hub-compact-body home-hub-actividad-body">
-                              {panel.loading && panel.items.length === 0 ? (
-                                <ul
-                                  className="home-hub-activity-skeleton-list"
-                                  aria-busy="true"
-                                  aria-label="Cargando actividad"
-                                >
-                                  {Array.from({ length: 4 }).map((_, i) => (
-                                    <li key={`act-skeleton-${panel.id}-${i}`}>
-                                      <div className="home-hub-activity-skeleton" aria-hidden>
-                                        <span className="home-hub-activity-skeleton-icon" />
-                                        <span className="home-hub-activity-skeleton-lines">
-                                          <span />
-                                          <span />
-                                        </span>
-                                      </div>
-                                    </li>
-                                  ))}
-                                </ul>
-                              ) : panel.items.length === 0 ? (
-                                <p className="home-hub-empty">{panel.emptyText}</p>
-                              ) : (
-                                <ul className="home-cmd-activity-list">
-                                  {panel.items.map((item) => (
-                                    <li key={item.id}>
-                                      <button
-                                        type="button"
-                                        className="home-cmd-activity-item"
-                                        onClick={() =>
-                                          onOpen("registro_actividad", {
-                                            actividadModo: panel.verTodoModo,
-                                          })
-                                        }
-                                      >
-                                        <span className="home-cmd-activity-icon" aria-hidden>
-                                          <Clock3 size={14} />
-                                        </span>
-                                        <span className="home-cmd-activity-body">
-                                          <span className="home-cmd-activity-text">
-                                            {formatActividadDetalle(item.detalle, item.evento)}
-                                          </span>
-                                        </span>
-                                        <span className="home-cmd-activity-aside">
-                                          <span className="home-cmd-activity-meta">
-                                            {item.user_nombre || item.email || "Usuario"}
-                                          </span>
-                                          <span className="home-cmd-activity-time">
-                                            {formatFechaRelativa(item.creado_en)}
-                                          </span>
-                                        </span>
-                                      </button>
-                                    </li>
-                                  ))}
-                                </ul>
-                              )}
-                            </div>
-                          </div>
-                        </section>
-                      ))}
-                    </Fragment>
-                  );
-                }
-                return null;
-              })}
-            </div>
-
-            <div className="home-hub-col home-hub-col--side">
-              {sidePanelOrder.map((panelId) => {
-                if (panelId === "mapa_campo" && puedeMapaCampo) {
-                  return (
-                    <HomeCampoMapaPanel
-                      key="mapa_campo"
-                      apiOnline={apiOnline}
-                      onOpenMapa={() => onOpen("campo_mapa")}
-                    />
-                  );
-                }
-                if (panelId === "vencimientos" && puedeVencimientos) {
-                  return (
-                    <HomeVencProximosPanel
-                      key="vencimientos"
-                      items={proximosVenc}
-                      loading={loadingVenc}
-                      onOpen={() => onOpen("vencimientos_impuestos")}
-                    />
-                  );
-                }
-                if (panelId === "stock_potrero" && puedeStockGanadero) {
-                  return (
-                    <HomeStockPotreroPanel
-                      key="stock_potrero"
-                      apiOnline={apiOnline}
-                      onOpenStock={() => onOpen("stock_ganadero")}
-                      onOpenMapa={puedeMapaCampo ? () => onOpen("campo_mapa") : undefined}
-                    />
-                  );
-                }
-                if (panelId === "modulos_rapidos" && showModulosRapidos) {
-                  return (
-                    <section
-                      key="modulos_rapidos"
-                      className="sg-hub-panel home-hub-panel--quick"
-                      aria-labelledby="home-hub-mod-title"
-                    >
-                      <div className="home-hub-compact-shell">
-                        <header className="home-hub-compact-head">
-                          <div className="home-hub-compact-head-main">
-                            <p className="home-hub-compact-head-kicker">Accesos rápidos</p>
-                            <h2 id="home-hub-mod-title" className="home-hub-compact-head-title">
-                              Módulos
-                            </h2>
-                          </div>
-                        </header>
-                        <div className="home-hub-compact-body home-hub-quick-body">
-                          <p className="home-hub-quick-hint muted">
-                            Según tu perfil y lo que usaste últimamente
-                          </p>
-                          <div className="sg-hub-module-grid sg-hub-module-grid--primary home-hub-quick-grid">
-                            {quickApps.map((app) => {
-                              const theme = MENU_APP_THEMES[app.id];
-                              return (
+            <div className="sg-hub-panels home-hub-panels">
+              <div className="home-hub-col">
+                {mainPanelOrder.map((panelId) => {
+                  if (panelId === "pizarron") {
+                    if (!puedeNotas && !showAsistenteHome && !puedeTareasOperativas) return null;
+                    return (
+                      <Fragment key="pizarron">
+                        {puedeNotas ? (
+                          <section
+                            className="sg-hub-panel home-hub-panel--notes"
+                            aria-label="Notas principales"
+                          >
+                            <div className="home-hub-notes-shell">
+                              <header className="home-hub-notes-head">
+                                <div className="home-hub-notes-head-main">
+                                  <p className="home-hub-notes-head-kicker">Recordatorios</p>
+                                  <h2 className="home-hub-notes-head-title">Pizarrón</h2>
+                                </div>
                                 <button
-                                  key={app.id}
                                   type="button"
-                                  className="sg-hub-module-card sg-hub-module-card--featured"
-                                  onClick={() => onOpen(app.id)}
-                                  onMouseEnter={
-                                    app.id === "vencimientos_impuestos"
-                                      ? prefetchVencimientosImpuestos
-                                      : undefined
-                                  }
-                                  onFocus={
-                                    app.id === "vencimientos_impuestos"
-                                      ? prefetchVencimientosImpuestos
-                                      : undefined
+                                  className="home-hub-link home-hub-notes-head-link"
+                                  onClick={() => onOpen("notas")}
+                                >
+                                  Ver todas
+                                </button>
+                              </header>
+                              <HomeNotasBoard
+                                notas={notasDestacadas}
+                                loading={loadingNotas}
+                                currentUserId={user.id}
+                                onOpenNota={(nota) => setNotaModal(nota)}
+                                onNewNota={() => setNotaModal(null)}
+                              />
+                            </div>
+                            <HomeNotaModal
+                              open={notaModal !== undefined}
+                              nota={notaModal ?? null}
+                              currentUser={user}
+                              apiOnline={apiOnline}
+                              onClose={() => setNotaModal(undefined)}
+                              onSaved={applyNotaHome}
+                              onDeleted={removeNotaHome}
+                            />
+                          </section>
+                        ) : null}
+
+                        {puedeTareasOperativas ? (
+                          <HomeTareasDiaPanel
+                            apiOnline={apiOnline}
+                            canEdit={canWriteTareasOperativas(user)}
+                            onOpen={() => onOpen("tareas_operativas")}
+                          />
+                        ) : null}
+
+                        {showAsistenteHome ? (
+                          <HomeAsistentePanel
+                            apiOnline={apiOnline}
+                            onError={onError}
+                            onOpenFull={() => onOpen("asistente")}
+                          />
+                        ) : null}
+                      </Fragment>
+                    );
+                  }
+                  if (panelId === "auto_pendientes" && showAutoPendientes) {
+                    return (
+                      <section
+                        key="auto_pendientes"
+                        className="home-auto-pendientes-section"
+                        aria-label="Pendientes de aprobación"
+                      >
+                        <HomeAutoPendientesPanel
+                          pendientes={autoPendientes}
+                          loading={loadingAutoPendientes}
+                          busyId={autoBusyId}
+                          onAprobar={(p) => void aprobarAutoDesdeHome(p)}
+                          onRechazar={(p) => void rechazarAutoDesdeHome(p)}
+                          onVerTodos={irAutomatizacion}
+                        />
+                      </section>
+                    );
+                  }
+                  if (panelId === "actividad" && canShowHomePanel(user, "actividad")) {
+                    return (
+                      <Fragment key="actividad">
+                        {actividadPanels.map((panel) => (
+                          <section
+                            key={panel.id}
+                            className={
+                              panel.variant === "global"
+                                ? "sg-hub-panel home-hub-panel--actividad sg-hub-panel--actividad-global"
+                                : "sg-hub-panel home-hub-panel--actividad"
+                            }
+                            aria-label={panel.title}
+                          >
+                            <div className="home-hub-compact-shell">
+                              <header className="home-hub-compact-head">
+                                <div className="home-hub-compact-head-main">
+                                  <p className="home-hub-compact-head-kicker">{panel.kicker}</p>
+                                  <h2 className="home-hub-compact-head-title">{panel.title}</h2>
+                                </div>
+                                <button
+                                  type="button"
+                                  className="home-hub-link home-hub-compact-head-link"
+                                  onClick={() =>
+                                    onOpen("registro_actividad", { actividadModo: panel.verTodoModo })
                                   }
                                 >
-                                  <span
-                                    className="sg-hub-module-icon"
-                                    style={
-                                      {
-                                        "--sg-hub-icon-bg": theme.accentSoft,
-                                        "--sg-hub-icon-fg": theme.accent,
-                                      } as CSSProperties
+                                  Ver todo
+                                  <ArrowRight size={14} aria-hidden />
+                                </button>
+                              </header>
+                              <div className="home-hub-compact-body home-hub-actividad-body">
+                                {panel.loading && panel.items.length === 0 ? (
+                                  <ul
+                                    className="home-hub-activity-skeleton-list"
+                                    aria-busy="true"
+                                    aria-label="Cargando actividad"
+                                  >
+                                    {Array.from({ length: 4 }).map((_, i) => (
+                                      <li key={`act-skeleton-${panel.id}-${i}`}>
+                                        <div className="home-hub-activity-skeleton" aria-hidden>
+                                          <span className="home-hub-activity-skeleton-icon" />
+                                          <span className="home-hub-activity-skeleton-lines">
+                                            <span />
+                                            <span />
+                                          </span>
+                                        </div>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                ) : panel.items.length === 0 ? (
+                                  <p className="home-hub-empty">{panel.emptyText}</p>
+                                ) : (
+                                  <ul className="home-cmd-activity-list">
+                                    {panel.items.map((item) => (
+                                      <li key={item.id}>
+                                        <button
+                                          type="button"
+                                          className="home-cmd-activity-item"
+                                          onClick={() =>
+                                            onOpen("registro_actividad", {
+                                              actividadModo: panel.verTodoModo,
+                                            })
+                                          }
+                                        >
+                                          <span className="home-cmd-activity-icon" aria-hidden>
+                                            <Clock3 size={14} />
+                                          </span>
+                                          <span className="home-cmd-activity-body">
+                                            <span className="home-cmd-activity-text">
+                                              {formatActividadDetalle(item.detalle, item.evento)}
+                                            </span>
+                                          </span>
+                                          <span className="home-cmd-activity-aside">
+                                            <span className="home-cmd-activity-meta">
+                                              {item.user_nombre || item.email || "Usuario"}
+                                            </span>
+                                            <span className="home-cmd-activity-time">
+                                              {formatFechaRelativa(item.creado_en)}
+                                            </span>
+                                          </span>
+                                        </button>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                )}
+                              </div>
+                            </div>
+                          </section>
+                        ))}
+                      </Fragment>
+                    );
+                  }
+                  return null;
+                })}
+              </div>
+
+              <div className="home-hub-col home-hub-col--side">
+                {sidePanelOrder.map((panelId) => {
+                  if (panelId === "mapa_campo" && puedeMapaCampo) {
+                    return (
+                      <HomeCampoMapaPanel
+                        key="mapa_campo"
+                        apiOnline={apiOnline}
+                        onOpenMapa={() => onOpen("campo_mapa")}
+                      />
+                    );
+                  }
+                  if (panelId === "vencimientos" && puedeVencimientos) {
+                    return (
+                      <HomeVencProximosPanel
+                        key="vencimientos"
+                        items={proximosVenc}
+                        loading={loadingVenc}
+                        onOpen={() => onOpen("vencimientos_impuestos")}
+                      />
+                    );
+                  }
+                  if (panelId === "stock_potrero" && puedeStockGanadero) {
+                    return (
+                      <HomeStockPotreroPanel
+                        key="stock_potrero"
+                        apiOnline={apiOnline}
+                        onOpenStock={() => onOpen("stock_ganadero")}
+                        onOpenMapa={puedeMapaCampo ? () => onOpen("campo_mapa") : undefined}
+                      />
+                    );
+                  }
+                  if (panelId === "modulos_rapidos" && showModulosRapidos) {
+                    return (
+                      <section
+                        key="modulos_rapidos"
+                        className="sg-hub-panel home-hub-panel--quick"
+                        aria-labelledby="home-hub-mod-title"
+                      >
+                        <div className="home-hub-compact-shell">
+                          <header className="home-hub-compact-head">
+                            <div className="home-hub-compact-head-main">
+                              <p className="home-hub-compact-head-kicker">Accesos rápidos</p>
+                              <h2 id="home-hub-mod-title" className="home-hub-compact-head-title">
+                                Módulos
+                              </h2>
+                            </div>
+                          </header>
+                          <div className="home-hub-compact-body home-hub-quick-body">
+                            <p className="home-hub-quick-hint muted">
+                              Según tu perfil y lo que usaste últimamente
+                            </p>
+                            <div className="sg-hub-module-grid sg-hub-module-grid--primary home-hub-quick-grid">
+                              {quickApps.map((app) => {
+                                const theme = MENU_APP_THEMES[app.id];
+                                return (
+                                  <button
+                                    key={app.id}
+                                    type="button"
+                                    className="sg-hub-module-card sg-hub-module-card--featured"
+                                    onClick={() => onOpen(app.id)}
+                                    onMouseEnter={
+                                      app.id === "vencimientos_impuestos"
+                                        ? prefetchVencimientosImpuestos
+                                        : undefined
+                                    }
+                                    onFocus={
+                                      app.id === "vencimientos_impuestos"
+                                        ? prefetchVencimientosImpuestos
+                                        : undefined
                                     }
                                   >
-                                    <MenuAppIcon id={app.id} className="menu-app-icon-svg" />
-                                  </span>
-                                  <span className="sg-hub-module-copy">
-                                    <strong>{app.label}</strong>
-                                    <small>{app.subtitle}</small>
-                                  </span>
-                                  {app.id === "vencimientos_impuestos" && vencProximosCount > 0 ? (
-                                    <span className="home-hub-module-badge" aria-hidden>
-                                      {vencProximosCount > 99 ? "99+" : vencProximosCount}
+                                    <span
+                                      className="sg-hub-module-icon"
+                                      style={
+                                        {
+                                          "--sg-hub-icon-bg": theme.accentSoft,
+                                          "--sg-hub-icon-fg": theme.accent,
+                                        } as CSSProperties
+                                      }
+                                    >
+                                      <MenuAppIcon id={app.id} className="menu-app-icon-svg" />
                                     </span>
-                                  ) : null}
-                                  <span className="sg-hub-module-arrow" aria-hidden>
-                                    →
-                                  </span>
-                                </button>
-                              );
-                            })}
+                                    <span className="sg-hub-module-copy">
+                                      <strong>{app.label}</strong>
+                                      <small>{app.subtitle}</small>
+                                    </span>
+                                    {app.id === "vencimientos_impuestos" && vencProximosCount > 0 ? (
+                                      <span className="home-hub-module-badge" aria-hidden>
+                                        {vencProximosCount > 99 ? "99+" : vencProximosCount}
+                                      </span>
+                                    ) : null}
+                                    <span className="sg-hub-module-arrow" aria-hidden>
+                                      →
+                                    </span>
+                                  </button>
+                                );
+                              })}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </section>
-                  );
-                }
-                return null;
-              })}
+                      </section>
+                    );
+                  }
+                  return null;
+                })}
+              </div>
             </div>
           </div>
         </main>
