@@ -28,6 +28,38 @@ interface Props {
   onOpenMapa?: () => void;
 }
 
+const HOME_STOCK_POTRERO_CACHE_KEY = "sag.home.stock-potrero.v1";
+
+type HomeStockPotreroCache = {
+  potrerosMapa: CampoPotreroMapa[];
+  ganadero: StockGanaderaDispositivo[];
+};
+
+let homeStockPotreroMemoryCache: HomeStockPotreroCache | null = null;
+
+function readHomeStockPotreroCache(): HomeStockPotreroCache | null {
+  if (homeStockPotreroMemoryCache) return homeStockPotreroMemoryCache;
+  try {
+    const raw = sessionStorage.getItem(HOME_STOCK_POTRERO_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as HomeStockPotreroCache;
+    if (!Array.isArray(parsed?.potrerosMapa) || !Array.isArray(parsed?.ganadero)) return null;
+    homeStockPotreroMemoryCache = parsed;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function writeHomeStockPotreroCache(payload: HomeStockPotreroCache) {
+  homeStockPotreroMemoryCache = payload;
+  try {
+    sessionStorage.setItem(HOME_STOCK_POTRERO_CACHE_KEY, JSON.stringify(payload));
+  } catch {
+    /* quota / private mode */
+  }
+}
+
 function TotalActivosDash({
   total,
   potrerosConStock,
@@ -337,9 +369,14 @@ function PotreroTabla({
 }
 
 export default function HomeStockPotreroPanel({ apiOnline, onOpenStock, onOpenMapa }: Props) {
-  const [loading, setLoading] = useState(true);
-  const [potrerosMapa, setPotrerosMapa] = useState<CampoPotreroMapa[]>([]);
-  const [ganadero, setGanadero] = useState<StockGanaderaDispositivo[]>([]);
+  const [loading, setLoading] = useState(() => !readHomeStockPotreroCache());
+  const [ready, setReady] = useState(() => Boolean(readHomeStockPotreroCache()));
+  const [potrerosMapa, setPotrerosMapa] = useState<CampoPotreroMapa[]>(() => {
+    return readHomeStockPotreroCache()?.potrerosMapa ?? [];
+  });
+  const [ganadero, setGanadero] = useState<StockGanaderaDispositivo[]>(() => {
+    return readHomeStockPotreroCache()?.ganadero ?? [];
+  });
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -355,14 +392,20 @@ export default function HomeStockPotreroPanel({ apiOnline, onOpenStock, onOpenMa
     void Promise.all([fetchCampoPotrerosMapa(), fetchStockGanaderaDispositivos({})])
       .then(([potrerosData, ganaderoData]) => {
         if (cancelled) return;
+        const next = { potrerosMapa: potrerosData, ganadero: ganaderoData };
+        writeHomeStockPotreroCache(next);
         setPotrerosMapa(potrerosData);
         setGanadero(ganaderoData);
+        setReady(true);
       })
       .catch(() => {
         if (cancelled) return;
-        setError("No se pudo cargar el stock ganadero.");
-        setPotrerosMapa([]);
-        setGanadero([]);
+        if (!readHomeStockPotreroCache()) {
+          setError("No se pudo cargar el stock ganadero.");
+          setPotrerosMapa([]);
+          setGanadero([]);
+          setReady(false);
+        }
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -379,11 +422,13 @@ export default function HomeStockPotreroPanel({ apiOnline, onOpenStock, onOpenMa
   );
 
   const fechaHoy = fmtDate(todayIso());
+  const showLoadingPlaceholder = loading && !ready;
 
   return (
     <section
       className="sg-hub-panel home-hub-panel--stock-potrero"
       aria-label="Stock ganadero por potrero"
+      aria-busy={loading}
     >
       <div className="sg-hub-panel-head home-hub-panel-head-row">
         <div>
@@ -399,9 +444,9 @@ export default function HomeStockPotreroPanel({ apiOnline, onOpenStock, onOpenMa
         </button>
       </div>
 
-      {loading ? (
+      {showLoadingPlaceholder ? (
         <p className="home-hub-empty">Cargando stock por potrero…</p>
-      ) : error ? (
+      ) : error && !ready ? (
         <p className="home-hub-empty">{error}</p>
       ) : snapshot.totales.total === 0 ? (
         <div className="home-stock-potrero-empty">
