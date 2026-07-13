@@ -441,7 +441,7 @@ export async function listSimulacionesVentaGanado(
   }
 
   if (filters.cerradas) {
-    query += " AND s.real_total_usd IS NOT NULL";
+    query += " AND s.venta_realizada = 1 AND s.real_total_usd IS NOT NULL";
   }
 
   if (filters.fecha_desde) {

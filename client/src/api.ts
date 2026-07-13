@@ -598,6 +598,7 @@ export async function patchVentaAgricultura(
     valores_reales?: VentaAgriculturaRealInput;
     destacada?: boolean;
     pago_ingreso_cobrado?: boolean;
+    pago_saldo_cobrado?: boolean;
   }
 ): Promise<{ data: VentaAgriculturaRow; message: string }> {
   const json = await request<{
@@ -700,6 +701,8 @@ export async function patchVentaArrendamiento(
     venta_realizada?: boolean;
     valores_reales?: VentaArrendamientoRealInput;
     destacada?: boolean;
+    pago_inicio_cobrado?: boolean;
+    pago_fin_cobrado?: boolean;
   }
 ): Promise<{ data: VentaArrendamientoRow; message: string }> {
   const json = await request<{

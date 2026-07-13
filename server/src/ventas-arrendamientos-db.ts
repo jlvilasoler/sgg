@@ -37,6 +37,10 @@ export interface VentaArrendamientoRow {
   pago_fin_tipo: TipoMontoPagoArrendamiento;
   venta_realizada: boolean;
   venta_realizada_en: string | null;
+  pago_inicio_cobrado: boolean;
+  pago_inicio_cobrado_en: string | null;
+  pago_fin_cobrado: boolean;
+  pago_fin_cobrado_en: string | null;
   real_fecha_inicio: string | null;
   real_fecha_fin: string | null;
   real_hectareas: number | null;
@@ -196,6 +200,10 @@ export async function initVentasArrendamientosTable(db: Db): Promise<void> {
     ["pago_fin_tipo", "TEXT"],
     ["venta_realizada", "INTEGER NOT NULL DEFAULT 0"],
     ["venta_realizada_en", "TIMESTAMPTZ"],
+    ["pago_inicio_cobrado", "INTEGER NOT NULL DEFAULT 0"],
+    ["pago_inicio_cobrado_en", "TIMESTAMPTZ"],
+    ["pago_fin_cobrado", "INTEGER NOT NULL DEFAULT 0"],
+    ["pago_fin_cobrado_en", "TIMESTAMPTZ"],
     ["destacada", "INTEGER NOT NULL DEFAULT 0"],
     ["real_fecha_inicio", "DATE"],
     ["real_fecha_fin", "DATE"],
@@ -225,6 +233,18 @@ export async function initVentasArrendamientosTable(db: Db): Promise<void> {
          pago_inicio = COALESCE(pago_inicio, fecha_inicio),
          pago_fin = COALESCE(pago_fin, fecha_fin)
      WHERE pago_frecuencia IS NULL OR pago_inicio IS NULL OR pago_fin IS NULL`
+  ).run();
+
+  // Contratos ya cerrados: se consideran cobrados por completo (histórico).
+  await db.prepare(
+    `UPDATE VENTAS_ARRENDAMIENTO
+     SET pago_inicio_cobrado = 1,
+         pago_inicio_cobrado_en = COALESCE(pago_inicio_cobrado_en, venta_realizada_en, NOW()),
+         pago_fin_cobrado = 1,
+         pago_fin_cobrado_en = COALESCE(pago_fin_cobrado_en, venta_realizada_en, NOW())
+     WHERE COALESCE(venta_realizada, 0) = 1
+       AND COALESCE(pago_inicio_cobrado, 0) = 0
+       AND COALESCE(pago_fin_cobrado, 0) = 0`
   ).run();
 
   await db.prepare(
@@ -262,7 +282,11 @@ function mapRow(row: Record<string, unknown>): VentaArrendamientoRow {
     pago_fin_monto: Number(row.pago_fin_monto ?? 0),
     pago_fin_tipo: String(row.pago_fin_tipo ?? "VALOR") as TipoMontoPagoArrendamiento,
     venta_realizada: Number(row.venta_realizada ?? 0) === 1,
-    venta_realizada_en: row.venta_realizada_en != null ? String(row.venta_realizada_en) : null,
+    venta_realizada_en: toIsoTimestampOrNull(row.venta_realizada_en),
+    pago_inicio_cobrado: Number(row.pago_inicio_cobrado ?? 0) === 1,
+    pago_inicio_cobrado_en: toIsoTimestampOrNull(row.pago_inicio_cobrado_en),
+    pago_fin_cobrado: Number(row.pago_fin_cobrado ?? 0) === 1,
+    pago_fin_cobrado_en: toIsoTimestampOrNull(row.pago_fin_cobrado_en),
     real_fecha_inicio: row.real_fecha_inicio != null ? rowDateToIso(row.real_fecha_inicio) : null,
     real_fecha_fin: row.real_fecha_fin != null ? rowDateToIso(row.real_fecha_fin) : null,
     real_hectareas: row.real_hectareas != null ? Number(row.real_hectareas) : null,
@@ -287,8 +311,39 @@ function mapRow(row: Record<string, unknown>): VentaArrendamientoRow {
         ? (String(row.real_pago_fin_tipo) as TipoMontoPagoArrendamiento)
         : null,
     destacada: Number(row.destacada ?? 0) === 1,
-    creado_en: row.creado_en != null ? String(row.creado_en) : "",
+    creado_en: toIsoTimestamp(row.creado_en) || "",
   };
+}
+
+function toIsoTimestamp(value: unknown): string {
+  if (value instanceof Date) return value.toISOString();
+  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}/.test(value)) return value;
+  if (value != null) {
+    const d = new Date(String(value));
+    if (!Number.isNaN(d.getTime())) return d.toISOString();
+  }
+  return "";
+}
+
+function toIsoTimestampOrNull(value: unknown): string | null {
+  if (value == null || value === "") return null;
+  const iso = toIsoTimestamp(value);
+  return iso || null;
+}
+
+function esPagoAnualFraccionadoArrendamiento(row: {
+  pago_frecuencia: FrecuenciaPagoArrendamiento;
+  pago_inicio: string;
+  pago_fin: string;
+  real_pago_frecuencia: FrecuenciaPagoArrendamiento | null;
+  real_pago_inicio: string | null;
+  real_pago_fin: string | null;
+}): boolean {
+  const freq = row.real_pago_frecuencia ?? row.pago_frecuencia;
+  if (freq !== "ANUAL") return false;
+  const ini = row.real_pago_inicio ?? row.pago_inicio;
+  const fin = row.real_pago_fin ?? row.pago_fin;
+  return Boolean(ini && fin && ini !== fin);
 }
 
 function normalizeInput(data: VentaArrendamientoInput): VentaArrendamientoInput {
@@ -601,6 +656,8 @@ export async function patchVentaArrendamiento(
     venta_realizada?: boolean;
     valores_reales?: VentaArrendamientoRealInput | null;
     destacada?: boolean;
+    pago_inicio_cobrado?: boolean;
+    pago_fin_cobrado?: boolean;
   },
   cuentaId?: number | null,
 ): Promise<VentaArrendamientoRow> {
@@ -631,6 +688,11 @@ export async function patchVentaArrendamiento(
   let real_pago_fin_monto = existing.real_pago_fin_monto;
   let real_pago_fin_tipo = existing.real_pago_fin_tipo;
 
+  let pago_inicio_cobrado = existing.pago_inicio_cobrado;
+  let pago_inicio_cobrado_en = existing.pago_inicio_cobrado_en;
+  let pago_fin_cobrado = existing.pago_fin_cobrado;
+  let pago_fin_cobrado_en = existing.pago_fin_cobrado_en;
+
   if (patch.venta_realizada === false) {
     venta_realizada = false;
     venta_realizada_en = null;
@@ -647,6 +709,10 @@ export async function patchVentaArrendamiento(
     real_pago_inicio_tipo = null;
     real_pago_fin_monto = null;
     real_pago_fin_tipo = null;
+    pago_inicio_cobrado = false;
+    pago_inicio_cobrado_en = null;
+    pago_fin_cobrado = false;
+    pago_fin_cobrado_en = null;
   } else if (patch.valores_reales) {
     const v = normalizeRealInput(patch.valores_reales);
     real_fecha_inicio = v.fecha_inicio;
@@ -664,10 +730,61 @@ export async function patchVentaArrendamiento(
     real_pago_fin_tipo = v.pago_fin_tipo;
     venta_realizada = true;
     if (!venta_realizada_en) venta_realizada_en = new Date().toISOString();
+
+    const fraccionado = esPagoAnualFraccionadoArrendamiento({
+      pago_frecuencia: v.pago_frecuencia,
+      pago_inicio: v.pago_inicio,
+      pago_fin: v.pago_fin,
+      real_pago_frecuencia: v.pago_frecuencia,
+      real_pago_inicio: v.pago_inicio,
+      real_pago_fin: v.pago_fin,
+    });
+    pago_inicio_cobrado_en = toIsoTimestampOrNull(pago_inicio_cobrado_en);
+    pago_fin_cobrado_en = toIsoTimestampOrNull(pago_fin_cobrado_en);
+    // Cerrar no implica cobrar el saldo futuro si hay 2 pagos anuales.
+    if (!fraccionado) {
+      pago_inicio_cobrado = true;
+      pago_inicio_cobrado_en =
+        toIsoTimestampOrNull(pago_inicio_cobrado_en) ?? new Date().toISOString();
+      pago_fin_cobrado = true;
+      pago_fin_cobrado_en =
+        toIsoTimestampOrNull(pago_fin_cobrado_en) ?? new Date().toISOString();
+    }
   }
 
   if (patch.venta_realizada === true && !patch.valores_reales && existing.real_total_usd == null) {
     throw new Error("Completá los valores reales de la operación");
+  }
+
+  if (typeof patch.pago_inicio_cobrado === "boolean") {
+    if (pago_fin_cobrado && !patch.pago_inicio_cobrado) {
+      throw new Error("No se puede anular el pago inicial si el pago final ya está cobrado");
+    }
+    pago_inicio_cobrado = patch.pago_inicio_cobrado;
+    pago_inicio_cobrado_en = pago_inicio_cobrado
+      ? toIsoTimestampOrNull(existing.pago_inicio_cobrado_en) ?? new Date().toISOString()
+      : null;
+  }
+
+  if (typeof patch.pago_fin_cobrado === "boolean") {
+    if (patch.pago_fin_cobrado && !pago_inicio_cobrado) {
+      throw new Error("Primero debe cobrarse el pago inicial");
+    }
+    const fraccionado = esPagoAnualFraccionadoArrendamiento({
+      pago_frecuencia: real_pago_frecuencia ?? existing.pago_frecuencia,
+      pago_inicio: real_pago_inicio ?? existing.pago_inicio,
+      pago_fin: real_pago_fin ?? existing.pago_fin,
+      real_pago_frecuencia: real_pago_frecuencia ?? existing.real_pago_frecuencia,
+      real_pago_inicio: real_pago_inicio ?? existing.real_pago_inicio,
+      real_pago_fin: real_pago_fin ?? existing.real_pago_fin,
+    });
+    if (patch.pago_fin_cobrado && !fraccionado) {
+      throw new Error("El cobro del pago final solo aplica a arrendamientos con 2 pagos anuales");
+    }
+    pago_fin_cobrado = patch.pago_fin_cobrado;
+    pago_fin_cobrado_en = pago_fin_cobrado
+      ? toIsoTimestampOrNull(existing.pago_fin_cobrado_en) ?? new Date().toISOString()
+      : null;
   }
 
   await db.prepare(
@@ -675,6 +792,10 @@ export async function patchVentaArrendamiento(
       venta_realizada = @venta_realizada,
       venta_realizada_en = @venta_realizada_en,
       destacada = @destacada,
+      pago_inicio_cobrado = @pago_inicio_cobrado,
+      pago_inicio_cobrado_en = @pago_inicio_cobrado_en,
+      pago_fin_cobrado = @pago_fin_cobrado,
+      pago_fin_cobrado_en = @pago_fin_cobrado_en,
       real_fecha_inicio = @real_fecha_inicio,
       real_fecha_fin = @real_fecha_fin,
       real_hectareas = @real_hectareas,
@@ -692,8 +813,12 @@ export async function patchVentaArrendamiento(
   ).run({
     id,
     venta_realizada: venta_realizada ? 1 : 0,
-    venta_realizada_en,
+    venta_realizada_en: toIsoTimestampOrNull(venta_realizada_en),
     destacada: destacada ? 1 : 0,
+    pago_inicio_cobrado: pago_inicio_cobrado ? 1 : 0,
+    pago_inicio_cobrado_en: toIsoTimestampOrNull(pago_inicio_cobrado_en),
+    pago_fin_cobrado: pago_fin_cobrado ? 1 : 0,
+    pago_fin_cobrado_en: toIsoTimestampOrNull(pago_fin_cobrado_en),
     real_fecha_inicio,
     real_fecha_fin,
     real_hectareas,

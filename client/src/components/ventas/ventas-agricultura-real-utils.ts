@@ -27,6 +27,21 @@ function toBool(value: unknown): boolean {
   return Boolean(value);
 }
 
+function toIsoTimestampClient(value: unknown): string | null {
+  if (value == null || value === "") return null;
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value.toISOString();
+  }
+  const s = String(value).trim();
+  if (!s) return null;
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
+    const d = new Date(s);
+    return Number.isNaN(d.getTime()) ? s : d.toISOString();
+  }
+  const d = new Date(s);
+  return Number.isNaN(d.getTime()) ? null : d.toISOString();
+}
+
 export function normalizeVentaAgriculturaRow(row: VentaAgriculturaRow): VentaAgriculturaRow {
   return {
     ...row,
@@ -36,9 +51,11 @@ export function normalizeVentaAgriculturaRow(row: VentaAgriculturaRow): VentaAgr
     forma_pago_agricultura:
       row.forma_pago_agricultura === "AL_FINAL" ? "AL_FINAL" : "FRACCIONADO",
     pago_ingreso_cobrado: toBool(row.pago_ingreso_cobrado),
-    pago_ingreso_cobrado_en:
-      row.pago_ingreso_cobrado_en != null ? String(row.pago_ingreso_cobrado_en) : null,
+    pago_ingreso_cobrado_en: toIsoTimestampClient(row.pago_ingreso_cobrado_en),
+    pago_saldo_cobrado: toBool(row.pago_saldo_cobrado),
+    pago_saldo_cobrado_en: toIsoTimestampClient(row.pago_saldo_cobrado_en),
     venta_realizada: toBool(row.venta_realizada),
+    venta_realizada_en: toIsoTimestampClient(row.venta_realizada_en),
     destacada: toBool(row.destacada),
     real_importe_usd:
       row.real_importe_usd != null && Number.isFinite(Number(row.real_importe_usd))
@@ -109,23 +126,83 @@ export function importePago2NetoAgricultura(row: VentaAgriculturaRow): number {
   return pagosNetosSimulacionAgricultura(n).pago2Neto;
 }
 
-/** Monto aún por cobrar (simulación abierta). */
-export function importePendienteAgricultura(row: VentaAgriculturaRow): number {
+/** Pagos netos según datos reales (si hay venta cerrada) o simulación. */
+export function pagosNetosEfectivosAgricultura(row: VentaAgriculturaRow): {
+  pago1Neto: number;
+  pago2Neto: number;
+  totalNeto: number;
+} {
   const n = normalizeVentaAgriculturaRow(row);
-  if (n.venta_realizada) return 0;
-  if (n.forma_pago_agricultura !== "FRACCIONADO") {
-    return importeNetoSimulacionAgricultura(row);
+  if (
+    agriculturaHasVentaReal(row) &&
+    n.real_hectareas != null &&
+    n.real_rendimiento_ton_ha != null &&
+    n.real_precio_usd_ton != null
+  ) {
+    const totalKg = calcularTotalProduccionAgricultura(
+      n.real_hectareas,
+      n.real_rendimiento_ton_ha,
+    );
+    const bruto =
+      calcularImporteBrutoAgricultura(
+        totalKg,
+        n.precio_ingreso_usd_ton,
+        n.real_precio_usd_ton,
+        n.forma_pago_agricultura,
+      ) ?? 0;
+    const totalNeto =
+      calcularImporteNetoAgricultura(bruto, n.costo_impuestos_usd, n.costo_flete_usd) ??
+      n.real_importe_usd ??
+      0;
+    if (n.forma_pago_agricultura !== "FRACCIONADO") {
+      return { pago1Neto: totalNeto, pago2Neto: 0, totalNeto };
+    }
+    const sim = pagosNetosSimulacionAgricultura({
+      ...n,
+      hectareas: n.real_hectareas,
+      rendimiento_ton_ha: n.real_rendimiento_ton_ha,
+      precio_usd_ton: n.real_precio_usd_ton,
+    });
+    return sim;
   }
-  const { pago1Neto, pago2Neto } = pagosNetosSimulacionAgricultura(n);
-  return n.pago_ingreso_cobrado ? pago2Neto : pago1Neto + pago2Neto;
+  return pagosNetosSimulacionAgricultura(n);
 }
 
-/** Monto ya cobrado en simulación abierta (solo tramo 40% si aplica). */
+/** Monto aún por cobrar (cuota 1 y/o cuota 2), aunque la venta ya esté cerrada. */
+export function importePendienteAgricultura(row: VentaAgriculturaRow): number {
+  const n = normalizeVentaAgriculturaRow(row);
+  if (n.forma_pago_agricultura !== "FRACCIONADO") {
+    return n.venta_realizada ? 0 : importeNetoSimulacionAgricultura(row);
+  }
+  const { pago1Neto, pago2Neto } = pagosNetosEfectivosAgricultura(row);
+  if (n.pago_saldo_cobrado) return 0;
+  if (n.pago_ingreso_cobrado) return pago2Neto;
+  return pago1Neto + pago2Neto;
+}
+
+/** Monto ya cobrado de cuota 1 (40%) si aplica. */
 export function importeCobradoParcialAgricultura(row: VentaAgriculturaRow): number {
   const n = normalizeVentaAgriculturaRow(row);
-  if (n.venta_realizada) return 0;
   if (n.forma_pago_agricultura !== "FRACCIONADO" || !n.pago_ingreso_cobrado) return 0;
-  return importePago1NetoAgricultura(row);
+  return pagosNetosEfectivosAgricultura(row).pago1Neto;
+}
+
+/** Monto cobrado de cuota 2 (60%) si aplica. */
+export function importeCobradoSaldoAgricultura(row: VentaAgriculturaRow): number {
+  const n = normalizeVentaAgriculturaRow(row);
+  if (n.forma_pago_agricultura !== "FRACCIONADO" || !n.pago_saldo_cobrado) return 0;
+  return pagosNetosEfectivosAgricultura(row).pago2Neto;
+}
+
+/** Total cobrado a la fecha (cuotas pagadas o venta AL_FINAL cerrada). */
+export function importeCobradoAgricultura(row: VentaAgriculturaRow): number {
+  const n = normalizeVentaAgriculturaRow(row);
+  if (n.forma_pago_agricultura !== "FRACCIONADO") {
+    return n.venta_realizada ? (importeNetoRealAgricultura(row) ?? importeEfectivoAgricultura(row)) : 0;
+  }
+  return (
+    importeCobradoParcialAgricultura(row) + importeCobradoSaldoAgricultura(row)
+  );
 }
 
 /** Importe neto de la venta cerrada (datos reales − costos de la simulación). */

@@ -32,6 +32,8 @@ export interface VentaAgriculturaRow {
   costo_flete_usd: number;
   pago_ingreso_cobrado: boolean;
   pago_ingreso_cobrado_en: string | null;
+  pago_saldo_cobrado: boolean;
+  pago_saldo_cobrado_en: string | null;
   venta_realizada: boolean;
   venta_realizada_en: string | null;
   real_mes_inicio: number | null;
@@ -140,6 +142,8 @@ export async function initVentasAgriculturaTable(db: Db): Promise<void> {
     "forma_pago_agricultura TEXT NOT NULL DEFAULT 'FRACCIONADO'",
     "pago_ingreso_cobrado INTEGER NOT NULL DEFAULT 0",
     "pago_ingreso_cobrado_en TIMESTAMPTZ",
+    "pago_saldo_cobrado INTEGER NOT NULL DEFAULT 0",
+    "pago_saldo_cobrado_en TIMESTAMPTZ",
   ] as const) {
     try {
       await db.prepare(`ALTER TABLE VENTAS_AGRICULTURA ADD COLUMN ${col}`).run();
@@ -246,10 +250,11 @@ function mapRow(row: Record<string, unknown>): VentaAgriculturaRow {
     costo_impuestos_usd: Number(row.costo_impuestos_usd ?? 0),
     costo_flete_usd: Number(row.costo_flete_usd ?? 0),
     pago_ingreso_cobrado: Number(row.pago_ingreso_cobrado ?? 0) === 1,
-    pago_ingreso_cobrado_en:
-      row.pago_ingreso_cobrado_en != null ? String(row.pago_ingreso_cobrado_en) : null,
+    pago_ingreso_cobrado_en: toIsoTimestampOrNull(row.pago_ingreso_cobrado_en),
+    pago_saldo_cobrado: Number(row.pago_saldo_cobrado ?? 0) === 1,
+    pago_saldo_cobrado_en: toIsoTimestampOrNull(row.pago_saldo_cobrado_en),
     venta_realizada: Number(row.venta_realizada ?? 0) === 1,
-    venta_realizada_en: row.venta_realizada_en != null ? String(row.venta_realizada_en) : null,
+    venta_realizada_en: toIsoTimestampOrNull(row.venta_realizada_en),
     real_mes_inicio: row.real_mes_inicio != null ? Number(row.real_mes_inicio) : null,
     real_mes_fin: row.real_mes_fin != null ? Number(row.real_mes_fin) : null,
     real_anio_inicio: row.real_anio_inicio != null ? Number(row.real_anio_inicio) : null,
@@ -262,8 +267,24 @@ function mapRow(row: Record<string, unknown>): VentaAgriculturaRow {
     real_importe_usd: row.real_importe_usd != null ? Number(row.real_importe_usd) : null,
     real_notas: row.real_notas != null ? String(row.real_notas) : null,
     destacada: Number(row.destacada ?? 0) === 1,
-    creado_en: row.creado_en != null ? String(row.creado_en) : "",
+    creado_en: toIsoTimestamp(row.creado_en) || "",
   };
+}
+
+function toIsoTimestamp(value: unknown): string {
+  if (value instanceof Date) return value.toISOString();
+  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}/.test(value)) return value;
+  if (value != null) {
+    const d = new Date(String(value));
+    if (!Number.isNaN(d.getTime())) return d.toISOString();
+  }
+  return "";
+}
+
+function toIsoTimestampOrNull(value: unknown): string | null {
+  if (value == null || value === "") return null;
+  const iso = toIsoTimestamp(value);
+  return iso || null;
 }
 
 function parseCostoUsd(value: unknown): number {
@@ -392,7 +413,7 @@ function pagoIngresoCobradoEn(
   existingEn: string | null,
 ): string | null {
   if (forma !== "FRACCIONADO" || !cobrado) return null;
-  return existingEn ?? new Date().toISOString();
+  return toIsoTimestampOrNull(existingEn) ?? new Date().toISOString();
 }
 
 export async function listVentasAgricultura(
@@ -618,6 +639,7 @@ export async function patchVentaAgricultura(
     valores_reales?: VentaAgriculturaRealInput | null;
     destacada?: boolean;
     pago_ingreso_cobrado?: boolean;
+    pago_saldo_cobrado?: boolean;
   },
   cuentaId?: number | null,
 ): Promise<VentaAgriculturaRow> {
@@ -680,20 +702,35 @@ export async function patchVentaAgricultura(
 
   let pago_ingreso_cobrado = existing.pago_ingreso_cobrado;
   let pago_ingreso_cobrado_en = existing.pago_ingreso_cobrado_en;
+  let pago_saldo_cobrado = existing.pago_saldo_cobrado;
+  let pago_saldo_cobrado_en = existing.pago_saldo_cobrado_en;
+
   if (patch.venta_realizada === false) {
     pago_ingreso_cobrado = false;
     pago_ingreso_cobrado_en = null;
+    pago_saldo_cobrado = false;
+    pago_saldo_cobrado_en = null;
   } else if (patch.valores_reales) {
-    pago_ingreso_cobrado = true;
-    if (!pago_ingreso_cobrado_en) {
-      pago_ingreso_cobrado_en = new Date().toISOString();
+    // Cerrar venta no implica cobrar la cuota 2: se preserva el estado de cobros.
+    pago_ingreso_cobrado_en = toIsoTimestampOrNull(pago_ingreso_cobrado_en);
+    pago_saldo_cobrado_en = toIsoTimestampOrNull(pago_saldo_cobrado_en);
+    if (existing.forma_pago_agricultura === "AL_FINAL") {
+      // Al final: al cerrar se considera cobrado el total.
+      pago_ingreso_cobrado = true;
+      pago_ingreso_cobrado_en =
+        toIsoTimestampOrNull(pago_ingreso_cobrado_en) ?? new Date().toISOString();
+      pago_saldo_cobrado = true;
+      pago_saldo_cobrado_en =
+        toIsoTimestampOrNull(pago_saldo_cobrado_en) ?? new Date().toISOString();
     }
-  } else if (typeof patch.pago_ingreso_cobrado === "boolean") {
-    if (existing.venta_realizada) {
-      throw new Error("No se puede modificar el cobro parcial con la venta cerrada");
-    }
+  }
+
+  if (typeof patch.pago_ingreso_cobrado === "boolean") {
     if (existing.forma_pago_agricultura !== "FRACCIONADO" && patch.pago_ingreso_cobrado) {
-      throw new Error("El cobro parcial solo aplica a forma de pago fraccionada");
+      throw new Error("El cobro de cuota 1 solo aplica a forma de pago fraccionada");
+    }
+    if (pago_saldo_cobrado && !patch.pago_ingreso_cobrado) {
+      throw new Error("No se puede anular la cuota 1 si la cuota 2 ya está cobrada");
     }
     pago_ingreso_cobrado = patch.pago_ingreso_cobrado;
     pago_ingreso_cobrado_en = pagoIngresoCobradoEn(
@@ -703,6 +740,22 @@ export async function patchVentaAgricultura(
     );
   }
 
+  if (typeof patch.pago_saldo_cobrado === "boolean") {
+    if (existing.forma_pago_agricultura !== "FRACCIONADO") {
+      throw new Error("El cobro de cuota 2 solo aplica a forma de pago fraccionada");
+    }
+    if (patch.pago_saldo_cobrado && !pago_ingreso_cobrado) {
+      throw new Error("Primero debe cobrarse la cuota 1 (40%)");
+    }
+    pago_saldo_cobrado = patch.pago_saldo_cobrado;
+    if (!pago_saldo_cobrado) {
+      pago_saldo_cobrado_en = null;
+    } else {
+      pago_saldo_cobrado_en =
+        toIsoTimestampOrNull(existing.pago_saldo_cobrado_en) ?? new Date().toISOString();
+    }
+  }
+
   await db.prepare(
     `UPDATE VENTAS_AGRICULTURA SET
       venta_realizada = @venta_realizada,
@@ -710,6 +763,8 @@ export async function patchVentaAgricultura(
       destacada = @destacada,
       pago_ingreso_cobrado = @pago_ingreso_cobrado,
       pago_ingreso_cobrado_en = @pago_ingreso_cobrado_en,
+      pago_saldo_cobrado = @pago_saldo_cobrado,
+      pago_saldo_cobrado_en = @pago_saldo_cobrado_en,
       real_mes_inicio = @real_mes_inicio,
       real_mes_fin = @real_mes_fin,
       real_anio_inicio = @real_anio_inicio,
@@ -724,10 +779,12 @@ export async function patchVentaAgricultura(
   ).run({
     id,
     venta_realizada: venta_realizada ? 1 : 0,
-    venta_realizada_en,
+    venta_realizada_en: toIsoTimestampOrNull(venta_realizada_en),
     destacada: destacada ? 1 : 0,
     pago_ingreso_cobrado: pago_ingreso_cobrado ? 1 : 0,
-    pago_ingreso_cobrado_en,
+    pago_ingreso_cobrado_en: toIsoTimestampOrNull(pago_ingreso_cobrado_en),
+    pago_saldo_cobrado: pago_saldo_cobrado ? 1 : 0,
+    pago_saldo_cobrado_en: toIsoTimestampOrNull(pago_saldo_cobrado_en),
     real_mes_inicio,
     real_mes_fin,
     real_anio_inicio,

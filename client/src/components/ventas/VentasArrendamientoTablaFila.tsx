@@ -24,8 +24,13 @@ import {
   buildArrendamientoRealPayload,
   computeArrendamientoRealTotals,
   deltaClass,
+  esPagoAnualFraccionadoArrendamiento,
   fmtDeltaPct,
   fmtUsd,
+  importeCobradoInicioArrendamiento,
+  importePendienteArrendamiento,
+  montosPagoUsdArrendamiento,
+  normalizeVentaArrendamientoRow,
   rowToArrendamientoRealForm,
   type ArrendamientoRealFormState,
 } from "./ventas-arrendamientos-real-utils";
@@ -47,6 +52,8 @@ interface Props {
   onUnmarkReal: () => void;
   onDelete: () => void;
   onVerHistorial: () => void;
+  onCobrarPagoInicio?: () => void;
+  onCobrarPagoFin?: () => void;
 }
 
 export default function VentasArrendamientoTablaFila({
@@ -66,8 +73,17 @@ export default function VentasArrendamientoTablaFila({
   onUnmarkReal,
   onDelete,
   onVerHistorial,
+  onCobrarPagoInicio,
+  onCobrarPagoFin,
 }: Props) {
+  const n = normalizeVentaArrendamientoRow(row);
   const hasReal = arrendamientoHasVentaReal(row);
+  const fraccionado = esPagoAnualFraccionadoArrendamiento(row);
+  const cobroInicio = fraccionado && n.pago_inicio_cobrado;
+  const cobroFin = fraccionado && n.pago_fin_cobrado;
+  const pendienteUsd = fraccionado ? importePendienteArrendamiento(row) : null;
+  const cobradoInicioUsd = cobroInicio ? importeCobradoInicioArrendamiento(row) : null;
+  const montos = fraccionado ? montosPagoUsdArrendamiento(row) : null;
   const showSimRow = !hasReal;
   const rowSpan = showSimRow ? 2 : 1;
   const opCode = formatOperacionArrendamiento(row.id);
@@ -205,6 +221,26 @@ export default function VentasArrendamientoTablaFila({
         {hasReal && !isEditingReal && (
           <span className="sim-historial-op-chip sim-historial-op-chip--sold">Confirmada</span>
         )}
+        {!hasReal && (
+          <span className="sim-historial-op-chip sim-historial-op-chip--pending">Pendiente</span>
+        )}
+        {cobroInicio && !cobroFin && (
+          <span
+            className="sim-historial-op-chip sim-historial-op-chip--partial"
+            title={
+              cobradoInicioUsd != null && pendienteUsd != null
+                ? `Pago inicial cobrado: ${fmtUsd(cobradoInicioUsd)} · Pago final por cobrar: ${fmtUsd(pendienteUsd)}`
+                : "Pago inicial cobrado · pago final pendiente"
+            }
+          >
+            Pago 1 cobr.
+          </span>
+        )}
+        {cobroInicio && cobroFin && (
+          <span className="sim-historial-op-chip sim-historial-op-chip--sold" title="Pagos inicial y final cobrados">
+            100% cobr.
+          </span>
+        )}
       </div>
     </td>
   );
@@ -295,6 +331,42 @@ export default function VentasArrendamientoTablaFila({
               <span className="sim-historial-action-label">{isDeleting ? "…" : "Eliminar"}</span>
             </button>
           )}
+          {fraccionado && !cobroInicio && onCobrarPagoInicio ? (
+            <button
+              type="button"
+              className="sim-historial-action sim-historial-action--sold"
+              onClick={onCobrarPagoInicio}
+              disabled={isPatching || isDeleting || isEditingReal}
+              title={
+                montos
+                  ? `Registrar cobro del pago inicial (${fmtUsd(montos.inicio)})`
+                  : "Registrar cobro del pago inicial"
+              }
+            >
+              <span className="sim-historial-action-icon sim-historial-action-icon--sold-check" aria-hidden>
+                <IconCerrarVenta size={16} />
+              </span>
+              <span className="sim-historial-action-label">Cobrar pago 1</span>
+            </button>
+          ) : null}
+          {fraccionado && cobroInicio && !cobroFin && onCobrarPagoFin ? (
+            <button
+              type="button"
+              className="sim-historial-action sim-historial-action--sold"
+              onClick={onCobrarPagoFin}
+              disabled={isPatching || isDeleting || isEditingReal}
+              title={
+                pendienteUsd != null
+                  ? `Registrar cobro del pago final (${fmtUsd(pendienteUsd)})`
+                  : "Registrar cobro del pago final"
+              }
+            >
+              <span className="sim-historial-action-icon sim-historial-action-icon--sold-check" aria-hidden>
+                <IconCerrarVenta size={16} />
+              </span>
+              <span className="sim-historial-action-label">Cobrar pago 2</span>
+            </button>
+          ) : null}
           <button
             type="button"
             className="sim-historial-action sim-historial-action--history"

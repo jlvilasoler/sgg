@@ -108,10 +108,14 @@ export default function HomeGanadoDashKpi({ data, onOpen }: Props) {
       value: formatEnteroSafe(animalesVendidosEjercicio),
       trend:
         vendidoOperacionesEjercicio > 0
-          ? `${vendidoOperacionesEjercicio} venta(s) en ej.`
-          : "Sin ventas en ej.",
+          ? `${vendidoOperacionesEjercicio} cobrada(s) en ej.`
+          : "Sin ventas cobradas en ej.",
       tone: vendidoOperacionesEjercicio > 0 ? "up" : "neutral",
       onClick: () => onOpen("simulador_venta_ganado"),
+      ariaLabel:
+        vendidoOperacionesEjercicio > 0
+          ? `Vendidos cobrados en el ejercicio: ${formatEnteroSafe(animalesVendidosEjercicio)} cabezas en ${vendidoOperacionesEjercicio} venta(s)`
+          : "Sin ventas de ganado cobradas en el ejercicio",
     });
   }
 
@@ -126,6 +130,10 @@ export default function HomeGanadoDashKpi({ data, onOpen }: Props) {
           : "Sin operaciones abiertas",
       tone: porVenderOperaciones > 0 ? "gold" : "neutral",
       onClick: () => onOpen("simulador_venta_ganado"),
+      ariaLabel:
+        porVenderOperaciones > 0
+          ? `Por vender: ${formatEnteroSafe(animalesPorVender)} cabezas en ${porVenderOperaciones} operación(es) abierta(s)`
+          : "Por vender: sin operaciones abiertas",
     });
   }
 
@@ -144,7 +152,13 @@ export default function HomeGanadoDashKpi({ data, onOpen }: Props) {
           </p>
         </div>
         {tieneStock ? (
-          <span className="home-ganado-dash__badge">{formatEnteroSafe(activos)} cab.</span>
+          <span
+            className="home-ganado-dash__badge"
+            title="Animales activos en stock"
+            aria-label={`${formatEnteroSafe(activos)} cabezas en stock`}
+          >
+            {formatEnteroSafe(activos)} cab. en stock
+          </span>
         ) : null}
       </header>
 

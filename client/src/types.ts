@@ -297,6 +297,9 @@ export interface VentaAgriculturaRow {
   /** Pago 1 (40% al ingresar) ya cobrado — solo forma FRACCIONADO. */
   pago_ingreso_cobrado: boolean;
   pago_ingreso_cobrado_en: string | null;
+  /** Pago 2 (60% al finalizar) ya cobrado — solo forma FRACCIONADO. */
+  pago_saldo_cobrado: boolean;
+  pago_saldo_cobrado_en: string | null;
   venta_realizada: boolean;
   venta_realizada_en: string | null;
   real_mes_inicio: number | null;
@@ -348,6 +351,10 @@ export interface VentaArrendamientoRow {
   pago_fin_tipo: "VALOR" | "PORCENTAJE";
   venta_realizada: boolean;
   venta_realizada_en: string | null;
+  pago_inicio_cobrado: boolean;
+  pago_inicio_cobrado_en: string | null;
+  pago_fin_cobrado: boolean;
+  pago_fin_cobrado_en: string | null;
   real_fecha_inicio: string | null;
   real_fecha_fin: string | null;
   real_hectareas: number | null;

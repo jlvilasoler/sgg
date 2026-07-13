@@ -14,7 +14,7 @@ export type HomeInsightCacheItem = {
   resultadoEjercicio?: HomeResultadoEjercicioData;
 };
 
-const STORAGE_KEY = "scg-home-insights-cache-v13";
+const STORAGE_KEY = "scg-home-insights-cache-v15";
 const CACHE_TTL_MS = 5 * 60 * 1000;
 
 type CachedPayload = {

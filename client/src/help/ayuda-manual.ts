@@ -47,19 +47,19 @@ export const AYUDA_ARTICULOS: AyudaArticulo[] = [
     grupo: "general",
     destacado: true,
     intro:
-      "SAG (Sistema de Administración Ganadera) centraliza la operación diaria de una explotación: gastos y presupuesto, tributos, divisas, ventas, personal, stock animal y trabajo en el campo. Todo se organiza por cuenta de empresa, con usuarios y permisos según el rol de cada integrante.",
+      "SAG (Sistema de Administración Ganadera) centraliza la operación diaria de una explotación: gastos y presupuesto, tributos, divisas, ventas, personal, stock animal, mapa del predio, tareas de campo y comunicación del equipo. Todo se organiza por cuenta, con usuarios y permisos según el rol de cada integrante.",
     procesoOperativo: [
-      "Configurar catálogos base (rubros, proveedores, responsables) antes de cargar gastos.",
-      "Registrar la operación diaria: gastos, lecturas de stock, tareas y notas.",
-      "Consultar listados, resúmenes y calendarios para controlar y tomar decisiones.",
-      "Usar chat y notas para coordinar al equipo en tiempo real.",
+      "Configurar catálogos base (rubros, proveedores, responsables) y el layout del Inicio por tipo de cuenta.",
+      "Arrancar el día desde Inicio: KPIs, vencimientos, tareas y pendientes de aprobación.",
+      "Registrar la operación: gastos, ventas, lecturas de stock, mapa y tareas.",
+      "Consultar al Asistente o a listados/resúmenes para decidir; coordinar por chat y notas.",
     ],
     bloques: [
       {
         titulo: "Estructura de la app",
         parrafos: [
-          "El menú principal agrupa los módulos por área: finanzas, campo, tareas y comunicación.",
-          "Cada módulo tiene su propio panel interno con subsecciones (por ejemplo, Presupuesto incluye ingresar gasto, listado y control de gestión).",
+          "El menú principal agrupa módulos por área: finanzas, operaciones (mapa), tareas, stock y comunicación.",
+          "Cada módulo tiene su propio panel interno con subsecciones (por ejemplo, Presupuesto incluye ingresar gasto, listado, automatización, notas de crédito y control de gestión).",
           "El botón de inicio en la barra superior siempre vuelve al menú principal.",
           "La flecha «atrás» recorre el historial de pantallas visitadas en la sesión.",
         ],
@@ -69,6 +69,7 @@ export const AYUDA_ARTICULOS: AyudaArticulo[] = [
         parrafos: [
           "Una cuenta puede tener varias empresas operativas (establecimientos, sociedades internas, etc.).",
           "Al registrar gastos o stock, elegí la empresa operativa correspondiente para que los reportes queden bien segmentados.",
+          "En Mi cuenta podés definir si al iniciar sesión usás modo consolidado o elegís empresa.",
         ],
       },
     ],
@@ -76,38 +77,77 @@ export const AYUDA_ARTICULOS: AyudaArticulo[] = [
   {
     id: "inicio-navegacion",
     label: "Inicio y navegación",
-    subtitle: "Menú principal, accesos rápidos y búsqueda",
+    subtitle: "Dashboard, pantalla completa, paneles y menú",
     icon: "config_rubros",
     grupo: "general",
     destacado: true,
     intro:
-      "La pantalla de inicio es el punto de partida después de iniciar sesión. Desde ahí accedés a todos los módulos habilitados para tu usuario.",
+      "La pantalla de Inicio es el tablero operativo después de iniciar sesión: indicadores (ganado, tesorería, financiero), mapa del predio, vencimientos, stock por potrero, tareas del día, pizarrón de notas, actividad de la cuenta y accesos rápidos. Qué ves depende de tu rol y de cómo esté configurado el layout.",
+    procesoOperativo: [
+      "Revisá los KPIs de ganado, por cobrar y gastos/ventas del ejercicio.",
+      "Si hay pagos automáticos pendientes de aprobación, resolvelos desde el panel de Inicio.",
+      "Mirá vencimientos próximos, tareas del día y el mapa del predio.",
+      "Usá pantalla completa para ver el tablero sin menú lateral y con más espacio.",
+      "Entrá a cualquier módulo desde el menú izquierdo, la búsqueda o los accesos rápidos.",
+    ],
     bloques: [
       {
-        titulo: "Menú de módulos",
+        titulo: "Menú lateral y búsqueda",
         pasos: [
-          "Iniciá sesión con tu email y contraseña.",
-          "En el menú principal, elegí el módulo que necesitás (Presupuesto, Stock, Configuración, etc.).",
-          "Usá el buscador del menú para filtrar módulos por nombre.",
-          "Los módulos recientes aparecen destacados para volver rápido a lo que usás seguido.",
+          "En el menú de la izquierda elegí el módulo (Presupuesto, Stock, Mapa, Tareas, etc.).",
+          "Usá «Buscar en módulos…» para filtrar por nombre.",
+          "Los módulos que usaste recientemente suelen aparecer primero en accesos rápidos.",
+        ],
+        consejos: [
+          "Si no ves un módulo, tu rol no tiene permiso o el administrador no lo habilitó: consultá con quien administre la cuenta.",
+        ],
+      },
+      {
+        titulo: "Indicadores del Inicio",
+        parrafos: [
+          "Ganado: stock activo, machos/hembras y estado de ventas cuando hay datos del simulador.",
+          "Tesorería: montos por cobrar (arrendamientos, ganado, agricultura) del ejercicio.",
+          "Financiero: gastos del mes, gastos del año y ventas del ejercicio.",
+        ],
+      },
+      {
+        titulo: "Paneles del tablero",
+        parrafos: [
+          "Pizarrón: notas destacadas (recordatorios sticky).",
+          "Tareas operativas: rutinas del día, con acceso a crear o abrir el almanaque.",
+          "Tu predio: vista previa satelital del mapa (potreros y marcaciones).",
+          "Calendario tributario: próximos vencimientos (contribución, SUCIVE, etc.).",
+          "Stock ganadero · Animales por potrero: totales, distribución por sexo, ocupación y dotación (UG/ha) por potrero.",
+          "Actividad de cuenta: últimos guardados del equipo.",
+          "Accesos rápidos: módulos según tu perfil y uso reciente.",
+          "Asistente (Admin / Gestor N1): mini chat en Inicio para consultas rápidas.",
+          "Pendientes de automatización: aprobar u omitir gastos programados del mes.",
+        ],
+      },
+      {
+        titulo: "Pantalla completa",
+        pasos: [
+          "En Inicio, usá el botón de maximizar (arriba a la derecha) para abrir el tablero a pantalla completa.",
+          "En ese modo se priorizan KPIs, stock por potrero, mapa, vencimientos y tareas; se ocultan pizarrón, actividad y accesos rápidos para ganar espacio.",
+          "Salí con el mismo botón o con la tecla Esc.",
+        ],
+        consejos: [
+          "Si ya cargaste stock por potrero una vez, al volver a pantalla completa se muestran primero los últimos datos mientras se actualizan.",
+        ],
+      },
+      {
+        titulo: "Personalizar tu Inicio",
+        parrafos: [
+          "En Mi cuenta → Inicio podés mostrar, ocultar y reordenar los bloques que te permite tu perfil.",
+          "El administrador define el techo por tipo de cuenta (Admin, Gestor N1/N2, Consulta) en Configuración → layout de Inicio.",
         ],
       },
       {
         titulo: "Barra superior",
         parrafos: [
           "Logo / Inicio: vuelve al menú principal.",
-          "Atrás: regresa a la pantalla anterior dentro de la app.",
-          "Tu nombre: abre Mi cuenta (perfil, contraseña, foto).",
-        ],
-      },
-      {
-        titulo: "Indicadores en inicio",
-        parrafos: [
-          "El panel de inicio puede mostrar actividad reciente del equipo, vencimientos próximos de impuestos y una vista previa del mapa del campo.",
-          "Las notas personales y compartidas también tienen acceso rápido desde el inicio.",
-        ],
-        consejos: [
-          "Si no ves un módulo, es probable que tu rol no tenga permiso: consultá con el administrador de la cuenta.",
+          "Atrás: regresa a la pantalla anterior.",
+          "Tu nombre o avatar: abre Mi cuenta (perfil, contraseña, empresas, layout de Inicio).",
         ],
       },
     ],
@@ -122,20 +162,21 @@ export const AYUDA_ARTICULOS: AyudaArticulo[] = [
     intro:
       "Este es el recorrido típico de una jornada de trabajo usando SAG, desde la preparación de catálogos hasta el control al cierre del día.",
     procesoOperativo: [
-      "1. Configuración (una vez o cuando cambia algo): rubros, proveedores, responsables de presupuesto, usuarios.",
-      "2. Mañana: revisar vencimientos de impuestos y cotizaciones de divisas si hay pagos en moneda extranjera.",
-      "3. Durante el día: registrar cada gasto con su comprobante; cargar lecturas EID de stock; anotar tareas operativas.",
-      "4. Campo: actualizar mapa de potreros y registrar trabajo en el almanaque de tareas.",
-      "5. Cierre: revisar listado de gastos del día, notas pendientes y mensajes del chat.",
-      "6. Fin de mes: usar Control de Gestión (resumen) y reportes de RRHH / ventas según corresponda.",
+      "1. Configuración (una vez o cuando cambia algo): rubros, proveedores, responsables, usuarios y layout de Inicio por rol.",
+      "2. Mañana en Inicio: KPIs, vencimientos, tareas del día y pendientes de automatización.",
+      "3. Durante el día: registrar gastos (o dejar que la automatización proponga), ventas, lecturas EID y notas.",
+      "4. Campo: actualizar mapa (potreros/marcaciones) y marcar tareas en el almanaque.",
+      "5. Consultas: Asistente para indicadores; Control de Gestión y listados para detalle.",
+      "6. Cierre: chat, notas pendientes y revisión del listado de gastos del día.",
+      "7. Fin de mes: resumen financiero, RRHH y revisión de dotación / stock por potrero.",
     ],
     bloques: [
       {
         titulo: "Buenas prácticas",
         consejos: [
-          "Registrá el gasto el mismo día del comprobante para no acumular pendientes.",
+          "Registrá el gasto el mismo día del comprobante; si es recurrente, usá Automatización y aprobá desde Inicio.",
           "Adjuntá o fotografiá el documento cuando el módulo lo permita.",
-          "Mantené actualizado el stock con cada lectura de caravanas para que el mapa y los reportes sean confiables.",
+          "Mantené el stock y los potreros del mapa al día: alimentan el panel Animales por potrero y la ocupación UG/ha.",
           "Usá el mismo criterio de rubros en todo el equipo: definilo en Configuración y compartilo.",
         ],
       },
@@ -149,13 +190,15 @@ export const AYUDA_ARTICULOS: AyudaArticulo[] = [
     grupo: "finanzas",
     pantallaRelacionada: "registro",
     intro:
-      "El módulo de Presupuesto y gastos es el núcleo financiero: permite cargar cada egreso con rubro, proveedor, responsable, empresa operativa y documentación adjunta.",
+      "El módulo de Presupuesto y gastos es el núcleo financiero: permite cargar cada egreso con rubro, proveedor, responsable, empresa operativa y documentación adjunta. Incluye automatización de gastos recurrentes y notas de crédito.",
     procesoOperativo: [
       "Entrá a Presupuesto y gastos desde el menú principal.",
       "Elegí «Ingresar gasto» para un comprobante nuevo.",
       "Completá fecha, importe, rubro, proveedor, responsable y empresa operativa.",
       "Guardá el registro. Repetí por cada comprobante del día.",
+      "Para gastos fijos, configurá Automatización y aprobá los pendientes desde Inicio.",
       "En «Presupuesto» (listado) filtrá por período, rubro o proveedor para revisar.",
+      "Usá notas de crédito si necesitás anular o ajustar un gasto.",
       "En «Control de Gestión» compará lo ejecutado contra lo presupuestado por empresa y rubro.",
     ],
     bloques: [
@@ -186,6 +229,25 @@ export const AYUDA_ARTICULOS: AyudaArticulo[] = [
         parrafos: [
           "Muestra totales por empresa operativa y por rubro en el período elegido.",
           "Sirve para reuniones de control y para detectar desvíos respecto al presupuesto asignado.",
+        ],
+      },
+      {
+        titulo: "Automatización de gastos",
+        pasos: [
+          "Presupuesto y gastos → Automatización.",
+          "Definí un gasto recurrente (rubro, proveedor, importe, día o regla del mes).",
+          "Cada período el sistema genera un pendiente de aprobación.",
+          "Quien tiene permiso puede aprobar u omitir el pago desde el panel de Inicio o desde Automatización.",
+        ],
+        consejos: [
+          "Útil para alquileres, servicios fijos o cuotas periódicas que no querés olvidar.",
+        ],
+      },
+      {
+        titulo: "Notas de crédito",
+        parrafos: [
+          "Desde Presupuesto podés emitir notas de crédito totales o parciales para anular o ajustar un gasto ya cargado.",
+          "Queda trazabilidad del comprobante original y del ajuste.",
         ],
       },
       {
@@ -242,12 +304,13 @@ export const AYUDA_ARTICULOS: AyudaArticulo[] = [
     grupo: "cuenta",
     pantallaRelacionada: "configuracion",
     intro:
-      "Configuración concentra los catálogos y herramientas administrativas de tu cuenta: rubros, proveedores, presupuesto asignado, administración de stock, usuarios y más.",
+      "Configuración concentra los catálogos y herramientas administrativas de tu cuenta: rubros, proveedores, presupuesto asignado, layout del Inicio por tipo de cuenta, administración de stock, usuarios y más.",
     procesoOperativo: [
       "Ingresá a Configuración desde el menú principal.",
       "Completá primero: Asignación de presupuesto (responsables), Proveedores y Rubros.",
-      "Si administrás usuarios, creá cuentas con el rol adecuado.",
-      "Usá Administración de Stock solo cuando necesites vaciar o mantener la base de dispositivos.",
+      "Definí qué bloques del Inicio ve cada tipo de cuenta (Admin, Gestor N1/N2, Consulta).",
+      "Si administrás usuarios, creá cuentas con el rol adecuado y módulos permitidos.",
+      "Usá Administración de Stock o Dotación ganadera cuando necesites mantener bases o categorías UG.",
     ],
     bloques: [
       {
@@ -259,6 +322,19 @@ export const AYUDA_ARTICULOS: AyudaArticulo[] = [
         ],
       },
       {
+        titulo: "Inicio por tipo de cuenta",
+        pasos: [
+          "Configuración → sección de layout / Inicio (según tu menú de Config).",
+          "Elegí el tipo de cuenta (Administrador, Gestor N1, Gestor N2, Consulta).",
+          "Activá o desactivá bloques: indicadores, pizarrón, mapa, vencimientos, stock por potrero, actividad, accesos rápidos, etc.",
+          "Reordená los paneles con la vista previa y guardá.",
+          "El Asistente en Inicio suele habilitarse para Administrador y Gestor N1.",
+        ],
+        consejos: [
+          "Lo que configures aquí es el techo: cada usuario puede personalizar menos bloques en Mi cuenta → Inicio, nunca más de los que permite su rol.",
+        ],
+      },
+      {
         titulo: "Usuarios y permisos",
         pasos: [
           "Configuración → Usuarios (solo administrador de cuenta).",
@@ -267,7 +343,14 @@ export const AYUDA_ARTICULOS: AyudaArticulo[] = [
           "El usuario recibe acceso con la contraseña que le asignes o que configure.",
         ],
         consejos: [
-          "Rol Lector: solo consulta. Gestor: opera módulos asignados. Admin: control total de la cuenta.",
+          "Rol Consulta: solo lectura. Gestores: operan módulos asignados. Admin: control total de la cuenta.",
+        ],
+      },
+      {
+        titulo: "Dotación y stock",
+        parrafos: [
+          "La configuración de dotación / categorías UG alimenta el cálculo de ocupación y UG/ha del panel Animales por potrero en Inicio.",
+          "Administración de Stock permite tareas de mantenimiento de la base de dispositivos cuando hace falta.",
         ],
       },
       {
@@ -437,6 +520,17 @@ export const AYUDA_ARTICULOS: AyudaArticulo[] = [
           "Mantener sanidad al día es clave para trazabilidad y cumplimiento.",
         ],
       },
+      {
+        titulo: "Animales por potrero (Inicio)",
+        parrafos: [
+          "En Inicio, el panel Stock ganadero resume animales activos por potrero del mapa: totales, machos/hembras, ocupación % y dotación UG/ha.",
+          "Usa el área de cada potrero dibujado en el mapa y las categorías de dotación configuradas.",
+          "Desde ahí podés abrir Stock o el Mapa del campo para corregir ubicaciones o geometría.",
+        ],
+        consejos: [
+          "Si ves muchos animales «sin potrero», asigná ubicación en las fichas o revisá el mapa.",
+        ],
+      },
     ],
   },
   {
@@ -466,37 +560,47 @@ export const AYUDA_ARTICULOS: AyudaArticulo[] = [
   {
     id: "campo-mapa",
     label: "Mapa del campo",
-    subtitle: "Potreros, áreas y dispositivos en vista satelital",
+    subtitle: "Potreros, marcaciones, medición y capas de stock",
     icon: "stock_cabana",
     grupo: "campo",
     pantallaRelacionada: "campo_mapa",
     intro:
-      "Vista de mapa satelital para dibujar potreros y áreas, ver dispositivos de stock dentro de cada lote y trabajar colaborativamente con el equipo.",
+      "Vista satelital del predio para dibujar potreros y áreas, colocar marcadores y notas, medir distancias o superficies, y ver capas de dispositivos ganaderos o equinos. También alimenta la vista «Tu predio» y el panel Animales por potrero en Inicio.",
     procesoOperativo: [
-      "Abrí Mapa del campo.",
-      "Dibujá o editá polígonos de potreros sobre la imagen.",
-      "Asigná nombre y empresa operativa a cada potrero.",
-      "Activá capas de dispositivos para ver dónde están las caravanas.",
-      "Usá el resumen por potrero para contar animales por categoría.",
+      "Abrí Mapa del campo (menú Operaciones o Principal).",
+      "Dibujá o editá potreros; nombrá cada uno y asociá empresa si corresponde.",
+      "Agregá marcadores, notas u objetos según necesites.",
+      "Activá capas de dispositivos para ubicar caravanas.",
+      "Usá pantalla completa y etiquetas on/off desde los controles del mapa.",
     ],
     bloques: [
       {
         titulo: "Dibujar potreros",
         pasos: [
-          "Seleccioná la herramienta de dibujo (polígono).",
+          "Seleccioná la herramienta de polígono / potrero en el menú lateral.",
           "Marcá vértices sobre el mapa y cerrá la figura.",
-          "Asigná nombre, color y grosor de borde si lo deseás.",
+          "Asigná nombre (y color/estilo si está disponible).",
           "Guardá los cambios.",
         ],
       },
       {
-        titulo: "Trabajo en equipo",
+        titulo: "Otras herramientas",
         parrafos: [
-          "Varios usuarios con permiso de stock pueden editar el mismo mapa.",
-          "Los cambios se sincronizan al guardar.",
+          "Marcadores y notas: puntos de referencia o recordatorios en el terreno.",
+          "Líneas y áreas: trazos auxiliares o zonas que no son potreros de stock.",
+          "Medición: distancia y área para cálculos rápidos en el campo.",
+          "Clip / contorno: herramientas avanzadas de edición de geometría cuando están habilitadas.",
+        ],
+      },
+      {
+        titulo: "Capas y pantalla completa",
+        parrafos: [
+          "Las capas de stock ganadero o equino muestran dispositivos sobre el mapa.",
+          "El botón de pantalla completa agranda el mapa; las etiquetas se pueden mostrar u ocultar desde el control flotante.",
         ],
         consejos: [
-          "Definí primero los potreros grandes y luego subdivisiones si hace falta.",
+          "Definí primero los potreros grandes y luego subdivisiones.",
+          "Un mapa actualizado mejora el resumen de Inicio (ocupación y animales por potrero).",
         ],
       },
     ],
@@ -504,33 +608,84 @@ export const AYUDA_ARTICULOS: AyudaArticulo[] = [
   {
     id: "tareas-operativas",
     label: "Tareas operativas",
-    subtitle: "Almanaque, rutinas y registro de trabajo",
+    subtitle: "Almanaque, asignación y cumplimiento diario",
     icon: "stock_cabana",
     grupo: "campo",
     pantallaRelacionada: "tareas_operativas",
     intro:
-      "Planificá rutinas semanales (almanaque), asignalas a integrantes del equipo y registrá lo hecho cada día. Se integra con potreros del mapa cuando aplica.",
+      "Planificá rutinas en el almanaque, asignalas a usuarios, vinculalas a potreros o ubicaciones y registrá el cumplimiento día a día. En Inicio ves un resumen de «tareas del día».",
     procesoOperativo: [
-      "Creá tareas con nombre, días de la semana y responsables.",
-      "Cada día, abrí el almanaque y marcá tareas completadas.",
-      "Agregá registro con observaciones o ubicación en potrero.",
-      "Revisá historial para seguimiento de cumplimiento.",
+      "Abrí Tareas operativas desde el menú.",
+      "Creá una rutina con nombre, días, responsables y ubicación opcional.",
+      "En el calendario, abrí el día y marcá lo completado o agregá observaciones.",
+      "Seguí el % de avance del día y el historial de cumplimiento.",
     ],
     bloques: [
       {
-        titulo: "Crear una tarea",
+        titulo: "Crear una rutina",
         pasos: [
-          "Tareas operativas → Nueva tarea.",
-          "Nombre, descripción y días en que aplica.",
-          "Asigná usuarios responsables.",
-          "Opcional: vinculá un potrero del mapa.",
+          "Tareas operativas → crear rutina (o desde el botón en Inicio).",
+          "Nombre, descripción y días de la semana en que aplica.",
+          "Asigná uno o más usuarios responsables.",
+          "Opcional: vinculá potrero, estancia o ubicación del mapa.",
         ],
       },
       {
-        titulo: "Registro diario",
+        titulo: "Almanaque y registro",
         parrafos: [
-          "El calendario muestra el día actual y las tareas pendientes.",
-          "Al completar, queda constancia con fecha y usuario.",
+          "El calendario muestra el mes y el detalle del día al hacer clic.",
+          "Al completar una tarea queda constancia con fecha y usuario.",
+          "Podés saltar al mapa si la tarea está asociada a un potrero.",
+        ],
+      },
+      {
+        titulo: "Panel en Inicio",
+        parrafos: [
+          "El bloque Tareas operativas del Inicio resume el día actual (por ejemplo «Sin rutinas hoy» o el listado pendiente).",
+          "En pantalla completa suele ubicarse junto al calendario tributario y el mapa.",
+        ],
+      },
+    ],
+  },
+  {
+    id: "asistente",
+    label: "Asistente",
+    subtitle: "Consultas en lenguaje natural sobre tu cuenta",
+    icon: "arquitectura_sistema",
+    grupo: "general",
+    pantallaRelacionada: "asistente",
+    destacado: true,
+    intro:
+      "El Asistente responde preguntas sobre indicadores de tu cuenta: finanzas, stock, ventas, RRHH, divisas y más. Está disponible como módulo completo y, para Administrador y Gestor N1, como panel rápido en Inicio.",
+    procesoOperativo: [
+      "Abrí Asistente desde el menú o el panel del Inicio.",
+      "Escribí o dictá una pregunta (por ejemplo: «¿cuánto gastamos este mes?» o «stock de hembras»).",
+      "Revisá la respuesta y, si hace falta, pedí más detalle o abrí el módulo relacionado.",
+    ],
+    bloques: [
+      {
+        titulo: "Qué podés preguntar",
+        parrafos: [
+          "Gastos y presupuesto del mes o del ejercicio.",
+          "Stock ganadero o equino, categorías y totales.",
+          "Ventas, por cobrar, divisas y datos de personal cuando tenés permiso.",
+        ],
+        consejos: [
+          "Cuanto más concreta la pregunta (período, empresa, rubro), mejor la respuesta.",
+        ],
+      },
+      {
+        titulo: "Inicio y voz",
+        parrafos: [
+          "En Inicio el mini panel permite consultas rápidas sin salir del tablero.",
+          "Si está habilitado, podés usar entrada o salida por voz según el navegador.",
+        ],
+      },
+      {
+        titulo: "Permisos",
+        parrafos: [
+          "Solo ves datos de módulos a los que tu rol tiene acceso.",
+          "Si el Asistente no aparece, el administrador puede habilitarlo en el layout de Inicio / menú por tipo de cuenta.",
         ],
       },
     ],
@@ -543,18 +698,19 @@ export const AYUDA_ARTICULOS: AyudaArticulo[] = [
     grupo: "equipo",
     pantallaRelacionada: "notas",
     intro:
-      "Bloc de notas integrado: personales para cada usuario o compartidas con el equipo de la cuenta.",
+      "Bloc de notas integrado: personales para cada usuario o compartidas con el equipo. Las notas destacadas aparecen en el Pizarrón del Inicio.",
     bloques: [
       {
         titulo: "Crear y organizar",
         pasos: [
-          "Abrí Notas desde el menú o el acceso rápido del inicio.",
+          "Abrí Notas desde el menú o el Pizarrón del Inicio.",
           "Creá una nota nueva con título y cuerpo.",
           "Elegí si es personal o compartida con la cuenta.",
           "Editá o archivá cuando ya no la necesites.",
         ],
         consejos: [
           "Usá notas compartidas para listas de pendientes del equipo (reparaciones, compras, etc.).",
+          "En pantalla completa del Inicio el Pizarrón se oculta para priorizar KPIs y operación de campo.",
         ],
       },
     ],
@@ -562,12 +718,12 @@ export const AYUDA_ARTICULOS: AyudaArticulo[] = [
   {
     id: "chat",
     label: "Chat interno",
-    subtitle: "Mensajes con el equipo",
+    subtitle: "Mensajes con el equipo y solicitudes",
     icon: "usuarios_permisos_rol",
     grupo: "equipo",
     pantallaRelacionada: "chat",
     intro:
-      "Comunicación interna entre usuarios de la cuenta: canal general, mensajes directos, canales de equipo y contactos externos autorizados.",
+      "Comunicación interna entre usuarios de la cuenta: canal general, mensajes directos, canales de equipo y contactos externos autorizados. También podés gestionar solicitudes de contacto desde el avatar / Mi cuenta.",
     bloques: [
       {
         titulo: "Conversaciones",
@@ -578,10 +734,11 @@ export const AYUDA_ARTICULOS: AyudaArticulo[] = [
         ],
       },
       {
-        titulo: "Contactos externos",
+        titulo: "Contactos externos y solicitudes",
         parrafos: [
           "Con permiso, podés invitar por email a contactos fuera de la cuenta.",
           "Deben aceptar la solicitud antes de chatear.",
+          "Las solicitudes pendientes pueden aparecer como aviso junto a tu perfil hasta que las aceptes o pospongas.",
         ],
       },
     ],
@@ -589,28 +746,28 @@ export const AYUDA_ARTICULOS: AyudaArticulo[] = [
   {
     id: "usuarios-permisos",
     label: "Usuarios y permisos",
-    subtitle: "Roles y acceso a módulos",
+    subtitle: "Roles, módulos y layout de Inicio",
     icon: "usuarios_permisos_rol",
     grupo: "cuenta",
     intro:
-      "Cada integrante tiene un rol que determina qué pantallas ve y si puede modificar datos. El administrador de la cuenta gestiona usuarios desde Configuración.",
+      "Cada integrante tiene un rol que determina qué pantallas ve, si puede modificar datos y qué bloques del Inicio le corresponden. El administrador de la cuenta gestiona usuarios desde Configuración.",
     bloques: [
       {
         titulo: "Roles habituales",
         parrafos: [
           "Administrador de cuenta: acceso completo a configuración y todos los módulos habilitados.",
-          "Gestor N1 / N2: operación diaria con distintos niveles de restricción (por ejemplo, solo lectura en divisas).",
-          "Lector: consulta sin modificar.",
+          "Gestor N1 / N2: operación diaria con distintos niveles de restricción (por ejemplo, Asistente en Inicio para N1).",
+          "Consulta: lectura sin modificar.",
         ],
       },
       {
-        titulo: "Módulos por permiso",
+        titulo: "Módulos y paneles de Inicio",
         parrafos: [
-          "Además del rol, cada usuario tiene una lista de módulos permitidos (presupuesto, stock, ventas, etc.).",
-          "Si no tenés acceso a una pantalla, el menú no la muestra o indica falta de permiso.",
+          "Además del rol, cada usuario tiene módulos permitidos (presupuesto, stock, ventas, etc.).",
+          "El layout de Inicio por tipo de cuenta define el techo de bloques visibles; el usuario puede reducir o reordenar dentro de ese techo en Mi cuenta.",
         ],
         consejos: [
-          "Pedí al administrador ajustes de rol si necesitás cargar datos en un módulo nuevo.",
+          "Pedí al administrador ajustes de rol o de layout si necesitás ver un panel o módulo nuevo.",
         ],
       },
     ],
@@ -618,11 +775,11 @@ export const AYUDA_ARTICULOS: AyudaArticulo[] = [
   {
     id: "mi-cuenta",
     label: "Mi cuenta y perfil",
-    subtitle: "Foto, datos y contraseña",
+    subtitle: "Perfil, contraseña, empresas e Inicio",
     icon: "config_admin_cuenta",
     grupo: "cuenta",
     intro:
-      "Desde tu nombre en la barra superior accedés a Mi cuenta: actualizar foto, datos personales y cambiar contraseña.",
+      "Desde tu nombre o avatar en la barra superior abrís Mi cuenta: foto, datos personales, contraseña, empresas operativas y personalización de los bloques de tu Inicio.",
     bloques: [
       {
         titulo: "Actualizar perfil",
@@ -637,8 +794,30 @@ export const AYUDA_ARTICULOS: AyudaArticulo[] = [
         titulo: "Contraseña",
         pasos: [
           "En Mi cuenta, sección Contraseña.",
-          "Ingresá la actual y la nueva (mínimo según política del sistema).",
-          "Al cambiar contraseña se cierra la sesión en otros dispositivos.",
+          "Ingresá la actual y la nueva: al menos 10 caracteres, con mayúscula, minúscula, número y símbolo.",
+          "Confirmá la nueva contraseña.",
+          "Al cambiarla se cierran otras sesiones abiertas por seguridad.",
+        ],
+        consejos: [
+          "Si olvidaste la contraseña en el login, usá la opción de recuperación cuando esté habilitada en tu entorno.",
+        ],
+      },
+      {
+        titulo: "Empresas y modo de inicio",
+        parrafos: [
+          "Podés revisar o completar datos de empresas (RUT, ejercicio fiscal, etc.) según tu permiso.",
+          "Elegí si al entrar trabajás en modo consolidado o seleccionás una empresa operativa.",
+        ],
+      },
+      {
+        titulo: "Bloques de tu Inicio",
+        pasos: [
+          "Mi cuenta → Inicio (o «Bloques de tu inicio»).",
+          "Activá o desactivá paneles dentro de lo que permite tu rol.",
+          "Reordená y guardá «mi inicio».",
+        ],
+        consejos: [
+          "No podés activar un bloque que el administrador deshabilitó para tu tipo de cuenta.",
         ],
       },
     ],

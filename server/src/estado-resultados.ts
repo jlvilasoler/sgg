@@ -211,50 +211,151 @@ async function ventasIngresosSeccionUsd(
   const sim = (await db.prepare(qSim).get(paramsSim)) as { total: number };
   const ganado = Math.round(Number(sim?.total ?? 0) * 100) / 100;
 
+  // Agricultura: FRACCIONADO suma cuota 1 (40%) y cuota 2 (60%) por su fecha de cobro;
+  // AL_FINAL solo cuenta venta_realizada (no el total al cerrar sin cobro de cuotas).
   const paramsAgri: Record<string, string | number> = {};
   let qAgri = `
-    SELECT COALESCE(SUM(
-      CASE
-        WHEN real_importe_usd IS NOT NULL THEN real_importe_usd
-        ELSE GREATEST(0, importe_usd)
-      END
-    ), 0) AS total
-    FROM VENTAS_AGRICULTURA
-    WHERE venta_realizada = 1`;
+    SELECT COALESCE(SUM(parte), 0) AS total
+    FROM (
+      SELECT
+        CASE
+          WHEN forma_pago_agricultura = 'FRACCIONADO' AND COALESCE(pago_ingreso_cobrado, 0) = 1
+            THEN COALESCE(real_importe_usd, GREATEST(0, importe_usd)) * 0.4
+          ELSE 0
+        END AS parte
+      FROM VENTAS_AGRICULTURA
+      WHERE forma_pago_agricultura = 'FRACCIONADO'
+        AND COALESCE(pago_ingreso_cobrado, 0) = 1`;
   qAgri = appendEmpresaScope(qAgri, paramsAgri as Record<string, string>, scope);
   if (opts.cuentaId != null) {
     qAgri += " AND cuenta_id = @cuentaId";
     paramsAgri.cuentaId = opts.cuentaId;
   }
   if (opts.fecha_desde) {
-    qAgri += " AND venta_realizada_en >= @fecha_desde";
+    qAgri += " AND pago_ingreso_cobrado_en >= @fecha_desde";
     paramsAgri.fecha_desde = opts.fecha_desde;
   }
   if (opts.fecha_hasta) {
-    qAgri += " AND venta_realizada_en < (@fecha_hasta::date + INTERVAL '1 day')";
+    qAgri += " AND pago_ingreso_cobrado_en < (@fecha_hasta::date + INTERVAL '1 day')";
     paramsAgri.fecha_hasta = opts.fecha_hasta;
   }
+  qAgri += `
+      UNION ALL
+      SELECT
+        CASE
+          WHEN forma_pago_agricultura = 'FRACCIONADO' AND COALESCE(pago_saldo_cobrado, 0) = 1
+            THEN COALESCE(real_importe_usd, GREATEST(0, importe_usd)) * 0.6
+          ELSE 0
+        END AS parte
+      FROM VENTAS_AGRICULTURA
+      WHERE forma_pago_agricultura = 'FRACCIONADO'
+        AND COALESCE(pago_saldo_cobrado, 0) = 1`;
+  qAgri = appendEmpresaScope(qAgri, paramsAgri as Record<string, string>, scope);
+  if (opts.cuentaId != null) {
+    qAgri += " AND cuenta_id = @cuentaId";
+  }
+  if (opts.fecha_desde) {
+    qAgri += " AND pago_saldo_cobrado_en >= @fecha_desde";
+  }
+  if (opts.fecha_hasta) {
+    qAgri += " AND pago_saldo_cobrado_en < (@fecha_hasta::date + INTERVAL '1 day')";
+  }
+  qAgri += `
+      UNION ALL
+      SELECT COALESCE(real_importe_usd, GREATEST(0, importe_usd)) AS parte
+      FROM VENTAS_AGRICULTURA
+      WHERE COALESCE(forma_pago_agricultura, 'FRACCIONADO') <> 'FRACCIONADO'
+        AND COALESCE(venta_realizada, 0) = 1`;
+  qAgri = appendEmpresaScope(qAgri, paramsAgri as Record<string, string>, scope);
+  if (opts.cuentaId != null) {
+    qAgri += " AND cuenta_id = @cuentaId";
+  }
+  if (opts.fecha_desde) {
+    qAgri += " AND venta_realizada_en >= @fecha_desde";
+  }
+  if (opts.fecha_hasta) {
+    qAgri += " AND venta_realizada_en < (@fecha_hasta::date + INTERVAL '1 day')";
+  }
+  qAgri += `
+    ) cobros`;
   const agri = (await db.prepare(qAgri).get(paramsAgri)) as { total: number };
   const agricultura = Math.round(Number(agri?.total ?? 0) * 100) / 100;
 
+  // Arrendamientos: 2 pagos anuales suman por fecha de cobro; resto = venta_realizada.
   const paramsArr: Record<string, string | number> = {};
   let qArr = `
-    SELECT COALESCE(SUM(real_total_usd), 0) AS total
-    FROM VENTAS_ARRENDAMIENTO
-    WHERE venta_realizada = 1 AND real_total_usd IS NOT NULL`;
+    SELECT COALESCE(SUM(parte), 0) AS total
+    FROM (
+      SELECT
+        CASE
+          WHEN COALESCE(real_pago_inicio_tipo, pago_inicio_tipo) = 'PORCENTAJE'
+            THEN COALESCE(real_total_usd, total_usd)
+              * COALESCE(real_pago_inicio_monto, pago_inicio_monto) / 100.0
+          ELSE COALESCE(real_pago_inicio_monto, pago_inicio_monto)
+        END AS parte
+      FROM VENTAS_ARRENDAMIENTO
+      WHERE COALESCE(venta_realizada, 0) = 1
+        AND COALESCE(pago_inicio_cobrado, 0) = 1
+        AND COALESCE(real_pago_frecuencia, pago_frecuencia) = 'ANUAL'
+        AND COALESCE(real_pago_inicio, pago_inicio) IS DISTINCT FROM COALESCE(real_pago_fin, pago_fin)`;
   qArr = appendEmpresaScope(qArr, paramsArr as Record<string, string>, scope);
   if (opts.cuentaId != null) {
     qArr += " AND cuenta_id = @cuentaId";
     paramsArr.cuentaId = opts.cuentaId;
   }
   if (opts.fecha_desde) {
-    qArr += " AND venta_realizada_en >= @fecha_desde";
+    qArr += " AND pago_inicio_cobrado_en >= @fecha_desde";
     paramsArr.fecha_desde = opts.fecha_desde;
   }
   if (opts.fecha_hasta) {
-    qArr += " AND venta_realizada_en < (@fecha_hasta::date + INTERVAL '1 day')";
+    qArr += " AND pago_inicio_cobrado_en < (@fecha_hasta::date + INTERVAL '1 day')";
     paramsArr.fecha_hasta = opts.fecha_hasta;
   }
+  qArr += `
+      UNION ALL
+      SELECT
+        CASE
+          WHEN COALESCE(real_pago_fin_tipo, pago_fin_tipo) = 'PORCENTAJE'
+            THEN COALESCE(real_total_usd, total_usd)
+              * COALESCE(real_pago_fin_monto, pago_fin_monto) / 100.0
+          ELSE COALESCE(real_pago_fin_monto, pago_fin_monto)
+        END AS parte
+      FROM VENTAS_ARRENDAMIENTO
+      WHERE COALESCE(venta_realizada, 0) = 1
+        AND COALESCE(pago_fin_cobrado, 0) = 1
+        AND COALESCE(real_pago_frecuencia, pago_frecuencia) = 'ANUAL'
+        AND COALESCE(real_pago_inicio, pago_inicio) IS DISTINCT FROM COALESCE(real_pago_fin, pago_fin)`;
+  qArr = appendEmpresaScope(qArr, paramsArr as Record<string, string>, scope);
+  if (opts.cuentaId != null) {
+    qArr += " AND cuenta_id = @cuentaId";
+  }
+  if (opts.fecha_desde) {
+    qArr += " AND pago_fin_cobrado_en >= @fecha_desde";
+  }
+  if (opts.fecha_hasta) {
+    qArr += " AND pago_fin_cobrado_en < (@fecha_hasta::date + INTERVAL '1 day')";
+  }
+  qArr += `
+      UNION ALL
+      SELECT COALESCE(real_total_usd, 0) AS parte
+      FROM VENTAS_ARRENDAMIENTO
+      WHERE venta_realizada = 1 AND real_total_usd IS NOT NULL
+        AND NOT (
+          COALESCE(real_pago_frecuencia, pago_frecuencia) = 'ANUAL'
+          AND COALESCE(real_pago_inicio, pago_inicio) IS DISTINCT FROM COALESCE(real_pago_fin, pago_fin)
+        )`;
+  qArr = appendEmpresaScope(qArr, paramsArr as Record<string, string>, scope);
+  if (opts.cuentaId != null) {
+    qArr += " AND cuenta_id = @cuentaId";
+  }
+  if (opts.fecha_desde) {
+    qArr += " AND venta_realizada_en >= @fecha_desde";
+  }
+  if (opts.fecha_hasta) {
+    qArr += " AND venta_realizada_en < (@fecha_hasta::date + INTERVAL '1 day')";
+  }
+  qArr += `
+    ) cobros`;
   const arr = (await db.prepare(qArr).get(paramsArr)) as { total: number };
   const arrendamientos = Math.round(Number(arr?.total ?? 0) * 100) / 100;
 

@@ -2082,6 +2082,9 @@ app.patch("/api/ingresos-ventas/ventas-agricultura/:id", async (req, res) => {
   if (typeof body.pago_ingreso_cobrado === "boolean") {
     patch.pago_ingreso_cobrado = body.pago_ingreso_cobrado;
   }
+  if (typeof body.pago_saldo_cobrado === "boolean") {
+    patch.pago_saldo_cobrado = body.pago_saldo_cobrado;
+  }
 
   if (body.valores_reales != null && typeof body.valores_reales === "object") {
     const v = body.valores_reales as Record<string, unknown>;
@@ -2102,7 +2105,7 @@ app.patch("/api/ingresos-ventas/ventas-agricultura/:id", async (req, res) => {
   if (Object.keys(patch).length === 0) {
     res.status(400).json({
       ok: false,
-      error: "Indicá venta_realizada, valores_reales o pago_ingreso_cobrado",
+      error: "Indicá venta_realizada, valores_reales, pago_ingreso_cobrado o pago_saldo_cobrado",
     });
     return;
   }
@@ -2115,7 +2118,11 @@ app.patch("/api/ingresos-ventas/ventas-agricultura/:id", async (req, res) => {
         ? "Venta anulada — la simulación volvió a pendiente"
         : patch.valores_reales
           ? "Venta registrada con datos reales"
-          : patch.pago_ingreso_cobrado === true
+          : patch.pago_saldo_cobrado === true
+            ? "Cuota 2 (60%) marcada como cobrada"
+            : patch.pago_saldo_cobrado === false
+              ? "Cuota 2 desmarcada"
+            : patch.pago_ingreso_cobrado === true
             ? "Pago 1 (40%) marcado como cobrado"
             : patch.pago_ingreso_cobrado === false
               ? "Pago 1 desmarcado — vuelve a pendiente de cobro"
@@ -2200,6 +2207,12 @@ app.patch("/api/ingresos-ventas/ventas-arrendamientos/:id", async (req, res) => 
   if (typeof body.destacada === "boolean") {
     patch.destacada = body.destacada;
   }
+  if (typeof body.pago_inicio_cobrado === "boolean") {
+    patch.pago_inicio_cobrado = body.pago_inicio_cobrado;
+  }
+  if (typeof body.pago_fin_cobrado === "boolean") {
+    patch.pago_fin_cobrado = body.pago_fin_cobrado;
+  }
 
   if (body.valores_reales != null && typeof body.valores_reales === "object") {
     const v = body.valores_reales as Record<string, unknown>;
@@ -2223,7 +2236,7 @@ app.patch("/api/ingresos-ventas/ventas-arrendamientos/:id", async (req, res) => 
   if (Object.keys(patch).length === 0) {
     res.status(400).json({
       ok: false,
-      error: "Indicá venta_realizada, valores_reales o destacada",
+      error: "Indicá venta_realizada, valores_reales, destacada, pago_inicio_cobrado o pago_fin_cobrado",
     });
     return;
   }
@@ -2236,7 +2249,11 @@ app.patch("/api/ingresos-ventas/ventas-arrendamientos/:id", async (req, res) => 
         ? "Confirmación anulada — la simulación volvió a pendiente"
         : patch.valores_reales
           ? "Operación confirmada con datos reales"
-          : "Simulación actualizada";
+          : patch.pago_inicio_cobrado === true
+            ? "Pago inicial cobrado"
+            : patch.pago_fin_cobrado === true
+              ? "Pago final cobrado"
+              : "Simulación actualizada";
     res.json({ ok: true, data: row, message });
   } catch (e) {
     const msg = (e as Error).message;

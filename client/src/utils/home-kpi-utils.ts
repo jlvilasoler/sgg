@@ -7,80 +7,132 @@ import type {
 import { normalizeSimuladorRow } from "../components/simulador-venta/simulador-venta-real-utils";
 import {
   importeCobradoParcialAgricultura,
+  importeCobradoSaldoAgricultura,
   importeEfectivoAgricultura,
   importeNetoRealAgricultura,
   importePendienteAgricultura,
   normalizeVentaAgriculturaRow,
 } from "../components/ventas/ventas-agricultura-real-utils";
 import {
+  esPagoAnualFraccionadoArrendamiento,
+  importeCobradoFinArrendamiento,
+  importeCobradoInicioArrendamiento,
+  importePendienteArrendamiento,
   normalizeVentaArrendamientoRow,
   totalUsdEfectivoArrendamiento,
 } from "../components/ventas/ventas-arrendamientos-real-utils";
 import type { EstadoResultados } from "../types";
 
-/** Venta cerrada dentro del rango del ejercicio (fechas ISO YYYY-MM-DD). */
+/**
+ * Normaliza cualquier timestamp (ISO, Date o texto de JS) a YYYY-MM-DD
+ * para comparar contra el rango del ejercicio.
+ */
+export function toFechaIsoDia(value: string | null | undefined): string | null {
+  if (value == null) return null;
+  const raw = String(value).trim();
+  if (!raw) return null;
+  if (/^\d{4}-\d{2}-\d{2}/.test(raw)) return raw.slice(0, 10);
+  const d = new Date(raw);
+  if (Number.isNaN(d.getTime())) return null;
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+/** Cobro / cierre dentro del rango del ejercicio (fechas ISO YYYY-MM-DD). */
 export function ventaCerradaEnEjercicio(
   ventaRealizadaEn: string | null | undefined,
   desde: string,
   hasta: string,
 ): boolean {
-  if (!ventaRealizadaEn) return false;
-  const fecha = ventaRealizadaEn.slice(0, 10);
+  const fecha = toFechaIsoDia(ventaRealizadaEn);
+  if (!fecha) return false;
   return fecha >= desde && fecha <= hasta;
 }
 
-/** Ventas realizadas (cobradas) en el ejercicio — arrendamientos. */
+/** Ventas realizadas (cobradas) en el ejercicio — arrendamientos (por cuota). */
 export function resumenArrendamientosCobradosEjercicio(
   rows: VentaArrendamientoRow[],
   desde: string,
   hasta: string,
 ): { contratos: number; usd: number } {
-  const cobrados = rows.filter((r) => {
+  let usd = 0;
+  const idsConCobro = new Set<number>();
+
+  for (const r of rows) {
     const n = normalizeVentaArrendamientoRow(r);
-    return (
-      n.venta_realizada &&
-      ventaCerradaEnEjercicio(n.venta_realizada_en, desde, hasta)
-    );
-  });
-  const usd = cobrados.reduce((s, r) => s + totalUsdEfectivoArrendamiento(r), 0);
-  return { contratos: cobrados.length, usd };
+
+    if (!esPagoAnualFraccionadoArrendamiento(n)) {
+      if (
+        n.venta_realizada &&
+        ventaCerradaEnEjercicio(n.venta_realizada_en, desde, hasta)
+      ) {
+        usd += totalUsdEfectivoArrendamiento(r);
+        idsConCobro.add(n.id);
+      }
+      continue;
+    }
+
+    if (
+      n.pago_inicio_cobrado &&
+      ventaCerradaEnEjercicio(n.pago_inicio_cobrado_en, desde, hasta)
+    ) {
+      usd += importeCobradoInicioArrendamiento(r);
+      idsConCobro.add(n.id);
+    }
+    if (
+      n.pago_fin_cobrado &&
+      ventaCerradaEnEjercicio(n.pago_fin_cobrado_en, desde, hasta)
+    ) {
+      usd += importeCobradoFinArrendamiento(r);
+      idsConCobro.add(n.id);
+    }
+  }
+
+  return { contratos: idsConCobro.size, usd: Math.round(usd * 100) / 100 };
 }
 
-/** Ventas realizadas (cobradas) en el ejercicio — agricultura (importe neto). */
+/** Ventas realizadas (cobradas) en el ejercicio — agricultura (importe neto por cuota). */
 export function resumenAgriculturaCobradasEjercicio(
   rows: VentaAgriculturaRow[],
   desde: string,
   hasta: string,
 ): { ventas: number; usd: number } {
-  const cobradas = rows.filter((r) => {
-    const n = normalizeVentaAgriculturaRow(r);
-    return (
-      n.venta_realizada &&
-      ventaCerradaEnEjercicio(n.venta_realizada_en, desde, hasta)
-    );
-  });
   let usd = 0;
-  for (const r of cobradas) {
-    usd += importeNetoRealAgricultura(r) ?? importeEfectivoAgricultura(r);
-  }
+  const idsConCobro = new Set<number>();
+
   for (const r of rows) {
     const n = normalizeVentaAgriculturaRow(r);
-    if (n.venta_realizada) continue;
-    if (!n.pago_ingreso_cobrado) continue;
-    if (!ventaCerradaEnEjercicio(n.pago_ingreso_cobrado_en, desde, hasta)) continue;
-    usd += importeCobradoParcialAgricultura(r);
+
+    if (n.forma_pago_agricultura !== "FRACCIONADO") {
+      if (
+        n.venta_realizada &&
+        ventaCerradaEnEjercicio(n.venta_realizada_en, desde, hasta)
+      ) {
+        usd += importeNetoRealAgricultura(r) ?? importeEfectivoAgricultura(r);
+        idsConCobro.add(n.id);
+      }
+      continue;
+    }
+
+    if (
+      n.pago_ingreso_cobrado &&
+      ventaCerradaEnEjercicio(n.pago_ingreso_cobrado_en, desde, hasta)
+    ) {
+      usd += importeCobradoParcialAgricultura(r);
+      idsConCobro.add(n.id);
+    }
+    if (
+      n.pago_saldo_cobrado &&
+      ventaCerradaEnEjercicio(n.pago_saldo_cobrado_en, desde, hasta)
+    ) {
+      usd += importeCobradoSaldoAgricultura(r);
+      idsConCobro.add(n.id);
+    }
   }
-  const ventasCount =
-    cobradas.length +
-    rows.filter((r) => {
-      const n = normalizeVentaAgriculturaRow(r);
-      return (
-        !n.venta_realizada &&
-        n.pago_ingreso_cobrado &&
-        ventaCerradaEnEjercicio(n.pago_ingreso_cobrado_en, desde, hasta)
-      );
-    }).length;
-  return { ventas: ventasCount, usd: Math.round(usd * 100) / 100 };
+
+  return { ventas: idsConCobro.size, usd: Math.round(usd * 100) / 100 };
 }
 
 /** Cabezas asociadas a una simulación (pendiente o cerrada). */
@@ -145,13 +197,27 @@ export function ventasDetalleCobradasEjercicio(
   };
 }
 
-/** Prioriza detalle calculado desde módulos; si no hay filas, usa estado de resultados. */
+/** Prioriza el mayor valor por rubro entre módulos y estado de resultados (red de seguridad). */
 export function mergeVentasDetalleEjercicio(
   erDetalle: EstadoResultadosVentasDetalle | undefined,
   desdeFilas: EstadoResultadosVentasDetalle | null,
 ): EstadoResultadosVentasDetalle {
-  if (desdeFilas) return desdeFilas;
-  return erDetalle ?? { ganado: 0, agricultura: 0, arrendamientos: 0 };
+  const er = erDetalle ?? { ganado: 0, agricultura: 0, arrendamientos: 0 };
+  if (!desdeFilas) return er;
+  return {
+    ganado: Math.max(Number(desdeFilas.ganado) || 0, Number(er.ganado) || 0),
+    // Filas de módulos calculan cuota 1/2 exactas; ER es respaldo aproximado.
+    agricultura: (() => {
+      const fromRows = Number(desdeFilas.agricultura) || 0;
+      if (fromRows > 0.005) return fromRows;
+      return Number(er.agricultura) || 0;
+    })(),
+    arrendamientos: (() => {
+      const fromRows = Number(desdeFilas.arrendamientos) || 0;
+      if (fromRows > 0.005) return fromRows;
+      return Number(er.arrendamientos) || 0;
+    })(),
+  };
 }
 
 function formatUsdCompact(n: number): string {
@@ -197,8 +263,8 @@ export function hintVentasEjercicio(
   if (detalle.arrendamientos > 0.5) {
     partes.push(`Arrend. ${formatUsdCompact(detalle.arrendamientos)}`);
   }
-  if (partes.length === 0) return `${ejercicioLabel} · sin ventas realizadas`;
-  return `${ejercicioLabel} · ${partes.join(" + ")}`;
+  if (partes.length === 0) return `${ejercicioLabel} · sin cobros en el ejercicio`;
+  return `${ejercicioLabel} · cobrado: ${partes.join(" + ")}`;
 }
 
 /** Simulaciones de venta de ganado aún no cerradas (misma regla que el simulador). */
@@ -235,22 +301,22 @@ export function resumenGanadoPorVenderEjercicio(
   return { operaciones: pendientes.length, usd };
 }
 
-/** Contratos de arrendamiento pendientes de cobro. */
+/** Contratos de arrendamiento pendientes de cobro (incluye cerrados con pago final pendiente). */
 export function resumenArrendamientosPorRecibir(rows: VentaArrendamientoRow[]): {
   contratos: number;
   usd: number;
 } {
-  const pendientes = rows.filter((r) => !normalizeVentaArrendamientoRow(r).venta_realizada);
-  const usd = pendientes.reduce((s, r) => s + totalUsdEfectivoArrendamiento(r), 0);
+  const pendientes = rows.filter((r) => importePendienteArrendamiento(r) > 0.005);
+  const usd = pendientes.reduce((s, r) => s + importePendienteArrendamiento(r), 0);
   return { contratos: pendientes.length, usd };
 }
 
-/** Ventas agrícolas pendientes de cobro. */
+/** Ventas agrícolas con saldo por cobrar (incluye cerradas con cuota 2 pendiente). */
 export function resumenAgriculturaPorRecibir(rows: VentaAgriculturaRow[]): {
   ventas: number;
   usd: number;
 } {
-  const pendientes = rows.filter((r) => !normalizeVentaAgriculturaRow(r).venta_realizada);
+  const pendientes = rows.filter((r) => importePendienteAgricultura(r) > 0.005);
   const usd = pendientes.reduce((s, r) => s + importePendienteAgricultura(r), 0);
   return { ventas: pendientes.length, usd };
 }

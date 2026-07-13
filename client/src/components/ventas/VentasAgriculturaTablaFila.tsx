@@ -26,9 +26,9 @@ import {
 } from "./ventas-agricultura-utils";
 import {
   agriculturaHasVentaReal,
+  importeCobradoParcialAgricultura,
   importeNetoSimulacionAgricultura,
   importeNetoRealAgricultura,
-  importePago1NetoAgricultura,
   importePendienteAgricultura,
   buildAgriculturaRealPayload,
   computeAgriculturaRealTotals,
@@ -54,6 +54,7 @@ interface Props {
   onCancelEditReal: () => void;
   onSaveReal: (payload: VentaAgriculturaRealInput) => void;
   onUnmarkReal: () => void;
+  onCobrarSaldo?: () => void;
   onDelete: () => void;
   onVerHistorial: () => void;
 }
@@ -73,17 +74,17 @@ export default function VentasAgriculturaTablaFila({
   onCancelEditReal,
   onSaveReal,
   onUnmarkReal,
+  onCobrarSaldo,
   onDelete,
   onVerHistorial,
 }: Props) {
   const hasReal = agriculturaHasVentaReal(row);
   const showSimRow = !hasReal;
-  const cobroParcial40 =
-    !hasReal &&
-    row.forma_pago_agricultura === "FRACCIONADO" &&
-    row.pago_ingreso_cobrado === true;
-  const pendienteUsd = cobroParcial40 ? importePendienteAgricultura(row) : null;
-  const cobradoParcialUsd = cobroParcial40 ? importePago1NetoAgricultura(row) : null;
+  const esFraccionado = row.forma_pago_agricultura === "FRACCIONADO";
+  const cobroCuota1 = esFraccionado && row.pago_ingreso_cobrado === true;
+  const cobroCuota2 = esFraccionado && row.pago_saldo_cobrado === true;
+  const pendienteUsd = cobroCuota1 && !cobroCuota2 ? importePendienteAgricultura(row) : null;
+  const cobradoParcialUsd = cobroCuota1 ? importeCobradoParcialAgricultura(row) : null;
   const rowSpan = showSimRow ? 2 : 1;
   const cultivoColor = colorCultivoAgricultura(row.cultivo);
   const cultivoLabel = labelCultivoAgricultura(row.cultivo);
@@ -247,16 +248,21 @@ export default function VentasAgriculturaTablaFila({
         {!hasReal && (
           <span className="sim-historial-op-chip sim-historial-op-chip--pending">Pendiente</span>
         )}
-        {cobroParcial40 && (
+        {cobroCuota1 && !cobroCuota2 && (
           <span
             className="sim-historial-op-chip sim-historial-op-chip--partial"
             title={
               cobradoParcialUsd != null && pendienteUsd != null
-                ? `Cobrado 40%: ${fmtUsd(cobradoParcialUsd)} · Por cobrar 60%: ${fmtUsd(pendienteUsd)}`
-                : "40% cobrado al ingresar"
+                ? `Cuota 1 cobrada: ${fmtUsd(cobradoParcialUsd)} · Cuota 2 por cobrar: ${fmtUsd(pendienteUsd)}`
+                : "Cuota 1 (40%) cobrada · cuota 2 pendiente"
             }
           >
             40% cobr.
+          </span>
+        )}
+        {cobroCuota1 && cobroCuota2 && (
+          <span className="sim-historial-op-chip sim-historial-op-chip--sold" title="Cuotas 1 y 2 cobradas">
+            100% cobr.
           </span>
         )}
       </div>
@@ -427,6 +433,38 @@ export default function VentasAgriculturaTablaFila({
               type="button"
               className="sim-historial-action sim-historial-action--unmark"
               onClick={onUnmarkReal}
+              disabled={isPatching || isDeleting || isEditingReal}
+              title="Volver a pendiente (quita datos reales)"
+            >
+              <span className="sim-historial-action-icon" aria-hidden>
+                <IconCancelar size={15} />
+              </span>
+              <span className="sim-historial-action-label">Quitar real</span>
+            </button>
+          ) : null}
+          {hasReal && cobroCuota1 && !cobroCuota2 && onCobrarSaldo ? (
+            <button
+              type="button"
+              className="sim-historial-action sim-historial-action--sold"
+              onClick={onCobrarSaldo}
+              disabled={isPatching || isDeleting || isEditingReal}
+              title={
+                pendienteUsd != null
+                  ? `Registrar cobro de cuota 2 (${fmtUsd(pendienteUsd)})`
+                  : "Registrar cobro de cuota 2 (60%)"
+              }
+            >
+              <span className="sim-historial-action-icon sim-historial-action-icon--sold-check" aria-hidden>
+                <IconCerrarVenta size={16} />
+              </span>
+              <span className="sim-historial-action-label">Cobrar cuota 2</span>
+            </button>
+          ) : null}
+          {hasReal ? (
+            <button
+              type="button"
+              className="sim-historial-action sim-historial-action--delete"
+              onClick={onDelete}
               disabled={isPatching || isDeleting}
               title="Eliminar venta"
             >
@@ -597,7 +635,7 @@ export default function VentasAgriculturaTablaFila({
           {opMetaCell}
           <td className="sim-historial-tipo-cell">
             {tipoBadge("sim")}
-            {cobroParcial40 && (
+            {cobroCuota1 && !cobroCuota2 && (
               <span className="sim-historial-fecha-sub sim-historial-cobro-parcial">
                 40% cobrado · saldo {pendienteUsd != null ? fmtUsd(pendienteUsd) : "—"}
               </span>

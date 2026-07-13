@@ -22,6 +22,16 @@ function toBool(value: unknown): boolean {
   return Boolean(value);
 }
 
+function toIsoTimestampClient(value: unknown): string | null {
+  if (value == null || value === "") return null;
+  if (value instanceof Date) return value.toISOString();
+  const raw = String(value).trim();
+  if (!raw) return null;
+  if (/^\d{4}-\d{2}-\d{2}/.test(raw)) return raw;
+  const d = new Date(raw);
+  return Number.isNaN(d.getTime()) ? null : d.toISOString();
+}
+
 export function normalizeVentaArrendamientoRow(row: VentaArrendamientoRow): VentaArrendamientoRow {
   return {
     ...row,
@@ -31,6 +41,11 @@ export function normalizeVentaArrendamientoRow(row: VentaArrendamientoRow): Vent
     pago_fin: normalizeIsoDateArrendamiento(row.pago_fin),
     venta_realizada: toBool(row.venta_realizada),
     destacada: toBool(row.destacada),
+    pago_inicio_cobrado: toBool(row.pago_inicio_cobrado),
+    pago_inicio_cobrado_en: toIsoTimestampClient(row.pago_inicio_cobrado_en),
+    pago_fin_cobrado: toBool(row.pago_fin_cobrado),
+    pago_fin_cobrado_en: toIsoTimestampClient(row.pago_fin_cobrado_en),
+    venta_realizada_en: toIsoTimestampClient(row.venta_realizada_en),
     real_fecha_inicio:
       row.real_fecha_inicio != null
         ? normalizeIsoDateArrendamiento(row.real_fecha_inicio)
@@ -60,6 +75,65 @@ export function totalUsdEfectivoArrendamiento(row: VentaArrendamientoRow): numbe
     return row.real_total_usd;
   }
   return row.total_usd;
+}
+
+/** ANUAL con dos fechas de pago distintas (pago inicial + pago final). */
+export function esPagoAnualFraccionadoArrendamiento(row: VentaArrendamientoRow): boolean {
+  const n = normalizeVentaArrendamientoRow(row);
+  const freq = n.real_pago_frecuencia ?? n.pago_frecuencia;
+  if (freq !== "ANUAL") return false;
+  const ini = n.real_pago_inicio ?? n.pago_inicio;
+  const fin = n.real_pago_fin ?? n.pago_fin;
+  return Boolean(ini && fin && ini !== fin);
+}
+
+export function montosPagoUsdArrendamiento(row: VentaArrendamientoRow): {
+  inicio: number;
+  fin: number;
+} {
+  const n = normalizeVentaArrendamientoRow(row);
+  const total = totalUsdEfectivoArrendamiento(n);
+  if (!esPagoAnualFraccionadoArrendamiento(n)) {
+    return { inicio: total, fin: 0 };
+  }
+  const tipo = n.real_pago_inicio_tipo ?? n.pago_inicio_tipo;
+  const mIni = n.real_pago_inicio_monto ?? n.pago_inicio_monto;
+  const mFin = n.real_pago_fin_monto ?? n.pago_fin_monto;
+  if (tipo === "PORCENTAJE") {
+    return {
+      inicio: Math.round(((total * mIni) / 100) * 100) / 100,
+      fin: Math.round(((total * mFin) / 100) * 100) / 100,
+    };
+  }
+  return {
+    inicio: Math.round(Number(mIni) * 100) / 100,
+    fin: Math.round(Number(mFin) * 100) / 100,
+  };
+}
+
+/** Monto aún por cobrar (incluye cerrados con pago final pendiente). */
+export function importePendienteArrendamiento(row: VentaArrendamientoRow): number {
+  const n = normalizeVentaArrendamientoRow(row);
+  const { inicio, fin } = montosPagoUsdArrendamiento(n);
+  if (!esPagoAnualFraccionadoArrendamiento(n)) {
+    return n.venta_realizada ? 0 : totalUsdEfectivoArrendamiento(n);
+  }
+  if (n.pago_fin_cobrado) return 0;
+  if (n.pago_inicio_cobrado) return fin;
+  return Math.round((inicio + fin) * 100) / 100;
+}
+
+export function importeCobradoInicioArrendamiento(row: VentaArrendamientoRow): number {
+  const n = normalizeVentaArrendamientoRow(row);
+  if (!n.pago_inicio_cobrado) return 0;
+  return montosPagoUsdArrendamiento(n).inicio;
+}
+
+export function importeCobradoFinArrendamiento(row: VentaArrendamientoRow): number {
+  const n = normalizeVentaArrendamientoRow(row);
+  if (!n.pago_fin_cobrado) return 0;
+  if (!esPagoAnualFraccionadoArrendamiento(n)) return 0;
+  return montosPagoUsdArrendamiento(n).fin;
 }
 
 export function hectareasEfectivasArrendamiento(row: VentaArrendamientoRow): number {

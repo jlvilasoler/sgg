@@ -202,8 +202,8 @@ function buildFinancieroTiles(insights: HomeInsight[]): Tile[] {
       id: "ventas-anio",
       kicker: "Ventas del año",
       value: formatUsdSafe(ventasAnio),
-      trend: "Ventas cobradas",
-      hint: `${ejercicioLabel} · acumulado`,
+      trend: "Ya cobrado en el ejercicio",
+      hint: `${ejercicioLabel} · solo cobros efectivos (agric. 40/60, arrend. pago 1/2, ganado cerrado)`,
       tab: "resumen",
       accent: "ok",
     });

@@ -8,8 +8,9 @@ import {
   fetchStockGanaderoResumen,
   fetchVentasAgricultura,
   fetchVentasArrendamientos,
+  fetchVentasGanadoCerradas,
 } from "../api";
-import type { AuthUser, EstadoResultadosVentasDetalle, Nota } from "../types";
+import type { AuthUser, EstadoResultadosVentasDetalle, Nota, SimuladorVentaGanadoRow } from "../types";
 import type { TabId } from "../components/Header";
 import {
   canAccessHomeVentasEjercicio,
@@ -237,7 +238,8 @@ function buildGanadoStockInsight(
       crecimiento_pct?: number | null;
     };
   } | null,
-  simRows: Awaited<ReturnType<typeof fetchSimulacionesVentaGanado>> | null,
+  simRowsAbiertas: SimuladorVentaGanadoRow[] | null,
+  simRowsCerradas: SimuladorVentaGanadoRow[] | null,
   flags: {
     tieneStock: boolean;
     tieneSimulador: boolean;
@@ -247,11 +249,11 @@ function buildGanadoStockInsight(
 ): HomeInsight {
   const activos = resumen?.dispositivos ?? 0;
   const lotes = resumen?.lotes ?? 0;
-  const porVender = simRows
-    ? resumenGanadoPorVender(simRows)
+  const porVender = simRowsAbiertas
+    ? resumenGanadoPorVender(simRowsAbiertas)
     : { operaciones: 0, animales: 0, usd: 0 };
-  const vendido = simRows
-    ? resumenGanadoCobradoEjercicio(simRows, ejercicio.desde, ejercicio.hasta)
+  const vendido = simRowsCerradas
+    ? resumenGanadoCobradoEjercicio(simRowsCerradas, ejercicio.desde, ejercicio.hasta)
     : { operaciones: 0, animales: 0, usd: 0 };
 
   const comparacion = resumen?.comparacion_ejercicio_anterior;
@@ -318,7 +320,8 @@ function hintPorCobrar(data: HomePorCobrarData): string {
 function buildPorCobrarInsight(
   arrendRows: Awaited<ReturnType<typeof fetchVentasArrendamientos>> | null,
   agricRows: Awaited<ReturnType<typeof fetchVentasAgricultura>> | null,
-  simRows: Awaited<ReturnType<typeof fetchSimulacionesVentaGanado>> | null,
+  simRowsAbiertas: SimuladorVentaGanadoRow[] | null,
+  simRowsCerradas: SimuladorVentaGanadoRow[] | null,
   er: Awaited<ReturnType<typeof fetchEstadoResultados>> | null,
   flags: {
     tieneArrendamientos: boolean;
@@ -335,12 +338,12 @@ function buildPorCobrarInsight(
   const agric = agricRows
     ? resumenAgriculturaPorRecibir(agricRows)
     : { ventas: 0, usd: 0 };
-  const ganado = simRows
-    ? resumenGanadoPorVender(simRows)
+  const ganado = simRowsAbiertas
+    ? resumenGanadoPorVender(simRowsAbiertas)
     : { operaciones: 0, animales: 0, usd: 0 };
   const detalleFilas =
-    flags.tieneCobrado && (arrendRows || agricRows || simRows)
-      ? ventasDetalleCobradasEjercicio(arrendRows, agricRows, simRows, desde, hasta)
+    flags.tieneCobrado && (arrendRows || agricRows || simRowsCerradas)
+      ? ventasDetalleCobradasEjercicio(arrendRows, agricRows, simRowsCerradas, desde, hasta)
       : null;
   const detalle = mergeVentasDetalleEjercicio(er?.ventas_detalle, detalleFilas);
 
@@ -917,11 +920,19 @@ export function useHomeDashboard(user: AuthUser, apiOnline: boolean) {
             "ganado-stock",
             Promise.all([
               tieneStock ? fetchSafe(fetchStockGanaderoResumen()) : Promise.resolve(null),
-              tieneSimulador || tieneVendido
+              tieneSimulador
                 ? fetchSafe(fetchSimulacionesVentaGanado({ limit: 500 }))
                 : Promise.resolve(null),
-            ]).then(([resumen, simRows]) =>
-              buildGanadoStockInsight(resumen, simRows, {
+              tieneVendido
+                ? fetchSafe(
+                    fetchVentasGanadoCerradas({
+                      fecha_desde: desdeEjercicio,
+                      fecha_hasta: hastaEjercicio,
+                    }),
+                  )
+                : Promise.resolve(null),
+            ]).then(([resumen, simAbiertas, simCerradas]) =>
+              buildGanadoStockInsight(resumen, simAbiertas, simCerradas, {
                 tieneStock,
                 tieneSimulador,
                 tieneVendido,
@@ -947,6 +958,14 @@ export function useHomeDashboard(user: AuthUser, apiOnline: boolean) {
               tieneGanado
                 ? fetchSafe(fetchSimulacionesVentaGanado({ limit: 500 }))
                 : Promise.resolve(null),
+              tieneCobrado && tieneGanado
+                ? fetchSafe(
+                    fetchVentasGanadoCerradas({
+                      fecha_desde: desdeEjercicio,
+                      fecha_hasta: hastaEjercicio,
+                    }),
+                  )
+                : Promise.resolve(null),
               tieneCobrado
                 ? fetchSafe(
                     fetchEstadoResultados({
@@ -955,8 +974,8 @@ export function useHomeDashboard(user: AuthUser, apiOnline: boolean) {
                     })
                   )
                 : Promise.resolve(null),
-            ]).then(([arrendRows, agricRows, simRows, er]) =>
-              buildPorCobrarInsight(arrendRows, agricRows, simRows, er, {
+            ]).then(([arrendRows, agricRows, simAbiertas, simCerradas, er]) =>
+              buildPorCobrarInsight(arrendRows, agricRows, simAbiertas, simCerradas, er, {
                 tieneArrendamientos: tieneIngresos,
                 tieneAgricultura: tieneIngresos,
                 tieneGanado,
@@ -990,7 +1009,12 @@ export function useHomeDashboard(user: AuthUser, apiOnline: boolean) {
               tieneIngresos ? fetchSafe(fetchVentasArrendamientos()) : Promise.resolve(null),
               tieneIngresos ? fetchSafe(fetchVentasAgricultura()) : Promise.resolve(null),
               tieneGanado
-                ? fetchSafe(fetchSimulacionesVentaGanado({ limit: 500 }))
+                ? fetchSafe(
+                    fetchVentasGanadoCerradas({
+                      fecha_desde: desdeEjercicio,
+                      fecha_hasta: hastaEjercicio,
+                    }),
+                  )
                 : Promise.resolve(null),
               fetchSafe(
                 fetchPresupuesto({
@@ -999,12 +1023,12 @@ export function useHomeDashboard(user: AuthUser, apiOnline: boolean) {
                   ...presupuestoFiltroCuentaHome(user),
                 }),
               ),
-            ]).then(async ([er, arrendRows, agricRows, simRows, gastosMesRows]) => {
+            ]).then(async ([er, arrendRows, agricRows, simCerradas, gastosMesRows]) => {
               const gastosMes = gastosMesRows ? sumTotalUsdPresupuesto(gastosMesRows) : 0;
               const detalleFilas = ventasDetalleCobradasEjercicio(
                 arrendRows,
                 agricRows,
-                simRows,
+                simCerradas,
                 desdeEjercicio,
                 hastaEjercicio,
               );

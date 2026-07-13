@@ -53,7 +53,10 @@ import {
 import VentasArrendamientoTablaFila from "./VentasArrendamientoTablaFila";
 import {
   arrendamientoHasVentaReal,
+  fmtUsd,
   hectareasEfectivasArrendamiento,
+  importePendienteArrendamiento,
+  montosPagoUsdArrendamiento,
   normalizeVentaArrendamientoRow,
   sortHistorialArrendamiento,
   totalUsdEfectivoArrendamiento,
@@ -585,6 +588,46 @@ export default function VentasArrendamientos({
       await load();
     } catch (e) {
       onError(e instanceof Error ? e.message : "Error al quitar confirmación");
+    } finally {
+      setPatchingId(null);
+    }
+  };
+
+  const cobrarPagoInicio = async (row: VentaArrendamientoRow) => {
+    const monto = montosPagoUsdArrendamiento(row).inicio;
+    const ok = await confirmAction({
+      title: "Cobrar pago inicial",
+      message: `¿Registrar el cobro del pago inicial (${fmtUsd(monto)}) de ${formatOperacionArrendamiento(row.id)}?`,
+      confirmText: "Cobrar pago 1",
+    });
+    if (!ok) return;
+    setPatchingId(row.id);
+    try {
+      const res = await patchVentaArrendamiento(row.id, { pago_inicio_cobrado: true });
+      onSuccess?.(res.message || "Pago inicial cobrado");
+      await load();
+    } catch (e) {
+      onError(e instanceof Error ? e.message : "Error al registrar pago inicial");
+    } finally {
+      setPatchingId(null);
+    }
+  };
+
+  const cobrarPagoFin = async (row: VentaArrendamientoRow) => {
+    const monto = importePendienteArrendamiento(row);
+    const ok = await confirmAction({
+      title: "Cobrar pago final",
+      message: `¿Registrar el cobro del pago final (${fmtUsd(monto)}) de ${formatOperacionArrendamiento(row.id)}?`,
+      confirmText: "Cobrar pago 2",
+    });
+    if (!ok) return;
+    setPatchingId(row.id);
+    try {
+      const res = await patchVentaArrendamiento(row.id, { pago_fin_cobrado: true });
+      onSuccess?.(res.message || "Pago final cobrado");
+      await load();
+    } catch (e) {
+      onError(e instanceof Error ? e.message : "Error al registrar pago final");
     } finally {
       setPatchingId(null);
     }
@@ -1437,6 +1480,8 @@ export default function VentasArrendamientos({
                     onUnmarkReal={() => void quitarReal(r)}
                     onDelete={() => void borrar(r)}
                     onDestacar={() => void handleDestacar(r)}
+                    onCobrarPagoInicio={() => void cobrarPagoInicio(r)}
+                    onCobrarPagoFin={() => void cobrarPagoFin(r)}
                     onVerHistorial={() =>
                       onError("Historial de auditoría disponible próximamente para arrendamientos")
                     }

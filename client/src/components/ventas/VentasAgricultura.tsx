@@ -52,7 +52,9 @@ import {
 } from "./ventas-agricultura-cultivos";
 import VentasAgriculturaTablaFila from "./VentasAgriculturaTablaFila";
 import {
+  fmtUsd,
   importeEfectivoAgricultura,
+  importePendienteAgricultura,
   normalizeVentaAgriculturaRow,
   tonEfectivaAgricultura,
 } from "./ventas-agricultura-real-utils";
@@ -407,6 +409,26 @@ export default function VentasAgricultura({
       await load();
     } catch (e) {
       onError(e instanceof Error ? e.message : "Error al quitar venta real");
+    } finally {
+      setPatchingId(null);
+    }
+  };
+
+  const cobrarSaldoCuota2 = async (row: VentaAgriculturaRow) => {
+    const saldo = importePendienteAgricultura(row);
+    const ok = await confirmAction({
+      title: "Cobrar cuota 2",
+      message: `¿Registrar el cobro del 60% restante (${fmtUsd(saldo)}) de ${labelCultivoAgricultura(row.cultivo)}?`,
+      confirmText: "Cobrar cuota 2",
+    });
+    if (!ok) return;
+    setPatchingId(row.id);
+    try {
+      const res = await patchVentaAgricultura(row.id, { pago_saldo_cobrado: true });
+      onSuccess?.(res.message || "Cuota 2 cobrada");
+      await load();
+    } catch (e) {
+      onError(e instanceof Error ? e.message : "Error al registrar cuota 2");
     } finally {
       setPatchingId(null);
     }
@@ -1339,6 +1361,7 @@ export default function VentasAgricultura({
                     onCancelEditReal={() => setEditingRealId(null)}
                     onSaveReal={(payload) => void guardarReal(r, payload)}
                     onUnmarkReal={() => void quitarReal(r)}
+                    onCobrarSaldo={() => void cobrarSaldoCuota2(r)}
                     onDelete={() => void borrar(r)}
                     onDestacar={() => void handleDestacar(r)}
                     onVerHistorial={() =>
