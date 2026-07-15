@@ -850,7 +850,7 @@ export const AYUDA_ARTICULOS: AyudaArticulo[] = [
     id: "vencimientos-pagos-personalizados",
     label: "Personalizado",
     subtitle: "Préstamos y vencimientos propios",
-    icon: "vencimientos_impuestos",
+    icon: "presupuesto_automatizacion",
     grupo: "cuenta",
     pantallaRelacionada: "vencimientos_impuestos",
     intro:
