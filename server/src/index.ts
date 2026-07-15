@@ -93,6 +93,7 @@ import {
 } from "./operativa-tareas-db.js";
 import * as primariaRural from "./primaria-rural-calendarios-db.js";
 import * as vencImpPrefs from "./vencimientos-impuestos-prefs-db.js";
+import * as pagosPersonalizadosDb from "./pagos-personalizados-db.js";
 import * as notasDb from "./notas-db.js";
 import { recordUserActivity } from "./user-activity.js";
 import { clientIp } from "./auth-security.js";
@@ -140,7 +141,8 @@ let lastDbInitError: string | null = null;
 let dbInitOk = false;
 let dbInitPromise: Promise<void> | null = null;
 
-const DB_INIT_TRANSIENT = /ECONNRESET|ECONNREFUSED|ETIMEDOUT|Connection terminated|socket hang up|Client has encountered a connection error/i;
+const DB_INIT_TRANSIENT =
+  /ECONNRESET|ECONNREFUSED|ETIMEDOUT|Connection terminated|socket hang up|Client has encountered a connection error|Cannot use a pool after calling end/i;
 
 async function runDbInitAttempt(): Promise<void> {
   await db.initDb();
@@ -195,6 +197,22 @@ function beginDbInit(): Promise<void> {
 }
 
 async function retryDbInitFromScratch(): Promise<boolean> {
+  // Si hay un init en curso sin error final, esperarlo (no cerrar el pool debajo).
+  if (dbInitPromise && !lastDbInitError) {
+    try {
+      await dbInitPromise;
+      return dbInitOk;
+    } catch {
+      /* reinicio limpio abajo */
+    }
+  } else if (dbInitPromise && lastDbInitError) {
+    try {
+      await dbInitPromise;
+    } catch {
+      /* promesa previa rechazada */
+    }
+  }
+
   dbInitPromise = null;
   dbInitOk = false;
   lastDbInitError = null;
@@ -1151,6 +1169,134 @@ app.put("/api/vencimientos-impuestos/preferencias", async (req, res) => {
       error: e instanceof Error ? e.message : "Preferencias inválidas",
     });
   }
+});
+
+app.get("/api/vencimientos-impuestos/pagos-personalizados", async (req, res) => {
+  if (!req.user) {
+    res.status(401).json({ ok: false, error: "No autenticado" });
+    return;
+  }
+  const cuentaId = await cuentaIdForUser(req.user);
+  if (cuentaId == null) {
+    res.json({ ok: true, data: [] });
+    return;
+  }
+  const rows = await pagosPersonalizadosDb.listPagosPersonalizados(db.getDb(), cuentaId);
+  res.json({ ok: true, data: rows });
+});
+
+app.post("/api/vencimientos-impuestos/pagos-personalizados", async (req, res) => {
+  if (!req.user) {
+    res.status(401).json({ ok: false, error: "No autenticado" });
+    return;
+  }
+  const cuentaId = await cuentaIdParaInsert(req.user);
+  if (cuentaId == null) {
+    res.status(400).json({ ok: false, error: "No se pudo determinar la cuenta." });
+    return;
+  }
+  try {
+    const created = await pagosPersonalizadosDb.createPagoPersonalizado(
+      db.getDb(),
+      cuentaId,
+      req.user.id,
+      req.body as pagosPersonalizadosDb.PagoPersonalizadoInput,
+    );
+    res.status(201).json({ ok: true, data: created });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Datos inválidos",
+    });
+  }
+});
+
+app.put("/api/vencimientos-impuestos/pagos-personalizados/:id", async (req, res) => {
+  if (!req.user) {
+    res.status(401).json({ ok: false, error: "No autenticado" });
+    return;
+  }
+  const id = Number(req.params.id);
+  if (!Number.isFinite(id) || id <= 0) {
+    res.status(400).json({ ok: false, error: "ID inválido" });
+    return;
+  }
+  const cuentaId = await cuentaIdParaInsert(req.user);
+  if (cuentaId == null) {
+    res.status(400).json({ ok: false, error: "No se pudo determinar la cuenta." });
+    return;
+  }
+  try {
+    const updated = await pagosPersonalizadosDb.updatePagoPersonalizado(
+      db.getDb(),
+      cuentaId,
+      id,
+      req.body as pagosPersonalizadosDb.PagoPersonalizadoInput,
+    );
+    res.json({ ok: true, data: updated });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Datos inválidos";
+    res.status(msg.includes("no encontrado") ? 404 : 400).json({ ok: false, error: msg });
+  }
+});
+
+app.patch("/api/vencimientos-impuestos/pagos-personalizados/:id/cuotas/:nro", async (req, res) => {
+  if (!req.user) {
+    res.status(401).json({ ok: false, error: "No autenticado" });
+    return;
+  }
+  const id = Number(req.params.id);
+  const nro = Number(req.params.nro);
+  if (!Number.isFinite(id) || id <= 0 || !Number.isFinite(nro) || nro <= 0) {
+    res.status(400).json({ ok: false, error: "Parámetros inválidos" });
+    return;
+  }
+  const cuentaId = await cuentaIdParaInsert(req.user);
+  if (cuentaId == null) {
+    res.status(400).json({ ok: false, error: "No se pudo determinar la cuenta." });
+    return;
+  }
+  const body = (req.body ?? {}) as { pagado?: boolean };
+  if (typeof body.pagado !== "boolean") {
+    res.status(400).json({ ok: false, error: "Indicá pagado true/false" });
+    return;
+  }
+  try {
+    const updated = await pagosPersonalizadosDb.setCuotaPagada(
+      db.getDb(),
+      cuentaId,
+      id,
+      nro,
+      body.pagado,
+    );
+    res.json({ ok: true, data: updated });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "No se pudo actualizar";
+    res.status(msg.includes("no encontrad") ? 404 : 400).json({ ok: false, error: msg });
+  }
+});
+
+app.delete("/api/vencimientos-impuestos/pagos-personalizados/:id", async (req, res) => {
+  if (!req.user) {
+    res.status(401).json({ ok: false, error: "No autenticado" });
+    return;
+  }
+  const id = Number(req.params.id);
+  if (!Number.isFinite(id) || id <= 0) {
+    res.status(400).json({ ok: false, error: "ID inválido" });
+    return;
+  }
+  const cuentaId = await cuentaIdParaInsert(req.user);
+  if (cuentaId == null) {
+    res.status(400).json({ ok: false, error: "No se pudo determinar la cuenta." });
+    return;
+  }
+  const ok = await pagosPersonalizadosDb.deletePagoPersonalizado(db.getDb(), cuentaId, id);
+  if (!ok) {
+    res.status(404).json({ ok: false, error: "Pago personalizado no encontrado" });
+    return;
+  }
+  res.json({ ok: true });
 });
 
 function notaCompartidaConEquipo(nota: {

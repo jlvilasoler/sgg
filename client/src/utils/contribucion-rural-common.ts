@@ -26,7 +26,12 @@ export function parseFechaLocal(iso: string): Date {
 }
 
 export function formatearFechaContribucionRural(iso: string): string {
-  return parseFechaLocal(iso).toLocaleDateString("es-UY", {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(iso ?? "").trim().slice(0, 10))) {
+    return "Sin fecha";
+  }
+  const d = parseFechaLocal(iso);
+  if (Number.isNaN(d.getTime())) return "Sin fecha";
+  return d.toLocaleDateString("es-UY", {
     day: "numeric",
     month: "long",
     year: "numeric",
@@ -62,6 +67,7 @@ export function diasHastaVencimientoCuota(fechaIso: string, hoy = new Date()): n
 }
 
 export function diasRestantesLabel(dias: number): string {
+  if (!Number.isFinite(dias)) return "Sin fecha";
   if (dias <= 0) return "Vence hoy";
   if (dias === 1) return "Mañana";
   return `En ${dias} días`;

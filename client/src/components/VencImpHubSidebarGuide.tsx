@@ -28,6 +28,8 @@ export interface VencImpHubSidebarGuideProps {
   patenteListo: boolean;
   bpsListo: boolean;
   primariaListo: boolean;
+  personalizadoListo?: boolean;
+  personalizadosCount?: number;
   configsCuenta: ContribucionRuralJurisdiccionConfig[];
   patenteAnio?: number;
   bpsAnio?: number;
@@ -43,6 +45,8 @@ export default function VencImpHubSidebarGuide({
   patenteListo,
   bpsListo,
   primariaListo,
+  personalizadoListo = false,
+  personalizadosCount = 0,
   configsCuenta,
   patenteAnio,
   bpsAnio,
@@ -106,6 +110,42 @@ export default function VencImpHubSidebarGuide({
                   Primaria (DGI)
                 </span>
               )}
+              {personalizadoListo && personalizadosCount > 0 && (
+                <span className="venc-imp-hub-chip">
+                  <img
+                    src="/icon-venc-pago-personalizado.svg"
+                    alt=""
+                    className="venc-imp-hub-chip-escudo"
+                    loading="lazy"
+                  />
+                  Personalizado ({personalizadosCount})
+                </span>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+
+      {tipoImpuesto === "personalizado" && (
+        <>
+          <div className="venc-imp-hub-aside-block">
+            <h3 className="venc-imp-hub-aside-title">Personalizado</h3>
+            <p className="venc-imp-hub-aside-note">
+              Préstamos y otros pagos con fechas definidas por la cuenta (entidad, tasa, cuotas).
+            </p>
+          </div>
+          <div className="venc-imp-hub-aside-block">
+            <h4 className="venc-imp-hub-aside-subtitle">Registros</h4>
+            <div className="venc-imp-hub-aside-chips">
+              <span className="venc-imp-hub-chip">
+                <img
+                  src="/icon-venc-pago-personalizado.svg"
+                  alt=""
+                  className="venc-imp-hub-chip-escudo"
+                  loading="lazy"
+                />
+                {personalizadosCount} {personalizadosCount === 1 ? "pago" : "pagos"}
+              </span>
             </div>
           </div>
         </>

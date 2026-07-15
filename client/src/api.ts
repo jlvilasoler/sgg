@@ -4745,6 +4745,62 @@ export async function saveVencimientosImpuestosPreferencias(
   return json.data;
 }
 
+export async function fetchPagosPersonalizados(): Promise<
+  import("./types/pagos-personalizados").PagoPersonalizadoRow[]
+> {
+  const json = await request<{
+    ok: true;
+    data: import("./types/pagos-personalizados").PagoPersonalizadoRow[];
+  }>("/vencimientos-impuestos/pagos-personalizados");
+  return json.data;
+}
+
+export async function createPagoPersonalizado(
+  input: import("./types/pagos-personalizados").PagoPersonalizadoInput,
+): Promise<import("./types/pagos-personalizados").PagoPersonalizadoRow> {
+  const json = await request<{
+    ok: true;
+    data: import("./types/pagos-personalizados").PagoPersonalizadoRow;
+  }>("/vencimientos-impuestos/pagos-personalizados", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+  return json.data;
+}
+
+export async function updatePagoPersonalizado(
+  id: number,
+  input: import("./types/pagos-personalizados").PagoPersonalizadoInput,
+): Promise<import("./types/pagos-personalizados").PagoPersonalizadoRow> {
+  const json = await request<{
+    ok: true;
+    data: import("./types/pagos-personalizados").PagoPersonalizadoRow;
+  }>(`/vencimientos-impuestos/pagos-personalizados/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(input),
+  });
+  return json.data;
+}
+
+export async function deletePagoPersonalizado(id: number): Promise<void> {
+  await request(`/vencimientos-impuestos/pagos-personalizados/${id}`, { method: "DELETE" });
+}
+
+export async function patchPagoPersonalizadoCuota(
+  id: number,
+  nroCuota: number,
+  pagado: boolean,
+): Promise<import("./types/pagos-personalizados").PagoPersonalizadoRow> {
+  const json = await request<{
+    ok: true;
+    data: import("./types/pagos-personalizados").PagoPersonalizadoRow;
+  }>(`/vencimientos-impuestos/pagos-personalizados/${id}/cuotas/${nroCuota}`, {
+    method: "PATCH",
+    body: JSON.stringify({ pagado }),
+  });
+  return json.data;
+}
+
 export async function fetchNotas(options?: { limit?: number }): Promise<Nota[]> {
   const q =
     options?.limit != null && options.limit > 0

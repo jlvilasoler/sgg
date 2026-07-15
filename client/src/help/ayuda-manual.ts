@@ -846,6 +846,31 @@ export const AYUDA_ARTICULOS: AyudaArticulo[] = [
       },
     ],
   },
+  {
+    id: "vencimientos-pagos-personalizados",
+    label: "Personalizado",
+    subtitle: "Préstamos y vencimientos propios",
+    icon: "vencimientos_impuestos",
+    grupo: "cuenta",
+    pantallaRelacionada: "vencimientos_impuestos",
+    intro:
+      "En Vencimientos → Personalizado podés cargar préstamos u otros pagos de la cuenta con entidad, tipo, tasa, cuotas y fechas. Aparecen en el semáforo y en la vista Total junto a los impuestos.",
+    bloques: [
+      {
+        titulo: "Crear un pago",
+        pasos: [
+          "Vencimientos → Personalizado.",
+          "Nuevo pago: entidad (ej. Banco República), tipo, tasa opcional y moneda.",
+          "Indicá cantidad de cuotas y fecha de la primera, luego Generar cuotas mensuales.",
+          "Ajustá fechas o montos si hace falta y guardá.",
+        ],
+        consejos: [
+          "Marcá cada cuota como pagada cuando se abone; deja de aparecer en próximos vencimientos.",
+          "Desde Total podés abrir el pago haciendo clic en la tarjeta correspondiente.",
+        ],
+      },
+    ],
+  },
 ];
 
 export function findAyudaArticulo(id: string): AyudaArticulo | undefined {

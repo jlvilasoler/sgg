@@ -656,6 +656,7 @@ export default function App() {
                 apiOnline={apiOnline}
                 currentUser={user}
                 onError={(m) => notify(m, false)}
+                onSuccess={(m) => notify(m, true)}
               />
             )}
             {screen === "configuracion" && (

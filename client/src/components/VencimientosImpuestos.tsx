@@ -3,9 +3,9 @@ import { Settings } from "lucide-react";
 import VencimientosImpuestosOnboarding from "./VencimientosImpuestosOnboarding";
 import VencImpProximosCarousel from "./VencImpProximosCarousel";
 import VencImpInfoTip from "./VencImpInfoTip";
-import VencImpHubSidebarGuide from "./VencImpHubSidebarGuide";
 import { MenuAppIcon } from "./icons/MenuAppIcons";
 import { SgHubKpi, SgMiniBars } from "./stock/SgHubUi";
+import { buildVencImpAsideInfoText } from "../utils/venc-imp-aside-info";
 
 const VencImpCalendarioModal = lazy(() => import("./VencImpCalendarioModal"));
 import type {
@@ -20,7 +20,12 @@ import type { BpsCajaRuralCalendariosStore } from "../types/bps-caja-rural";
 import type { PrimariaRuralCalendariosStore, RegimenPrimariaRuralKey } from "../types/primaria-rural";
 import { REGIMEN_PRIMARIA_RURAL_LABEL } from "../types/primaria-rural";
 import type { AuthUser } from "../types";
-import { saveVencimientosImpuestosPreferencias } from "../api";
+import { saveVencimientosImpuestosPreferencias, fetchPagosPersonalizados } from "../api";
+import type { PagoPersonalizadoRow } from "../types/pagos-personalizados";
+import {
+  cuotasFuturasPagosPersonalizados,
+} from "../utils/pagos-personalizados-view";
+import VencImpPagosPersonalizadosPanel from "./VencImpPagosPersonalizadosPanel";
 import {
   getVencimientosImpuestosCache,
   invalidateVencimientosImpuestosCache,
@@ -75,6 +80,7 @@ interface Props {
   apiOnline: boolean;
   currentUser: AuthUser | null;
   onError: (msg: string) => void;
+  onSuccess?: (msg: string) => void;
 }
 
 type TipoImpuesto = TipoImpuestoVenc;
@@ -295,14 +301,20 @@ function VencImpProximosSection({
 }
 
 function mensajeProximosVacios(tipo: TipoImpuesto): string {
-  if (tipo === "total") return "No hay vencimientos pendientes en los impuestos configurados.";
+  if (tipo === "total") return "No hay vencimientos pendientes en los impuestos y pagos configurados.";
   if (tipo === "patente") return "No hay cuotas pendientes de patente SUCIVE.";
   if (tipo === "bps") return "No hay cuatrimestres pendientes de BPS Caja rural.";
   if (tipo === "primaria") return "No hay cuotas pendientes de Impuesto Primaria rural.";
+  if (tipo === "personalizado") return "No hay cuotas pendientes de pagos personalizados.";
   return "No hay cuotas pendientes en los departamentos configurados.";
 }
 
-export default function VencimientosImpuestos({ apiOnline, currentUser, onError }: Props) {
+export default function VencimientosImpuestos({
+  apiOnline,
+  currentUser,
+  onError,
+  onSuccess,
+}: Props) {
   const [store, setStore] = useState<ContribucionRuralCalendariosStore | null>(
     () => INITIAL_BOOTSTRAP?.rural ?? null,
   );
@@ -326,6 +338,9 @@ export default function VencimientosImpuestos({ apiOnline, currentUser, onError 
   const [onboardingPasoInicial, setOnboardingPasoInicial] = useState<OnboardingPaso | undefined>(
     undefined,
   );
+  const [pagosPersonalizados, setPagosPersonalizados] = useState<PagoPersonalizadoRow[]>([]);
+  const [loadingPagos, setLoadingPagos] = useState(false);
+  const [highlightPagoId, setHighlightPagoId] = useState<number | null>(null);
 
   useEffect(() => {
     setCalendarioModal(null);
@@ -398,6 +413,27 @@ export default function VencimientosImpuestos({ apiOnline, currentUser, onError 
     }
     void load();
   }, [load, applyPreferenciasCuenta]);
+
+  const loadPagosPersonalizados = useCallback(async () => {
+    if (!apiOnline) {
+      setPagosPersonalizados([]);
+      setLoadingPagos(false);
+      return;
+    }
+    setLoadingPagos(true);
+    try {
+      const rows = await fetchPagosPersonalizados();
+      setPagosPersonalizados(rows);
+    } catch (e) {
+      onError(e instanceof Error ? e.message : "No se pudieron cargar los pagos personalizados.");
+    } finally {
+      setLoadingPagos(false);
+    }
+  }, [apiOnline, onError]);
+
+  useEffect(() => {
+    void loadPagosPersonalizados();
+  }, [loadPagosPersonalizados]);
 
   const modalidadRural: ModalidadPagoVencImp =
     prefs?.onboarding_completado && prefs.modalidad_pago ? prefs.modalidad_pago : "cuotas";
@@ -729,33 +765,57 @@ export default function VencimientosImpuestos({ apiOnline, currentUser, onError 
     prefs?.seguir_primaria_rural !== false;
 
   const tiposImpuestoHabilitados = [
-    ruralListo ? "rural" as const : null,
-    patenteListo ? "patente" as const : null,
-    bpsListo ? "bps" as const : null,
-    primariaListo ? "primaria" as const : null,
+    ruralListo ? ("rural" as const) : null,
+    patenteListo ? ("patente" as const) : null,
+    bpsListo ? ("bps" as const) : null,
+    primariaListo ? ("primaria" as const) : null,
   ].filter(Boolean);
+
+  const personalizadoListo = !loading && cuentaConfigurada;
 
   const mostrarBarraFiltros =
     cuentaConfigurada &&
     !setupPendiente &&
     !configPendienteLector &&
-    (ruralListo || patenteListo || bpsListo || primariaListo);
+    (ruralListo || patenteListo || bpsListo || primariaListo || personalizadoListo);
 
-  const mostrarSelectorImpuesto = mostrarBarraFiltros && tiposImpuestoHabilitados.length >= 2;
+  const mostrarSelectorImpuesto =
+    mostrarBarraFiltros &&
+    (tiposImpuestoHabilitados.length >= 2 ||
+      (tiposImpuestoHabilitados.length >= 1 && personalizadoListo) ||
+      personalizadoListo);
 
   const opcionesImpuesto = useMemo(() => {
     const out: { id: TipoImpuesto; label: string }[] = [];
-    if (tiposImpuestoHabilitados.length >= 2) {
+    if (
+      tiposImpuestoHabilitados.length >= 2 ||
+      (tiposImpuestoHabilitados.length >= 1 && personalizadoListo)
+    ) {
       out.push({ id: "total", label: "Total" });
     }
     if (ruralListo) out.push({ id: "rural", label: "Contribución rural" });
     if (patenteListo) out.push({ id: "patente", label: "Patente SUCIVE" });
     if (bpsListo) out.push({ id: "bps", label: "BPS Caja rural" });
     if (primariaListo) out.push({ id: "primaria", label: "Primaria rural (DGI)" });
+    if (personalizadoListo) out.push({ id: "personalizado", label: "Personalizado" });
     return out;
-  }, [ruralListo, patenteListo, bpsListo, primariaListo, tiposImpuestoHabilitados.length]);
+  }, [
+    ruralListo,
+    patenteListo,
+    bpsListo,
+    primariaListo,
+    personalizadoListo,
+    tiposImpuestoHabilitados.length,
+  ]);
 
-  const totalListo = tiposImpuestoHabilitados.length >= 2;
+  const totalListo =
+    tiposImpuestoHabilitados.length >= 2 ||
+    (tiposImpuestoHabilitados.length >= 1 && personalizadoListo);
+
+  const cuotasPersonalizadasFuturas = useMemo(
+    () => cuotasFuturasPagosPersonalizados(pagosPersonalizados),
+    [pagosPersonalizados],
+  );
 
   const cuotasConsolidadas = useMemo(
     () =>
@@ -766,6 +826,7 @@ export default function VencimientosImpuestos({ apiOnline, currentUser, onError 
         modalidadPatente,
         bps: bpsListo ? cuotasBpsFuturas : [],
         primaria: primariaListo ? cuotasPrimariaFuturas : [],
+        personalizados: cuotasPersonalizadasFuturas,
       }),
     [
       ruralListo,
@@ -778,6 +839,7 @@ export default function VencimientosImpuestos({ apiOnline, currentUser, onError 
       cuotasBpsFuturas,
       primariaListo,
       cuotasPrimariaFuturas,
+      cuotasPersonalizadasFuturas,
     ],
   );
 
@@ -794,6 +856,19 @@ export default function VencimientosImpuestos({ apiOnline, currentUser, onError 
     return { rojo, amarillo, verde, total: cuotasConsolidadas.length };
   }, [cuotasConsolidadas]);
 
+  const statsPersonalizadoSemaforo = useMemo(() => {
+    let rojo = 0;
+    let amarillo = 0;
+    let verde = 0;
+    for (const item of cuotasPersonalizadasFuturas) {
+      const { nivel } = semaforoVencimientoCuota(item.fecha);
+      if (nivel === "rojo") rojo += 1;
+      else if (nivel === "amarillo") amarillo += 1;
+      else verde += 1;
+    }
+    return { rojo, amarillo, verde, total: cuotasPersonalizadasFuturas.length };
+  }, [cuotasPersonalizadasFuturas]);
+
   const heroStats: SemaforoStats | null = useMemo(() => {
     if (!cuentaConfigurada || setupPendiente) return null;
     if (tipoImpuesto === "total" && totalListo) return statsTotalSemaforo;
@@ -801,6 +876,7 @@ export default function VencimientosImpuestos({ apiOnline, currentUser, onError 
     if (tipoImpuesto === "bps" && bpsListo) return statsBpsSemaforo;
     if (tipoImpuesto === "primaria" && primariaListo) return statsPrimariaSemaforo;
     if (tipoImpuesto === "rural" && ruralListo) return statsSemaforo;
+    if (tipoImpuesto === "personalizado" && personalizadoListo) return statsPersonalizadoSemaforo;
     return null;
   }, [
     cuentaConfigurada,
@@ -816,10 +892,17 @@ export default function VencimientosImpuestos({ apiOnline, currentUser, onError 
     statsSemaforo,
     totalListo,
     statsTotalSemaforo,
+    personalizadoListo,
+    statsPersonalizadoSemaforo,
   ]);
 
   const abrirCalendarioDesdeTotal = useCallback(
     (item: VencImpCuotaConsolidada) => {
+      if (item.tipo === "personalizado") {
+        setHighlightPagoId(item.pagoPersonalizadoId ?? null);
+        setTipoImpuesto("personalizado");
+        return;
+      }
       if (item.tipo === "rural" && item.configId) {
         abrirCalendarioRural(item.configId);
         return;
@@ -883,7 +966,7 @@ export default function VencimientosImpuestos({ apiOnline, currentUser, onError 
   );
 
   const impuestoActivoLabel =
-    opcionesImpuesto.find((op) => op.id === tipoImpuesto)?.label ?? "Vencimientos Impuestos";
+    opcionesImpuesto.find((op) => op.id === tipoImpuesto)?.label ?? "Vencimientos";
 
   const totalPanel =
     tipoImpuesto === "total" && totalListo ? (
@@ -913,7 +996,7 @@ export default function VencimientosImpuestos({ apiOnline, currentUser, onError 
                 ariaLabel="Próximos vencimientos consolidados"
                 kicker="Vista consolidada"
                 title="Próximos vencimientos"
-                subtitle="Contribución rural, patente, BPS y Primaria · del más cercano al más lejano"
+                subtitle="Contribución rural, patente, BPS, Primaria y pagos personalizados · del más cercano al más lejano"
                 count={cuotasConsolidadas.length}
                 itemCount={cuotasConsolidadas.length}
                 carouselAriaLabel="Próximos vencimientos de todos los impuestos"
@@ -1117,6 +1200,40 @@ export default function VencimientosImpuestos({ apiOnline, currentUser, onError 
         }
       : null;
 
+  const asideInfoText = useMemo(() => {
+    if (!mostrarBarraFiltros) return "";
+    return buildVencImpAsideInfoText({
+      tipoImpuesto,
+      ruralListo: !!ruralListo,
+      patenteListo: !!patenteListo,
+      bpsListo: !!bpsListo,
+      primariaListo: !!primariaListo,
+      personalizadoListo: !!personalizadoListo,
+      personalizadosCount: pagosPersonalizados.length,
+      configsCuenta,
+      patenteAnio: patenteStore?.calendario.anio,
+      bpsAnio: bpsStore?.calendario.anio,
+      primariaAnio: primariaStore?.calendario.anio,
+      regimenPrimaria,
+      djPrimaria,
+    });
+  }, [
+    mostrarBarraFiltros,
+    tipoImpuesto,
+    ruralListo,
+    patenteListo,
+    bpsListo,
+    primariaListo,
+    personalizadoListo,
+    pagosPersonalizados.length,
+    configsCuenta,
+    patenteStore?.calendario.anio,
+    bpsStore?.calendario.anio,
+    primariaStore?.calendario.anio,
+    regimenPrimaria,
+    djPrimaria,
+  ]);
+
   const primariaPanel =
     tipoImpuesto === "primaria" && primariaListo && primariaStore && primariaConfig ? (
       <div className="venc-imp-hub-panel sg-hub-panel">
@@ -1319,11 +1436,21 @@ export default function VencimientosImpuestos({ apiOnline, currentUser, onError 
                 <p className="sg-hub-aside-kicker">SAG</p>
                 <p className="sg-hub-aside-title">Vencimientos</p>
               </div>
+              {asideInfoText ? (
+                <span className="sg-hub-aside-brand-extra venc-imp-aside-info-extra">
+                  <VencImpInfoTip
+                    className="venc-imp-info-tip--aside"
+                    label="Información de vencimientos"
+                  >
+                    {asideInfoText}
+                  </VencImpInfoTip>
+                </span>
+              ) : null}
             </div>
 
             {opcionesImpuesto.length > 0 && (
-              <nav className="sg-hub-aside-nav" aria-label="Impuestos configurados">
-                <p className="sg-hub-aside-nav-label">Impuestos</p>
+              <nav className="sg-hub-aside-nav" aria-label="Vencimientos configurados">
+                <p className="sg-hub-aside-nav-label">Vencimientos</p>
                 {opcionesImpuesto.map((op) => (
                   <button
                     key={op.id}
@@ -1341,31 +1468,6 @@ export default function VencimientosImpuestos({ apiOnline, currentUser, onError 
                   </button>
                 ))}
               </nav>
-            )}
-
-            {mostrarBarraFiltros && (
-              <VencImpHubSidebarGuide
-                tipoImpuesto={tipoImpuesto}
-                ruralListo={!!ruralListo}
-                patenteListo={!!patenteListo}
-                bpsListo={!!bpsListo}
-                primariaListo={!!primariaListo}
-                configsCuenta={configsCuenta}
-                patenteAnio={patenteStore?.calendario.anio}
-                bpsAnio={bpsStore?.calendario.anio}
-                primariaAnio={primariaStore?.calendario.anio}
-                regimenPrimaria={regimenPrimaria}
-                djPrimaria={djPrimaria}
-                primariaFuenteUrls={
-                  primariaStore
-                    ? {
-                        vencimientos: primariaStore.calendario.fuenteUrl,
-                        padrones: primariaStore.calendario.fuenteUrlPadrones,
-                        dj: primariaStore.calendario.fuenteUrlDj,
-                      }
-                    : undefined
-                }
-              />
             )}
 
             {puedeConfigurar && (
@@ -1388,13 +1490,19 @@ export default function VencimientosImpuestos({ apiOnline, currentUser, onError 
               <div>
                 <h1 className="sg-hub-main-title">{impuestoActivoLabel}</h1>
                 <p className="sg-hub-main-sub">
-                  Contribución rural, patente SUCIVE, BPS Caja rural e Impuesto Primaria (DGI).
+                  {tipoImpuesto === "personalizado"
+                    ? "Préstamos y otros vencimientos definidos por la cuenta."
+                    : "Contribución rural, patente SUCIVE, BPS Caja rural, Impuesto Primaria (DGI) y pagos personalizados."}
                 </p>
               </div>
             </header>
 
             {mostrarBarraFiltros && (
-              <VencImpStatsStrip loading={loading} stats={heroStats} variant="hub" />
+              <VencImpStatsStrip
+                loading={loading || (tipoImpuesto === "personalizado" && loadingPagos)}
+                stats={heroStats}
+                variant="hub"
+              />
             )}
 
             {loading && (
@@ -1430,6 +1538,18 @@ export default function VencimientosImpuestos({ apiOnline, currentUser, onError 
                 {bpsPanel}
                 {primariaPanel}
                 {ruralPanel}
+                {tipoImpuesto === "personalizado" && personalizadoListo ? (
+                  <VencImpPagosPersonalizadosPanel
+                    apiOnline={apiOnline}
+                    puedeEditar={puedeConfigurar}
+                    pagos={pagosPersonalizados}
+                    loading={loadingPagos}
+                    onReload={loadPagosPersonalizados}
+                    onError={onError}
+                    onSuccess={onSuccess}
+                    highlightPagoId={highlightPagoId}
+                  />
+                ) : null}
               </div>
             )}
 
@@ -1437,7 +1557,9 @@ export default function VencimientosImpuestos({ apiOnline, currentUser, onError 
               cuentaConfigurada &&
               departamentosCuenta.length === 0 &&
               patenteListo &&
-              tipoImpuesto !== "patente" && (
+              tipoImpuesto !== "patente" &&
+              tipoImpuesto !== "personalizado" &&
+              tipoImpuesto !== "total" && (
                 <section
                   className="venc-imp-user-banner venc-imp-user-banner--patente venc-imp-hub-panel sg-hub-panel"
                   aria-label="Configuración de la cuenta"

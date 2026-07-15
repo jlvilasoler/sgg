@@ -3,7 +3,7 @@ import type { UserVencimientosImpuestosPrefs } from "../types/contribucion-rural
 import { parseFechaLocal } from "./contribucion-rural-common";
 import { escudoDepartamentoSrc } from "./escudos-departamentos";
 
-export type VencImpTipoCuota = "rural" | "patente" | "bps" | "primaria";
+export type VencImpTipoCuota = "rural" | "patente" | "bps" | "primaria" | "personalizado";
 
 export type TipoImpuestoVenc = "total" | VencImpTipoCuota;
 
@@ -19,6 +19,7 @@ export interface VencImpCuotaConsolidada {
   escudoSrc: string;
   escudoClassName?: string;
   configId?: ContribucionRuralJurisdiccionId;
+  pagoPersonalizadoId?: number;
 }
 
 interface CuotaRuralItem {
@@ -76,6 +77,18 @@ export function consolidarCuotasVencimientos(input: {
   modalidadPatente: "contado" | "cuotas";
   bps: CuotaNacionalItem[];
   primaria: CuotaNacionalItem[];
+  personalizados?: Array<{
+    pagoId: number;
+    entidad: string;
+    tipoLabel: string;
+    cuota: number;
+    totalCuotas: number;
+    fecha: string;
+    fechaLabel: string;
+    diasRestantes: number;
+    montoLabel: string | null;
+    descripcion?: string | null;
+  }>;
 }): VencImpCuotaConsolidada[] {
   const out: VencImpCuotaConsolidada[] = [];
 
@@ -142,6 +155,24 @@ export function consolidarCuotasVencimientos(input: {
       cuotaLabel: `Cuota ${item.cuota}ª · ${item.planLabel}`,
       escudoSrc: "/logo-dgi-compact.svg",
       escudoClassName: "venc-imp-proximo-escudo--dgi",
+    });
+  }
+
+  for (const item of input.personalizados ?? []) {
+    const montoBit = item.montoLabel ? ` · ${item.montoLabel}` : "";
+    const descBit = item.descripcion ? ` · ${item.descripcion}` : "";
+    out.push({
+      key: `personalizado-${item.pagoId}-${item.cuota}-${item.fecha}`,
+      tipo: "personalizado",
+      fecha: item.fecha,
+      fechaLabel: item.fechaLabel,
+      diasRestantes: item.diasRestantes,
+      titulo: item.entidad,
+      impuestoLabel: "Personalizado",
+      cuotaLabel: `Cuota ${item.cuota}ª de ${item.totalCuotas} · ${item.tipoLabel}${montoBit}${descBit}`,
+      escudoSrc: "/icon-venc-pago-personalizado.svg",
+      escudoClassName: "venc-imp-proximo-escudo--personalizado",
+      pagoPersonalizadoId: item.pagoId,
     });
   }
 

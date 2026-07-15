@@ -109,9 +109,16 @@ function normalizeDatabaseUrl(url: string): string {
 }
 
 export async function closePool(): Promise<void> {
-  if (pool) {
-    await pool.end();
-    pool = null;
+  const closing = pool;
+  // Liberar la referencia YA: así getPool() crea uno nuevo y nadie reutiliza
+  // el pool en proceso de cierre (tsx watch / Reintentar mid-init).
+  pool = null;
+  if (closing) {
+    try {
+      await closing.end();
+    } catch {
+      /* ignore */
+    }
   }
 }
 
@@ -201,21 +208,26 @@ export type RunResult = { changes: number; lastInsertRowid: number };
 
 export class PgStatement {
   constructor(
-    private readonly client: PgPool | PgPoolClient,
-    private readonly sql: string
+    /** Cliente de transacción; si es null se usa siempre el pool vigente. */
+    private readonly boundClient: PgPool | PgPoolClient | null,
+    private readonly sql: string,
   ) {}
+
+  private client(): PgPool | PgPoolClient {
+    return this.boundClient ?? getPool();
+  }
 
   async get<T = Record<string, unknown>>(
     ...params: unknown[]
   ): Promise<T | undefined> {
     const { text, values } = toPgParams(adaptSql(this.sql), normalizeParams(...params));
-    const r = await this.client.query(text, values);
+    const r = await this.client().query(text, values);
     return r.rows[0] as T | undefined;
   }
 
   async all<T = Record<string, unknown>>(...params: unknown[]): Promise<T[]> {
     const { text, values } = toPgParams(adaptSql(this.sql), normalizeParams(...params));
-    const r = await this.client.query(text, values);
+    const r = await this.client().query(text, values);
     return r.rows as T[];
   }
 
@@ -233,7 +245,7 @@ export class PgStatement {
       sql = sql.replace(/;\s*$/, "") + " RETURNING id";
     }
     const { text, values } = toPgParams(sql, normalizeParams(...params));
-    const r = await this.client.query(text, values);
+    const r = await this.client().query(text, values);
     const lastInsertRowid =
       isInsert && r.rows[0]?.id != null ? Number(r.rows[0].id) : 0;
     return { changes: r.rowCount ?? 0, lastInsertRowid };
@@ -241,10 +253,18 @@ export class PgStatement {
 }
 
 export class PgDb {
-  constructor(private readonly client: PgPool | PgPoolClient = getPool()) {}
+  /**
+   * Sin cliente = pool vivo vía getPool() (sobreviu a closePool/recreate).
+   * Con cliente = conexión de una transacción activa.
+   */
+  constructor(private readonly txClient: PgPoolClient | null = null) {}
+
+  private client(): PgPool | PgPoolClient {
+    return this.txClient ?? getPool();
+  }
 
   prepare(sql: string): PgStatement {
-    return new PgStatement(this.client, sql);
+    return new PgStatement(this.txClient, sql);
   }
 
   async exec(sql: string): Promise<void> {
@@ -254,15 +274,15 @@ export class PgDb {
       .filter(Boolean);
     for (const stmt of statements) {
       if (/PRAGMA/i.test(stmt)) continue;
-      await this.client.query(adaptSql(stmt));
+      await this.client().query(adaptSql(stmt));
     }
   }
 
   async transaction<T>(fn: (db: PgDb) => Promise<T>): Promise<T> {
-    const pool = getPool();
-    if (this.client !== pool) {
+    if (this.txClient) {
       return fn(this);
     }
+    const pool = getPool();
     const client = await pool.connect();
     try {
       await client.query("BEGIN");
