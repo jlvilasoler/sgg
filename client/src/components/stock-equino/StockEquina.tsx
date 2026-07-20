@@ -63,6 +63,7 @@ import {
   SIN_FECHA_NAC_FILTRO_KEY,
 } from "./stock-equina-utils";
 import { fmtEmpresaOperativa } from "../stock/stock-empresa-utils";
+import { fmtPotrero } from "../stock/stock-ganadera-utils";
 import {
   clearStockEquinaPageCache,
   filtrosCacheKey,
@@ -134,6 +135,36 @@ function claseCeldaSexo(sexo: StockEquinaDispositivo["sexo"]): string {
   if (sexo === "MACHO") return "stock-td--sexo-macho";
   if (sexo === "HEMBRA") return "stock-td--sexo-hembra";
   return "stock-td--sexo-na";
+}
+
+function fmtCategoriaEquino(categoria: string | null | undefined): string {
+  const c = String(categoria ?? "").trim().toUpperCase();
+  const map: Record<string, string> = {
+    POTRANCA: "Potranca",
+    POTRA: "Potra",
+    YEGUA: "Yegua",
+    POTRILLO: "Potrillo",
+    POTRO: "Potro",
+    CABALLO: "Caballo",
+    PADRILLO: "Padrillo",
+  };
+  return map[c] ?? (c || "—");
+}
+
+function esEquinoCabana(d: StockEquinaDispositivo): boolean {
+  return (
+    String(d.origen_alta ?? "").trim().toLowerCase() === "cabana" ||
+    Boolean(d.nombre_animal?.trim()) ||
+    Boolean(d.cabana_premium)
+  );
+}
+
+function nombreEquinoCabana(d: StockEquinaDispositivo): string {
+  return (
+    d.nombre_animal?.trim() ||
+    d.nombre_cabana?.trim() ||
+    (d.rp?.trim() ? `RP ${d.rp.trim()}` : "")
+  );
 }
 
 interface Props {
@@ -1324,14 +1355,15 @@ export default function StockEquina({
                 </th>
                 <th
                   className="stock-th stock-th--cabana"
-                  aria-label="Selección de cabaña"
-                  title="Selección de cabaña"
+                  aria-label="Cabaña"
+                  title="Cabaña"
                 />
-                <th className="stock-th stock-th--num">EID</th>
-                <th className="stock-th">VID</th>
-                <th className="stock-th">Empresa</th>
+                <th className="stock-th stock-th--device-ids">EID / VID</th>
+                <th className="stock-th stock-th--empresa">Empresa</th>
                 <th className="stock-th">Generación</th>
                 <th className="stock-th">Grupo</th>
+                <th className="stock-th stock-th--potrero">Potrero</th>
+                <th className="stock-th">Categoría</th>
                 <th className="stock-th">Sexo</th>
                 <th className="stock-th stock-th--edad">Edad</th>
                 <th className="stock-th stock-th--time">Última lectura</th>
@@ -1341,31 +1373,43 @@ export default function StockEquina({
             <tbody>
               {mostrarCargaVacia ? (
                 <tr>
-                  <td colSpan={11} className="empty">
+                  <td colSpan={12} className="empty">
                     Cargando…
                   </td>
                 </tr>
               ) : !apiOnline ? (
                 <tr>
-                  <td colSpan={11} className="empty">
+                  <td colSpan={12} className="empty">
                     API no conectada
                   </td>
                 </tr>
               ) : filteredRows.length === 0 ? (
                 <tr>
-                  <td colSpan={11} className="empty">
+                  <td colSpan={12} className="empty">
                     Sin dispositivos para los filtros aplicados.
                   </td>
                 </tr>
               ) : (
-                rowsPagina.map((d) => (
+                rowsPagina.map((d) => {
+                  const empresaNombre = fmtEmpresaOperativa(
+                    d.empresa,
+                    empresasOperativas
+                  );
+                  const cabana = esEquinoCabana(d);
+                  const nombreCabana = nombreEquinoCabana(d);
+                  return (
                   <tr
                     key={d.clave}
-                    className={`stock-equina-row stock-table-pro-row${
-                      d.cabana_premium ? " stock-table-pro-row--seleccion-cabana" : ""
+                    className={`stock-equina-row stock-table-pro-row stock-table-pro-row--clickable${
+                      cabana ? " stock-table-pro-row--seleccion-cabana" : ""
                     }${seleccion.has(d.clave) ? " stock-table-pro-row--selected" : ""}`}
+                    onClick={() => setEditarDispositivo(d)}
+                    title={`Abrir ${d.vid || d.eid || "dispositivo"}`}
                   >
-                    <td className="stock-td stock-td--sel">
+                    <td
+                      className="stock-td stock-td--sel"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <input
                         type="checkbox"
                         className="stock-row-check"
@@ -1376,32 +1420,55 @@ export default function StockEquina({
                     </td>
                     <td className="stock-td stock-td--cabana">
                       <IconoSeleccionCabanaEstrella
-                        activo={d.cabana_premium}
-                        nombreCabana={d.nombre_cabana}
+                        activo={cabana}
+                        nombreCabana={nombreCabana}
                         soloLectura
                       />
                     </td>
-                    <td className="stock-td stock-td--num stock-td--eid">
-                      {d.eid || "—"}
+                    <td className="stock-td stock-td--device-ids">
+                      <div className="stock-device-ids">
+                        <span className="stock-device-ids__icon-wrap" aria-hidden>
+                          <IconoDispositivoWifi
+                            animated
+                            className="stock-device-ids__icon"
+                          />
+                        </span>
+                        <div className="stock-device-ids__stack">
+                          <span className="stock-device-ids__eid" title="EID electrónico">
+                            {d.eid || "—"}
+                          </span>
+                          <span
+                            className="stock-device-ids__vid stock-table-pro-link"
+                            title={d.vid ? `VID ${d.vid}` : undefined}
+                          >
+                            {d.vid || "—"}
+                          </span>
+                        </div>
+                      </div>
                     </td>
-                    <td className="stock-td stock-td--vid">
-                      <span className="stock-equina-row-eid">
-                        <IconoDispositivoWifi className="stock-equina-row-icon" />
-                        <button
-                          type="button"
-                          className="stock-equina-link stock-table-pro-link"
-                          onClick={() => setEditarDispositivo(d)}
-                          title="Editar caravana"
-                        >
-                          {d.vid || "—"}
-                        </button>
+                    <td className="stock-td stock-td--muted stock-td--empresa">
+                      <span
+                        className="stock-td-empresa-name"
+                        title={empresaNombre !== "—" ? empresaNombre : undefined}
+                      >
+                        {empresaNombre}
                       </span>
                     </td>
-                    <td className="stock-td stock-td--muted">
-                      {fmtEmpresaOperativa(d.empresa, empresasOperativas)}
+                    <td className="stock-td stock-td--muted stock-td--generacion">
+                      {fmtGrupo(d.grupo)}
                     </td>
-                    <td className="stock-td stock-td--muted">{fmtGrupo(d.grupo)}</td>
-                    <td className="stock-td stock-td--muted">{fmtGrupoLibre(d.grupo_libre)}</td>
+                    <td className="stock-td stock-td--muted stock-td--grupo">
+                      {fmtGrupoLibre(d.grupo_libre)}
+                    </td>
+                    <td
+                      className="stock-td stock-td--muted stock-td--potrero"
+                      title={fmtPotrero(d.potrero) !== "—" ? fmtPotrero(d.potrero) : undefined}
+                    >
+                      {fmtPotrero(d.potrero)}
+                    </td>
+                    <td className="stock-td stock-td--muted stock-td--raza">
+                      {fmtCategoriaEquino(d.categoria)}
+                    </td>
                     <td className={`stock-td stock-td--sexo ${claseCeldaSexo(d.sexo)}`}>
                       {fmtSexo(d.sexo)}
                     </td>
@@ -1425,23 +1492,26 @@ export default function StockEquina({
                       <BadgeEstadoDispositivo estado={d.estado} />
                     </td>
                   </tr>
-                ))
+                  );
+                })
               )}
             </tbody>
           </table>
             </div>
 
             {(!mostrarCargaVacia) && apiOnline && filteredRows.length > 0 && (
-              <TablePagination
-                total={filteredRows.length}
-                page={pageSafe}
-                pageSize={pageSize}
-                onPageChange={setPage}
-                onPageSizeChange={(size) => {
-                  setPageSize(size);
-                  setPage(1);
-                }}
-              />
+              <div className="sg-devices-pagination">
+                <TablePagination
+                  total={filteredRows.length}
+                  page={pageSafe}
+                  pageSize={pageSize}
+                  onPageChange={setPage}
+                  onPageSizeChange={(size) => {
+                    setPageSize(size);
+                    setPage(1);
+                  }}
+                />
+              </div>
             )}
           </section>
         </main>

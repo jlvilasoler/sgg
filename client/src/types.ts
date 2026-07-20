@@ -572,6 +572,11 @@ export interface StockGanaderaDispositivo {
   categoria?: string;
   castrado?: boolean | null;
   origen_alta?: string;
+  /** Alta cabaña equina */
+  rp?: string;
+  nombre_animal?: string;
+  registro?: string;
+  premios?: string;
   edad: number | null;
   nacimiento_mes: number | null;
   nacimiento_anio: number | null;
@@ -759,7 +764,24 @@ export interface StockControlSanitarioResumen {
 }
 
 export type StockEquinoLote = StockGanaderoLote;
-export type StockEquinoRegistro = StockGanaderoRegistro;
+export interface StockEquinoRegistro extends StockGanaderoRegistro {
+  clave?: string;
+  sexo?: string;
+  categoria?: string;
+  castrado?: boolean | null;
+  origen_alta?: string;
+  rp?: string;
+  nombre_animal?: string;
+  registro?: string;
+  premios?: string;
+  empresa?: string;
+  potrero?: string;
+  grupo?: string;
+  edad?: number | null;
+  nacimiento_mes?: number | null;
+  nacimiento_anio?: number | null;
+  estado?: string;
+}
 export type StockEquinoEidRepetido = StockGanaderoEidRepetido;
 export type StockEquinoEstadisticas = StockGanaderoEstadisticas;
 export type StockEquinaDispositivo = StockGanaderaDispositivo;

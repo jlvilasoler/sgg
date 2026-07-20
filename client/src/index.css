@@ -18708,6 +18708,63 @@ select optgroup {
   grid-auto-rows: auto;
 }
 
+/* Equinos: 3 etapas (Potranca · Potra · Yegua) — Yegua hasta el final de la escala */
+.stock-equina-editar-page .stock-evo-hembra-board,
+.stock-evolucion--hembra-etapas .stock-evo-hembra-board {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.stock-equina-editar-page .stock-evo-hembra-track,
+.stock-evolucion--hembra-etapas .stock-evo-hembra-track {
+  background:
+    linear-gradient(
+      105deg,
+      transparent 38%,
+      rgba(255, 255, 255, 0.5) 50%,
+      transparent 62%
+    ),
+    linear-gradient(
+      90deg,
+      #f4f1ea 0%,
+      #f4f1ea 33.33%,
+      #e4ebe0 33.33%,
+      #e4ebe0 66.66%,
+      #c8dcc8 66.66%,
+      #8fb396 100%
+    );
+  background-size: 220% 100%, 100% 100%;
+}
+
+.stock-equina-editar-page .stock-evo-hembra-track::before,
+.stock-evolucion--hembra-etapas .stock-evo-hembra-track::before {
+  left: 33.333%;
+}
+
+.stock-equina-editar-page .stock-evo-hembra-track::after,
+.stock-evolucion--hembra-etapas .stock-evo-hembra-track::after {
+  left: 66.666%;
+}
+
+.stock-equina-editar-page .stock-evo-hembra-track-div--75,
+.stock-evolucion--hembra-etapas .stock-evo-hembra-track-div--75 {
+  display: none;
+}
+
+.stock-equina-editar-page .stock-evo-hembra-col--potranca .stock-evo-hembra-card-titulo,
+.stock-evolucion--hembra-etapas .stock-evo-hembra-col--potranca .stock-evo-hembra-card-titulo {
+  color: #ad1457;
+}
+
+.stock-equina-editar-page .stock-evo-hembra-col--potra .stock-evo-hembra-card-titulo,
+.stock-evolucion--hembra-etapas .stock-evo-hembra-col--potra .stock-evo-hembra-card-titulo {
+  color: #6a1b9a;
+}
+
+.stock-equina-editar-page .stock-evo-hembra-col--yegua .stock-evo-hembra-card-titulo,
+.stock-evolucion--hembra-etapas .stock-evo-hembra-col--yegua .stock-evo-hembra-card-titulo {
+  color: #4a148c;
+}
+
 .stock-evo-hembra-col {
   display: flex;
   flex-direction: column;
@@ -22074,6 +22131,10 @@ button.sg-kpi-card:disabled {
   }
 
   .stock-import-field--condicion {
+    grid-column: 1 / -1;
+  }
+
+  .stock-import-field--full {
     grid-column: 1 / -1;
   }
 
@@ -42296,7 +42357,8 @@ button.sg-kpi-card:disabled {
 }
 
 /* —— Editar caravana: vista en página (no modal) —— */
-.stock-ganadera-editar-page.subseccion-inline-card {
+.stock-ganadera-editar-page.subseccion-inline-card,
+.stock-equina-editar-page.subseccion-inline-card {
   overflow: visible;
 }.stock-ganadera-editar-page .subseccion-inline-body,
 .stock-equina-editar-page .subseccion-inline-body{
@@ -42461,21 +42523,25 @@ button.sg-kpi-card:disabled {
     padding: 0.55rem 1rem;
   }
 
-  .stock-ganadera-editar-page-body {
+  .stock-ganadera-editar-page-body,
+  .stock-equina-editar-page-body {
     padding: 1rem;
   }
 
-  .stock-ganadera-editar-page-foot {
+  .stock-ganadera-editar-page-foot,
+  .stock-equina-editar-page-foot {
     flex-direction: column;
     align-items: stretch;
   }
 
-  .stock-ganadera-editar-page .stock-ganadera-editar-footer-actions {
+  .stock-ganadera-editar-page .stock-ganadera-editar-footer-actions,
+  .stock-equina-editar-page .stock-equina-editar-footer-actions {
     display: flex;
     flex-direction: column;
   }
 
-  .stock-ganadera-editar-page .stock-ganadera-editar-footer-actions .btn {
+  .stock-ganadera-editar-page .stock-ganadera-editar-footer-actions .btn,
+  .stock-equina-editar-page .stock-equina-editar-footer-actions .btn {
     width: 100%;
   }
 }
@@ -45723,6 +45789,280 @@ button.sg-kpi-card:disabled {
 
 .stock-editar-ficha-zone--ident {
   flex: 1.6 1 14rem;
+}
+
+/* —— Ficha equina: layout en 3 filas claras —— */
+.stock-editar-ficha--equino .stock-editar-ficha-toolbar--equino {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  justify-content: flex-start;
+  gap: 0.55rem 0.75rem;
+  padding: 0 1.2rem 0.95rem;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+}
+
+.stock-editar-ficha--equino .stock-editar-ficha-toolbar--equino .stock-editar-ficha-zone {
+  padding: 0;
+  min-width: 0;
+  border-left: none;
+}
+
+.stock-editar-ficha--equino .stock-editar-ficha-toolbar--equino .stock-editar-ficha-zone:first-child {
+  padding-left: 0;
+}
+
+.stock-editar-ficha--equino .stock-editar-ficha-toolbar--equino .stock-editar-ficha-zone:last-child {
+  padding-right: 0;
+}
+
+.stock-editar-ficha--equino .stock-editar-ficha-zone--ident,
+.stock-editar-ficha--equino .stock-editar-ficha-zone--sexo,
+.stock-editar-ficha--equino .stock-editar-ficha-zone--potrero,
+.stock-editar-ficha--equino .stock-editar-ficha-zone--nac,
+.stock-editar-ficha--equino .stock-editar-ficha-zone--grupo,
+.stock-editar-ficha--equino .stock-editar-ficha-zone--estado {
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 0;
+}
+
+.stock-editar-ficha--equino .stock-editar-ficha-zone--ident {
+  width: 16.25rem;
+  max-width: min(100%, 16.25rem);
+}
+
+.stock-editar-ficha--equino .stock-editar-ficha-zone--sexo {
+  width: 6.25rem;
+  max-width: min(100%, 6.25rem);
+}
+
+.stock-editar-ficha--equino .stock-editar-ficha-zone--potrero {
+  width: 15.78rem;
+  max-width: min(100%, 15.78rem);
+}
+
+.stock-editar-ficha--equino .stock-editar-ficha-zone--grupo {
+  width: 10.2rem;
+  max-width: min(100%, 10.2rem);
+}
+
+.stock-editar-ficha--equino .stock-editar-ficha-zone--estado {
+  width: 7.75rem;
+  max-width: min(100%, 7.75rem);
+}
+
+.stock-editar-ficha--equino .stock-editar-ficha-zone--estado .stock-estado-select {
+  width: 100%;
+  min-width: 0;
+  min-height: 2.25rem;
+  height: auto;
+  padding: 0.38rem 0.05rem 0.42rem;
+  border: none;
+  border-radius: 0;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.12);
+  background: transparent;
+  box-shadow: none;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #0f172a;
+  cursor: pointer;
+  box-sizing: border-box;
+  transition: border-color 0.15s ease;
+}
+
+.stock-editar-ficha--equino .stock-editar-ficha-zone--estado .stock-estado-select:focus {
+  outline: none;
+  border-bottom-color: rgba(201, 162, 39, 0.75);
+  box-shadow: none;
+  background: transparent;
+}
+
+.stock-editar-ficha--equino .stock-editar-ficha-zone--nac {
+  display: grid;
+  grid-template-columns: minmax(11.21rem, 1.5fr) minmax(6.73rem, 0.98fr);
+  gap: 0.45rem 0.5rem;
+  width: 18.98rem;
+  min-width: 0;
+  max-width: min(100%, 18.98rem);
+}
+
+.stock-editar-ficha--equino .stock-editar-ficha-zone--nac .stock-nacimiento-mes,
+.stock-editar-ficha--equino .stock-editar-ficha-zone--nac .stock-nacimiento-anio {
+  width: 100%;
+  min-width: 0;
+}
+
+.stock-editar-ficha--equino .stock-editar-ficha-foot--equino {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: flex-end;
+  justify-content: flex-start;
+  gap: 0.65rem 0.85rem;
+  padding: 0.75rem 1.2rem 0.95rem;
+  border-bottom: none;
+}
+
+.stock-editar-ficha--equino .stock-editar-ficha-stats {
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+  align-self: flex-end;
+}
+
+.stock-editar-ficha--equino .stock-editar-ficha-sel--equino {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+  flex: 1 1 auto;
+  width: auto;
+  max-width: none;
+  min-width: 0;
+  margin: 0;
+  padding: 0.35rem 0.55rem 0.4rem 0.6rem;
+  box-sizing: border-box;
+}
+
+.stock-editar-ficha--equino .stock-editar-ficha-sel--equino.stock-edit-cabana-premium-box--gold {
+  flex-direction: column;
+  flex: 1 1 auto;
+  width: auto;
+  max-width: none;
+  min-width: 0;
+}
+
+.stock-editar-ficha--equino .stock-editar-ficha-sel--equino .stock-edit-cabana-premium-tag {
+  display: none;
+}
+
+.stock-editar-ficha--equino .stock-editar-ficha-sel--equino .stock-edit-cabana-premium-fields {
+  display: grid;
+  grid-template-columns:
+    minmax(6rem, 0.85fr)
+    minmax(8rem, 1.1fr)
+    minmax(8rem, 1.1fr)
+    minmax(10rem, 1.4fr);
+  grid-template-areas: "rp nombre registro premios";
+  gap: 0.45rem 0.65rem;
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+  border-left: none !important;
+  padding-left: 0 !important;
+  padding-top: 0 !important;
+}
+
+.stock-editar-ficha--equino .stock-edit-cabana-inline-field {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.28rem;
+  min-width: 0;
+  width: 100%;
+  max-width: none;
+}
+
+.stock-editar-ficha--equino .stock-edit-cabana-inline-field--rp {
+  grid-area: rp;
+}
+
+.stock-editar-ficha--equino .stock-edit-cabana-inline-field--nombre {
+  grid-area: nombre;
+}
+
+.stock-editar-ficha--equino .stock-edit-cabana-inline-field--registro {
+  grid-area: registro;
+}
+
+.stock-editar-ficha--equino .stock-edit-cabana-inline-field--obs {
+  grid-area: premios;
+}
+
+.stock-editar-ficha--equino .stock-edit-cabana-input {
+  width: 100%;
+  min-width: 0;
+  height: 2rem;
+  min-height: 2rem;
+  box-sizing: border-box;
+}
+
+.stock-editar-ficha--equino .stock-edit-cabana-textarea {
+  width: 100%;
+  height: 2rem;
+  min-height: 2rem;
+  max-height: 2rem;
+  resize: none;
+  overflow-x: auto;
+  overflow-y: hidden;
+  white-space: nowrap;
+  line-height: 1.25;
+  padding: 0.35rem 0.5rem;
+}
+
+@media (max-width: 960px) {
+  .stock-editar-ficha--equino .stock-editar-ficha-toolbar--equino {
+    gap: 0.65rem 0.7rem;
+  }
+
+  .stock-editar-ficha--equino .stock-editar-ficha-toolbar--equino .stock-editar-ficha-zone {
+    padding: 0;
+    border-left: none;
+    border-top: none;
+  }
+
+  .stock-editar-ficha--equino .stock-editar-ficha-toolbar--equino .stock-editar-ficha-zone:nth-child(-n + 2) {
+    border-top: none;
+  }
+
+  .stock-editar-ficha--equino .stock-editar-ficha-foot--equino {
+    flex-wrap: wrap;
+    align-items: stretch;
+  }
+
+  .stock-editar-ficha--equino .stock-editar-ficha-sel--equino,
+  .stock-editar-ficha--equino .stock-editar-ficha-sel--equino.stock-edit-cabana-premium-box--gold {
+    flex: 1 1 100%;
+    width: 100%;
+    margin: 0;
+    max-width: none;
+  }
+
+  .stock-editar-ficha--equino .stock-editar-ficha-sel--equino .stock-edit-cabana-premium-fields {
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas:
+      "rp nombre"
+      "registro premios";
+  }
+
+  .stock-editar-ficha--equino .stock-edit-cabana-textarea {
+    white-space: normal;
+    overflow-y: auto;
+    max-height: none;
+    min-height: 2.4rem;
+    height: auto;
+    resize: vertical;
+  }
+}
+
+@media (max-width: 560px) {
+  .stock-editar-ficha--equino .stock-editar-ficha-toolbar--equino {
+    gap: 0.55rem 0.55rem;
+  }
+
+  .stock-editar-ficha--equino .stock-editar-ficha-zone--nac {
+    grid-template-columns: 1fr 1fr;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .stock-editar-ficha--equino .stock-editar-ficha-sel--equino .stock-edit-cabana-premium-fields {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "rp"
+      "nombre"
+      "registro"
+      "premios";
+  }
 }
 
 .stock-empresa-select-wrap {
@@ -54039,19 +54379,46 @@ button.sg-kpi-card:disabled {
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
-  min-height: calc(100dvh - 11rem);
+  min-height: 0;
+  height: 100%;
+  max-height: 100%;
+  overflow: hidden;
+}
+
+/* Ficha / detalle equino: permitir bajar el contenido (como ganaderos) */
+.bn-ui .stock-equino-module-page.stock-equino-devices-page:has(.stock-equina-editar-page),
+.bn-ui .stock-equino-module-page.stock-equino-devices-page:has(.stock-equina-detalle-page),
+.bn-ui .stock-equino-module-page.stock-equino-devices-page:has(.stock-bulk-inline),
+.bn-ui .sg-module-page.stock-equino-devices-page:has(.stock-equina-editar-page),
+.bn-ui .sg-module-page.stock-equino-devices-page:has(.subseccion-inline-card.stock-equina-editar-page) {
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.bn-ui .stock-equino-module-page.stock-equino-devices-page:has(.stock-equina-editar-page) > .subseccion-panel,
+.bn-ui .sg-module-page.stock-equino-devices-page:has(.stock-equina-editar-page) > .subseccion-panel {
+  flex: 0 0 auto;
+  min-height: auto;
 }
 
 .bn-ui .stock-equino-module-page.stock-equino-devices-page > .stock-equino-devices-page {
   flex: 1 1 auto;
   min-height: 0;
+  height: 100%;
+  max-height: 100%;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .bn-ui .stock-equino-module-page.stock-equino-devices-page .sg-hub--devices {
   flex: 1 1 auto;
-  min-height: 100%;
+  min-height: 0;
+  height: 100%;
+  max-height: 100%;
+  overflow: hidden;
 }
 
 .bn-ui .stock-equino-dash-kpi.sg-hub-kpi-strip {
@@ -55911,6 +56278,8 @@ button.sg-kpi-card:disabled {
 .bn-ui .sg-hub-main--devices {
   gap: 0.85rem;
   padding: 1.15rem 1.25rem 1.35rem;
+  min-width: 0;
+  min-height: 0;
 }
 
 .bn-ui .sg-devices-kpi-hero {
@@ -56197,10 +56566,11 @@ button.sg-kpi-card:disabled {
 
 .bn-ui .sg-hub-panel--devices-table {
   padding: 0;
-  overflow: hidden;
+  overflow: visible;
   display: flex;
   flex-direction: column;
-  min-height: 12rem;
+  flex: 0 0 auto;
+  min-height: auto;
 }
 
 .bn-ui .sg-devices-search-bar {
@@ -56312,8 +56682,10 @@ button.sg-kpi-card:disabled {
   border: none;
   border-radius: 0;
   margin: 0;
-  flex: 1;
-  min-height: 0;
+  flex: 0 0 auto;
+  min-height: auto;
+  overflow-x: auto;
+  overflow-y: visible;
 }
 
 .bn-ui .sg-hub-panel--devices-table .stock-table-pro thead {

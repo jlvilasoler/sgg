@@ -5391,6 +5391,10 @@ app.patch("/api/stock-equino/dispositivos/:clave", async (req, res) => {
     const grupo_libre =
       typeof body.grupo_libre === "string" ? body.grupo_libre : "";
     const potrero = typeof body.potrero === "string" ? body.potrero : "";
+    const rp = typeof body.rp === "string" ? body.rp : "";
+    const nombre_animal = typeof body.nombre_animal === "string" ? body.nombre_animal : "";
+    const registro = typeof body.registro === "string" ? body.registro : "";
+    const premios = typeof body.premios === "string" ? body.premios : "";
     const estado = String(body.estado ?? "VIVO").toUpperCase() as
       | "VIVO"
       | "MUERTO"
@@ -5428,6 +5432,10 @@ app.patch("/api/stock-equino/dispositivos/:clave", async (req, res) => {
         numero_guia,
         baja_mes,
         baja_anio,
+        rp,
+        nombre_animal,
+        registro,
+        premios,
       },
       eid,
       historialAutorFromRequest(req, "FICHA")
@@ -5654,6 +5662,65 @@ app.post("/api/stock-equino/alta-generica", async (req, res) => {
     res.status(201).json({
       ok: true,
       message: `Se dieron de alta ${result.creados} equino(s) (${result.categoria})`,
+      data: result,
+    });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: (e as Error).message });
+  }
+});
+
+app.post("/api/stock-equino/alta-cabana", async (req, res) => {
+  try {
+    const body = req.body as {
+      rp?: string;
+      nombre_animal?: string;
+      fecha_nacimiento?: string;
+      sexo?: string;
+      registro?: string;
+      premios?: string;
+      castrado?: boolean | null;
+      potrero?: string;
+      empresa?: string;
+    };
+    const empresa = String(body.empresa ?? "").trim();
+    await assertEmpresaCodigoPermitida(req.user!, empresa);
+    const cuentaId = await cuentaIdParaInsert(req.user!);
+    const castradoRaw = body.castrado;
+    const castrado =
+      castradoRaw === true || castradoRaw === false
+        ? castradoRaw
+        : castradoRaw === null
+          ? null
+          : undefined;
+    const result = await db.stockEquino.altaCabana(
+      {
+        rp: String(body.rp ?? ""),
+        nombre_animal: String(body.nombre_animal ?? ""),
+        fecha_nacimiento: String(body.fecha_nacimiento ?? ""),
+        sexo: String(body.sexo ?? "").toUpperCase() as "" | "MACHO" | "HEMBRA",
+        registro: String(body.registro ?? ""),
+        premios: String(body.premios ?? ""),
+        castrado,
+        potrero: String(body.potrero ?? ""),
+        empresa,
+      },
+      cuentaId,
+      historialAutorFromRequest(req, "FICHA")
+    );
+    await auditStockMovimiento(req, "ALTA", {
+      cantidad: 1,
+      resumen: `Alta cabaña: ${result.nombre_animal} (RP ${result.rp})`,
+      detalle: {
+        clave: result.clave,
+        categoria: result.categoria,
+        rp: result.rp,
+        nombre_animal: result.nombre_animal,
+        lote_id: result.lote_id,
+      },
+    });
+    res.status(201).json({
+      ok: true,
+      message: `Se dio de alta «${result.nombre_animal}» (${result.categoria})`,
       data: result,
     });
   } catch (e) {

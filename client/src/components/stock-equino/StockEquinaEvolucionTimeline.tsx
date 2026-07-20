@@ -27,8 +27,8 @@ import {
   type EscalaMarcaMeses,
 } from "./stock-equina-utils";
 
-const MAX_MESES_GENERAL = 120;
-const MARCAS_GENERAL = [24, 48, 72, 96, 120] as const;
+const MAX_MESES_GENERAL = 720;
+const MARCAS_GENERAL = [144, 288, 432, 576, 720] as const;
 
 interface Props {
   nacimientoMes: number | null;
@@ -557,9 +557,9 @@ export default function StockEquinaEvolucionTimeline({
           </div>
           <span className="stock-evolucion-rango">
             {esMacho
-              ? "Ternero · Novillo/Toro · +2 años"
+              ? "Potrillo · Potro · Caballo / Padrillo"
               : esHembra
-                ? "Ternera · Vaquillona · +2 años · Vaca"
+                ? "Potranca · Potra · Yegua"
                 : `0 – ${MAX_MESES_GENERAL} meses`}
           </span>
         </div>
@@ -567,19 +567,19 @@ export default function StockEquinaEvolucionTimeline({
           {esMacho ? (
             <>
               Completá la fecha de nacimiento para ver la evolución por etapas:
-              Ternero (0–12 meses), Novillo/Toro (1–2 años) y Novillo/Toro (+2
-              años).
+              Potrillo (0–12 meses), Potro (12–36 meses) y Caballo / Padrillo
+              (36 meses – 60 años).
             </>
           ) : esHembra ? (
             <>
               Completá la fecha de nacimiento para ver la evolución por etapas:
-              Ternera (0–12 meses), Vaquillona (1–2 años), Vaquillona (+2 años,
-              24–36 meses) y Vaca (36–120 meses).
+              Potranca (0–12 meses), Potra (12–36 meses) y Yegua (36 meses – 60
+              años).
             </>
           ) : (
             <>
               Completá la fecha de nacimiento para ver la línea de tiempo desde
-              el nacimiento hasta los {MAX_MESES_GENERAL} meses.
+              el nacimiento hasta los {MAX_MESES_GENERAL} meses (60 años).
             </>
           )}
         </div>

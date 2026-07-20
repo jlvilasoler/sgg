@@ -7,6 +7,7 @@ import { IconCancelar, IconConfirmar } from "../icons/ActionIcons";
 import {
   esPotreroEnCatalogo,
   normalizarPotrero,
+  deduplicarPotreros,
   POTRERO_OTRA_VALUE,
 } from "./stock-ganadera-utils";
 
@@ -24,9 +25,7 @@ interface Props {
 }
 
 function ordenarPotreros(potreros: Iterable<string>): string[] {
-  return [...new Set([...potreros].map(normalizarPotrero).filter(Boolean))].sort((a, b) =>
-    a.localeCompare(b, "es")
-  );
+  return deduplicarPotreros(potreros);
 }
 
 export default function SelectPotreroDispositivo({

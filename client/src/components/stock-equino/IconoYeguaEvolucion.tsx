@@ -1,8 +1,8 @@
-﻿/** Silueta de vaca — marcador bajo la línea de tiempo (hembras) */
+﻿/** Silueta de yegua/caballo — marcador bajo la línea de tiempo (hembras) */
 export default function IconoYeguaEvolucion({ className = "" }: { className?: string }) {
   return (
     <img
-      src="/icons/yegua-evolucion.png"
+      src="/icons/yegua-evolucion.png?v=3"
       className={className}
       alt=""
       width={40}

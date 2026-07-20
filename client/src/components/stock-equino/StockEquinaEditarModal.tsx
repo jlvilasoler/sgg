@@ -18,6 +18,7 @@ import SelectEmpresaDispositivo, {
 } from "../stock/SelectEmpresaDispositivo";
 import SelectSexoDispositivo from "../stock/SelectSexoDispositivo";
 import SelectPotreroDispositivo from "../stock/SelectPotreroDispositivo";
+import SelectEstadoDispositivo from "../stock/SelectEstadoDispositivo";
 import StockEquinaEvolucionTimeline from "./StockEquinaEvolucionTimeline";
 import StockDispositivoFotoCard, {
   stockFotoMetaFromDispositivo,
@@ -77,6 +78,10 @@ export default function StockEquinaEditarPanel({
   const [observaciones, setObservaciones] = useState(dispositivo.observaciones ?? "");
   const [grupoLibre, setGrupoLibre] = useState(dispositivo.grupo_libre ?? "");
   const [potrero, setPotrero] = useState(dispositivo.potrero ?? "");
+  const [rp, setRp] = useState(dispositivo.rp ?? "");
+  const [nombreAnimal, setNombreAnimal] = useState(dispositivo.nombre_animal ?? "");
+  const [registro, setRegistro] = useState(dispositivo.registro ?? "");
+  const [premios, setPremios] = useState(dispositivo.premios ?? "");
   const [estado, setEstado] = useState<DispositivoEstado>(
     normalizarEstadoDispositivo(dispositivo.estado)
   );
@@ -97,6 +102,10 @@ export default function StockEquinaEditarPanel({
     setObservaciones(d.observaciones ?? "");
     setGrupoLibre(d.grupo_libre ?? "");
     setPotrero(d.potrero ?? "");
+    setRp(d.rp ?? "");
+    setNombreAnimal(d.nombre_animal ?? "");
+    setRegistro(d.registro ?? "");
+    setPremios(d.premios ?? "");
     setEstado(normalizarEstadoDispositivo(d.estado));
     setBajaMes(d.baja_mes);
     setBajaAnio(d.baja_anio);
@@ -164,6 +173,10 @@ export default function StockEquinaEditarPanel({
     nacimientoMes !== dispositivo.nacimiento_mes ||
     nacimientoAnio !== dispositivo.nacimiento_anio ||
     observaciones.trim() !== (dispositivo.observaciones ?? "").trim() ||
+    rp.trim() !== (dispositivo.rp ?? "").trim() ||
+    nombreAnimal.trim() !== (dispositivo.nombre_animal ?? "").trim() ||
+    registro.trim() !== (dispositivo.registro ?? "").trim() ||
+    premios.trim() !== (dispositivo.premios ?? "").trim() ||
     estado !== normalizarEstadoDispositivo(dispositivo.estado) ||
     bajaMes !== dispositivo.baja_mes ||
     bajaAnio !== dispositivo.baja_anio;
@@ -195,12 +208,30 @@ export default function StockEquinaEditarPanel({
           estado,
           baja_mes: requiereFechaBaja(estado) ? bajaMes : null,
           baja_anio: requiereFechaBaja(estado) ? bajaAnio : null,
+          rp: rp.trim(),
+          nombre_animal: nombreAnimal.trim(),
+          registro: registro.trim(),
+          premios: premios.trim(),
         },
         dispositivo.eid
       );
 
-      onSaved({ ...dispositivo, ...guardado });
-      restablecerDesdeDispositivo({ ...dispositivo, ...guardado });
+      const actualizado: StockEquinaDispositivo = {
+        ...dispositivo,
+        ...guardado,
+        rp: guardado.rp ?? rp.trim(),
+        nombre_animal: guardado.nombre_animal ?? nombreAnimal.trim(),
+        registro: guardado.registro ?? registro.trim(),
+        premios: guardado.premios ?? premios.trim(),
+        origen_alta:
+          (guardado.rp ?? rp).trim() || (guardado.nombre_animal ?? nombreAnimal).trim()
+            ? dispositivo.origen_alta === "generico"
+              ? "cabana"
+              : dispositivo.origen_alta || "cabana"
+            : dispositivo.origen_alta,
+      };
+      onSaved(actualizado);
+      restablecerDesdeDispositivo(actualizado);
       if (modoInicial === "ver") {
         setModoEdicion("ver");
       } else {
@@ -317,13 +348,13 @@ export default function StockEquinaEditarPanel({
           aria-label={soloLectura ? "Ficha de la caravana" : "Datos editables"}
         >
             <div
-              className={`stock-edit-ficha-card stock-editar-ficha${
+              className={`stock-edit-ficha-card stock-editar-ficha stock-editar-ficha--equino${
                 soloLectura ? " stock-edit-ficha-card--solo-lectura" : ""
               }`}
             >
               <StockEditarSectionTitle icon="ficha">Ficha del animal</StockEditarSectionTitle>
 
-              <div className="stock-editar-ficha-toolbar">
+              <div className="stock-editar-ficha-toolbar stock-editar-ficha-toolbar--equino">
                 <div className="stock-editar-ficha-zone stock-editar-ficha-zone--ident">
                   <div className="stock-editar-ficha-cell">
                     <StockEditarFichaLabel icon="empresa" htmlFor="edit-equina-empresa">
@@ -430,7 +461,7 @@ export default function StockEquinaEditarPanel({
                       type="text"
                       className="stock-observaciones-input mayusculas-auto"
                       maxLength={48}
-                      placeholder="Texto libre (letras y números)…"
+                      placeholder="Nombre de grupo"
                       value={grupoLibre}
                       readOnly={soloLectura}
                       disabled={!soloLectura && camposDeshabilitados}
@@ -438,20 +469,124 @@ export default function StockEquinaEditarPanel({
                     />
                   </div>
                 </div>
+
+                <div className="stock-editar-ficha-zone stock-editar-ficha-zone--estado">
+                  <div className="stock-editar-ficha-cell">
+                    <StockEditarFichaLabel icon="estado" htmlFor="edit-equina-estado">
+                      Estado
+                    </StockEditarFichaLabel>
+                    <SelectEstadoDispositivo
+                      id="edit-equina-estado"
+                      value={estado}
+                      disabled={camposDeshabilitados}
+                      onChange={setEstado}
+                    />
+                  </div>
+                </div>
               </div>
 
-              <div className="stock-editar-ficha-foot">
+              <div className="stock-editar-ficha-foot stock-editar-ficha-foot--equino">
                 <StockEditarFichaStats
                   edadMeses={edadMeses}
                   edadId="edit-equina-edad"
                   grupoId="edit-equina-grupo"
-                  estadoId="edit-equina-estado"
+                  estadoId="edit-equina-estado-stat"
                   nacimientoMes={nacimientoMes}
                   nacimientoAnio={nacimientoAnio}
                   estado={estado}
                   disabled={camposDeshabilitados}
                   onEstadoChange={setEstado}
+                  ocultarEstado
                 />
+
+                <div
+                  className={`stock-edit-cabana-premium-box stock-edit-cabana-premium-box--gold stock-editar-ficha-sel stock-editar-ficha-sel--equino${
+                    soloLectura ? " stock-edit-cabana-premium-box--ro" : ""
+                  }`}
+                  aria-label="Datos de identificación"
+                >
+                  <div className="stock-edit-cabana-premium-fields">
+                    <div className="stock-edit-cabana-inline-field stock-edit-cabana-inline-field--rp">
+                      <StockEditarFichaLabel icon="grupo" htmlFor="edit-equina-rp" variant="cabana">
+                        RP
+                      </StockEditarFichaLabel>
+                      <input
+                        id="edit-equina-rp"
+                        type="text"
+                        className="stock-edit-cabana-input mayusculas-auto"
+                        maxLength={64}
+                        placeholder="Registro particular…"
+                        value={rp}
+                        readOnly={soloLectura}
+                        disabled={!soloLectura && camposDeshabilitados}
+                        onChange={(e) => setRp(e.target.value)}
+                        autoComplete="off"
+                      />
+                    </div>
+                    <div className="stock-edit-cabana-inline-field stock-edit-cabana-inline-field--nombre">
+                      <StockEditarFichaLabel
+                        icon="nombre"
+                        htmlFor="edit-equina-nombre"
+                        variant="cabana"
+                      >
+                        Nombre animal
+                      </StockEditarFichaLabel>
+                      <input
+                        id="edit-equina-nombre"
+                        type="text"
+                        className="stock-edit-cabana-input mayusculas-auto"
+                        maxLength={120}
+                        placeholder="Nombre…"
+                        value={nombreAnimal}
+                        readOnly={soloLectura}
+                        disabled={!soloLectura && camposDeshabilitados}
+                        onChange={(e) => setNombreAnimal(e.target.value)}
+                        autoComplete="off"
+                      />
+                    </div>
+                    <div className="stock-edit-cabana-inline-field stock-edit-cabana-inline-field--registro">
+                      <StockEditarFichaLabel
+                        icon="raza"
+                        htmlFor="edit-equina-registro"
+                        variant="cabana"
+                      >
+                        Registro
+                      </StockEditarFichaLabel>
+                      <input
+                        id="edit-equina-registro"
+                        type="text"
+                        className="stock-edit-cabana-input mayusculas-auto"
+                        maxLength={120}
+                        placeholder="Registro genealógico…"
+                        value={registro}
+                        readOnly={soloLectura}
+                        disabled={!soloLectura && camposDeshabilitados}
+                        onChange={(e) => setRegistro(e.target.value)}
+                        autoComplete="off"
+                      />
+                    </div>
+                    <div className="stock-edit-cabana-inline-field stock-edit-cabana-inline-field--obs">
+                      <StockEditarFichaLabel
+                        icon="observaciones"
+                        htmlFor="edit-equina-premios"
+                        variant="cabana"
+                      >
+                        Premios
+                      </StockEditarFichaLabel>
+                      <textarea
+                        id="edit-equina-premios"
+                        className="stock-edit-cabana-input stock-edit-cabana-textarea"
+                        rows={1}
+                        maxLength={2000}
+                        placeholder="Premios que ganó…"
+                        value={premios}
+                        readOnly={soloLectura}
+                        disabled={!soloLectura && camposDeshabilitados}
+                        onChange={(e) => setPremios(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 

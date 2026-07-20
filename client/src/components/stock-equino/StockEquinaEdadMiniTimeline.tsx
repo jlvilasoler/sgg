@@ -11,7 +11,7 @@ import {
   requiereFechaBaja,
 } from "./stock-equina-utils";
 
-const MAX_MESES_GENERAL = 120;
+const MAX_MESES_GENERAL = 720;
 
 interface Props {
   sexo: DispositivoSexo;

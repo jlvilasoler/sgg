@@ -6,8 +6,37 @@ export function normalizarPotrero(val: string | undefined | null): string {
   return String(val ?? "")
     .trim()
     .replace(/\s+/g, " ")
-    .replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑüÜ\s.\-]/g, "")
+    .replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑüÜ\s.\-']/g, "")
     .slice(0, POTRERO_MAX);
+}
+
+function clavePotrero(nombre: string): string {
+  return normalizarPotrero(nombre).toLocaleLowerCase("es");
+}
+
+/** Entre variantes solo por mayúsculas, preferí la más legible (no TODO MAYÚSCULAS). */
+function preferirNombrePotrero(candidato: string, actual: string): boolean {
+  const cand = normalizarPotrero(candidato);
+  const cur = normalizarPotrero(actual);
+  if (!cand) return false;
+  if (!cur) return true;
+  const candAllCaps = cand === cand.toLocaleUpperCase("es") && /[a-záéíóúñü]/i.test(cand);
+  const curAllCaps = cur === cur.toLocaleUpperCase("es") && /[a-záéíóúñü]/i.test(cur);
+  if (candAllCaps !== curAllCaps) return !candAllCaps;
+  return cand.localeCompare(cur, "es") < 0;
+}
+
+/** Une variantes que solo cambian mayúsculas/minúsculas (p. ej. Pradera / PRADERA). */
+export function deduplicarPotreros(nombres: Iterable<string>): string[] {
+  const byKey = new Map<string, string>();
+  for (const raw of nombres) {
+    const nombre = normalizarPotrero(raw);
+    if (!nombre) continue;
+    const key = clavePotrero(nombre);
+    const prev = byKey.get(key);
+    if (!prev || preferirNombrePotrero(nombre, prev)) byKey.set(key, nombre);
+  }
+  return [...byKey.values()].sort((a, b) => a.localeCompare(b, "es"));
 }
 
 export async function migratePotreroColumn(db: Db): Promise<void> {
@@ -145,10 +174,10 @@ export async function listStockGanaderoPotreros(
     .prepare(
       `SELECT nombre FROM STOCK_GANADERO_POTRERO
        WHERE cuenta_id = ?
-       ORDER BY LOWER(nombre) ASC`
+       ORDER BY LOWER(nombre) ASC, creado_en ASC NULLS LAST, nombre ASC`
     )
     .all(cuentaId)) as { nombre: string }[];
-  return rows.map((r) => normalizarPotrero(r.nombre)).filter(Boolean);
+  return deduplicarPotreros(rows.map((r) => r.nombre));
 }
 
 export async function createStockGanaderoPotrero(
@@ -162,6 +191,17 @@ export async function createStockGanaderoPotrero(
   const nombre = normalizarPotrero(raw);
   if (!nombre) {
     throw new Error("Ingresá un nombre de potrero válido.");
+  }
+  const existente = (await db
+    .prepare(
+      `SELECT nombre FROM STOCK_GANADERO_POTRERO
+       WHERE cuenta_id = ? AND LOWER(nombre) = LOWER(?)
+       ORDER BY creado_en ASC NULLS LAST, nombre ASC
+       LIMIT 1`
+    )
+    .get(cuentaId, nombre)) as { nombre: string } | undefined;
+  if (existente?.nombre) {
+    return normalizarPotrero(existente.nombre) || nombre;
   }
   await db
     .prepare(

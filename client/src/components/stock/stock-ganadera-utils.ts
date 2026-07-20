@@ -767,12 +767,40 @@ export function normalizarPotrero(val: string | null | undefined): string {
     .slice(0, POTRERO_MAX);
 }
 
+function clavePotrero(nombre: string): string {
+  return normalizarPotrero(nombre).toLocaleLowerCase("es");
+}
+
+function preferirNombrePotrero(candidato: string, actual: string): boolean {
+  const cand = normalizarPotrero(candidato);
+  const cur = normalizarPotrero(actual);
+  if (!cand) return false;
+  if (!cur) return true;
+  const candAllCaps = cand === cand.toLocaleUpperCase("es") && /[a-záéíóúñü]/i.test(cand);
+  const curAllCaps = cur === cur.toLocaleUpperCase("es") && /[a-záéíóúñü]/i.test(cur);
+  if (candAllCaps !== curAllCaps) return !candAllCaps;
+  return cand.localeCompare(cur, "es") < 0;
+}
+
+/** Une variantes que solo cambian mayúsculas/minúsculas (p. ej. Pradera / PRADERA). */
+export function deduplicarPotreros(nombres: Iterable<string>): string[] {
+  const byKey = new Map<string, string>();
+  for (const raw of nombres) {
+    const nombre = normalizarPotrero(raw);
+    if (!nombre) continue;
+    const key = clavePotrero(nombre);
+    const prev = byKey.get(key);
+    if (!prev || preferirNombrePotrero(nombre, prev)) byKey.set(key, nombre);
+  }
+  return [...byKey.values()].sort((a, b) => a.localeCompare(b, "es"));
+}
+
 export function esPotreroEnCatalogo(
   potrero: string | null | undefined,
   potreros: readonly string[]
 ): boolean {
-  const norm = normalizarPotrero(potrero);
-  return norm !== "" && potreros.includes(norm);
+  const key = clavePotrero(potrero ?? "");
+  return key !== "" && potreros.some((p) => clavePotrero(p) === key);
 }
 
 export function fmtPotrero(potrero: string | null | undefined): string {

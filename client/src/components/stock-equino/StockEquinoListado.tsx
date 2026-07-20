@@ -28,6 +28,54 @@ interface Props {
   embedded?: boolean;
 }
 
+function formatEquinoIdDisplay(clave: string): string {
+  const digits = clave.replace(/\D/g, "");
+  if (digits.length <= 3) return digits || "—";
+  return `${digits.slice(0, 3)} ${digits.slice(3)}`;
+}
+
+function labelOrigenAlta(origen: string | undefined): string {
+  const o = String(origen ?? "").trim().toLowerCase();
+  if (o === "generico") return "Genérico";
+  if (o === "cabana") return "Cabaña";
+  return origen?.trim() || "—";
+}
+
+function labelSexo(sexo: string | undefined): string {
+  const s = String(sexo ?? "").trim().toUpperCase();
+  if (s === "MACHO") return "Macho";
+  if (s === "HEMBRA") return "Hembra";
+  return "—";
+}
+
+function formatNacimiento(
+  mes: number | null | undefined,
+  anio: number | null | undefined
+): string {
+  if (!anio) return "—";
+  if (mes && mes >= 1 && mes <= 12) {
+    return `${String(mes).padStart(2, "0")}/${anio}`;
+  }
+  return String(anio);
+}
+
+function labelCategoria(cat: string | undefined, condicion?: string): string {
+  const c = String(cat ?? "").trim();
+  if (c) {
+    const map: Record<string, string> = {
+      POTRANCA: "Potranca",
+      POTRA: "Potra",
+      YEGUA: "Yegua",
+      POTRILLO: "Potrillo",
+      POTRO: "Potro",
+      CABALLO: "Caballo",
+      PADRILLO: "Padrillo",
+    };
+    return map[c.toUpperCase()] ?? c;
+  }
+  return condicion?.trim() || "—";
+}
+
 export default function StockEquinoListado({
   apiOnline,
   onError,
@@ -125,7 +173,7 @@ export default function StockEquinoListado({
     setSoloRepetidos((v) => !v);
   };
 
-  const colCount = soloRepetidos ? 6 : 5;
+  const colCount = soloRepetidos ? 12 : 11;
 
   const hubLecturasStatus = loading
     ? "Cargando…"
@@ -307,11 +355,11 @@ export default function StockEquinoListado({
         />
       </div>
       <div className="field flex-grow">
-        <label htmlFor="stock-busq">Buscar EID / VID / condición</label>
+        <label htmlFor="stock-busq">Buscar</label>
         <input
           id="stock-busq"
           type="search"
-          placeholder="EID, caravana visual, condición…"
+          placeholder="ID, RP, nombre, categoría, potrero…"
           value={busqueda}
           onChange={(e) => setBusqueda(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && load()}
@@ -332,11 +380,17 @@ export default function StockEquinoListado({
       <table className="data-table">
         <thead>
           <tr>
-            <th>EID</th>
-            <th>VID</th>
-            <th>Fecha</th>
-            <th>Hora</th>
-            <th>Condición</th>
+            <th>ID</th>
+            <th>Sexo</th>
+            <th>Categoría</th>
+            <th>Origen</th>
+            <th>RP</th>
+            <th>Nombre</th>
+            <th>Registro</th>
+            <th>Nacimiento</th>
+            <th>Empresa</th>
+            <th>Potrero</th>
+            <th>Fecha alta</th>
             {soloRepetidos && <th>Lecturas</th>}
           </tr>
         </thead>
@@ -358,12 +412,12 @@ export default function StockEquinoListado({
               <td colSpan={colCount} className="empty">
                 {soloRepetidos
                   ? "No hay lecturas repetidas con los filtros actuales."
-                  : "Sin lecturas. Importá un archivo .txt desde el menú anterior."}
+                  : "Sin altas registradas. Usá Alta genérica o Cabaña."}
               </td>
             </tr>
           ) : (
             rowsPagina.map((r) => {
-              const clave = dispositivoClave(r.eid, r.vid);
+              const clave = r.clave || dispositivoClave(r.eid, r.vid);
               const veces = repetidosPorClave.get(clave);
               const esDuplicado = veces !== undefined && veces > 1;
               return (
@@ -371,16 +425,22 @@ export default function StockEquinoListado({
                   key={r.id}
                   className={esDuplicado ? "stock-row--duplicado" : undefined}
                 >
-                  <td className="num stock-eid">
-                    {r.eid}
+                  <td className="num stock-eid" title={clave}>
+                    {formatEquinoIdDisplay(clave)}
                     {esDuplicado && !soloRepetidos && (
                       <span className="stock-badge-rep">×{veces}</span>
                     )}
                   </td>
-                  <td>{r.vid || "—"}</td>
+                  <td>{labelSexo(r.sexo)}</td>
+                  <td>{labelCategoria(r.categoria, r.condicion)}</td>
+                  <td>{labelOrigenAlta(r.origen_alta)}</td>
+                  <td>{r.rp?.trim() || "—"}</td>
+                  <td>{r.nombre_animal?.trim() || "—"}</td>
+                  <td>{r.registro?.trim() || "—"}</td>
+                  <td>{formatNacimiento(r.nacimiento_mes, r.nacimiento_anio)}</td>
+                  <td>{r.empresa?.trim() || "—"}</td>
+                  <td>{r.potrero?.trim() || "—"}</td>
                   <td>{fmtDate(r.fecha)}</td>
-                  <td>{r.hora || "—"}</td>
-                  <td>{r.condicion || "—"}</td>
                   {soloRepetidos && <td className="num">{veces ?? "—"}</td>}
                 </tr>
               );
@@ -430,7 +490,7 @@ export default function StockEquinoListado({
             <p className="sg-hub-panel-kicker">Listado</p>
             <h2 className="stock-lecturas-hub-title">Lecturas importadas</h2>
             <p className="stock-lecturas-hub-sub muted">
-              Consultá, filtrá y gestioná las importaciones EID de la cuenta.
+              Altas equinas de la cuenta: ID, categoría, origen, RP y ficha.
             </p>
           </div>
           {historialBtn}
@@ -460,7 +520,7 @@ export default function StockEquinoListado({
           <div className="stock-dash-head">
             <h3 className="stock-dash-title">Dashboard</h3>
             <p className="stock-dash-sub">
-              {loading ? "Calculando…" : "EIDs únicos según los filtros actuales"}
+              {loading ? "Calculando…" : "Animales únicos según los filtros actuales"}
             </p>
           </div>
           {resumenCards}

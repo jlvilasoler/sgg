@@ -37,7 +37,7 @@ export const STOCK_EQUINO_SUBMENU: StockEquinoHubItem[] = [
   {
     id: "importar",
     label: "Alta de Equinos",
-    subtitle: "Genérica · RFID archivo / caravana",
+    subtitle: "Genérica · Cabaña",
     icon: "stock_alta",
   },
   {
@@ -79,7 +79,7 @@ const MODULE_META: Record<
   importar: {
     title: "Alta de Equinos",
     subtitle:
-      "Alta genérica por cantidad, potrero y categoría, o importá lecturas RFID desde archivo o caravana manual.",
+      "Alta genérica por cantidad, potrero y categoría, o alta individual de cabaña (RP, nombre, registro y premios). Misma secuencia de IDs.",
   },
   importar_baja: {
     title: "Baja de Dispositivo",
@@ -87,7 +87,7 @@ const MODULE_META: Record<
   },
   listado: {
     title: "Lecturas importadas",
-    subtitle: "Consultá, filtrá y gestioná las importaciones EID de la cuenta.",
+    subtitle: "Altas equinas de la cuenta: ID, categoría, origen, RP y ficha.",
   },
   historial: {
     title: "Historial de importaciones",

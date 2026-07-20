@@ -2232,6 +2232,10 @@ export async function saveStockEquinaDispositivo(
     numero_guia?: string;
     baja_mes: number | null;
     baja_anio: number | null;
+    rp?: string;
+    nombre_animal?: string;
+    registro?: string;
+    premios?: string;
   },
   eid?: string
 ): Promise<{
@@ -2250,6 +2254,10 @@ export async function saveStockEquinaDispositivo(
   numero_guia: string;
   baja_mes: number | null;
   baja_anio: number | null;
+  rp?: string;
+  nombre_animal?: string;
+  registro?: string;
+  premios?: string;
 }> {
   const json = await request<{
     data: {
@@ -2268,6 +2276,10 @@ export async function saveStockEquinaDispositivo(
       numero_guia: string;
       baja_mes: number | null;
       baja_anio: number | null;
+      rp?: string;
+      nombre_animal?: string;
+      registro?: string;
+      premios?: string;
     };
   }>(`/stock-equino/dispositivos/${encodeURIComponent(clave)}`, {
     method: "PATCH",
@@ -2476,6 +2488,43 @@ export async function altaStockEquinoGenerica(input: {
       categoria: string;
     };
   }>("/stock-equino/alta-generica", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+  return {
+    message: json.message,
+    ...json.data,
+  };
+}
+
+export async function altaStockEquinoCabana(input: {
+  rp: string;
+  nombre_animal: string;
+  fecha_nacimiento: string;
+  sexo: "MACHO" | "HEMBRA";
+  registro: string;
+  premios?: string;
+  castrado?: boolean | null;
+  potrero: string;
+  empresa: string;
+}): Promise<{
+  message: string;
+  clave: string;
+  lote_id: number;
+  categoria: string;
+  rp: string;
+  nombre_animal: string;
+}> {
+  const json = await request<{
+    message: string;
+    data: {
+      clave: string;
+      lote_id: number;
+      categoria: string;
+      rp: string;
+      nombre_animal: string;
+    };
+  }>("/stock-equino/alta-cabana", {
     method: "POST",
     body: JSON.stringify(input),
   });

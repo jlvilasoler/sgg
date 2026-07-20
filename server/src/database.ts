@@ -648,6 +648,11 @@ export const stockEquino = {
     cuentaId?: number | null,
     autor?: stockEquinoDb.HistorialAutor
   ) => stockEquinoDb.crearEquinosGenericos(db, input, cuentaId, autor),
+  altaCabana: (
+    input: stockEquinoDb.AltaEquinoCabanaInput,
+    cuentaId?: number | null,
+    autor?: stockEquinoDb.HistorialAutor
+  ) => stockEquinoDb.crearEquinoCabana(db, input, cuentaId, autor),
   importBaja: (
     rows: stockEquinoDb.StockEquinoRowInput[],
     tipo_baja: stockEquinoDb.TipoBaja,
