@@ -94,7 +94,7 @@ export const MENU_APPS: MenuApp[] = [
   {
     id: "stock_equino",
     label: "Stock Equino",
-    subtitle: "Importar lecturas EID de equinos desde archivo o carga manual",
+    subtitle: "Alta genérica · lecturas RFID · stock y sanidad",
   },
   {
     id: "notas",

@@ -643,6 +643,11 @@ export const stockEquino = {
     rows: stockEquinoDb.StockEquinoRowInput[],
     cuentaId?: number | null
   ) => stockEquinoDb.importStockEquinoRows(db, nombreArchivo, rows, cuentaId),
+  altaGenerica: (
+    input: stockEquinoDb.AltaEquinoGenericaInput,
+    cuentaId?: number | null,
+    autor?: stockEquinoDb.HistorialAutor
+  ) => stockEquinoDb.crearEquinosGenericos(db, input, cuentaId, autor),
   importBaja: (
     rows: stockEquinoDb.StockEquinoRowInput[],
     tipo_baja: stockEquinoDb.TipoBaja,

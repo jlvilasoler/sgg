@@ -568,6 +568,10 @@ export interface StockGanaderaDispositivo {
   potrero: string;
   raza: string;
   color_caravana: string;
+  /** Solo equinos (alta genérica / ficha). */
+  categoria?: string;
+  castrado?: boolean | null;
+  origen_alta?: string;
   edad: number | null;
   nacimiento_mes: number | null;
   nacimiento_anio: number | null;

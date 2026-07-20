@@ -5,13 +5,15 @@ import {
   fetchStockEquinoUltimaImportacionArchivo,
   importStockEquinoFile,
   importStockEquinoRows,
+  altaStockEquinoGenerica,
 } from "../../api";
-import type { AuthUser, DispositivoEmpresa } from "../../types";
+import type { AuthUser, DispositivoEmpresa, DispositivoSexo } from "../../types";
 import { confirmAction } from "../../utils/confirm";
 import SelectEmpresaDispositivo, {
   EMPRESA_PENDIENTE,
   type EmpresaSelectValue,
 } from "../stock/SelectEmpresaDispositivo";
+import SelectPotreroDispositivo from "../stock/SelectPotreroDispositivo";
 import { EID_PREFIX_LEN, splitEidVid } from "./stock-equina-utils";
 import { PageModuleHeadRow } from "../PageModuleHead";
 
@@ -25,7 +27,88 @@ interface Props {
   embedded?: boolean;
 }
 
-type ModoImport = "archivo" | "manual";
+type ModoImport = "generica" | "archivo" | "manual";
+
+type CategoriaAltaEquino =
+  | "POTRANCA"
+  | "POTRA"
+  | "YEGUA"
+  | "POTRILLO"
+  | "POTRO"
+  | "CABALLO"
+  | "PADRILLO";
+
+const CATEGORIA_ALTA_LABELS: Record<CategoriaAltaEquino, string> = {
+  POTRANCA: "Potranca (0–12 meses)",
+  POTRA: "Potra (12–36 meses)",
+  YEGUA: "Yegua (36+ meses)",
+  POTRILLO: "Potrillo (0–12 meses)",
+  POTRO: "Potro (12–36 meses)",
+  CABALLO: "Caballo (36+ · castrado)",
+  PADRILLO: "Padrillo (36+ · no castrado)",
+};
+
+const EQUINO_FRONTERA_JOVEN = 12;
+const EQUINO_FRONTERA_ADULTO = 36;
+
+interface FormGenerica {
+  cantidad: string;
+  empresa: EmpresaSelectValue;
+  potrero: string;
+  sexo: DispositivoSexo | "";
+  fecha_nacimiento: string;
+  /** Solo macho adulto: true=Caballo, false=Padrillo */
+  castrado: boolean | null;
+}
+
+function formGenericaVacio(): FormGenerica {
+  return {
+    cantidad: "1",
+    empresa: EMPRESA_PENDIENTE,
+    potrero: "",
+    sexo: "",
+    fecha_nacimiento: "",
+    castrado: null,
+  };
+}
+
+function edadMesesDesdeFechaIso(fechaIso: string): number | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(fechaIso.trim());
+  if (!m) return null;
+  const anio = Number(m[1]);
+  const mes = Number(m[2]);
+  if (!Number.isInteger(anio) || !Number.isInteger(mes) || mes < 1 || mes > 12) {
+    return null;
+  }
+  const now = new Date();
+  return Math.max(0, (now.getFullYear() - anio) * 12 + (now.getMonth() + 1 - mes));
+}
+
+function categoriaDesdeFormGenerica(
+  sexo: DispositivoSexo | "",
+  fechaNacimiento: string,
+  castrado: boolean | null
+): CategoriaAltaEquino | null {
+  if (sexo !== "MACHO" && sexo !== "HEMBRA") return null;
+  const edad = edadMesesDesdeFechaIso(fechaNacimiento);
+  if (edad === null) return null;
+  if (sexo === "HEMBRA") {
+    if (edad < EQUINO_FRONTERA_JOVEN) return "POTRANCA";
+    if (edad < EQUINO_FRONTERA_ADULTO) return "POTRA";
+    return "YEGUA";
+  }
+  if (edad < EQUINO_FRONTERA_JOVEN) return "POTRILLO";
+  if (edad < EQUINO_FRONTERA_ADULTO) return "POTRO";
+  if (castrado === true) return "CABALLO";
+  if (castrado === false) return "PADRILLO";
+  return null;
+}
+
+function formatEquinoIdDisplay(clave: string): string {
+  const digits = clave.replace(/\D/g, "");
+  if (digits.length <= 3) return digits;
+  return `${digits.slice(0, 3)} ${digits.slice(3)}`;
+}
 
 interface LecturaManual {
   id: string;
@@ -148,9 +231,10 @@ export default function StockEquinoImportar({
   embedded = false,
 }: Props) {
   const formId = useId();
-  const [modo, setModo] = useState<ModoImport>("archivo");
+  const [modo, setModo] = useState<ModoImport>("generica");
   const [file, setFile] = useState<File | null>(null);
   const [form, setForm] = useState<FormLectura>(() => formVacio());
+  const [formGenerica, setFormGenerica] = useState<FormGenerica>(() => formGenericaVacio());
   const [pendientes, setPendientes] = useState<LecturaManual[]>([]);
   const [importing, setImporting] = useState(false);
   const [undoing, setUndoing] = useState(false);
@@ -176,6 +260,11 @@ export default function StockEquinoImportar({
   useEffect(() => {
     if (empresas.length === 0) return;
     setForm((prev) => {
+      if (prev.empresa === EMPRESA_PENDIENTE || prev.empresa === "") return prev;
+      if (empresas.some((e) => e.codigo === prev.empresa)) return prev;
+      return { ...prev, empresa: EMPRESA_PENDIENTE };
+    });
+    setFormGenerica((prev) => {
       if (prev.empresa === EMPRESA_PENDIENTE || prev.empresa === "") return prev;
       if (empresas.some((e) => e.codigo === prev.empresa)) return prev;
       return { ...prev, empresa: EMPRESA_PENDIENTE };
@@ -308,6 +397,76 @@ export default function StockEquinoImportar({
     }
   };
 
+  const submitAltaGenerica = async (e?: FormEvent) => {
+    e?.preventDefault();
+    if (formGenerica.empresa === EMPRESA_PENDIENTE || !formGenerica.empresa) {
+      onError("Seleccioná la empresa");
+      return;
+    }
+    const cantidad = Math.floor(Number(formGenerica.cantidad));
+    if (!Number.isInteger(cantidad) || cantidad < 1 || cantidad > 500) {
+      onError("La cantidad debe ser un entero entre 1 y 500");
+      return;
+    }
+    if (!formGenerica.potrero.trim()) {
+      onError("Seleccioná un potrero");
+      return;
+    }
+    if (formGenerica.sexo !== "MACHO" && formGenerica.sexo !== "HEMBRA") {
+      onError("Seleccioná el sexo");
+      return;
+    }
+    if (!formGenerica.fecha_nacimiento.trim()) {
+      onError("Indicá la fecha de nacimiento");
+      return;
+    }
+    const edad = edadMesesDesdeFechaIso(formGenerica.fecha_nacimiento);
+    if (edad === null) {
+      onError("Fecha de nacimiento inválida");
+      return;
+    }
+    const necesitaCastrado =
+      formGenerica.sexo === "MACHO" && edad >= EQUINO_FRONTERA_ADULTO;
+    if (necesitaCastrado && formGenerica.castrado === null) {
+      onError("Indicá si es Caballo (castrado) o Padrillo");
+      return;
+    }
+    const categoria = categoriaDesdeFormGenerica(
+      formGenerica.sexo,
+      formGenerica.fecha_nacimiento,
+      formGenerica.castrado
+    );
+    if (!categoria) {
+      onError("No se pudo determinar la categoría");
+      return;
+    }
+    setImporting(true);
+    try {
+      const r = await altaStockEquinoGenerica({
+        cantidad,
+        sexo: formGenerica.sexo,
+        fecha_nacimiento: formGenerica.fecha_nacimiento,
+        castrado: necesitaCastrado ? formGenerica.castrado : null,
+        potrero: formGenerica.potrero,
+        empresa: formGenerica.empresa,
+      });
+      const rango =
+        r.desde === r.hasta
+          ? formatEquinoIdDisplay(r.desde)
+          : `${formatEquinoIdDisplay(r.desde)} → ${formatEquinoIdDisplay(r.hasta)}`;
+      onSuccess(
+        `${r.message}. IDs: ${rango}`,
+        "Alta genérica completada"
+      );
+      setFormGenerica(formGenericaVacio());
+      onImported();
+    } catch (err) {
+      onError(err instanceof Error ? err.message : "Error en el alta genérica");
+    } finally {
+      setImporting(false);
+    }
+  };
+
   const agregarPendiente = (e?: FormEvent) => {
     e?.preventDefault();
     const row = lecturaDesdeForm(form);
@@ -387,8 +546,17 @@ export default function StockEquinoImportar({
     <div
       className={`stock-import-tabs${embedded ? " stock-import-tabs--hub" : ""}`}
       role="tablist"
-      aria-label="Modo de importación"
+      aria-label="Modo de alta"
     >
+      <button
+        type="button"
+        role="tab"
+        aria-selected={modo === "generica"}
+        className={`stock-import-tab${modo === "generica" ? " is-active" : ""}`}
+        onClick={() => setModo("generica")}
+      >
+        Alta genérica
+      </button>
       <button
         type="button"
         role="tab"
@@ -396,7 +564,7 @@ export default function StockEquinoImportar({
         className={`stock-import-tab${modo === "archivo" ? " is-active" : ""}`}
         onClick={() => setModo("archivo")}
       >
-        Archivo .txt / .csv / .xlsx
+        Archivo RFID
       </button>
       <button
         type="button"
@@ -405,7 +573,7 @@ export default function StockEquinoImportar({
         className={`stock-import-tab${modo === "manual" ? " is-active" : ""}`}
         onClick={() => setModo("manual")}
       >
-        Carga manual
+        Caravana manual
         {pendientes.length > 0 ? (
           <span
             className={`stock-import-tab-badge${embedded ? " stock-import-tab-badge--hub" : ""}`}
@@ -525,6 +693,194 @@ export default function StockEquinoImportar({
         disabled={!apiOnline || importing}
       />
     </div>
+  );
+
+  const edadGenerica = edadMesesDesdeFechaIso(formGenerica.fecha_nacimiento);
+  const machoAdulto =
+    formGenerica.sexo === "MACHO" &&
+    edadGenerica !== null &&
+    edadGenerica >= EQUINO_FRONTERA_ADULTO;
+  const categoriaAuto = categoriaDesdeFormGenerica(
+    formGenerica.sexo,
+    formGenerica.fecha_nacimiento,
+    formGenerica.castrado
+  );
+
+  const genericaFormGrid = (
+    <div className="stock-import-form-grid">
+      <div className="field stock-import-field">
+        <label htmlFor={`${formId}-gen-cantidad`}>Cantidad</label>
+        <input
+          id={`${formId}-gen-cantidad`}
+          type="number"
+          min={1}
+          max={500}
+          step={1}
+          value={formGenerica.cantidad}
+          onChange={(e) =>
+            setFormGenerica((p) => ({ ...p, cantidad: e.target.value }))
+          }
+          disabled={!apiOnline || importing}
+          required
+        />
+      </div>
+      <div className="field stock-import-field">
+        <label htmlFor={`${formId}-gen-empresa`}>Empresa</label>
+        <SelectEmpresaDispositivo
+          id={`${formId}-gen-empresa`}
+          empresas={empresas}
+          value={formGenerica.empresa}
+          requiereSeleccion
+          onChange={(empresa) => setFormGenerica((p) => ({ ...p, empresa }))}
+          disabled={!apiOnline || importing}
+        />
+      </div>
+      <div className="field stock-import-field">
+        <label htmlFor={`${formId}-gen-potrero`}>Potrero</label>
+        <SelectPotreroDispositivo
+          id={`${formId}-gen-potrero`}
+          value={formGenerica.potrero}
+          onChange={(potrero) => setFormGenerica((p) => ({ ...p, potrero }))}
+          disabled={!apiOnline || importing}
+          apiOnline={apiOnline}
+          onError={onError}
+          onSuccess={onSuccess}
+          selectClassName="stock-edit-select"
+        />
+      </div>
+      <div className="field stock-import-field">
+        <label htmlFor={`${formId}-gen-sexo`}>Sexo</label>
+        <select
+          id={`${formId}-gen-sexo`}
+          className="stock-edit-select"
+          value={formGenerica.sexo}
+          onChange={(e) => {
+            const sexo = e.target.value as DispositivoSexo | "";
+            setFormGenerica((p) => ({
+              ...p,
+              sexo,
+              castrado: null,
+            }));
+          }}
+          disabled={!apiOnline || importing}
+          required
+        >
+          <option value="">Seleccionar…</option>
+          <option value="HEMBRA">Hembra</option>
+          <option value="MACHO">Macho</option>
+        </select>
+      </div>
+      <div className="field stock-import-field">
+        <label htmlFor={`${formId}-gen-nacimiento`}>Fecha de nacimiento</label>
+        <input
+          id={`${formId}-gen-nacimiento`}
+          type="date"
+          max={fechaHoy()}
+          value={formGenerica.fecha_nacimiento}
+          onChange={(e) =>
+            setFormGenerica((p) => ({
+              ...p,
+              fecha_nacimiento: e.target.value,
+              castrado: null,
+            }))
+          }
+          disabled={!apiOnline || importing}
+          required
+        />
+      </div>
+      {machoAdulto ? (
+        <div className="field stock-import-field">
+          <label htmlFor={`${formId}-gen-castrado`}>Tipo adulto</label>
+          <select
+            id={`${formId}-gen-castrado`}
+            className="stock-edit-select"
+            value={
+              formGenerica.castrado === true
+                ? "CABALLO"
+                : formGenerica.castrado === false
+                  ? "PADRILLO"
+                  : ""
+            }
+            onChange={(e) => {
+              const v = e.target.value;
+              setFormGenerica((p) => ({
+                ...p,
+                castrado: v === "CABALLO" ? true : v === "PADRILLO" ? false : null,
+              }));
+            }}
+            disabled={!apiOnline || importing}
+            required
+          >
+            <option value="">Seleccionar…</option>
+            <option value="CABALLO">Caballo (castrado)</option>
+            <option value="PADRILLO">Padrillo (no castrado)</option>
+          </select>
+        </div>
+      ) : null}
+      <div className="field stock-import-field stock-import-field--condicion">
+        <label htmlFor={`${formId}-gen-categoria`}>Categoría</label>
+        <input
+          id={`${formId}-gen-categoria`}
+          type="text"
+          className="stock-edit-select"
+          value={
+            categoriaAuto
+              ? CATEGORIA_ALTA_LABELS[categoriaAuto]
+              : machoAdulto
+                ? "Elegí Caballo o Padrillo"
+                : formGenerica.sexo && formGenerica.fecha_nacimiento
+                  ? "Calculando…"
+                  : "Según sexo y fecha de nacimiento"
+          }
+          readOnly
+          disabled
+        />
+        {edadGenerica !== null ? (
+          <span className="muted" style={{ fontSize: "0.85em" }}>
+            Edad actual: {edadGenerica} mes{edadGenerica === 1 ? "" : "es"}
+          </span>
+        ) : null}
+      </div>
+    </div>
+  );
+
+  const genericaPane = (
+    <section className="stock-import-pane" aria-label="Alta genérica de equinos">
+      <form
+        id={`${formId}-generica`}
+        className="stock-import-form"
+        onSubmit={(e) => void submitAltaGenerica(e)}
+      >
+        {embedded ? (
+          <div className="stock-alta-form-fields-box">{genericaFormGrid}</div>
+        ) : (
+          genericaFormGrid
+        )}
+        <p className="muted stock-alta-hub-note" style={{ marginTop: "0.75rem" }}>
+          Cada animal recibe un ID interno único con prefijo <strong>600</strong> (global
+          en todo el sistema). La categoría se ajusta sola según la fecha de nacimiento.
+        </p>
+        <div
+          className={`stock-import-form-actions${embedded ? " stock-import-form-actions--hub" : ""}`}
+        >
+          <button
+            type="button"
+            className={btnGhost}
+            disabled={!apiOnline || importing}
+            onClick={() => setFormGenerica(formGenericaVacio())}
+          >
+            Limpiar
+          </button>
+          <button
+            type="submit"
+            className={btnPrimary}
+            disabled={!apiOnline || importing}
+          >
+            {importing ? "Registrando…" : "Dar de alta"}
+          </button>
+        </div>
+      </form>
+    </section>
   );
 
   const archivoPane = (
@@ -762,8 +1118,8 @@ export default function StockEquinoImportar({
             <p className="sg-hub-panel-kicker">Alta</p>
             <h2 className="stock-alta-hub-title">Nuevos equinos en stock</h2>
             <p className="stock-alta-hub-sub muted">
-              Cargá el export del bastón o lector RFID, o ingresá lecturas una a una. Cada
-              registro guarda fecha, hora y condición del equino.
+              Alta genérica por cantidad y categoría, o lecturas RFID desde archivo / caravana
+              manual. Los IDs genéricos usan prefijo 600 y son únicos en todo el sistema.
             </p>
           </header>
           <div className="stock-import-chips stock-import-chips--hub">
@@ -774,16 +1130,19 @@ export default function StockEquinoImportar({
             ))}
           </div>
           <p className="stock-alta-hub-note muted">
-            Archivo <strong>.txt</strong>, <strong>.csv</strong> (Tru-Test) o{" "}
-            <strong>.xlsx</strong> (SNIG) · Separador tab o <code>;</code>. Fecha{" "}
-            <code>AAAA-MM-DD</code> o <code>D/M/AAAA</code> · Hora <code>HH:MM:SS</code>. En carga
-            manual podés importar una lectura o armar un lote con varias.
+            <strong>Genérica:</strong> cantidad, potrero, sexo y categoría.{" "}
+            <strong>RFID:</strong> archivo <strong>.txt</strong>, <strong>.csv</strong> o{" "}
+            <strong>.xlsx</strong>, o carga manual por caravana.
           </p>
         </section>
 
         <section className="stock-alta-hub-box stock-alta-hub-box--main" aria-label="Importar altas">
           <div className="stock-alta-hub-tabs-box">{importTabs}</div>
-          {modo === "archivo" ? archivoPane : manualPane}
+          {modo === "generica"
+            ? genericaPane
+            : modo === "archivo"
+              ? archivoPane
+              : manualPane}
         </section>
       </div>
     </>
@@ -793,7 +1152,7 @@ export default function StockEquinoImportar({
         <PageModuleHeadRow
           icon={{ source: "hub", id: "stock_alta" }}
           title="Alta de Equinos"
-          subtitle="Cargá el export del bastón o lector RFID, o ingresá lecturas una a una. Cada registro guarda fecha, hora y condición del equino."
+          subtitle="Alta genérica (cantidad + potrero + categoría) o lecturas RFID por archivo / caravana. IDs internos con prefijo 600, únicos en todo el sistema."
         />
       </div>
 
@@ -807,7 +1166,18 @@ export default function StockEquinoImportar({
 
           <div className="stock-facet-group">
             <div className="stock-facet-group-head">
-              <h4 className="stock-facet-group-title">Columnas</h4>
+              <h4 className="stock-facet-group-title">Alta genérica</h4>
+            </div>
+            <p className="stock-import-sidebar-note">
+              Indicá cantidad, potrero, sexo y fecha de nacimiento. La categoría se ajusta
+              sola (Potranca/Potra/Yegua o Potrillo/Potro; en machos adultos elegís Caballo
+              o Padrillo). Cada animal recibe un ID único con prefijo <strong>600</strong>.
+            </p>
+          </div>
+
+          <div className="stock-facet-group">
+            <div className="stock-facet-group-head">
+              <h4 className="stock-facet-group-title">Columnas RFID</h4>
             </div>
             <div className="stock-import-chips stock-import-chips--sidebar">
               {COLUMNAS.map((col) => (
@@ -845,7 +1215,11 @@ export default function StockEquinoImportar({
 
         <div className="stock-equina-main stock-import-main">
           {importTabs}
-          {modo === "archivo" ? archivoPane : manualPane}
+          {modo === "generica"
+            ? genericaPane
+            : modo === "archivo"
+              ? archivoPane
+              : manualPane}
         </div>
       </div>
     </div>

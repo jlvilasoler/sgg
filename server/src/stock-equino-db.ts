@@ -1,7 +1,16 @@
 ﻿import type { Db } from "./db/pg-client.js";
 import type { StockGanaderoRowInput } from "./parse-stock-ganadero-txt.js";
 import { migrateAddCuentaIdColumn, getEmpresaCodigosActivosPorCuenta } from "./empresas-cuenta-db.js";
-import { labelCategoriaSalidaDispositivo } from "./stock-equina-categoria.js";
+import {
+  castradoDesdeCategoria,
+  categoriaDesdeSexoYEdad,
+  CATEGORIA_EQUINO_LABELS,
+  EQUINO_FRONTERA_ADULTO,
+  EQUINO_ID_SEED_ULTIMO,
+  labelCategoriaSalidaDispositivo,
+  splitEquinoIdInterno,
+  type CategoriaEquino,
+} from "./stock-equina-categoria.js";
 import { dispositivoClave, eidClave, splitEidVid } from "./stock-ganadero-id.js";
 import * as stockFoto from "./stock-dispositivo-foto-db.js";
 import * as stockControlSanitario from "./stock-control-sanitario-db.js";
@@ -9,6 +18,7 @@ import * as potreroDb from "./stock-ganadero-potrero-db.js";
 import { syncStockDispositivoPotreroEnMapa } from "./campo-mapa-sync-stock-db.js";
 
 export { dispositivoClave, eidClave, splitEidVid } from "./stock-ganadero-id.js";
+export type { CategoriaEquino } from "./stock-equina-categoria.js";
 
 export type StockEquinoRowInput = StockGanaderoRowInput;
 
@@ -138,6 +148,58 @@ export async function initStockEquinoTables(db: Db): Promise<void> {
   await migrateStockEquinoDispositivoHistorial(db);
   await migrateHistorialAutorColumns(db);
   await potreroDb.migrateEquinoPotreroColumn(db);
+  await migrateEquinoAltaGenericaColumns(db);
+  await ensureStockEquinoIdSeq(db);
+}
+
+async function migrateEquinoAltaGenericaColumns(db: Db): Promise<void> {
+  const done = (await db
+    .prepare(
+      `SELECT 1 AS ok FROM STOCK_EQUINO_DISPOSITIVO_HISTORIAL
+       WHERE clave = '__meta__' AND campo = 'alta_generica_cols_v1' LIMIT 1`
+    )
+    .get()) as { ok: number } | undefined;
+  if (done) return;
+
+  for (const sql of [
+    `ALTER TABLE STOCK_EQUINO_DISPOSITIVO ADD COLUMN categoria TEXT NOT NULL DEFAULT ''`,
+    `ALTER TABLE STOCK_EQUINO_DISPOSITIVO ADD COLUMN castrado INTEGER`,
+    `ALTER TABLE STOCK_EQUINO_DISPOSITIVO ADD COLUMN origen_alta TEXT NOT NULL DEFAULT ''`,
+  ]) {
+    try {
+      await db.prepare(sql).run();
+    } catch {
+      /* columna ya existe */
+    }
+  }
+
+  await db
+    .prepare(
+      `INSERT INTO STOCK_EQUINO_DISPOSITIVO_HISTORIAL
+         (clave, campo, etiqueta, valor_anterior, valor_nuevo)
+       VALUES ('__meta__', 'alta_generica_cols_v1', '', '', '')`
+    )
+    .run();
+}
+
+async function ensureStockEquinoIdSeq(db: Db): Promise<void> {
+  await db
+    .prepare(
+      `CREATE TABLE IF NOT EXISTS STOCK_EQUINO_ID_SEQ (
+         id INTEGER PRIMARY KEY CHECK (id = 1),
+         ultimo TEXT NOT NULL
+       )`
+    )
+    .run();
+
+  const row = (await db
+    .prepare(`SELECT ultimo FROM STOCK_EQUINO_ID_SEQ WHERE id = 1`)
+    .get()) as { ultimo: string } | undefined;
+  if (!row) {
+    await db
+      .prepare(`INSERT INTO STOCK_EQUINO_ID_SEQ (id, ultimo) VALUES (1, ?)`)
+      .run(EQUINO_ID_SEED_ULTIMO);
+  }
 }
 
 async function ensureStockEquinoBaseTables(db: Db): Promise<void> {
@@ -621,6 +683,9 @@ interface DispositivoMetaRow {
   grupo: string;
   grupo_libre: string;
   potrero: string;
+  categoria?: string;
+  castrado?: number | boolean | null;
+  origen_alta?: string;
   edad: number | null;
   nacimiento_mes: number | null;
   nacimiento_anio: number | null;
@@ -632,18 +697,34 @@ interface DispositivoMetaRow {
   baja_anio: number | null;
 }
 
+type DispositivoMetaEnriquecida = DispositivoMetaGuardada & {
+  categoria: string;
+  castrado: boolean | null;
+  origen_alta: string;
+};
+
 async function mapMetaDispositivos(
   db: Db
-): Promise<Map<string, DispositivoMetaGuardada>> {
+): Promise<Map<string, DispositivoMetaEnriquecida>> {
   const rows = (await db
     .prepare(
-      `SELECT clave, sexo, empresa, grupo, grupo_libre, potrero, edad, nacimiento_mes, nacimiento_anio, observaciones, estado, tipo_baja, numero_guia, baja_mes, baja_anio
+      `SELECT clave, sexo, empresa, grupo, grupo_libre, potrero, categoria, castrado, origen_alta,
+              edad, nacimiento_mes, nacimiento_anio, observaciones, estado, tipo_baja, numero_guia, baja_mes, baja_anio
        FROM STOCK_EQUINO_DISPOSITIVO`
     )
     .all()) as DispositivoMetaRow[];
-  const map = new Map<string, DispositivoMetaGuardada>();
+  const map = new Map<string, DispositivoMetaEnriquecida>();
   for (const row of rows) {
-    map.set(row.clave, aplicarEdadCalculada(normalizarMetaDispositivo(row)));
+    const meta = aplicarEdadCalculada(normalizarMetaDispositivo(row));
+    map.set(row.clave, {
+      ...meta,
+      categoria: String(row.categoria ?? "").trim().toUpperCase(),
+      castrado:
+        row.castrado === null || row.castrado === undefined
+          ? null
+          : Boolean(Number(row.castrado)),
+      origen_alta: String(row.origen_alta ?? "").trim(),
+    });
   }
   return map;
 }
@@ -720,6 +801,9 @@ async function enrichDispositivosWithMeta(
     d.grupo = info?.grupo ?? "";
     d.grupo_libre = info?.grupo_libre ?? "";
     d.potrero = info?.potrero ?? "";
+    d.categoria = info?.categoria ?? "";
+    d.castrado = info?.castrado ?? null;
+    d.origen_alta = info?.origen_alta ?? "";
     d.edad = info?.edad ?? null;
     d.nacimiento_mes = info?.nacimiento_mes ?? null;
     d.nacimiento_anio = info?.nacimiento_anio ?? null;
@@ -2682,6 +2766,256 @@ export async function importStockEquinoRows(
   });
 }
 
+export interface AltaEquinoGenericaInput {
+  cantidad: number;
+  sexo: DispositivoSexo;
+  /** Fecha ISO YYYY-MM-DD. La categoría se deriva de esta fecha. */
+  fecha_nacimiento: string;
+  /**
+   * Solo requerido si el animal es macho adulto (≥36 meses):
+   * true = Caballo, false = Padrillo.
+   */
+  castrado?: boolean | null;
+  potrero: string;
+  empresa: string;
+}
+
+export interface AltaEquinoGenericaResult {
+  creados: number;
+  claves: string[];
+  desde: string;
+  hasta: string;
+  lote_id: number;
+  categoria: CategoriaEquino;
+}
+
+function incrementarIdDecimal(ultimo: string, by: number): string {
+  return (BigInt(ultimo.replace(/\D/g, "") || "0") + BigInt(by)).toString();
+}
+
+function parseFechaNacimientoAlta(raw: string): {
+  nacimiento_mes: number;
+  nacimiento_anio: number;
+  fechaIso: string;
+} {
+  const s = String(raw ?? "").trim();
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  if (!m) {
+    throw new Error("Fecha de nacimiento inválida. Usá el formato AAAA-MM-DD.");
+  }
+  const anio = Number(m[1]);
+  const mes = Number(m[2]);
+  const dia = Number(m[3]);
+  const maxAnio = new Date().getFullYear();
+  if (!Number.isInteger(mes) || mes < 1 || mes > 12) {
+    throw new Error("Mes de nacimiento inválido.");
+  }
+  if (!Number.isInteger(dia) || dia < 1 || dia > 31) {
+    throw new Error("Día de nacimiento inválido.");
+  }
+  if (!Number.isInteger(anio) || anio < 1990 || anio > maxAnio) {
+    throw new Error(`Año de nacimiento inválido (1990–${maxAnio}).`);
+  }
+  const d = new Date(anio, mes - 1, dia);
+  if (
+    d.getFullYear() !== anio ||
+    d.getMonth() !== mes - 1 ||
+    d.getDate() !== dia
+  ) {
+    throw new Error("Fecha de nacimiento inválida.");
+  }
+  const hoy = new Date();
+  const hoySolo = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
+  if (d > hoySolo) {
+    throw new Error("La fecha de nacimiento no puede ser futura.");
+  }
+  return {
+    nacimiento_mes: mes,
+    nacimiento_anio: anio,
+    fechaIso: `${anio}-${String(mes).padStart(2, "0")}-${String(dia).padStart(2, "0")}`,
+  };
+}
+
+export async function crearEquinosGenericos(
+  db: Db,
+  input: AltaEquinoGenericaInput,
+  cuentaId?: number | null,
+  autor?: HistorialAutor
+): Promise<AltaEquinoGenericaResult> {
+  const cantidad = Math.floor(Number(input.cantidad));
+  if (!Number.isInteger(cantidad) || cantidad < 1 || cantidad > 500) {
+    throw new Error("La cantidad debe ser un entero entre 1 y 500.");
+  }
+
+  const sexo = SEXOS_VALIDOS.has(input.sexo) ? input.sexo : "";
+  if (sexo !== "MACHO" && sexo !== "HEMBRA") {
+    throw new Error("Sexo inválido. Use MACHO o HEMBRA.");
+  }
+
+  const nacimiento = parseFechaNacimientoAlta(input.fecha_nacimiento);
+  const edad = calcularEdadMeses(nacimiento.nacimiento_mes, nacimiento.nacimiento_anio);
+  if (edad === null) {
+    throw new Error("No se pudo calcular la edad desde la fecha de nacimiento.");
+  }
+
+  let castradoOpt: boolean | null =
+    input.castrado === true ? true : input.castrado === false ? false : null;
+  if (sexo === "MACHO" && edad >= EQUINO_FRONTERA_ADULTO && castradoOpt === null) {
+    throw new Error(
+      "Para machos de 36 meses o más indicá si es Caballo (castrado) o Padrillo."
+    );
+  }
+  if (sexo !== "MACHO" || edad < EQUINO_FRONTERA_ADULTO) {
+    castradoOpt = null;
+  }
+
+  const categoria = categoriaDesdeSexoYEdad(sexo, edad, castradoOpt);
+  const potrero = potreroDb.normalizarPotrero(input.potrero);
+  if (!potrero) {
+    throw new Error("Seleccioná un potrero.");
+  }
+
+  const empresa = normalizarEmpresaDispositivo(input.empresa);
+  if (!empresa) {
+    throw new Error("Seleccioná la empresa de los animales.");
+  }
+
+  const grupo = grupoDesdeNacimiento(nacimiento.nacimiento_mes, nacimiento.nacimiento_anio);
+  const castrado = castradoDesdeCategoria(categoria);
+  const castradoDb = castrado === null ? null : castrado ? 1 : 0;
+
+  const ahora = new Date();
+  const fecha = ahora.toISOString().slice(0, 10);
+  const hora = `${String(ahora.getHours()).padStart(2, "0")}:${String(ahora.getMinutes()).padStart(2, "0")}:${String(ahora.getSeconds()).padStart(2, "0")}`;
+
+  return db.transaction(async (tx) => {
+    await ensureStockEquinoIdSeq(tx);
+
+    const seqRow = (await tx
+      .prepare(`SELECT ultimo FROM STOCK_EQUINO_ID_SEQ WHERE id = 1 FOR UPDATE`)
+      .get()) as { ultimo: string } | undefined;
+    if (!seqRow?.ultimo) {
+      throw new Error("No se pudo reservar la secuencia de IDs equinos.");
+    }
+
+    const claves: string[] = [];
+    let cursor = seqRow.ultimo;
+    for (let i = 0; i < cantidad; i++) {
+      cursor = incrementarIdDecimal(cursor, 1);
+      claves.push(cursor);
+    }
+
+    await tx
+      .prepare(`UPDATE STOCK_EQUINO_ID_SEQ SET ultimo = ? WHERE id = 1`)
+      .run(cursor);
+
+    const lote = await tx
+      .prepare(
+        `INSERT INTO STOCK_EQUINO_LOTE (nombre_archivo, filas, cuenta_id) VALUES (@nombre_archivo, @filas, @cuenta_id)`
+      )
+      .run({
+        nombre_archivo: `alta-generica-${categoria.toLowerCase()}`,
+        filas: cantidad,
+        cuenta_id: cuentaId ?? null,
+      });
+    const lote_id = Number(lote.lastInsertRowid);
+
+    const insReg = await tx.prepare(
+      `INSERT INTO STOCK_EQUINO_REGISTRO (lote_id, eid, vid, fecha, hora, condicion)
+       VALUES (@lote_id, @eid, @vid, @fecha, @hora, @condicion)`
+    );
+    const insDisp = await tx.prepare(
+      `INSERT INTO STOCK_EQUINO_DISPOSITIVO (
+         clave, eid, sexo, empresa, grupo, grupo_libre, potrero, categoria, castrado, origen_alta,
+         edad, nacimiento_mes, nacimiento_anio, observaciones, estado, tipo_baja, numero_guia,
+         baja_mes, baja_anio, actualizado_en
+       ) VALUES (
+         @clave, @eid, @sexo, @empresa, @grupo, '', @potrero, @categoria, @castrado, 'generico',
+         @edad, @nacimiento_mes, @nacimiento_anio, '', 'VIVO', '', '',
+         NULL, NULL, NOW()
+       )
+       ON CONFLICT (clave) DO UPDATE SET
+         eid = excluded.eid,
+         sexo = excluded.sexo,
+         empresa = excluded.empresa,
+         grupo = excluded.grupo,
+         potrero = excluded.potrero,
+         categoria = excluded.categoria,
+         castrado = excluded.castrado,
+         origen_alta = excluded.origen_alta,
+         edad = excluded.edad,
+         nacimiento_mes = excluded.nacimiento_mes,
+         nacimiento_anio = excluded.nacimiento_anio,
+         estado = 'VIVO',
+         actualizado_en = NOW()`
+    );
+
+    for (const clave of claves) {
+      const { eid, vid } = splitEquinoIdInterno(clave);
+      await insReg.run({
+        lote_id,
+        eid,
+        vid,
+        fecha,
+        hora,
+        condicion: CATEGORIA_EQUINO_LABELS[categoria],
+      });
+      await insDisp.run({
+        clave,
+        eid,
+        sexo,
+        empresa,
+        grupo,
+        potrero,
+        categoria,
+        castrado: castradoDb,
+        edad,
+        nacimiento_mes: nacimiento.nacimiento_mes,
+        nacimiento_anio: nacimiento.nacimiento_anio,
+      });
+    }
+
+    const cuentaPotrero =
+      cuentaId ?? (await potreroDb.getCuentaIdPorEmpresaCodigo(tx, empresa));
+    await potreroDb.ensurePotreroEnCatalogo(tx, cuentaPotrero, potrero);
+
+    for (const clave of claves) {
+      await syncStockDispositivoPotreroEnMapa(
+        tx,
+        cuentaPotrero,
+        clave,
+        "equino",
+        potrero,
+        ""
+      );
+      if (autor) {
+        await tx
+          .prepare(
+            `INSERT INTO STOCK_EQUINO_DISPOSITIVO_HISTORIAL
+               (clave, campo, etiqueta, valor_anterior, valor_nuevo, user_id, user_email, user_nombre, origen)
+             VALUES (?, 'alta_generica', 'Alta genérica', '', ?, ?, ?, ?, 'alta_generica')`
+          )
+          .run(
+            clave,
+            `${categoria} · ${nacimiento.fechaIso} · ${potrero}`,
+            autor.user_id ?? null,
+            autor.user_email ?? "",
+            autor.user_nombre ?? ""
+          );
+      }
+    }
+
+    return {
+      creados: cantidad,
+      claves,
+      desde: claves[0]!,
+      hasta: claves[claves.length - 1]!,
+      lote_id,
+      categoria,
+    };
+  });
+}
+
 export async function deleteStockEquinoLote(db: Db, id: number): Promise<boolean> {
   return db.transaction(async (tx) => {
     await tx.prepare("DELETE FROM STOCK_EQUINO_REGISTRO WHERE lote_id = ?").run(id);
@@ -2709,6 +3043,9 @@ export interface StockEquinaDispositivo {
   grupo: string;
   grupo_libre: string;
   potrero: string;
+  categoria: string;
+  castrado: boolean | null;
+  origen_alta: string;
   edad: number | null;
   nacimiento_mes: number | null;
   nacimiento_anio: number | null;
@@ -2879,6 +3216,9 @@ function buildDispositivosFromRegistros(
         grupo: "",
         grupo_libre: "",
         potrero: "",
+        categoria: "",
+        castrado: null,
+        origen_alta: "",
         edad: null,
         nacimiento_mes: null,
         nacimiento_anio: null,

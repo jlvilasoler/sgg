@@ -5605,6 +5605,62 @@ app.post("/api/stock-equino/import/rows", async (req, res) => {
   }
 });
 
+app.post("/api/stock-equino/alta-generica", async (req, res) => {
+  try {
+    const body = req.body as {
+      cantidad?: number;
+      sexo?: string;
+      fecha_nacimiento?: string;
+      castrado?: boolean | null;
+      potrero?: string;
+      empresa?: string;
+    };
+    const empresa = String(body.empresa ?? "").trim();
+    await assertEmpresaCodigoPermitida(req.user!, empresa);
+    const cuentaId = await cuentaIdParaInsert(req.user!);
+    const castradoRaw = body.castrado;
+    const castrado =
+      castradoRaw === true || castradoRaw === false
+        ? castradoRaw
+        : castradoRaw === null
+          ? null
+          : undefined;
+    const result = await db.stockEquino.altaGenerica(
+      {
+        cantidad: Number(body.cantidad),
+        sexo: String(body.sexo ?? "").toUpperCase() as "" | "MACHO" | "HEMBRA",
+        fecha_nacimiento: String(body.fecha_nacimiento ?? ""),
+        castrado,
+        potrero: String(body.potrero ?? ""),
+        empresa,
+      },
+      cuentaId,
+      historialAutorFromRequest(req, "FICHA")
+    );
+    if (result.creados > 0) {
+      await auditStockMovimiento(req, "ALTA", {
+        cantidad: result.creados,
+        resumen: `Alta genérica: ${result.creados} equino(s)`,
+        detalle: {
+          desde: result.desde,
+          hasta: result.hasta,
+          categoria: result.categoria,
+          fecha_nacimiento: String(body.fecha_nacimiento ?? ""),
+          potrero: String(body.potrero ?? ""),
+          lote_id: result.lote_id,
+        },
+      });
+    }
+    res.status(201).json({
+      ok: true,
+      message: `Se dieron de alta ${result.creados} equino(s) (${result.categoria})`,
+      data: result,
+    });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: (e as Error).message });
+  }
+});
+
 app.post("/api/stock-equino/baja/file", upload.single("file"), async (req, res) => {
   try {
     const file = req.file;

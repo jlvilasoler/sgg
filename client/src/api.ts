@@ -2449,6 +2449,42 @@ export async function importStockEquinoRows(
   };
 }
 
+export async function altaStockEquinoGenerica(input: {
+  cantidad: number;
+  sexo: "MACHO" | "HEMBRA";
+  fecha_nacimiento: string;
+  castrado?: boolean | null;
+  potrero: string;
+  empresa: string;
+}): Promise<{
+  message: string;
+  creados: number;
+  claves: string[];
+  desde: string;
+  hasta: string;
+  lote_id: number;
+  categoria: string;
+}> {
+  const json = await request<{
+    message: string;
+    data: {
+      creados: number;
+      claves: string[];
+      desde: string;
+      hasta: string;
+      lote_id: number;
+      categoria: string;
+    };
+  }>("/stock-equino/alta-generica", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+  return {
+    message: json.message,
+    ...json.data,
+  };
+}
+
 export async function importStockEquinoBajaFile(
   file: File,
   tipo_baja: TipoBaja

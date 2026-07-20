@@ -50,7 +50,6 @@ type FormCuota = {
 type FormState = {
   entidad: string;
   tipo_prestamo: TipoPrestamoPago;
-  tasa_interes: string;
   moneda: MonedaPagoPersonalizado;
   monto_cuota: string;
   cantidad_cuotas: string;
@@ -62,7 +61,6 @@ type FormState = {
 const EMPTY_FORM: FormState = {
   entidad: "",
   tipo_prestamo: "PRESTAMO",
-  tasa_interes: "",
   moneda: "UYU",
   monto_cuota: "",
   cantidad_cuotas: "12",
@@ -82,7 +80,6 @@ function rowToForm(row: PagoPersonalizadoRow): FormState {
   return {
     entidad: row.entidad,
     tipo_prestamo: row.tipo_prestamo,
-    tasa_interes: row.tasa_interes != null ? String(row.tasa_interes) : "",
     moneda: row.moneda,
     monto_cuota: row.monto_cuota != null ? String(row.monto_cuota) : "",
     cantidad_cuotas: String(row.cantidad_cuotas || row.cuotas.length || 1),
@@ -126,7 +123,7 @@ function formToInput(form: FormState): {
   return {
     entidad: form.entidad.trim(),
     tipo_prestamo: form.tipo_prestamo,
-    tasa_interes: parseOptionalNumber(form.tasa_interes),
+    tasa_interes: null,
     moneda: form.moneda,
     monto_cuota: defaultMonto,
     notas: form.notas.trim() || null,
@@ -420,17 +417,7 @@ export default function VencImpPagosPersonalizadosPanel({
                 </select>
               </label>
               <label>
-                Tasa (% anual)
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  value={form.tasa_interes}
-                  onChange={(e) => setForm((f) => ({ ...f, tasa_interes: e.target.value }))}
-                  placeholder="Opcional"
-                />
-              </label>
-              <label>
-                Importe base
+                Valor de cuota
                 <input
                   type="text"
                   inputMode="decimal"

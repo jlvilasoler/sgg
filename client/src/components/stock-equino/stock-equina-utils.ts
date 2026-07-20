@@ -92,11 +92,15 @@ export function fmtEdadMeses(mes: number | null, anio: number | null): string {
 }
 
 export const MACHO_ESCALA_MAX_MESES = 120;
-export const MACHO_FRONTERA_TERNERO = 12;
-export const MACHO_FRONTERA_NOVILLO = 24;
+export const MACHO_FRONTERA_POTRILLO = 12;
+export const MACHO_FRONTERA_POTRO = 36;
+/** @deprecated Usar MACHO_FRONTERA_POTRILLO */
+export const MACHO_FRONTERA_TERNERO = MACHO_FRONTERA_POTRILLO;
+/** @deprecated Usar MACHO_FRONTERA_POTRO */
+export const MACHO_FRONTERA_NOVILLO = MACHO_FRONTERA_POTRO;
 
 export interface EtapaEvolucionMacho {
-  id: "TERNERO" | "JOVEN_1_2" | "MAS_2";
+  id: "POTRILLO" | "POTRO" | "ADULTO";
   titulo: string;
   rango: string;
   desdeMes: number;
@@ -106,31 +110,31 @@ export interface EtapaEvolucionMacho {
 /** Etapas productivas para machos en la línea de tiempo. */
 export const ETAPAS_EVOLUCION_MACHO: EtapaEvolucionMacho[] = [
   {
-    id: "TERNERO",
-    titulo: "Potro",
+    id: "POTRILLO",
+    titulo: "Potrillo",
     rango: "0 – 12 meses",
     desdeMes: 0,
-    hastaMes: MACHO_FRONTERA_TERNERO,
+    hastaMes: MACHO_FRONTERA_POTRILLO,
   },
   {
-    id: "JOVEN_1_2",
-    titulo: "Caballo / Semental",
-    rango: "1 – 2 años",
-    desdeMes: MACHO_FRONTERA_TERNERO,
-    hastaMes: MACHO_FRONTERA_NOVILLO,
+    id: "POTRO",
+    titulo: "Potro",
+    rango: "12 – 36 meses",
+    desdeMes: MACHO_FRONTERA_POTRILLO,
+    hastaMes: MACHO_FRONTERA_POTRO,
   },
   {
-    id: "MAS_2",
-    titulo: "Caballo / Semental",
-    rango: "+2 años",
-    desdeMes: MACHO_FRONTERA_NOVILLO,
+    id: "ADULTO",
+    titulo: "Caballo / Padrillo",
+    rango: "36 meses en adelante",
+    desdeMes: MACHO_FRONTERA_POTRO,
     hastaMes: MACHO_ESCALA_MAX_MESES,
   },
 ];
 
 export function etapaMachoDesdeMeses(meses: number): EtapaEvolucionMacho {
-  if (meses < MACHO_FRONTERA_TERNERO) return ETAPAS_EVOLUCION_MACHO[0];
-  if (meses < MACHO_FRONTERA_NOVILLO) return ETAPAS_EVOLUCION_MACHO[1];
+  if (meses < MACHO_FRONTERA_POTRILLO) return ETAPAS_EVOLUCION_MACHO[0];
+  if (meses < MACHO_FRONTERA_POTRO) return ETAPAS_EVOLUCION_MACHO[1];
   return ETAPAS_EVOLUCION_MACHO[2];
 }
 
@@ -141,12 +145,17 @@ export function pctEscalaMeses(meses: number, max: number): number {
 const MACHO_SEGMENTO_PCT = 100 / 3;
 
 export const HEMBRA_ESCALA_MAX_MESES = 120;
-export const HEMBRA_FRONTERA_TERNERA = 12;
+export const HEMBRA_FRONTERA_POTRANCA = 12;
+export const HEMBRA_FRONTERA_POTRA = 36;
+/** @deprecated Usar HEMBRA_FRONTERA_POTRANCA */
+export const HEMBRA_FRONTERA_TERNERA = HEMBRA_FRONTERA_POTRANCA;
+/** @deprecated */
 export const HEMBRA_FRONTERA_VAQUILLONA = 24;
-export const HEMBRA_FRONTERA_VAQUILLONA_MAS_2 = 36;
+/** @deprecated Usar HEMBRA_FRONTERA_POTRA */
+export const HEMBRA_FRONTERA_VAQUILLONA_MAS_2 = HEMBRA_FRONTERA_POTRA;
 
 export interface EtapaEvolucionHembra {
-  id: "TERNERA" | "VAQUILLONA" | "VAQUILLONA_MAS_2" | "VACA";
+  id: "POTRANCA" | "POTRA" | "YEGUA";
   titulo: string;
   rango: string;
   desdeMes: number;
@@ -156,83 +165,69 @@ export interface EtapaEvolucionHembra {
 /** Etapas productivas para hembras en la línea de tiempo. */
 export const ETAPAS_EVOLUCION_HEMBRA: EtapaEvolucionHembra[] = [
   {
-    id: "TERNERA",
-    titulo: "Potra",
+    id: "POTRANCA",
+    titulo: "Potranca",
     rango: "0 – 12 meses",
     desdeMes: 0,
-    hastaMes: HEMBRA_FRONTERA_TERNERA,
+    hastaMes: HEMBRA_FRONTERA_POTRANCA,
   },
   {
-    id: "VAQUILLONA",
-    titulo: "Yegua joven",
-    rango: "1 – 2 años",
-    desdeMes: HEMBRA_FRONTERA_TERNERA,
-    hastaMes: HEMBRA_FRONTERA_VAQUILLONA,
+    id: "POTRA",
+    titulo: "Potra",
+    rango: "12 – 36 meses",
+    desdeMes: HEMBRA_FRONTERA_POTRANCA,
+    hastaMes: HEMBRA_FRONTERA_POTRA,
   },
   {
-    id: "VAQUILLONA_MAS_2",
-    titulo: "Yegua joven",
-    rango: "+2 años · 24 – 36 m",
-    desdeMes: HEMBRA_FRONTERA_VAQUILLONA,
-    hastaMes: HEMBRA_FRONTERA_VAQUILLONA_MAS_2,
-  },
-  {
-    id: "VACA",
+    id: "YEGUA",
     titulo: "Yegua",
-    rango: "36 – 120 meses",
-    desdeMes: HEMBRA_FRONTERA_VAQUILLONA_MAS_2,
+    rango: "36 meses en adelante",
+    desdeMes: HEMBRA_FRONTERA_POTRA,
     hastaMes: HEMBRA_ESCALA_MAX_MESES,
   },
 ];
 
 export function etapaHembraDesdeMeses(meses: number): EtapaEvolucionHembra {
-  if (meses < HEMBRA_FRONTERA_TERNERA) return ETAPAS_EVOLUCION_HEMBRA[0];
-  if (meses < HEMBRA_FRONTERA_VAQUILLONA) return ETAPAS_EVOLUCION_HEMBRA[1];
-  if (meses < HEMBRA_FRONTERA_VAQUILLONA_MAS_2) return ETAPAS_EVOLUCION_HEMBRA[2];
-  return ETAPAS_EVOLUCION_HEMBRA[3];
+  if (meses < HEMBRA_FRONTERA_POTRANCA) return ETAPAS_EVOLUCION_HEMBRA[0];
+  if (meses < HEMBRA_FRONTERA_POTRA) return ETAPAS_EVOLUCION_HEMBRA[1];
+  return ETAPAS_EVOLUCION_HEMBRA[2];
 }
 
-const HEMBRA_SEGMENTO_PCT = 100 / 4;
+const HEMBRA_SEGMENTO_PCT = 100 / 3;
 
-/** Posición visual en la barra hembra: 4 tramos iguales. */
+/** Posición visual en la barra hembra: 3 tramos iguales. */
 export function pctHembraVisual(meses: number): number {
   const m = Math.min(Math.max(0, meses), HEMBRA_ESCALA_MAX_MESES);
-  if (m <= HEMBRA_FRONTERA_TERNERA) {
-    return (m / HEMBRA_FRONTERA_TERNERA) * HEMBRA_SEGMENTO_PCT;
+  if (m <= HEMBRA_FRONTERA_POTRANCA) {
+    return (m / HEMBRA_FRONTERA_POTRANCA) * HEMBRA_SEGMENTO_PCT;
   }
-  if (m <= HEMBRA_FRONTERA_VAQUILLONA) {
+  if (m <= HEMBRA_FRONTERA_POTRA) {
     const t =
-      (m - HEMBRA_FRONTERA_TERNERA) /
-      (HEMBRA_FRONTERA_VAQUILLONA - HEMBRA_FRONTERA_TERNERA);
+      (m - HEMBRA_FRONTERA_POTRANCA) /
+      (HEMBRA_FRONTERA_POTRA - HEMBRA_FRONTERA_POTRANCA);
     return HEMBRA_SEGMENTO_PCT + t * HEMBRA_SEGMENTO_PCT;
   }
-  if (m <= HEMBRA_FRONTERA_VAQUILLONA_MAS_2) {
-    const t =
-      (m - HEMBRA_FRONTERA_VAQUILLONA) /
-      (HEMBRA_FRONTERA_VAQUILLONA_MAS_2 - HEMBRA_FRONTERA_VAQUILLONA);
-    return HEMBRA_SEGMENTO_PCT * 2 + t * HEMBRA_SEGMENTO_PCT;
-  }
   const t =
-    (m - HEMBRA_FRONTERA_VAQUILLONA_MAS_2) /
-    (HEMBRA_ESCALA_MAX_MESES - HEMBRA_FRONTERA_VAQUILLONA_MAS_2);
-  return HEMBRA_SEGMENTO_PCT * 3 + t * HEMBRA_SEGMENTO_PCT;
+    (m - HEMBRA_FRONTERA_POTRA) /
+    (HEMBRA_ESCALA_MAX_MESES - HEMBRA_FRONTERA_POTRA);
+  return HEMBRA_SEGMENTO_PCT * 2 + t * HEMBRA_SEGMENTO_PCT;
 }
 
-/** Posición visual en la barra macho: 3 tramos iguales (ternero / 1-2a / +2a). */
+/** Posición visual en la barra macho: 3 tramos iguales. */
 export function pctMachoVisual(meses: number): number {
   const m = Math.min(Math.max(0, meses), MACHO_ESCALA_MAX_MESES);
-  if (m <= MACHO_FRONTERA_TERNERO) {
-    return (m / MACHO_FRONTERA_TERNERO) * MACHO_SEGMENTO_PCT;
+  if (m <= MACHO_FRONTERA_POTRILLO) {
+    return (m / MACHO_FRONTERA_POTRILLO) * MACHO_SEGMENTO_PCT;
   }
-  if (m <= MACHO_FRONTERA_NOVILLO) {
+  if (m <= MACHO_FRONTERA_POTRO) {
     const t =
-      (m - MACHO_FRONTERA_TERNERO) /
-      (MACHO_FRONTERA_NOVILLO - MACHO_FRONTERA_TERNERO);
+      (m - MACHO_FRONTERA_POTRILLO) /
+      (MACHO_FRONTERA_POTRO - MACHO_FRONTERA_POTRILLO);
     return MACHO_SEGMENTO_PCT + t * MACHO_SEGMENTO_PCT;
   }
   const t =
-    (m - MACHO_FRONTERA_NOVILLO) /
-    (MACHO_ESCALA_MAX_MESES - MACHO_FRONTERA_NOVILLO);
+    (m - MACHO_FRONTERA_POTRO) /
+    (MACHO_ESCALA_MAX_MESES - MACHO_FRONTERA_POTRO);
   return MACHO_SEGMENTO_PCT * 2 + t * MACHO_SEGMENTO_PCT;
 }
 
@@ -248,16 +243,15 @@ export interface EscalaMarcaMeses {
 export const ESCALA_MARCAS_MACHO: readonly EscalaMarcaMeses[] = [
   { label: "0 m", pct: 0, align: "left" },
   { label: "12 m", pct: MACHO_SEGMENTO_PCT, align: "center" },
-  { label: "24 m", pct: MACHO_SEGMENTO_PCT * 2, align: "center" },
+  { label: "36 m", pct: MACHO_SEGMENTO_PCT * 2, align: "center" },
   { label: "120 m", pct: 100, align: "right" },
 ];
 
-/** Hitos de meses alineados a los límites visuales del cronograma hembra (4 tramos). */
+/** Hitos de meses alineados a los límites visuales del cronograma hembra (3 tramos). */
 export const ESCALA_MARCAS_HEMBRA: readonly EscalaMarcaMeses[] = [
   { label: "0 m", pct: 0, align: "left" },
   { label: "12 m", pct: HEMBRA_SEGMENTO_PCT, align: "center" },
-  { label: "24 m", pct: HEMBRA_SEGMENTO_PCT * 2, align: "center" },
-  { label: "36 m", pct: HEMBRA_SEGMENTO_PCT * 3, align: "center" },
+  { label: "36 m", pct: HEMBRA_SEGMENTO_PCT * 2, align: "center" },
   { label: "120 m", pct: 100, align: "right" },
 ];
 
@@ -265,34 +259,33 @@ export const ESCALA_MARCAS_HEMBRA: readonly EscalaMarcaMeses[] = [
 export const ESCALA_MARCAS_ANIOS_MACHO: readonly EscalaMarcaMeses[] = [
   { label: "0 años", pct: 0, align: "left" },
   { label: "1 año", pct: MACHO_SEGMENTO_PCT, align: "center" },
-  { label: "2 años", pct: MACHO_SEGMENTO_PCT * 2, align: "center" },
+  { label: "3 años", pct: MACHO_SEGMENTO_PCT * 2, align: "center" },
   { label: "10 años", pct: 100, align: "right" },
 ];
 
 export const ESCALA_MARCAS_ANIOS_HEMBRA: readonly EscalaMarcaMeses[] = [
   { label: "0 años", pct: 0, align: "left" },
   { label: "1 año", pct: HEMBRA_SEGMENTO_PCT, align: "center" },
-  { label: "2 años", pct: HEMBRA_SEGMENTO_PCT * 2, align: "center" },
-  { label: "3 años", pct: HEMBRA_SEGMENTO_PCT * 3, align: "center" },
+  { label: "3 años", pct: HEMBRA_SEGMENTO_PCT * 2, align: "center" },
   { label: "10 años", pct: 100, align: "right" },
 ];
 
 /** Avance 0–100 % dentro de la etapa productiva actual (macho). */
 export function progresoEtapaMacho(meses: number): number {
   const m = Math.min(Math.max(0, meses), MACHO_ESCALA_MAX_MESES);
-  if (m <= MACHO_FRONTERA_TERNERO) {
-    return (m / MACHO_FRONTERA_TERNERO) * 100;
+  if (m <= MACHO_FRONTERA_POTRILLO) {
+    return (m / MACHO_FRONTERA_POTRILLO) * 100;
   }
-  if (m <= MACHO_FRONTERA_NOVILLO) {
+  if (m <= MACHO_FRONTERA_POTRO) {
     return (
-      ((m - MACHO_FRONTERA_TERNERO) /
-        (MACHO_FRONTERA_NOVILLO - MACHO_FRONTERA_TERNERO)) *
+      ((m - MACHO_FRONTERA_POTRILLO) /
+        (MACHO_FRONTERA_POTRO - MACHO_FRONTERA_POTRILLO)) *
       100
     );
   }
   return (
-    ((m - MACHO_FRONTERA_NOVILLO) /
-      (MACHO_ESCALA_MAX_MESES - MACHO_FRONTERA_NOVILLO)) *
+    ((m - MACHO_FRONTERA_POTRO) /
+      (MACHO_ESCALA_MAX_MESES - MACHO_FRONTERA_POTRO)) *
     100
   );
 }
@@ -834,30 +827,26 @@ export function labelUltimaLecturaMesFiltro(key: string): string {
 }
 
 export type CategoriaFiltroKey =
-  | "TERNERA"
-  | "VAQUILLONA_1_2"
-  | "VAQUILLONA_MAS_2"
-  | "VACA"
-  | "TERNERO"
-  | "NOVILLO_1_2"
-  | "TORO_1_2"
-  | "NOVILLO_MAS_2"
-  | "TORO_MAS_2"
+  | "POTRANCA"
+  | "POTRA"
+  | "YEGUA"
+  | "POTRILLO"
+  | "POTRO"
+  | "CABALLO"
+  | "PADRILLO"
   | "SIN_SEXO";
 
 export const CATEGORIA_FILTRO_HEMBRA: { key: CategoriaFiltroKey; label: string }[] = [
-  { key: "TERNERA", label: "Ternera" },
-  { key: "VAQUILLONA_1_2", label: "Vaquillona 1–2" },
-  { key: "VAQUILLONA_MAS_2", label: "Vaquillona +2" },
-  { key: "VACA", label: "Vaca" },
+  { key: "POTRANCA", label: "Potranca" },
+  { key: "POTRA", label: "Potra" },
+  { key: "YEGUA", label: "Yegua" },
 ];
 
 export const CATEGORIA_FILTRO_MACHO: { key: CategoriaFiltroKey; label: string }[] = [
-  { key: "TERNERO", label: "Ternero" },
-  { key: "NOVILLO_1_2", label: "Novillo 1–2" },
-  { key: "TORO_1_2", label: "Toro 1–2" },
-  { key: "NOVILLO_MAS_2", label: "Novillo +2" },
-  { key: "TORO_MAS_2", label: "Toro +2" },
+  { key: "POTRILLO", label: "Potrillo" },
+  { key: "POTRO", label: "Potro" },
+  { key: "CABALLO", label: "Caballo" },
+  { key: "PADRILLO", label: "Padrillo" },
 ];
 
 export const CATEGORIA_FILTRO_OTROS: { key: CategoriaFiltroKey; label: string }[] = [
@@ -884,7 +873,22 @@ export function categoriasDispositivo(d: {
   estado: DispositivoEstado;
   baja_mes: number | null;
   baja_anio: number | null;
+  categoria?: string | null;
+  castrado?: boolean | null;
 }): Set<CategoriaFiltroKey> {
+  const catGuardada = String(d.categoria ?? "").trim().toUpperCase();
+  if (
+    catGuardada === "POTRANCA" ||
+    catGuardada === "POTRA" ||
+    catGuardada === "YEGUA" ||
+    catGuardada === "POTRILLO" ||
+    catGuardada === "POTRO" ||
+    catGuardada === "CABALLO" ||
+    catGuardada === "PADRILLO"
+  ) {
+    return new Set([catGuardada]);
+  }
+
   if (!d.sexo) return new Set(["SIN_SEXO"]);
   if (dispositivoSinFechaNacimiento(d)) return new Set();
 
@@ -903,20 +907,16 @@ export function categoriasDispositivo(d: {
 
   if (d.sexo === "HEMBRA") {
     const etapa = etapaHembraDesdeMeses(meses);
-    const map: Record<EtapaEvolucionHembra["id"], CategoriaFiltroKey> = {
-      TERNERA: "TERNERA",
-      VAQUILLONA: "VAQUILLONA_1_2",
-      VAQUILLONA_MAS_2: "VAQUILLONA_MAS_2",
-      VACA: "VACA",
-    };
-    return new Set([map[etapa.id]]);
+    return new Set([etapa.id]);
   }
 
   if (d.sexo === "MACHO") {
     const etapa = etapaMachoDesdeMeses(meses);
-    if (etapa.id === "TERNERO") return new Set(["TERNERO"]);
-    if (etapa.id === "JOVEN_1_2") return new Set(["NOVILLO_1_2", "TORO_1_2"]);
-    return new Set(["NOVILLO_MAS_2", "TORO_MAS_2"]);
+    if (etapa.id === "POTRILLO") return new Set(["POTRILLO"]);
+    if (etapa.id === "POTRO") return new Set(["POTRO"]);
+    if (d.castrado === true) return new Set(["CABALLO"]);
+    if (d.castrado === false) return new Set(["PADRILLO"]);
+    return new Set(["CABALLO", "PADRILLO"]);
   }
 
   return new Set(["SIN_SEXO"]);
