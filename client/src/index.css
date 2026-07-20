@@ -64,6 +64,7 @@ body {
 
 .app-shell {
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
   --app-footer-height: 3rem;
@@ -56447,16 +56448,51 @@ button.sg-kpi-card:disabled {
   --venc-imp-title: var(--bn-text);
   display: flex;
   flex-direction: column;
+  flex: 1 1 auto;
   width: 100%;
   max-width: none;
-  height: calc(100dvh - 11rem);
-  min-height: 28rem;
-  max-height: calc(100dvh - 11rem);
+  min-height: 0;
+  height: 100%;
+  max-height: 100%;
+  overflow: hidden;
+}
+
+/* Header verde + ticker siempre visibles; el scroll queda dentro del hub */
+.app-shell:has(.venc-imp-hub-page) {
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
+}
+
+.app-shell:has(.venc-imp-hub-page) > .app-chrome-top,
+.app-shell:has(.venc-imp-hub-page) > .app-footer {
+  flex-shrink: 0;
+}
+
+.app-shell:has(.venc-imp-hub-page) > .app-chrome-top {
+  position: relative;
+  z-index: 5;
+}
+
+.layout-content:has(.venc-imp-hub-page) {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  padding-top: 0.75rem;
+  padding-bottom: 0.45rem;
 }
 
 .page-main.bn-ui:has(.venc-imp-hub-page) {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
   max-width: none;
   width: 100%;
+  height: 100%;
+  overflow: hidden;
   padding-left: max(0.45rem, env(safe-area-inset-left, 0px));
   padding-right: max(0.45rem, env(safe-area-inset-right, 0px));
 }
@@ -56473,22 +56509,30 @@ button.sg-kpi-card:disabled {
   width: 100%;
   min-height: 0;
   height: 100%;
+  max-height: 100%;
   overflow: hidden;
   align-items: stretch;
 }
 
 .bn-ui .venc-imp-hub-page .sg-hub-aside--venc {
-  gap: 0.95rem;
+  gap: 0.85rem;
   min-height: 0;
   height: 100%;
   max-height: 100%;
   overflow: hidden;
   align-self: stretch;
+  padding: 1.35rem 1rem 1rem;
+  box-sizing: border-box;
 }
 
 .bn-ui .venc-imp-hub-page .sg-hub-aside--venc .sg-hub-aside-brand,
 .bn-ui .venc-imp-hub-page .sg-hub-aside--venc .sg-hub-aside-foot {
   flex-shrink: 0;
+}
+
+.bn-ui .venc-imp-hub-page .sg-hub-aside--venc .sg-hub-aside-brand {
+  padding-top: 0.2rem;
+  margin-bottom: 0.2rem;
 }
 
 .bn-ui .venc-imp-hub-page .sg-hub-aside--venc .sg-hub-aside-nav {
@@ -56505,21 +56549,41 @@ button.sg-kpi-card:disabled {
   min-width: 0;
   min-height: 0;
   height: 100%;
+  max-height: 100%;
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
+  padding: 1.2rem 1.25rem 1.4rem;
+  box-sizing: border-box;
 }
 
 @media (max-width: 820px) {
+  .app-shell:has(.venc-imp-hub-page) {
+    height: auto;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .layout-content:has(.venc-imp-hub-page) {
+    overflow: visible;
+  }
+
+  .page-main.bn-ui:has(.venc-imp-hub-page) {
+    height: auto;
+    overflow: visible;
+  }
+
   .bn-ui .venc-imp-hub-page {
     height: auto;
     max-height: none;
-    min-height: min(42rem, calc(100dvh - 11rem));
+    min-height: min(42rem, calc(100dvh - var(--app-top-chrome, 9rem) - 4rem));
+    overflow: visible;
   }
 
   .bn-ui .venc-imp-hub-page .sg-hub {
     height: auto;
+    max-height: none;
     overflow: visible;
   }
 
@@ -56530,11 +56594,12 @@ button.sg-kpi-card:disabled {
   }
 
   .bn-ui .venc-imp-hub-page .sg-hub-aside--venc .sg-hub-aside-nav {
-    max-height: 12rem;
+    overflow: visible;
   }
 
   .bn-ui .venc-imp-hub-page .sg-hub-main {
     height: auto;
+    max-height: none;
     overflow: visible;
   }
 }
@@ -56687,6 +56752,8 @@ button.sg-kpi-card:disabled {
   flex-direction: column;
   gap: 0.85rem;
   min-width: 0;
+  max-width: 100%;
+  width: 100%;
 }
 
 .bn-ui .venc-imp-hub-page .venc-imp-hub-panel {
@@ -57273,6 +57340,9 @@ button.sg-kpi-card:disabled {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
 }
 
 .bn-ui .venc-imp-personalizado-panel.is-form-open {
@@ -57509,6 +57579,11 @@ button.sg-kpi-card:disabled {
   background: var(--sg-hub-surface, #fff);
   box-shadow: 0 6px 18px color-mix(in srgb, #1a1a1a 5%, transparent);
   scroll-margin-top: 1rem;
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
+  box-sizing: border-box;
+  overflow: visible;
 }
 
 .bn-ui .venc-imp-personalizado-form-top {
@@ -57516,14 +57591,18 @@ button.sg-kpi-card:disabled {
   display: flex;
   flex-direction: column;
   gap: 0.55rem;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .bn-ui .venc-imp-personalizado-form-head {
   display: flex;
-  align-items: center;
+  flex-wrap: wrap;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 0.75rem;
   margin-bottom: 0;
+  min-width: 0;
 }
 
 .bn-ui .venc-imp-personalizado-form-head-actions {
@@ -57532,11 +57611,15 @@ button.sg-kpi-card:disabled {
   align-items: center;
   justify-content: flex-end;
   gap: 0.4rem;
+  min-width: 0;
+  flex: 1 1 14rem;
 }
 
 .bn-ui .venc-imp-personalizado-form-title {
   margin: 0;
   font-size: 1.02rem;
+  flex: 1 1 10rem;
+  min-width: 0;
 }
 
 .bn-ui .venc-imp-personalizado-form-grid {
@@ -57597,16 +57680,23 @@ button.sg-kpi-card:disabled {
 }
 
 .bn-ui .venc-imp-personalizado-table-wrap {
-  overflow: auto;
-  max-height: min(42vh, 26rem);
+  overflow-x: auto;
+  overflow-y: visible;
+  max-height: none;
   margin: 0;
   border: 1px solid var(--bn-border);
   border-radius: var(--sg-hub-radius-md, 0.65rem);
   background: #fff;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  -webkit-overflow-scrolling: touch;
 }
 
 .bn-ui .venc-imp-personalizado-table {
   width: 100%;
+  min-width: 34rem;
   border-collapse: separate;
   border-spacing: 0;
   table-layout: fixed;
@@ -57630,11 +57720,11 @@ button.sg-kpi-card:disabled {
 }
 
 .bn-ui .venc-imp-personalizado-col-pagada {
-  width: 4.2rem;
+  width: 5rem;
 }
 
 .bn-ui .venc-imp-personalizado-col-accion {
-  width: 4.8rem;
+  width: 5.5rem;
 }
 
 .bn-ui .venc-imp-personalizado-table th,
@@ -57750,10 +57840,6 @@ button.sg-kpi-card:disabled {
 @media (max-width: 900px) {
   .bn-ui .venc-imp-personalizado-form-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .bn-ui .venc-imp-personalizado-table-wrap {
-    max-height: min(48vh, 22rem);
   }
 }
 

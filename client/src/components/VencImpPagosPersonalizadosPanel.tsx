@@ -162,7 +162,17 @@ export default function VencImpPagosPersonalizadosPanel({
     const el = formWrapRef.current;
     if (!el) return;
     const t = window.setTimeout(() => {
-      el.scrollIntoView({ behavior: "smooth", block: "start" });
+      const scroller = el.closest(".sg-hub-main");
+      if (scroller instanceof HTMLElement) {
+        const elRect = el.getBoundingClientRect();
+        const scrollerRect = scroller.getBoundingClientRect();
+        const delta = elRect.top - scrollerRect.top - 12;
+        if (Math.abs(delta) > 4) {
+          scroller.scrollBy({ top: delta, behavior: "smooth" });
+        }
+        return;
+      }
+      el.scrollIntoView({ behavior: "smooth", block: "nearest" });
     }, 40);
     return () => window.clearTimeout(t);
   }, [formOpen, editingId]);
