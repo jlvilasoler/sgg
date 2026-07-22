@@ -958,8 +958,8 @@ function validarNacimiento(
     throw new Error("Mes de nacimiento inválido.");
   }
   const maxAnio = new Date().getFullYear();
-  if (!Number.isInteger(anio) || anio < 2020 || anio > maxAnio) {
-    throw new Error(`Año de nacimiento inválido (2020–${maxAnio}).`);
+  if (!Number.isInteger(anio) || anio < 1995 || anio > maxAnio) {
+    throw new Error(`Año de nacimiento inválido (1995–${maxAnio}).`);
   }
   return { nacimiento_mes: mes, nacimiento_anio: anio };
 }
