@@ -185,7 +185,7 @@ interface Props {
   };
 }
 
-export default function StockEquina({
+function StockEquina({
   apiOnline,
   currentUser,
   onError,
@@ -1361,6 +1361,7 @@ export default function StockEquina({
                   title="Cabaña"
                 />
                 <th className="stock-th stock-th--device-ids">REG</th>
+                <th className="stock-th stock-th--nombre">Nombre</th>
                 <th className="stock-th stock-th--empresa">Empresa</th>
                 <th className="stock-th">Generación</th>
                 <th className="stock-th">Grupo</th>
@@ -1375,19 +1376,19 @@ export default function StockEquina({
             <tbody>
               {mostrarCargaVacia ? (
                 <tr>
-                  <td colSpan={12} className="empty">
+                  <td colSpan={13} className="empty">
                     Cargando…
                   </td>
                 </tr>
               ) : !apiOnline ? (
                 <tr>
-                  <td colSpan={12} className="empty">
+                  <td colSpan={13} className="empty">
                     API no conectada
                   </td>
                 </tr>
               ) : filteredRows.length === 0 ? (
                 <tr>
-                  <td colSpan={12} className="empty">
+                  <td colSpan={13} className="empty">
                     Sin dispositivos para los filtros aplicados.
                   </td>
                 </tr>
@@ -1446,6 +1447,14 @@ export default function StockEquina({
                           </span>
                         </div>
                       </div>
+                    </td>
+                    <td
+                      className="stock-td stock-td--muted stock-td--nombre"
+                      title={nombreCabana || undefined}
+                    >
+                      <span className="stock-td-nombre-animal">
+                        {cabana && nombreCabana ? nombreCabana : "—"}
+                      </span>
                     </td>
                     <td className="stock-td stock-td--muted stock-td--empresa">
                       <span
@@ -1520,3 +1529,6 @@ export default function StockEquina({
     </div>
   );
 }
+
+export default StockEquina;
+export { StockEquina };

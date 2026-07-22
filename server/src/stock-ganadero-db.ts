@@ -472,6 +472,7 @@ async function migrateSplitEidVid(_db: Db): Promise<void> {}
 async function migrateStockGanaderoDispositivoMeta(_db: Db): Promise<void> {}
 
 const GRUPO_ANIO_MIN = 2000;
+const NACIMIENTO_ANIO_MIN = 2012;
 const GRUPO_RE = /^GEN(\d{4})(?:-(\d{4}))?$/;
 
 function validarGrupo(grupo: string): string {
@@ -867,8 +868,8 @@ function validarNacimiento(
     throw new Error("Mes de nacimiento inválido.");
   }
   const maxAnio = new Date().getFullYear();
-  if (!Number.isInteger(anio) || anio < 2020 || anio > maxAnio) {
-    throw new Error(`Año de nacimiento inválido (2020–${maxAnio}).`);
+  if (!Number.isInteger(anio) || anio < NACIMIENTO_ANIO_MIN || anio > maxAnio) {
+    throw new Error(`Año de nacimiento inválido (${NACIMIENTO_ANIO_MIN}–${maxAnio}).`);
   }
   return { nacimiento_mes: mes, nacimiento_anio: anio };
 }
@@ -898,8 +899,8 @@ function validarFechaBaja(
     throw new Error("Mes de baja inválido.");
   }
   const maxAnio = new Date().getFullYear();
-  if (!Number.isInteger(anio) || anio < 2020 || anio > maxAnio) {
-    throw new Error(`Año de baja inválido (2020–${maxAnio}).`);
+  if (!Number.isInteger(anio) || anio < NACIMIENTO_ANIO_MIN || anio > maxAnio) {
+    throw new Error(`Año de baja inválido (${NACIMIENTO_ANIO_MIN}–${maxAnio}).`);
   }
   if (nacimiento_mes && nacimiento_anio) {
     const mesesBaja = (anio - nacimiento_anio) * 12 + (mes - nacimiento_mes);

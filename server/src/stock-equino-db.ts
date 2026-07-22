@@ -2941,8 +2941,8 @@ export async function importStockEquinoRows(
 export interface AltaEquinoGenericaInput {
   cantidad: number;
   sexo: DispositivoSexo;
-  /** Fecha ISO YYYY-MM-DD. La categoría se deriva de esta fecha. */
-  fecha_nacimiento: string;
+  /** Fecha ISO YYYY-MM-DD opcional. Si viene, la categoría se deriva de esta fecha. */
+  fecha_nacimiento?: string | null;
   /**
    * Solo requerido si el animal es macho adulto (≥36 meses):
    * true = Caballo, false = Padrillo.
@@ -2958,19 +2958,22 @@ export interface AltaEquinoGenericaResult {
   desde: string;
   hasta: string;
   lote_id: number;
-  categoria: CategoriaEquino;
+  categoria: CategoriaEquino | "";
 }
 
 function incrementarIdDecimal(ultimo: string, by: number): string {
   return (BigInt(ultimo.replace(/\D/g, "") || "0") + BigInt(by)).toString();
 }
 
-function parseFechaNacimientoAlta(raw: string): {
-  nacimiento_mes: number;
-  nacimiento_anio: number;
-  fechaIso: string;
+function parseFechaNacimientoAlta(raw: string | null | undefined): {
+  nacimiento_mes: number | null;
+  nacimiento_anio: number | null;
+  fechaIso: string | null;
 } {
   const s = String(raw ?? "").trim();
+  if (!s) {
+    return { nacimiento_mes: null, nacimiento_anio: null, fechaIso: null };
+  }
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
   if (!m) {
     throw new Error("Fecha de nacimiento inválida. Usá el formato AAAA-MM-DD.");
@@ -3026,22 +3029,28 @@ export async function crearEquinosGenericos(
 
   const nacimiento = parseFechaNacimientoAlta(input.fecha_nacimiento);
   const edad = calcularEdadMeses(nacimiento.nacimiento_mes, nacimiento.nacimiento_anio);
-  if (edad === null) {
+  if (nacimiento.fechaIso && edad === null) {
     throw new Error("No se pudo calcular la edad desde la fecha de nacimiento.");
   }
 
   let castradoOpt: boolean | null =
     input.castrado === true ? true : input.castrado === false ? false : null;
-  if (sexo === "MACHO" && edad >= EQUINO_FRONTERA_ADULTO && castradoOpt === null) {
+  if (
+    sexo === "MACHO" &&
+    edad !== null &&
+    edad >= EQUINO_FRONTERA_ADULTO &&
+    castradoOpt === null
+  ) {
     throw new Error(
       "Para machos de 36 meses o más indicá si es Caballo (castrado) o Padrillo."
     );
   }
-  if (sexo !== "MACHO" || edad < EQUINO_FRONTERA_ADULTO) {
+  if (sexo !== "MACHO" || edad === null || edad < EQUINO_FRONTERA_ADULTO) {
     castradoOpt = null;
   }
 
-  const categoria = categoriaDesdeSexoYEdad(sexo, edad, castradoOpt);
+  const categoria: CategoriaEquino | "" =
+    edad === null ? "" : categoriaDesdeSexoYEdad(sexo, edad, castradoOpt);
   const potrero = potreroDb.normalizarPotrero(input.potrero);
   if (!potrero) {
     throw new Error("Seleccioná un potrero.");
@@ -3053,7 +3062,7 @@ export async function crearEquinosGenericos(
   }
 
   const grupo = grupoDesdeNacimiento(nacimiento.nacimiento_mes, nacimiento.nacimiento_anio);
-  const castrado = castradoDesdeCategoria(categoria);
+  const castrado = categoria ? castradoDesdeCategoria(categoria) : null;
   const castradoDb = castrado === null ? null : castrado ? 1 : 0;
 
   const ahora = new Date();
@@ -3068,11 +3077,17 @@ export async function crearEquinosGenericos(
         `INSERT INTO STOCK_EQUINO_LOTE (nombre_archivo, filas, cuenta_id) VALUES (@nombre_archivo, @filas, @cuenta_id)`
       )
       .run({
-        nombre_archivo: `alta-generica-${categoria.toLowerCase()}`,
+        nombre_archivo: categoria
+          ? `alta-generica-${categoria.toLowerCase()}`
+          : "alta-generica-sin-fecha",
         filas: cantidad,
         cuenta_id: cuentaId ?? null,
       });
     const lote_id = Number(lote.lastInsertRowid);
+
+    const condicionRegistro = categoria
+      ? CATEGORIA_EQUINO_LABELS[categoria]
+      : "Sin fecha de nacimiento";
 
     const insReg = await tx.prepare(
       `INSERT INTO STOCK_EQUINO_REGISTRO (lote_id, eid, vid, fecha, hora, condicion)
@@ -3112,7 +3127,7 @@ export async function crearEquinosGenericos(
         vid,
         fecha,
         hora,
-        condicion: CATEGORIA_EQUINO_LABELS[categoria],
+        condicion: condicionRegistro,
       });
       await insDisp.run({
         clave,
@@ -3133,6 +3148,12 @@ export async function crearEquinosGenericos(
       cuentaId ?? (await potreroDb.getCuentaIdPorEmpresaCodigo(tx, empresa));
     await potreroDb.ensurePotreroEnCatalogo(tx, cuentaPotrero, potrero);
 
+    const historialDetalle = [
+      categoria || "Sin categoría",
+      nacimiento.fechaIso || "sin fecha",
+      potrero,
+    ].join(" · ");
+
     for (const clave of claves) {
       await syncStockDispositivoPotreroEnMapa(
         tx,
@@ -3151,7 +3172,7 @@ export async function crearEquinosGenericos(
           )
           .run(
             clave,
-            `${categoria} · ${nacimiento.fechaIso} · ${potrero}`,
+            historialDetalle,
             autor.user_id ?? null,
             autor.user_email ?? "",
             autor.user_nombre ?? ""

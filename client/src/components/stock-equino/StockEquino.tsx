@@ -4,7 +4,7 @@ import { useHeaderBackStep } from "../../header-back";
 import type { AuthUser } from "../../types";
 import SgHubModuleGrid from "../hub/SgHubModuleGrid";
 import { SgHubKpi, SgMiniBars } from "../stock/SgHubUi";
-import StockEquina from "./StockEquina";
+import { StockEquina } from "./StockEquina";
 import StockEquinaSalidas from "./StockEquinaSalidas";
 import StockEquinoHistorial from "./StockEquinoHistorial";
 import StockEquinoImportar from "./StockEquinoImportar";

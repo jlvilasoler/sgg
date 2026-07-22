@@ -16148,6 +16148,27 @@ button.stock-device-ids__stack-btn {
   line-height: 1.2;
 }
 
+.stock-equina-table.stock-table-pro .stock-th--nombre,
+.stock-equina-table.stock-table-pro .stock-td--nombre {
+  max-width: 9.5rem;
+  min-width: 6.5rem;
+  width: 8.5rem;
+  padding-left: 0.35rem;
+  padding-right: 0.35rem;
+  white-space: normal;
+  vertical-align: middle;
+}
+
+.stock-equina-table.stock-table-pro .stock-td--nombre .stock-td-nombre-animal {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  word-break: break-word;
+  font-size: 0.72rem;
+  line-height: 1.25;
+}
+
 /* Mismo tamaño de texto que Empresa (0.72rem) en columnas de datos compactas */
 .stock-td-empresa-name,
 .stock-table-pro .stock-td--generacion,

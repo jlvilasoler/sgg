@@ -199,36 +199,35 @@ export default function StockEquinoImportar({
       onError("Seleccioná el sexo");
       return;
     }
-    if (!formGenerica.fecha_nacimiento.trim()) {
-      onError("Indicá la fecha de nacimiento");
-      return;
-    }
-    const edad = edadMesesDesdeFechaIso(formGenerica.fecha_nacimiento);
-    if (edad === null) {
+    const fechaNacimiento = formGenerica.fecha_nacimiento.trim();
+    const edad = fechaNacimiento ? edadMesesDesdeFechaIso(fechaNacimiento) : null;
+    if (fechaNacimiento && edad === null) {
       onError("Fecha de nacimiento inválida");
       return;
     }
     const necesitaCastrado =
-      formGenerica.sexo === "MACHO" && edad >= EQUINO_FRONTERA_ADULTO;
+      formGenerica.sexo === "MACHO" && edad !== null && edad >= EQUINO_FRONTERA_ADULTO;
     if (necesitaCastrado && formGenerica.castrado === null) {
       onError("Indicá si es Caballo (castrado) o Padrillo");
       return;
     }
-    const categoria = categoriaDesdeForm(
-      formGenerica.sexo,
-      formGenerica.fecha_nacimiento,
-      formGenerica.castrado
-    );
-    if (!categoria) {
-      onError("No se pudo determinar la categoría");
-      return;
+    if (fechaNacimiento) {
+      const categoria = categoriaDesdeForm(
+        formGenerica.sexo,
+        fechaNacimiento,
+        formGenerica.castrado
+      );
+      if (!categoria) {
+        onError("No se pudo determinar la categoría");
+        return;
+      }
     }
     setImporting(true);
     try {
       const r = await altaStockEquinoGenerica({
         cantidad,
         sexo: formGenerica.sexo,
-        fecha_nacimiento: formGenerica.fecha_nacimiento,
+        ...(fechaNacimiento ? { fecha_nacimiento: fechaNacimiento } : {}),
         castrado: necesitaCastrado ? formGenerica.castrado : null,
         potrero: formGenerica.potrero,
         empresa: formGenerica.empresa,
@@ -400,7 +399,7 @@ export default function StockEquinoImportar({
   const genericaFormGrid = (
     <div className="stock-import-form-grid">
       <div className="field stock-import-field">
-        <label htmlFor={`${formId}-gen-cantidad`}>Cantidad</label>
+        <label htmlFor={`${formId}-gen-cantidad`}>Cantidad *</label>
         <input
           id={`${formId}-gen-cantidad`}
           type="number"
@@ -414,7 +413,7 @@ export default function StockEquinoImportar({
         />
       </div>
       <div className="field stock-import-field">
-        <label htmlFor={`${formId}-gen-empresa`}>Empresa</label>
+        <label htmlFor={`${formId}-gen-empresa`}>Empresa *</label>
         <SelectEmpresaDispositivo
           id={`${formId}-gen-empresa`}
           empresas={empresas}
@@ -425,7 +424,7 @@ export default function StockEquinoImportar({
         />
       </div>
       <div className="field stock-import-field">
-        <label htmlFor={`${formId}-gen-potrero`}>Potrero</label>
+        <label htmlFor={`${formId}-gen-potrero`}>Potrero *</label>
         <SelectPotreroDispositivo
           id={`${formId}-gen-potrero`}
           value={formGenerica.potrero}
@@ -438,7 +437,7 @@ export default function StockEquinoImportar({
         />
       </div>
       <div className="field stock-import-field">
-        <label htmlFor={`${formId}-gen-sexo`}>Sexo</label>
+        <label htmlFor={`${formId}-gen-sexo`}>Sexo *</label>
         <select
           id={`${formId}-gen-sexo`}
           className="stock-edit-select"
@@ -470,12 +469,11 @@ export default function StockEquinoImportar({
             }))
           }
           disabled={!apiOnline || importing}
-          required
         />
       </div>
       {machoAdultoGen ? (
         <div className="field stock-import-field">
-          <label htmlFor={`${formId}-gen-castrado`}>Tipo adulto</label>
+          <label htmlFor={`${formId}-gen-castrado`}>Tipo adulto *</label>
           <select
             id={`${formId}-gen-castrado`}
             className="stock-edit-select"
@@ -513,9 +511,13 @@ export default function StockEquinoImportar({
               ? CATEGORIA_ALTA_LABELS[categoriaAutoGen]
               : machoAdultoGen
                 ? "Elegí Caballo o Padrillo"
-                : formGenerica.sexo && formGenerica.fecha_nacimiento
-                  ? "Calculando…"
-                  : "Según sexo y fecha de nacimiento"
+                : formGenerica.fecha_nacimiento
+                  ? formGenerica.sexo
+                    ? "Calculando…"
+                    : "Indicá el sexo"
+                  : formGenerica.sexo
+                    ? "Sin fecha de nacimiento"
+                    : "Opcional: según sexo y fecha de nacimiento"
           }
           readOnly
           disabled
@@ -709,8 +711,8 @@ export default function StockEquinoImportar({
         )}
         <p className="muted stock-alta-hub-note" style={{ marginTop: "0.75rem" }}>
           Cada animal recibe un ID interno único con prefijo <strong>600</strong> (misma
-          secuencia correlativa que Cabaña). La categoría se ajusta según la fecha de
-          nacimiento.
+          secuencia correlativa que Cabaña). La fecha de nacimiento es opcional; si la
+          indicás, la categoría se ajusta automáticamente.
         </p>
         <div
           className={`stock-import-form-actions${embedded ? " stock-import-form-actions--hub" : ""}`}

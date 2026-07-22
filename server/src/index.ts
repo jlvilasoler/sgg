@@ -5711,7 +5711,9 @@ app.post("/api/stock-equino/alta-generica", async (req, res) => {
     }
     res.status(201).json({
       ok: true,
-      message: `Se dieron de alta ${result.creados} equino(s) (${result.categoria})`,
+      message: result.categoria
+        ? `Se dieron de alta ${result.creados} equino(s) (${result.categoria})`
+        : `Se dieron de alta ${result.creados} equino(s) (sin fecha de nacimiento)`,
       data: result,
     });
   } catch (e) {

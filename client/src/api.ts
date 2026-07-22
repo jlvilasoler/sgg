@@ -2464,7 +2464,7 @@ export async function importStockEquinoRows(
 export async function altaStockEquinoGenerica(input: {
   cantidad: number;
   sexo: "MACHO" | "HEMBRA";
-  fecha_nacimiento: string;
+  fecha_nacimiento?: string;
   castrado?: boolean | null;
   potrero: string;
   empresa: string;
