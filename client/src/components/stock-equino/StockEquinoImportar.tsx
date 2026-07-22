@@ -3,6 +3,7 @@ import {
   altaStockEquinoCabana,
   altaStockEquinoGenerica,
   fetchEmpresasOperativasStock,
+  type AruDetalleAnimal,
 } from "../../api";
 import type { AuthUser, DispositivoSexo } from "../../types";
 import SelectEmpresaDispositivo, {
@@ -11,7 +12,9 @@ import SelectEmpresaDispositivo, {
 } from "../stock/SelectEmpresaDispositivo";
 import SelectPotreroDispositivo from "../stock/SelectPotreroDispositivo";
 import { PageModuleHeadRow } from "../PageModuleHead";
-
+import StockEquinoAruPedigreeLookup, {
+  type AruCamposAltaCabana,
+} from "./StockEquinoAruPedigreeLookup";
 interface Props {
   apiOnline: boolean;
   currentUser?: AuthUser | null;
@@ -127,7 +130,7 @@ function categoriaDesdeForm(
 function formatEquinoIdDisplay(clave: string): string {
   const digits = clave.replace(/\D/g, "");
   if (digits.length <= 3) return digits;
-  return `${digits.slice(0, 3)} ${digits.slice(3)}`;
+  return `${digits.slice(0, 3)}-${digits.slice(3)}`;
 }
 
 function fechaHoy(): string {
@@ -148,6 +151,7 @@ export default function StockEquinoImportar({
   const [formGenerica, setFormGenerica] = useState<FormGenerica>(() => formGenericaVacio());
   const [formCabana, setFormCabana] = useState<FormCabana>(() => formCabanaVacio());
   const [importing, setImporting] = useState(false);
+  const [aruFuente, setAruFuente] = useState<string | null>(null);
   const [empresas, setEmpresas] = useState<
     Awaited<ReturnType<typeof fetchEmpresasOperativasStock>>
   >([]);
@@ -302,12 +306,37 @@ export default function StockEquinoImportar({
         "Alta cabaña completada"
       );
       setFormCabana(formCabanaVacio());
+      setAruFuente(null);
       onImported();
     } catch (err) {
       onError(err instanceof Error ? err.message : "Error en el alta de cabaña");
     } finally {
       setImporting(false);
     }
+  };
+
+  const aplicarDesdeAru = (campos: AruCamposAltaCabana, meta: AruDetalleAnimal) => {
+    setFormCabana((prev) => ({
+      ...prev,
+      ...(campos.rp ? { rp: campos.rp } : {}),
+      ...(campos.nombre_animal ? { nombre_animal: campos.nombre_animal } : {}),
+      ...(campos.fecha_nacimiento
+        ? { fecha_nacimiento: campos.fecha_nacimiento, castrado: null }
+        : {}),
+      ...(campos.sexo ? { sexo: campos.sexo, castrado: null } : {}),
+      ...(campos.registro ? { registro: campos.registro } : {}),
+      ...(campos.premios ? { premios: campos.premios } : {}),
+    }));
+    setAruFuente(meta.fuente_url || "https://aru.org.uy/rrgg/formulario.php");
+    const partes = [
+      meta.nombre || "Animal",
+      meta.registro ? `reg. ${meta.registro}` : "",
+      meta.rp ? `RP ${meta.rp}` : "",
+    ].filter(Boolean);
+    onSuccess(
+      `Datos ARU cargados: ${partes.join(" · ")}. Completá empresa y potrero si faltan.`,
+      "Pedigree ARU"
+    );
   };
 
   const btnGhost = embedded ? "sg-hub-cta sg-hub-cta--ghost" : "btn btn-ghost";
@@ -704,6 +733,21 @@ export default function StockEquinoImportar({
 
   const cabanaPane = (
     <section className="stock-import-pane" aria-label="Alta cabaña de equinos">
+      <StockEquinoAruPedigreeLookup
+        formId={formId}
+        apiOnline={apiOnline}
+        disabled={importing}
+        onError={onError}
+        onAplicar={aplicarDesdeAru}
+      />
+      {aruFuente ? (
+        <p className="stock-aru-lookup-applied muted" role="status">
+          Ficha precargada desde ARU.{" "}
+          <a href={aruFuente} target="_blank" rel="noopener noreferrer">
+            Ver en ARU
+          </a>
+        </p>
+      ) : null}
       <form
         id={`${formId}-cabana`}
         className="stock-import-form"
@@ -725,7 +769,10 @@ export default function StockEquinoImportar({
             type="button"
             className={btnGhost}
             disabled={!apiOnline || importing}
-            onClick={() => setFormCabana(formCabanaVacio())}
+            onClick={() => {
+              setFormCabana(formCabanaVacio());
+              setAruFuente(null);
+            }}
           >
             Limpiar
           </button>

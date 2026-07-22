@@ -239,16 +239,27 @@ export function securityHeaders(
   next: NextFunction
 ): void {
   res.setHeader("X-Content-Type-Options", "nosniff");
-  res.setHeader("X-Frame-Options", "DENY");
   res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
   res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
   res.setHeader("X-DNS-Prefetch-Control", "off");
-  if (req.path.startsWith("/api")) {
-    res.setHeader(
-      "Content-Security-Policy",
-      "default-src 'none'; frame-ancestors 'none'"
-    );
+
+  // HTML del árbol ARU se embebe en iframe same-origin: no aplicar DENY / frame-ancestors none.
+  const isAruArbolEmbed =
+    req.path === "/api/stock-equino/aru/arbol-embed" ||
+    req.path.endsWith("/stock-equino/aru/arbol-embed");
+
+  if (isAruArbolEmbed) {
+    res.setHeader("X-Frame-Options", "SAMEORIGIN");
+  } else {
+    res.setHeader("X-Frame-Options", "DENY");
+    if (req.path.startsWith("/api")) {
+      res.setHeader(
+        "Content-Security-Policy",
+        "default-src 'none'; frame-ancestors 'none'"
+      );
+    }
   }
+
   if (IS_PROD) {
     res.setHeader(
       "Strict-Transport-Security",

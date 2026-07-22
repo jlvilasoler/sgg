@@ -38,17 +38,23 @@ export function dispositivoClave(eid: string, vid = ""): string {
   return vd ? ed + vd : ed;
 }
 
-/** Etiqueta legible para listados y buscadores (prioriza caravana visual). */
+/** REG equino: prefijo EID y número VID juntos (ej. 600-000000000000000010). */
+export function fmtRegEquino(eid: string, vid = ""): string {
+  const { eid: e, vid: v } = splitEidVid(eid, vid);
+  if (e && v) return `${e}-${v}`;
+  if (v) return v;
+  if (e) return e;
+  return "";
+}
+
+/** Etiqueta legible para listados y buscadores (REG = EID-VID). */
 export function etiquetaCaravana(d: {
   eid: string;
   vid: string;
   clave: string;
 }): string {
-  const eid = d.eid?.trim();
-  const vid = d.vid?.trim();
-  if (vid && eid) return `${vid} · EID ${eid}`;
-  if (vid) return vid;
-  if (eid) return eid;
+  const reg = fmtRegEquino(d.eid, d.vid);
+  if (reg) return reg;
   return d.clave;
 }
 

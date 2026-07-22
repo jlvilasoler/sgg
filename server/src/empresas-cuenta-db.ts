@@ -1799,9 +1799,8 @@ export async function resolveCuentaMadreIdForUser(
  * null = sin filtro (solo super admin puro sin cuenta); [] = ninguna.
  */
 /**
- * En modo de inicio "individual", si el usuario eligió una empresa activa,
- * restringe la lista a esa empresa. En consolidado no cambia nada.
- * Nunca deja al usuario sin scope: si la empresa activa no matchea, devuelve la lista completa.
+ * En modo de inicio "individual" restringe la lista a la empresa activa.
+ * Si falta o no coincide, falla cerrado: nunca vuelve accidentalmente al consolidado.
  */
 async function narrowScopePorEmpresaActiva(
   db: Db,
@@ -1810,14 +1809,13 @@ async function narrowScopePorEmpresaActiva(
   lista: string[],
   campo: "nombre" | "codigo",
 ): Promise<string[]> {
-  if (empresaActivaId == null) return lista;
   const mode = await getLoginModeForCuenta(db, cuentaId);
   if (mode !== "individual") return lista;
+  if (empresaActivaId == null) return [];
   const activa = await getEmpresaActivaForUser(db, cuentaId, empresaActivaId);
-  if (!activa) return lista;
+  if (!activa) return [];
   const clave = (campo === "nombre" ? activa.nombre : activa.codigo).trim().toUpperCase();
-  const filtrada = lista.filter((v) => v.trim().toUpperCase() === clave);
-  return filtrada.length ? filtrada : lista;
+  return lista.filter((v) => v.trim().toUpperCase() === clave);
 }
 
 export async function getEmpresasOperativasPermitidas(
@@ -1877,10 +1875,22 @@ export async function getEmpresasOperativasDetallePermitidas(
     email?: string;
     es_super_admin?: boolean;
     empresa_id?: number | null;
+    empresa_operativa_activa_id?: number | null;
   }
 ): Promise<Array<{ codigo: string; nombre: string }>> {
   const cuentaId = await resolveCuentaMadreIdForUser(db, user);
-  if (cuentaId) return await getEmpresasOperativasDetallePorCuenta(db, cuentaId);
+  if (cuentaId) {
+    const detalle = await getEmpresasOperativasDetallePorCuenta(db, cuentaId);
+    const nombres = await narrowScopePorEmpresaActiva(
+      db,
+      cuentaId,
+      user.empresa_operativa_activa_id,
+      detalle.map((empresa) => empresa.nombre),
+      "nombre",
+    );
+    const permitidas = new Set(nombres.map((nombre) => nombre.trim().toUpperCase()));
+    return detalle.filter((empresa) => permitidas.has(empresa.nombre.trim().toUpperCase()));
+  }
   if (user.es_super_admin) return await getEmpresasOperativasDetalleActivas(db);
   return [];
 }

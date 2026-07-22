@@ -25,10 +25,10 @@ type CachedPayload = {
 
 const memory = new Map<string, HomeInsightCacheItem[]>();
 
-function monthCacheKey(userId: number): string {
+function monthCacheKey(scope: string | number): string {
   const now = new Date();
   const month = String(now.getMonth() + 1).padStart(2, "0");
-  return `${userId}:${now.getFullYear()}-${month}`;
+  return `${scope}:${now.getFullYear()}-${month}`;
 }
 
 function readStorage(): CachedPayload | null {
@@ -43,8 +43,8 @@ function readStorage(): CachedPayload | null {
   }
 }
 
-export function getHomeInsightsCache(userId: number): HomeInsightCacheItem[] {
-  const key = monthCacheKey(userId);
+export function getHomeInsightsCache(scope: string | number): HomeInsightCacheItem[] {
+  const key = monthCacheKey(scope);
   const fromMemory = memory.get(key);
   if (fromMemory) return fromMemory;
 
@@ -56,9 +56,9 @@ export function getHomeInsightsCache(userId: number): HomeInsightCacheItem[] {
   return stored.items;
 }
 
-export function setHomeInsightsCache(userId: number, items: HomeInsightCacheItem[]): void {
+export function setHomeInsightsCache(scope: string | number, items: HomeInsightCacheItem[]): void {
   if (items.length === 0) return;
-  const key = monthCacheKey(userId);
+  const key = monthCacheKey(scope);
   memory.set(key, items);
   try {
     const payload: CachedPayload = {

@@ -41,8 +41,10 @@ import {
   labelGrupoLibreFiltro,
   labelRazaFiltro,
   labelUltimaLecturaMesFiltro,
+  fmtRegEquino,
   normalizarEstadoDispositivo,
   razaFiltroKey,
+  splitEidVid,
   ultimaLecturaMesFiltroKey,
 } from "./stock-equina-utils";
 import { fmtEmpresaOperativa } from "../stock/stock-empresa-utils";
@@ -404,6 +406,7 @@ export default function StockEquinoSanidad({
     if (!q) return rows;
     return rows.filter((d) => {
       const haystack = [
+        fmtRegEquino(d.eid, d.vid),
         d.eid,
         d.vid,
         d.clave,
@@ -612,7 +615,7 @@ export default function StockEquinoSanidad({
         <p className="sg-hub-kpi-hint">
           {filteredRows.length !== rows.length
             ? `${filteredRows.length} coinciden con la búsqueda.`
-            : "Dispositivos EID activos disponibles."}
+            : "Dispositivos REG activos disponibles."}
         </p>
       </article>
       <article className="sg-hub-kpi">
@@ -638,7 +641,7 @@ export default function StockEquinoSanidad({
                 <p className="sg-hub-panel-kicker">Selección</p>
                 <h2 className="stock-sanidad-hub-title">Animales y grupos</h2>
                 <p className="stock-sanidad-hub-sub muted">
-                  Buscá por EID, VID, grupo o cabaña y sumá grupos completos al registro masivo.
+                  Buscá por REG, grupo o cabaña y sumá grupos completos al registro masivo.
                 </p>
               </header>
             ) : null}
@@ -647,7 +650,7 @@ export default function StockEquinoSanidad({
               <input
                 type="search"
                 className="stock-sanidad-busqueda"
-                placeholder="Buscar EID, VID, grupo, cabaña…"
+                placeholder="Buscar REG, grupo, cabaña…"
                 value={busqueda}
                 disabled={loading || guardando}
                 onChange={(e) => setBusqueda(e.target.value)}
@@ -867,7 +870,7 @@ export default function StockEquinoSanidad({
                         aria-label="Seleccionar página"
                       />
                     </th>
-                    <th className="stock-th stock-th--device-ids">EID / VID</th>
+                    <th className="stock-th stock-th--device-ids">REG</th>
                     <th className="stock-th">Categoría</th>
                     <th className="stock-th stock-th--empresa">Empresa</th>
                     <th className="stock-th">Generación</th>
@@ -904,6 +907,8 @@ export default function StockEquinoSanidad({
                         .join(", ");
                       const empresaNombre = fmtEmpresaOperativa(d.empresa, empresasOperativas);
                       const checked = seleccion.has(d.clave);
+                      const { eid: regPrefijo, vid: regNumero } = splitEidVid(d.eid, d.vid);
+                      const reg = fmtRegEquino(d.eid, d.vid) || "—";
                       return (
                         <tr
                           key={d.clave}
@@ -922,7 +927,7 @@ export default function StockEquinoSanidad({
                               checked={checked}
                               disabled={guardando}
                               onChange={() => toggleClave(d.clave)}
-                              aria-label={`Seleccionar ${d.vid || d.eid}`}
+                              aria-label={`Seleccionar ${reg}`}
                             />
                           </td>
                           <td className="stock-td stock-td--device-ids">
@@ -933,15 +938,15 @@ export default function StockEquinoSanidad({
                                   className="stock-device-ids__icon"
                                 />
                               </span>
-                              <div className="stock-device-ids__stack">
-                                <span className="stock-device-ids__eid" title="EID electrónico">
-                                  {d.eid || "—"}
+                              <div
+                                className="stock-device-ids__stack"
+                                title={reg !== "—" ? `REG ${reg}` : undefined}
+                              >
+                                <span className="stock-device-ids__eid">
+                                  {regPrefijo || "—"}
                                 </span>
-                                <span
-                                  className="stock-device-ids__vid"
-                                  title={d.vid ? `VID ${d.vid}` : undefined}
-                                >
-                                  {d.vid || "—"}
+                                <span className="stock-device-ids__vid">
+                                  {regNumero || "—"}
                                 </span>
                               </div>
                             </div>

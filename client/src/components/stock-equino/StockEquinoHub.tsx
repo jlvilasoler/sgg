@@ -94,7 +94,7 @@ export default function StockEquinoHub({
           <div>
             <h1 className="sg-hub-main-title">Dashboard</h1>
             <p className="sg-hub-main-sub">
-              Identificación electrónica (EID), stock equino activo, salidas y sanidad en un solo lugar.
+              Identificación electrónica (REG), stock equino activo, salidas y sanidad en un solo lugar.
             </p>
           </div>
           <div className="sg-hub-main-actions">
@@ -188,7 +188,7 @@ export default function StockEquinoHub({
                 <span className="sg-hub-flow-num">1</span>
                 <div>
                   <strong>Alta de dispositivo</strong>
-                  <p>Importá lecturas EID desde el bastón (.txt).</p>
+                  <p>Importá lecturas REG desde el bastón (.txt).</p>
                 </div>
               </li>
               <li>

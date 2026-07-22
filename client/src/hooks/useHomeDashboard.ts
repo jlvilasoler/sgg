@@ -579,6 +579,9 @@ function proximosDesdeCache(): VencImpCuotaConsolidada[] {
 
 export function useHomeDashboard(user: AuthUser, apiOnline: boolean) {
   const userId = user.id;
+  const insightsCacheScope = `${userId}:${user.login_mode ?? "consolidado"}:${
+    user.empresa_operativa_activa_id ?? "todas"
+  }`;
   const puedeNotas = canAccessScreen(user, "notas") && canShowHomePanel(user, "pizarron");
   const puedeVencimientos =
     canAccessScreen(user, "vencimientos_impuestos") && canShowHomePanel(user, "vencimientos");
@@ -618,14 +621,14 @@ export function useHomeDashboard(user: AuthUser, apiOnline: boolean) {
   const [recentScreens, setRecentScreens] = useState<TabId[]>(() => getRecentHomeModules(userId));
 
   const [extraInsights, setExtraInsights] = useState<HomeInsight[]>(() => {
-    const cached = getHomeInsightsCache(userId);
+    const cached = getHomeInsightsCache(insightsCacheScope);
     const expected = buildExpectedHomeInsights(user);
     if (!isHomeInsightsCacheComplete(expected, cached)) return expected;
     return mergeInsightsWithExpected(user, cached);
   });
   const [loadingInsights, setLoadingInsights] = useState(() => {
     if (!apiOnline) return false;
-    const cached = getHomeInsightsCache(userId);
+    const cached = getHomeInsightsCache(insightsCacheScope);
     const expected = buildExpectedHomeInsights(user);
     return cached.length === 0 || !isHomeInsightsCacheComplete(expected, cached);
   });
@@ -822,7 +825,7 @@ export function useHomeDashboard(user: AuthUser, apiOnline: boolean) {
     }
 
     let cancelled = false;
-    const cached = getHomeInsightsCache(userId);
+    const cached = getHomeInsightsCache(insightsCacheScope);
     const expected = buildExpectedHomeInsights(user);
     if (cached.length > 0 && isHomeInsightsCacheComplete(expected, cached)) {
       setExtraInsights(mergeInsightsWithExpected(user, cached));
@@ -1099,7 +1102,7 @@ export function useHomeDashboard(user: AuthUser, apiOnline: boolean) {
             const next = mergeInsightsWithExpected(user, [...byId.values()]);
             const expected = buildExpectedHomeInsights(user);
             if (isHomeInsightsCacheComplete(expected, next)) {
-              setHomeInsightsCache(userId, next);
+              setHomeInsightsCache(insightsCacheScope, next);
             }
             return next;
           });

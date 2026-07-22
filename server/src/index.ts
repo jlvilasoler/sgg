@@ -30,6 +30,14 @@ import { fetchInvestingUsdUyu } from "./investing-usd-uyu.js";
 import { parseAcgGanadoGordoHtml } from "./acg-ganado-gordo.js";
 import { parseAcgGanadoReposicionHtml } from "./acg-ganado-reposicion.js";
 import { fetchAcgHomeHtml } from "./acg-page.js";
+import {
+  ARU_RAZAS_EQUINAS,
+  buscarPedigreeAruEquino,
+  detallePedigreeAruEquino,
+  htmlArbolAruParaEmbed,
+  resolverArbolAruEquino,
+  type AruBuscarPor,
+} from "./aru-pedigree.js";
 import type { SegmentoPreciosGanado, PrecioGanadoInput } from "./precios-ganado-db.js";
 import * as simVenta from "./simulador-venta-ganado-db.js";
 import * as ventasAgri from "./ventas-agricultura-db.js";
@@ -641,6 +649,7 @@ app.get("/api/empresas-operativas", async (req, res) => {
     email: user.email,
     es_super_admin: user.es_super_admin,
     empresa_id: user.empresa_id,
+    empresa_operativa_activa_id: user.empresa_operativa_activa_id,
   };
   if (formato === "stock") {
     const detalle = await empresasCuenta.getEmpresasOperativasDetallePermitidas(
@@ -831,6 +840,15 @@ async function stockEquinoFiltersFromRequest(
     filters = { ...filters, cuenta_id: lecturasScope.cuenta_id };
   }
   return filters;
+}
+
+/** Claves ganaderas visibles para acotar simulaciones en modo empresa. */
+async function simuladorDispositivoClavesScope(req: Request): Promise<string[] | undefined> {
+  const user = req.user;
+  if (!user || user.login_mode !== "individual") return undefined;
+  const filters = await stockGanaderoFiltersFromRequest(req);
+  const dispositivos = await db.stockGanadero.listDispositivos(filters);
+  return dispositivos.map((dispositivo) => dispositivo.clave);
 }
 
 /** Filtro por cuenta madre para lotes y lecturas importadas. */
@@ -1467,8 +1485,11 @@ app.get("/api/presupuesto/facturas-para-nc", async (req, res) => {
       res.status(400).json({ ok: false, error: "Indicá el proveedor." });
       return;
     }
-    const empresa = String(req.query.empresa ?? "").trim() || undefined;
     const lecturasScope = await presupuestoListFilters(req);
+    const empresaQuery = String(req.query.empresa ?? "").trim() || undefined;
+    const empresa =
+      empresaQuery ??
+      (lecturasScope.empresas?.length === 1 ? lecturasScope.empresas[0] : undefined);
     const data = await db.listFacturasParaNc({
       codigo_proveedor,
       empresa,
@@ -2417,6 +2438,7 @@ app.get("/api/ingresos-ventas/ventas-ganado-cerradas", async (req, res) => {
     busqueda: req.query.busqueda as string | undefined,
     limit: 500,
     cuentaId: await cuentaIdForScopedRead(req.user!),
+    dispositivoClaves: await simuladorDispositivoClavesScope(req),
   });
   res.json({ ok: true, data });
 });
@@ -3119,9 +3141,13 @@ app.delete("/api/stock-ganadero/control-sanitario/producto-ficha/:nombre", async
 
 app.post("/api/stock-ganadero/control-sanitario/resumen", async (req, res) => {
   try {
-    const claves = Array.isArray(req.body?.claves)
+    const solicitadas = Array.isArray(req.body?.claves)
       ? req.body.claves.map((c: unknown) => String(c))
       : [];
+    const scope = await stockGanaderoFiltersFromRequest(req);
+    const dispositivos = await db.stockGanadero.listDispositivos(scope);
+    const permitidas = new Set(dispositivos.map((dispositivo) => dispositivo.clave));
+    const claves = solicitadas.filter((clave: string) => permitidas.has(clave));
     const data = await stockControlSanitario.summarizeStockControlSanitarioByClaves(
       db.getDb(),
       "ganadero",
@@ -3138,9 +3164,13 @@ app.post("/api/stock-ganadero/control-sanitario/resumen", async (req, res) => {
 
 app.post("/api/stock-ganadero/control-sanitario/fechas-aplicacion", async (req, res) => {
   try {
-    const claves = Array.isArray(req.body?.claves)
+    const solicitadas = Array.isArray(req.body?.claves)
       ? req.body.claves.map((c: unknown) => String(c))
       : [];
+    const scope = await stockGanaderoFiltersFromRequest(req);
+    const dispositivos = await db.stockGanadero.listDispositivos(scope);
+    const permitidas = new Set(dispositivos.map((dispositivo) => dispositivo.clave));
+    const claves = solicitadas.filter((clave: string) => permitidas.has(clave));
     const data = await stockControlSanitario.getUltimaFechaAplicacionPorClaves(
       db.getDb(),
       "ganadero",
@@ -4354,6 +4384,12 @@ app.get("/api/stock-ganadero/resumen", async (req, res) => {
   const filters = await stockGanaderoFiltersFromRequest(req);
   const lecturasFilters = await stockLecturasFiltersFromRequest(req);
   const lotes = await db.stockGanadero.listLotes(lecturasFilters);
+  const [ventasClavesTodas, dispositivosEnScope] = await Promise.all([
+    db.simuladorVentaDispositivos.listClavesEnVentasCerradas(),
+    db.stockGanadero.listDispositivos(filters),
+  ]);
+  const clavesEnScope = new Set(dispositivosEnScope.map((dispositivo) => dispositivo.clave));
+  const ventasClaves = ventasClavesTodas.filter((clave) => clavesEnScope.has(clave));
   const activosDetalle = await db.stockGanadero.countDispositivosActivosDetalle(filters);
   const inicioMes = req.user?.ejercicio_inicio_mes ?? 7;
   const inicioDia = req.user?.ejercicio_inicio_dia ?? 1;
@@ -4374,18 +4410,21 @@ app.get("/api/stock-ganadero/resumen", async (req, res) => {
       hembras: activosDetalle.hembras,
       sin_definir: activosDetalle.sin_definir,
       dispositivos_total: await db.stockGanadero.countDispositivosTotal(filters),
-      ventas_dispositivos: await db.simuladorVentaDispositivos.countEnVentasCerradas(),
+      ventas_dispositivos: ventasClaves.length,
       comparacion_ejercicio_anterior,
     },
   });
 });
 
-app.get("/api/stock-ganadero/ventas-dispositivos", async (_req, res) => {
-  const [total, claves] = await Promise.all([
-    db.simuladorVentaDispositivos.countEnVentasCerradas(),
+app.get("/api/stock-ganadero/ventas-dispositivos", async (req, res) => {
+  const filters = await stockGanaderoFiltersFromRequest(req);
+  const [todas, dispositivos] = await Promise.all([
     db.simuladorVentaDispositivos.listClavesEnVentasCerradas(),
+    db.stockGanadero.listDispositivos(filters),
   ]);
-  res.json({ ok: true, data: { total, claves } });
+  const permitidas = new Set(dispositivos.map((dispositivo) => dispositivo.clave));
+  const claves = todas.filter((clave) => permitidas.has(clave));
+  res.json({ ok: true, data: { total: claves.length, claves } });
 });
 
 app.post("/api/stock-ganadero/import/file", upload.single("file"), async (req, res) => {
@@ -5490,6 +5529,12 @@ app.get("/api/stock-equino/resumen", async (req, res) => {
   const filters = await stockEquinoFiltersFromRequest(req);
   const lecturasFilters = await stockLecturasFiltersFromRequest(req);
   const lotes = await db.stockEquino.listLotes(lecturasFilters);
+  const [ventasClavesTodas, dispositivosEnScope] = await Promise.all([
+    db.simuladorVentaDispositivos.listClavesEnVentasCerradas(),
+    db.stockEquino.listDispositivos(filters),
+  ]);
+  const clavesEnScope = new Set(dispositivosEnScope.map((dispositivo) => dispositivo.clave));
+  const ventasClaves = ventasClavesTodas.filter((clave) => clavesEnScope.has(clave));
   res.json({
     ok: true,
     data: {
@@ -5497,17 +5542,20 @@ app.get("/api/stock-equino/resumen", async (req, res) => {
       registros: await db.stockEquino.countRegistros(lecturasFilters),
       dispositivos: await db.stockEquino.countDispositivos(filters),
       dispositivos_total: await db.stockEquino.countDispositivosTotal(filters),
-      ventas_dispositivos: 0,
+      ventas_dispositivos: ventasClaves.length,
     },
   });
 });
 
-app.get("/api/stock-equino/ventas-dispositivos", async (_req, res) => {
-  const [total, claves] = await Promise.all([
-    db.simuladorVentaDispositivos.countEnVentasCerradas(),
+app.get("/api/stock-equino/ventas-dispositivos", async (req, res) => {
+  const filters = await stockEquinoFiltersFromRequest(req);
+  const [todas, dispositivos] = await Promise.all([
     db.simuladorVentaDispositivos.listClavesEnVentasCerradas(),
+    db.stockEquino.listDispositivos(filters),
   ]);
-  res.json({ ok: true, data: { total, claves } });
+  const permitidas = new Set(dispositivos.map((dispositivo) => dispositivo.clave));
+  const claves = todas.filter((clave) => permitidas.has(clave));
+  res.json({ ok: true, data: { total: claves.length, claves } });
 });
 
 app.post("/api/stock-equino/import/file", upload.single("file"), async (req, res) => {
@@ -5725,6 +5773,137 @@ app.post("/api/stock-equino/alta-cabana", async (req, res) => {
     });
   } catch (e) {
     res.status(400).json({ ok: false, error: (e as Error).message });
+  }
+});
+
+app.get("/api/stock-equino/aru/razas", (_req, res) => {
+  res.json({ ok: true, data: ARU_RAZAS_EQUINAS });
+});
+
+app.post("/api/stock-equino/aru/buscar", async (req, res) => {
+  try {
+    const body = req.body as {
+      raza_id?: string;
+      sexo?: string;
+      buscar_por?: string;
+      consulta?: string;
+      rp?: string;
+      rp_hasta?: string;
+    };
+    const buscarRaw = String(body.buscar_por ?? "").trim().toLowerCase();
+    const buscar_por: AruBuscarPor =
+      buscarRaw === "registro" || buscarRaw === "criador" || buscarRaw === "nombre"
+        ? buscarRaw
+        : "nombre";
+    const sexoRaw = String(body.sexo ?? "I").trim().toUpperCase();
+    const sexo =
+      sexoRaw === "M" || sexoRaw === "H" || sexoRaw === "I"
+        ? (sexoRaw as "I" | "M" | "H")
+        : "I";
+    const data = await buscarPedigreeAruEquino({
+      raza_id: String(body.raza_id ?? "27"),
+      sexo,
+      buscar_por,
+      consulta: String(body.consulta ?? ""),
+      rp: String(body.rp ?? ""),
+      rp_hasta: String(body.rp_hasta ?? ""),
+    });
+    res.json({ ok: true, data, total: data.length });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: (e as Error).message });
+  }
+});
+
+app.post("/api/stock-equino/aru/detalle", async (req, res) => {
+  try {
+    const body = req.body as {
+      id?: string;
+      id_raza?: string;
+      id_filtro?: string;
+      id_sesion?: string;
+      id_especie?: string;
+    };
+    const data = await detallePedigreeAruEquino({
+      id: String(body.id ?? ""),
+      id_raza: String(body.id_raza ?? ""),
+      id_filtro: String(body.id_filtro ?? "N"),
+      id_sesion: String(body.id_sesion ?? ""),
+      id_especie: String(body.id_especie ?? "3"),
+    });
+    res.json({ ok: true, data });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: (e as Error).message });
+  }
+});
+
+app.post("/api/stock-equino/aru/arbol", async (req, res) => {
+  try {
+    const body = req.body as {
+      registro?: string;
+      rp?: string;
+      nombre?: string;
+      raza_id?: string;
+      sexo?: string;
+    };
+    const sexoRaw = String(body.sexo ?? "I").trim().toUpperCase();
+    const sexo =
+      sexoRaw === "M" || sexoRaw === "H" || sexoRaw === "I"
+        ? (sexoRaw as "I" | "M" | "H")
+        : sexoRaw === "MACHO"
+          ? "M"
+          : sexoRaw === "HEMBRA"
+            ? "H"
+            : "I";
+    const data = await resolverArbolAruEquino({
+      registro: String(body.registro ?? ""),
+      rp: String(body.rp ?? ""),
+      nombre: String(body.nombre ?? ""),
+      raza_id: String(body.raza_id ?? ""),
+      sexo,
+    });
+    res.json({ ok: true, data });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: (e as Error).message });
+  }
+});
+
+app.get("/api/stock-equino/aru/arbol-embed", async (req, res) => {
+  try {
+    const arbolUrl = String(req.query.url ?? "").trim();
+    const html = await htmlArbolAruParaEmbed(arbolUrl);
+    // La API global pone DENY / frame-ancestors none; acá hay que permitir iframe same-origin
+    // y recursos de ARU (si no, el modal muestra el ícono de documento roto).
+    res.removeHeader("X-Frame-Options");
+    res.removeHeader("Content-Security-Policy");
+    res.setHeader("X-Frame-Options", "SAMEORIGIN");
+    res.setHeader(
+      "Content-Security-Policy",
+      [
+        "default-src 'self' https://aru.org.uy http://aru.org.uy data: blob:",
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://aru.org.uy http://aru.org.uy https://code.jquery.com http://code.jquery.com",
+        "style-src 'self' 'unsafe-inline' https://aru.org.uy http://aru.org.uy",
+        "img-src * data: blob:",
+        "font-src 'self' https://aru.org.uy http://aru.org.uy data:",
+        "frame-ancestors 'self'",
+        "connect-src 'self' https://aru.org.uy http://aru.org.uy",
+      ].join("; ")
+    );
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    res.setHeader("Cache-Control", "private, max-age=60");
+    res.send(html);
+  } catch (e) {
+    res.removeHeader("X-Frame-Options");
+    res.removeHeader("Content-Security-Policy");
+    res.setHeader("X-Frame-Options", "SAMEORIGIN");
+    res.setHeader("Content-Security-Policy", "default-src 'self'; frame-ancestors 'self'; style-src 'unsafe-inline'");
+    res
+      .status(400)
+      .type("html")
+      .send(
+        `<!doctype html><html><body style="font-family:sans-serif;padding:1.5rem">${
+          (e as Error).message
+        }</body></html>`
+      );
   }
 });
 
@@ -7814,6 +7993,7 @@ app.get("/api/simulador-venta-ganado", async (req, res) => {
     tipo,
     limit,
     cuentaId: await cuentaIdForScopedRead(req.user!),
+    dispositivoClaves: await simuladorDispositivoClavesScope(req),
   });
   res.json({ ok: true, data });
 });
@@ -8131,6 +8311,7 @@ app.get("/api/resumen/estado-resultados", async (req, res) => {
     empresa: scope.empresa,
     empresas: scope.empresas,
     cuentaId,
+    dispositivoClaves: await simuladorDispositivoClavesScope(req),
   });
   res.json({ ok: true, data });
 });
@@ -8225,10 +8406,15 @@ app.get("/api/rrhh/pagos", async (req, res) => {
   try {
     const cedula = String(req.query.cedula ?? "").trim();
     const cuentaId = await cuentaIdForScopedRead(req.user!);
+    const empresaScope = await resumenEmpresaScope(
+      req.user!,
+      req.query.empresa as string | undefined,
+    );
     const data = await db.rrhhPagos.porCedula(cedula, {
       fecha_desde: req.query.fecha_desde as string | undefined,
       fecha_hasta: req.query.fecha_hasta as string | undefined,
-      empresa: req.query.empresa as string | undefined,
+      empresa: empresaScope.empresa,
+      empresas: empresaScope.empresas,
     }, cuentaId);
     res.json({ ok: true, data });
   } catch (e) {
@@ -8238,11 +8424,14 @@ app.get("/api/rrhh/pagos", async (req, res) => {
 
 app.get("/api/rrhh/resumen-global", async (req, res) => {
   const cuentaId = await cuentaIdForScopedRead(req.user!);
+  const empresaScope = await resumenEmpresaScope(req.user!);
   res.json({
     ok: true,
     data: await db.rrhhPagos.resumenGlobal(cuentaId, {
       fecha_desde: req.query.fecha_desde as string | undefined,
       fecha_hasta: req.query.fecha_hasta as string | undefined,
+      empresa: empresaScope.empresa,
+      empresas: empresaScope.empresas,
     }),
   });
 });
@@ -8250,11 +8439,14 @@ app.get("/api/rrhh/resumen-global", async (req, res) => {
 app.get("/api/rrhh/dashboard", async (req, res) => {
   try {
     const cuentaId = await cuentaIdForScopedRead(req.user!);
+    const empresaScope = await resumenEmpresaScope(req.user!);
     res.json({
       ok: true,
       data: await db.rrhhPagos.dashboard(cuentaId, {
         fecha_desde: req.query.fecha_desde as string | undefined,
         fecha_hasta: req.query.fecha_hasta as string | undefined,
+        empresa: empresaScope.empresa,
+        empresas: empresaScope.empresas,
       }),
     });
   } catch (e) {

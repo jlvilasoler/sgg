@@ -2534,6 +2534,99 @@ export async function altaStockEquinoCabana(input: {
   };
 }
 
+export type AruBuscarPor = "registro" | "criador" | "nombre";
+
+export interface AruRazaEquina {
+  id: string;
+  nombre: string;
+}
+
+export interface AruResultadoBusqueda {
+  rp: string;
+  criador: string;
+  registro: string;
+  nombre: string;
+  publico: boolean;
+  id_sesion: string;
+  id_filtro: string;
+  id: string;
+  id_especie: string;
+  id_raza: string;
+  detalle_url: string;
+}
+
+export interface AruDetalleAnimal {
+  raza: string;
+  nombre: string;
+  sexo: "MACHO" | "HEMBRA" | "";
+  fecha_nacimiento: string;
+  rp: string;
+  registro: string;
+  premios: string;
+  criador_codigo: string;
+  criador_nombre: string;
+  cabana: string;
+  pelo: string;
+  fuente_url: string;
+}
+
+export async function fetchAruRazasEquinas(): Promise<AruRazaEquina[]> {
+  const json = await request<{ data: AruRazaEquina[] }>("/stock-equino/aru/razas");
+  return json.data ?? [];
+}
+
+export async function buscarAruPedigreeEquino(input: {
+  raza_id: string;
+  sexo?: "I" | "M" | "H";
+  buscar_por: AruBuscarPor;
+  consulta: string;
+  rp?: string;
+  rp_hasta?: string;
+}): Promise<AruResultadoBusqueda[]> {
+  const json = await request<{ data: AruResultadoBusqueda[]; total?: number }>(
+    "/stock-equino/aru/buscar",
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    }
+  );
+  return json.data ?? [];
+}
+
+export async function fetchAruDetalleEquino(input: {
+  id: string;
+  id_raza: string;
+  id_filtro?: string;
+  id_sesion?: string;
+  id_especie?: string;
+}): Promise<AruDetalleAnimal> {
+  const json = await request<{ data: AruDetalleAnimal }>("/stock-equino/aru/detalle", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+  return json.data;
+}
+
+export interface AruArbolResolucion {
+  arbol_url: string;
+  detalle_url: string;
+  animal: AruResultadoBusqueda;
+}
+
+export async function resolverAruArbolEquino(input: {
+  registro?: string;
+  rp?: string;
+  nombre?: string;
+  raza_id?: string;
+  sexo?: "I" | "M" | "H" | "MACHO" | "HEMBRA";
+}): Promise<AruArbolResolucion> {
+  const json = await request<{ data: AruArbolResolucion }>("/stock-equino/aru/arbol", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+  return json.data;
+}
+
 export async function importStockEquinoBajaFile(
   file: File,
   tipo_baja: TipoBaja

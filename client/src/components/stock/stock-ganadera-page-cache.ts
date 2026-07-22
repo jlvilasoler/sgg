@@ -15,8 +15,12 @@ let memCache: StockGanaderaPageCache | null = null;
 export function stockGanaderaCacheScope(user: {
   id: number;
   empresa_id: number | null;
+  login_mode?: "consolidado" | "individual";
+  empresa_operativa_activa_id?: number | null;
 }): string {
-  return `${user.id}:${user.empresa_id ?? "na"}`;
+  return `${user.id}:${user.empresa_id ?? "na"}:${user.login_mode ?? "consolidado"}:${
+    user.empresa_operativa_activa_id ?? "todas"
+  }`;
 }
 
 export function filtrosCacheKey(filtros: {

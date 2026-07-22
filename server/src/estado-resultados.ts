@@ -122,6 +122,7 @@ async function gastosClasificadosUsd(
     empresa?: string;
     empresas?: string[];
     cuentaId?: number | null;
+    dispositivoClaves?: string[];
   }
 ): Promise<GastoFila[]> {
   let q = `
@@ -184,6 +185,7 @@ async function ventasIngresosSeccionUsd(
     empresa?: string;
     empresas?: string[];
     cuentaId?: number | null;
+    dispositivoClaves?: string[];
   }
 ): Promise<EstadoResultadosVentasDetalle> {
   const scope: ResumenEmpresaScope | undefined =
@@ -199,6 +201,23 @@ async function ventasIngresosSeccionUsd(
   if (opts.cuentaId != null) {
     qSim += " AND cuenta_id = @cuentaId";
     paramsSim.cuentaId = opts.cuentaId;
+  }
+  if (opts.dispositivoClaves) {
+    if (opts.dispositivoClaves.length === 0) {
+      qSim += " AND 1 = 0";
+    } else {
+      const placeholders = opts.dispositivoClaves.map((clave, index) => {
+        const key = `sim_clave_${index}`;
+        paramsSim[key] = clave;
+        return `@${key}`;
+      });
+      qSim += ` AND EXISTS (
+        SELECT 1
+        FROM SIMULADOR_VENTA_GANADO_DISPOSITIVO sd
+        WHERE sd.simulacion_id = SIMULADOR_VENTA_GANADO.id
+          AND sd.clave IN (${placeholders.join(", ")})
+      )`;
+    }
   }
   if (opts.fecha_desde) {
     qSim += " AND venta_realizada_en >= @fecha_desde";
@@ -370,6 +389,7 @@ export async function buildEstadoResultados(
     empresa?: string;
     empresas?: string[];
     cuentaId?: number | null;
+    dispositivoClaves?: string[];
   }
 ): Promise<EstadoResultadosPayload> {
   const filas = await gastosClasificadosUsd(db, opts);

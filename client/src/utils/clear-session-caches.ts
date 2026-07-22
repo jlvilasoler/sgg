@@ -1,5 +1,6 @@
 import { clearStockEquinaPageCache } from "../components/stock-equino/stock-equina-page-cache";
 import { clearStockGanaderaPageCache } from "../components/stock/stock-ganadera-page-cache";
+import { clearHomeStockPotreroCache } from "../components/home/HomeStockPotreroPanel";
 import { clearHomeActividadCache, clearHomeNotasCache } from "./home-panel-cache";
 import { clearHomeInsightsCache } from "./home-insights-cache";
 import { clearHomeRecentModulesCache } from "./home-quick-modules";
@@ -9,6 +10,7 @@ import { invalidateVencimientosImpuestosCache } from "./vencimientos-impuestos-c
 export function clearAllSessionCaches(): void {
   clearStockGanaderaPageCache();
   clearStockEquinaPageCache();
+  clearHomeStockPotreroCache();
   clearHomeNotasCache();
   clearHomeActividadCache();
   clearHomeInsightsCache();

@@ -374,6 +374,7 @@ export default function HomeMenu({
 
   const renderStockPotreroPanel = () => (
     <HomeStockPotreroPanel
+      user={user}
       apiOnline={apiOnline}
       onOpenStock={() => onOpen("stock_ganadero")}
       onOpenMapa={puedeMapaCampo ? () => onOpen("campo_mapa") : undefined}

@@ -18,6 +18,8 @@ import {
   fmtNacimiento,
   listAniosNacimiento,
   MESES_NACIMIENTO,
+  fmtRegEquino,
+  splitEidVid,
 } from "./stock-equina-utils";
 import { fmtEmpresaOperativa } from "../stock/stock-empresa-utils";
 import { PageModuleHeadRow } from "../PageModuleHead";
@@ -374,11 +376,11 @@ export default function StockEquinaSalidas({
         </select>
       </div>
       <div className="field flex-grow">
-        <label htmlFor="salidas-busq">Buscar EID / VID</label>
+        <label htmlFor="salidas-busq">Buscar REG</label>
         <input
           id="salidas-busq"
           type="search"
-          placeholder="EID, caravana visual…"
+          placeholder="REG…"
           value={busqueda}
           onChange={(e) => setBusqueda(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && load()}
@@ -408,8 +410,7 @@ export default function StockEquinaSalidas({
               aria-label="Selección de cabaña"
               title="Selección de cabaña"
             />
-            <th className="stock-th stock-th--num">EID</th>
-            <th className="stock-th">VID</th>
+            <th className="stock-th stock-th--device-ids">REG</th>
             <th className="stock-th">Empresa</th>
             <th className="stock-th">Generación</th>
             <th className="stock-th">Grupo</th>
@@ -422,19 +423,19 @@ export default function StockEquinaSalidas({
         <tbody>
           {mostrarCargaVacia ? (
             <tr>
-              <td colSpan={10} className="empty">
+              <td colSpan={9} className="empty">
                 Cargando…
               </td>
             </tr>
           ) : !apiOnline ? (
             <tr>
-              <td colSpan={10} className="empty">
+              <td colSpan={9} className="empty">
                 API no conectada
               </td>
             </tr>
           ) : rowsPagina.length === 0 ? (
             <tr>
-              <td colSpan={10} className="empty">
+              <td colSpan={9} className="empty">
                 Sin salidas para los filtros aplicados.
               </td>
             </tr>
@@ -446,6 +447,8 @@ export default function StockEquinaSalidas({
                 d.baja_mes,
                 d.baja_anio
               );
+              const { eid: regPrefijo, vid: regNumero } = splitEidVid(d.eid, d.vid);
+              const reg = fmtRegEquino(d.eid, d.vid) || "—";
               return (
                 <tr
                   key={d.clave}
@@ -460,19 +463,27 @@ export default function StockEquinaSalidas({
                       soloLectura
                     />
                   </td>
-                  <td className="stock-td stock-td--num stock-td--eid">{d.eid || "—"}</td>
-                  <td className="stock-td stock-td--vid">
-                    <span className="stock-equina-row-eid">
-                      <IconoDispositivoWifi className="stock-equina-row-icon" />
+                  <td className="stock-td stock-td--device-ids">
+                    <div className="stock-device-ids">
+                      <span className="stock-device-ids__icon-wrap" aria-hidden>
+                        <IconoDispositivoWifi
+                          className="stock-device-ids__icon"
+                        />
+                      </span>
                       <button
                         type="button"
-                        className="stock-equina-link stock-table-pro-link"
+                        className="stock-device-ids__stack stock-device-ids__stack-btn"
                         onClick={() => setEditarDispositivo(d)}
-                        title="Ver / editar caravana"
+                        title={`Ver / editar caravana · REG ${reg}`}
                       >
-                        {d.vid || "—"}
+                        <span className="stock-device-ids__eid">
+                          {regPrefijo || "—"}
+                        </span>
+                        <span className="stock-device-ids__vid stock-table-pro-link">
+                          {regNumero || "—"}
+                        </span>
                       </button>
-                    </span>
+                    </div>
                   </td>
                   <td className="stock-td stock-td--muted">
                     {fmtEmpresaOperativa(d.empresa, empresas)}
@@ -551,7 +562,7 @@ export default function StockEquinaSalidas({
             <p className="sg-hub-panel-kicker">Listado</p>
             <h2 className="stock-salidas-hub-title">Salidas del stock</h2>
             <p className="stock-salidas-hub-sub muted">
-              Filtrá por motivo, fecha de baja o buscá por EID / VID.
+              Filtrá por motivo, fecha de baja o buscá por REG.
             </p>
           </div>
         </header>

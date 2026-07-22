@@ -421,6 +421,8 @@ export interface SimuladorVentaGanadoListFilters {
   fecha_hasta?: string;
   busqueda?: string;
   cuentaId?: number | null;
+  /** En modo empresa, simulaciones vinculadas a dispositivos de esa empresa. */
+  dispositivoClaves?: string[];
 }
 
 export async function listSimulacionesVentaGanado(
@@ -434,6 +436,24 @@ export async function listSimulacionesVentaGanado(
   const params: Record<string, string | number> = {};
 
   query = scopeCuenta(query, params, filters.cuentaId);
+
+  if (filters.dispositivoClaves) {
+    if (filters.dispositivoClaves.length === 0) {
+      query += " AND 1 = 0";
+    } else {
+      const placeholders = filters.dispositivoClaves.map((clave, index) => {
+        const key = `dispositivo_clave_${index}`;
+        params[key] = clave;
+        return `@${key}`;
+      });
+      query += ` AND EXISTS (
+        SELECT 1
+        FROM SIMULADOR_VENTA_GANADO_DISPOSITIVO sd
+        WHERE sd.simulacion_id = s.id
+          AND sd.clave IN (${placeholders.join(", ")})
+      )`;
+    }
+  }
 
   if (filters.tipo) {
     query += " AND s.tipo = @tipo";

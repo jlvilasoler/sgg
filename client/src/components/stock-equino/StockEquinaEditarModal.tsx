@@ -25,6 +25,7 @@ import StockDispositivoFotoCard, {
 } from "../stock/StockDispositivoFotoCard";
 import StockEquinaHistorialCambiosPanel from "./StockEquinaHistorialCambiosPanel";
 import StockControlSanitarioModal from "../stock/StockControlSanitarioModal";
+import StockEquinoAruArbolModal from "./StockEquinoAruArbolModal";
 import {
   buildGrupo,
   calcularEdadMeses,
@@ -90,9 +91,13 @@ export default function StockEquinaEditarPanel({
   const [guardando, setGuardando] = useState(false);
   const [verHistorialCambios, setVerHistorialCambios] = useState(false);
   const [controlSanitarioOpen, setControlSanitarioOpen] = useState(false);
+  const [aruArbolOpen, setAruArbolOpen] = useState(false);
   const [modoEdicion, setModoEdicion] = useState<"ver" | "editar">(modoInicial);
   const soloLectura = modoEdicion === "ver";
   const camposDeshabilitados = soloLectura || guardando || !apiOnline;
+  const esAnimalCabana = Boolean(
+    rp.trim() || nombreAnimal.trim() || registro.trim()
+  );
 
   const restablecerDesdeDispositivo = useCallback((d: StockEquinaDispositivo) => {
     setEmpresa(d.empresa ?? "");
@@ -276,6 +281,7 @@ export default function StockEquinaEditarPanel({
           ultimaFecha={dispositivo.ultima_fecha}
           ultimaHora={dispositivo.ultima_hora}
           iconClassName="stock-equina-editar-icon stock-editar-head-signal"
+          modoReg
         />
       }
       footer={
@@ -482,6 +488,22 @@ export default function StockEquinaEditarPanel({
                       onChange={setEstado}
                     />
                   </div>
+                  {esAnimalCabana ? (
+                    <div className="stock-editar-ficha-cell stock-editar-ficha-cell--aru-arbol">
+                      <span className="stock-editar-ficha-label-spacer" aria-hidden>
+                        &nbsp;
+                      </span>
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-sm stock-editar-aru-arbol-btn"
+                        disabled={!apiOnline || guardando}
+                        title="Ver árbol genealógico en ARU"
+                        onClick={() => setAruArbolOpen(true)}
+                      >
+                        Árbol genealógico
+                      </button>
+                    </div>
+                  ) : null}
                 </div>
               </div>
 
@@ -661,6 +683,15 @@ export default function StockEquinaEditarPanel({
       apiOnline={apiOnline}
       soloLectura={soloLectura}
       currentUser={currentUser}
+      onError={onError}
+    />
+    <StockEquinoAruArbolModal
+      open={aruArbolOpen}
+      onClose={() => setAruArbolOpen(false)}
+      registro={registro}
+      rp={rp}
+      nombre={nombreAnimal}
+      sexo={sexo}
       onError={onError}
     />
     </>

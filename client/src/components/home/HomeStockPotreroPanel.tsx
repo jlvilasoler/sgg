@@ -4,7 +4,7 @@ import {
   fetchCampoPotrerosMapa,
   fetchStockGanaderaDispositivos,
 } from "../../api";
-import type { CampoPotreroMapa, StockGanaderaDispositivo } from "../../types";
+import type { AuthUser, CampoPotreroMapa, StockGanaderaDispositivo } from "../../types";
 import { fmtDate } from "../../utils/format";
 import { todayIso } from "../../utils";
 import { SgMiniBars } from "../stock/SgHubUi";
@@ -23,6 +23,7 @@ import {
 } from "./home-stock-potrero-dotacion";
 
 interface Props {
+  user: AuthUser;
   apiOnline: boolean;
   onOpenStock: () => void;
   onOpenMapa?: () => void;
@@ -31,19 +32,24 @@ interface Props {
 const HOME_STOCK_POTRERO_CACHE_KEY = "sag.home.stock-potrero.v1";
 
 type HomeStockPotreroCache = {
+  scopeKey: string;
   potrerosMapa: CampoPotreroMapa[];
   ganadero: StockGanaderaDispositivo[];
 };
 
 let homeStockPotreroMemoryCache: HomeStockPotreroCache | null = null;
 
-function readHomeStockPotreroCache(): HomeStockPotreroCache | null {
-  if (homeStockPotreroMemoryCache) return homeStockPotreroMemoryCache;
+function readHomeStockPotreroCache(scopeKey: string): HomeStockPotreroCache | null {
+  if (homeStockPotreroMemoryCache?.scopeKey === scopeKey) return homeStockPotreroMemoryCache;
   try {
     const raw = sessionStorage.getItem(HOME_STOCK_POTRERO_CACHE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as HomeStockPotreroCache;
-    if (!Array.isArray(parsed?.potrerosMapa) || !Array.isArray(parsed?.ganadero)) return null;
+    if (
+      parsed?.scopeKey !== scopeKey ||
+      !Array.isArray(parsed?.potrerosMapa) ||
+      !Array.isArray(parsed?.ganadero)
+    ) return null;
     homeStockPotreroMemoryCache = parsed;
     return parsed;
   } catch {
@@ -57,6 +63,15 @@ function writeHomeStockPotreroCache(payload: HomeStockPotreroCache) {
     sessionStorage.setItem(HOME_STOCK_POTRERO_CACHE_KEY, JSON.stringify(payload));
   } catch {
     /* quota / private mode */
+  }
+}
+
+export function clearHomeStockPotreroCache(): void {
+  homeStockPotreroMemoryCache = null;
+  try {
+    sessionStorage.removeItem(HOME_STOCK_POTRERO_CACHE_KEY);
+  } catch {
+    /* noop */
   }
 }
 
@@ -368,18 +383,26 @@ function PotreroTabla({
   );
 }
 
-export default function HomeStockPotreroPanel({ apiOnline, onOpenStock, onOpenMapa }: Props) {
-  const [loading, setLoading] = useState(() => !readHomeStockPotreroCache());
-  const [ready, setReady] = useState(() => Boolean(readHomeStockPotreroCache()));
+export default function HomeStockPotreroPanel({ user, apiOnline, onOpenStock, onOpenMapa }: Props) {
+  const scopeKey = `${user.id}:${user.login_mode ?? "consolidado"}:${
+    user.empresa_operativa_activa_id ?? "todas"
+  }`;
+  const [loading, setLoading] = useState(() => !readHomeStockPotreroCache(scopeKey));
+  const [ready, setReady] = useState(() => Boolean(readHomeStockPotreroCache(scopeKey)));
   const [potrerosMapa, setPotrerosMapa] = useState<CampoPotreroMapa[]>(() => {
-    return readHomeStockPotreroCache()?.potrerosMapa ?? [];
+    return readHomeStockPotreroCache(scopeKey)?.potrerosMapa ?? [];
   });
   const [ganadero, setGanadero] = useState<StockGanaderaDispositivo[]>(() => {
-    return readHomeStockPotreroCache()?.ganadero ?? [];
+    return readHomeStockPotreroCache(scopeKey)?.ganadero ?? [];
   });
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    const scopedCache = readHomeStockPotreroCache(scopeKey);
+    setPotrerosMapa(scopedCache?.potrerosMapa ?? []);
+    setGanadero(scopedCache?.ganadero ?? []);
+    setReady(Boolean(scopedCache));
+
     if (!apiOnline) {
       setLoading(false);
       return;
@@ -392,7 +415,7 @@ export default function HomeStockPotreroPanel({ apiOnline, onOpenStock, onOpenMa
     void Promise.all([fetchCampoPotrerosMapa(), fetchStockGanaderaDispositivos({})])
       .then(([potrerosData, ganaderoData]) => {
         if (cancelled) return;
-        const next = { potrerosMapa: potrerosData, ganadero: ganaderoData };
+        const next = { scopeKey, potrerosMapa: potrerosData, ganadero: ganaderoData };
         writeHomeStockPotreroCache(next);
         setPotrerosMapa(potrerosData);
         setGanadero(ganaderoData);
@@ -400,7 +423,7 @@ export default function HomeStockPotreroPanel({ apiOnline, onOpenStock, onOpenMa
       })
       .catch(() => {
         if (cancelled) return;
-        if (!readHomeStockPotreroCache()) {
+        if (!readHomeStockPotreroCache(scopeKey)) {
           setError("No se pudo cargar el stock ganadero.");
           setPotrerosMapa([]);
           setGanadero([]);
@@ -414,7 +437,7 @@ export default function HomeStockPotreroPanel({ apiOnline, onOpenStock, onOpenMa
     return () => {
       cancelled = true;
     };
-  }, [apiOnline]);
+  }, [apiOnline, scopeKey]);
 
   const snapshot = useMemo(
     () => buildHomeStockPotreroSnapshot(potrerosMapa, ganadero),

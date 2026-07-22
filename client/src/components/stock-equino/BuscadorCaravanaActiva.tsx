@@ -37,18 +37,21 @@ function coincideBusqueda(d: StockEquinaDispositivo, q: string): boolean {
   const t = q.trim().toLowerCase();
   if (!t) return true;
   const digits = t.replace(/\D/g, "");
+  const reg = etiquetaCaravana(d).toLowerCase();
+  if (reg.includes(t)) return true;
   const eid = d.eid?.toLowerCase() ?? "";
   const vid = d.vid?.toLowerCase() ?? "";
   if (eid.includes(t) || vid.includes(t)) return true;
-  if (digits && (d.clave.includes(digits) || vid.includes(digits))) return true;
-  return etiquetaCaravana(d).toLowerCase().includes(t);
+  if (digits && (d.clave.includes(digits) || vid.includes(digits) || reg.replace(/\D/g, "").includes(digits)))
+    return true;
+  return false;
 }
 
 function textosBuscador(variant: Props["variant"]) {
   if (variant === "dispositivos") {
     return {
       errorCargar: "Error al cargar dispositivos activos",
-      placeholder: "Buscar dispositivo activo por EID o VID…",
+      placeholder: "Buscar dispositivo activo por REG…",
       toggleAbierto: "Cerrar listado",
       toggleCerrado: "Ver dispositivos activos",
       metaLoading: "Cargando dispositivos activos…",
@@ -64,7 +67,7 @@ function textosBuscador(variant: Props["variant"]) {
   }
   return {
     errorCargar: "Error al cargar caravanas activas",
-    placeholder: "Buscar caravana activa por EID o VID…",
+    placeholder: "Buscar caravana activa por REG…",
     toggleAbierto: "Cerrar listado",
     toggleCerrado: "Ver caravanas activas",
     metaLoading: "Cargando caravanas activas…",

@@ -14,7 +14,7 @@ import TablePagination, {
   paginateSlice,
   type PageSize,
 } from "../TablePagination";
-import { dispositivoClave } from "./stock-equina-utils";
+import { dispositivoClave, fmtRegEquino } from "./stock-equina-utils";
 import { PageModuleHeadRow } from "../PageModuleHead";
 
 interface Props {
@@ -31,7 +31,7 @@ interface Props {
 function formatEquinoIdDisplay(clave: string): string {
   const digits = clave.replace(/\D/g, "");
   if (digits.length <= 3) return digits || "—";
-  return `${digits.slice(0, 3)} ${digits.slice(3)}`;
+  return `${digits.slice(0, 3)}-${digits.slice(3)}`;
 }
 
 function labelOrigenAlta(origen: string | undefined): string {
@@ -178,7 +178,7 @@ export default function StockEquinoListado({
   const hubLecturasStatus = loading
     ? "Cargando…"
     : soloRepetidos
-      ? `${rows.length} lectura(s) con EID repetido — ${lotes.length} importación(es)`
+      ? `${rows.length} lectura(s) con REG repetido — ${lotes.length} importación(es)`
       : `${stats?.total_lecturas ?? rows.length} lectura(s) — ${lotes.length} importación(es)`;
 
   const historialBtn = (
@@ -216,7 +216,7 @@ export default function StockEquinoListado({
               <p className="sg-hub-kpi-value">{loading ? "—" : (stats?.eids_activos ?? 0)}</p>
             </div>
           </div>
-          <p className="sg-hub-kpi-hint">EID sin repetición</p>
+          <p className="sg-hub-kpi-hint">REG sin repetición</p>
         </article>
         <button
           type="button"
@@ -226,8 +226,8 @@ export default function StockEquinoListado({
           disabled={loading || !stats || stats.eids_repetidos === 0}
           title={
             stats && stats.eids_repetidos > 0
-              ? "Clic para ver las lecturas con EID repetido"
-              : "Sin EIDs repetidos"
+              ? "Clic para ver las lecturas con REG repetido"
+              : "Sin REGs repetidos"
           }
           onClick={toggleRepetidos}
         >
@@ -256,7 +256,7 @@ export default function StockEquinoListado({
       <div className="stock-dash-card stock-dash-card--activos">
         <span className="stock-dash-label">Activos</span>
         <span className="stock-dash-valor">{loading ? "—" : (stats?.eids_activos ?? 0)}</span>
-        <span className="stock-dash-hint">EID sin repetición</span>
+        <span className="stock-dash-hint">REG sin repetición</span>
       </div>
       <button
         type="button"
@@ -265,8 +265,8 @@ export default function StockEquinoListado({
         disabled={loading || !stats || stats.eids_repetidos === 0}
         title={
           stats && stats.eids_repetidos > 0
-            ? "Clic para ver las lecturas con EID repetido"
-            : "Sin EIDs repetidos"
+            ? "Clic para ver las lecturas con REG repetido"
+            : "Sin REGs repetidos"
         }
       >
         <span className="stock-dash-label">Repetidos</span>
@@ -289,7 +289,7 @@ export default function StockEquinoListado({
           className={`stock-dash-filtro${embedded ? " stock-lecturas-repetidos-filtro--hub" : ""}`}
         >
           <span>
-            Mostrando solo lecturas con EID repetido ({stats.eids_repetidos} número
+            Mostrando solo lecturas con REG repetido ({stats.eids_repetidos} número
             {stats.eids_repetidos === 1 ? "" : "s"})
           </span>
           <button
@@ -302,13 +302,12 @@ export default function StockEquinoListado({
         </div>
         <ul
           className={`stock-dash-detalle${embedded ? " stock-lecturas-repetidos-detalle--hub" : ""}`}
-          aria-label="EIDs repetidos"
+          aria-label="REGs repetidos"
         >
           {stats.detalle_repetidos.map((item) => (
             <li key={item.clave}>
               <span className="stock-dash-detalle-eid">
-                {item.eid}
-                {item.vid ? ` · ${item.vid}` : ""}
+                {fmtRegEquino(item.eid, item.vid || "") || item.clave}
               </span>
               <span className="stock-dash-detalle-cant">×{item.cantidad} lecturas</span>
             </li>
@@ -380,7 +379,7 @@ export default function StockEquinoListado({
       <table className="data-table">
         <thead>
           <tr>
-            <th>ID</th>
+            <th>REG</th>
             <th>Sexo</th>
             <th>Categoría</th>
             <th>Origen</th>

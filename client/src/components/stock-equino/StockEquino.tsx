@@ -55,7 +55,7 @@ export const STOCK_EQUINO_SUBMENU: StockEquinoHubItem[] = [
   {
     id: "equina",
     label: "Stock Equino",
-    subtitle: "Dispositivos EID · detalle por caravana",
+    subtitle: "Dispositivos REG · detalle por caravana",
     icon: "stock_dispositivos",
   },
   {
@@ -95,7 +95,7 @@ const MODULE_META: Record<
     navId: "listado",
   },
   equina: {
-    title: "Dispositivos EID",
+    title: "Dispositivos REG",
     subtitle: "Stock equino activo, filtros por estado y detalle de cada caravana.",
   },
   salidas: {

@@ -1585,6 +1585,7 @@ export async function buildEstadoResultados(
     empresa?: string;
     empresas?: string[];
     cuentaId?: number | null;
+    dispositivoClaves?: string[];
   }
 ): Promise<EstadoResultadosPayload> {
   return buildEstadoResultadosCore(db, opts);
@@ -1688,16 +1689,16 @@ export const funcionarios = {
 export const rrhhPagos = {
   porCedula: (
     cedula: string,
-    filters?: { fecha_desde?: string; fecha_hasta?: string; empresa?: string },
+    filters?: rrhh.RrhhEmpresaFilters,
     cuentaId?: number | null,
   ) => rrhh.listPagosPorCedula(db, cedula, filters, cuentaId),
   resumenGlobal: (
     cuentaId?: number | null,
-    filters?: { fecha_desde?: string; fecha_hasta?: string },
+    filters?: rrhh.RrhhEmpresaFilters,
   ) => rrhh.resumenGlobalSueldos(db, cuentaId, filters),
   dashboard: (
     cuentaId?: number | null,
-    filters?: { fecha_desde?: string; fecha_hasta?: string }
+    filters?: rrhh.RrhhEmpresaFilters
   ) => rrhh.resumenDashboardRRHH(db, cuentaId, filters),
 };
 
@@ -1748,6 +1749,7 @@ export async function getCatalogos(user?: {
   es_super_admin?: boolean;
   es_admin_plataforma?: boolean;
   empresa_id?: number | null;
+  empresa_operativa_activa_id?: number | null;
 }): Promise<{
   empresas: string[];
   rubros: string[];
@@ -1764,6 +1766,7 @@ export async function getCatalogos(user?: {
           es_super_admin: user.es_super_admin,
           es_admin_plataforma: user.es_admin_plataforma,
           empresa_id: user.empresa_id,
+          empresa_operativa_activa_id: user.empresa_operativa_activa_id,
         }
       : null;
   const empresasScope = scopeUser

@@ -1732,6 +1732,9 @@ export function registerAuthRoutes(app: Express): void {
         return;
       }
       await empresasCuenta.updateLoginModeForCuenta(getDb(), cuentaId, req.body?.login_mode);
+      if (req.body?.login_mode === "consolidado") {
+        await authDb.setEmpresaActiva(getDb(), actor.id, null);
+      }
       const updated = await authDb.getUserById(getDb(), actor.id);
       res.json({ ok: true, data: updated });
     } catch (e) {

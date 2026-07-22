@@ -134,10 +134,38 @@ function appendPresupuestoCuentaFilter(
   return query;
 }
 
+export interface RrhhEmpresaFilters {
+  fecha_desde?: string;
+  fecha_hasta?: string;
+  empresa?: string;
+  empresas?: string[];
+}
+
+function appendEmpresaFilter(
+  query: string,
+  params: Record<string, string | number>,
+  filters?: RrhhEmpresaFilters,
+): string {
+  if (filters?.empresa) {
+    params.empresa = filters.empresa;
+    return `${query} AND empresa = @empresa`;
+  }
+  if (filters?.empresas) {
+    if (filters.empresas.length === 0) return `${query} AND 1 = 0`;
+    const placeholders = filters.empresas.map((empresa, index) => {
+      const key = `empresa_scope_${index}`;
+      params[key] = empresa;
+      return `@${key}`;
+    });
+    return `${query} AND empresa IN (${placeholders.join(", ")})`;
+  }
+  return query;
+}
+
 export async function listPagosPorCedula(
   db: Db,
   cedula: string,
-  filters?: { fecha_desde?: string; fecha_hasta?: string; empresa?: string },
+  filters?: RrhhEmpresaFilters,
   cuentaId?: number | null,
 ): Promise<ResumenPagosFuncionario> {
   const cedulaNorm = normalizeCedula(cedula);
@@ -150,10 +178,7 @@ export async function listPagosPorCedula(
   let query = "SELECT * FROM PRESUPUESTO WHERE 1=1";
   const params: Record<string, string | number> = {};
   query = appendPresupuestoCuentaFilter(query, params, cuentaId);
-  if (filters?.empresa) {
-    query += " AND empresa = @empresa";
-    params.empresa = filters.empresa;
-  }
+  query = appendEmpresaFilter(query, params, filters);
   if (filters?.fecha_desde) {
     query += " AND fecha >= @fecha_desde";
     params.fecha_desde = filters.fecha_desde;
@@ -265,7 +290,7 @@ export async function listPagosPorCedula(
 export async function resumenGlobalSueldos(
   db: Db,
   cuentaId?: number | null,
-  filters?: { fecha_desde?: string; fecha_hasta?: string }
+  filters?: RrhhEmpresaFilters,
 ): Promise<{
   total_registros: number;
   total_pesos: number;
@@ -322,7 +347,7 @@ function mapFuncionarioPorCedula(funcionarios: Funcionario[]): Map<string, Funci
 export async function resumenDashboardRRHH(
   db: Db,
   cuentaId?: number | null,
-  filters?: { fecha_desde?: string; fecha_hasta?: string }
+  filters?: RrhhEmpresaFilters,
 ): Promise<RrhhDashboardData> {
   const funcionarios = await listFuncionarios(db, {}, cuentaId);
   const activos = funcionarios.filter((f) => f.activo).length;
@@ -341,6 +366,7 @@ export async function resumenDashboardRRHH(
     FROM PRESUPUESTO WHERE ${RUBRO_SUELDO_SQL}`;
   const params: Record<string, string | number> = {};
   queryPeriodo = appendPresupuestoCuentaFilter(queryPeriodo, params, cuentaId);
+  queryPeriodo = appendEmpresaFilter(queryPeriodo, params, filters);
   if (filters?.fecha_desde) {
     queryPeriodo += " AND fecha >= @fecha_desde";
     params.fecha_desde = filters.fecha_desde;
@@ -360,6 +386,7 @@ export async function resumenDashboardRRHH(
     funcionario_cedula, responsable_gasto
     FROM PRESUPUESTO WHERE ${RUBRO_SUELDO_SQL}`;
   ultQuery = appendPresupuestoCuentaFilter(ultQuery, params, cuentaId);
+  ultQuery = appendEmpresaFilter(ultQuery, params, filters);
   if (filters?.fecha_desde) ultQuery += " AND fecha >= @fecha_desde";
   if (filters?.fecha_hasta) ultQuery += " AND fecha <= @fecha_hasta";
   ultQuery += " ORDER BY fecha DESC, id DESC LIMIT 8";

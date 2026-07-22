@@ -2,6 +2,7 @@ import IconoDispositivoWifi from "./IconoDispositivoWifi";
 import IconoSeleccionCabanaEstrella from "./IconoSeleccionCabanaEstrella";
 import { FichaLabelIconSvg } from "./StockEditarFichaLabel";
 import { fmtDate } from "../../utils";
+import { fmtRegEquino } from "../stock-equino/stock-equina-utils";
 
 interface Props {
   eid: string;
@@ -12,6 +13,8 @@ interface Props {
   esCabanaPremium?: boolean;
   nombreCabana?: string;
   iconClassName?: string;
+  /** Equinos: un solo campo REG (EID-VID) en lugar de EID + VID separados. */
+  modoReg?: boolean;
 }
 
 export default function StockEditarHeadPanel({
@@ -23,23 +26,34 @@ export default function StockEditarHeadPanel({
   esCabanaPremium = false,
   nombreCabana = "",
   iconClassName = "stock-editar-head-signal",
+  modoReg = false,
 }: Props) {
   const ultima =
     fmtDate(ultimaFecha) + (ultimaHora?.trim() ? ` ${ultimaHora.trim()}` : "");
+  const reg = modoReg ? fmtRegEquino(eid, vid) : "";
 
   return (
-    <div className="stock-editar-head" aria-label="Caravana electrónica">
+    <div className="stock-editar-head" aria-label={modoReg ? "Registro electrónico" : "Caravana electrónica"}>
       <div className="stock-editar-head-block stock-editar-head-block--ids">
         <IconoDispositivoWifi className={iconClassName} />
         <div className="stock-editar-head-ids">
-          <div className="stock-editar-head-id">
-            <span className="stock-editar-head-id-label">EID</span>
-            <span className="stock-editar-head-id-value num">{eid || "—"}</span>
-          </div>
-          <div className="stock-editar-head-id stock-editar-head-id--vid">
-            <span className="stock-editar-head-id-label">VID</span>
-            <span className="stock-editar-head-id-value num">{vid || "—"}</span>
-          </div>
+          {modoReg ? (
+            <div className="stock-editar-head-id">
+              <span className="stock-editar-head-id-label">REG</span>
+              <span className="stock-editar-head-id-value num">{reg || "—"}</span>
+            </div>
+          ) : (
+            <>
+              <div className="stock-editar-head-id">
+                <span className="stock-editar-head-id-label">EID</span>
+                <span className="stock-editar-head-id-value num">{eid || "—"}</span>
+              </div>
+              <div className="stock-editar-head-id stock-editar-head-id--vid">
+                <span className="stock-editar-head-id-label">VID</span>
+                <span className="stock-editar-head-id-value num">{vid || "—"}</span>
+              </div>
+            </>
+          )}
         </div>
       </div>
 

@@ -10,7 +10,7 @@ import TablePagination, {
 import BadgeEstadoDispositivo from "../stock/BadgeEstadoDispositivo";
 import IconoDispositivoWifi from "../stock/IconoDispositivoWifi";
 import StockEquinaHistorialCambiosPanel from "./StockEquinaHistorialCambiosPanel";
-import { fmtEdadMeses, fmtNacimiento } from "./stock-equina-utils";
+import { fmtEdadMeses, fmtNacimiento, fmtRegEquino } from "./stock-equina-utils";
 import { PageModuleHeadRow } from "../PageModuleHead";
 
 interface Props {
@@ -163,13 +163,8 @@ export default function StockEquinaDetalle({
                   </span>
                   <div className="stock-equina-detalle-hero-ids">
                     <span className="stock-equina-detalle-hero-badge num">
-                      EID {detalle.eid}
+                      REG {fmtRegEquino(detalle.eid, detalle.vid) || "—"}
                     </span>
-                    {detalle.vid ? (
-                      <span className="stock-equina-detalle-hero-badge stock-equina-detalle-hero-badge--vid num">
-                        {detalle.vid}
-                      </span>
-                    ) : null}
                   </div>
                   <div className="stock-equina-detalle-hero-meta">
                     <BadgeEstadoDispositivo estado={detalle.estado} />
@@ -196,9 +191,12 @@ export default function StockEquinaDetalle({
             <div className="stock-equina-detalle-body">
               <section className="stock-equina-detalle-block" aria-label="Identificación">
                 <h3 className="stock-equina-detalle-block-title">Identificación</h3>
-                <div className="stock-equina-detalle-fields stock-equina-detalle-fields--4">
-                  <Campo label="EID" value={detalle.eid} mono />
-                  <Campo label="VID" value={detalle.vid} mono />
+                <div className="stock-equina-detalle-fields stock-equina-detalle-fields--3">
+                  <Campo
+                    label="REG"
+                    value={fmtRegEquino(detalle.eid, detalle.vid)}
+                    mono
+                  />
                   <Campo label="Clave" value={detalle.clave} mono />
                   <Campo label="Estado">
                     <BadgeEstadoDispositivo estado={detalle.estado} />

@@ -536,8 +536,12 @@ export default function App() {
         <LoginModeGate
           user={user}
           onChosen={(u) => {
+            clearAllSessionCaches();
             setUser(u);
             resetToHomeScreen();
+            void fetchCatalogos()
+              .then((c) => setCatalogos(c))
+              .catch(() => setCatalogos(DEFAULT_CATALOGOS));
           }}
           onError={(m) => notify(m, false)}
           onLogout={() => void onLogout()}
@@ -552,8 +556,12 @@ export default function App() {
           user={user}
           apiOnline={apiOnline}
           onSelected={(u) => {
+            clearAllSessionCaches();
             setUser(u);
             resetToHomeScreen();
+            void fetchCatalogos()
+              .then((c) => setCatalogos(c))
+              .catch(() => setCatalogos(DEFAULT_CATALOGOS));
           }}
           onError={(m) => notify(m, false)}
           onLogout={() => void onLogout()}

@@ -58,6 +58,8 @@ import {
   labelGrupoLibreFiltro,
   labelRazaFiltro,
   labelUltimaLecturaMesFiltro,
+  fmtRegEquino,
+  splitEidVid,
   razaFiltroKey,
   ultimaLecturaMesFiltroKey,
   SIN_FECHA_NAC_FILTRO_KEY,
@@ -652,7 +654,7 @@ export default function StockEquina({
     if (!esAdmin || seleccionados.length === 0) return;
     const muestra = seleccionados
       .slice(0, 6)
-      .map((d) => `${d.eid} / ${d.vid}`)
+      .map((d) => fmtRegEquino(d.eid, d.vid) || d.clave)
       .join(", ");
     const extra =
       seleccionados.length > 6 ? ` y ${seleccionados.length - 6} más` : "";
@@ -938,7 +940,7 @@ export default function StockEquina({
         <main className="sg-hub-main sg-hub-main--devices">
           <header className="sg-hub-main-head sg-devices-head">
             <div>
-              <h1 className="sg-hub-main-title">Dispositivos EID</h1>
+              <h1 className="sg-hub-main-title">Dispositivos REG</h1>
               <p className="sg-hub-main-sub">
                 {mostrarCargaVacia
                   ? "Cargando caravanas electrónicas…"
@@ -1108,11 +1110,11 @@ export default function StockEquina({
               </button>
               <label className="sg-devices-search-field">
                 <Search size={17} className="sg-devices-search-icon" aria-hidden />
-                <span className="sr-only">Buscar EID / VID</span>
+                <span className="sr-only">Buscar REG</span>
                 <input
                   id="equina-busq"
                   type="search"
-                  placeholder="Buscar por EID o caravana visual…"
+                  placeholder="Buscar por REG…"
                   value={busqueda}
                   onChange={(e) => setBusqueda(e.target.value)}
                 />
@@ -1358,7 +1360,7 @@ export default function StockEquina({
                   aria-label="Cabaña"
                   title="Cabaña"
                 />
-                <th className="stock-th stock-th--device-ids">EID / VID</th>
+                <th className="stock-th stock-th--device-ids">REG</th>
                 <th className="stock-th stock-th--empresa">Empresa</th>
                 <th className="stock-th">Generación</th>
                 <th className="stock-th">Grupo</th>
@@ -1397,6 +1399,8 @@ export default function StockEquina({
                   );
                   const cabana = esEquinoCabana(d);
                   const nombreCabana = nombreEquinoCabana(d);
+                  const { eid: regPrefijo, vid: regNumero } = splitEidVid(d.eid, d.vid);
+                  const reg = fmtRegEquino(d.eid, d.vid) || "—";
                   return (
                   <tr
                     key={d.clave}
@@ -1404,7 +1408,7 @@ export default function StockEquina({
                       cabana ? " stock-table-pro-row--seleccion-cabana" : ""
                     }${seleccion.has(d.clave) ? " stock-table-pro-row--selected" : ""}`}
                     onClick={() => setEditarDispositivo(d)}
-                    title={`Abrir ${d.vid || d.eid || "dispositivo"}`}
+                    title={`Abrir ${reg !== "—" ? reg : "dispositivo"}`}
                   >
                     <td
                       className="stock-td stock-td--sel"
@@ -1415,7 +1419,7 @@ export default function StockEquina({
                         className="stock-row-check"
                         checked={seleccion.has(d.clave)}
                         onChange={() => toggleClave(d.clave)}
-                        aria-label={`Seleccionar ${d.vid || d.eid}`}
+                        aria-label={`Seleccionar ${reg}`}
                       />
                     </td>
                     <td className="stock-td stock-td--cabana">
@@ -1433,15 +1437,12 @@ export default function StockEquina({
                             className="stock-device-ids__icon"
                           />
                         </span>
-                        <div className="stock-device-ids__stack">
-                          <span className="stock-device-ids__eid" title="EID electrónico">
-                            {d.eid || "—"}
+                        <div className="stock-device-ids__stack" title={reg !== "—" ? `REG ${reg}` : undefined}>
+                          <span className="stock-device-ids__eid">
+                            {regPrefijo || "—"}
                           </span>
-                          <span
-                            className="stock-device-ids__vid stock-table-pro-link"
-                            title={d.vid ? `VID ${d.vid}` : undefined}
-                          >
-                            {d.vid || "—"}
+                          <span className="stock-device-ids__vid stock-table-pro-link">
+                            {regNumero || "—"}
                           </span>
                         </div>
                       </div>

@@ -7,6 +7,7 @@ import {
   agruparHistorialCambios,
   resumenHistorialCambios,
 } from "./stock-historial-utils";
+import { fmtRegEquino } from "./stock-equina-utils";
 
 interface Props {
   clave: string;
@@ -92,7 +93,7 @@ export default function StockEquinaHistorialCambiosPanel({
       title="Historial de cambios"
       description={
         <>
-          Auditoría de ficha · VID {vid || "—"} · EID {eid || "—"} · Clave {clave || "—"}
+          Auditoría de ficha · REG {fmtRegEquino(eid, vid) || "—"} · Clave {clave || "—"}
         </>
       }
       cardClassName="subseccion-inline-card--hist"
