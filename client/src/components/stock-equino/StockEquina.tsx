@@ -1400,6 +1400,12 @@ function StockEquina({
                   );
                   const cabana = esEquinoCabana(d);
                   const nombreCabana = nombreEquinoCabana(d);
+                  const nombreMostrar =
+                    d.nombre_animal?.trim() || d.nombre_cabana?.trim() || "";
+                  const rp = d.rp?.trim() || "";
+                  const nombreTitle = [nombreMostrar, rp ? `RP ${rp}` : ""]
+                    .filter(Boolean)
+                    .join(" · ");
                   const { eid: regPrefijo, vid: regNumero } = splitEidVid(d.eid, d.vid);
                   const reg = fmtRegEquino(d.eid, d.vid) || "—";
                   return (
@@ -1450,11 +1456,16 @@ function StockEquina({
                     </td>
                     <td
                       className="stock-td stock-td--muted stock-td--nombre"
-                      title={nombreCabana || undefined}
+                      title={nombreTitle || undefined}
                     >
-                      <span className="stock-td-nombre-animal">
-                        {cabana && nombreCabana ? nombreCabana : "—"}
-                      </span>
+                      <div className="stock-td-nombre-stack">
+                        <span className="stock-td-nombre-animal">
+                          {nombreMostrar || (rp ? `RP ${rp}` : "—")}
+                        </span>
+                        {nombreMostrar && rp ? (
+                          <span className="stock-td-nombre-rp">RP {rp}</span>
+                        ) : null}
+                      </div>
                     </td>
                     <td className="stock-td stock-td--muted stock-td--empresa">
                       <span

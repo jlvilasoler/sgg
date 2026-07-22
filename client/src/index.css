@@ -16150,23 +16150,46 @@ button.stock-device-ids__stack-btn {
 
 .stock-equina-table.stock-table-pro .stock-th--nombre,
 .stock-equina-table.stock-table-pro .stock-td--nombre {
-  max-width: 9.5rem;
-  min-width: 6.5rem;
-  width: 8.5rem;
+  max-width: 10.5rem;
+  min-width: 7rem;
+  width: 9.25rem;
   padding-left: 0.35rem;
   padding-right: 0.35rem;
   white-space: normal;
   vertical-align: middle;
+  text-align: left;
+}
+
+.stock-equina-table.stock-table-pro .stock-td--nombre .stock-td-nombre-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.08rem;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .stock-equina-table.stock-table-pro .stock-td--nombre .stock-td-nombre-animal {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+  display: block;
+  max-width: 100%;
   overflow: hidden;
-  word-break: break-word;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 0.72rem;
-  line-height: 1.25;
+  line-height: 1.2;
+}
+
+.stock-equina-table.stock-table-pro .stock-td--nombre .stock-td-nombre-rp {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.62rem;
+  line-height: 1.15;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #848e9c;
 }
 
 /* Mismo tamaño de texto que Empresa (0.72rem) en columnas de datos compactas */
