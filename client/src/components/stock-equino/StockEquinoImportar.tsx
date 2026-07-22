@@ -15,6 +15,10 @@ import { PageModuleHeadRow } from "../PageModuleHead";
 import StockEquinoAruPedigreeLookup, {
   type AruCamposAltaCabana,
 } from "./StockEquinoAruPedigreeLookup";
+import SelectRazaEquinoDispositivo from "./SelectRazaEquinoDispositivo";
+import SelectPelajeEquinoDispositivo from "./SelectPelajeEquinoDispositivo";
+import { normalizarRaza } from "../stock/stock-ganadera-utils";
+
 interface Props {
   apiOnline: boolean;
   currentUser?: AuthUser | null;
@@ -56,6 +60,8 @@ interface FormGenerica {
   sexo: DispositivoSexo | "";
   fecha_nacimiento: string;
   castrado: boolean | null;
+  raza: string;
+  pelaje: string;
 }
 
 interface FormCabana {
@@ -65,6 +71,8 @@ interface FormCabana {
   sexo: DispositivoSexo | "";
   registro: string;
   premios: string;
+  raza: string;
+  pelaje: string;
   empresa: EmpresaSelectValue;
   potrero: string;
   castrado: boolean | null;
@@ -78,6 +86,8 @@ function formGenericaVacio(): FormGenerica {
     sexo: "",
     fecha_nacimiento: "",
     castrado: null,
+    raza: "",
+    pelaje: "",
   };
 }
 
@@ -89,6 +99,8 @@ function formCabanaVacio(): FormCabana {
     sexo: "",
     registro: "",
     premios: "",
+    raza: "",
+    pelaje: "",
     empresa: EMPRESA_PENDIENTE,
     potrero: "",
     castrado: null,
@@ -231,6 +243,12 @@ export default function StockEquinoImportar({
         castrado: necesitaCastrado ? formGenerica.castrado : null,
         potrero: formGenerica.potrero,
         empresa: formGenerica.empresa,
+        ...(formGenerica.raza.trim()
+          ? { raza: normalizarRaza(formGenerica.raza) }
+          : {}),
+        ...(formGenerica.pelaje.trim()
+          ? { pelaje: normalizarRaza(formGenerica.pelaje) }
+          : {}),
       });
       const rango =
         r.desde === r.hasta
@@ -296,6 +314,8 @@ export default function StockEquinoImportar({
         sexo: formCabana.sexo,
         registro: formCabana.registro.trim(),
         premios: formCabana.premios.trim(),
+        raza: normalizarRaza(formCabana.raza),
+        pelaje: normalizarRaza(formCabana.pelaje),
         castrado: necesitaCastrado ? formCabana.castrado : null,
         potrero: formCabana.potrero,
         empresa: formCabana.empresa,
@@ -325,10 +345,12 @@ export default function StockEquinoImportar({
       ...(campos.sexo ? { sexo: campos.sexo, castrado: null } : {}),
       ...(campos.registro ? { registro: campos.registro } : {}),
       ...(campos.premios ? { premios: campos.premios } : {}),
+      ...(campos.raza ? { raza: normalizarRaza(campos.raza) } : {}),
     }));
     setAruFuente(true);
     const partes = [
       meta.nombre || "Animal",
+      meta.raza ? meta.raza : "",
       meta.registro ? `reg. ${meta.registro}` : "",
       meta.rp ? `RP ${meta.rp}` : "",
     ].filter(Boolean);
@@ -453,6 +475,32 @@ export default function StockEquinoImportar({
           <option value="HEMBRA">Hembra</option>
           <option value="MACHO">Macho</option>
         </select>
+      </div>
+      <div className="field stock-import-field">
+        <label htmlFor={`${formId}-gen-raza`}>Raza</label>
+        <SelectRazaEquinoDispositivo
+          id={`${formId}-gen-raza`}
+          value={formGenerica.raza}
+          onChange={(raza) => setFormGenerica((p) => ({ ...p, raza }))}
+          disabled={!apiOnline || importing}
+          apiOnline={apiOnline}
+          onError={onError}
+          onSuccess={onSuccess}
+          selectClassName="stock-edit-select"
+        />
+      </div>
+      <div className="field stock-import-field">
+        <label htmlFor={`${formId}-gen-pelaje`}>Pelaje</label>
+        <SelectPelajeEquinoDispositivo
+          id={`${formId}-gen-pelaje`}
+          value={formGenerica.pelaje}
+          onChange={(pelaje) => setFormGenerica((p) => ({ ...p, pelaje }))}
+          disabled={!apiOnline || importing}
+          apiOnline={apiOnline}
+          onError={onError}
+          onSuccess={onSuccess}
+          selectClassName="stock-edit-select"
+        />
       </div>
       <div className="field stock-import-field">
         <label htmlFor={`${formId}-gen-nacimiento`}>Fecha de nacimiento</label>
@@ -608,6 +656,32 @@ export default function StockEquinoImportar({
           disabled={!apiOnline || importing}
           required
           autoComplete="off"
+        />
+      </div>
+      <div className="field stock-import-field">
+        <label htmlFor={`${formId}-cab-raza`}>Raza</label>
+        <SelectRazaEquinoDispositivo
+          id={`${formId}-cab-raza`}
+          value={formCabana.raza}
+          onChange={(raza) => setFormCabana((p) => ({ ...p, raza }))}
+          disabled={!apiOnline || importing}
+          apiOnline={apiOnline}
+          onError={onError}
+          onSuccess={onSuccess}
+          selectClassName="stock-edit-select"
+        />
+      </div>
+      <div className="field stock-import-field">
+        <label htmlFor={`${formId}-cab-pelaje`}>Pelaje</label>
+        <SelectPelajeEquinoDispositivo
+          id={`${formId}-cab-pelaje`}
+          value={formCabana.pelaje}
+          onChange={(pelaje) => setFormCabana((p) => ({ ...p, pelaje }))}
+          disabled={!apiOnline || importing}
+          apiOnline={apiOnline}
+          onError={onError}
+          onSuccess={onSuccess}
+          selectClassName="stock-edit-select"
         />
       </div>
       <div className="field stock-import-field">

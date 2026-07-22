@@ -5432,6 +5432,8 @@ app.patch("/api/stock-equino/dispositivos/:clave", async (req, res) => {
     const grupo_libre =
       typeof body.grupo_libre === "string" ? body.grupo_libre : "";
     const potrero = typeof body.potrero === "string" ? body.potrero : "";
+    const raza = typeof body.raza === "string" ? body.raza : "";
+    const pelaje = typeof body.pelaje === "string" ? body.pelaje : "";
     const rp = typeof body.rp === "string" ? body.rp : "";
     const nombre_animal = typeof body.nombre_animal === "string" ? body.nombre_animal : "";
     const registro = typeof body.registro === "string" ? body.registro : "";
@@ -5465,6 +5467,8 @@ app.patch("/api/stock-equino/dispositivos/:clave", async (req, res) => {
         grupo: "",
         grupo_libre,
         potrero,
+        raza,
+        pelaje,
         nacimiento_mes,
         nacimiento_anio,
         observaciones,
@@ -5672,6 +5676,8 @@ app.post("/api/stock-equino/alta-generica", async (req, res) => {
       castrado?: boolean | null;
       potrero?: string;
       empresa?: string;
+      raza?: string;
+      pelaje?: string;
     };
     const empresa = String(body.empresa ?? "").trim();
     await assertEmpresaCodigoPermitida(req.user!, empresa);
@@ -5691,6 +5697,8 @@ app.post("/api/stock-equino/alta-generica", async (req, res) => {
         castrado,
         potrero: String(body.potrero ?? ""),
         empresa,
+        raza: String(body.raza ?? ""),
+        pelaje: String(body.pelaje ?? ""),
       },
       cuentaId,
       historialAutorFromRequest(req, "FICHA")
@@ -5730,6 +5738,8 @@ app.post("/api/stock-equino/alta-cabana", async (req, res) => {
       sexo?: string;
       registro?: string;
       premios?: string;
+      raza?: string;
+      pelaje?: string;
       castrado?: boolean | null;
       potrero?: string;
       empresa?: string;
@@ -5752,6 +5762,8 @@ app.post("/api/stock-equino/alta-cabana", async (req, res) => {
         sexo: String(body.sexo ?? "").toUpperCase() as "" | "MACHO" | "HEMBRA",
         registro: String(body.registro ?? ""),
         premios: String(body.premios ?? ""),
+        raza: String(body.raza ?? ""),
+        pelaje: String(body.pelaje ?? ""),
         castrado,
         potrero: String(body.potrero ?? ""),
         empresa,
@@ -5777,6 +5789,112 @@ app.post("/api/stock-equino/alta-cabana", async (req, res) => {
     });
   } catch (e) {
     res.status(400).json({ ok: false, error: (e as Error).message });
+  }
+});
+
+app.get("/api/stock-equino/razas", async (_req, res) => {
+  try {
+    const razas = await db.stockEquino.listRazas();
+    res.json({ ok: true, data: razas });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al listar razas",
+    });
+  }
+});
+
+app.post("/api/stock-equino/razas", async (req, res) => {
+  try {
+    const nombre = typeof req.body?.nombre === "string" ? req.body.nombre : "";
+    const raza = await db.stockEquino.createRaza(nombre);
+    await auditStockMovimiento(req, "MODIFICACION", {
+      resumen: `Agregó raza equina ${raza} al catálogo`,
+      detalle: { raza },
+    });
+    res.json({ ok: true, data: { nombre: raza } });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al agregar raza",
+    });
+  }
+});
+
+app.delete("/api/stock-equino/razas", async (req, res) => {
+  if (!req.user?.es_super_admin) {
+    res.status(403).json({
+      ok: false,
+      error: "Solo el superadministrador puede eliminar razas del catálogo",
+    });
+    return;
+  }
+  try {
+    const nombre = typeof req.body?.nombre === "string" ? req.body.nombre : "";
+    const eliminada = await db.stockEquino.deleteRaza(nombre);
+    await auditStockMovimiento(req, "MODIFICACION", {
+      resumen: `Eliminó raza equina ${eliminada} del catálogo`,
+      detalle: { raza: eliminada },
+    });
+    res.json({ ok: true, data: { nombre: eliminada } });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al eliminar raza",
+    });
+  }
+});
+
+app.get("/api/stock-equino/pelajes", async (_req, res) => {
+  try {
+    const pelajes = await db.stockEquino.listPelajes();
+    res.json({ ok: true, data: pelajes });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al listar pelajes",
+    });
+  }
+});
+
+app.post("/api/stock-equino/pelajes", async (req, res) => {
+  try {
+    const nombre = typeof req.body?.nombre === "string" ? req.body.nombre : "";
+    const pelaje = await db.stockEquino.createPelaje(nombre);
+    await auditStockMovimiento(req, "MODIFICACION", {
+      resumen: `Agregó pelaje equino ${pelaje} al catálogo`,
+      detalle: { pelaje },
+    });
+    res.json({ ok: true, data: { nombre: pelaje } });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al agregar pelaje",
+    });
+  }
+});
+
+app.delete("/api/stock-equino/pelajes", async (req, res) => {
+  if (!req.user?.es_super_admin) {
+    res.status(403).json({
+      ok: false,
+      error: "Solo el superadministrador puede eliminar pelajes del catálogo",
+    });
+    return;
+  }
+  try {
+    const nombre = typeof req.body?.nombre === "string" ? req.body.nombre : "";
+    const eliminado = await db.stockEquino.deletePelaje(nombre);
+    await auditStockMovimiento(req, "MODIFICACION", {
+      resumen: `Eliminó pelaje equino ${eliminado} del catálogo`,
+      detalle: { pelaje: eliminado },
+    });
+    res.json({ ok: true, data: { nombre: eliminado } });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al eliminar pelaje",
+    });
   }
 });
 

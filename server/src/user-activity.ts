@@ -157,6 +157,7 @@ export function describeApiActivity(method: string, path: string): string | null
     if (rel.includes("/potreros")) return m === "POST" ? `Creó un potrero en ${modulo}` : `Modificó potreros en ${modulo}`;
     if (rel.includes("/grupos")) return `Organizó grupos en ${modulo}`;
     if (rel.includes("/razas")) return `Actualizó razas en ${modulo}`;
+    if (rel.includes("/pelajes")) return `Actualizó pelajes en ${modulo}`;
     if (rel.includes("/cabana")) return `Actualizó la cabaña en ${modulo}`;
     if (m === "POST") return `Registró un movimiento en ${modulo}`;
     if (m === "PUT" || m === "PATCH") return `Modificó un animal en ${modulo}`;

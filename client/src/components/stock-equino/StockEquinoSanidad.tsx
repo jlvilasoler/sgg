@@ -48,7 +48,7 @@ import {
   ultimaLecturaMesFiltroKey,
 } from "./stock-equina-utils";
 import { fmtEmpresaOperativa } from "../stock/stock-empresa-utils";
-import IconoDispositivoWifi from "../stock/IconoDispositivoWifi";
+import IconoDispositivoReg from "./IconoDispositivoReg";
 import StockEquinaEdadMiniTimeline from "./StockEquinaEdadMiniTimeline";
 import StockSanidadHistorialDashboard from "../stock/StockSanidadHistorialDashboard";
 import StockControlSanitarioProductoFichaPage from "../stock/StockControlSanitarioProductoFichaPage";
@@ -932,11 +932,8 @@ export default function StockEquinoSanidad({
                           </td>
                           <td className="stock-td stock-td--device-ids">
                             <div className="stock-device-ids">
-                              <span className="stock-device-ids__icon-wrap" aria-hidden>
-                                <IconoDispositivoWifi
-                                  animated
-                                  className="stock-device-ids__icon"
-                                />
+                              <span className="stock-device-ids__icon-wrap stock-device-ids__icon-wrap--reg" aria-hidden>
+                                <IconoDispositivoReg className="stock-device-ids__icon" />
                               </span>
                               <div
                                 className="stock-device-ids__stack"

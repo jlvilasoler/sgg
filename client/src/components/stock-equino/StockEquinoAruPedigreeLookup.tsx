@@ -16,6 +16,7 @@ export interface AruCamposAltaCabana {
   sexo?: "MACHO" | "HEMBRA";
   registro?: string;
   premios?: string;
+  raza?: string;
 }
 
 interface Props {
@@ -49,6 +50,7 @@ export function camposDesdeAruDetalle(d: AruDetalleAnimal): AruCamposAltaCabana 
   if (d.sexo === "MACHO" || d.sexo === "HEMBRA") out.sexo = d.sexo;
   if (d.registro.trim()) out.registro = d.registro.trim();
   if (d.premios.trim()) out.premios = d.premios.trim();
+  if (d.raza.trim()) out.raza = d.raza.trim().toUpperCase();
   return out;
 }
 
@@ -141,6 +143,11 @@ export default function StockEquinoAruPedigreeLookup({
         id_especie: row.id_especie,
       });
       const campos = camposDesdeAruDetalle(detalle);
+      if (!campos.raza) {
+        const idRaza = row.id_raza || razaId;
+        const nombreRaza = razas.find((r) => r.id === idRaza)?.nombre?.trim();
+        if (nombreRaza) campos.raza = nombreRaza.toUpperCase();
+      }
       if (Object.keys(campos).length === 0) {
         onError("No llegaron campos útiles para el alta.");
         return;

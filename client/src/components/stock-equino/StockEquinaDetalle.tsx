@@ -8,7 +8,7 @@ import TablePagination, {
   type PageSize,
 } from "../TablePagination";
 import BadgeEstadoDispositivo from "../stock/BadgeEstadoDispositivo";
-import IconoDispositivoWifi from "../stock/IconoDispositivoWifi";
+import IconoDispositivoReg from "./IconoDispositivoReg";
 import StockEquinaHistorialCambiosPanel from "./StockEquinaHistorialCambiosPanel";
 import { fmtEdadMeses, fmtNacimiento, fmtRegEquino } from "./stock-equina-utils";
 import { PageModuleHeadRow } from "../PageModuleHead";
@@ -155,7 +155,7 @@ export default function StockEquinaDetalle({
             <div className="stock-equina-detalle-hero">
               <div className="stock-equina-detalle-hero-main">
                 <span className="stock-equina-detalle-hero-icon" aria-hidden>
-                  <IconoDispositivoWifi className="stock-equina-detalle-wifi-icon" />
+                  <IconoDispositivoReg className="stock-equina-detalle-wifi-icon" />
                 </span>
                 <div className="stock-equina-detalle-hero-text">
                   <span className="stock-equina-detalle-hero-kicker">

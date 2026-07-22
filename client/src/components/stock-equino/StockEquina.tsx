@@ -16,7 +16,7 @@ import TablePagination, {
   type PageSize,
 } from "../TablePagination";
 import BadgeEstadoDispositivo from "../stock/BadgeEstadoDispositivo";
-import IconoDispositivoWifi from "../stock/IconoDispositivoWifi";
+import IconoDispositivoReg from "./IconoDispositivoReg";
 import IconoSeleccionCabanaEstrella from "../stock/IconoSeleccionCabanaEstrella";
 import { StockEquinoModuleIcon } from "../stock/StockControlSanitarioSectionTitle";
 import StockEquinoHubNav from "./StockEquinoHubNav";
@@ -1438,11 +1438,8 @@ function StockEquina({
                     </td>
                     <td className="stock-td stock-td--device-ids">
                       <div className="stock-device-ids">
-                        <span className="stock-device-ids__icon-wrap" aria-hidden>
-                          <IconoDispositivoWifi
-                            animated
-                            className="stock-device-ids__icon"
-                          />
+                        <span className="stock-device-ids__icon-wrap stock-device-ids__icon-wrap--reg" aria-hidden>
+                          <IconoDispositivoReg className="stock-device-ids__icon" />
                         </span>
                         <div className="stock-device-ids__stack" title={reg !== "—" ? `REG ${reg}` : undefined}>
                           <span className="stock-device-ids__eid">

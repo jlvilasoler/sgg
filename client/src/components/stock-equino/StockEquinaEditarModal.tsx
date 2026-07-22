@@ -19,7 +19,10 @@ import SelectEmpresaDispositivo, {
 import SelectSexoDispositivo from "../stock/SelectSexoDispositivo";
 import SelectPotreroDispositivo from "../stock/SelectPotreroDispositivo";
 import SelectEstadoDispositivo from "../stock/SelectEstadoDispositivo";
+import SelectRazaEquinoDispositivo from "./SelectRazaEquinoDispositivo";
+import SelectPelajeEquinoDispositivo from "./SelectPelajeEquinoDispositivo";
 import StockEquinaEvolucionTimeline from "./StockEquinaEvolucionTimeline";
+import { normalizarRaza } from "../stock/stock-ganadera-utils";
 import StockDispositivoFotoCard, {
   stockFotoMetaFromDispositivo,
 } from "../stock/StockDispositivoFotoCard";
@@ -70,6 +73,8 @@ export default function StockEquinaEditarPanel({
   const [empresa, setEmpresa] = useState<DispositivoEmpresa>(
     dispositivo.empresa ?? ""
   );
+  const [raza, setRaza] = useState(dispositivo.raza ?? "");
+  const [pelaje, setPelaje] = useState(dispositivo.pelaje ?? "");
   const [sexo, setSexo] = useState<DispositivoSexo>(dispositivo.sexo ?? "");
   const [nacimientoMes, setNacimientoMes] = useState<number | null>(
     dispositivo.nacimiento_mes
@@ -102,6 +107,8 @@ export default function StockEquinaEditarPanel({
 
   const restablecerDesdeDispositivo = useCallback((d: StockEquinaDispositivo) => {
     setEmpresa(d.empresa ?? "");
+    setRaza(d.raza ?? "");
+    setPelaje(d.pelaje ?? "");
     setSexo(d.sexo ?? "");
     setNacimientoMes(d.nacimiento_mes);
     setNacimientoAnio(d.nacimiento_anio);
@@ -172,6 +179,8 @@ export default function StockEquinaEditarPanel({
 
   const hayCambios =
     empresa !== (dispositivo.empresa ?? "") ||
+    normalizarRaza(raza) !== normalizarRaza(dispositivo.raza ?? "") ||
+    normalizarRaza(pelaje) !== normalizarRaza(dispositivo.pelaje ?? "") ||
     grupoActual !== (dispositivo.grupo ?? "").trim().toUpperCase() ||
     normalizarGrupoLibre(grupoLibre) !== normalizarGrupoLibre(dispositivo.grupo_libre ?? "") ||
     normalizarPotrero(potrero) !== normalizarPotrero(dispositivo.potrero ?? "") ||
@@ -208,6 +217,8 @@ export default function StockEquinaEditarPanel({
           grupo: grupoActual,
           grupo_libre: normalizarGrupoLibre(grupoLibre),
           potrero: normalizarPotrero(potrero),
+          raza: normalizarRaza(raza),
+          pelaje: normalizarRaza(pelaje),
           nacimiento_mes: nacimientoMes,
           nacimiento_anio: nacimientoAnio,
           observaciones: observaciones.trim(),
@@ -225,6 +236,8 @@ export default function StockEquinaEditarPanel({
       const actualizado: StockEquinaDispositivo = {
         ...dispositivo,
         ...guardado,
+        raza: guardado.raza ?? normalizarRaza(raza),
+        pelaje: guardado.pelaje ?? normalizarRaza(pelaje),
         rp: guardado.rp ?? rp.trim(),
         nombre_animal: guardado.nombre_animal ?? nombreAnimal.trim(),
         registro: guardado.registro ?? registro.trim(),
@@ -378,6 +391,62 @@ export default function StockEquinaEditarPanel({
                         setEmpresa(e === EMPRESA_PENDIENTE ? "" : (e as DispositivoEmpresa))
                       }
                     />
+                  </div>
+                </div>
+
+                <div className="stock-editar-ficha-zone stock-editar-ficha-zone--raza">
+                  <div className="stock-editar-ficha-cell">
+                    <StockEditarFichaLabel icon="raza" htmlFor="edit-equina-raza">
+                      Raza
+                    </StockEditarFichaLabel>
+                    {soloLectura ? (
+                      <input
+                        id="edit-equina-raza"
+                        type="text"
+                        className="stock-edit-select"
+                        value={raza.trim() || "—"}
+                        readOnly
+                        disabled
+                      />
+                    ) : (
+                      <SelectRazaEquinoDispositivo
+                        id="edit-equina-raza"
+                        value={raza}
+                        onChange={setRaza}
+                        disabled={camposDeshabilitados}
+                        apiOnline={apiOnline}
+                        onError={onError}
+                        selectClassName="stock-edit-select"
+                      />
+                    )}
+                  </div>
+                </div>
+
+                <div className="stock-editar-ficha-zone stock-editar-ficha-zone--pelaje">
+                  <div className="stock-editar-ficha-cell">
+                    <StockEditarFichaLabel icon="color" htmlFor="edit-equina-pelaje">
+                      Pelaje
+                    </StockEditarFichaLabel>
+                    {soloLectura ? (
+                      <input
+                        id="edit-equina-pelaje"
+                        type="text"
+                        className="stock-edit-select"
+                        value={pelaje.trim() || "—"}
+                        readOnly
+                        disabled
+                      />
+                    ) : (
+                      <SelectPelajeEquinoDispositivo
+                        id="edit-equina-pelaje"
+                        value={pelaje}
+                        onChange={setPelaje}
+                        disabled={camposDeshabilitados}
+                        apiOnline={apiOnline}
+                        onError={onError}
+                        selectClassName="stock-edit-select"
+                      />
+                    )}
                   </div>
                 </div>
 

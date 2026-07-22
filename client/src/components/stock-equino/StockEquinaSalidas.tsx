@@ -6,7 +6,7 @@ import TablePagination, {
   type PageSize,
 } from "../TablePagination";
 import BadgeEstadoDispositivo from "../stock/BadgeEstadoDispositivo";
-import IconoDispositivoWifi from "../stock/IconoDispositivoWifi";
+import IconoDispositivoReg from "./IconoDispositivoReg";
 import IconoSeleccionCabanaEstrella from "../stock/IconoSeleccionCabanaEstrella";
 import StockEquinaEdadMiniTimeline from "./StockEquinaEdadMiniTimeline";
 import StockEquinaEditarPanel from "./StockEquinaEditarModal";
@@ -465,10 +465,8 @@ export default function StockEquinaSalidas({
                   </td>
                   <td className="stock-td stock-td--device-ids">
                     <div className="stock-device-ids">
-                      <span className="stock-device-ids__icon-wrap" aria-hidden>
-                        <IconoDispositivoWifi
-                          className="stock-device-ids__icon"
-                        />
+                      <span className="stock-device-ids__icon-wrap stock-device-ids__icon-wrap--reg" aria-hidden>
+                        <IconoDispositivoReg className="stock-device-ids__icon" />
                       </span>
                       <button
                         type="button"

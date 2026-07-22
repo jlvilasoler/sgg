@@ -1,4 +1,5 @@
 import IconoDispositivoWifi from "./IconoDispositivoWifi";
+import IconoDispositivoReg from "../stock-equino/IconoDispositivoReg";
 import IconoSeleccionCabanaEstrella from "./IconoSeleccionCabanaEstrella";
 import { FichaLabelIconSvg } from "./StockEditarFichaLabel";
 import { fmtDate } from "../../utils";
@@ -35,7 +36,11 @@ export default function StockEditarHeadPanel({
   return (
     <div className="stock-editar-head" aria-label={modoReg ? "Registro electrónico" : "Caravana electrónica"}>
       <div className="stock-editar-head-block stock-editar-head-block--ids">
-        <IconoDispositivoWifi className={iconClassName} />
+        {modoReg ? (
+          <IconoDispositivoReg className={iconClassName} />
+        ) : (
+          <IconoDispositivoWifi className={iconClassName} />
+        )}
         <div className="stock-editar-head-ids">
           {modoReg ? (
             <div className="stock-editar-head-id">

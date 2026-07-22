@@ -125,6 +125,8 @@ function appendRegistroFilters(
             d.nombre_animal LIKE @busqueda OR
             d.registro LIKE @busqueda OR
             d.premios LIKE @busqueda OR
+            d.raza LIKE @busqueda OR
+            d.pelaje LIKE @busqueda OR
             d.empresa LIKE @busqueda OR
             d.potrero LIKE @busqueda OR
             d.grupo LIKE @busqueda
@@ -183,6 +185,10 @@ export async function initStockEquinoTables(db: Db): Promise<void> {
   await potreroDb.migrateEquinoPotreroColumn(db);
   await migrateEquinoAltaGenericaColumns(db);
   await migrateEquinoCabanaColumns(db);
+  await migrateEquinoRazaColumn(db);
+  await migrateEquinoRazaCatalog(db);
+  await migrateEquinoPelajeColumn(db);
+  await migrateEquinoPelajeCatalog(db);
   await ensureStockEquinoIdSeq(db);
 }
 
@@ -245,6 +251,298 @@ async function migrateEquinoCabanaColumns(db: Db): Promise<void> {
        VALUES ('__meta__', 'alta_cabana_cols_v1', '', '', '')`
     )
     .run();
+}
+
+async function migrateEquinoRazaColumn(db: Db): Promise<void> {
+  const done = (await db
+    .prepare(
+      `SELECT 1 AS ok FROM STOCK_EQUINO_DISPOSITIVO_HISTORIAL
+       WHERE clave = '__meta__' AND campo = 'raza_col_v1' LIMIT 1`
+    )
+    .get()) as { ok: number } | undefined;
+  if (done) return;
+
+  try {
+    await db
+      .prepare(
+        `ALTER TABLE STOCK_EQUINO_DISPOSITIVO ADD COLUMN raza TEXT NOT NULL DEFAULT ''`
+      )
+      .run();
+  } catch {
+    /* columna ya existe */
+  }
+
+  await db
+    .prepare(
+      `INSERT INTO STOCK_EQUINO_DISPOSITIVO_HISTORIAL
+         (clave, campo, etiqueta, valor_anterior, valor_nuevo)
+       VALUES ('__meta__', 'raza_col_v1', '', '', '')`
+    )
+    .run();
+}
+
+function normalizarRazaEquino(val: string | null | undefined): string {
+  return String(val ?? "")
+    .trim()
+    .replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑüÜ\s]/g, "")
+    .replace(/\s+/g, " ")
+    .toUpperCase()
+    .slice(0, 32);
+}
+
+const RAZAS_EQUINO_CATALOGO_INICIALES = ["CRIOLLA"] as const;
+
+async function migrateEquinoRazaCatalog(db: Db): Promise<void> {
+  await db
+    .prepare(
+      `CREATE TABLE IF NOT EXISTS STOCK_EQUINO_RAZA (
+         nombre TEXT PRIMARY KEY,
+         creado_en TIMESTAMPTZ DEFAULT NOW()
+       )`
+    )
+    .run();
+
+  const done = (await db
+    .prepare(
+      `SELECT 1 AS ok FROM STOCK_EQUINO_DISPOSITIVO_HISTORIAL
+       WHERE clave = '__meta__' AND campo = 'raza_catalog_v1' LIMIT 1`
+    )
+    .get()) as { ok: number } | undefined;
+
+  for (const nombre of RAZAS_EQUINO_CATALOGO_INICIALES) {
+    await db
+      .prepare(
+        `INSERT INTO STOCK_EQUINO_RAZA (nombre) VALUES (?) ON CONFLICT(nombre) DO NOTHING`
+      )
+      .run(nombre);
+  }
+
+  if (done) return;
+
+  try {
+    const usadas = (await db
+      .prepare(
+        `SELECT DISTINCT raza FROM STOCK_EQUINO_DISPOSITIVO
+         WHERE raza IS NOT NULL AND TRIM(raza) <> ''`
+      )
+      .all()) as { raza: string }[];
+    for (const row of usadas) {
+      const nombre = normalizarRazaEquino(row.raza);
+      if (!nombre) continue;
+      await db
+        .prepare(
+          `INSERT INTO STOCK_EQUINO_RAZA (nombre) VALUES (?) ON CONFLICT(nombre) DO NOTHING`
+        )
+        .run(nombre);
+    }
+  } catch {
+    /* columna raza puede no existir aún en entornos raros */
+  }
+
+  await db
+    .prepare(
+      `INSERT INTO STOCK_EQUINO_DISPOSITIVO_HISTORIAL
+         (clave, campo, etiqueta, valor_anterior, valor_nuevo)
+       VALUES ('__meta__', 'raza_catalog_v1', '', '', '')`
+    )
+    .run();
+}
+
+export async function listStockEquinoRazas(db: Db): Promise<string[]> {
+  const rows = (await db
+    .prepare(`SELECT nombre FROM STOCK_EQUINO_RAZA ORDER BY nombre ASC`)
+    .all()) as { nombre: string }[];
+  return rows.map((r) => normalizarRazaEquino(r.nombre)).filter(Boolean);
+}
+
+export async function createStockEquinoRaza(db: Db, raw: string): Promise<string> {
+  const nombre = normalizarRazaEquino(raw);
+  if (!nombre) {
+    throw new Error("Ingresá un nombre de raza válido (letras y números).");
+  }
+  const existe = (await db
+    .prepare(`SELECT 1 AS ok FROM STOCK_EQUINO_RAZA WHERE nombre = ? LIMIT 1`)
+    .get(nombre)) as { ok: number } | undefined;
+  if (existe) return nombre;
+  await db.prepare(`INSERT INTO STOCK_EQUINO_RAZA (nombre) VALUES (?)`).run(nombre);
+  return nombre;
+}
+
+export async function ensureStockEquinoRazaEnCatalogo(
+  db: Db,
+  raw: string | null | undefined
+): Promise<string> {
+  const nombre = normalizarRazaEquino(raw);
+  if (!nombre) return "";
+  return createStockEquinoRaza(db, nombre);
+}
+
+export async function deleteStockEquinoRaza(db: Db, raw: string): Promise<string> {
+  const nombre = normalizarRazaEquino(raw);
+  if (!nombre) throw new Error("Raza inválida");
+  const usos = (await db
+    .prepare(`SELECT COUNT(*) AS n FROM STOCK_EQUINO_DISPOSITIVO WHERE raza = ?`)
+    .get(nombre)) as { n: number | string };
+  const nUsos = Number(usos?.n ?? 0);
+  if (nUsos > 0) {
+    throw new Error(
+      `No se puede eliminar «${nombre}»: está asignada a ${nUsos} equino(s).`
+    );
+  }
+  const result = await db
+    .prepare(`DELETE FROM STOCK_EQUINO_RAZA WHERE nombre = ?`)
+    .run(nombre);
+  if (!result.changes) throw new Error(`No se encontró la raza «${nombre}».`);
+  return nombre;
+}
+
+function normalizarPelajeEquino(val: string | null | undefined): string {
+  return normalizarRazaEquino(val);
+}
+
+const PELAJES_EQUINO_CATALOGO_INICIALES = [
+  "ALAZÁN",
+  "BAYO",
+  "ZAINO",
+  "NEGRO",
+  "TORDILLO",
+  "OVERO",
+  "ROSILLO",
+  "MORO",
+  "PANGARÉ",
+  "GATEADO",
+] as const;
+
+async function migrateEquinoPelajeColumn(db: Db): Promise<void> {
+  const done = (await db
+    .prepare(
+      `SELECT 1 AS ok FROM STOCK_EQUINO_DISPOSITIVO_HISTORIAL
+       WHERE clave = '__meta__' AND campo = 'pelaje_col_v1' LIMIT 1`
+    )
+    .get()) as { ok: number } | undefined;
+  if (done) return;
+
+  try {
+    await db
+      .prepare(
+        `ALTER TABLE STOCK_EQUINO_DISPOSITIVO ADD COLUMN pelaje TEXT NOT NULL DEFAULT ''`
+      )
+      .run();
+  } catch {
+    /* columna ya existe */
+  }
+
+  await db
+    .prepare(
+      `INSERT INTO STOCK_EQUINO_DISPOSITIVO_HISTORIAL
+         (clave, campo, etiqueta, valor_anterior, valor_nuevo)
+       VALUES ('__meta__', 'pelaje_col_v1', '', '', '')`
+    )
+    .run();
+}
+
+async function migrateEquinoPelajeCatalog(db: Db): Promise<void> {
+  await db
+    .prepare(
+      `CREATE TABLE IF NOT EXISTS STOCK_EQUINO_PELAJE (
+         nombre TEXT PRIMARY KEY,
+         creado_en TIMESTAMPTZ DEFAULT NOW()
+       )`
+    )
+    .run();
+
+  const done = (await db
+    .prepare(
+      `SELECT 1 AS ok FROM STOCK_EQUINO_DISPOSITIVO_HISTORIAL
+       WHERE clave = '__meta__' AND campo = 'pelaje_catalog_v1' LIMIT 1`
+    )
+    .get()) as { ok: number } | undefined;
+
+  for (const nombre of PELAJES_EQUINO_CATALOGO_INICIALES) {
+    await db
+      .prepare(
+        `INSERT INTO STOCK_EQUINO_PELAJE (nombre) VALUES (?) ON CONFLICT(nombre) DO NOTHING`
+      )
+      .run(nombre);
+  }
+
+  if (done) return;
+
+  try {
+    const usadas = (await db
+      .prepare(
+        `SELECT DISTINCT pelaje FROM STOCK_EQUINO_DISPOSITIVO
+         WHERE pelaje IS NOT NULL AND TRIM(pelaje) <> ''`
+      )
+      .all()) as { pelaje: string }[];
+    for (const row of usadas) {
+      const nombre = normalizarPelajeEquino(row.pelaje);
+      if (!nombre) continue;
+      await db
+        .prepare(
+          `INSERT INTO STOCK_EQUINO_PELAJE (nombre) VALUES (?) ON CONFLICT(nombre) DO NOTHING`
+        )
+        .run(nombre);
+    }
+  } catch {
+    /* columna pelaje puede no existir aún */
+  }
+
+  await db
+    .prepare(
+      `INSERT INTO STOCK_EQUINO_DISPOSITIVO_HISTORIAL
+         (clave, campo, etiqueta, valor_anterior, valor_nuevo)
+       VALUES ('__meta__', 'pelaje_catalog_v1', '', '', '')`
+    )
+    .run();
+}
+
+export async function listStockEquinoPelajes(db: Db): Promise<string[]> {
+  const rows = (await db
+    .prepare(`SELECT nombre FROM STOCK_EQUINO_PELAJE ORDER BY nombre ASC`)
+    .all()) as { nombre: string }[];
+  return rows.map((r) => normalizarPelajeEquino(r.nombre)).filter(Boolean);
+}
+
+export async function createStockEquinoPelaje(db: Db, raw: string): Promise<string> {
+  const nombre = normalizarPelajeEquino(raw);
+  if (!nombre) {
+    throw new Error("Ingresá un nombre de pelaje válido (letras y números).");
+  }
+  const existe = (await db
+    .prepare(`SELECT 1 AS ok FROM STOCK_EQUINO_PELAJE WHERE nombre = ? LIMIT 1`)
+    .get(nombre)) as { ok: number } | undefined;
+  if (existe) return nombre;
+  await db.prepare(`INSERT INTO STOCK_EQUINO_PELAJE (nombre) VALUES (?)`).run(nombre);
+  return nombre;
+}
+
+export async function ensureStockEquinoPelajeEnCatalogo(
+  db: Db,
+  raw: string | null | undefined
+): Promise<string> {
+  const nombre = normalizarPelajeEquino(raw);
+  if (!nombre) return "";
+  return createStockEquinoPelaje(db, nombre);
+}
+
+export async function deleteStockEquinoPelaje(db: Db, raw: string): Promise<string> {
+  const nombre = normalizarPelajeEquino(raw);
+  if (!nombre) throw new Error("Pelaje inválido");
+  const usos = (await db
+    .prepare(`SELECT COUNT(*) AS n FROM STOCK_EQUINO_DISPOSITIVO WHERE pelaje = ?`)
+    .get(nombre)) as { n: number | string };
+  const nUsos = Number(usos?.n ?? 0);
+  if (nUsos > 0) {
+    throw new Error(
+      `No se puede eliminar «${nombre}»: está asignado a ${nUsos} equino(s).`
+    );
+  }
+  const result = await db
+    .prepare(`DELETE FROM STOCK_EQUINO_PELAJE WHERE nombre = ?`)
+    .run(nombre);
+  if (!result.changes) throw new Error(`No se encontró el pelaje «${nombre}».`);
+  return nombre;
 }
 
 async function ensureStockEquinoIdSeq(db: Db): Promise<void> {
@@ -740,6 +1038,8 @@ export interface DispositivoMetaInput {
   nombre_animal?: string;
   registro?: string;
   premios?: string;
+  raza?: string;
+  pelaje?: string;
 }
 
 export interface DispositivoMetaGuardada extends DispositivoMetaInput {
@@ -781,6 +1081,8 @@ interface DispositivoMetaRow {
   nombre_animal?: string;
   registro?: string;
   premios?: string;
+  raza?: string;
+  pelaje?: string;
   edad: number | null;
   nacimiento_mes: number | null;
   nacimiento_anio: number | null;
@@ -800,6 +1102,8 @@ type DispositivoMetaEnriquecida = DispositivoMetaGuardada & {
   nombre_animal: string;
   registro: string;
   premios: string;
+  raza: string;
+  pelaje: string;
 };
 
 async function mapMetaDispositivos(
@@ -808,7 +1112,7 @@ async function mapMetaDispositivos(
   const rows = (await db
     .prepare(
       `SELECT clave, sexo, empresa, grupo, grupo_libre, potrero, categoria, castrado, origen_alta,
-              rp, nombre_animal, registro, premios,
+              rp, nombre_animal, registro, premios, raza, pelaje,
               edad, nacimiento_mes, nacimiento_anio, observaciones, estado, tipo_baja, numero_guia, baja_mes, baja_anio
        FROM STOCK_EQUINO_DISPOSITIVO`
     )
@@ -828,6 +1132,8 @@ async function mapMetaDispositivos(
       nombre_animal: String(row.nombre_animal ?? "").trim(),
       registro: String(row.registro ?? "").trim(),
       premios: String(row.premios ?? "").trim(),
+      raza: normalizarRazaEquino(row.raza),
+      pelaje: normalizarPelajeEquino(row.pelaje),
     });
   }
   return map;
@@ -912,6 +1218,8 @@ async function enrichDispositivosWithMeta(
     d.nombre_animal = info?.nombre_animal ?? "";
     d.registro = info?.registro ?? "";
     d.premios = info?.premios ?? "";
+    d.raza = info?.raza ?? "";
+    d.pelaje = info?.pelaje ?? "";
     d.edad = info?.edad ?? null;
     d.nacimiento_mes = info?.nacimiento_mes ?? null;
     d.nacimiento_anio = info?.nacimiento_anio ?? null;
@@ -1062,10 +1370,12 @@ export async function saveStockEquinaDispositivo(
     .slice(0, 120);
   const registro = String(input.registro ?? "").trim().replace(/\s+/g, " ").slice(0, 120);
   const premios = String(input.premios ?? "").trim().slice(0, 2000);
+  const raza = await ensureStockEquinoRazaEnCatalogo(db, input.raza);
+  const pelaje = await ensureStockEquinoPelajeEnCatalogo(db, input.pelaje);
 
   const anteriorRow = (await db
     .prepare(
-      `SELECT sexo, empresa, grupo, grupo_libre, potrero, rp, nombre_animal, registro, premios,
+      `SELECT sexo, empresa, grupo, grupo_libre, potrero, rp, nombre_animal, registro, premios, raza, pelaje,
               nacimiento_mes, nacimiento_anio, observaciones, estado, tipo_baja, numero_guia, baja_mes, baja_anio
        FROM STOCK_EQUINO_DISPOSITIVO WHERE clave = ?`
     )
@@ -1078,6 +1388,8 @@ export async function saveStockEquinaDispositivo(
         nombre_animal: String(anteriorRow?.nombre_animal ?? "").trim(),
         registro: String(anteriorRow?.registro ?? "").trim(),
         premios: String(anteriorRow?.premios ?? "").trim(),
+        raza: normalizarRazaEquino(anteriorRow?.raza),
+        pelaje: normalizarPelajeEquino(anteriorRow?.pelaje),
       }
     : null;
   const nuevo: DispositivoMetaGuardada = {
@@ -1099,14 +1411,16 @@ export async function saveStockEquinaDispositivo(
     nombre_animal,
     registro,
     premios,
+    raza,
+    pelaje,
   };
 
   await db.prepare(
     `INSERT INTO STOCK_EQUINO_DISPOSITIVO (
-       clave, eid, sexo, empresa, grupo, grupo_libre, potrero, rp, nombre_animal, registro, premios,
+       clave, eid, sexo, empresa, grupo, grupo_libre, potrero, raza, pelaje, rp, nombre_animal, registro, premios,
        edad, nacimiento_mes, nacimiento_anio, observaciones, estado, tipo_baja, numero_guia, baja_mes, baja_anio, actualizado_en
      ) VALUES (
-       @clave, @eid, @sexo, @empresa, @grupo, @grupo_libre, @potrero, @rp, @nombre_animal, @registro, @premios,
+       @clave, @eid, @sexo, @empresa, @grupo, @grupo_libre, @potrero, @raza, @pelaje, @rp, @nombre_animal, @registro, @premios,
        @edad, @nacimiento_mes, @nacimiento_anio, @observaciones, @estado, @tipo_baja, @numero_guia, @baja_mes, @baja_anio,
        datetime('now', 'localtime')
      )
@@ -1116,6 +1430,8 @@ export async function saveStockEquinaDispositivo(
        grupo = excluded.grupo,
        grupo_libre = excluded.grupo_libre,
        potrero = excluded.potrero,
+       raza = excluded.raza,
+       pelaje = excluded.pelaje,
        rp = excluded.rp,
        nombre_animal = excluded.nombre_animal,
        registro = excluded.registro,
@@ -1139,6 +1455,8 @@ export async function saveStockEquinaDispositivo(
     grupo,
     grupo_libre,
     potrero,
+    raza,
+    pelaje,
     rp,
     nombre_animal,
     registro,
@@ -1177,6 +1495,8 @@ export async function saveStockEquinaDispositivo(
     grupo,
     grupo_libre,
     potrero,
+    raza,
+    pelaje,
     edad,
     nacimiento_mes: nacimiento.nacimiento_mes,
     nacimiento_anio: nacimiento.nacimiento_anio,
@@ -1222,6 +1542,8 @@ function mergeMetaConPatch(
     nombre_animal: prev?.nombre_animal ?? "",
     registro: prev?.registro ?? "",
     premios: prev?.premios ?? "",
+    raza: prev?.raza ?? "",
+    pelaje: prev?.pelaje ?? "",
   };
   if (patch.sexo !== undefined) merged.sexo = patch.sexo;
   if (patch.empresa !== undefined) merged.empresa = patch.empresa;
@@ -1239,6 +1561,8 @@ function mergeMetaConPatch(
   if (patch.nombre_animal !== undefined) merged.nombre_animal = patch.nombre_animal;
   if (patch.registro !== undefined) merged.registro = patch.registro;
   if (patch.premios !== undefined) merged.premios = patch.premios;
+  if (patch.raza !== undefined) merged.raza = patch.raza;
+  if (patch.pelaje !== undefined) merged.pelaje = patch.pelaje;
   return merged;
 }
 
@@ -2775,6 +3099,8 @@ export async function listStockEquinoRegistros(
       nombre_animal: info?.nombre_animal ?? "",
       registro: info?.registro ?? "",
       premios: info?.premios ?? "",
+      raza: info?.raza ?? "",
+      pelaje: info?.pelaje ?? "",
       empresa: info?.empresa ?? "",
       potrero: info?.potrero ?? "",
       grupo: info?.grupo ?? "",
@@ -2950,6 +3276,10 @@ export interface AltaEquinoGenericaInput {
   castrado?: boolean | null;
   potrero: string;
   empresa: string;
+  /** Opcional. Si viene, se guarda y se agrega al catálogo de razas equinas. */
+  raza?: string | null;
+  /** Opcional. Si viene, se guarda y se agrega al catálogo de pelajes equinos. */
+  pelaje?: string | null;
 }
 
 export interface AltaEquinoGenericaResult {
@@ -3061,6 +3391,9 @@ export async function crearEquinosGenericos(
     throw new Error("Seleccioná la empresa de los animales.");
   }
 
+  const raza = await ensureStockEquinoRazaEnCatalogo(db, input.raza);
+  const pelaje = await ensureStockEquinoPelajeEnCatalogo(db, input.pelaje);
+
   const grupo = grupoDesdeNacimiento(nacimiento.nacimiento_mes, nacimiento.nacimiento_anio);
   const castrado = categoria ? castradoDesdeCategoria(categoria) : null;
   const castradoDb = castrado === null ? null : castrado ? 1 : 0;
@@ -3096,11 +3429,11 @@ export async function crearEquinosGenericos(
     const insDisp = await tx.prepare(
       `INSERT INTO STOCK_EQUINO_DISPOSITIVO (
          clave, eid, sexo, empresa, grupo, grupo_libre, potrero, categoria, castrado, origen_alta,
-         edad, nacimiento_mes, nacimiento_anio, observaciones, estado, tipo_baja, numero_guia,
+         raza, pelaje, edad, nacimiento_mes, nacimiento_anio, observaciones, estado, tipo_baja, numero_guia,
          baja_mes, baja_anio, actualizado_en
        ) VALUES (
          @clave, @eid, @sexo, @empresa, @grupo, '', @potrero, @categoria, @castrado, 'generico',
-         @edad, @nacimiento_mes, @nacimiento_anio, '', 'VIVO', '', '',
+         @raza, @pelaje, @edad, @nacimiento_mes, @nacimiento_anio, '', 'VIVO', '', '',
          NULL, NULL, NOW()
        )
        ON CONFLICT (clave) DO UPDATE SET
@@ -3112,6 +3445,8 @@ export async function crearEquinosGenericos(
          categoria = excluded.categoria,
          castrado = excluded.castrado,
          origen_alta = excluded.origen_alta,
+         raza = excluded.raza,
+         pelaje = excluded.pelaje,
          edad = excluded.edad,
          nacimiento_mes = excluded.nacimiento_mes,
          nacimiento_anio = excluded.nacimiento_anio,
@@ -3138,6 +3473,8 @@ export async function crearEquinosGenericos(
         potrero,
         categoria,
         castrado: castradoDb,
+        raza,
+        pelaje,
         edad,
         nacimiento_mes: nacimiento.nacimiento_mes,
         nacimiento_anio: nacimiento.nacimiento_anio,
@@ -3205,6 +3542,8 @@ export interface AltaEquinoCabanaInput {
   sexo: DispositivoSexo;
   registro: string;
   premios?: string;
+  raza?: string;
+  pelaje?: string;
   castrado?: boolean | null;
   potrero: string;
   empresa: string;
@@ -3237,6 +3576,8 @@ export async function crearEquinoCabana(
     throw new Error("Indicá el registro.");
   }
   const premios = normalizarTextoCabana(input.premios, 2000);
+  const raza = await ensureStockEquinoRazaEnCatalogo(db, input.raza);
+  const pelaje = await ensureStockEquinoPelajeEnCatalogo(db, input.pelaje);
 
   const sexo = SEXOS_VALIDOS.has(input.sexo) ? input.sexo : "";
   if (sexo !== "MACHO" && sexo !== "HEMBRA") {
@@ -3312,12 +3653,12 @@ export async function crearEquinoCabana(
       .prepare(
         `INSERT INTO STOCK_EQUINO_DISPOSITIVO (
            clave, eid, sexo, empresa, grupo, grupo_libre, potrero, categoria, castrado, origen_alta,
-           rp, nombre_animal, registro, premios,
+           rp, nombre_animal, registro, premios, raza, pelaje,
            edad, nacimiento_mes, nacimiento_anio, observaciones, estado, tipo_baja, numero_guia,
            baja_mes, baja_anio, actualizado_en
          ) VALUES (
            @clave, @eid, @sexo, @empresa, @grupo, '', @potrero, @categoria, @castrado, 'cabana',
-           @rp, @nombre_animal, @registro, @premios,
+           @rp, @nombre_animal, @registro, @premios, @raza, @pelaje,
            @edad, @nacimiento_mes, @nacimiento_anio, '', 'VIVO', '', '',
            NULL, NULL, NOW()
          )
@@ -3334,6 +3675,8 @@ export async function crearEquinoCabana(
            nombre_animal = excluded.nombre_animal,
            registro = excluded.registro,
            premios = excluded.premios,
+           raza = excluded.raza,
+           pelaje = excluded.pelaje,
            edad = excluded.edad,
            nacimiento_mes = excluded.nacimiento_mes,
            nacimiento_anio = excluded.nacimiento_anio,
@@ -3353,6 +3696,8 @@ export async function crearEquinoCabana(
         nombre_animal,
         registro,
         premios,
+        raza,
+        pelaje,
         edad,
         nacimiento_mes: nacimiento.nacimiento_mes,
         nacimiento_anio: nacimiento.nacimiento_anio,
@@ -3424,6 +3769,8 @@ export interface StockEquinaDispositivo {
   nombre_animal: string;
   registro: string;
   premios: string;
+  raza: string;
+  pelaje: string;
   edad: number | null;
   nacimiento_mes: number | null;
   nacimiento_anio: number | null;
@@ -3601,6 +3948,8 @@ function buildDispositivosFromRegistros(
         nombre_animal: "",
         registro: "",
         premios: "",
+        raza: "",
+        pelaje: "",
         edad: null,
         nacimiento_mes: null,
         nacimiento_anio: null,
@@ -4205,6 +4554,26 @@ async function registrarHistorialCambiosDispositivo(
     "Registro",
     (anterior?.registro ?? "").trim() || "—",
     (nuevo.registro ?? "").trim() || "—",
+    undefined,
+    autor
+  );
+  await insertHistorialFila(
+    db,
+    clave,
+    "raza",
+    "Raza",
+    normalizarRazaEquino(anterior?.raza) || "—",
+    normalizarRazaEquino(nuevo.raza) || "—",
+    undefined,
+    autor
+  );
+  await insertHistorialFila(
+    db,
+    clave,
+    "pelaje",
+    "Pelaje",
+    normalizarPelajeEquino(anterior?.pelaje) || "—",
+    normalizarPelajeEquino(nuevo.pelaje) || "—",
     undefined,
     autor
   );

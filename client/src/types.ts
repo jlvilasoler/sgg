@@ -567,6 +567,8 @@ export interface StockGanaderaDispositivo {
   grupo_libre: string;
   potrero: string;
   raza: string;
+  /** Solo equinos. */
+  pelaje?: string;
   color_caravana: string;
   /** Solo equinos (alta genérica / ficha). */
   categoria?: string;

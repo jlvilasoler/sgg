@@ -2224,6 +2224,7 @@ export async function saveStockEquinaDispositivo(
     grupo_libre: string;
     potrero?: string;
     raza?: string;
+    pelaje?: string;
     nacimiento_mes: number | null;
     nacimiento_anio: number | null;
     observaciones: string;
@@ -2245,6 +2246,7 @@ export async function saveStockEquinaDispositivo(
   grupo_libre: string;
   potrero: string;
   raza: string;
+  pelaje: string;
   edad: number | null;
   nacimiento_mes: number | null;
   nacimiento_anio: number | null;
@@ -2267,6 +2269,7 @@ export async function saveStockEquinaDispositivo(
       grupo_libre: string;
       potrero: string;
       raza: string;
+      pelaje: string;
       edad: number | null;
       nacimiento_mes: number | null;
       nacimiento_anio: number | null;
@@ -2461,6 +2464,48 @@ export async function importStockEquinoRows(
   };
 }
 
+export async function fetchStockEquinoRazas(): Promise<string[]> {
+  const json = await request<{ data: string[] }>("/stock-equino/razas");
+  return json.data ?? [];
+}
+
+export async function createStockEquinoRaza(nombre: string): Promise<string> {
+  const json = await request<{ data: { nombre: string } }>("/stock-equino/razas", {
+    method: "POST",
+    body: JSON.stringify({ nombre }),
+  });
+  return json.data.nombre;
+}
+
+export async function deleteStockEquinoRaza(nombre: string): Promise<string> {
+  const json = await request<{ data: { nombre: string } }>("/stock-equino/razas", {
+    method: "DELETE",
+    body: JSON.stringify({ nombre }),
+  });
+  return json.data.nombre;
+}
+
+export async function fetchStockEquinoPelajes(): Promise<string[]> {
+  const json = await request<{ data: string[] }>("/stock-equino/pelajes");
+  return json.data ?? [];
+}
+
+export async function createStockEquinoPelaje(nombre: string): Promise<string> {
+  const json = await request<{ data: { nombre: string } }>("/stock-equino/pelajes", {
+    method: "POST",
+    body: JSON.stringify({ nombre }),
+  });
+  return json.data.nombre;
+}
+
+export async function deleteStockEquinoPelaje(nombre: string): Promise<string> {
+  const json = await request<{ data: { nombre: string } }>("/stock-equino/pelajes", {
+    method: "DELETE",
+    body: JSON.stringify({ nombre }),
+  });
+  return json.data.nombre;
+}
+
 export async function altaStockEquinoGenerica(input: {
   cantidad: number;
   sexo: "MACHO" | "HEMBRA";
@@ -2468,6 +2513,8 @@ export async function altaStockEquinoGenerica(input: {
   castrado?: boolean | null;
   potrero: string;
   empresa: string;
+  raza?: string;
+  pelaje?: string;
 }): Promise<{
   message: string;
   creados: number;
@@ -2504,6 +2551,8 @@ export async function altaStockEquinoCabana(input: {
   sexo: "MACHO" | "HEMBRA";
   registro: string;
   premios?: string;
+  raza?: string;
+  pelaje?: string;
   castrado?: boolean | null;
   potrero: string;
   empresa: string;

@@ -14842,6 +14842,24 @@ button.stock-device-ids__stack-btn {
   z-index: 1;
 }
 
+.stock-device-ids__icon-wrap--reg {
+  width: 1.25rem;
+  height: 1.25rem;
+  color: #3d5a4c;
+}
+
+.stock-device-ids__icon-wrap--reg::before,
+.stock-device-ids__icon-wrap--reg::after {
+  display: none;
+}
+
+.stock-device-ids__icon-wrap--reg .stock-device-ids__icon {
+  width: 1.15rem;
+  height: 1.15rem;
+  opacity: 1;
+  display: block;
+}
+
 .stock-device-ids__vid {
   display: block;
   font-size: 0.75rem;
@@ -41331,6 +41349,14 @@ button.sg-kpi-card:disabled {
   height: 1.05rem;
 }
 
+.stock-equina-editar-page .stock-editar-head-signal {
+  width: 0.95rem;
+  height: 0.95rem;
+  color: #64748b;
+  display: block;
+  flex-shrink: 0;
+}
+
 .stock-editar-head-ids {
   display: flex;
   flex-wrap: wrap;
@@ -42995,6 +43021,10 @@ button.sg-kpi-card:disabled {
 .stock-equina-editar-page .stock-equina-editar-icon{
   width: 1.35rem;
   height: 1.35rem;
+}
+.stock-equina-editar-page .stock-editar-head-signal.stock-equina-editar-icon{
+  width: 0.95rem;
+  height: 0.95rem;
 }.stock-ganadera-editar-hero-line,
 .stock-equina-editar-hero-line{
   display: flex;
@@ -43278,6 +43308,12 @@ button.sg-kpi-card:disabled {
   width: 1.75rem;
   height: 1.75rem;
   object-fit: contain;
+}
+.stock-equina-detalle-wifi-icon{
+  width: 1.45rem;
+  height: 1.45rem;
+  color: #3d5a4c;
+  display: block;
 }.stock-ganadera-detalle-hero-text,
 .stock-equina-detalle-hero-text{
   min-width: 0;
@@ -46417,6 +46453,8 @@ button.sg-kpi-card:disabled {
 }
 
 .stock-editar-ficha--equino .stock-editar-ficha-zone--ident,
+.stock-editar-ficha--equino .stock-editar-ficha-zone--raza,
+.stock-editar-ficha--equino .stock-editar-ficha-zone--pelaje,
 .stock-editar-ficha--equino .stock-editar-ficha-zone--sexo,
 .stock-editar-ficha--equino .stock-editar-ficha-zone--potrero,
 .stock-editar-ficha--equino .stock-editar-ficha-zone--nac,
@@ -46430,6 +46468,16 @@ button.sg-kpi-card:disabled {
 .stock-editar-ficha--equino .stock-editar-ficha-zone--ident {
   width: 16.25rem;
   max-width: min(100%, 16.25rem);
+}
+
+.stock-editar-ficha--equino .stock-editar-ficha-zone--raza {
+  width: 8.5rem;
+  max-width: min(100%, 8.5rem);
+}
+
+.stock-editar-ficha--equino .stock-editar-ficha-zone--pelaje {
+  width: 8.5rem;
+  max-width: min(100%, 8.5rem);
 }
 
 .stock-editar-ficha--equino .stock-editar-ficha-zone--sexo {

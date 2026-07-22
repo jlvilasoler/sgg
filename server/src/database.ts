@@ -653,6 +653,12 @@ export const stockEquino = {
     cuentaId?: number | null,
     autor?: stockEquinoDb.HistorialAutor
   ) => stockEquinoDb.crearEquinoCabana(db, input, cuentaId, autor),
+  listRazas: () => stockEquinoDb.listStockEquinoRazas(db),
+  createRaza: (nombre: string) => stockEquinoDb.createStockEquinoRaza(db, nombre),
+  deleteRaza: (nombre: string) => stockEquinoDb.deleteStockEquinoRaza(db, nombre),
+  listPelajes: () => stockEquinoDb.listStockEquinoPelajes(db),
+  createPelaje: (nombre: string) => stockEquinoDb.createStockEquinoPelaje(db, nombre),
+  deletePelaje: (nombre: string) => stockEquinoDb.deleteStockEquinoPelaje(db, nombre),
   importBaja: (
     rows: stockEquinoDb.StockEquinoRowInput[],
     tipo_baja: stockEquinoDb.TipoBaja,
