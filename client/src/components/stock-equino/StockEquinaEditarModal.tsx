@@ -269,8 +269,8 @@ export default function StockEquinaEditarPanel({
     <SubseccionInlinePanel
       onVolver={onVolver}
       volverLabel={volverLabel}
-      icon={{ source: "hub", id: "stock_dispositivos" }}
-      title={soloLectura ? "Caravana" : "Editar caravana"}
+      icon={{ source: "app", id: "stock_equino" }}
+      title={soloLectura ? "Stock Equinos" : "Editar stock equinos"}
       cardClassName={`subseccion-inline-card stock-equina-editar-page${
         soloLectura ? " stock-equina-editar-page--solo-lectura" : ""
       }`}
@@ -372,6 +372,8 @@ export default function StockEquinaEditarPanel({
                       empresas={empresas}
                       value={empresa}
                       disabled={camposDeshabilitados}
+                      mostrarColorSwatch
+                      bordeBlanco
                       onChange={(e) =>
                         setEmpresa(e === EMPRESA_PENDIENTE ? "" : (e as DispositivoEmpresa))
                       }

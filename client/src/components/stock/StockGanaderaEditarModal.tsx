@@ -316,7 +316,7 @@ export default function StockGanaderaEditarPanel({
       onVolver={onVolver}
       volverLabel={volverLabel}
       icon={{ source: "hub", id: "stock_dispositivos" }}
-      title={soloLectura ? "Dispositivo" : "Editar dispositivo"}
+      title={soloLectura ? "Stock Ganadero" : "Editar stock ganadero"}
       cardClassName={`subseccion-inline-card stock-ganadera-editar-page${
         soloLectura ? " stock-ganadera-editar-page--solo-lectura" : ""
       }`}

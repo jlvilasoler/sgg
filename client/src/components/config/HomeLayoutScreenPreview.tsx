@@ -73,6 +73,7 @@ const EMPTY_MIN_HEIGHT: Partial<Record<HomePanelId, string>> = {
   mapa_campo: "6rem",
   vencimientos: "3.6rem",
   stock_potrero: "6.5rem",
+  stock_equino_potrero: "6.5rem",
   modulos_rapidos: "4.5rem",
 };
 
@@ -627,6 +628,49 @@ function PreviewStockPotrero() {
   );
 }
 
+function PreviewStockEquinoPotrero() {
+  return (
+    <section className="config-home-screen-panel">
+      <header className="config-home-screen-panel-head">
+        <div>
+          <p className="config-home-screen-panel-kicker">Stock Equinos</p>
+          <h4>Equinos por potrero</h4>
+        </div>
+      </header>
+      <table className="config-home-screen-stock-table">
+        <thead>
+          <tr>
+            <th>Potrero</th>
+            <th>Total</th>
+            <th>Ocupación</th>
+            <th>UE/ha</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Piquete</td>
+            <td>18</td>
+            <td className="is-ok">45%</td>
+            <td className="is-ok">0,45</td>
+          </tr>
+          <tr>
+            <td>Casco</td>
+            <td>6</td>
+            <td>30%</td>
+            <td>0,30</td>
+          </tr>
+          <tr className="is-muted">
+            <td>SIN POTRERO</td>
+            <td>2</td>
+            <td>—</td>
+            <td>—</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+  );
+}
+
 const QUICK_MODULE_LABELS: Partial<Record<TabId, string>> = {
   registro: "Presupuesto",
   listado: "Listado",
@@ -696,6 +740,7 @@ export default function HomeLayoutScreenPreview({
     { id: "mapa_campo", node: <PreviewMapa /> },
     { id: "vencimientos", node: <PreviewVencimientos /> },
     { id: "stock_potrero", node: <PreviewStockPotrero /> },
+    { id: "stock_equino_potrero", node: <PreviewStockEquinoPotrero /> },
     {
       id: "modulos_rapidos",
       node: <PreviewModulos quickModules={roleMeta.quickModules} />,

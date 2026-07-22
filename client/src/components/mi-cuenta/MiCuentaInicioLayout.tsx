@@ -47,6 +47,8 @@ function panelPermitidoPorPermisos(user: AuthUser, panelId: HomePanelId): boolea
       return canAccessScreen(user, "vencimientos_impuestos");
     case "stock_potrero":
       return canAccessScreen(user, "stock_ganadero");
+    case "stock_equino_potrero":
+      return canAccessScreen(user, "stock_equino");
     default:
       return true;
   }

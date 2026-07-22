@@ -12,6 +12,7 @@ import {
   canAccessClasificacionProveedores,
   canAccessConfigVencimientosImpuestos,
   canAccessConfigDotacionGanadera,
+  canAccessConfigDotacionEquina,
   canAccessConfigHomeLayout,
   canAccessConfigRubrosSag,
   canAccessConfiguracionSag,
@@ -103,6 +104,12 @@ const SAG_ITEMS: SgHubItem[] = [
     id: "dotacion_ganadera",
     label: "Dotación ganadera",
     subtitle: "Unidades ganaderas por categoría etaria",
+    icon: "stock_dispositivos",
+  },
+  {
+    id: "dotacion_equina",
+    label: "Dotación equina",
+    subtitle: "Unidades equinas por categoría del cronograma",
     icon: "stock_dispositivos",
   },
   {
@@ -305,6 +312,9 @@ export function buildConfigSagItems(user: AuthUser | null | undefined): SgHubIte
     if (item.id === "dotacion_ganadera") {
       return canAccessConfigDotacionGanadera(user ?? null);
     }
+    if (item.id === "dotacion_equina") {
+      return canAccessConfigDotacionEquina(user ?? null);
+    }
     if (item.id === "home_layout") {
       return canAccessConfigHomeLayout(user ?? null);
     }
@@ -424,6 +434,10 @@ export function configHubMeta(
       title: "Dotación ganadera",
       subtitle: "Equivalencias en unidades ganaderas por categoría.",
     },
+    dotacion_equina: {
+      title: "Dotación equina",
+      subtitle: "Equivalencias en unidades equinas por categoría del cronograma.",
+    },
     home_layout: {
       title: "Inicio por tipo de cuenta",
       subtitle: "Bloques visibles del dashboard Inicio por rol.",
@@ -495,6 +509,7 @@ export function configNavScopeForModulo(modulo: string): ConfigNavScope {
     modulo === "documentos_digitales" ||
     modulo === "catalogo_sanitario_productos" ||
     modulo === "dotacion_ganadera" ||
+    modulo === "dotacion_equina" ||
     modulo === "home_layout" ||
     modulo === "home_layout_monitor" ||
     modulo === "rubros_sag" ||

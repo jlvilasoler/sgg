@@ -14,8 +14,13 @@ interface Props {
   id?: string;
   /** Si true, exige elegir una empresa operativa o SIN EMPRESA (no queda en placeholder). */
   requiereSeleccion?: boolean;
-  /** Muestra el color de la empresa a la izquierda del selector. */
+  /** Muestra el color de la empresa como círculo (mismo marcador del mapa). */
   mostrarColorSwatch?: boolean;
+  /**
+   * Equinos: borde blanco (como en el mapa).
+   * Ganaderos: sin borde blanco.
+   */
+  bordeBlanco?: boolean;
 }
 
 export default function SelectEmpresaDispositivo({
@@ -26,6 +31,7 @@ export default function SelectEmpresaDispositivo({
   id,
   requiereSeleccion = false,
   mostrarColorSwatch = false,
+  bordeBlanco = false,
 }: Props) {
   const empresaCodigo = value === EMPRESA_PENDIENTE ? "" : value;
   const colorId = normalizarColorCaravana(
@@ -57,13 +63,20 @@ export default function SelectEmpresaDispositivo({
 
   if (!mostrarColorSwatch) return select;
 
+  const dotClass = [
+    "stock-empresa-mapa-dot",
+    bordeBlanco ? "stock-empresa-mapa-dot--borde-blanco" : "stock-empresa-mapa-dot--ganadero",
+    colorHex ? "" : "stock-empresa-mapa-dot--empty",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
   return (
     <div className="stock-empresa-select-wrap">
       <span
-        className={`stock-color-caravana-swatch stock-empresa-select-swatch${
-          colorHex ? "" : " stock-color-caravana-swatch--empty"
-        }`}
+        className={dotClass}
         style={colorHex ? { backgroundColor: colorHex } : undefined}
+        title={colorHex ? "Color de la empresa en el mapa" : undefined}
         aria-hidden
       />
       {select}

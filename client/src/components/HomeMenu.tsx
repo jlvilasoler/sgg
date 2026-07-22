@@ -35,6 +35,7 @@ import { confirmAction } from "../utils/confirm";
 import HomeHubDashboard from "./home/HomeHubDashboard";
 import HomeCampoMapaPanel from "./home/HomeCampoMapaPanel";
 import HomeStockPotreroPanel from "./home/HomeStockPotreroPanel";
+import HomeStockEquinoPotreroPanel from "./home/HomeStockEquinoPotreroPanel";
 import HomeNotasBoard from "./home/HomeNotasBoard";
 import HomeNotaModal from "./home/HomeNotaModal";
 import HomeTareasDiaPanel from "./home/HomeTareasDiaPanel";
@@ -317,6 +318,8 @@ export default function HomeMenu({
   const puedeTareasOperativas = canAccessScreen(user, "tareas_operativas");
   const puedeStockGanadero =
     canAccessScreen(user, "stock_ganadero") && canShowHomePanel(user, "stock_potrero");
+  const puedeStockEquino =
+    canAccessScreen(user, "stock_equino") && canShowHomePanel(user, "stock_equino_potrero");
   const showModulosRapidos = canShowHomePanel(user, "modulos_rapidos");
   const showKpisOperativos = canShowHomePanel(user, "kpis_operativos");
   const showKpisGastos = canShowHomePanel(user, "kpis_gastos");
@@ -381,6 +384,15 @@ export default function HomeMenu({
     />
   );
 
+  const renderStockEquinoPotreroPanel = () => (
+    <HomeStockEquinoPotreroPanel
+      user={user}
+      apiOnline={apiOnline}
+      onOpenStock={() => onOpen("stock_equino")}
+      onOpenMapa={puedeMapaCampo ? () => onOpen("campo_mapa") : undefined}
+    />
+  );
+
   const renderMapaCampoPanel = () => (
     <HomeCampoMapaPanel
       apiOnline={apiOnline}
@@ -405,7 +417,9 @@ export default function HomeMenu({
   );
 
   const showStockInDashboardFs =
-    dashboardFullscreen && puedeStockGanadero && showKpiDashboardPanel;
+    dashboardFullscreen &&
+    (puedeStockGanadero || puedeStockEquino) &&
+    showKpiDashboardPanel;
   const showFsSideStack =
     dashboardFullscreen &&
     showKpiDashboardPanel &&
@@ -567,7 +581,10 @@ export default function HomeMenu({
               >
                 {renderKpiDashboard()}
                 {showStockInDashboardFs ? (
-                  <div className="home-hub-dashboard-fs-stock">{renderStockPotreroPanel()}</div>
+                  <div className="home-hub-dashboard-fs-stock">
+                    {puedeStockGanadero ? renderStockPotreroPanel() : null}
+                    {puedeStockEquino ? renderStockEquinoPotreroPanel() : null}
+                  </div>
                 ) : null}
                 {showFsSideStack ? (
                   <div className="home-hub-dashboard-fs-side">
@@ -764,6 +781,17 @@ export default function HomeMenu({
                   }
                   if (panelId === "stock_potrero" && puedeStockGanadero && !dashboardFullscreen) {
                     return <Fragment key="stock_potrero">{renderStockPotreroPanel()}</Fragment>;
+                  }
+                  if (
+                    panelId === "stock_equino_potrero" &&
+                    puedeStockEquino &&
+                    !dashboardFullscreen
+                  ) {
+                    return (
+                      <Fragment key="stock_equino_potrero">
+                        {renderStockEquinoPotreroPanel()}
+                      </Fragment>
+                    );
                   }
                   if (panelId === "modulos_rapidos" && showModulosRapidos && !dashboardFullscreen) {
                     return (

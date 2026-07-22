@@ -23,6 +23,7 @@ export interface CampoMapaDispositivoMarker {
 }
 
 const DEFAULT_MARKER_COLOR = "#94a3b8";
+const EQUINO_MARKER_STROKE = "#ffffff";
 
 function darkenHexColor(hex: string, factor = 0.72): string {
   const cleaned = hex.replace("#", "").trim();
@@ -41,6 +42,32 @@ function deviceMarkerFillColor(
     d.color_caravana || colorEmpresaOperativa(d.empresa, empresas),
   );
   return hexColorCaravana(colorId) ?? DEFAULT_MARKER_COLOR;
+}
+
+/** Equinos: borde blanco. Ganaderos: sin blanco (borde oscurecido del mismo color). */
+function dispositivoCircleMarkerOptions(
+  fillColor: string,
+  radius: number,
+  kind: "ganadero" | "equino",
+): L.CircleMarkerOptions {
+  if (kind === "equino") {
+    return {
+      radius,
+      color: EQUINO_MARKER_STROKE,
+      weight: 2,
+      opacity: 1,
+      fillColor,
+      fillOpacity: 0.95,
+    };
+  }
+  return {
+    radius,
+    color: darkenHexColor(fillColor),
+    weight: 1,
+    opacity: 1,
+    fillColor,
+    fillOpacity: 0.95,
+  };
 }
 
 type AssignedDevice = {
@@ -255,14 +282,10 @@ export function renderCampoMapaDispositivoMarkersPreview(
   const group = L.layerGroup();
 
   for (const marker of markers) {
-    L.circleMarker([marker.lat, marker.lng], {
-      radius: 5,
-      color: darkenHexColor(marker.fillColor),
-      weight: 1,
-      fillColor: marker.fillColor,
-      fillOpacity: 0.95,
-      interactive: false,
-    }).addTo(group);
+    L.circleMarker(
+      [marker.lat, marker.lng],
+      dispositivoCircleMarkerOptions(marker.fillColor, 5, marker.kind),
+    ).addTo(group);
   }
 
   group.addTo(map);
@@ -341,13 +364,10 @@ export function renderCampoMapaDispositivoMarkers(
   map.on("popupclose", onPopupClose);
 
   for (const marker of markers) {
-    const circle = L.circleMarker([marker.lat, marker.lng], {
-      radius: 6,
-      color: darkenHexColor(marker.fillColor),
-      weight: 1,
-      fillColor: marker.fillColor,
-      fillOpacity: 0.95,
-    });
+    const circle = L.circleMarker(
+      [marker.lat, marker.lng],
+      dispositivoCircleMarkerOptions(marker.fillColor, 6, marker.kind),
+    );
 
     circle.on("mouseover", () => {
       if (pinnedMarkerId != null) return;

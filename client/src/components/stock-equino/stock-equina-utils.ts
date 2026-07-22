@@ -58,6 +58,56 @@ export function etiquetaCaravana(d: {
   return d.clave;
 }
 
+/** True si el equino tiene ficha de cabaña (RP / nombre / origen). */
+export function esEquinoCabana(d: {
+  origen_alta?: string | null;
+  nombre_animal?: string | null;
+  nombre_cabana?: string | null;
+  rp?: string | null;
+  registro?: string | null;
+  cabana_premium?: boolean | null;
+}): boolean {
+  return (
+    String(d.origen_alta ?? "").trim().toLowerCase() === "cabana" ||
+    Boolean(d.nombre_animal?.trim()) ||
+    Boolean(d.nombre_cabana?.trim()) ||
+    Boolean(d.rp?.trim()) ||
+    Boolean(d.registro?.trim()) ||
+    Boolean(d.cabana_premium)
+  );
+}
+
+/** Etiqueta de baja: REG + datos de cabaña si existen. */
+export function etiquetaBajaEquino(d: {
+  eid: string;
+  vid: string;
+  clave: string;
+  nombre_animal?: string | null;
+  nombre_cabana?: string | null;
+  rp?: string | null;
+  registro?: string | null;
+}): string {
+  const partes = [etiquetaCaravana(d)];
+  const detalle = detalleCabanaEquino(d);
+  if (detalle) partes.push(detalle);
+  return partes.join(" · ");
+}
+
+/** Solo datos de cabaña (sin REG), para subtítulos junto al REG. */
+export function detalleCabanaEquino(d: {
+  nombre_animal?: string | null;
+  nombre_cabana?: string | null;
+  rp?: string | null;
+  registro?: string | null;
+}): string {
+  const partes: string[] = [];
+  const nombre = d.nombre_animal?.trim() || d.nombre_cabana?.trim();
+  if (nombre) partes.push(nombre);
+  if (d.rp?.trim()) partes.push(`RP ${d.rp.trim()}`);
+  if (d.registro?.trim()) partes.push(d.registro.trim());
+  return partes.join(" · ");
+}
+
 export const MESES_NACIMIENTO = [
   { value: 1, label: "Enero" },
   { value: 2, label: "Febrero" },

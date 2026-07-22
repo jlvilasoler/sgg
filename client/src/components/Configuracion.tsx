@@ -13,6 +13,7 @@ import {
   canAccessConfigHomeLayout,
   canAccessConfigRubrosSag,
   canAccessConfigDotacionGanadera,
+  canAccessConfigDotacionEquina,
   canAccessConfiguracionSag,
   canAccessControlGlobalCuentas,
   canAccessArquitecturaCuenta,
@@ -39,6 +40,7 @@ import ConfigVencimientosImpuestos from "./ConfigVencimientosImpuestos";
 import BillingMercadoPagoSettings from "./config/BillingMercadoPagoSettings";
 import BillingAdminSuscripciones from "./config/BillingAdminSuscripciones";
 import ConfigDotacionGanadera from "./config/ConfigDotacionGanadera";
+import ConfigDotacionEquina from "./config/ConfigDotacionEquina";
 import ConfigHomeLayout from "./config/ConfigHomeLayout";
 import ConfigHomeLayoutMonitor from "./config/ConfigHomeLayoutMonitor";
 import ConfigEnvioNotificaciones from "./config/ConfigEnvioNotificaciones";
@@ -71,6 +73,7 @@ type SagModulo =
   | "documentos_digitales"
   | "catalogo_sanitario_productos"
   | "dotacion_ganadera"
+  | "dotacion_equina"
   | "home_layout"
   | "home_layout_monitor"
   | "rubros_sag"
@@ -228,6 +231,12 @@ export default function Configuracion({
     if (
       modulo === "dotacion_ganadera" &&
       !canAccessConfigDotacionGanadera(currentUser ?? null)
+    ) {
+      setModulo("sag_hub");
+    }
+    if (
+      modulo === "dotacion_equina" &&
+      !canAccessConfigDotacionEquina(currentUser ?? null)
     ) {
       setModulo("sag_hub");
     }
@@ -586,6 +595,20 @@ export default function Configuracion({
       <ConfigDotacionGanadera
         volverLabel="Volver a Configuración SAG"
         onVolver={() => volverConfigDashboard("dotacion_ganadera")}
+      />
+    );
+  }
+
+  if (
+    modulo === "dotacion_equina" &&
+    currentUser &&
+    canAccessConfigDotacionEquina(currentUser)
+  ) {
+    return wrapConfigSubmodule(
+      "dotacion_equina",
+      <ConfigDotacionEquina
+        volverLabel="Volver a Configuración SAG"
+        onVolver={() => volverConfigDashboard("dotacion_equina")}
       />
     );
   }

@@ -42,8 +42,8 @@ export const STOCK_EQUINO_SUBMENU: StockEquinoHubItem[] = [
   },
   {
     id: "importar_baja",
-    label: "Baja de Dispositivo",
-    subtitle: "Archivo TXT · baja manual",
+    label: "Baja de Equinos",
+    subtitle: "Solo números · REG · cabaña",
     icon: "stock_baja",
   },
   {
@@ -55,7 +55,7 @@ export const STOCK_EQUINO_SUBMENU: StockEquinoHubItem[] = [
   {
     id: "equina",
     label: "Stock Equino",
-    subtitle: "Dispositivos REG · detalle por caravana",
+    subtitle: "Dispositivos REG · detalle por equino",
     icon: "stock_dispositivos",
   },
   {
@@ -82,8 +82,9 @@ const MODULE_META: Record<
       "Alta genérica por cantidad, potrero y categoría, o alta individual de cabaña (RP, nombre, registro y premios). Misma secuencia de IDs.",
   },
   importar_baja: {
-    title: "Baja de Dispositivo",
-    subtitle: "Importá un archivo TXT de bajas o registrá salidas manualmente por caravana.",
+    title: "Baja de Equinos",
+    subtitle:
+      "Registrá salidas solo por número: REG (genéricos) o RP, nombre y registro (cabaña).",
   },
   listado: {
     title: "Lecturas importadas",
@@ -96,7 +97,7 @@ const MODULE_META: Record<
   },
   equina: {
     title: "Dispositivos REG",
-    subtitle: "Stock equino activo, filtros por estado y detalle de cada caravana.",
+    subtitle: "Stock equino activo, filtros por estado y detalle de cada equino.",
   },
   salidas: {
     title: "Salidas del sistema",

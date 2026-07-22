@@ -11,6 +11,7 @@ export const HOME_PANEL_IDS = [
   "mapa_campo",
   "vencimientos",
   "stock_potrero",
+  "stock_equino_potrero",
   "modulos_rapidos",
 ] as const;
 
@@ -92,6 +93,13 @@ export const HOME_PANEL_META: HomePanelMeta[] = [
     zone: "side",
   },
   {
+    id: "stock_equino_potrero",
+    kicker: "Stock",
+    label: "Equinos por potrero",
+    hint: "Resumen equino y densidad UE/ha",
+    zone: "side",
+  },
+  {
     id: "modulos_rapidos",
     kicker: "Accesos",
     label: "Accesos rápidos",
@@ -131,6 +139,7 @@ export const DEFAULT_HOME_LAYOUT: HomeLayoutMap = {
   mapa_campo: true,
   vencimientos: true,
   stock_potrero: true,
+  stock_equino_potrero: true,
   modulos_rapidos: true,
 };
 

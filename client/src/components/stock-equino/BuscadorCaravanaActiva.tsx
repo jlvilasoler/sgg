@@ -44,7 +44,25 @@ function coincideBusqueda(d: StockEquinaDispositivo, q: string): boolean {
   if (eid.includes(t) || vid.includes(t)) return true;
   if (digits && (d.clave.includes(digits) || vid.includes(digits) || reg.replace(/\D/g, "").includes(digits)))
     return true;
+  const rp = d.rp?.trim().toLowerCase() ?? "";
+  const nombre = (d.nombre_animal?.trim() || d.nombre_cabana?.trim() || "").toLowerCase();
+  const registro = d.registro?.trim().toLowerCase() ?? "";
+  if (rp && rp.includes(t)) return true;
+  if (nombre && nombre.includes(t)) return true;
+  if (registro && registro.includes(t)) return true;
   return false;
+}
+
+function sublineEquino(d: StockEquinaDispositivo): string {
+  const cats = [...categoriasDispositivo(d)];
+  const catTxt =
+    cats.length > 0 ? cats.map((k) => labelCategoriaFiltro(k)).join(" · ") : "";
+  const cabana: string[] = [];
+  const nombre = d.nombre_animal?.trim() || d.nombre_cabana?.trim();
+  if (nombre) cabana.push(nombre);
+  if (d.rp?.trim()) cabana.push(`RP ${d.rp.trim()}`);
+  if (d.registro?.trim()) cabana.push(d.registro.trim());
+  return [...cabana, catTxt, d.sexo, d.empresa].filter(Boolean).join(" · ");
 }
 
 function textosBuscador(variant: Props["variant"]) {
@@ -65,20 +83,37 @@ function textosBuscador(variant: Props["variant"]) {
       emptyGeneral: "No hay dispositivos activos disponibles.",
     };
   }
+  if (variant === "baja") {
+    return {
+      errorCargar: "Error al cargar equinos activos",
+      placeholder: "Buscar por REG, RP, nombre o registro…",
+      toggleAbierto: "Cerrar listado",
+      toggleCerrado: "Ver equinos activos",
+      metaLoading: "Cargando equinos activos…",
+      metaCount: (n: number, filtro?: string, busq?: number) =>
+        `${n} equino(s)${filtro ? ` · ${filtro}` : " activo(s)"}${
+          busq != null ? ` · ${busq} coincidencia(s)` : ""
+        }`,
+      emptyBusqueda: "Sin coincidencias con el filtro y la búsqueda.",
+      emptySinCoincidencias: "Sin coincidencias en el stock activo.",
+      emptyCategoria: (label: string) => `No hay equinos activos en ${label}.`,
+      emptyGeneral: "No hay equinos activos disponibles.",
+    };
+  }
   return {
-    errorCargar: "Error al cargar caravanas activas",
-    placeholder: "Buscar caravana activa por REG…",
+    errorCargar: "Error al cargar equinos activos",
+    placeholder: "Buscar equino activo por REG…",
     toggleAbierto: "Cerrar listado",
-    toggleCerrado: "Ver caravanas activas",
-    metaLoading: "Cargando caravanas activas…",
+    toggleCerrado: "Ver equinos activos",
+    metaLoading: "Cargando equinos activos…",
     metaCount: (n: number, filtro?: string, busq?: number) =>
-      `${n} caravana(s)${filtro ? ` · ${filtro}` : " activa(s)"}${
+      `${n} equino(s)${filtro ? ` · ${filtro}` : " activo(s)"}${
         busq != null ? ` · ${busq} coincidencia(s)` : ""
       }`,
     emptyBusqueda: "Sin coincidencias con el filtro y la búsqueda.",
     emptySinCoincidencias: "Sin coincidencias en el stock activo.",
-    emptyCategoria: (label: string) => `No hay caravanas activas en ${label}.`,
-    emptyGeneral: "No hay caravanas activas disponibles.",
+    emptyCategoria: (label: string) => `No hay equinos activos en ${label}.`,
+    emptyGeneral: "No hay equinos activos disponibles.",
   };
 }
 
@@ -276,16 +311,11 @@ export default function BuscadorCaravanaActiva({
                       {etiquetaCaravana(d)}
                     </span>
                     {(() => {
-                      const cats = [...categoriasDispositivo(d)];
-                      const catTxt =
-                        cats.length > 0
-                          ? cats.map((k) => labelCategoriaFiltro(k)).join(" · ")
-                          : "";
-                      const extra = [catTxt, d.sexo, d.empresa].filter(Boolean);
-                      if (!extra.length) return null;
+                      const extra = sublineEquino(d);
+                      if (!extra) return null;
                       return (
                         <span className="stock-buscador-caravana-opcion-sub">
-                          {extra.join(" · ")}
+                          {extra}
                         </span>
                       );
                     })()}

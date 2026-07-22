@@ -286,6 +286,11 @@ export function canAccessConfigDotacionGanadera(user: AuthUser | null): boolean 
   return Boolean(user?.es_super_admin);
 }
 
+/** Dotación equina — equivalencias UE (Configuración SAG): solo superadministrador. */
+export function canAccessConfigDotacionEquina(user: AuthUser | null): boolean {
+  return Boolean(user?.es_super_admin);
+}
+
 /** Panel Rubros y sub-rubros SAG (catálogo global): solo superadministrador. */
 export function canAccessConfigRubrosSag(user: AuthUser | null): boolean {
   return Boolean(user?.es_super_admin);

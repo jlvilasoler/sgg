@@ -1,13 +1,11 @@
-import { useCallback, useId, useMemo, useRef, useState, type FormEvent } from "react";
-import {
-  importStockEquinoBajaDispositivos,
-  importStockEquinoBajaFile,
-  type TipoBaja,
-} from "../../api";
+import { useCallback, useId, useMemo, useState, type FormEvent } from "react";
+import { importStockEquinoBajaDispositivos, type TipoBaja } from "../../api";
 import type { StockEquinaDispositivo } from "../../types";
 import BuscadorCaravanaActiva from "./BuscadorCaravanaActiva";
 import { PageModuleHeadRow } from "../PageModuleHead";
 import {
+  detalleCabanaEquino,
+  etiquetaBajaEquino,
   etiquetaCaravana,
   fechaHoyIso,
   fmtTipoBaja,
@@ -22,8 +20,6 @@ interface Props {
   onVolver: () => void;
   embedded?: boolean;
 }
-
-type ModoImport = "archivo" | "manual";
 
 interface BajaItemMeta {
   tipo_baja: TipoBaja;
@@ -44,32 +40,15 @@ interface BajaConfirmada extends BajaItemMeta {
   etiqueta: string;
 }
 
-const COLUMNAS = ["EID", "VID", "Date", "Time", "Condición"] as const;
-const EXTENSIONES_ACEPTADAS = [".txt", ".csv"] as const;
+/** Identificadores reales del equino (genérico + cabaña). */
+const CAMPOS_EQUINO = ["REG", "RP", "Nombre", "Registro"] as const;
 
 const TIPOS_BAJA_HINTS: Partial<Record<TipoBaja, string>> = {
-  VENTA_FRIGORIFICO: "Dispositivos vendidos a frigorífico — estado Vendido",
+  VENTA_FRIGORIFICO: "Equinos vendidos a frigorífico — estado Vendido",
   VENTA_PRODUCTOR: "Venta a productor — estado Vendido",
   MUERTE: "Muerte — estado Muerto",
   PERDIDO: "Extraviado — estado Extraviado",
 };
-
-function esArchivoStockValido(f: File): boolean {
-  const name = f.name.toLowerCase();
-  if (EXTENSIONES_ACEPTADAS.some((ext) => name.endsWith(ext))) return true;
-  const mime = f.type.toLowerCase();
-  return (
-    mime === "text/plain" ||
-    mime === "text/csv" ||
-    mime === "application/csv" ||
-    mime === "application/vnd.ms-excel"
-  );
-}
-
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  return `${(bytes / 1024).toFixed(1)} KB`;
-}
 
 function fmtFechaCorta(iso: string): string {
   const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
@@ -92,22 +71,15 @@ export default function StockEquinoImportarBaja({
   embedded = false,
 }: Props) {
   const formId = useId();
-  const [tipoBajaArchivo, setTipoBajaArchivo] = useState<TipoBaja>("VENTA_FRIGORIFICO");
   const [formTipoBaja, setFormTipoBaja] = useState<TipoBaja>("VENTA_FRIGORIFICO");
   const [formFecha, setFormFecha] = useState(fechaHoyIso);
   const [formNumeroGuia, setFormNumeroGuia] = useState("");
   const [formObservaciones, setFormObservaciones] = useState("");
-  const [modo, setModo] = useState<ModoImport>("archivo");
-  const [file, setFile] = useState<File | null>(null);
   const [seleccion, setSeleccion] = useState<StockEquinaDispositivo | null>(null);
   const [pendientes, setPendientes] = useState<BajaPendiente[]>([]);
   const [confirmadas, setConfirmadas] = useState<BajaConfirmada[]>([]);
   const [listaRefresh, setListaRefresh] = useState(0);
   const [importing, setImporting] = useState(false);
-  const [dragOver, setDragOver] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  const tipoArchivoLabel = fmtTipoBaja(tipoBajaArchivo);
 
   const excludeClaves = useMemo(
     () => new Set(pendientes.map((p) => p.clave)),
@@ -136,57 +108,12 @@ export default function StockEquinoImportarBaja({
     return true;
   };
 
-  const pickFile = useCallback(
-    (f: File | null) => {
-      if (!f) {
-        setFile(null);
-        return;
-      }
-      if (!esArchivoStockValido(f)) {
-        onError("Solo archivos .txt o .csv (export Tru-Test)");
-        return;
-      }
-      setFile(f);
-    },
-    [onError]
-  );
-
-  const onDrop = useCallback(
-    (e: React.DragEvent) => {
-      e.preventDefault();
-      setDragOver(false);
-      if (!apiOnline || importing) return;
-      const f = e.dataTransfer.files?.[0];
-      if (f) pickFile(f);
-    },
-    [apiOnline, importing, pickFile]
-  );
-
-  const importarArchivo = async () => {
-    if (!file) {
-      onError("Seleccioná un archivo .txt o .csv");
-      return;
-    }
-    setImporting(true);
-    try {
-      const r = await importStockEquinoBajaFile(file, tipoBajaArchivo);
-      onSuccess(r.message, "Bajas importadas");
-      setFile(null);
-      if (inputRef.current) inputRef.current.value = "";
-      onImported();
-    } catch (e) {
-      onError(e instanceof Error ? e.message : "Error al importar bajas");
-    } finally {
-      setImporting(false);
-    }
-  };
-
   const aplicarBajas = async (
     items: BajaPendiente[],
     opts?: { limpiarPendientes?: boolean }
   ) => {
     if (!items.length) {
-      onError("Ingresá al menos un dispositivo");
+      onError("Ingresá al menos un equino");
       return;
     }
     for (const item of items) {
@@ -204,7 +131,7 @@ export default function StockEquinoImportarBaja({
           observaciones: item.observaciones || undefined,
         }))
       );
-      onSuccess(r.message, "Bajas importadas");
+      onSuccess(r.message, "Bajas registradas");
       setConfirmadas((prev) => [
         ...prev,
         ...items.map((item) => ({
@@ -225,7 +152,7 @@ export default function StockEquinoImportarBaja({
       setListaRefresh((k) => k + 1);
       onImported();
     } catch (e) {
-      onError(e instanceof Error ? e.message : "Error al importar bajas");
+      onError(e instanceof Error ? e.message : "Error al registrar bajas");
     } finally {
       setImporting(false);
     }
@@ -234,13 +161,13 @@ export default function StockEquinoImportarBaja({
   const agregarPendiente = (e?: FormEvent) => {
     e?.preventDefault();
     if (!seleccion) {
-      onError("Elegí una caravana activa del buscador");
+      onError("Elegí un equino activo del buscador");
       return;
     }
     const meta = metaFormulario();
     if (!validarMeta(meta)) return;
     if (pendientes.some((p) => p.clave === seleccion.clave)) {
-      onError("Esa caravana ya está en la lista");
+      onError("Ese equino ya está en la lista");
       return;
     }
     setPendientes((prev) => [
@@ -248,7 +175,7 @@ export default function StockEquinoImportarBaja({
       {
         id: nextBajaId(),
         clave: seleccion.clave,
-        etiqueta: etiquetaCaravana(seleccion),
+        etiqueta: etiquetaBajaEquino(seleccion),
         ...meta,
       },
     ]);
@@ -263,7 +190,7 @@ export default function StockEquinoImportarBaja({
       {
         id: nextBajaId(),
         clave: seleccion.clave,
-        etiqueta: etiquetaCaravana(seleccion),
+        etiqueta: etiquetaBajaEquino(seleccion),
         ...meta,
       },
     ]);
@@ -299,167 +226,12 @@ export default function StockEquinoImportarBaja({
 
   const offlineBanner = !apiOnline ? (
     <div className="stock-import-offline" role="status">
-      Conectá la API (puerto 3001) para importar bajas.
+      Conectá la API (puerto 3001) para registrar bajas.
     </div>
   ) : null;
 
-  const importTabs = (
-    <div
-      className={`stock-import-tabs${embedded ? " stock-import-tabs--hub" : " stock-import-tabs--baja"}`}
-      role="tablist"
-      aria-label="Modo de importación de bajas"
-    >
-      <button
-        type="button"
-        role="tab"
-        aria-selected={modo === "archivo"}
-        className={`stock-import-tab${modo === "archivo" ? " is-active" : ""}`}
-        onClick={() => setModo("archivo")}
-      >
-        Archivo .txt / .csv
-      </button>
-      <button
-        type="button"
-        role="tab"
-        aria-selected={modo === "manual"}
-        className={`stock-import-tab${modo === "manual" ? " is-active" : ""}`}
-        onClick={() => setModo("manual")}
-      >
-        Solo números
-        {pendientes.length > 0 ? (
-          <span
-            className={`stock-import-tab-badge${embedded ? " stock-import-tab-badge--hub" : " stock-import-tab-badge--baja"}`}
-          >
-            {pendientes.length}
-          </span>
-        ) : null}
-      </button>
-    </div>
-  );
-
-  const archivoPaneFields = (
-    <>
-      <div className="stock-import-baja-datos stock-import-baja-datos--archivo">
-        <div className="field stock-import-field">
-          <label htmlFor={`${formId}-tipo-baja-archivo`}>Tipo de baja</label>
-          <select
-            id={`${formId}-tipo-baja-archivo`}
-            className="stock-import-select"
-            value={tipoBajaArchivo}
-            disabled={!apiOnline || importing}
-            onChange={(e) => setTipoBajaArchivo(e.target.value as TipoBaja)}
-          >
-            {TIPOS_BAJA.map((t) => (
-              <option key={t.value} value={t.value}>
-                {t.label}
-              </option>
-            ))}
-          </select>
-          <p className="stock-import-field-hint muted">{TIPOS_BAJA_HINTS[tipoBajaArchivo]}</p>
-        </div>
-      </div>
-
-      <p className="stock-import-pane-hint">
-        Aplicando bajas como <strong>{tipoArchivoLabel}</strong>
-      </p>
-      <div
-        className={`stock-dropzone${embedded ? " stock-dropzone--hub" : " stock-dropzone--baja"}${dragOver ? " is-dragover" : ""}${file ? " has-file" : ""}`}
-        onDragOver={(e) => {
-          e.preventDefault();
-          if (apiOnline && !importing) setDragOver(true);
-        }}
-        onDragLeave={() => setDragOver(false)}
-        onDrop={onDrop}
-        onClick={() => {
-          if (apiOnline && !importing && !file) inputRef.current?.click();
-        }}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            if (apiOnline && !importing) inputRef.current?.click();
-          }
-        }}
-        role="button"
-        tabIndex={apiOnline && !importing ? 0 : -1}
-        aria-label="Zona para soltar archivo de bajas"
-      >
-        <input
-          ref={inputRef}
-          type="file"
-          className="stock-dropzone-input"
-          accept=".txt,.csv,text/plain,text/csv"
-          disabled={!apiOnline || importing}
-          onChange={(e) => pickFile(e.target.files?.[0] ?? null)}
-        />
-
-        {file ? (
-          <div className="stock-file-preview">
-            <span className="stock-file-icon" aria-hidden>
-              ✓
-            </span>
-            <div className="stock-file-meta">
-              <strong className="stock-file-name">{file.name}</strong>
-              <span>{formatBytes(file.size)}</span>
-            </div>
-            <button
-              type="button"
-              className="stock-file-clear"
-              disabled={importing}
-              onClick={(e) => {
-                e.stopPropagation();
-                setFile(null);
-                if (inputRef.current) inputRef.current.value = "";
-              }}
-              aria-label="Quitar archivo"
-            >
-              ×
-            </button>
-          </div>
-        ) : (
-          <>
-            <span className="stock-dropzone-graphic" aria-hidden>
-              ↑
-            </span>
-            <p className="stock-dropzone-title">Soltá el archivo aquí</p>
-            <p className="stock-dropzone-sub">
-              Lista de caravanas a dar de baja · Tru-Test o lector RFID
-            </p>
-          </>
-        )}
-      </div>
-    </>
-  );
-
-  const archivoPane = (
-    <section className="stock-import-pane" aria-label="Importar bajas desde archivo">
-      {embedded ? (
-        <div className="stock-baja-form-fields-box">{archivoPaneFields}</div>
-      ) : (
-        archivoPaneFields
-      )}
-
-      <div className={`stock-import-pane-foot${embedded ? " stock-import-pane-foot--hub" : ""}`}>
-        <button
-          type="button"
-          className={btnPrimary}
-          disabled={!apiOnline || importing || !file}
-          onClick={() => void importarArchivo()}
-        >
-          {importing ? (
-            <>
-              <span className="stock-import-spinner" aria-hidden />
-              Procesando…
-            </>
-          ) : (
-            `Aplicar bajas (${tipoArchivoLabel})`
-          )}
-        </button>
-      </div>
-    </section>
-  );
-
   const manualPane = (
-    <section className="stock-import-pane" aria-label="Baja manual por número">
+    <section className="stock-import-pane" aria-label="Baja por número de equino">
       <form
         id={formId}
         className="stock-import-form stock-import-form--solo-numero"
@@ -467,7 +239,7 @@ export default function StockEquinoImportarBaja({
       >
         <div className={embedded ? "stock-baja-form-fields-box" : undefined}>
           <div className="field stock-import-field stock-import-field--numero">
-            <label htmlFor={`${formId}-buscador`}>Caravana activa</label>
+            <label htmlFor={`${formId}-buscador`}>Equino activo</label>
             <BuscadorCaravanaActiva
               id={`${formId}-buscador`}
               apiOnline={apiOnline}
@@ -479,8 +251,12 @@ export default function StockEquinoImportarBaja({
               onSelect={setSeleccion}
             />
             {seleccion ? (
-              <div className={`stock-import-seleccion-activa${embedded ? " stock-import-seleccion-activa--hub" : ""}`}>
-                <span className="stock-import-seleccion-label">Seleccionada:</span>
+              <div
+                className={`stock-import-seleccion-activa${
+                  embedded ? " stock-import-seleccion-activa--hub" : ""
+                }`}
+              >
+                <span className="stock-import-seleccion-label">Seleccionado:</span>
                 <strong className="num">{etiquetaCaravana(seleccion)}</strong>
                 <button
                   type="button"
@@ -490,11 +266,16 @@ export default function StockEquinoImportarBaja({
                 >
                   ×
                 </button>
+                {detalleCabanaEquino(seleccion) ? (
+                  <span className="stock-import-seleccion-extra muted">
+                    {detalleCabanaEquino(seleccion)}
+                  </span>
+                ) : null}
               </div>
             ) : (
               <p className="stock-import-field-hint muted">
-                Abrí el listado o escribí para filtrar. Solo caravanas con estado{" "}
-                <strong>Vivo</strong>.
+                Buscá por <strong>REG</strong>, número, <strong>RP</strong>, nombre o registro
+                genealógico. Solo equinos con estado <strong>Vivo</strong> (genéricos y cabaña).
               </p>
             )}
           </div>
@@ -515,6 +296,7 @@ export default function StockEquinoImportarBaja({
                   </option>
                 ))}
               </select>
+              <p className="stock-import-field-hint muted">{TIPOS_BAJA_HINTS[formTipoBaja]}</p>
             </div>
 
             <div className="field stock-import-field">
@@ -558,7 +340,9 @@ export default function StockEquinoImportarBaja({
         </div>
 
         <div
-          className={`stock-import-form-actions stock-import-form-actions--baja${embedded ? " stock-import-form-actions--hub" : ""}`}
+          className={`stock-import-form-actions stock-import-form-actions--baja${
+            embedded ? " stock-import-form-actions--hub" : ""
+          }`}
         >
           <button
             type="button"
@@ -573,16 +357,16 @@ export default function StockEquinoImportarBaja({
             type="submit"
             className={btnSecondary}
             disabled={!apiOnline || importing || !seleccion}
-            title="Suma la caravana a la lista para dar de baja varias juntas"
+            title="Suma el equino a la lista para dar de baja varios juntos"
           >
-            Agregar y buscar otra
+            Agregar y buscar otro
           </button>
           <button
             type="button"
             className={btnPrimary}
             disabled={!apiOnline || importing || !seleccion}
             onClick={confirmarSeleccion}
-            title="Da de baja solo la caravana seleccionada"
+            title="Da de baja solo el equino seleccionado"
           >
             Confirmar baja
           </button>
@@ -590,7 +374,11 @@ export default function StockEquinoImportarBaja({
       </form>
 
       {pendientes.length > 0 ? (
-        <div className={`stock-import-queue${embedded ? " stock-baja-hub-box stock-baja-hub-box--queue" : ""}`}>
+        <div
+          className={`stock-import-queue${
+            embedded ? " stock-baja-hub-box stock-baja-hub-box--queue" : ""
+          }`}
+        >
           <div className="stock-import-queue-head">
             {embedded ? (
               <>
@@ -600,7 +388,9 @@ export default function StockEquinoImportarBaja({
             ) : (
               <h4>Pendientes de confirmar</h4>
             )}
-            <span className={`muted${embedded ? " stock-baja-queue-count" : ""}`}>{pendientes.length}</span>
+            <span className={`muted${embedded ? " stock-baja-queue-count" : ""}`}>
+              {pendientes.length}
+            </span>
           </div>
           <ul className="stock-import-numero-lista">
             {pendientes.map((row) => (
@@ -612,7 +402,7 @@ export default function StockEquinoImportarBaja({
                 <button
                   type="button"
                   className="stock-import-queue-remove"
-                  aria-label="Quitar dispositivo"
+                  aria-label="Quitar equino"
                   disabled={importing}
                   onClick={() => quitarPendiente(row.id)}
                 >
@@ -626,7 +416,9 @@ export default function StockEquinoImportarBaja({
 
       {confirmadas.length > 0 ? (
         <div
-          className={`stock-import-queue stock-import-queue--confirmadas${embedded ? " stock-baja-hub-box stock-baja-hub-box--queue" : ""}`}
+          className={`stock-import-queue stock-import-queue--confirmadas${
+            embedded ? " stock-baja-hub-box stock-baja-hub-box--queue" : ""
+          }`}
         >
           <div className="stock-import-queue-head">
             {embedded ? (
@@ -637,7 +429,9 @@ export default function StockEquinoImportarBaja({
             ) : (
               <h4>Bajas confirmadas en esta sesión</h4>
             )}
-            <span className={`muted${embedded ? " stock-baja-queue-count" : ""}`}>{confirmadas.length}</span>
+            <span className={`muted${embedded ? " stock-baja-queue-count" : ""}`}>
+              {confirmadas.length}
+            </span>
           </div>
           <ul className="stock-import-numero-lista stock-import-numero-lista--confirmadas">
             {confirmadas.map((row) => (
@@ -658,7 +452,7 @@ export default function StockEquinoImportarBaja({
         </div>
       ) : (
         <p className="stock-import-queue-empty muted">
-          Completá los datos de baja, elegí la caravana y pulsá <strong>Confirmar baja</strong>.
+          Completá los datos de baja, elegí el equino y pulsá <strong>Confirmar baja</strong>.
           Aparecerá acá el listado de bajas realizadas.
         </p>
       )}
@@ -690,29 +484,27 @@ export default function StockEquinoImportarBaja({
         <section className="stock-baja-hub-box" aria-label="Guía de baja">
           <header className="stock-baja-hub-head-box">
             <p className="sg-hub-panel-kicker">Baja</p>
-            <h2 className="stock-baja-hub-title">Dispositivos fuera del stock</h2>
+            <h2 className="stock-baja-hub-title">Equinos fuera del stock</h2>
             <p className="stock-baja-hub-sub muted">
-              Marcá caravanas como vendidas, frigorífico, muerte u otras salidas. Salen del stock
-              activo y quedan registradas en el dispositivo.
+              Marcá equinos como vendidos, frigorífico, muerte u otras salidas. Salen del stock
+              activo y quedan registrados en la ficha.
             </p>
           </header>
           <div className="stock-import-chips stock-import-chips--hub">
-            {COLUMNAS.map((col) => (
+            {CAMPOS_EQUINO.map((col) => (
               <span key={col} className="stock-import-chip stock-import-chip--hub">
                 {col}
               </span>
             ))}
           </div>
           <p className="stock-baja-hub-note muted">
-            El archivo usa columnas EID, Date, etc.; la fecha define mes y año de baja. En carga
-            manual completá tipo, fecha, guía y observaciones — solo aparecen dispositivos{" "}
-            <strong>vivos</strong> en el stock.
+            La baja es <strong>solo por números</strong>: buscá por REG (genéricos) o por RP,
+            nombre y registro (cabaña). Completá tipo, fecha, guía y observaciones.
           </p>
         </section>
 
-        <section className="stock-baja-hub-box stock-baja-hub-box--main" aria-label="Importar bajas">
-          <div className="stock-baja-hub-tabs-box">{importTabs}</div>
-          {modo === "archivo" ? archivoPane : manualPane}
+        <section className="stock-baja-hub-box stock-baja-hub-box--main" aria-label="Registrar bajas">
+          {manualPane}
         </section>
       </div>
     </>
@@ -721,8 +513,8 @@ export default function StockEquinoImportarBaja({
       <div className="form-header stock-import-head">
         <PageModuleHeadRow
           icon={{ source: "hub", id: "stock_baja" }}
-          title="Importar bajas"
-          subtitle="Marcá caravanas como vendidas, frigorífico, muerte u otras salidas. Salen del stock activo y quedan registradas en el dispositivo."
+          title="Baja de equinos"
+          subtitle="Marcá equinos como vendidos, frigorífico, muerte u otras salidas. Solo por número (REG, RP, nombre o registro)."
         />
       </div>
 
@@ -739,39 +531,27 @@ export default function StockEquinoImportarBaja({
 
           <div className="stock-facet-group">
             <div className="stock-facet-group-head">
-              <h4 className="stock-facet-group-title">Archivo</h4>
+              <h4 className="stock-facet-group-title">Solo números</h4>
             </div>
             <div className="stock-import-chips stock-import-chips--sidebar stock-import-chips--baja">
-              {COLUMNAS.map((col) => (
+              {CAMPOS_EQUINO.map((col) => (
                 <span key={col} className="stock-import-chip stock-import-chip--baja">
                   {col}
                 </span>
               ))}
             </div>
             <p className="stock-import-sidebar-note">
-              El archivo usa columnas EID, Date, etc. La fecha del archivo define mes y año de baja.
-            </p>
-          </div>
-
-          <div className="stock-facet-group">
-            <div className="stock-facet-group-head">
-              <h4 className="stock-facet-group-title">Carga manual</h4>
-            </div>
-            <p className="stock-import-sidebar-note">
-              Elegí la caravana y completá <strong>tipo</strong>, <strong>fecha</strong>,{" "}
-              <strong>número guía</strong> y <strong>observaciones</strong>. Se guardan en el
-              dispositivo.
+              Genéricos: buscá por <strong>REG</strong> (EID-VID). Cabaña: también por{" "}
+              <strong>RP</strong>, <strong>nombre</strong> o <strong>registro</strong>.
             </p>
             <p className="stock-import-sidebar-note">
-              Solo aparecen dispositivos <strong>vivos</strong> en el stock.
+              Completá <strong>tipo</strong>, <strong>fecha</strong>, <strong>número guía</strong> y{" "}
+              <strong>observaciones</strong>. Solo aparecen equinos <strong>vivos</strong>.
             </p>
           </div>
         </aside>
 
-        <div className="stock-equina-main stock-import-main">
-          {importTabs}
-          {modo === "archivo" ? archivoPane : manualPane}
-        </div>
+        <div className="stock-equina-main stock-import-main">{manualPane}</div>
       </div>
     </div>
   );

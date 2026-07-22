@@ -15,6 +15,7 @@ const PANEL_META: { id: HomePanelId; label: string; zone: "top" | "main" | "side
   { id: "mapa_campo", label: "Mapa de potreros", zone: "side" },
   { id: "vencimientos", label: "Próximos vencimientos", zone: "side" },
   { id: "stock_potrero", label: "Animales por potrero", zone: "side" },
+  { id: "stock_equino_potrero", label: "Equinos por potrero", zone: "side" },
   { id: "modulos_rapidos", label: "Módulos rápidos", zone: "side" },
 ];
 
