@@ -1326,3 +1326,123 @@ textarea {
     transform: scale(0.96);
   }
 }
+
+/* —— Sitio: modales compactos en móvil / tablet —— */
+@media (max-width: 768px) {
+  .pd-overlay,
+  .usuarios-form-modal-overlay,
+  .confirm-dialog-overlay {
+    align-items: flex-end;
+    justify-content: center;
+    padding: 0;
+    padding-top: env(safe-area-inset-top, 0);
+  }
+
+  .pd-dialog,
+  .usuarios-form-modal-overlay .pd-dialog,
+  .confirm-dialog {
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: min(94dvh, 100%);
+    margin: 0;
+    border-radius: 1rem 1rem 0 0;
+  }
+
+  .pd-dialog {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .pd-body,
+  .pd-dialog > .tareas-op-sanidad-modal-body,
+  .pd-dialog > form {
+    min-height: 0;
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .pd-footer,
+  .pd-dialog > footer {
+    flex-shrink: 0;
+  }
+
+  /* Tablas: scroll horizontal sin romper el layout */
+  .table-wrap,
+  .table-wrap-stock-pro,
+  .sg-hub-table-wrap,
+  .stock-table-scroll {
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Formularios hub: una columna y campos táctiles */
+  .bn-ui .form-grid,
+  .bn-ui .stock-import-form-grid,
+  .bn-ui .stock-sanidad-form-band-row {
+    grid-template-columns: 1fr !important;
+  }
+
+  .bn-ui input[type="text"],
+  .bn-ui input[type="number"],
+  .bn-ui input[type="email"],
+  .bn-ui input[type="password"],
+  .bn-ui input[type="date"],
+  .bn-ui input[type="search"],
+  .bn-ui select,
+  .bn-ui textarea {
+    font-size: 1rem;
+  }
+
+  .bn-ui .sg-hub-main--module,
+  .bn-ui .layout-content {
+    padding-left: max(0.65rem, env(safe-area-inset-left, 0));
+    padding-right: max(0.65rem, env(safe-area-inset-right, 0));
+  }
+
+  .bn-ui .sg-hub-cta,
+  .bn-ui .btn {
+    min-height: var(--touch-min, 2.75rem);
+  }
+}
+
+/* Tablet / iPad: modal centrado pero más ancho y denso */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .pd-dialog {
+    width: min(920px, 94vw);
+    max-height: min(92dvh, 900px);
+  }
+
+  .bn-ui .tareas-op-sanidad-modal--rutina.pd-dialog {
+    width: min(960px, 95vw);
+  }
+
+  .bn-ui .sg-hub-main--module {
+    padding-left: 0.85rem;
+    padding-right: 0.85rem;
+  }
+}
+
+/* Teléfonos chicos: aún más compacto */
+@media (max-width: 480px) {
+  .pd-brand,
+  .pd-hero,
+  .pd-body,
+  .pd-footer {
+    padding-left: 0.85rem;
+    padding-right: 0.85rem;
+  }
+
+  .bn-ui .sg-hub-main-title,
+  .bn-ui .stock-sanidad-hub-title {
+    font-size: clamp(1.05rem, 5vw, 1.25rem);
+  }
+
+  .bn-ui .sg-hub-kpi-grid,
+  .bn-ui .tareas-op-kpi-strip.sg-hub-kpi-strip {
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+  }
+}
+

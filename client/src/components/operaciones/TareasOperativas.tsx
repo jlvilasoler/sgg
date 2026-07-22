@@ -1053,7 +1053,7 @@ export default function TareasOperativas({
                   ) : (
                     <div className="stock-sanidad-form-fields-box">
                       <div className="stock-sanidad-form-body stock-sanidad-form-body--band">
-                        <section className="stock-control-sanitario-section stock-sanidad-form-section--admin">
+                        <section className="stock-control-sanitario-section stock-sanidad-form-section--admin tareas-op-rutina-sec tareas-op-rutina-sec--cuando">
                           <div className="stock-control-sanitario-section-head stock-control-sanitario-section-head--solo-titulo">
                             <StockControlSanitarioSectionTitle icon="admin">
                               Cuándo
@@ -1081,7 +1081,7 @@ export default function TareasOperativas({
                           </div>
                         </section>
 
-                        <section className="stock-control-sanitario-section stock-sanidad-form-section--controles tareas-op-responsables-section">
+                        <section className="stock-control-sanitario-section stock-sanidad-form-section--controles tareas-op-responsables-section tareas-op-rutina-sec tareas-op-rutina-sec--responsables">
                           <div className="stock-control-sanitario-section-head stock-control-sanitario-section-head--solo-titulo">
                             <h3 className="stock-control-sanitario-section-title stock-control-sanitario-section-title--controles">
                               <span className="stock-control-sanitario-section-title-icon" aria-hidden>
@@ -1108,7 +1108,7 @@ export default function TareasOperativas({
                           />
                         </section>
 
-                        <section className="stock-control-sanitario-section stock-sanidad-form-section--controles">
+                        <section className="stock-control-sanitario-section stock-sanidad-form-section--controles tareas-op-rutina-sec tareas-op-rutina-sec--tarea">
                           <StockControlSanitarioSectionTitle icon="controles">
                             La tarea
                           </StockControlSanitarioSectionTitle>
@@ -1126,7 +1126,7 @@ export default function TareasOperativas({
                           </div>
                         </section>
 
-                        <section className="stock-control-sanitario-section stock-sanidad-form-section--producto">
+                        <section className="stock-control-sanitario-section stock-sanidad-form-section--producto tareas-op-rutina-sec tareas-op-rutina-sec--donde">
                           <h3 className="stock-control-sanitario-section-title stock-control-sanitario-section-title--producto">
                             <span className="stock-control-sanitario-section-title-icon" aria-hidden>
                               <MapPin size={14} />
@@ -1172,7 +1172,7 @@ export default function TareasOperativas({
                           </div>
                         </section>
 
-                        <section className="stock-control-sanitario-section stock-sanidad-form-section--admin">
+                        <section className="stock-control-sanitario-section stock-sanidad-form-section--admin tareas-op-rutina-sec tareas-op-rutina-sec--indicaciones">
                           <div className="stock-control-sanitario-section-head stock-control-sanitario-section-head--solo-titulo">
                             <h3 className="stock-control-sanitario-section-title stock-control-sanitario-section-title--admin">
                               <span className="stock-control-sanitario-section-title-icon" aria-hidden>

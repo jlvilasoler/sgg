@@ -1153,17 +1153,20 @@
 
 .bn-ui .tareas-op-sanidad-modal.pd-dialog {
   width: min(860px, 94vw);
+  max-width: calc(100vw - 1rem);
   display: flex;
   flex-direction: column;
-  overflow: visible;
+  overflow: hidden;
+  max-height: min(94dvh, 920px);
   background: var(--sg-hub-workspace, #f6f4ef);
   border: 1px solid var(--tareas-op-border);
   border-radius: var(--sg-hub-radius-md, 0.85rem);
   box-shadow: 0 24px 64px rgba(42, 52, 38, 0.18);
 }
 
-.bn-ui .tareas-op-sanidad-modal--rutina {
-  max-height: none;
+.bn-ui .tareas-op-sanidad-modal--rutina.pd-dialog {
+  width: min(1080px, 96vw);
+  max-height: min(94dvh, 960px);
 }
 
 .bn-ui .tareas-op-sanidad-modal-head {
@@ -1177,6 +1180,7 @@
   border-radius: var(--sg-hub-radius-md, 0.85rem);
   background: var(--sg-hub-surface, #fff);
   box-shadow: var(--tareas-op-shadow-soft);
+  flex-shrink: 0;
 }
 
 .bn-ui .tareas-op-sanidad-modal-head-row {
@@ -1262,7 +1266,10 @@
   flex-direction: column;
   gap: 0.75rem;
   padding: 0.75rem 0.85rem;
-  overflow: visible;
+  overflow: auto;
+  min-height: 0;
+  flex: 1 1 auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .bn-ui .tareas-op-sanidad-modal-guide {
@@ -1330,6 +1337,48 @@
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+}
+
+/* Layout ancho de rutina: gana al flex anterior (misma especificidad + después) */
+.bn-ui .tareas-op-sanidad-modal--rutina .stock-sanidad-form-fields-box > .stock-sanidad-form-body--band {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.9fr) minmax(0, 1.35fr);
+  grid-template-areas:
+    "cuando tarea"
+    "responsables responsables"
+    "donde donde"
+    "indicaciones indicaciones";
+  gap: 0.75rem;
+  align-items: stretch;
+}
+
+.bn-ui .tareas-op-sanidad-modal--rutina .tareas-op-rutina-sec--cuando {
+  grid-area: cuando;
+}
+
+.bn-ui .tareas-op-sanidad-modal--rutina .tareas-op-rutina-sec--tarea {
+  grid-area: tarea;
+}
+
+.bn-ui .tareas-op-sanidad-modal--rutina .tareas-op-rutina-sec--responsables {
+  grid-area: responsables;
+}
+
+.bn-ui .tareas-op-sanidad-modal--rutina .tareas-op-rutina-sec--donde {
+  grid-area: donde;
+}
+
+.bn-ui .tareas-op-sanidad-modal--rutina .tareas-op-rutina-sec--indicaciones {
+  grid-area: indicaciones;
+}
+
+.bn-ui .tareas-op-sanidad-modal--rutina .tareas-op-responsables-section .notas-share-panel-list {
+  --notas-share-chip-width: min(11.5rem, calc(33.333% - 0.3rem));
+  max-height: none;
+}
+
+.bn-ui .tareas-op-sanidad-modal--rutina .stock-sanidad-form-band-row {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
 }
 
 .bn-ui .tareas-op-sanidad-modal .stock-sanidad-form-body--band .stock-sanidad-form-section--admin,
@@ -1441,6 +1490,7 @@
   border-radius: var(--sg-hub-radius-md, 0.85rem);
   background: var(--sg-hub-surface, #fff);
   box-shadow: var(--tareas-op-shadow-soft);
+  flex-shrink: 0;
 }
 
 .bn-ui .tareas-op-sanidad-modal-footer-actions {
@@ -1518,39 +1568,158 @@
 
 /* —— Responsive —— */
 
+@media (max-width: 1024px) {
+  .bn-ui .tareas-op-sanidad-modal--rutina.pd-dialog {
+    width: min(920px, 96vw);
+  }
+
+  .bn-ui .tareas-op-sanidad-modal--rutina .tareas-op-responsables-section .notas-share-panel-list {
+    --notas-share-chip-width: min(12rem, calc(50% - 0.2rem));
+  }
+}
+
 @media (max-width: 960px) {
   .bn-ui .tareas-op-grid {
     grid-template-columns: 1fr;
   }
+
+  .bn-ui .tareas-op-sanidad-modal--rutina .stock-sanidad-form-fields-box > .stock-sanidad-form-body--band {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "cuando"
+      "tarea"
+      "responsables"
+      "donde"
+      "indicaciones";
+  }
 }
 
-@media (max-width: 560px) {
+@media (max-width: 768px) {
+  .bn-ui .tareas-op-modal-overlay.pd-overlay {
+    align-items: flex-end;
+    padding: 0;
+    padding-top: env(safe-area-inset-top, 0);
+  }
+
+  .bn-ui .tareas-op-sanidad-modal.pd-dialog,
+  .bn-ui .tareas-op-sanidad-modal--rutina.pd-dialog {
+    width: 100%;
+    max-width: 100%;
+    max-height: min(94dvh, 100%);
+    margin: 0;
+    border-radius: 1rem 1rem 0 0;
+    box-shadow: 0 -8px 40px rgba(42, 52, 38, 0.16);
+  }
+
+  .bn-ui .tareas-op-sanidad-modal-head {
+    margin: 0.55rem 0.55rem 0;
+    padding: 0.7rem 0.75rem;
+  }
+
+  .bn-ui .tareas-op-sanidad-modal-body {
+    padding: 0.55rem 0.55rem 0.35rem;
+    gap: 0.55rem;
+  }
+
+  .bn-ui .tareas-op-sanidad-modal .stock-sanidad-form-fields-box {
+    padding: 0.55rem;
+  }
+
+  .bn-ui .tareas-op-sanidad-modal .stock-sanidad-form-body--band .stock-sanidad-form-section--admin,
+  .bn-ui .tareas-op-sanidad-modal .stock-sanidad-form-body--band .stock-sanidad-form-section--producto,
+  .bn-ui .tareas-op-sanidad-modal .stock-sanidad-form-body--band .stock-sanidad-form-section--controles {
+    padding: 0.6rem 0.7rem;
+  }
+
+  .bn-ui .tareas-op-sanidad-modal-footer {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    margin: 0;
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+    border-bottom: none;
+    box-shadow: 0 -6px 20px rgba(42, 52, 38, 0.08);
+    padding: 0.65rem 0.7rem calc(0.65rem + env(safe-area-inset-bottom, 0));
+    border-top: 1px solid var(--tareas-op-border);
+    background: color-mix(in srgb, var(--sg-hub-surface, #fff) 92%, #f6f4ef);
+    backdrop-filter: blur(8px);
+  }
+
+  .bn-ui .tareas-op-sanidad-modal .field input,
+  .bn-ui .tareas-op-sanidad-modal .field select {
+    min-height: var(--touch-min, 2.75rem);
+    font-size: 1rem; /* evita zoom iOS */
+  }
+
+  .bn-ui .tareas-op-sanidad-modal .field textarea {
+    min-height: 4.25rem;
+    font-size: 1rem;
+  }
+
+  .bn-ui .tareas-op-sanidad-modal--rutina .tareas-op-responsables-section .notas-share-panel-list {
+    --notas-share-chip-width: calc(50% - 0.2rem);
+  }
+
   .bn-ui .tareas-op-sanidad-modal .stock-sanidad-form-band-row {
     grid-template-columns: 1fr;
   }
 
+  .bn-ui .tareas-op-workspace {
+    gap: 0.75rem;
+    padding-bottom: 0.25rem;
+  }
+
+  .bn-ui .tareas-op-hero-inner {
+    padding: 0.85rem 0.9rem 0.8rem;
+  }
+
+  .bn-ui .tareas-op-hero-title {
+    font-size: clamp(1.15rem, 4.5vw, 1.4rem);
+  }
+}
+
+@media (max-width: 560px) {
   .bn-ui .tareas-op-sanidad-modal-footer {
     flex-direction: column;
     align-items: stretch;
-    gap: 0.75rem;
+    gap: 0.65rem;
   }
 
   .bn-ui .tareas-op-sanidad-modal-footer-actions {
     width: 100%;
     margin-left: 0;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
   }
 
   .bn-ui .tareas-op-sanidad-modal-footer-actions .sg-hub-cta {
     flex: 1;
+    width: 100%;
+    justify-content: center;
   }
 
   .bn-ui .tareas-op-sanidad-modal-head-row {
-    gap: 0.65rem;
+    gap: 0.55rem;
   }
 
   .bn-ui .tareas-op-sanidad-modal-head-icon {
-    width: 2.5rem;
-    height: 2.5rem;
+    width: 2.35rem;
+    height: 2.35rem;
+  }
+
+  .bn-ui .tareas-op-sanidad-modal-head .stock-sanidad-hub-title {
+    font-size: 1.05rem;
+  }
+
+  .bn-ui .tareas-op-sanidad-modal-head .stock-sanidad-hub-sub {
+    font-size: 0.78rem;
+  }
+
+  .bn-ui .tareas-op-sanidad-modal--rutina .tareas-op-responsables-section .notas-share-panel-list {
+    --notas-share-chip-width: 100%;
   }
 
   .bn-ui .tareas-op-day {
@@ -1575,6 +1744,7 @@
 
   .bn-ui .tareas-op-today-btn {
     width: 100%;
+    min-height: var(--touch-min, 2.75rem);
   }
 
   .bn-ui .tareas-op-hero-inner {
