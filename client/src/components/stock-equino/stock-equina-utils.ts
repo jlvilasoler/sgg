@@ -690,11 +690,10 @@ export function resolverFechaBajaFormulario(
 }
 
 export const GRUPO_PREFIX = "GEN";
-export const GRUPO_ANIO_MIN = 2000;
+const ANIO_NACIMIENTO_MIN = 1900;
+export const GRUPO_ANIO_MIN = ANIO_NACIMIENTO_MIN;
 
-const ANIO_NACIMIENTO_MIN = 1995;
-
-/** Años para grupo GEN (2000 → actual). */
+/** Años para grupo GEN (1900 → actual). */
 export function listAniosGrupo(): number[] {
   const max = new Date().getFullYear();
   const years: number[] = [];

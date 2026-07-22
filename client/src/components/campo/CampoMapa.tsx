@@ -2572,9 +2572,11 @@ export default function CampoMapa({
                             }`}
                             onClick={() => selectPotrero(item.id)}
                           >
-                            <span
-                              className="campo-mapa-swatch"
-                              style={{ background: item.color }}
+                            <MapPin
+                              size={16}
+                              className="campo-mapa-aside-pin"
+                              style={{ color: item.color }}
+                              aria-hidden
                             />
                             <span className="campo-mapa-aside-item-text">
                               <strong>{item.nombre}</strong>

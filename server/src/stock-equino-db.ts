@@ -573,7 +573,8 @@ async function migrateSplitEidVid(_db: Db): Promise<void> {}
 
 async function migrateStockEquinoDispositivoMeta(_db: Db): Promise<void> {}
 
-const GRUPO_ANIO_MIN = 2000;
+const NACIMIENTO_ANIO_MIN = 1900;
+const GRUPO_ANIO_MIN = NACIMIENTO_ANIO_MIN;
 const GRUPO_RE = /^GEN(\d{4})(?:-(\d{4}))?$/;
 
 function validarGrupo(grupo: string): string {
@@ -958,8 +959,8 @@ function validarNacimiento(
     throw new Error("Mes de nacimiento inválido.");
   }
   const maxAnio = new Date().getFullYear();
-  if (!Number.isInteger(anio) || anio < 1995 || anio > maxAnio) {
-    throw new Error(`Año de nacimiento inválido (1995–${maxAnio}).`);
+  if (!Number.isInteger(anio) || anio < NACIMIENTO_ANIO_MIN || anio > maxAnio) {
+    throw new Error(`Año de nacimiento inválido (${NACIMIENTO_ANIO_MIN}–${maxAnio}).`);
   }
   return { nacimiento_mes: mes, nacimiento_anio: anio };
 }
@@ -2984,8 +2985,8 @@ function parseFechaNacimientoAlta(raw: string): {
   if (!Number.isInteger(dia) || dia < 1 || dia > 31) {
     throw new Error("Día de nacimiento inválido.");
   }
-  if (!Number.isInteger(anio) || anio < 1990 || anio > maxAnio) {
-    throw new Error(`Año de nacimiento inválido (1990–${maxAnio}).`);
+  if (!Number.isInteger(anio) || anio < NACIMIENTO_ANIO_MIN || anio > maxAnio) {
+    throw new Error(`Año de nacimiento inválido (${NACIMIENTO_ANIO_MIN}–${maxAnio}).`);
   }
   const d = new Date(anio, mes - 1, dia);
   if (
