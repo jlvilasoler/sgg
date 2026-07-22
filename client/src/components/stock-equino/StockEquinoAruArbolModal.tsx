@@ -25,10 +25,6 @@ function arbolUrlRapido(registro: string): string {
   return `${ARU_ARBOL_BASE}?${qs.toString()}`;
 }
 
-function embedDesdeArbol(arbolUrl: string): string {
-  return `/api/stock-equino/aru/arbol-embed?url=${encodeURIComponent(arbolUrl)}`;
-}
-
 export default function StockEquinoAruArbolModal({
   open,
   onClose,
@@ -44,7 +40,6 @@ export default function StockEquinoAruArbolModal({
   const [iframeLoading, setIframeLoading] = useState(false);
   const [statusMsg, setStatusMsg] = useState("Preparando árbol…");
   const [arbolUrl, setArbolUrl] = useState<string | null>(null);
-  const [embedUrl, setEmbedUrl] = useState<string | null>(null);
   const [animalLabel, setAnimalLabel] = useState("");
   const [iframeError, setIframeError] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
@@ -55,7 +50,6 @@ export default function StockEquinoAruArbolModal({
       setIframeLoading(false);
       setStatusMsg("Preparando árbol…");
       setArbolUrl(null);
-      setEmbedUrl(null);
       setAnimalLabel("");
       setIframeError(false);
       setLocalError(null);
@@ -73,9 +67,7 @@ export default function StockEquinoAruArbolModal({
 
     // Camino rápido: con registro mostramos el árbol al instante.
     if (reg) {
-      const url = arbolUrlRapido(reg);
-      setArbolUrl(url);
-      setEmbedUrl(embedDesdeArbol(url));
+      setArbolUrl(arbolUrlRapido(reg));
       setIframeLoading(true);
       setLoading(false);
       setStatusMsg("");
@@ -85,7 +77,6 @@ export default function StockEquinoAruArbolModal({
     setLoading(true);
     setIframeLoading(false);
     setArbolUrl(null);
-    setEmbedUrl(null);
     setStatusMsg("Buscando el animal en ARU…");
 
     const controller = new AbortController();
@@ -101,7 +92,6 @@ export default function StockEquinoAruArbolModal({
         });
         if (reqId !== requestIdRef.current) return;
         setArbolUrl(data.arbol_url);
-        setEmbedUrl(embedDesdeArbol(data.arbol_url));
         setIframeLoading(true);
         const label = [data.animal.nombre, data.animal.registro, data.animal.rp]
           .filter(Boolean)
