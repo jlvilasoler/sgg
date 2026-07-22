@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import L from "leaflet";
 import type { LucideIcon } from "lucide-react";
-import { Building2, Boxes, ChevronDown, ChevronRight, CircleDot, Cpu, Info, ListTree, Map, MapPin, Maximize2, MessageSquare, Minimize2, Pencil, Plus, Search, Sigma, Tag, Trash2, Undo2, VenusAndMars, X } from "lucide-react";
+import { Building2, Boxes, ChevronDown, ChevronRight, CircleDot, Cpu, Info, ListTree, Map, MapPin, Maximize2, MessageSquare, Minimize2, Pencil, Plus, Search, Sigma, Tag, Tags, Trash2, Undo2, VenusAndMars, X } from "lucide-react";
 import SgHubShell from "../hub/SgHubShell";
 import { MenuAppIcon } from "../icons/MenuAppIcons";
+import { StockEquinoModuleIcon } from "../stock/StockControlSanitarioSectionTitle";
 import {
   createCampoMapaElemento,
   createCampoPotreroMapa,
@@ -91,6 +92,16 @@ const POTRERO_RESUMEN_ICONS: Record<PotreroResumenModo, LucideIcon> = {
   sexo: VenusAndMars,
   totales: Sigma,
 };
+
+type CampoMapaDeviceKind = "ganadero" | "equino";
+
+const CAMPO_MAPA_DEVICE_KIND_OPTIONS: {
+  id: CampoMapaDeviceKind;
+  label: string;
+}[] = [
+  { id: "ganadero", label: "Ganado" },
+  { id: "equino", label: "Equinos" },
+];
 import {
   availableSaveTargets,
   canChangeSaveTarget,
@@ -258,7 +269,12 @@ export default function CampoMapa({
     DEFAULT_CAMPO_MAPA_BORDER_WEIGHT,
   );
   const [drawColor, setDrawColor] = useState<CampoMapaDrawColor>(loadCampoMapaDrawColor);
-  const [showDevicesOnMap, setShowDevicesOnMap] = useState(false);
+  const [deviceKindsOnMap, setDeviceKindsOnMap] = useState<CampoMapaDeviceKind[]>([]);
+  const [devicesMenuOpen, setDevicesMenuOpen] = useState(false);
+  const devicesMenuRef = useRef<HTMLDivElement | null>(null);
+  const showDevicesOnMap = deviceKindsOnMap.length > 0;
+  const showGanaderoOnMap = deviceKindsOnMap.includes("ganadero");
+  const showEquinoOnMap = deviceKindsOnMap.includes("equino");
   const [potreroResumenModos, setPotreroResumenModos] = useState<PotreroResumenModo[]>([]);
   const [potreroResumenMenuOpen, setPotreroResumenMenuOpen] = useState(false);
   const potreroResumenMenuRef = useRef<HTMLDivElement | null>(null);
@@ -969,16 +985,25 @@ export default function CampoMapa({
     renderMapLayers();
   }, [mapReady, renderMapLayers]);
 
+  const stockGanaderoVisible = useMemo(
+    () => (showGanaderoOnMap ? stockGanadero : []),
+    [showGanaderoOnMap, stockGanadero],
+  );
+  const stockEquinoVisible = useMemo(
+    () => (showEquinoOnMap ? stockEquino : []),
+    [showEquinoOnMap, stockEquino],
+  );
+
   const dispositivoMapMarkers = useMemo(
     () =>
       buildCampoMapaDispositivoMarkers(
         potreros,
         elementos,
-        stockGanadero,
-        stockEquino,
+        stockGanaderoVisible,
+        stockEquinoVisible,
         empresasOperativas,
       ),
-    [elementos, empresasOperativas, potreros, stockEquino, stockGanadero],
+    [elementos, empresasOperativas, potreros, stockEquinoVisible, stockGanaderoVisible],
   );
 
   useEffect(() => {
@@ -992,10 +1017,21 @@ export default function CampoMapa({
     );
   }, [dispositivoMapMarkers, mapReady, showDevicesOnMap]);
 
-  const potreroResumenes = useMemo(
-    () => buildAllPotreroResumenes(potreros, stockGanadero, stockEquino, empresasOperativas),
-    [empresasOperativas, potreros, stockEquino, stockGanadero],
-  );
+  const potreroResumenes = useMemo(() => {
+    // Si hay filtro de capas activo, el resumen sigue la misma visibilidad.
+    const ganadero = showDevicesOnMap ? stockGanaderoVisible : stockGanadero;
+    const equino = showDevicesOnMap ? stockEquinoVisible : stockEquino;
+    return buildAllPotreroResumenes(potreros, ganadero, equino, empresasOperativas);
+  }, [
+    empresasOperativas,
+    potreros,
+    showDevicesOnMap,
+    stockEquino,
+    stockEquinoVisible,
+    stockGanadero,
+    stockGanaderoVisible,
+  ]);
+
 
   useEffect(() => {
     const map = mapRef.current;
@@ -1024,9 +1060,29 @@ export default function CampoMapa({
     return () => document.removeEventListener("mousedown", onDocClick);
   }, [potreroResumenMenuOpen]);
 
+  useEffect(() => {
+    if (!devicesMenuOpen) return;
+    const onDocClick = (event: MouseEvent) => {
+      if (
+        devicesMenuRef.current &&
+        !devicesMenuRef.current.contains(event.target as Node)
+      ) {
+        setDevicesMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [devicesMenuOpen]);
+
   const togglePotreroResumenModo = useCallback((modo: PotreroResumenModo) => {
     setPotreroResumenModos((prev) =>
       prev.includes(modo) ? prev.filter((item) => item !== modo) : [...prev, modo],
+    );
+  }, []);
+
+  const toggleDeviceKindOnMap = useCallback((kind: CampoMapaDeviceKind) => {
+    setDeviceKindsOnMap((prev) =>
+      prev.includes(kind) ? prev.filter((item) => item !== kind) : [...prev, kind],
     );
   }, []);
 
@@ -3140,24 +3196,52 @@ export default function CampoMapa({
               >
                 {isFullscreen ? <Minimize2 size={18} aria-hidden /> : <Maximize2 size={18} aria-hidden />}
               </button>
-              <button
-                type="button"
-                className={`campo-mapa-map-corner-btn${showDevicesOnMap ? " is-active" : ""}`}
-                onClick={() => setShowDevicesOnMap((v) => !v)}
-                title={
-                  showDevicesOnMap
-                    ? "Ocultar dispositivos en el mapa"
-                    : "Mostrar dispositivos en el mapa"
-                }
-                aria-label={
-                  showDevicesOnMap
-                    ? "Ocultar dispositivos en el mapa"
-                    : "Mostrar dispositivos en el mapa"
-                }
-                aria-pressed={showDevicesOnMap}
-              >
-                <CircleDot size={18} aria-hidden />
-              </button>
+              <div className="campo-mapa-resumen-menu-wrap" ref={devicesMenuRef}>
+                <button
+                  type="button"
+                  className={`campo-mapa-map-corner-btn${showDevicesOnMap ? " is-active" : ""}${
+                    devicesMenuOpen ? " is-menu-open" : ""
+                  }`}
+                  onClick={() => setDevicesMenuOpen((open) => !open)}
+                  title="Visibilidad de animales en el mapa"
+                  aria-label="Visibilidad de ganado y equinos en el mapa"
+                  aria-haspopup="menu"
+                  aria-expanded={devicesMenuOpen}
+                >
+                  <CircleDot size={18} aria-hidden />
+                </button>
+                {devicesMenuOpen ? (
+                  <div
+                    className="campo-mapa-resumen-menu"
+                    role="menu"
+                    aria-label="Mostrar en el mapa"
+                  >
+                    {CAMPO_MAPA_DEVICE_KIND_OPTIONS.map((opcion) => {
+                      const active = deviceKindsOnMap.includes(opcion.id);
+                      return (
+                        <button
+                          key={opcion.id}
+                          type="button"
+                          role="menuitemcheckbox"
+                          className={`campo-mapa-map-corner-btn campo-mapa-resumen-menu-item${
+                            active ? " is-active" : ""
+                          }${opcion.id === "equino" ? " campo-mapa-device-kind-btn--equino" : ""}`}
+                          aria-checked={active}
+                          aria-label={opcion.label}
+                          title={opcion.label}
+                          onClick={() => toggleDeviceKindOnMap(opcion.id)}
+                        >
+                          {opcion.id === "ganadero" ? (
+                            <Tags size={18} aria-hidden />
+                          ) : (
+                            <StockEquinoModuleIcon size={18} strokeWidth={1.75} />
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : null}
+              </div>
               <div className="campo-mapa-resumen-menu-wrap" ref={potreroResumenMenuRef}>
                 <button
                   type="button"

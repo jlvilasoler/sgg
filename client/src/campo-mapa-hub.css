@@ -642,6 +642,12 @@
   flex-shrink: 0;
 }
 
+.campo-mapa-device-kind-btn--equino.is-active {
+  color: #c7d2fe;
+  border-color: rgba(165, 180, 252, 0.55);
+  background: rgba(99, 102, 241, 0.28);
+}
+
 .campo-mapa-potrero-resumen-total-only {
   margin: 0;
   padding: 0.1rem 0 0.15rem;
@@ -702,6 +708,73 @@
   pointer-events: none;
 }
 
+.campo-mapa-potrero-resumen-title {
+  margin: 0 0 0.35rem;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: #f8f6f0;
+  text-align: left;
+}
+
+.campo-mapa-potrero-resumen-kind {
+  margin-top: 0.35rem;
+  padding-top: 0.35rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.campo-mapa-potrero-resumen-kind:first-of-type {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+
+.campo-mapa-potrero-resumen-kind-head {
+  margin: 0 0 0.15rem;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: #d9f99d;
+}
+
+.campo-mapa-potrero-resumen-kind--equino .campo-mapa-potrero-resumen-kind-head {
+  color: #c7d2fe;
+}
+
+.campo-mapa-potrero-resumen-kind--equino .campo-mapa-potrero-resumen-swatch {
+  border-color: #ffffff;
+  box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.35);
+}
+
+.campo-mapa-potrero-resumen-kind-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: 0.2rem;
+  font-size: 0.62rem;
+  font-weight: 650;
+  color: rgba(248, 246, 240, 0.72);
+}
+
+.campo-mapa-potrero-resumen-kind-foot strong {
+  font-weight: 800;
+  color: #f8f6f0;
+}
+
+.campo-mapa-potrero-resumen-kind-total {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: #d9f99d;
+  text-align: center;
+}
+
+.campo-mapa-potrero-resumen-kind--equino .campo-mapa-potrero-resumen-kind-total {
+  color: #c7d2fe;
+}
+
 .campo-mapa-potrero-resumen-foot {
   display: flex;
   align-items: center;
@@ -713,6 +786,16 @@
   font-size: 0.68rem;
   font-weight: 700;
   color: rgba(248, 246, 240, 0.88);
+}
+
+.campo-mapa-potrero-resumen-foot--split {
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  gap: 0.35rem 0.75rem;
+}
+
+.campo-mapa-potrero-resumen-foot-total {
+  margin-left: auto;
 }
 
 .campo-mapa-potrero-resumen-foot strong {

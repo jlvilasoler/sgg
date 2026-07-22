@@ -16,11 +16,21 @@ export interface PotreroResumenFila {
   hex?: string;
 }
 
+export interface PotreroResumenKindBlock {
+  total: number;
+  porEmpresa: PotreroResumenFila[];
+  porSexo: PotreroResumenFila[];
+}
+
 export interface PotreroDispositivoResumen {
   potreroId: number;
   potreroNombre: string;
   total: number;
+  ganadero: PotreroResumenKindBlock;
+  equino: PotreroResumenKindBlock;
+  /** @deprecated usar ganadero/equino; se mantiene para compat. */
   porEmpresa: PotreroResumenFila[];
+  /** @deprecated usar ganadero/equino; se mantiene para compat. */
   porSexo: PotreroResumenFila[];
 }
 
@@ -59,7 +69,7 @@ function countRows(
 export function buildDispositivoResumenFilas(
   devices: StockGanaderaDispositivo[],
   empresas: EmpresaOperativaStock[],
-): Pick<PotreroDispositivoResumen, "porEmpresa" | "porSexo"> {
+): Pick<PotreroResumenKindBlock, "porEmpresa" | "porSexo"> {
   const porEmpresa = countRows(
     devices.map((device) => {
       const nombre = fmtEmpresaOperativa(device.empresa, empresas);
@@ -100,25 +110,50 @@ export function buildDispositivoResumenFilas(
   return { porEmpresa, porSexo };
 }
 
+function emptyKindBlock(): PotreroResumenKindBlock {
+  return { total: 0, porEmpresa: [], porSexo: [] };
+}
+
+function buildKindBlock(
+  devices: StockGanaderaDispositivo[],
+  empresas: EmpresaOperativaStock[],
+): PotreroResumenKindBlock {
+  if (devices.length === 0) return emptyKindBlock();
+  const { porEmpresa, porSexo } = buildDispositivoResumenFilas(devices, empresas);
+  return { total: devices.length, porEmpresa, porSexo };
+}
+
 export function buildPotreroDispositivoResumen(
   potrero: CampoPotreroMapa,
   ganadero: StockGanaderaDispositivo[],
   equino: StockGanaderaDispositivo[],
   empresas: EmpresaOperativaStock[],
 ): PotreroDispositivoResumen {
-  const devices = collectCampoMapaFeatureDevices(
+  const assigned = collectCampoMapaFeatureDevices(
     potrero.nombre,
     potrero.metadata,
     ganadero,
     equino,
-  ).map((item) => item.device);
+  );
 
-  const { porEmpresa, porSexo } = buildDispositivoResumenFilas(devices, empresas);
+  const devicesGanadero = assigned
+    .filter((item) => item.kind === "ganadero")
+    .map((item) => item.device);
+  const devicesEquino = assigned
+    .filter((item) => item.kind === "equino")
+    .map((item) => item.device);
+
+  const ganaderoBlock = buildKindBlock(devicesGanadero, empresas);
+  const equinoBlock = buildKindBlock(devicesEquino, empresas);
+  const allDevices = [...devicesGanadero, ...devicesEquino];
+  const { porEmpresa, porSexo } = buildDispositivoResumenFilas(allDevices, empresas);
 
   return {
     potreroId: potrero.id,
     potreroNombre: potrero.nombre,
-    total: devices.length,
+    total: allDevices.length,
+    ganadero: ganaderoBlock,
+    equino: equinoBlock,
     porEmpresa,
     porSexo,
   };
@@ -163,10 +198,60 @@ function renderResumenRows(
   </section>`;
 }
 
-function renderResumenFoot(total: number): string {
-  return `<footer class="campo-mapa-potrero-resumen-foot">
-    <span>Total de animales</span>
-    <strong>${total}</strong>
+function renderKindBlockHtml(
+  kindLabel: string,
+  block: PotreroResumenKindBlock,
+  modos: ReadonlySet<PotreroResumenModo>,
+  kindClass: "ganadero" | "equino",
+): string {
+  if (block.total === 0) return "";
+
+  const parts: string[] = [
+    `<header class="campo-mapa-potrero-resumen-kind-head">${kindLabel}</header>`,
+  ];
+
+  if (modos.has("empresa")) {
+    parts.push(renderResumenRows("Empresa", block.porEmpresa, true));
+  }
+  if (modos.has("sexo")) {
+    parts.push(renderResumenRows("Sexo", block.porSexo, true));
+  }
+  if (modos.has("totales") && !modos.has("empresa") && !modos.has("sexo")) {
+    parts.push(
+      `<p class="campo-mapa-potrero-resumen-kind-total">${block.total}</p>`,
+    );
+  } else {
+    parts.push(`<footer class="campo-mapa-potrero-resumen-kind-foot">
+      <span>Total ${kindLabel.toLowerCase()}</span>
+      <strong>${block.total}</strong>
+    </footer>`);
+  }
+
+  return `<div class="campo-mapa-potrero-resumen-kind campo-mapa-potrero-resumen-kind--${kindClass}">
+    ${parts.join("")}
+  </div>`;
+}
+
+function renderResumenFoot(resumen: PotreroDispositivoResumen): string {
+  const hasGanadero = resumen.ganadero.total > 0;
+  const hasEquino = resumen.equino.total > 0;
+
+  if (!hasGanadero && !hasEquino) {
+    return `<footer class="campo-mapa-potrero-resumen-foot">
+      <span>Total</span>
+      <strong>0</strong>
+    </footer>`;
+  }
+
+  // Un solo tipo: el bloque ya muestra su total.
+  if (hasGanadero !== hasEquino) {
+    return "";
+  }
+
+  return `<footer class="campo-mapa-potrero-resumen-foot campo-mapa-potrero-resumen-foot--split">
+    <span>Ganado <strong>${resumen.ganadero.total}</strong></span>
+    <span>Equinos <strong>${resumen.equino.total}</strong></span>
+    <span class="campo-mapa-potrero-resumen-foot-total">Total <strong>${resumen.total}</strong></span>
   </footer>`;
 }
 
@@ -174,18 +259,23 @@ export function potreroResumenPanelHtml(
   resumen: PotreroDispositivoResumen,
   modos: ReadonlySet<PotreroResumenModo>,
 ): string {
-  const parts: string[] = [];
+  const parts: string[] = [
+    `<p class="campo-mapa-potrero-resumen-title">${resumen.potreroNombre}</p>`,
+  ];
 
-  if (modos.has("totales")) {
-    parts.push(
-      `<p class="campo-mapa-potrero-resumen-total-only">${resumen.potreroNombre}</p>`,
-    );
-  }
-  if (modos.has("empresa")) {
-    parts.push(renderResumenRows("Empresa", resumen.porEmpresa, true));
-  }
-  if (modos.has("sexo")) {
-    parts.push(renderResumenRows("Sexo", resumen.porSexo, true));
+  const ganaderoHtml = renderKindBlockHtml(
+    "Ganado",
+    resumen.ganadero,
+    modos,
+    "ganadero",
+  );
+  const equinoHtml = renderKindBlockHtml("Equinos", resumen.equino, modos, "equino");
+
+  if (ganaderoHtml) parts.push(ganaderoHtml);
+  if (equinoHtml) parts.push(equinoHtml);
+
+  if (!ganaderoHtml && !equinoHtml) {
+    parts.push(`<p class="campo-mapa-potrero-resumen-empty">Sin animales</p>`);
   }
 
   const onlyTotales = modos.has("totales") && modos.size === 1;
@@ -193,7 +283,7 @@ export function potreroResumenPanelHtml(
 
   return `<div class="campo-mapa-potrero-resumen-panel${panelClass}" role="status" aria-label="Resumen de ${resumen.potreroNombre}">
     ${parts.join("")}
-    ${renderResumenFoot(resumen.total)}
+    ${renderResumenFoot(resumen)}
   </div>`;
 }
 
