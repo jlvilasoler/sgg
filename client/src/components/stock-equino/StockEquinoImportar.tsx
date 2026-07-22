@@ -151,7 +151,7 @@ export default function StockEquinoImportar({
   const [formGenerica, setFormGenerica] = useState<FormGenerica>(() => formGenericaVacio());
   const [formCabana, setFormCabana] = useState<FormCabana>(() => formCabanaVacio());
   const [importing, setImporting] = useState(false);
-  const [aruFuente, setAruFuente] = useState<string | null>(null);
+  const [aruFuente, setAruFuente] = useState(false);
   const [empresas, setEmpresas] = useState<
     Awaited<ReturnType<typeof fetchEmpresasOperativasStock>>
   >([]);
@@ -306,7 +306,7 @@ export default function StockEquinoImportar({
         "Alta cabaña completada"
       );
       setFormCabana(formCabanaVacio());
-      setAruFuente(null);
+      setAruFuente(false);
       onImported();
     } catch (err) {
       onError(err instanceof Error ? err.message : "Error en el alta de cabaña");
@@ -327,15 +327,15 @@ export default function StockEquinoImportar({
       ...(campos.registro ? { registro: campos.registro } : {}),
       ...(campos.premios ? { premios: campos.premios } : {}),
     }));
-    setAruFuente(meta.fuente_url || "https://aru.org.uy/rrgg/formulario.php");
+    setAruFuente(true);
     const partes = [
       meta.nombre || "Animal",
       meta.registro ? `reg. ${meta.registro}` : "",
       meta.rp ? `RP ${meta.rp}` : "",
     ].filter(Boolean);
     onSuccess(
-      `Datos ARU cargados: ${partes.join(" · ")}. Completá empresa y potrero si faltan.`,
-      "Pedigree ARU"
+      `Pedigree cargado: ${partes.join(" · ")}. Completá empresa y potrero si faltan.`,
+      "Pedigree"
     );
   };
 
@@ -742,10 +742,7 @@ export default function StockEquinoImportar({
       />
       {aruFuente ? (
         <p className="stock-aru-lookup-applied muted" role="status">
-          Ficha precargada desde ARU.{" "}
-          <a href={aruFuente} target="_blank" rel="noopener noreferrer">
-            Ver en ARU
-          </a>
+          Ficha precargada desde el registro genealógico.
         </p>
       ) : null}
       <form
@@ -771,7 +768,7 @@ export default function StockEquinoImportar({
             disabled={!apiOnline || importing}
             onClick={() => {
               setFormCabana(formCabanaVacio());
-              setAruFuente(null);
+              setAruFuente(false);
             }}
           >
             Limpiar

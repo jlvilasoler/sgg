@@ -243,7 +243,7 @@ export function securityHeaders(
   res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
   res.setHeader("X-DNS-Prefetch-Control", "off");
 
-  // HTML del árbol ARU se embebe en iframe same-origin: no aplicar DENY / frame-ancestors none.
+  // HTML del árbol genealógico se embebe en iframe same-origin.
   const isAruArbolEmbed =
     req.path === "/api/stock-equino/aru/arbol-embed" ||
     req.path.endsWith("/stock-equino/aru/arbol-embed");

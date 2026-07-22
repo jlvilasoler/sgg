@@ -2552,7 +2552,7 @@ export interface AruResultadoBusqueda {
   id: string;
   id_especie: string;
   id_raza: string;
-  detalle_url: string;
+  detalle_url?: string;
 }
 
 export interface AruDetalleAnimal {
@@ -2567,7 +2567,7 @@ export interface AruDetalleAnimal {
   criador_nombre: string;
   cabana: string;
   pelo: string;
-  fuente_url: string;
+  fuente_url?: string;
 }
 
 export async function fetchAruRazasEquinas(): Promise<AruRazaEquina[]> {
@@ -2608,9 +2608,11 @@ export async function fetchAruDetalleEquino(input: {
 }
 
 export interface AruArbolResolucion {
-  arbol_url: string;
-  detalle_url: string;
-  animal: AruResultadoBusqueda;
+  embed_path: string;
+  animal: Pick<
+    AruResultadoBusqueda,
+    "rp" | "registro" | "nombre" | "id" | "id_raza" | "publico"
+  >;
 }
 
 export async function resolverAruArbolEquino(input: {

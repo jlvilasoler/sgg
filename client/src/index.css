@@ -15293,60 +15293,137 @@ button.stock-device-ids__stack-btn {
 }
 
 .stock-aru-arbol-overlay {
+  --sg-hub-workspace: #f3f2ed;
+  --sg-hub-surface: #ffffff;
+  --sg-hub-accent: #7cb342;
+  --sg-hub-accent-soft: rgba(124, 179, 66, 0.16);
+  --sg-hub-sidebar: #2d3a2d;
+  --sg-hub-radius-md: 0.65rem;
+  --sg-hub-radius-card: 1.15rem;
+  --bn-border: #e2e8e0;
+  --bn-text: #1a211a;
+  --bn-muted: #64748b;
   position: fixed;
   inset: 0;
-  z-index: 1300;
+  z-index: 12060;
   display: flex;
-  align-items: center;
+  align-items: stretch;
   justify-content: center;
-  padding: 0.75rem;
-  background: rgba(15, 17, 20, 0.5);
+  padding: 0.35rem 5cm 0.4rem;
+  background: rgba(26, 33, 26, 0.52);
+  backdrop-filter: blur(8px);
+  overflow: hidden;
+  overscroll-behavior: contain;
+}
+
+.stock-aru-arbol-modal {
+  position: relative;
+  width: 100%;
+  height: calc(100dvh - 0.75rem);
+  max-width: none;
+  max-height: calc(100dvh - 0.75rem);
+  display: flex;
+  flex-direction: column;
+  margin: 0 auto;
+  background: var(--sg-hub-workspace);
+  border: 1px solid var(--bn-border);
+  border-radius: var(--sg-hub-radius-card);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.45) inset,
+    0 28px 72px rgba(20, 28, 20, 0.24);
   overflow: hidden;
   overscroll-behavior: none;
 }
 
-.stock-aru-arbol-modal {
-  width: min(72rem, calc(100vw - 1.5rem));
-  height: min(92vh, calc(100dvh - 1.5rem));
-  max-width: 100%;
-  max-height: 100%;
-  display: flex;
-  flex-direction: column;
-  background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.22);
-  overflow: hidden;
-  overscroll-behavior: none;
+.stock-aru-arbol-accent {
+  height: 3px;
+  flex-shrink: 0;
+  background: linear-gradient(90deg, #5a8f2a 0%, var(--sg-hub-accent) 50%, #9ccc65 100%);
+  border-radius: var(--sg-hub-radius-card) var(--sg-hub-radius-card) 0 0;
 }
 
 .stock-aru-arbol-head {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 1rem;
-  padding: 0.9rem 1.1rem;
-  border-bottom: 1px solid var(--border, #e2e8f0);
+  gap: 0.85rem;
+  margin: 0.85rem 0.85rem 0;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid var(--bn-border);
+  border-radius: var(--sg-hub-radius-md);
+  background: var(--sg-hub-surface);
+  box-shadow: 0 2px 10px rgba(30, 35, 41, 0.04);
   flex-shrink: 0;
 }
 
-.stock-aru-arbol-kicker {
-  margin: 0;
-  font-size: 0.68rem;
+.stock-aru-arbol-head-brand {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.stock-aru-arbol-head-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.85rem;
+  height: 2.85rem;
+  flex-shrink: 0;
+  border-radius: 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--sg-hub-accent) 28%, var(--bn-border));
+  background: var(--sg-hub-accent-soft);
+  color: #5a8f2a;
+}
+
+.stock-aru-arbol-head-copy {
+  min-width: 0;
+}
+
+.stock-aru-arbol-eyebrow {
+  margin: 0 0 0.2rem;
+  font-size: 0.64rem;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #2d6a4f;
+  color: var(--sg-hub-accent);
 }
 
 .stock-aru-arbol-title {
-  margin: 0.15rem 0 0;
-  font-size: 1.1rem;
-  font-weight: 700;
+  margin: 0.1rem 0 0;
+  font-size: clamp(1.15rem, 2vw, 1.4rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  color: var(--bn-text);
 }
 
-.stock-aru-arbol-sub {
-  margin: 0.25rem 0 0;
-  font-size: 0.84rem;
+.stock-aru-arbol-animal {
+  margin: 0.3rem 0 0;
+  font-size: 0.95rem;
+  font-weight: 650;
+  color: #3f6212;
+  line-height: 1.25;
+}
+
+.stock-aru-arbol-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.45rem;
+}
+
+.stock-aru-arbol-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.18rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--sg-hub-accent) 28%, var(--bn-border));
+  background: color-mix(in srgb, var(--sg-hub-accent) 14%, var(--sg-hub-surface));
+  color: #3f6212;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
 }
 
 .stock-aru-arbol-head-actions {
@@ -15354,15 +15431,91 @@ button.stock-device-ids__stack-btn {
   flex-wrap: wrap;
   gap: 0.4rem;
   align-items: center;
+  justify-content: flex-end;
+  flex-shrink: 0;
 }
 
-.stock-aru-arbol-body {
+.stock-aru-arbol-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0.48rem 0.95rem;
+  border: none;
+  border-radius: 999px;
+  background: linear-gradient(
+    135deg,
+    var(--sg-hub-sidebar) 0%,
+    color-mix(in srgb, var(--sg-hub-sidebar) 75%, var(--sg-hub-accent)) 100%
+  );
+  color: #fff;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 650;
+  text-decoration: none;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(26, 33, 26, 0.22);
+  transition: transform 0.12s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.stock-aru-arbol-cta:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(26, 33, 26, 0.28);
+}
+
+.stock-aru-arbol-cta--ghost {
+  background: var(--sg-hub-surface);
+  color: var(--bn-text);
+  border: 1px solid var(--bn-border);
+  box-shadow: none;
+}
+
+.stock-aru-arbol-cta--ghost:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--sg-hub-accent) 40%, var(--bn-border));
+  transform: none;
+  box-shadow: none;
+}
+
+.stock-aru-arbol-close {
+  width: 2.15rem;
+  height: 2.15rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.55rem;
+  border: 1px solid var(--bn-border);
+  background: var(--sg-hub-surface);
+  color: var(--bn-muted);
+  font-size: 1.35rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.stock-aru-arbol-close:hover {
+  border-color: color-mix(in srgb, var(--sg-hub-accent) 40%, var(--bn-border));
+  color: #5a8f2a;
+  background: color-mix(in srgb, var(--sg-hub-accent) 8%, #fff);
+}
+
+.stock-aru-arbol-workspace {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.65rem 0.85rem 0.7rem;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.stock-aru-arbol-box {
+  position: relative;
   flex: 1 1 auto;
   min-height: 0;
   min-width: 0;
-  background: #f8faf9;
+  border: 1px solid var(--bn-border);
+  border-radius: var(--sg-hub-radius-md);
+  background: var(--sg-hub-workspace);
+  box-shadow: 0 2px 10px rgba(30, 35, 41, 0.04);
   overflow: hidden;
-  position: relative;
 }
 
 .stock-aru-arbol-iframe {
@@ -15372,33 +15525,99 @@ button.stock-device-ids__stack-btn {
   height: 100%;
   border: 0;
   display: block;
-  background: #fff;
-  overflow: hidden;
+  background: var(--sg-hub-workspace);
 }
 
 .stock-aru-arbol-status,
 .stock-aru-arbol-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.65rem;
   padding: 1.5rem;
   font-size: 0.92rem;
-  overflow: hidden;
+  color: var(--bn-muted);
+  height: 100%;
+  min-height: 12rem;
+  margin: 0;
 }
 
 .stock-aru-arbol-status--overlay {
   position: absolute;
   inset: 0;
   z-index: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0;
-  background: color-mix(in srgb, #f8faf9 92%, #fff);
+  background: color-mix(in srgb, var(--sg-hub-surface) 88%, #f3f2ed);
   pointer-events: none;
+}
+
+.stock-aru-arbol-spinner {
+  width: 1.05rem;
+  height: 1.05rem;
+  border-radius: 50%;
+  border: 2px solid color-mix(in srgb, var(--sg-hub-accent) 28%, #fff);
+  border-top-color: #5a8f2a;
+  animation: stock-aru-arbol-spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes stock-aru-arbol-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.stock-aru-arbol-fallback {
+  flex-direction: column;
+  text-align: center;
+  color: var(--bn-text);
 }
 
 .stock-aru-arbol-fallback a {
   word-break: break-all;
-  color: #1b5e3b;
+  color: #5a8f2a;
   font-weight: 600;
+}
+
+.stock-aru-arbol-hint {
+  margin: 0;
+  padding: 0 0.15rem;
+  color: var(--bn-muted);
+  font-size: 0.76rem;
+  flex-shrink: 0;
+}
+
+@media (max-width: 1100px) {
+  .stock-aru-arbol-overlay {
+    padding-left: max(0.75rem, 4vw);
+    padding-right: max(0.75rem, 4vw);
+  }
+}
+
+@media (max-width: 720px) {
+  .stock-aru-arbol-overlay {
+    padding: 0.25rem;
+  }
+
+  .stock-aru-arbol-modal {
+    width: 100%;
+    height: calc(100dvh - 0.5rem);
+    max-height: calc(100dvh - 0.5rem);
+    border-radius: 0.9rem;
+  }
+
+  .stock-aru-arbol-head {
+    flex-direction: column;
+    align-items: stretch;
+    margin: 0.65rem 0.65rem 0;
+  }
+
+  .stock-aru-arbol-head-actions {
+    justify-content: flex-end;
+  }
+
+  .stock-aru-arbol-workspace {
+    padding: 0.6rem 0.65rem 0.7rem;
+  }
 }
 
 .stock-editar-ficha-zone--estado {
@@ -15408,22 +15627,96 @@ button.stock-device-ids__stack-btn {
   gap: 0.55rem;
 }
 
-.stock-editar-ficha-cell--aru-arbol {
+.stock-editar-aru-arbol-btn {
+  --aru-btn-accent: #7cb342;
+  --aru-btn-accent-soft: rgba(124, 179, 66, 0.16);
+  --aru-btn-sidebar: #2d3a2d;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  flex-shrink: 0;
+  align-self: stretch;
+  margin-left: auto;
+  padding: 0.42rem 0.85rem 0.42rem 0.5rem;
+  border: 1px solid color-mix(in srgb, var(--aru-btn-accent) 34%, #e2e8e0);
+  border-radius: 999px;
+  background: linear-gradient(
+    135deg,
+    var(--aru-btn-sidebar) 0%,
+    color-mix(in srgb, var(--aru-btn-sidebar) 72%, var(--aru-btn-accent)) 100%
+  );
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(26, 33, 26, 0.18);
+  cursor: pointer;
+  transition:
+    transform 0.12s ease,
+    box-shadow 0.15s ease,
+    border-color 0.15s ease,
+    filter 0.15s ease;
+}
+
+.stock-editar-aru-arbol-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 7px 18px rgba(26, 33, 26, 0.24);
+  filter: brightness(1.04);
+}
+
+.stock-editar-aru-arbol-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.stock-editar-aru-arbol-btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #e8f5d8;
+  flex-shrink: 0;
+}
+
+.stock-editar-aru-arbol-btn-copy {
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
+  align-items: flex-start;
+  gap: 0.05rem;
+  min-width: 0;
+  text-align: left;
 }
 
-.stock-editar-ficha-label-spacer {
-  display: block;
-  font-size: 0.7rem;
-  line-height: 1.2;
-  margin-bottom: 0.28rem;
-  visibility: hidden;
+.stock-editar-aru-arbol-btn-kicker {
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, #dcedc8 82%, #fff);
+  line-height: 1;
 }
 
-.stock-editar-aru-arbol-btn {
+.stock-editar-aru-arbol-btn-label {
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.15;
   white-space: nowrap;
+}
+
+.stock-edit-cabana-premium-box--gold .stock-editar-aru-arbol-btn {
+  margin-left: 0.15rem;
+}
+
+@media (max-width: 900px) {
+  .stock-edit-cabana-premium-box--gold .stock-editar-aru-arbol-btn {
+    width: 100%;
+    margin-left: 0;
+    justify-content: center;
+  }
 }
 
 .stock-bulk-modal {
@@ -46168,11 +46461,15 @@ button.sg-kpi-card:disabled {
 }
 
 .stock-editar-ficha--equino .stock-editar-ficha-sel--equino.stock-edit-cabana-premium-box--gold {
-  flex-direction: column;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem 0.75rem;
   flex: 1 1 auto;
   width: auto;
   max-width: none;
   min-width: 0;
+  padding: 0.45rem 0.55rem 0.45rem 0.7rem;
 }
 
 .stock-editar-ficha--equino .stock-editar-ficha-sel--equino .stock-edit-cabana-premium-tag {
@@ -46182,18 +46479,23 @@ button.sg-kpi-card:disabled {
 .stock-editar-ficha--equino .stock-editar-ficha-sel--equino .stock-edit-cabana-premium-fields {
   display: grid;
   grid-template-columns:
-    minmax(6rem, 0.85fr)
-    minmax(8rem, 1.1fr)
-    minmax(8rem, 1.1fr)
-    minmax(10rem, 1.4fr);
+    minmax(5.5rem, 0.75fr)
+    minmax(7.5rem, 1.05fr)
+    minmax(7.5rem, 1.05fr)
+    minmax(8.5rem, 1.25fr);
   grid-template-areas: "rp nombre registro premios";
   gap: 0.45rem 0.65rem;
   flex: 1 1 auto;
-  width: 100%;
+  width: auto;
   min-width: 0;
   border-left: none !important;
   padding-left: 0 !important;
   padding-top: 0 !important;
+}
+
+.stock-editar-ficha--equino .stock-editar-ficha-sel--equino .stock-editar-aru-arbol-btn {
+  flex: 0 0 auto;
+  margin-left: 0;
 }
 
 .stock-editar-ficha--equino .stock-edit-cabana-inline-field {

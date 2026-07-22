@@ -29,7 +29,7 @@ interface Props {
 const CRIOLLA_ID = "27";
 
 function labelConsulta(modo: AruBuscarPor): string {
-  if (modo === "registro") return "Número de registro (ARU)";
+  if (modo === "registro") return "Número de registro";
   if (modo === "criador") return "Código de criador";
   return "Nombre del animal";
 }
@@ -40,7 +40,7 @@ function placeholderConsulta(modo: AruBuscarPor): string {
   return "Ej. balin";
 }
 
-/** Solo pasa campos con valor real desde ARU (no inventa ni borra con vacío). */
+/** Solo pasa campos con valor real del pedigree (no inventa ni borra con vacío). */
 export function camposDesdeAruDetalle(d: AruDetalleAnimal): AruCamposAltaCabana {
   const out: AruCamposAltaCabana = {};
   if (d.rp.trim()) out.rp = d.rp.trim();
@@ -114,12 +114,12 @@ export default function StockEquinoAruPedigreeLookup({
       setResultados(rows);
       setBusquedaHecha(true);
       if (rows.length === 0) {
-        onError("ARU no devolvió animales con esos datos.");
+        onError("No se encontraron animales con esos datos.");
       }
     } catch (e) {
       setResultados([]);
       setBusquedaHecha(true);
-      onError(e instanceof Error ? e.message : "Error al consultar ARU");
+      onError(e instanceof Error ? e.message : "Error al consultar el registro genealógico");
     } finally {
       setBuscando(false);
     }
@@ -128,7 +128,7 @@ export default function StockEquinoAruPedigreeLookup({
   const aplicar = async (row: AruResultadoBusqueda) => {
     if (!apiOnline || disabled || aplicandoId) return;
     if (!row.publico) {
-      onError("Ese registro no es público en ARU; no se puede importar el detalle.");
+      onError("Ese registro no es público; no se puede importar el detalle.");
       return;
     }
     setAplicandoId(row.id);
@@ -142,12 +142,12 @@ export default function StockEquinoAruPedigreeLookup({
       });
       const campos = camposDesdeAruDetalle(detalle);
       if (Object.keys(campos).length === 0) {
-        onError("ARU no trajo campos útiles para el alta.");
+        onError("No llegaron campos útiles para el alta.");
         return;
       }
       onAplicar(campos, detalle);
     } catch (e) {
-      onError(e instanceof Error ? e.message : "Error al leer el detalle en ARU");
+      onError(e instanceof Error ? e.message : "Error al leer el detalle del animal");
     } finally {
       setAplicandoId(null);
     }
@@ -156,28 +156,21 @@ export default function StockEquinoAruPedigreeLookup({
   const busy = disabled || buscando || !!aplicandoId;
 
   return (
-    <div className="stock-aru-lookup" aria-label="Consulta pedigree ARU">
+    <div className="stock-aru-lookup" aria-label="Consulta pedigree">
       <header className="stock-aru-lookup-head">
         <div>
-          <p className="stock-aru-lookup-kicker">Pedigree ARU</p>
+          <p className="stock-aru-lookup-kicker">Pedigree</p>
           <h3 className="stock-aru-lookup-title">Importar desde registros genealógicos</h3>
           <p className="stock-aru-lookup-sub muted">
-            Buscá por registro, criador (+ RP) o nombre en{" "}
-            <a
-              href="https://aru.org.uy/rrgg/formulario.php"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              aru.org.uy
-            </a>
-            . Solo se completan los campos que ARU traiga; empresa y potrero los cargás vos.
+            Buscá por registro, criador (+ RP) o nombre. Solo se completan los campos que
+            traiga el registro; empresa y potrero los cargás vos.
           </p>
         </div>
       </header>
 
       <div className="stock-aru-lookup-filters">
         <div className="field stock-import-field">
-          <label htmlFor={`${formId}-aru-raza`}>Raza (ARU)</label>
+          <label htmlFor={`${formId}-aru-raza`}>Raza</label>
           <select
             id={`${formId}-aru-raza`}
             className="stock-edit-select"
@@ -269,7 +262,7 @@ export default function StockEquinoAruPedigreeLookup({
             disabled={!apiOnline || busy}
             onClick={() => void buscar()}
           >
-            {buscando ? "Buscando en ARU…" : "Buscar en ARU"}
+            {buscando ? "Buscando…" : "Buscar pedigree"}
           </button>
         </div>
       </div>
@@ -277,7 +270,7 @@ export default function StockEquinoAruPedigreeLookup({
       {busquedaHecha ? (
         <div className="stock-aru-lookup-results table-wrap">
           {resultados.length === 0 ? (
-            <p className="empty muted">Sin resultados en ARU.</p>
+            <p className="empty muted">Sin resultados.</p>
           ) : (
             <table className="data-table stock-aru-lookup-table">
               <thead>
@@ -304,7 +297,7 @@ export default function StockEquinoAruPedigreeLookup({
                         title={
                           row.publico
                             ? "Traer datos al formulario de alta"
-                            : "Registro no público en ARU"
+                            : "Registro no público"
                         }
                         onClick={() => void aplicar(row)}
                       >

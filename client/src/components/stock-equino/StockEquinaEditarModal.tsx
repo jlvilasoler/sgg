@@ -26,6 +26,7 @@ import StockDispositivoFotoCard, {
 import StockEquinaHistorialCambiosPanel from "./StockEquinaHistorialCambiosPanel";
 import StockControlSanitarioModal from "../stock/StockControlSanitarioModal";
 import StockEquinoAruArbolModal from "./StockEquinoAruArbolModal";
+import PedigreeTreeIcon from "./PedigreeTreeIcon";
 import {
   buildGrupo,
   calcularEdadMeses,
@@ -488,22 +489,6 @@ export default function StockEquinaEditarPanel({
                       onChange={setEstado}
                     />
                   </div>
-                  {esAnimalCabana ? (
-                    <div className="stock-editar-ficha-cell stock-editar-ficha-cell--aru-arbol">
-                      <span className="stock-editar-ficha-label-spacer" aria-hidden>
-                        &nbsp;
-                      </span>
-                      <button
-                        type="button"
-                        className="btn btn-secondary btn-sm stock-editar-aru-arbol-btn"
-                        disabled={!apiOnline || guardando}
-                        title="Ver árbol genealógico en ARU"
-                        onClick={() => setAruArbolOpen(true)}
-                      >
-                        Árbol genealógico
-                      </button>
-                    </div>
-                  ) : null}
                 </div>
               </div>
 
@@ -587,27 +572,46 @@ export default function StockEquinaEditarPanel({
                         autoComplete="off"
                       />
                     </div>
-                    <div className="stock-edit-cabana-inline-field stock-edit-cabana-inline-field--obs">
-                      <StockEditarFichaLabel
-                        icon="observaciones"
-                        htmlFor="edit-equina-premios"
-                        variant="cabana"
-                      >
-                        Premios
-                      </StockEditarFichaLabel>
-                      <textarea
-                        id="edit-equina-premios"
-                        className="stock-edit-cabana-input stock-edit-cabana-textarea"
-                        rows={1}
-                        maxLength={2000}
-                        placeholder="Premios que ganó…"
-                        value={premios}
-                        readOnly={soloLectura}
-                        disabled={!soloLectura && camposDeshabilitados}
-                        onChange={(e) => setPremios(e.target.value)}
-                      />
-                    </div>
+                    {(!soloLectura || premios.trim()) ? (
+                      <div className="stock-edit-cabana-inline-field stock-edit-cabana-inline-field--obs">
+                        <StockEditarFichaLabel
+                          icon="observaciones"
+                          htmlFor="edit-equina-premios"
+                          variant="cabana"
+                        >
+                          Premios
+                        </StockEditarFichaLabel>
+                        <textarea
+                          id="edit-equina-premios"
+                          className="stock-edit-cabana-input stock-edit-cabana-textarea"
+                          rows={1}
+                          maxLength={2000}
+                          placeholder="Premios que ganó…"
+                          value={premios}
+                          readOnly={soloLectura}
+                          disabled={!soloLectura && camposDeshabilitados}
+                          onChange={(e) => setPremios(e.target.value)}
+                        />
+                      </div>
+                    ) : null}
                   </div>
+                  {esAnimalCabana ? (
+                    <button
+                      type="button"
+                      className="stock-editar-aru-arbol-btn"
+                      disabled={!apiOnline || guardando}
+                      title="Ver árbol genealógico"
+                      onClick={() => setAruArbolOpen(true)}
+                    >
+                      <span className="stock-editar-aru-arbol-btn-icon" aria-hidden>
+                        <PedigreeTreeIcon size={18} />
+                      </span>
+                      <span className="stock-editar-aru-arbol-btn-copy">
+                        <span className="stock-editar-aru-arbol-btn-kicker">Pedigree</span>
+                        <span className="stock-editar-aru-arbol-btn-label">Árbol genealógico</span>
+                      </span>
+                    </button>
+                  ) : null}
                 </div>
               </div>
             </div>

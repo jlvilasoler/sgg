@@ -34,7 +34,9 @@ import {
   ARU_RAZAS_EQUINAS,
   buscarPedigreeAruEquino,
   detallePedigreeAruEquino,
-  htmlArbolAruParaEmbed,
+  fetchPedigreeAsset,
+  htmlArbolEmbedDesdeQuery,
+  mensajePedigreeCliente,
   resolverArbolAruEquino,
   type AruBuscarPor,
 } from "./aru-pedigree.js";
@@ -5808,9 +5810,11 @@ app.post("/api/stock-equino/aru/buscar", async (req, res) => {
       rp: String(body.rp ?? ""),
       rp_hasta: String(body.rp_hasta ?? ""),
     });
-    res.json({ ok: true, data, total: data.length });
+    // No exponer URLs externas al cliente.
+    const safe = data.map(({ detalle_url: _u, ...rest }) => rest);
+    res.json({ ok: true, data: safe, total: safe.length });
   } catch (e) {
-    res.status(400).json({ ok: false, error: (e as Error).message });
+    res.status(400).json({ ok: false, error: mensajePedigreeCliente(e) });
   }
 });
 
@@ -5830,9 +5834,10 @@ app.post("/api/stock-equino/aru/detalle", async (req, res) => {
       id_sesion: String(body.id_sesion ?? ""),
       id_especie: String(body.id_especie ?? "3"),
     });
-    res.json({ ok: true, data });
+    const { fuente_url: _f, ...safe } = data;
+    res.json({ ok: true, data: safe });
   } catch (e) {
-    res.status(400).json({ ok: false, error: (e as Error).message });
+    res.status(400).json({ ok: false, error: mensajePedigreeCliente(e) });
   }
 });
 
@@ -5861,35 +5866,69 @@ app.post("/api/stock-equino/aru/arbol", async (req, res) => {
       raza_id: String(body.raza_id ?? ""),
       sexo,
     });
-    res.json({ ok: true, data });
+    const registro =
+      String(body.registro ?? "").trim() ||
+      String(data.animal.registro ?? "").trim() ||
+      String(data.animal.id ?? "").trim();
+    const raza = String(data.animal.id_raza || body.raza_id || "27").trim();
+    res.json({
+      ok: true,
+      data: {
+        embed_path: `/api/stock-equino/aru/arbol-embed?registro=${encodeURIComponent(registro)}&raza=${encodeURIComponent(raza)}`,
+        animal: {
+          rp: data.animal.rp,
+          registro: data.animal.registro,
+          nombre: data.animal.nombre,
+          id: data.animal.id,
+          id_raza: data.animal.id_raza,
+          publico: data.animal.publico,
+        },
+      },
+    });
   } catch (e) {
-    res.status(400).json({ ok: false, error: (e as Error).message });
+    res.status(400).json({ ok: false, error: mensajePedigreeCliente(e) });
+  }
+});
+
+app.get("/api/stock-equino/aru/asset", async (req, res) => {
+  try {
+    const { body, contentType } = await fetchPedigreeAsset(String(req.query.p ?? ""));
+    res.setHeader("Content-Type", contentType);
+    res.setHeader("Cache-Control", "private, max-age=3600");
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.send(body);
+  } catch (e) {
+    res.status(400).json({ ok: false, error: mensajePedigreeCliente(e) });
   }
 });
 
 app.get("/api/stock-equino/aru/arbol-embed", async (req, res) => {
   try {
-    const arbolUrl = String(req.query.url ?? "").trim();
-    const html = await htmlArbolAruParaEmbed(arbolUrl);
-    // La API global pone DENY / frame-ancestors none; acá hay que permitir iframe same-origin
-    // y recursos de ARU (si no, el modal muestra el ícono de documento roto).
+    const html = await htmlArbolEmbedDesdeQuery({
+      url: String(req.query.url ?? ""),
+      id: String(req.query.id ?? ""),
+      registro: String(req.query.registro ?? ""),
+      raza: String(req.query.raza ?? ""),
+      name: String(req.query.name ?? ""),
+    });
     res.removeHeader("X-Frame-Options");
     res.removeHeader("Content-Security-Policy");
     res.setHeader("X-Frame-Options", "SAMEORIGIN");
     res.setHeader(
       "Content-Security-Policy",
       [
-        "default-src 'self' https://aru.org.uy http://aru.org.uy data: blob:",
-        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://aru.org.uy http://aru.org.uy https://code.jquery.com http://code.jquery.com",
-        "style-src 'self' 'unsafe-inline' https://aru.org.uy http://aru.org.uy",
-        "img-src * data: blob:",
-        "font-src 'self' https://aru.org.uy http://aru.org.uy data:",
+        "default-src 'self'",
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+        "style-src 'self' 'unsafe-inline'",
+        "img-src 'self' data: blob:",
+        "font-src 'self' data:",
         "frame-ancestors 'self'",
-        "connect-src 'self' https://aru.org.uy http://aru.org.uy",
+        "connect-src 'self'",
       ].join("; ")
     );
     res.setHeader("Content-Type", "text/html; charset=utf-8");
     res.setHeader("Cache-Control", "private, max-age=60");
+    res.setHeader("Referrer-Policy", "no-referrer");
     res.send(html);
   } catch (e) {
     res.removeHeader("X-Frame-Options");
@@ -5901,7 +5940,7 @@ app.get("/api/stock-equino/aru/arbol-embed", async (req, res) => {
       .type("html")
       .send(
         `<!doctype html><html><body style="font-family:sans-serif;padding:1.5rem">${
-          (e as Error).message
+          mensajePedigreeCliente(e)
         }</body></html>`
       );
   }
