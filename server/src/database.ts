@@ -643,8 +643,9 @@ export const operativaTareas = {
     operativaTareasDb.deleteOperativaLluvia(db, cuentaId, id),
   syncLluviaYr: (cuentaId: number, lat: number, lon: number, marcadorId?: number | null) =>
     operativaTareasDb.syncLluviaDesdeYr(db, cuentaId, lat, lon, marcadorId ?? null),
-  syncLluviaEstablecimientos: (cuentaId: number) =>
-    operativaTareasDb.syncLluviaEstablecimientosCuenta(db, cuentaId),
+  syncLluviaEstablecimientos: (cuentaId: number, maxAgeMs?: number) =>
+    operativaTareasDb.syncLluviaEstablecimientosCuenta(db, cuentaId, maxAgeMs),
+  syncLluviaTodasLasCuentas: () => operativaTareasDb.syncLluviaTodasLasCuentas(db),
   listEstablecimientosYr: (cuentaId: number) =>
     operativaTareasDb.listEstablecimientosYr(db, cuentaId),
   upsertEstablecimientoYr: (

@@ -1352,7 +1352,7 @@ export async function listEstablecimientosYr(
       lon_mapa: point?.lon ?? null,
       lat: lat != null && Number.isFinite(lat) ? truncateCoord4(lat) : null,
       lon: lon != null && Number.isFinite(lon) ? truncateCoord4(lon) : null,
-      activo: cfg ? Number(cfg.activo) === 1 : false,
+      activo: cfg ? Number(cfg.activo) === 1 : true,
       yr_ultima_sync: cfg?.yr_ultima_sync ? String(cfg.yr_ultima_sync) : null,
       tiene_coords: lat != null && lon != null && Number.isFinite(lat) && Number.isFinite(lon),
     });
@@ -1414,6 +1414,23 @@ export async function upsertEstablecimientoYr(
   return updated;
 }
 
+async function touchYrSyncTimestamp(
+  db: Db,
+  cuentaId: number,
+  marcadorId: number,
+): Promise<void> {
+  await db
+    .prepare(
+      `INSERT INTO OPERATIVA_ESTABLECIMIENTO_YR (
+         cuenta_id, marcador_id, activo, yr_ultima_sync, actualizado_en
+       ) VALUES (?, ?, 1, NOW(), NOW())
+       ON CONFLICT (cuenta_id, marcador_id) DO UPDATE SET
+         yr_ultima_sync = NOW(),
+         actualizado_en = NOW()`,
+    )
+    .run(cuentaId, marcadorId);
+}
+
 export async function syncLluviaEstablecimientosCuenta(
   db: Db,
   cuentaId: number,
@@ -1464,13 +1481,7 @@ export async function syncLluviaEstablecimientosCuenta(
       // Días pasados: siempre refrescar (Open-Meteo). yr.no solo en sync completo.
       if (stale) {
         total += await syncLluviaDesdeYr(db, cuentaId, est.lat, est.lon, est.marcador_id);
-        await db
-          .prepare(
-            `UPDATE OPERATIVA_ESTABLECIMIENTO_YR
-             SET yr_ultima_sync = NOW(), actualizado_en = NOW()
-             WHERE cuenta_id = ? AND marcador_id = ?`,
-          )
-          .run(cuentaId, est.marcador_id);
+        await touchYrSyncTimestamp(db, cuentaId, est.marcador_id);
       } else {
         const past = await fetchOpenMeteoDailyPrecip(est.lat, est.lon, 7);
         const today = toLocalDateUy(new Date().toISOString());
@@ -1488,4 +1499,42 @@ export async function syncLluviaEstablecimientosCuenta(
     }
   }
   return total;
+}
+
+/** Sync forzado de lluvia para todas las cuentas con marcadores en mapa. */
+export async function syncLluviaTodasLasCuentas(
+  db: Db,
+): Promise<{ cuentas: number; upserts: number; errores: number }> {
+  const fromMapa = (await db
+    .prepare(
+      `SELECT DISTINCT cuenta_id FROM CAMPO_MAPA_ELEMENTO WHERE tipo = 'marcador'`,
+    )
+    .all()) as Array<{ cuenta_id: number }>;
+  const fromLegacy = (await db
+    .prepare(
+      `SELECT id AS cuenta_id FROM EMPRESAS_CUENTA
+       WHERE yr_lat IS NOT NULL AND yr_lon IS NOT NULL`,
+    )
+    .all()) as Array<{ cuenta_id: number }>;
+
+  const ids = new Set<number>();
+  for (const row of [...fromMapa, ...fromLegacy]) {
+    const id = Number(row.cuenta_id);
+    if (Number.isFinite(id) && id > 0) ids.add(id);
+  }
+
+  let upserts = 0;
+  let errores = 0;
+  for (const cuentaId of ids) {
+    try {
+      upserts += await syncLluviaEstablecimientosCuenta(db, cuentaId, 0);
+    } catch (err) {
+      errores += 1;
+      console.warn(
+        `[SGG] sync lluvia cuenta #${cuentaId}:`,
+        err instanceof Error ? err.message : err,
+      );
+    }
+  }
+  return { cuentas: ids.size, upserts, errores };
 }

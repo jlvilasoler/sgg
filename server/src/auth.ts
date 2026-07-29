@@ -82,7 +82,11 @@ async function canViewUserProfilePhoto(
   );
 }
 
-const PUBLIC_PATHS = new Set(["/api/health", "/api/auth/login"]);
+const PUBLIC_PATHS = new Set([
+  "/api/health",
+  "/api/auth/login",
+  "/api/cron/lluvia-yr",
+]);
 
 const WRITE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 

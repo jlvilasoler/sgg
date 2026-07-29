@@ -4317,6 +4317,32 @@ app.get("/api/operativa-lluvia", async (req, res) => {
   }
 });
 
+/** Cron diario: captura mm por establecimiento y los guarda en OPERATIVA_LLUVIA_DIA. */
+app.get("/api/cron/lluvia-yr", async (req, res) => {
+  const secret = process.env.CRON_SECRET?.trim();
+  const auth = typeof req.headers.authorization === "string" ? req.headers.authorization : "";
+  const vercelCron = req.headers["x-vercel-cron"];
+  const okSecret = Boolean(secret) && auth === `Bearer ${secret}`;
+  const okVercel = vercelCron === "1";
+  if (!okSecret && !okVercel) {
+    res.status(401).json({ ok: false, error: "No autorizado" });
+    return;
+  }
+  try {
+    const result = await db.operativaTareas.syncLluviaTodasLasCuentas();
+    console.info(
+      `[SGG] cron lluvia-yr: cuentas=${result.cuentas} upserts=${result.upserts} errores=${result.errores}`,
+    );
+    res.json({ ok: true, data: result });
+  } catch (e) {
+    console.error("[SGG] cron lluvia-yr:", e);
+    res.status(500).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error en sync lluvia",
+    });
+  }
+});
+
 app.put("/api/operativa-lluvia", async (req, res) => {
   try {
     const cuentaId = await cuentaIdParaInsert(req.user!);

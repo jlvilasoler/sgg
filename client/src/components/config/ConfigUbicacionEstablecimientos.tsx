@@ -102,8 +102,8 @@ export default function ConfigUbicacionEstablecimientos({
       }));
       onSuccess(
         activo
-          ? `«${saved.nombre}» activo para precipitaciones yr.no`
-          : `«${saved.nombre}» desactivado para yr.no`,
+          ? `«${saved.nombre}» con captura automática de lluvia`
+          : `«${saved.nombre}» desactivado (sin captura automática)`,
       );
     } catch (e) {
       onError(e instanceof Error ? e.message : "No se pudo guardar");
@@ -129,9 +129,9 @@ export default function ConfigUbicacionEstablecimientos({
             </p>
             <h2 className="config-ubicacion-est-title">Ubicación Establecimientos</h2>
             <p className="muted config-ubicacion-est-sub">
-              Activá los establecimientos del mapa para sugerir mm de lluvia. Días pasados y hoy:
-              estimación del modelo meteorológico. Días futuros: pronóstico yr.no. Las coordenadas
-              salen del marcador; podés ajustarlas si hace falta.
+              Los establecimientos del mapa capturan mm automáticamente todos los días (se guardan en
+              la base). Hoy y días pasados: estimación meteorológica; futuros: yr.no. Desactivá uno
+              solo si no querés seguimiento en ese punto.
             </p>
           </div>
           <button
@@ -172,7 +172,7 @@ export default function ConfigUbicacionEstablecimientos({
                     <div className="config-ubicacion-est-row-title">
                       <strong>{row.nombre}</strong>
                       {row.activo ? (
-                        <span className="config-ubicacion-est-badge">yr.no activo</span>
+                        <span className="config-ubicacion-est-badge">Captura automática</span>
                       ) : (
                         <span className="config-ubicacion-est-badge is-off">Inactivo</span>
                       )}
@@ -243,7 +243,7 @@ export default function ConfigUbicacionEstablecimientos({
                         disabled={!apiOnline || busy || (!row.tiene_coords && !d.lat.trim())}
                         onClick={() => void guardar(row, true)}
                       >
-                        {busy ? "…" : "Activar yr.no"}
+                        {busy ? "…" : "Activar captura"}
                       </button>
                     )}
                   </div>

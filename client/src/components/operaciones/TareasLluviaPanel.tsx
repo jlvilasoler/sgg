@@ -222,7 +222,7 @@ export default function TareasLluviaPanel({
               ? `Confirmado: ${formatMmInput(totalConfirmado)} mm`
               : haySugeridos
                 ? "Estimación meteorológica — confirmá si llovió en el campo"
-                : "Sin estimación para este día. Cargá los mm a mano o activá yr.no en Ubicación Establecimientos."}
+                : "Sin precipitación estimada para este día (o aún no sincronizó). Podés cargar mm a mano."}
           </p>
         </div>
       </header>

@@ -3,6 +3,12 @@
   "installCommand": "npm install --include=dev && npm install --prefix server --include=dev && npm install --prefix client --include=dev",
   "buildCommand": "npm run build --prefix client && npm run build --prefix server",
   "outputDirectory": "client/dist",
+  "crons": [
+    {
+      "path": "/api/cron/lluvia-yr",
+      "schedule": "0 4 * * *"
+    }
+  ],
   "headers": [
     {
       "source": "/(.*)",
