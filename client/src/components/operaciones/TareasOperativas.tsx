@@ -222,12 +222,23 @@ export default function TareasOperativas({
   }, [dayPopover, rutinas]);
 
   const lluviaPorFecha = useMemo(() => {
-    const map = new Map<string, { confirmado: number; sugerido: number }>();
+    const map = new Map<
+      string,
+      { confirmado: number; sugerido: number; tieneSugeridoYr: boolean }
+    >();
     for (const row of lluviasMes) {
-      const prev = map.get(row.fecha) ?? { confirmado: 0, sugerido: 0 };
+      const prev = map.get(row.fecha) ?? {
+        confirmado: 0,
+        sugerido: 0,
+        tieneSugeridoYr: false,
+      };
       const mm = Number.isFinite(row.mm) ? row.mm : 0;
-      if (row.estado === "sugerido") prev.sugerido += mm;
-      else prev.confirmado += mm;
+      if (row.estado === "sugerido") {
+        prev.sugerido += mm;
+        if (row.fuente === "yr") prev.tieneSugeridoYr = true;
+      } else {
+        prev.confirmado += mm;
+      }
       map.set(row.fecha, prev);
     }
     return map;
@@ -733,7 +744,7 @@ export default function TareasOperativas({
                     const lluviaInfo = lluviaPorFecha.get(iso);
                     const lluviaConfirmada = (lluviaInfo?.confirmado ?? 0) > 0;
                     const lluviaSugerida =
-                      !lluviaConfirmada && (lluviaInfo?.sugerido ?? 0) > 0;
+                      !lluviaConfirmada && Boolean(lluviaInfo?.tieneSugeridoYr);
                     const lluviaMm =
                       (lluviaInfo?.confirmado ?? 0) + (lluviaInfo?.sugerido ?? 0);
                     const diaNum = parseIsoDate(iso).getDate();

@@ -107,6 +107,29 @@ function normalizeFecha(value: string): string {
   return raw;
 }
 
+/** Postgres DATE llega como Date; String(date).slice(0,10) rompe el ISO ("Tue Jul 28"). */
+function fechaRowToIso(value: unknown): string {
+  if (value == null || value === "") return "";
+  if (value instanceof Date) {
+    if (Number.isNaN(value.getTime())) return "";
+    const y = value.getUTCFullYear();
+    const m = String(value.getUTCMonth() + 1).padStart(2, "0");
+    const d = String(value.getUTCDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }
+  const s = String(value).trim();
+  const iso = /^(\d{4})-(\d{2})-(\d{2})/.exec(s);
+  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+  const parsed = new Date(s);
+  if (!Number.isNaN(parsed.getTime())) {
+    const y = parsed.getUTCFullYear();
+    const m = String(parsed.getUTCMonth() + 1).padStart(2, "0");
+    const d = String(parsed.getUTCDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }
+  return s.slice(0, 10);
+}
+
 function isoWeekdayFromDate(iso: string): OperativaDiaSemana {
   const d = new Date(
     Number(iso.slice(0, 4)),
@@ -889,7 +912,7 @@ function rowToLluvia(row: Record<string, unknown>): OperativaLluviaDiaRow {
   return {
     id: Number(row.id),
     cuenta_id: Number(row.cuenta_id),
-    fecha: String(row.fecha ?? "").slice(0, 10),
+    fecha: fechaRowToIso(row.fecha),
     marcador_id: row.marcador_id != null ? Number(row.marcador_id) : null,
     marcador_nombre: row.marcador_nombre ? String(row.marcador_nombre) : null,
     mm: Number.isFinite(mmRaw) ? Math.round(mmRaw * 10) / 10 : 0,
