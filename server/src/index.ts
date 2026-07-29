@@ -4763,6 +4763,13 @@ app.post("/api/stock-ganadero/baja/dispositivos", async (req, res) => {
 });
 
 app.delete("/api/stock-ganadero/lotes/:id", async (req, res) => {
+  if (!req.user || (req.user.rol !== "admin" && !req.user.es_super_admin)) {
+    res.status(403).json({
+      ok: false,
+      error: "Solo los administradores de la cuenta pueden eliminar una importación completa",
+    });
+    return;
+  }
   const id = Number(req.params.id);
   try {
     await assertLoteEnCuentaUsuario(req, id);

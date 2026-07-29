@@ -220,6 +220,7 @@ export default function StockGanadero({
       <StockGanaderoHistorial
         embedded
         apiOnline={apiOnline}
+        currentUser={currentUser}
         refreshKey={listRefresh}
         onError={onError}
         onSuccess={(m) => {
@@ -310,10 +311,14 @@ export default function StockGanadero({
         embedded
         key={listRefresh}
         apiOnline={apiOnline}
+        currentUser={currentUser}
         refreshKey={listRefresh}
         initialLoteId={listLoteFilter}
         onError={onError}
-        onSuccess={(m) => onSuccess(m)}
+        onSuccess={(m) => {
+          onSuccess(m);
+          setListRefresh((k) => k + 1);
+        }}
         onVolver={volverMenu}
         onVerHistorial={() => setVista("historial")}
       />,

@@ -55985,6 +55985,10 @@ button.sg-kpi-card:disabled {
   outline: none;
   border-color: color-mix(in srgb, var(--sg-hub-accent) 45%, var(--bn-border));
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--sg-hub-accent) 16%, transparent);
+}.bn-ui .stock-ganadero-module-page .stock-lecturas-borrar-carga-btn,
+.bn-ui .stock-equino-module-page .stock-lecturas-borrar-carga-btn{
+  flex: 0 0 auto;
+  white-space: nowrap;
 }.bn-ui .stock-ganadero-module-page .stock-lecturas-table-box,
 .bn-ui .stock-equino-module-page .stock-lecturas-table-box{
   border: 1px solid var(--bn-border);

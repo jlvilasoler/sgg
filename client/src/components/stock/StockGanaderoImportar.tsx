@@ -358,6 +358,10 @@ export default function StockGanaderoImportar({
 
   const deshacerUltimaImportacionArchivo = async () => {
     if (!ultimaImportacionArchivo) return;
+    if (!currentUser || (currentUser.rol !== "admin" && !currentUser.es_super_admin)) {
+      onError("Solo los administradores de la cuenta pueden deshacer una importación");
+      return;
+    }
     const { id, nombre, filas } = ultimaImportacionArchivo;
     const ok = await confirmAction({
       title: "Deshacer importación",
@@ -504,18 +508,20 @@ export default function StockGanaderoImportar({
             {ultimaImportacionArchivo.filas === 1 ? "" : "s"}
           </span>
         </div>
-        <button
-          type="button"
-          className={
-            embedded
-              ? `${btnSecondary} stock-import-undo-btn`
-              : "btn btn-secondary btn-sm stock-import-undo-btn"
-          }
-          disabled={!apiOnline || importing || undoing}
-          onClick={() => void deshacerUltimaImportacionArchivo()}
-        >
-          {undoing ? "Deshaciendo…" : "Deshacer"}
-        </button>
+        {currentUser && (currentUser.rol === "admin" || currentUser.es_super_admin) ? (
+          <button
+            type="button"
+            className={
+              embedded
+                ? `${btnSecondary} stock-import-undo-btn`
+                : "btn btn-secondary btn-sm stock-import-undo-btn"
+            }
+            disabled={!apiOnline || importing || undoing}
+            onClick={() => void deshacerUltimaImportacionArchivo()}
+          >
+            {undoing ? "Deshaciendo…" : "Deshacer"}
+          </button>
+        ) : null}
       </div>
     ) : null;
 

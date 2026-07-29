@@ -1,15 +1,18 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  deleteStockGanaderoLote,
   fetchStockGanaderoEstadisticas,
   fetchStockGanaderoLotes,
   fetchStockGanaderoRegistros,
 } from "../../api";
 import type {
+  AuthUser,
   StockGanaderoEstadisticas,
   StockGanaderoLote,
   StockGanaderoRegistro,
 } from "../../types";
 import { fmtDate } from "../../utils";
+import { confirmAction } from "../../utils/confirm";
 import TablePagination, {
   paginateSlice,
   type PageSize,
@@ -19,6 +22,7 @@ import { PageModuleHeadRow } from "../PageModuleHead";
 
 interface Props {
   apiOnline: boolean;
+  currentUser?: AuthUser | null;
   onError: (msg: string) => void;
   onSuccess: (msg: string) => void;
   onVolver: () => void;
@@ -28,10 +32,15 @@ interface Props {
   embedded?: boolean;
 }
 
+function puedeEliminarImportacion(user?: AuthUser | null): boolean {
+  return Boolean(user && (user.rol === "admin" || user.es_super_admin));
+}
+
 export default function StockGanaderoListado({
   apiOnline,
+  currentUser = null,
   onError,
-  onSuccess: _onSuccess,
+  onSuccess,
   onVolver,
   onVerHistorial,
   initialLoteId = "",
@@ -47,8 +56,16 @@ export default function StockGanaderoListado({
   const [fechaHasta, setFechaHasta] = useState("");
   const [soloRepetidos, setSoloRepetidos] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [borrando, setBorrando] = useState(false);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<PageSize>(30);
+
+  const esAdminCuenta = puedeEliminarImportacion(currentUser);
+
+  const loteSeleccionado = useMemo(
+    () => (loteId ? lotes.find((l) => String(l.id) === loteId) ?? null : null),
+    [loteId, lotes]
+  );
 
   const filtros = useMemo(
     () => ({
@@ -123,6 +140,28 @@ export default function StockGanaderoListado({
   const toggleRepetidos = () => {
     if (!stats || stats.eids_repetidos === 0) return;
     setSoloRepetidos((v) => !v);
+  };
+
+  const borrarCargaSeleccionada = async () => {
+    if (!esAdminCuenta || !loteSeleccionado || borrando) return;
+    const ok = await confirmAction({
+      title: "Eliminar carga importada",
+      message: `¿Eliminar toda la carga «${loteSeleccionado.nombre_archivo}» (${loteSeleccionado.filas} lectura${loteSeleccionado.filas === 1 ? "" : "s"})?\n\nEsta acción no se puede deshacer. Solo se borran las lecturas de esa importación.`,
+      confirmText: "Eliminar carga",
+      variant: "danger",
+    });
+    if (!ok) return;
+    setBorrando(true);
+    try {
+      await deleteStockGanaderoLote(loteSeleccionado.id);
+      setLoteId("");
+      onSuccess(`Se eliminó la carga «${loteSeleccionado.nombre_archivo}»`);
+      await load();
+    } catch (e) {
+      onError(e instanceof Error ? e.message : "Error al eliminar la carga");
+    } finally {
+      setBorrando(false);
+    }
   };
 
   const colCount = soloRepetidos ? 6 : 5;
@@ -278,6 +317,7 @@ export default function StockGanaderoListado({
             id="stock-f-lote"
             value={loteId}
             onChange={(e) => setLoteId(e.target.value)}
+            disabled={borrando}
           >
             <option value="">Todas</option>
             {lotes.map((l) => (
@@ -295,6 +335,7 @@ export default function StockGanaderoListado({
           type="date"
           value={fechaDesde}
           onChange={(e) => setFechaDesde(e.target.value)}
+          disabled={borrando}
         />
       </div>
       <div className="field">
@@ -304,6 +345,7 @@ export default function StockGanaderoListado({
           type="date"
           value={fechaHasta}
           onChange={(e) => setFechaHasta(e.target.value)}
+          disabled={borrando}
         />
       </div>
       <div className="field flex-grow">
@@ -315,15 +357,32 @@ export default function StockGanaderoListado({
           value={busqueda}
           onChange={(e) => setBusqueda(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && load()}
+          disabled={borrando}
         />
       </div>
       <button
         type="button"
         className={embedded ? "sg-hub-cta" : "btn btn-primary"}
         onClick={load}
+        disabled={borrando}
       >
         Buscar
       </button>
+      {esAdminCuenta && loteSeleccionado ? (
+        <button
+          type="button"
+          className={
+            embedded
+              ? "sg-hub-cta sg-hub-cta--danger stock-lecturas-borrar-carga-btn"
+              : "btn btn-delete stock-lecturas-borrar-carga-btn"
+          }
+          onClick={() => void borrarCargaSeleccionada()}
+          disabled={!apiOnline || loading || borrando}
+          title={`Eliminar toda la carga «${loteSeleccionado.nombre_archivo}»`}
+        >
+          {borrando ? "Eliminando…" : "Eliminar carga"}
+        </button>
+      ) : null}
     </div>
   );
 

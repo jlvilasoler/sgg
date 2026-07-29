@@ -3,7 +3,7 @@ import {
   deleteStockGanaderoLote,
   fetchStockGanaderoLotes,
 } from "../../api";
-import type { StockGanaderoLote } from "../../types";
+import type { AuthUser, StockGanaderoLote } from "../../types";
 import { confirmAction } from "../../utils/confirm";
 import TablePagination, {
   paginateSlice,
@@ -13,6 +13,7 @@ import { PageModuleHeadRow } from "../PageModuleHead";
 
 interface Props {
   apiOnline: boolean;
+  currentUser?: AuthUser | null;
   onError: (msg: string) => void;
   onSuccess: (msg: string) => void;
   onVolver: () => void;
@@ -29,8 +30,13 @@ function fmtImportado(iso: string): string {
   return d;
 }
 
+function puedeEliminarImportacion(user?: AuthUser | null): boolean {
+  return Boolean(user && (user.rol === "admin" || user.es_super_admin));
+}
+
 export default function StockGanaderoHistorial({
   apiOnline,
+  currentUser = null,
   onError,
   onSuccess,
   onVolver,
@@ -42,6 +48,7 @@ export default function StockGanaderoHistorial({
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<PageSize>(30);
+  const esAdminCuenta = puedeEliminarImportacion(currentUser);
 
   const load = useCallback(async () => {
     if (!apiOnline) {
@@ -77,10 +84,14 @@ export default function StockGanaderoHistorial({
     [lotes, pageSafe, pageSize]
   );
 
-  const borrarLote = async (id: number, nombre: string) => {
+  const borrarLote = async (id: number, nombre: string, filas: number) => {
+    if (!esAdminCuenta) {
+      onError("Solo los administradores de la cuenta pueden eliminar una importación");
+      return;
+    }
     const ok = await confirmAction({
       title: "Eliminar importación",
-      message: `¿Eliminar el lote «${nombre}» y todas sus lecturas?`,
+      message: `¿Eliminar el lote «${nombre}» y sus ${filas} lectura${filas === 1 ? "" : "s"}?\n\nEsta acción no se puede deshacer.`,
       confirmText: "Eliminar",
       variant: "danger",
     });
@@ -165,13 +176,15 @@ export default function StockGanaderoHistorial({
                         >
                           Ver lecturas
                         </button>
-                        <button
-                          type="button"
-                          className="btn btn-sm btn-delete"
-                          onClick={() => void borrarLote(l.id, l.nombre_archivo)}
-                        >
-                          Borrar
-                        </button>
+                        {esAdminCuenta ? (
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-delete"
+                            onClick={() => void borrarLote(l.id, l.nombre_archivo, l.filas)}
+                          >
+                            Borrar
+                          </button>
+                        ) : null}
                       </div>
                     </td>
                   </tr>
