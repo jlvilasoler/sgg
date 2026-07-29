@@ -32,6 +32,7 @@ import StockGanaderoAdmin from "./stock/StockGanaderoAdmin";
 import StockEquinoAdmin from "./stock-equino/StockEquinoAdmin";
 import AdministradorCuenta from "./AdministradorCuenta";
 import SuscripcionCuenta from "./SuscripcionCuenta";
+import ConfigUbicacionEstablecimientos from "./config/ConfigUbicacionEstablecimientos";
 import ArquitecturaSistema from "./ArquitecturaSistema";
 import DocumentosDigitales from "./DocumentosDigitales";
 import ControlGlobalCuentas from "./ControlGlobalCuentas";
@@ -61,6 +62,7 @@ type CatalogoModulo =
   | "rubros"
   | "stock_ganadero"
   | "stock_equino"
+  | "ubicacion_establecimientos"
   | "suscripcion"
   | "admin_cuenta"
   | "usuarios"
@@ -288,6 +290,12 @@ export default function Configuracion({
     if (modulo === "admin_cuenta" && !canAccessArquitecturaCuenta(currentUser ?? null)) {
       setModulo("cuenta_hub");
     }
+    if (
+      modulo === "ubicacion_establecimientos" &&
+      !canAccessArquitecturaCuenta(currentUser ?? null)
+    ) {
+      setModulo("cuenta_hub");
+    }
     if (modulo === "suscripcion" && !canAccessArquitecturaCuenta(currentUser ?? null)) {
       setModulo("menu");
     }
@@ -390,6 +398,22 @@ export default function Configuracion({
         onError={onError}
         onSuccess={onSuccess}
         onVolver={() => volverConfigDashboard("suscripcion")}
+      />
+    );
+  }
+
+  if (
+    modulo === "ubicacion_establecimientos" &&
+    currentUser &&
+    canAccessArquitecturaCuenta(currentUser)
+  ) {
+    return wrapConfigSubmodule(
+      "ubicacion_establecimientos",
+      <ConfigUbicacionEstablecimientos
+        apiOnline={apiOnline}
+        onError={onError}
+        onSuccess={onSuccess}
+        onVolver={() => volverConfigDashboard("ubicacion_establecimientos")}
       />
     );
   }

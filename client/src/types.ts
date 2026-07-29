@@ -517,6 +517,40 @@ export interface OperativaTareaRegistro {
   creado_en: string;
 }
 
+export interface OperativaLluviaDia {
+  id: number;
+  cuenta_id: number;
+  fecha: string;
+  marcador_id: number | null;
+  marcador_nombre: string | null;
+  mm: number;
+  fuente: "manual" | "yr";
+  estado: "confirmado" | "sugerido";
+  yr_mm: number | null;
+  registrado_por_user_id: number | null;
+  creado_en: string;
+  actualizado_en: string;
+}
+
+export interface CuentaUbicacionYr {
+  lat: number | null;
+  lon: number | null;
+  nombre: string;
+  ultima_sync: string | null;
+}
+
+export interface EstablecimientoYr {
+  marcador_id: number;
+  nombre: string;
+  lat_mapa: number | null;
+  lon_mapa: number | null;
+  lat: number | null;
+  lon: number | null;
+  activo: boolean;
+  yr_ultima_sync: string | null;
+  tiene_coords: boolean;
+}
+
 export interface OperativaTareaInput {
   titulo: string;
   descripcion?: string;

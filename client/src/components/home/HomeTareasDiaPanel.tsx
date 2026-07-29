@@ -22,8 +22,8 @@ interface Props {
 }
 
 function rutinaEnDia(t: OperativaTarea, iso: string): boolean {
-  if (t.dia_semana == null) return false;
-  return t.dia_semana === isoWeekday(iso);
+  if (t.dia_semana == null || t.estado === "cancelada") return false;
+  return Number(t.dia_semana) === isoWeekday(iso);
 }
 
 export default function HomeTareasDiaPanel({

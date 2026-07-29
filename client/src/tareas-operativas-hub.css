@@ -423,9 +423,30 @@
   background: transparent;
 }
 
-.bn-ui .tareas-op-day.has-rutinas:not(.is-selected):not(.is-today) {
-  background: color-mix(in srgb, var(--sg-hub-accent-soft) 35%, #fff);
-  border-color: color-mix(in srgb, var(--sg-hub-accent) 12%, transparent);
+.bn-ui .tareas-op-day.has-rutinas {
+  background: color-mix(in srgb, var(--sg-hub-accent) 18%, #fff);
+  border-color: color-mix(in srgb, var(--sg-hub-accent) 42%, var(--tareas-op-border));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--sg-hub-accent) 12%, transparent);
+}
+
+.bn-ui .tareas-op-day.has-rutinas:hover {
+  background: color-mix(in srgb, var(--sg-hub-accent) 26%, #fff);
+  border-color: color-mix(in srgb, var(--sg-hub-accent) 55%, var(--tareas-op-border));
+}
+
+.bn-ui .tareas-op-day.has-rutinas.is-selected {
+  background: linear-gradient(
+    160deg,
+    color-mix(in srgb, var(--sg-hub-accent) 28%, #fff) 0%,
+    color-mix(in srgb, var(--sg-hub-accent-soft) 70%, #fff) 100%
+  );
+  border-color: color-mix(in srgb, var(--sg-hub-accent) 65%, var(--tareas-op-border));
+  box-shadow: 0 4px 16px rgba(107, 158, 62, 0.18);
+}
+
+.bn-ui .tareas-op-day.has-rutinas.is-today:not(.is-selected) {
+  background: color-mix(in srgb, var(--sg-hub-accent) 22%, #fff);
+  border-color: color-mix(in srgb, var(--sg-hub-accent) 48%, var(--tareas-op-border));
 }
 
 .bn-ui .tareas-op-day--empty {
@@ -444,13 +465,14 @@
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 0.18rem;
+  gap: 0.2rem;
   max-width: 100%;
+  min-height: 0.42rem;
 }
 
 .bn-ui .tareas-op-dot {
-  width: 0.38rem;
-  height: 0.38rem;
+  width: 0.42rem;
+  height: 0.42rem;
   border-radius: 999px;
   background: #94a3b8;
   flex-shrink: 0;
@@ -459,6 +481,28 @@
 .bn-ui .tareas-op-dot--rutina {
   background: var(--sg-hub-accent);
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--sg-hub-accent) 25%, transparent);
+}
+
+.bn-ui .tareas-op-dot--lluvia {
+  background: #2563eb;
+  box-shadow: 0 0 0 2px color-mix(in srgb, #2563eb 22%, transparent);
+}
+
+.bn-ui .tareas-op-dot--lluvia-sugerida {
+  background: transparent;
+  border: 2px solid #60a5fa;
+  box-shadow: none;
+}
+
+.bn-ui .tareas-op-day.has-lluvia:not(.has-rutinas):not(.is-selected) {
+  background: color-mix(in srgb, #2563eb 10%, #fff);
+  border-color: color-mix(in srgb, #2563eb 28%, var(--tareas-op-border));
+}
+
+.bn-ui .tareas-op-day.has-lluvia-sugerida:not(.has-rutinas):not(.has-lluvia):not(.is-selected) {
+  background: color-mix(in srgb, #93c5fd 14%, #fff);
+  border-color: color-mix(in srgb, #60a5fa 35%, var(--tareas-op-border));
+  border-style: dashed;
 }
 
 .bn-ui .tareas-op-calendar-legend {
@@ -488,6 +532,30 @@
 
 .bn-ui .tareas-op-legend-dot--rutina {
   background: var(--sg-hub-accent);
+}
+
+.bn-ui .tareas-op-legend-swatch {
+  display: inline-block;
+  width: 0.95rem;
+  height: 0.95rem;
+  border-radius: 0.28rem;
+  font-style: normal;
+  box-sizing: border-box;
+}
+
+.bn-ui .tareas-op-legend-swatch--rutina {
+  background: color-mix(in srgb, var(--sg-hub-accent) 18%, #fff);
+  border: 1.5px solid color-mix(in srgb, var(--sg-hub-accent) 42%, var(--tareas-op-border));
+}
+
+.bn-ui .tareas-op-legend-dot--lluvia {
+  background: #2563eb;
+}
+
+.bn-ui .tareas-op-legend-dot--lluvia-sugerida {
+  background: transparent;
+  border: 2px solid #60a5fa;
+  box-sizing: border-box;
 }
 
 .bn-ui .tareas-op-legend-ring {
@@ -800,6 +868,262 @@
   border-radius: inherit;
   background: linear-gradient(90deg, #6b9e3e 0%, #a3e635 55%, #bef264 100%);
   transition: width 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* —— Lluvia del día —— */
+
+.bn-ui .tareas-op-lluvia {
+  margin: 0 0 0.95rem;
+  padding: 0.75rem 0.8rem 0.7rem;
+  border-radius: 0.8rem;
+  border: 1px solid color-mix(in srgb, #2563eb 22%, var(--tareas-op-border));
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, #2563eb 8%, #fff) 0%,
+    #fff 70%
+  );
+}
+
+.bn-ui .tareas-op-lluvia-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  margin-bottom: 0.65rem;
+}
+
+.bn-ui .tareas-op-lluvia-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.85rem;
+  height: 1.85rem;
+  border-radius: 0.55rem;
+  background: color-mix(in srgb, #2563eb 14%, #fff);
+  color: #1d4ed8;
+  flex-shrink: 0;
+}
+
+.bn-ui .tareas-op-lluvia-copy {
+  min-width: 0;
+}
+
+.bn-ui .tareas-op-lluvia-title {
+  margin: 0;
+  font-size: 0.84rem;
+  font-weight: 750;
+  color: #1e3a5f;
+  line-height: 1.25;
+}
+
+.bn-ui .tareas-op-lluvia-sub {
+  margin: 0.12rem 0 0;
+  font-size: 0.72rem;
+  color: var(--bn-muted, #64748b);
+  line-height: 1.35;
+}
+
+.bn-ui .tareas-op-lluvia-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.bn-ui .tareas-op-lluvia-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.55rem 0.75rem;
+}
+
+.bn-ui .tareas-op-lluvia-label {
+  font-size: 0.8rem;
+  font-weight: 650;
+  color: var(--bn-text, #334155);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.bn-ui .tareas-op-lluvia-yr-mini {
+  display: inline-flex;
+  padding: 0.08rem 0.32rem;
+  border-radius: 999px;
+  background: #1d4ed8;
+  color: #fff;
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.bn-ui .tareas-op-lluvia-list > .tareas-op-lluvia-yr {
+  list-style: none;
+}
+
+.bn-ui .tareas-op-lluvia-input-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  min-width: 6.5rem;
+}
+
+.bn-ui .tareas-op-lluvia-input {
+  width: 4.2rem;
+  min-height: 2.15rem;
+  padding: 0.28rem 0.45rem;
+  border: 1px solid color-mix(in srgb, #2563eb 28%, var(--tareas-op-border));
+  border-radius: 0.55rem;
+  background: #fff;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-align: right;
+  color: #1e3a5f;
+}
+
+.bn-ui .tareas-op-lluvia-input:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px color-mix(in srgb, #2563eb 18%, transparent);
+}
+
+.bn-ui .tareas-op-lluvia-input:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.bn-ui .tareas-op-lluvia-unit {
+  font-size: 0.72rem;
+  font-weight: 750;
+  color: #2563eb;
+  letter-spacing: 0.02em;
+}
+
+.bn-ui .tareas-op-lluvia-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1rem;
+  color: #16a34a;
+  min-height: 1rem;
+}
+
+.bn-ui .tareas-op-lluvia-spin {
+  animation: tareas-op-lluvia-spin 0.8s linear infinite;
+  color: #2563eb;
+}
+
+@keyframes tareas-op-lluvia-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.bn-ui .tareas-op-lluvia-hint {
+  margin: 0.55rem 0 0;
+  font-size: 0.68rem;
+  line-height: 1.35;
+  color: var(--bn-muted, #64748b);
+}
+
+.bn-ui .tareas-op-lluvia-yr {
+  margin: 0 0 0.65rem;
+  padding: 0.65rem 0.7rem;
+  border-radius: 0.7rem;
+  border: 1.5px dashed color-mix(in srgb, #2563eb 40%, var(--tareas-op-border));
+  background: color-mix(in srgb, #dbeafe 55%, #fff);
+}
+
+.bn-ui .tareas-op-lluvia-yr.is-confirmado {
+  border-style: solid;
+  border-color: color-mix(in srgb, #2563eb 45%, var(--tareas-op-border));
+  background: color-mix(in srgb, #2563eb 8%, #fff);
+}
+
+.bn-ui .tareas-op-lluvia-yr-top {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-bottom: 0.4rem;
+}
+
+.bn-ui .tareas-op-lluvia-yr-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.12rem 0.4rem;
+  border-radius: 999px;
+  background: #1d4ed8;
+  color: #fff;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.bn-ui .tareas-op-lluvia-yr-place {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #1e3a5f;
+}
+
+.bn-ui .tareas-op-lluvia-yr-msg {
+  margin: 0 0 0.5rem;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: #334155;
+}
+
+.bn-ui .tareas-op-lluvia-yr-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.5rem;
+}
+
+.bn-ui .tareas-op-lluvia-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  min-height: 2.15rem;
+  padding: 0.3rem 0.65rem;
+  border-radius: 0.55rem;
+  border: 1px solid transparent;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.bn-ui .tareas-op-lluvia-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.bn-ui .tareas-op-lluvia-btn--ok {
+  background: #2563eb;
+  color: #fff;
+}
+
+.bn-ui .tareas-op-lluvia-btn--ok:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+
+.bn-ui .tareas-op-lluvia-btn--no {
+  background: #fff;
+  border-color: color-mix(in srgb, #94a3b8 50%, var(--tareas-op-border));
+  color: #64748b;
+}
+
+.bn-ui .tareas-op-lluvia-btn--no:hover:not(:disabled) {
+  border-color: #ef4444;
+  color: #dc2626;
 }
 
 /* —— Task list —— */

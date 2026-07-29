@@ -167,6 +167,7 @@ const CUENTA_ADMIN_NAV_IDS = [
   "rubros",
   "stock_ganadero",
   "stock_equino",
+  "ubicacion_establecimientos",
   "admin_cuenta",
   "usuarios",
   "registro_actividad",
@@ -276,6 +277,12 @@ export function buildConfigCuentaItems(user: AuthUser | null | undefined): SgHub
     });
   }
   if (canAccessArquitecturaCuenta(user ?? null)) {
+    items.push({
+      id: "ubicacion_establecimientos",
+      label: "Ubicación Establecimientos",
+      subtitle: "Precipitaciones yr.no por ubicación del mapa",
+      icon: "stock_cabana",
+    });
     items.push({
       id: "suscripcion",
       label: "Suscripción",
@@ -401,6 +408,10 @@ export function configHubMeta(
       title: "Administración Stock Equino",
       subtitle: "Vaciar y administrar dispositivos equinos.",
     },
+    ubicacion_establecimientos: {
+      title: "Ubicación Establecimientos",
+      subtitle: "Precipitaciones yr.no según el mapa de la cuenta.",
+    },
     admin_cuenta: {
       title: "Arquitectura del sistema",
       subtitle: "Información de su cuenta y empresas operativas.",
@@ -495,6 +506,7 @@ const CUENTA_MODULOS = new Set([
   "rubros",
   "stock_ganadero",
   "stock_equino",
+  "ubicacion_establecimientos",
   "suscripcion",
   "admin_cuenta",
   "usuarios",

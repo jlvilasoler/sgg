@@ -603,6 +603,38 @@ async function migrateLoginModeElegidoColumn(db: Db): Promise<void> {
   }
 }
 
+async function migrateCuentaUbicacionYrColumns(db: Db): Promise<void> {
+  const cols = (await db
+    .prepare(
+      `SELECT column_name FROM information_schema.columns
+       WHERE table_schema = 'public'
+         AND table_name = 'empresas_cuenta'
+         AND column_name IN ('yr_lat', 'yr_lon', 'yr_nombre', 'yr_ultima_sync')`,
+    )
+    .all()) as { column_name: string }[];
+  const existentes = new Set(cols.map((c) => c.column_name));
+  if (!existentes.has("yr_lat")) {
+    await db.prepare("ALTER TABLE EMPRESAS_CUENTA ADD COLUMN yr_lat DOUBLE PRECISION").run();
+    console.info("[SGG Empresas] Migración: columna empresas_cuenta.yr_lat agregada");
+  }
+  if (!existentes.has("yr_lon")) {
+    await db.prepare("ALTER TABLE EMPRESAS_CUENTA ADD COLUMN yr_lon DOUBLE PRECISION").run();
+    console.info("[SGG Empresas] Migración: columna empresas_cuenta.yr_lon agregada");
+  }
+  if (!existentes.has("yr_nombre")) {
+    await db
+      .prepare("ALTER TABLE EMPRESAS_CUENTA ADD COLUMN yr_nombre TEXT NOT NULL DEFAULT ''")
+      .run();
+    console.info("[SGG Empresas] Migración: columna empresas_cuenta.yr_nombre agregada");
+  }
+  if (!existentes.has("yr_ultima_sync")) {
+    await db
+      .prepare("ALTER TABLE EMPRESAS_CUENTA ADD COLUMN yr_ultima_sync TIMESTAMPTZ")
+      .run();
+    console.info("[SGG Empresas] Migración: columna empresas_cuenta.yr_ultima_sync agregada");
+  }
+}
+
 async function migrateEmpresaOperativaRutEjercicioColumns(db: Db): Promise<void> {
   const cols = (await db
     .prepare(
@@ -1140,6 +1172,7 @@ export async function initEmpresasCuentaTables(db: Db): Promise<void> {
   await migrateVilaDiazStructure(db);
   await migrateEmpresaOperativaCodigosCorrelativos(db);
   await migrateCuentaMadreCodigosCorrelativos(db);
+  await migrateCuentaUbicacionYrColumns(db);
 }
 
 export async function listEmpresasCuenta(db: Db): Promise<EmpresaCuenta[]> {
@@ -1927,4 +1960,95 @@ export async function getEmpresasCodigosScopeFilter(
   if (permitidas === null) return undefined;
   if (permitidas.length === 0) return [SIN_EMPRESAS_SCOPE];
   return permitidas;
+}
+
+export interface CuentaUbicacionYr {
+  lat: number | null;
+  lon: number | null;
+  nombre: string;
+  ultima_sync: string | null;
+}
+
+function truncateCoord(value: number): number {
+  return Math.round(value * 10000) / 10000;
+}
+
+export async function getCuentaUbicacionYr(
+  db: Db,
+  cuentaId: number,
+): Promise<CuentaUbicacionYr | null> {
+  if (!Number.isFinite(cuentaId) || cuentaId <= 0) return null;
+  const row = (await db
+    .prepare(
+      `SELECT yr_lat, yr_lon, yr_nombre, yr_ultima_sync
+       FROM EMPRESAS_CUENTA WHERE id = ? LIMIT 1`,
+    )
+    .get(cuentaId)) as
+    | {
+        yr_lat: number | null;
+        yr_lon: number | null;
+        yr_nombre: string | null;
+        yr_ultima_sync: string | null;
+      }
+    | undefined;
+  if (!row) return null;
+  const lat = row.yr_lat != null ? Number(row.yr_lat) : null;
+  const lon = row.yr_lon != null ? Number(row.yr_lon) : null;
+  return {
+    lat: Number.isFinite(lat as number) ? (lat as number) : null,
+    lon: Number.isFinite(lon as number) ? (lon as number) : null,
+    nombre: String(row.yr_nombre ?? "").trim(),
+    ultima_sync: row.yr_ultima_sync ? String(row.yr_ultima_sync) : null,
+  };
+}
+
+export async function updateCuentaUbicacionYr(
+  db: Db,
+  cuentaId: number,
+  input: { lat: number | null; lon: number | null; nombre?: string },
+): Promise<CuentaUbicacionYr> {
+  if (!Number.isFinite(cuentaId) || cuentaId <= 0) {
+    throw new Error("Cuenta inválida.");
+  }
+  const clear = input.lat == null || input.lon == null;
+  let lat: number | null = null;
+  let lon: number | null = null;
+  if (!clear) {
+    const latN = Number(input.lat);
+    const lonN = Number(input.lon);
+    if (!Number.isFinite(latN) || latN < -90 || latN > 90) {
+      throw new Error("Latitud inválida (debe estar entre -90 y 90).");
+    }
+    if (!Number.isFinite(lonN) || lonN < -180 || lonN > 180) {
+      throw new Error("Longitud inválida (debe estar entre -180 y 180).");
+    }
+    lat = truncateCoord(latN);
+    lon = truncateCoord(lonN);
+  }
+  const nombre = String(input.nombre ?? "").trim().slice(0, 120);
+  await db
+    .prepare(
+      `UPDATE EMPRESAS_CUENTA
+       SET yr_lat = ?, yr_lon = ?, yr_nombre = ?, yr_ultima_sync = NULL, actualizado_en = NOW()
+       WHERE id = ?`,
+    )
+    .run(lat, lon, nombre, cuentaId);
+  const updated = await getCuentaUbicacionYr(db, cuentaId);
+  if (!updated) throw new Error("No se pudo guardar la ubicación.");
+  return updated;
+}
+
+export async function touchCuentaYrUltimaSync(db: Db, cuentaId: number): Promise<void> {
+  if (!Number.isFinite(cuentaId) || cuentaId <= 0) return;
+  await db
+    .prepare(`UPDATE EMPRESAS_CUENTA SET yr_ultima_sync = NOW() WHERE id = ?`)
+    .run(cuentaId);
+}
+
+export function cuentaYrNeedsSync(ubicacion: CuentaUbicacionYr | null, maxAgeMs = 3 * 60 * 60 * 1000): boolean {
+  if (!ubicacion || ubicacion.lat == null || ubicacion.lon == null) return false;
+  if (!ubicacion.ultima_sync) return true;
+  const t = Date.parse(ubicacion.ultima_sync);
+  if (!Number.isFinite(t)) return true;
+  return Date.now() - t >= maxAgeMs;
 }

@@ -334,6 +334,75 @@ export async function initOperativaTareasTables(db: Db): Promise<void> {
 
   await db
     .prepare(
+      `CREATE TABLE IF NOT EXISTS OPERATIVA_LLUVIA_DIA (
+         id SERIAL PRIMARY KEY,
+         cuenta_id INTEGER NOT NULL REFERENCES EMPRESAS_CUENTA(id) ON DELETE CASCADE,
+         fecha DATE NOT NULL,
+         marcador_id INTEGER REFERENCES CAMPO_MAPA_ELEMENTO(id) ON DELETE CASCADE,
+         mm DOUBLE PRECISION NOT NULL,
+         registrado_por_user_id INTEGER REFERENCES USERS(id) ON DELETE SET NULL,
+         creado_en TIMESTAMPTZ DEFAULT NOW(),
+         actualizado_en TIMESTAMPTZ DEFAULT NOW()
+       )`,
+    )
+    .run();
+
+  await db
+    .prepare(
+      `CREATE UNIQUE INDEX IF NOT EXISTS uq_operativa_lluvia_cuenta_fecha_marcador
+       ON OPERATIVA_LLUVIA_DIA (cuenta_id, fecha, COALESCE(marcador_id, 0))`,
+    )
+    .run();
+
+  await db
+    .prepare(
+      `CREATE INDEX IF NOT EXISTS idx_operativa_lluvia_cuenta_fecha
+       ON OPERATIVA_LLUVIA_DIA(cuenta_id, fecha)`,
+    )
+    .run();
+
+  await db
+    .prepare(
+      `ALTER TABLE OPERATIVA_LLUVIA_DIA ADD COLUMN IF NOT EXISTS fuente TEXT NOT NULL DEFAULT 'manual'`,
+    )
+    .run();
+  await db
+    .prepare(
+      `ALTER TABLE OPERATIVA_LLUVIA_DIA ADD COLUMN IF NOT EXISTS estado TEXT NOT NULL DEFAULT 'confirmado'`,
+    )
+    .run();
+  await db
+    .prepare(
+      `ALTER TABLE OPERATIVA_LLUVIA_DIA ADD COLUMN IF NOT EXISTS yr_mm DOUBLE PRECISION`,
+    )
+    .run();
+
+  await db
+    .prepare(
+      `CREATE TABLE IF NOT EXISTS OPERATIVA_ESTABLECIMIENTO_YR (
+         id SERIAL PRIMARY KEY,
+         cuenta_id INTEGER NOT NULL REFERENCES EMPRESAS_CUENTA(id) ON DELETE CASCADE,
+         marcador_id INTEGER NOT NULL REFERENCES CAMPO_MAPA_ELEMENTO(id) ON DELETE CASCADE,
+         activo INTEGER NOT NULL DEFAULT 1,
+         lat DOUBLE PRECISION,
+         lon DOUBLE PRECISION,
+         yr_ultima_sync TIMESTAMPTZ,
+         creado_en TIMESTAMPTZ DEFAULT NOW(),
+         actualizado_en TIMESTAMPTZ DEFAULT NOW(),
+         UNIQUE (cuenta_id, marcador_id)
+       )`,
+    )
+    .run();
+
+  await db
+    .prepare(
+      `CREATE INDEX IF NOT EXISTS idx_operativa_establecimiento_yr_cuenta
+       ON OPERATIVA_ESTABLECIMIENTO_YR(cuenta_id)`,
+    )
+    .run();
+
+  await db
+    .prepare(
       `CREATE INDEX IF NOT EXISTS idx_operativa_tarea_cuenta_fecha
        ON OPERATIVA_TAREA(cuenta_id, fecha)`,
     )
@@ -789,4 +858,542 @@ export async function createOperativaTareaRegistro(
   const created = rows.find((r) => r.id === Number(inserted.id));
   if (!created) throw new Error("No se pudo guardar el registro.");
   return created;
+}
+
+export interface OperativaLluviaDiaRow {
+  id: number;
+  cuenta_id: number;
+  fecha: string;
+  marcador_id: number | null;
+  marcador_nombre: string | null;
+  mm: number;
+  fuente: "manual" | "yr";
+  estado: "confirmado" | "sugerido";
+  yr_mm: number | null;
+  registrado_por_user_id: number | null;
+  creado_en: string;
+  actualizado_en: string;
+}
+
+export interface OperativaLluviaDiaInput {
+  fecha: string;
+  marcador_id?: number | null;
+  mm: number;
+}
+
+function rowToLluvia(row: Record<string, unknown>): OperativaLluviaDiaRow {
+  const mmRaw = Number(row.mm);
+  const yrMmRaw = row.yr_mm != null ? Number(row.yr_mm) : null;
+  const fuenteRaw = String(row.fuente ?? "manual");
+  const estadoRaw = String(row.estado ?? "confirmado");
+  return {
+    id: Number(row.id),
+    cuenta_id: Number(row.cuenta_id),
+    fecha: String(row.fecha ?? "").slice(0, 10),
+    marcador_id: row.marcador_id != null ? Number(row.marcador_id) : null,
+    marcador_nombre: row.marcador_nombre ? String(row.marcador_nombre) : null,
+    mm: Number.isFinite(mmRaw) ? Math.round(mmRaw * 10) / 10 : 0,
+    fuente: fuenteRaw === "yr" ? "yr" : "manual",
+    estado: estadoRaw === "sugerido" ? "sugerido" : "confirmado",
+    yr_mm:
+      yrMmRaw != null && Number.isFinite(yrMmRaw) ? Math.round(yrMmRaw * 10) / 10 : null,
+    registrado_por_user_id:
+      row.registrado_por_user_id != null ? Number(row.registrado_por_user_id) : null,
+    creado_en: String(row.creado_en ?? ""),
+    actualizado_en: String(row.actualizado_en ?? ""),
+  };
+}
+
+function normalizeMm(value: unknown): number {
+  const n = typeof value === "number" ? value : Number(String(value ?? "").replace(",", "."));
+  if (!Number.isFinite(n) || n < 0 || n > 9999) {
+    throw new Error("Los milímetros de lluvia deben ser un número entre 0 y 9999.");
+  }
+  return Math.round(n * 10) / 10;
+}
+
+async function resolveMarcadorId(
+  db: Db,
+  cuentaId: number,
+  marcadorId: number | null | undefined,
+): Promise<number | null> {
+  if (marcadorId == null || marcadorId === 0) return null;
+  const id = Number(marcadorId);
+  if (!Number.isFinite(id) || id <= 0) {
+    throw new Error("Establecimiento inválido.");
+  }
+  const row = (await db
+    .prepare(
+      `SELECT id, tipo FROM CAMPO_MAPA_ELEMENTO
+       WHERE cuenta_id = ? AND id = ? LIMIT 1`,
+    )
+    .get(cuentaId, id)) as { id: number; tipo: string } | undefined;
+  if (!row || row.tipo !== "marcador") {
+    throw new Error("El establecimiento no existe en el mapa de la cuenta.");
+  }
+  return id;
+}
+
+const LLUVIA_SELECT = `
+  SELECT l.id, l.cuenta_id, l.fecha, l.marcador_id, e.nombre AS marcador_nombre,
+         l.mm, l.fuente, l.estado, l.yr_mm, l.registrado_por_user_id,
+         l.creado_en, l.actualizado_en
+  FROM OPERATIVA_LLUVIA_DIA l
+  LEFT JOIN CAMPO_MAPA_ELEMENTO e ON e.id = l.marcador_id
+`;
+
+export async function listOperativaLluvia(
+  db: Db,
+  cuentaId: number,
+  filters: { fecha?: string; desde?: string; hasta?: string } = {},
+): Promise<OperativaLluviaDiaRow[]> {
+  let sql = `${LLUVIA_SELECT} WHERE l.cuenta_id = ?`;
+  const params: unknown[] = [cuentaId];
+  if (filters.fecha) {
+    sql += ` AND l.fecha = ?`;
+    params.push(normalizeFecha(filters.fecha));
+  } else {
+    if (filters.desde) {
+      sql += ` AND l.fecha >= ?`;
+      params.push(normalizeFecha(filters.desde));
+    }
+    if (filters.hasta) {
+      sql += ` AND l.fecha <= ?`;
+      params.push(normalizeFecha(filters.hasta));
+    }
+  }
+  sql += ` ORDER BY l.fecha ASC, COALESCE(e.nombre, '') ASC, l.id ASC`;
+  const rows = (await db.prepare(sql).all(...params)) as Record<string, unknown>[];
+  return rows.map(rowToLluvia);
+}
+
+export async function upsertOperativaLluvia(
+  db: Db,
+  cuentaId: number,
+  userId: number | null,
+  input: OperativaLluviaDiaInput,
+): Promise<OperativaLluviaDiaRow | null> {
+  if (!Number.isFinite(cuentaId) || cuentaId <= 0) {
+    throw new Error("Cuenta inválida para registrar la lluvia.");
+  }
+  const fecha = normalizeFecha(input.fecha);
+  const marcadorId = await resolveMarcadorId(db, cuentaId, input.marcador_id);
+  const mm = normalizeMm(input.mm);
+
+  const existing = (await db
+    .prepare(
+      `SELECT id, fuente, estado, yr_mm FROM OPERATIVA_LLUVIA_DIA
+       WHERE cuenta_id = ? AND fecha = ?
+         AND COALESCE(marcador_id, 0) = COALESCE(?, 0)
+       LIMIT 1`,
+    )
+    .get(cuentaId, fecha, marcadorId)) as
+    | { id: number; fuente: string; estado: string; yr_mm: number | null }
+    | undefined;
+
+  if (mm === 0 && existing) {
+    await db.prepare(`DELETE FROM OPERATIVA_LLUVIA_DIA WHERE id = ? AND cuenta_id = ?`).run(
+      existing.id,
+      cuentaId,
+    );
+    return null;
+  }
+
+  if (mm === 0) return null;
+
+  const keepFuente = existing?.fuente === "yr" ? "yr" : "manual";
+  const keepYrMm =
+    existing?.yr_mm != null && Number.isFinite(Number(existing.yr_mm))
+      ? Number(existing.yr_mm)
+      : keepFuente === "yr"
+        ? mm
+        : null;
+
+  if (existing) {
+    await db
+      .prepare(
+        `UPDATE OPERATIVA_LLUVIA_DIA
+         SET mm = ?, fuente = ?, estado = 'confirmado', yr_mm = ?,
+             registrado_por_user_id = ?, actualizado_en = NOW()
+         WHERE id = ? AND cuenta_id = ?`,
+      )
+      .run(mm, keepFuente, keepYrMm, userId, existing.id, cuentaId);
+    const rows = await listOperativaLluvia(db, cuentaId, { fecha });
+    const updated = rows.find((r) => r.id === existing.id);
+    if (!updated) throw new Error("No se pudo actualizar el registro de lluvia.");
+    return updated;
+  }
+
+  const inserted = (await db
+    .prepare(
+      `INSERT INTO OPERATIVA_LLUVIA_DIA (
+         cuenta_id, fecha, marcador_id, mm, fuente, estado, yr_mm, registrado_por_user_id
+       ) VALUES (?, ?, ?, ?, 'manual', 'confirmado', NULL, ?)
+       RETURNING id`,
+    )
+    .get(cuentaId, fecha, marcadorId, mm, userId)) as { id: number };
+
+  const rows = await listOperativaLluvia(db, cuentaId, { fecha });
+  const created = rows.find((r) => r.id === Number(inserted.id));
+  if (!created) throw new Error("No se pudo guardar el registro de lluvia.");
+  return created;
+}
+
+export async function deleteOperativaLluvia(
+  db: Db,
+  cuentaId: number,
+  id: number,
+): Promise<boolean> {
+  const result = await db
+    .prepare(`DELETE FROM OPERATIVA_LLUVIA_DIA WHERE id = ? AND cuenta_id = ?`)
+    .run(id, cuentaId);
+  return result.changes > 0;
+}
+
+const YR_USER_AGENT =
+  "SAG-Uruguay/1.0 (https://sgg-dcpo.onrender.com; soporte@sag.com.uy)";
+
+function toLocalDateUy(isoUtc: string): string {
+  try {
+    return new Intl.DateTimeFormat("en-CA", {
+      timeZone: "America/Montevideo",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date(isoUtc));
+  } catch {
+    const d = new Date(isoUtc);
+    const local = new Date(d.getTime() - 3 * 60 * 60 * 1000);
+    const y = local.getUTCFullYear();
+    const m = String(local.getUTCMonth() + 1).padStart(2, "0");
+    const day = String(local.getUTCDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  }
+}
+
+function truncateCoord4(value: number): number {
+  return Math.round(value * 10000) / 10000;
+}
+
+/** Suma precipitación horaria (o bloques 6h) por día civil Uruguay. */
+export function aggregateYrPrecipitationByDay(
+  timeseries: Array<{
+    time?: string;
+    data?: {
+      next_1_hours?: { details?: { precipitation_amount?: number } };
+      next_6_hours?: { details?: { precipitation_amount?: number } };
+    };
+  }>,
+): Map<string, number> {
+  const byDay = new Map<string, number>();
+  for (const entry of timeseries) {
+    const time = String(entry.time ?? "");
+    if (!time) continue;
+    const day = toLocalDateUy(time);
+    const p1 = entry.data?.next_1_hours?.details?.precipitation_amount;
+    const p6 = entry.data?.next_6_hours?.details?.precipitation_amount;
+    let add = 0;
+    if (typeof p1 === "number" && Number.isFinite(p1)) {
+      add = p1;
+    } else if (typeof p6 === "number" && Number.isFinite(p6)) {
+      // Solo usar bloque 6h cuando no hay detalle horario (horizonte lejano).
+      add = p6;
+    }
+    if (add <= 0) continue;
+    byDay.set(day, Math.round(((byDay.get(day) ?? 0) + add) * 10) / 10);
+  }
+  return byDay;
+}
+
+export async function syncLluviaDesdeYr(
+  db: Db,
+  cuentaId: number,
+  lat: number,
+  lon: number,
+  marcadorId: number | null = null,
+): Promise<number> {
+  const latT = truncateCoord4(lat);
+  const lonT = truncateCoord4(lon);
+  const url = `https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=${latT}&lon=${lonT}`;
+  const res = await fetch(url, {
+    headers: {
+      "User-Agent": YR_USER_AGENT,
+      Accept: "application/json",
+    },
+  });
+  if (!res.ok) {
+    throw new Error(`yr.no respondió ${res.status}. Intentá más tarde.`);
+  }
+  const json = (await res.json()) as {
+    properties?: {
+      timeseries?: Array<{
+        time?: string;
+        data?: {
+          next_1_hours?: { details?: { precipitation_amount?: number } };
+          next_6_hours?: { details?: { precipitation_amount?: number } };
+        };
+      }>;
+    };
+  };
+  const series = json.properties?.timeseries ?? [];
+  const byDay = aggregateYrPrecipitationByDay(series);
+  let upserted = 0;
+
+  for (const [fecha, mmRaw] of byDay) {
+    const mm = Math.round(mmRaw * 10) / 10;
+    if (mm < 0.1) continue;
+
+    const existing = (await db
+      .prepare(
+        `SELECT id, estado, fuente FROM OPERATIVA_LLUVIA_DIA
+         WHERE cuenta_id = ? AND fecha = ?
+           AND COALESCE(marcador_id, 0) = COALESCE(?, 0)
+         LIMIT 1`,
+      )
+      .get(cuentaId, fecha, marcadorId)) as
+      | { id: number; estado: string; fuente: string }
+      | undefined;
+
+    if (existing && existing.estado === "confirmado") {
+      continue;
+    }
+
+    if (existing) {
+      await db
+        .prepare(
+          `UPDATE OPERATIVA_LLUVIA_DIA
+           SET mm = ?, fuente = 'yr', estado = 'sugerido', yr_mm = ?, actualizado_en = NOW()
+           WHERE id = ? AND cuenta_id = ?`,
+        )
+        .run(mm, mm, existing.id, cuentaId);
+    } else {
+      await db
+        .prepare(
+          `INSERT INTO OPERATIVA_LLUVIA_DIA (
+             cuenta_id, fecha, marcador_id, mm, fuente, estado, yr_mm
+           ) VALUES (?, ?, ?, ?, 'yr', 'sugerido', ?)`,
+        )
+        .run(cuentaId, fecha, marcadorId, mm, mm);
+    }
+    upserted += 1;
+  }
+
+  return upserted;
+}
+
+function pointFromGeoJson(geojson: string): { lat: number; lon: number } | null {
+  try {
+    const parsed = JSON.parse(geojson) as {
+      type?: string;
+      coordinates?: unknown;
+    };
+    if (parsed.type !== "Point" || !Array.isArray(parsed.coordinates)) return null;
+    const lon = Number(parsed.coordinates[0]);
+    const lat = Number(parsed.coordinates[1]);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+    return { lat, lon };
+  } catch {
+    return null;
+  }
+}
+
+function isMapObjeto(metadata: string): boolean {
+  if (!metadata?.trim()) return false;
+  try {
+    const parsed = JSON.parse(metadata) as { objeto_tipo?: unknown };
+    return typeof parsed.objeto_tipo === "string" && parsed.objeto_tipo.trim().length > 0;
+  } catch {
+    return false;
+  }
+}
+
+export interface EstablecimientoYrRow {
+  marcador_id: number;
+  nombre: string;
+  lat_mapa: number | null;
+  lon_mapa: number | null;
+  lat: number | null;
+  lon: number | null;
+  activo: boolean;
+  yr_ultima_sync: string | null;
+  tiene_coords: boolean;
+}
+
+export async function listEstablecimientosYr(
+  db: Db,
+  cuentaId: number,
+): Promise<EstablecimientoYrRow[]> {
+  const elementos = (await db
+    .prepare(
+      `SELECT id, nombre, geojson, metadata
+       FROM CAMPO_MAPA_ELEMENTO
+       WHERE cuenta_id = ? AND tipo = 'marcador'
+       ORDER BY LOWER(nombre) ASC, id ASC`,
+    )
+    .all(cuentaId)) as Array<{
+    id: number;
+    nombre: string;
+    geojson: string;
+    metadata: string;
+  }>;
+
+  const configs = (await db
+    .prepare(
+      `SELECT marcador_id, activo, lat, lon, yr_ultima_sync
+       FROM OPERATIVA_ESTABLECIMIENTO_YR
+       WHERE cuenta_id = ?`,
+    )
+    .all(cuentaId)) as Array<{
+    marcador_id: number;
+    activo: number;
+    lat: number | null;
+    lon: number | null;
+    yr_ultima_sync: string | null;
+  }>;
+  const byId = new Map(configs.map((c) => [Number(c.marcador_id), c]));
+
+  const rows: EstablecimientoYrRow[] = [];
+  for (const el of elementos) {
+    if (isMapObjeto(String(el.metadata ?? ""))) continue;
+    const point = pointFromGeoJson(String(el.geojson ?? ""));
+    const cfg = byId.get(Number(el.id));
+    const latOverride = cfg?.lat != null ? Number(cfg.lat) : null;
+    const lonOverride = cfg?.lon != null ? Number(cfg.lon) : null;
+    const lat =
+      latOverride != null && Number.isFinite(latOverride)
+        ? latOverride
+        : point?.lat ?? null;
+    const lon =
+      lonOverride != null && Number.isFinite(lonOverride)
+        ? lonOverride
+        : point?.lon ?? null;
+    rows.push({
+      marcador_id: Number(el.id),
+      nombre: String(el.nombre ?? "").trim() || "Sin nombre",
+      lat_mapa: point?.lat ?? null,
+      lon_mapa: point?.lon ?? null,
+      lat: lat != null && Number.isFinite(lat) ? truncateCoord4(lat) : null,
+      lon: lon != null && Number.isFinite(lon) ? truncateCoord4(lon) : null,
+      activo: cfg ? Number(cfg.activo) === 1 : false,
+      yr_ultima_sync: cfg?.yr_ultima_sync ? String(cfg.yr_ultima_sync) : null,
+      tiene_coords: lat != null && lon != null && Number.isFinite(lat) && Number.isFinite(lon),
+    });
+  }
+  return rows;
+}
+
+export async function upsertEstablecimientoYr(
+  db: Db,
+  cuentaId: number,
+  marcadorId: number,
+  input: { activo: boolean; lat?: number | null; lon?: number | null },
+): Promise<EstablecimientoYrRow> {
+  const id = Number(marcadorId);
+  if (!Number.isFinite(id) || id <= 0) throw new Error("Establecimiento inválido.");
+
+  const el = (await db
+    .prepare(
+      `SELECT id, tipo, metadata FROM CAMPO_MAPA_ELEMENTO
+       WHERE cuenta_id = ? AND id = ? LIMIT 1`,
+    )
+    .get(cuentaId, id)) as { id: number; tipo: string; metadata: string } | undefined;
+  if (!el || el.tipo !== "marcador" || isMapObjeto(String(el.metadata ?? ""))) {
+    throw new Error("El establecimiento no existe en el mapa de la cuenta.");
+  }
+
+  let lat: number | null = null;
+  let lon: number | null = null;
+  if (input.lat != null && input.lon != null) {
+    const latN = Number(input.lat);
+    const lonN = Number(input.lon);
+    if (!Number.isFinite(latN) || latN < -90 || latN > 90) {
+      throw new Error("Latitud inválida (entre -90 y 90).");
+    }
+    if (!Number.isFinite(lonN) || lonN < -180 || lonN > 180) {
+      throw new Error("Longitud inválida (entre -180 y 180).");
+    }
+    lat = truncateCoord4(latN);
+    lon = truncateCoord4(lonN);
+  }
+
+  const activo = input.activo ? 1 : 0;
+  await db
+    .prepare(
+      `INSERT INTO OPERATIVA_ESTABLECIMIENTO_YR (
+         cuenta_id, marcador_id, activo, lat, lon, actualizado_en
+       ) VALUES (?, ?, ?, ?, ?, NOW())
+       ON CONFLICT (cuenta_id, marcador_id) DO UPDATE SET
+         activo = EXCLUDED.activo,
+         lat = EXCLUDED.lat,
+         lon = EXCLUDED.lon,
+         actualizado_en = NOW()`,
+    )
+    .run(cuentaId, id, activo, lat, lon);
+
+  const rows = await listEstablecimientosYr(db, cuentaId);
+  const updated = rows.find((r) => r.marcador_id === id);
+  if (!updated) throw new Error("No se pudo guardar el establecimiento.");
+  return updated;
+}
+
+export async function syncLluviaEstablecimientosCuenta(
+  db: Db,
+  cuentaId: number,
+  maxAgeMs = 3 * 60 * 60 * 1000,
+): Promise<number> {
+  const establecimientos = await listEstablecimientosYr(db, cuentaId);
+  const activos = establecimientos.filter((e) => e.activo && e.tiene_coords);
+  if (!activos.length) {
+    // Fallback: ubicación de cuenta (legacy)
+    const cuenta = (await db
+      .prepare(`SELECT yr_lat, yr_lon, yr_ultima_sync FROM EMPRESAS_CUENTA WHERE id = ? LIMIT 1`)
+      .get(cuentaId)) as
+      | { yr_lat: number | null; yr_lon: number | null; yr_ultima_sync: string | null }
+      | undefined;
+    if (
+      cuenta?.yr_lat != null &&
+      cuenta?.yr_lon != null &&
+      Number.isFinite(Number(cuenta.yr_lat)) &&
+      Number.isFinite(Number(cuenta.yr_lon))
+    ) {
+      const last = cuenta.yr_ultima_sync ? Date.parse(String(cuenta.yr_ultima_sync)) : 0;
+      if (!last || Date.now() - last >= maxAgeMs) {
+        const n = await syncLluviaDesdeYr(
+          db,
+          cuentaId,
+          Number(cuenta.yr_lat),
+          Number(cuenta.yr_lon),
+          null,
+        );
+        await db
+          .prepare(`UPDATE EMPRESAS_CUENTA SET yr_ultima_sync = NOW() WHERE id = ?`)
+          .run(cuentaId);
+        return n;
+      }
+    }
+    return 0;
+  }
+
+  let total = 0;
+  for (const est of activos) {
+    const last = est.yr_ultima_sync ? Date.parse(est.yr_ultima_sync) : 0;
+    if (last && Date.now() - last < maxAgeMs) continue;
+    if (est.lat == null || est.lon == null) continue;
+    try {
+      total += await syncLluviaDesdeYr(db, cuentaId, est.lat, est.lon, est.marcador_id);
+      await db
+        .prepare(
+          `UPDATE OPERATIVA_ESTABLECIMIENTO_YR
+           SET yr_ultima_sync = NOW(), actualizado_en = NOW()
+           WHERE cuenta_id = ? AND marcador_id = ?`,
+        )
+        .run(cuentaId, est.marcador_id);
+    } catch (err) {
+      console.warn(
+        `[SGG] sync yr.no establecimiento #${est.marcador_id}:`,
+        err instanceof Error ? err.message : err,
+      );
+    }
+  }
+  return total;
 }

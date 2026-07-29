@@ -22,7 +22,9 @@ import {
   createOperativaTarea,
   createOperativaTareaRegistro,
   deleteOperativaTarea,
+  fetchCampoMapaElementos,
   fetchCampoPotrerosMapa,
+  fetchOperativaLluvia,
   fetchOperativaRegistrosDia,
   fetchOperativaTareaRegistros,
   fetchOperativaTareas,
@@ -31,8 +33,10 @@ import {
 } from "../../api";
 import type {
   AuthUser,
+  CampoMapaElemento,
   CampoPotreroMapa,
   OperativaDiaSemana,
+  OperativaLluviaDia,
   OperativaTarea,
   OperativaTareaRegistro,
 } from "../../types";
@@ -42,6 +46,7 @@ import { canWriteTareasOperativas } from "../../utils/auth-permissions";
 import { confirmAction } from "../../utils/confirm";
 import StockControlSanitarioSectionTitle from "../stock/StockControlSanitarioSectionTitle";
 import NotaCompartirPanel, { nombresCompartidos } from "../notas/NotaCompartirPanel";
+import TareasLluviaPanel from "./TareasLluviaPanel";
 import {
   buildMonthCells,
   DIAS_SEMANA_CORTO,
@@ -51,6 +56,7 @@ import {
   isSameMonth,
   isToday,
   MESES_ES,
+  monthRange,
   parseIsoDate,
   toIsoDate,
 } from "./tareas-calendario";
@@ -138,8 +144,8 @@ function tareaToForm(t: OperativaTarea): FormState {
 }
 
 function rutinaEnDia(t: OperativaTarea, iso: string): boolean {
-  if (t.dia_semana == null) return false;
-  return t.dia_semana === isoWeekday(iso);
+  if (t.dia_semana == null || t.estado === "cancelada") return false;
+  return Number(t.dia_semana) === isoWeekday(iso);
 }
 
 export default function TareasOperativas({
@@ -166,6 +172,8 @@ export default function TareasOperativas({
   const [selectedDate, setSelectedDate] = useState(toIsoDate(now));
   const [rutinas, setRutinas] = useState<OperativaTarea[]>([]);
   const [potreros, setPotreros] = useState<CampoPotreroMapa[]>([]);
+  const [elementosMapa, setElementosMapa] = useState<CampoMapaElemento[]>([]);
+  const [lluviasMes, setLluviasMes] = useState<OperativaLluviaDia[]>([]);
   const [equipo, setEquipo] = useState<AuthUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -213,6 +221,23 @@ export default function TareasOperativas({
       .sort((a, b) => a.titulo.localeCompare(b.titulo));
   }, [dayPopover, rutinas]);
 
+  const lluviaPorFecha = useMemo(() => {
+    const map = new Map<string, { confirmado: number; sugerido: number }>();
+    for (const row of lluviasMes) {
+      const prev = map.get(row.fecha) ?? { confirmado: 0, sugerido: 0 };
+      const mm = Number.isFinite(row.mm) ? row.mm : 0;
+      if (row.estado === "sugerido") prev.sugerido += mm;
+      else prev.confirmado += mm;
+      map.set(row.fecha, prev);
+    }
+    return map;
+  }, [lluviasMes]);
+
+  const lluviasDelDia = useMemo(
+    () => lluviasMes.filter((row) => row.fecha === selectedDate),
+    [lluviasMes, selectedDate],
+  );
+
   const tareasRegistradasIds = useMemo(
     () => new Set(registrosDia.map((r) => r.tarea_id)),
     [registrosDia],
@@ -242,13 +267,15 @@ export default function TareasOperativas({
     try {
       const filters: { asignado_user_id?: number } = {};
       if (filtroAsignado) filters.asignado_user_id = Number(filtroAsignado);
-      const [rutinasData, potrerosData, equipoData] = await Promise.all([
+      const [rutinasData, potrerosData, elementosData, equipoData] = await Promise.all([
         fetchOperativaTareas(filters),
         fetchCampoPotrerosMapa(),
+        fetchCampoMapaElementos(),
         fetchUsuariosMiCuenta(),
       ]);
       setRutinas(rutinasData);
       setPotreros(potrerosData);
+      setElementosMapa(elementosData);
       setEquipo(equipoData.filter((u) => u.activo !== false));
     } catch (e) {
       onErrorRef.current(
@@ -259,6 +286,20 @@ export default function TareasOperativas({
       setLoading(false);
     }
   }, [apiOnline, filtroAsignado]);
+
+  const loadLluviasMes = useCallback(async () => {
+    if (!apiOnline) {
+      setLluviasMes([]);
+      return;
+    }
+    try {
+      const range = monthRange(viewYear, viewMonth);
+      const rows = await fetchOperativaLluvia(range);
+      setLluviasMes(rows);
+    } catch {
+      setLluviasMes([]);
+    }
+  }, [apiOnline, viewYear, viewMonth]);
 
   const loadRegistrosDia = useCallback(async (fecha: string) => {
     if (!apiOnline) return;
@@ -273,6 +314,10 @@ export default function TareasOperativas({
   useEffect(() => {
     void loadData();
   }, [loadData]);
+
+  useEffect(() => {
+    void loadLluviasMes();
+  }, [loadLluviasMes]);
 
   useEffect(() => {
     void loadRegistrosDia(selectedDate);
@@ -684,6 +729,14 @@ export default function TareasOperativas({
                     }
                     const dayRutinas = rutinasPorDia.get(iso) ?? [];
                     const inMonth = isSameMonth(iso, viewYear, viewMonth);
+                    const tieneTareas = dayRutinas.length > 0;
+                    const lluviaInfo = lluviaPorFecha.get(iso);
+                    const lluviaConfirmada = (lluviaInfo?.confirmado ?? 0) > 0;
+                    const lluviaSugerida =
+                      !lluviaConfirmada && (lluviaInfo?.sugerido ?? 0) > 0;
+                    const lluviaMm =
+                      (lluviaInfo?.confirmado ?? 0) + (lluviaInfo?.sugerido ?? 0);
+                    const diaNum = parseIsoDate(iso).getDate();
                     return (
                       <button
                         key={iso}
@@ -694,22 +747,44 @@ export default function TareasOperativas({
                           dayPopover?.date === iso ? "is-popover-open" : "",
                           isToday(iso) ? "is-today" : "",
                           !inMonth ? "is-outside" : "",
-                          dayRutinas.length > 0 ? "has-rutinas" : "",
+                          tieneTareas ? "has-rutinas" : "",
+                          lluviaConfirmada ? "has-lluvia" : "",
+                          lluviaSugerida ? "has-lluvia-sugerida" : "",
                         ]
                           .filter(Boolean)
                           .join(" ")}
                         onClick={(e) => handleDayClick(iso, e)}
                         aria-expanded={dayPopover?.date === iso}
                         aria-haspopup="dialog"
+                        aria-label={
+                          [
+                            String(diaNum),
+                            tieneTareas
+                              ? `${dayRutinas.length} rutina${dayRutinas.length === 1 ? "" : "s"}`
+                              : null,
+                            lluviaConfirmada
+                              ? `${lluviaMm} mm de lluvia`
+                              : lluviaSugerida
+                                ? `${lluviaMm} mm sugeridos por yr.no`
+                                : null,
+                          ]
+                            .filter(Boolean)
+                            .join(", ")
+                        }
                       >
-                        <span className="tareas-op-day-num">{parseIsoDate(iso).getDate()}</span>
-                        {dayRutinas.length > 0 ? (
+                        <span className="tareas-op-day-num">{diaNum}</span>
+                        {(tieneTareas || lluviaConfirmada || lluviaSugerida) && (
                           <span className="tareas-op-day-dots" aria-hidden>
                             {dayRutinas.slice(0, 3).map((t) => (
                               <span key={t.id} className="tareas-op-dot tareas-op-dot--rutina" />
                             ))}
+                            {lluviaConfirmada ? (
+                              <span className="tareas-op-dot tareas-op-dot--lluvia" />
+                            ) : lluviaSugerida ? (
+                              <span className="tareas-op-dot tareas-op-dot--lluvia-sugerida" />
+                            ) : null}
                           </span>
-                        ) : null}
+                        )}
                       </button>
                     );
                   })}
@@ -836,8 +911,16 @@ export default function TareasOperativas({
               </div>
               <div className="tareas-op-calendar-legend" aria-hidden>
                 <span>
-                  <i className="tareas-op-legend-dot tareas-op-legend-dot--rutina" />
-                  Con rutinas
+                  <i className="tareas-op-legend-swatch tareas-op-legend-swatch--rutina" />
+                  Con tareas
+                </span>
+                <span>
+                  <i className="tareas-op-legend-dot tareas-op-legend-dot--lluvia" />
+                  Lluvia confirmada
+                </span>
+                <span>
+                  <i className="tareas-op-legend-dot tareas-op-legend-dot--lluvia-sugerida" />
+                  Lluvia (yr.no)
                 </span>
                 <span>
                   <i className="tareas-op-legend-ring" />
@@ -869,6 +952,22 @@ export default function TareasOperativas({
                   </div>
                 ) : null}
               </header>
+
+              <TareasLluviaPanel
+                fecha={selectedDate}
+                apiOnline={apiOnline}
+                puedeEditar={puedeEditar}
+                elementosMapa={elementosMapa}
+                lluvias={lluviasDelDia}
+                onChange={(rows) => {
+                  setLluviasMes((prev) => {
+                    const other = prev.filter((r) => r.fecha !== selectedDate);
+                    return [...other, ...rows];
+                  });
+                }}
+                onError={onError}
+                onSuccess={onSuccess}
+              />
 
               {loading ? (
                 <ul className="tareas-op-skeleton-list" aria-busy="true">

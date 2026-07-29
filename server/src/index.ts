@@ -4284,6 +4284,224 @@ app.post("/api/operativa-tareas/:id/registros", async (req, res) => {
   }
 });
 
+app.get("/api/operativa-lluvia", async (req, res) => {
+  try {
+    const cuentaId = await cuentaIdParaInsert(req.user!);
+    if (!cuentaId) {
+      res.status(400).json({ ok: false, error: "No se pudo determinar la cuenta" });
+      return;
+    }
+    const q = req.query;
+    const filters: { fecha?: string; desde?: string; hasta?: string } = {};
+    if (typeof q.fecha === "string" && q.fecha.trim()) filters.fecha = q.fecha.trim();
+    if (typeof q.desde === "string" && q.desde.trim()) filters.desde = q.desde.trim();
+    if (typeof q.hasta === "string" && q.hasta.trim()) filters.hasta = q.hasta.trim();
+
+    // Sync lazy yr.no por establecimientos activos del mapa (máx. cada 3 h).
+    try {
+      await db.operativaTareas.syncLluviaEstablecimientos(cuentaId);
+    } catch (syncErr) {
+      console.warn(
+        "[SGG] sync lluvia yr.no:",
+        syncErr instanceof Error ? syncErr.message : syncErr,
+      );
+    }
+
+    const items = await db.operativaTareas.listLluvia(cuentaId, filters);
+    res.json({ ok: true, data: items });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al listar lluvia",
+    });
+  }
+});
+
+app.put("/api/operativa-lluvia", async (req, res) => {
+  try {
+    const cuentaId = await cuentaIdParaInsert(req.user!);
+    if (!cuentaId) {
+      res.status(400).json({ ok: false, error: "No se pudo determinar la cuenta" });
+      return;
+    }
+    const body = req.body ?? {};
+    const marcadorRaw = body.marcador_id;
+    const marcadorId =
+      marcadorRaw == null || marcadorRaw === ""
+        ? null
+        : Number(marcadorRaw);
+    const item = await db.operativaTareas.upsertLluvia(cuentaId, req.user!.id, {
+      fecha: typeof body.fecha === "string" ? body.fecha : "",
+      marcador_id: Number.isFinite(marcadorId as number) ? (marcadorId as number) : null,
+      mm: body.mm,
+    });
+    res.json({
+      ok: true,
+      data: item,
+      message: item
+        ? `Lluvia registrada: ${item.mm} mm`
+        : "Registro de lluvia eliminado",
+    });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al guardar la lluvia",
+    });
+  }
+});
+
+app.get("/api/cuenta/ubicacion-yr", async (req, res) => {
+  try {
+    const cuentaId = await cuentaIdParaInsert(req.user!);
+    if (!cuentaId) {
+      res.status(400).json({ ok: false, error: "No se pudo determinar la cuenta" });
+      return;
+    }
+    const data = await empresasCuenta.getCuentaUbicacionYr(db.getDb(), cuentaId);
+    res.json({ ok: true, data });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al obtener ubicación yr.no",
+    });
+  }
+});
+
+app.put("/api/cuenta/ubicacion-yr", async (req, res) => {
+  if (
+    !req.user ||
+    (req.user.rol !== "admin" && !req.user.es_super_admin && !req.user.es_admin_cuenta)
+  ) {
+    res.status(403).json({
+      ok: false,
+      error: "Solo los administradores de la cuenta pueden configurar la ubicación yr.no",
+    });
+    return;
+  }
+  try {
+    const cuentaId = await cuentaIdParaInsert(req.user);
+    if (!cuentaId) {
+      res.status(400).json({ ok: false, error: "No se pudo determinar la cuenta" });
+      return;
+    }
+    const body = req.body ?? {};
+    const latRaw = body.lat;
+    const lonRaw = body.lon;
+    const lat =
+      latRaw == null || latRaw === "" ? null : Number(latRaw);
+    const lon =
+      lonRaw == null || lonRaw === "" ? null : Number(lonRaw);
+    const data = await empresasCuenta.updateCuentaUbicacionYr(db.getDb(), cuentaId, {
+      lat: Number.isFinite(lat as number) ? (lat as number) : null,
+      lon: Number.isFinite(lon as number) ? (lon as number) : null,
+      nombre: typeof body.nombre === "string" ? body.nombre : "",
+    });
+    if (data.lat != null && data.lon != null) {
+      try {
+        await db.operativaTareas.syncLluviaYr(cuentaId, data.lat, data.lon, null);
+        await empresasCuenta.touchCuentaYrUltimaSync(db.getDb(), cuentaId);
+        const refreshed = await empresasCuenta.getCuentaUbicacionYr(db.getDb(), cuentaId);
+        res.json({ ok: true, data: refreshed ?? data });
+        return;
+      } catch (syncErr) {
+        console.warn(
+          "[SGG] sync lluvia yr.no al guardar ubicación:",
+          syncErr instanceof Error ? syncErr.message : syncErr,
+        );
+      }
+    }
+    res.json({ ok: true, data });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al guardar ubicación yr.no",
+    });
+  }
+});
+
+app.get("/api/cuenta/establecimientos-yr", async (req, res) => {
+  try {
+    const cuentaId = await cuentaIdParaInsert(req.user!);
+    if (!cuentaId) {
+      res.status(400).json({ ok: false, error: "No se pudo determinar la cuenta" });
+      return;
+    }
+    const data = await db.operativaTareas.listEstablecimientosYr(cuentaId);
+    res.json({ ok: true, data });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al listar establecimientos",
+    });
+  }
+});
+
+app.put("/api/cuenta/establecimientos-yr/:marcadorId", async (req, res) => {
+  if (
+    !req.user ||
+    (req.user.rol !== "admin" && !req.user.es_super_admin && !req.user.es_admin_cuenta)
+  ) {
+    res.status(403).json({
+      ok: false,
+      error: "Solo los administradores de la cuenta pueden configurar precipitaciones",
+    });
+    return;
+  }
+  try {
+    const cuentaId = await cuentaIdParaInsert(req.user);
+    if (!cuentaId) {
+      res.status(400).json({ ok: false, error: "No se pudo determinar la cuenta" });
+      return;
+    }
+    const marcadorId = Number(req.params.marcadorId);
+    if (!Number.isFinite(marcadorId) || marcadorId <= 0) {
+      res.status(400).json({ ok: false, error: "Establecimiento inválido" });
+      return;
+    }
+    const body = req.body ?? {};
+    const activo = Boolean(body.activo);
+    const latRaw = body.lat;
+    const lonRaw = body.lon;
+    const lat =
+      latRaw == null || latRaw === "" ? null : Number(latRaw);
+    const lon =
+      lonRaw == null || lonRaw === "" ? null : Number(lonRaw);
+    const data = await db.operativaTareas.upsertEstablecimientoYr(cuentaId, marcadorId, {
+      activo,
+      lat: Number.isFinite(lat as number) ? (lat as number) : null,
+      lon: Number.isFinite(lon as number) ? (lon as number) : null,
+    });
+    if (data.activo && data.lat != null && data.lon != null) {
+      try {
+        await db.operativaTareas.syncLluviaYr(cuentaId, data.lat, data.lon, data.marcador_id);
+        await db
+          .getDb()
+          .prepare(
+            `UPDATE OPERATIVA_ESTABLECIMIENTO_YR
+             SET yr_ultima_sync = NOW()
+             WHERE cuenta_id = ? AND marcador_id = ?`,
+          )
+          .run(cuentaId, data.marcador_id);
+        const refreshed = await db.operativaTareas.listEstablecimientosYr(cuentaId);
+        const row = refreshed.find((r) => r.marcador_id === data.marcador_id) ?? data;
+        res.json({ ok: true, data: row });
+        return;
+      } catch (syncErr) {
+        console.warn(
+          "[SGG] sync yr.no al activar establecimiento:",
+          syncErr instanceof Error ? syncErr.message : syncErr,
+        );
+      }
+    }
+    res.json({ ok: true, data });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al guardar establecimiento",
+    });
+  }
+});
+
 app.post("/api/stock-ganadero/potreros", async (req, res) => {
   try {
     const cuentaId = await cuentaIdParaInsert(req.user!);

@@ -63,6 +63,9 @@ import type {
   OperativaTarea,
   OperativaTareaInput,
   OperativaTareaRegistro,
+  OperativaLluviaDia,
+  CuentaUbicacionYr,
+  EstablecimientoYr,
   StockGanaderaDispositivo,
   StockGanaderaDispositivoDetalle,
   StockGanaderaDispositivoHistorial,
@@ -1424,6 +1427,70 @@ export async function createOperativaTareaRegistro(
     `/operativa-tareas/${tareaId}/registros`,
     {
       method: "POST",
+      body: JSON.stringify(body),
+    },
+  );
+  return json.data;
+}
+
+export async function fetchOperativaLluvia(filters?: {
+  fecha?: string;
+  desde?: string;
+  hasta?: string;
+}): Promise<OperativaLluviaDia[]> {
+  const params = new URLSearchParams();
+  if (filters?.fecha) params.set("fecha", filters.fecha);
+  if (filters?.desde) params.set("desde", filters.desde);
+  if (filters?.hasta) params.set("hasta", filters.hasta);
+  const q = params.toString();
+  const json = await request<{ data: OperativaLluviaDia[] }>(
+    `/operativa-lluvia${q ? `?${q}` : ""}`,
+  );
+  return json.data;
+}
+
+export async function upsertOperativaLluvia(body: {
+  fecha: string;
+  marcador_id?: number | null;
+  mm: number;
+}): Promise<OperativaLluviaDia | null> {
+  const json = await request<{ data: OperativaLluviaDia | null }>("/operativa-lluvia", {
+    method: "PUT",
+    body: JSON.stringify(body),
+  });
+  return json.data;
+}
+
+export async function fetchCuentaUbicacionYr(): Promise<CuentaUbicacionYr | null> {
+  const json = await request<{ data: CuentaUbicacionYr | null }>("/cuenta/ubicacion-yr");
+  return json.data;
+}
+
+export async function updateCuentaUbicacionYr(body: {
+  lat: number | null;
+  lon: number | null;
+  nombre?: string;
+}): Promise<CuentaUbicacionYr> {
+  const json = await request<{ data: CuentaUbicacionYr }>("/cuenta/ubicacion-yr", {
+    method: "PUT",
+    body: JSON.stringify(body),
+  });
+  return json.data;
+}
+
+export async function fetchEstablecimientosYr(): Promise<EstablecimientoYr[]> {
+  const json = await request<{ data: EstablecimientoYr[] }>("/cuenta/establecimientos-yr");
+  return json.data;
+}
+
+export async function updateEstablecimientoYr(
+  marcadorId: number,
+  body: { activo: boolean; lat?: number | null; lon?: number | null },
+): Promise<EstablecimientoYr> {
+  const json = await request<{ data: EstablecimientoYr }>(
+    `/cuenta/establecimientos-yr/${marcadorId}`,
+    {
+      method: "PUT",
       body: JSON.stringify(body),
     },
   );

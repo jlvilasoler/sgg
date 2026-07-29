@@ -630,6 +630,28 @@ export const operativaTareas = {
     userId: number | null,
     input: operativaTareasDb.OperativaTareaRegistroInput,
   ) => operativaTareasDb.createOperativaTareaRegistro(db, cuentaId, tareaId, userId, input),
+  listLluvia: (
+    cuentaId: number,
+    filters?: { fecha?: string; desde?: string; hasta?: string },
+  ) => operativaTareasDb.listOperativaLluvia(db, cuentaId, filters),
+  upsertLluvia: (
+    cuentaId: number,
+    userId: number | null,
+    input: operativaTareasDb.OperativaLluviaDiaInput,
+  ) => operativaTareasDb.upsertOperativaLluvia(db, cuentaId, userId, input),
+  deleteLluvia: (cuentaId: number, id: number) =>
+    operativaTareasDb.deleteOperativaLluvia(db, cuentaId, id),
+  syncLluviaYr: (cuentaId: number, lat: number, lon: number, marcadorId?: number | null) =>
+    operativaTareasDb.syncLluviaDesdeYr(db, cuentaId, lat, lon, marcadorId ?? null),
+  syncLluviaEstablecimientos: (cuentaId: number) =>
+    operativaTareasDb.syncLluviaEstablecimientosCuenta(db, cuentaId),
+  listEstablecimientosYr: (cuentaId: number) =>
+    operativaTareasDb.listEstablecimientosYr(db, cuentaId),
+  upsertEstablecimientoYr: (
+    cuentaId: number,
+    marcadorId: number,
+    input: { activo: boolean; lat?: number | null; lon?: number | null },
+  ) => operativaTareasDb.upsertEstablecimientoYr(db, cuentaId, marcadorId, input),
 };
 
 export const stockEquino = {
