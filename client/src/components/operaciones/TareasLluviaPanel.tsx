@@ -31,7 +31,7 @@ function establecimientosDesdeMapa(elementos: CampoMapaElemento[]): Establecimie
 }
 
 function formatMmInput(mm: number | null | undefined): string {
-  if (mm == null || !Number.isFinite(mm) || mm <= 0) return "";
+  if (mm == null || !Number.isFinite(mm) || mm < 0) return "";
   const rounded = Math.round(mm * 10) / 10;
   return Number.isInteger(rounded) ? String(rounded) : String(rounded);
 }
@@ -221,8 +221,8 @@ export default function TareasLluviaPanel({
             {totalConfirmado > 0
               ? `Confirmado: ${formatMmInput(totalConfirmado)} mm`
               : haySugeridos
-                ? "Estimación meteorológica — confirmá si llovió en el campo"
-                : "Sin precipitación estimada para este día (o aún no sincronizó). Podés cargar mm a mano."}
+                ? "Total del día según yr.no — confirmá si coincide con el campo"
+                : "Sin dato yr.no para este día. Cargá los mm a mano."}
           </p>
         </div>
       </header>
@@ -244,8 +244,8 @@ export default function TareasLluviaPanel({
                   <strong className="tareas-op-lluvia-yr-place">{est.nombre}</strong>
                 </div>
                 <p className="tareas-op-lluvia-yr-msg">
-                  Estimación: <strong>{formatMmInput(row.yr_mm ?? row.mm)} mm</strong>. Confirmá si
-                  efectivamente llovió.
+                  Total del día (yr.no):{" "}
+                  <strong>{formatMmInput(row.yr_mm ?? row.mm)} mm</strong>. Confirmá o ajustá.
                 </p>
                 <div className="tareas-op-lluvia-yr-actions">
                   <div className="tareas-op-lluvia-input-wrap">

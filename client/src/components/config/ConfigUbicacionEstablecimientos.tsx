@@ -129,9 +129,9 @@ export default function ConfigUbicacionEstablecimientos({
             </p>
             <h2 className="config-ubicacion-est-title">Ubicación Establecimientos</h2>
             <p className="muted config-ubicacion-est-sub">
-              Los establecimientos del mapa capturan mm automáticamente todos los días (se guardan en
-              la base). Hoy y días pasados: estimación meteorológica; futuros: yr.no. Desactivá uno
-              solo si no querés seguimiento en ese punto.
+              Cada día se guarda automáticamente el total de mm del día según yr.no (suma de lo
+              previsto para ese día en la ubicación del establecimiento). Desactivá un punto solo si
+              no querés seguimiento ahí.
             </p>
           </div>
           <button
