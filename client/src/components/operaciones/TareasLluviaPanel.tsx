@@ -1,5 +1,16 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Check, CloudRain, Droplets, Loader2, MapPin, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  Check,
+  Cloud,
+  CloudDrizzle,
+  CloudFog,
+  CloudLightning,
+  CloudRain,
+  CloudSun,
+  Loader2,
+  Sun,
+  X,
+} from "lucide-react";
 import { upsertOperativaLluvia } from "../../api";
 import type { CampoMapaElemento, OperativaLluviaDia } from "../../types";
 import { parseCampoMapaObjetoTipo } from "../campo/campo-mapa-objetos";
@@ -18,6 +29,15 @@ interface Props {
   onChange: (rows: OperativaLluviaDia[]) => void;
   onError: (msg: string) => void;
   onSuccess?: (msg: string) => void;
+}
+
+type ClimaNivel = "clear" | "mist" | "drizzle" | "rain" | "heavy" | "storm";
+
+interface ClimaInfo {
+  nivel: ClimaNivel;
+  label: string;
+  detail: string;
+  icon: ReactNode;
 }
 
 function establecimientosDesdeMapa(elementos: CampoMapaElemento[]): EstablecimientoOpcion[] {
@@ -42,6 +62,82 @@ function parseMmInput(raw: string): number | null {
   const n = Number(trimmed);
   if (!Number.isFinite(n) || n < 0 || n > 9999) return null;
   return Math.round(n * 10) / 10;
+}
+
+function climaDesdeMm(mm: number, pending: boolean): ClimaInfo {
+  const n = Number.isFinite(mm) ? mm : 0;
+  const size = 28;
+  const stroke = 1.75;
+  if (n <= 0) {
+    return {
+      nivel: "clear",
+      label: pending ? "Sin precipitación prevista" : "Sin lluvia",
+      detail: pending ? "Cielo estable según yr.no" : "Día seco registrado",
+      icon: <Sun size={size} strokeWidth={stroke} />,
+    };
+  }
+  if (n < 0.5) {
+    return {
+      nivel: "mist",
+      label: "Llovizna mínima",
+      detail: "Apenas perceptible",
+      icon: <CloudFog size={size} strokeWidth={stroke} />,
+    };
+  }
+  if (n < 2) {
+    return {
+      nivel: "drizzle",
+      label: "Llovizna",
+      detail: "Precipitación liviana",
+      icon: <CloudDrizzle size={size} strokeWidth={stroke} />,
+    };
+  }
+  if (n < 8) {
+    return {
+      nivel: "rain",
+      label: "Lluvia",
+      detail: "Precipitación moderada",
+      icon: <CloudRain size={size} strokeWidth={stroke} />,
+    };
+  }
+  if (n < 20) {
+    return {
+      nivel: "heavy",
+      label: "Lluvia intensa",
+      detail: "Acumulación importante",
+      icon: <Cloud size={size} strokeWidth={stroke} />,
+    };
+  }
+  return {
+    nivel: "storm",
+    label: "Tormenta / muy intensa",
+    detail: "Alta acumulación del día",
+    icon: <CloudLightning size={size} strokeWidth={stroke} />,
+  };
+}
+
+function climaIconSmall(nivel: ClimaNivel): ReactNode {
+  const size = 18;
+  const stroke = 2;
+  switch (nivel) {
+    case "clear":
+      return <Sun size={size} strokeWidth={stroke} />;
+    case "mist":
+      return <CloudFog size={size} strokeWidth={stroke} />;
+    case "drizzle":
+      return <CloudDrizzle size={size} strokeWidth={stroke} />;
+    case "rain":
+      return <CloudRain size={size} strokeWidth={stroke} />;
+    case "heavy":
+      return <CloudSun size={size} strokeWidth={stroke} />;
+    case "storm":
+      return <CloudLightning size={size} strokeWidth={stroke} />;
+  }
+}
+
+function intensidadPct(mm: number): number {
+  if (!Number.isFinite(mm) || mm <= 0) return 0;
+  return Math.min(100, Math.round((Math.log10(mm + 1) / Math.log10(41)) * 100));
 }
 
 type SaveState = "idle" | "saving" | "saved" | "error";
@@ -214,47 +310,48 @@ export default function TareasLluviaPanel({
   }, [establecimientos, lluvias]);
 
   const haySugeridos = lluvias.some((r) => r.estado === "sugerido" && r.fuente === "yr");
-  const totalDisplay =
-    totalConfirmado > 0
-      ? formatMmInput(totalConfirmado)
-      : haySugeridos
-        ? formatMmInput(totalSugerido)
-        : null;
-  const totalLabel =
-    totalConfirmado > 0 ? "Confirmado" : haySugeridos ? "Previsto yr.no" : null;
+  const heroMm = totalConfirmado > 0 ? totalConfirmado : haySugeridos ? totalSugerido : 0;
+  const heroPending = totalConfirmado <= 0 && haySugeridos;
+  const clima = climaDesdeMm(heroMm, heroPending);
+  const showRainFx = clima.nivel === "drizzle" || clima.nivel === "rain" || clima.nivel === "heavy" || clima.nivel === "storm";
 
   return (
     <section
-      className={`tareas-op-lluvia${haySugeridos ? " is-pending" : ""}${totalConfirmado > 0 ? " is-confirmed" : ""}`}
-      aria-label="Lluvia del día"
+      className={`wx-board is-${clima.nivel}${heroPending ? " is-pending" : ""}${totalConfirmado > 0 ? " is-confirmed" : ""}`}
+      aria-label="Clima y lluvia del día"
     >
-      <header className="tareas-op-lluvia-head">
-        <span className="tareas-op-lluvia-icon" aria-hidden>
-          <CloudRain size={18} strokeWidth={2} />
-        </span>
-        <div className="tareas-op-lluvia-copy">
-          <p className="tareas-op-lluvia-kicker">Precipitación</p>
-          <p className="tareas-op-lluvia-title">Lluvia del día</p>
-          <p className="tareas-op-lluvia-sub">
-            {totalConfirmado > 0
-              ? "Valores guardados por establecimiento"
-              : haySugeridos
-                ? "Confirmá o ajustá el total según yr.no"
-                : "Sin dato yr.no — cargá los mm a mano"}
-          </p>
-        </div>
-        {totalDisplay != null && totalLabel ? (
-          <div className="tareas-op-lluvia-total" aria-label={`${totalLabel}: ${totalDisplay} mm`}>
-            <span className="tareas-op-lluvia-total-label">{totalLabel}</span>
-            <span className="tareas-op-lluvia-total-value">
-              {totalDisplay}
-              <small>mm</small>
-            </span>
+      <div className="wx-board-sky" aria-hidden>
+        {showRainFx ? (
+          <div className="wx-rain">
+            {Array.from({ length: 14 }, (_, i) => (
+              <span key={i} className={`wx-drop wx-drop--${(i % 5) + 1}`} />
+            ))}
           </div>
         ) : null}
+        <div className="wx-glow" />
+      </div>
+
+      <header className="wx-hero">
+        <div className="wx-hero-icon" aria-hidden>
+          {clima.icon}
+        </div>
+        <div className="wx-hero-copy">
+          <p className="wx-kicker">{heroPending ? "Pronóstico · yr.no" : "Condición del día"}</p>
+          <h3 className="wx-condition">{clima.label}</h3>
+          <p className="wx-detail">{clima.detail}</p>
+        </div>
+        <div className="wx-hero-metric">
+          <span className="wx-metric-value">
+            {formatMmInput(heroMm) || "0"}
+            <small>mm</small>
+          </span>
+          <span className="wx-metric-label">
+            {totalConfirmado > 0 ? "Total confirmado" : haySugeridos ? "Total previsto" : "Sin registro"}
+          </span>
+        </div>
       </header>
 
-      <ul className="tareas-op-lluvia-list">
+      <div className="wx-stations" role="list">
         {filas.map((est) => {
           const key = String(est.id ?? 0);
           const row = lluviaByKey.get(key);
@@ -263,26 +360,32 @@ export default function TareasLluviaPanel({
           const state = saveState[key] ?? "idle";
           const busy = busyKey === key;
           const mmShown = drafts[key] ?? "";
+          const mmNum = parseMmInput(mmShown) ?? 0;
+          const localClima = climaDesdeMm(mmNum, yrSugerido);
+          const bar = intensidadPct(mmNum);
 
           if (yrSugerido) {
             return (
-              <li key={key} className="tareas-op-lluvia-card is-sugerido">
-                <div className="tareas-op-lluvia-card-top">
-                  <span className="tareas-op-lluvia-place">
-                    <MapPin size={14} strokeWidth={2.25} aria-hidden />
-                    {est.nombre}
+              <article key={key} className={`wx-station is-sugerido is-${localClima.nivel}`} role="listitem">
+                <div className="wx-station-left">
+                  <span className="wx-station-icon" aria-hidden>
+                    {climaIconSmall(localClima.nivel)}
                   </span>
-                  <span className="tareas-op-lluvia-source">yr.no</span>
+                  <div className="wx-station-meta">
+                    <div className="wx-station-title-row">
+                      <strong className="wx-station-name">{est.nombre}</strong>
+                      <span className="wx-badge">yr.no</span>
+                    </div>
+                    <p className="wx-station-cond">{localClima.label}</p>
+                    <div className="wx-bar" aria-hidden>
+                      <span className="wx-bar-fill" style={{ width: `${bar}%` }} />
+                    </div>
+                  </div>
                 </div>
-                <p className="tareas-op-lluvia-card-msg">
-                  Total del día previsto:{" "}
-                  <strong>{formatMmInput(row.yr_mm ?? row.mm)} mm</strong>
-                </p>
-                <div className="tareas-op-lluvia-card-actions">
-                  <div className="tareas-op-lluvia-meter">
-                    <Droplets size={14} strokeWidth={2.25} aria-hidden />
+                <div className="wx-station-right">
+                  <div className="wx-meter">
                     <input
-                      className="tareas-op-lluvia-input"
+                      className="wx-input"
                       type="text"
                       inputMode="decimal"
                       value={mmShown}
@@ -295,95 +398,99 @@ export default function TareasLluviaPanel({
                       }
                       aria-label={`Milímetros sugeridos en ${est.nombre}`}
                     />
-                    <span className="tareas-op-lluvia-unit" aria-hidden>
-                      mm
-                    </span>
+                    <span className="wx-unit">mm</span>
                   </div>
                   {puedeEditar ? (
-                    <div className="tareas-op-lluvia-btns">
+                    <div className="wx-actions">
                       <button
                         type="button"
-                        className="tareas-op-lluvia-btn tareas-op-lluvia-btn--ok"
+                        className="wx-btn wx-btn--ok"
                         disabled={!apiOnline || busy}
                         onClick={() => void confirmarYr(est.id)}
                       >
-                        {busy ? (
-                          <Loader2 size={14} className="tareas-op-lluvia-spin" />
-                        ) : (
-                          <Check size={14} />
-                        )}
+                        {busy ? <Loader2 size={14} className="wx-spin" /> : <Check size={14} />}
                         Confirmar
                       </button>
                       <button
                         type="button"
-                        className="tareas-op-lluvia-btn tareas-op-lluvia-btn--no"
+                        className="wx-btn wx-btn--ghost"
                         disabled={!apiOnline || busy}
                         onClick={() => void descartarYr(est.id)}
                       >
                         <X size={14} />
-                        Descartar
                       </button>
                     </div>
                   ) : null}
                 </div>
-              </li>
+              </article>
             );
           }
 
           return (
-            <li
+            <article
               key={key}
-              className={`tareas-op-lluvia-card is-row${yrConfirmado ? " is-yr" : ""}${state === "saved" ? " is-saved" : ""}`}
+              className={`wx-station is-row is-${localClima.nivel}${yrConfirmado ? " is-yr" : ""}${state === "saved" ? " is-saved" : ""}`}
+              role="listitem"
             >
-              <label className="tareas-op-lluvia-place" htmlFor={`lluvia-mm-${key}`}>
-                <MapPin size={14} strokeWidth={2.25} aria-hidden />
-                <span className="tareas-op-lluvia-place-text">{est.nombre}</span>
-                {yrConfirmado ? <span className="tareas-op-lluvia-source">yr.no</span> : null}
-              </label>
-              <div className="tareas-op-lluvia-meter">
-                <input
-                  id={`lluvia-mm-${key}`}
-                  className="tareas-op-lluvia-input"
-                  type="text"
-                  inputMode="decimal"
-                  placeholder="0"
-                  value={mmShown}
-                  disabled={!puedeEditar || !apiOnline || state === "saving"}
-                  onChange={(e) => {
-                    setDrafts((d) => ({
-                      ...d,
-                      [key]: e.target.value.replace(/[^\d.,]/g, ""),
-                    }));
-                    setSaveState((s) => ({ ...s, [key]: "idle" }));
-                  }}
-                  onBlur={() => void guardar(est.id)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      (e.target as HTMLInputElement).blur();
-                    }
-                  }}
-                  aria-label={`Milímetros de lluvia en ${est.nombre}`}
-                />
-                <span className="tareas-op-lluvia-unit" aria-hidden>
-                  mm
+              <div className="wx-station-left">
+                <span className="wx-station-icon" aria-hidden>
+                  {climaIconSmall(localClima.nivel)}
                 </span>
-                <span className="tareas-op-lluvia-status" aria-live="polite">
-                  {state === "saving" ? (
-                    <Loader2 size={14} className="tareas-op-lluvia-spin" />
-                  ) : null}
-                  {state === "saved" ? <Check size={14} strokeWidth={2.5} /> : null}
-                </span>
+                <div className="wx-station-meta">
+                  <div className="wx-station-title-row">
+                    <label className="wx-station-name" htmlFor={`lluvia-mm-${key}`}>
+                      {est.nombre}
+                    </label>
+                    {yrConfirmado ? <span className="wx-badge">yr.no</span> : null}
+                  </div>
+                  <p className="wx-station-cond">{localClima.label}</p>
+                  <div className="wx-bar" aria-hidden>
+                    <span className="wx-bar-fill" style={{ width: `${bar}%` }} />
+                  </div>
+                </div>
               </div>
-            </li>
+              <div className="wx-station-right">
+                <div className="wx-meter">
+                  <input
+                    id={`lluvia-mm-${key}`}
+                    className="wx-input"
+                    type="text"
+                    inputMode="decimal"
+                    placeholder="0"
+                    value={mmShown}
+                    disabled={!puedeEditar || !apiOnline || state === "saving"}
+                    onChange={(e) => {
+                      setDrafts((d) => ({
+                        ...d,
+                        [key]: e.target.value.replace(/[^\d.,]/g, ""),
+                      }));
+                      setSaveState((s) => ({ ...s, [key]: "idle" }));
+                    }}
+                    onBlur={() => void guardar(est.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        (e.target as HTMLInputElement).blur();
+                      }
+                    }}
+                    aria-label={`Milímetros de lluvia en ${est.nombre}`}
+                  />
+                  <span className="wx-unit">mm</span>
+                  <span className="wx-status" aria-live="polite">
+                    {state === "saving" ? <Loader2 size={14} className="wx-spin" /> : null}
+                    {state === "saved" ? <Check size={14} strokeWidth={2.5} /> : null}
+                  </span>
+                </div>
+              </div>
+            </article>
           );
         })}
-      </ul>
+      </div>
 
       {!puedeEditar ? (
-        <p className="tareas-op-lluvia-hint">Solo lectura: no podés editar la lluvia.</p>
+        <p className="wx-hint">Solo lectura: no podés editar la lluvia.</p>
       ) : (
-        <p className="tareas-op-lluvia-hint">
+        <p className="wx-hint">
           {haySugeridos
             ? "Confirmá solo si realmente llovió en ese establecimiento."
             : "Los mm se guardan al salir del campo o con Enter."}
