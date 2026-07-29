@@ -400,6 +400,15 @@ export async function initOperativaTareasTables(db: Db): Promise<void> {
     )
     .run();
 
+  // yr.no se aplica solo: no requiere confirmación del usuario
+  await db
+    .prepare(
+      `UPDATE OPERATIVA_LLUVIA_DIA
+       SET estado = 'confirmado', actualizado_en = NOW()
+       WHERE fuente = 'yr' AND estado = 'sugerido'`,
+    )
+    .run();
+
   await db
     .prepare(
       `CREATE TABLE IF NOT EXISTS OPERATIVA_ESTABLECIMIENTO_YR (
@@ -1163,7 +1172,7 @@ async function fetchYrForecastByDay(lat: number, lon: number): Promise<Map<strin
   return aggregateYrPrecipitationByDay(json.properties?.timeseries ?? []);
 }
 
-async function upsertLluviaSugeridaYr(
+async function upsertLluviaDesdeYrAuto(
   db: Db,
   cuentaId: number,
   marcadorId: number | null,
@@ -1188,12 +1197,12 @@ async function upsertLluviaSugeridaYr(
       | { id: number; estado: string; fuente: string; mm: number; yr_mm: number | null }
       | undefined;
 
-    if (existing && existing.estado === "confirmado") {
+    // No pisar carga manual del usuario.
+    if (existing && existing.fuente === "manual" && existing.estado === "confirmado") {
       continue;
     }
 
-    // No bajar una sugerencia previa del mismo día si el nuevo valor es 0
-    // (p. ej. día pasado que ya no viene en el forecast).
+    // No bajar a 0 un día que ya tenía precipitación yr (días pasados fuera del forecast).
     if (existing && mm < 0.1) {
       const prev =
         existing.yr_mm != null && Number.isFinite(Number(existing.yr_mm))
@@ -1206,7 +1215,7 @@ async function upsertLluviaSugeridaYr(
       await db
         .prepare(
           `UPDATE OPERATIVA_LLUVIA_DIA
-           SET mm = ?, fuente = 'yr', estado = 'sugerido', yr_mm = ?, actualizado_en = NOW()
+           SET mm = ?, fuente = 'yr', estado = 'confirmado', yr_mm = ?, actualizado_en = NOW()
            WHERE id = ? AND cuenta_id = ?`,
         )
         .run(mm, mm, existing.id, cuentaId);
@@ -1215,7 +1224,7 @@ async function upsertLluviaSugeridaYr(
         .prepare(
           `INSERT INTO OPERATIVA_LLUVIA_DIA (
              cuenta_id, fecha, marcador_id, mm, fuente, estado, yr_mm
-           ) VALUES (?, ?, ?, ?, 'yr', 'sugerido', ?)`,
+           ) VALUES (?, ?, ?, ?, 'yr', 'confirmado', ?)`,
         )
         .run(cuentaId, fecha, marcadorId, mm, mm);
     }
@@ -1226,7 +1235,7 @@ async function upsertLluviaSugeridaYr(
 
 /**
  * Suma del día desde yr.no (locationforecast): lo previsto para hoy y días futuros.
- * Guarda el total del día civil Uruguay en OPERATIVA_LLUVIA_DIA (sugerido).
+ * Se guarda automáticamente como dato confirmado (sin autorización del usuario).
  */
 export async function syncLluviaDesdeYr(
   db: Db,
@@ -1240,13 +1249,11 @@ export async function syncLluviaDesdeYr(
   const byDay = new Map<string, number>();
 
   for (const [fecha, mm] of yrDays) {
-    // Hoy + futuros: sumatoria del día según yr.no
     if (fecha >= today) byDay.set(fecha, mm);
   }
-  // Asegurar fila de hoy aunque yr.no dé 0 mm restantes
   if (!byDay.has(today)) byDay.set(today, 0);
 
-  return upsertLluviaSugeridaYr(db, cuentaId, marcadorId, byDay, { allowZero: true });
+  return upsertLluviaDesdeYrAuto(db, cuentaId, marcadorId, byDay, { allowZero: true });
 }
 
 function pointFromGeoJson(geojson: string): { lat: number; lon: number } | null {

@@ -129,9 +129,8 @@ export default function ConfigUbicacionEstablecimientos({
             </p>
             <h2 className="config-ubicacion-est-title">Ubicación Establecimientos</h2>
             <p className="muted config-ubicacion-est-sub">
-              Cada día se guarda automáticamente el total de mm del día según yr.no (suma de lo
-              previsto para ese día en la ubicación del establecimiento). Desactivá un punto solo si
-              no querés seguimiento ahí.
+              Cada día se guarda automáticamente el total de mm según yr.no en cada establecimiento
+              (sin confirmación). Desactivá un punto solo si no querés seguimiento ahí.
             </p>
           </div>
           <button

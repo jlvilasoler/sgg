@@ -1227,6 +1227,33 @@
   gap: 0.4rem;
 }
 
+.bn-ui .wx-readout {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.28rem;
+  padding: 0.35rem 0.65rem;
+  border-radius: 0.7rem;
+  background: color-mix(in srgb, #fff 92%, transparent);
+  border: 1px solid color-mix(in srgb, #fff 35%, transparent);
+  box-shadow: 0 4px 14px color-mix(in srgb, #000 16%, transparent);
+  min-width: 4.5rem;
+  justify-content: flex-end;
+}
+
+.bn-ui .wx-readout-value {
+  font-size: 1.25rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: #0f172a;
+  line-height: 1;
+}
+
+.bn-ui .wx-readout-unit {
+  font-size: 0.72rem;
+  font-weight: 750;
+  color: #0369a1;
+}
+
 .bn-ui .wx-meter {
   display: inline-flex;
   align-items: center;
