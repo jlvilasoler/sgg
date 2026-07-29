@@ -221,8 +221,8 @@ export default function TareasLluviaPanel({
             {totalConfirmado > 0
               ? `Confirmado: ${formatMmInput(totalConfirmado)} mm`
               : haySugeridos
-                ? "yr.no detectó precipitación — confirmá si llovió en el campo"
-                : "Cargá los mm o confirmá la sugerencia de yr.no"}
+                ? "Estimación meteorológica — confirmá si llovió en el campo"
+                : "Sin estimación para este día. Cargá los mm a mano o activá yr.no en Ubicación Establecimientos."}
           </p>
         </div>
       </header>
@@ -244,7 +244,7 @@ export default function TareasLluviaPanel({
                   <strong className="tareas-op-lluvia-yr-place">{est.nombre}</strong>
                 </div>
                 <p className="tareas-op-lluvia-yr-msg">
-                  Sugiere <strong>{formatMmInput(row.yr_mm ?? row.mm)} mm</strong>. Confirmá si
+                  Estimación: <strong>{formatMmInput(row.yr_mm ?? row.mm)} mm</strong>. Confirmá si
                   efectivamente llovió.
                 </p>
                 <div className="tareas-op-lluvia-yr-actions">

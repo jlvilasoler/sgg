@@ -1105,13 +1105,38 @@ export function aggregateYrPrecipitationByDay(
   return byDay;
 }
 
-export async function syncLluviaDesdeYr(
-  db: Db,
-  cuentaId: number,
+/** Días civiles recientes (modelo) — yr.no locationforecast no trae precipitación histórica. */
+async function fetchOpenMeteoDailyPrecip(
   lat: number,
   lon: number,
-  marcadorId: number | null = null,
-): Promise<number> {
+  pastDays = 7,
+): Promise<Map<string, number>> {
+  const latT = truncateCoord4(lat);
+  const lonT = truncateCoord4(lon);
+  const url =
+    `https://api.open-meteo.com/v1/forecast?latitude=${latT}&longitude=${lonT}` +
+    `&daily=precipitation_sum&past_days=${pastDays}&forecast_days=1` +
+    `&timezone=America%2FMontevideo`;
+  const res = await fetch(url, { headers: { Accept: "application/json" } });
+  if (!res.ok) {
+    throw new Error(`Open-Meteo respondió ${res.status}`);
+  }
+  const json = (await res.json()) as {
+    daily?: { time?: string[]; precipitation_sum?: Array<number | null> };
+  };
+  const times = json.daily?.time ?? [];
+  const sums = json.daily?.precipitation_sum ?? [];
+  const byDay = new Map<string, number>();
+  for (let i = 0; i < times.length; i++) {
+    const fecha = String(times[i] ?? "").slice(0, 10);
+    const mm = Number(sums[i]);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha) || !Number.isFinite(mm) || mm < 0.1) continue;
+    byDay.set(fecha, Math.round(mm * 10) / 10);
+  }
+  return byDay;
+}
+
+async function fetchYrForecastByDay(lat: number, lon: number): Promise<Map<string, number>> {
   const latT = truncateCoord4(lat);
   const lonT = truncateCoord4(lon);
   const url = `https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=${latT}&lon=${lonT}`;
@@ -1135,10 +1160,16 @@ export async function syncLluviaDesdeYr(
       }>;
     };
   };
-  const series = json.properties?.timeseries ?? [];
-  const byDay = aggregateYrPrecipitationByDay(series);
-  let upserted = 0;
+  return aggregateYrPrecipitationByDay(json.properties?.timeseries ?? []);
+}
 
+async function upsertLluviaSugeridaYr(
+  db: Db,
+  cuentaId: number,
+  marcadorId: number | null,
+  byDay: Map<string, number>,
+): Promise<number> {
+  let upserted = 0;
   for (const [fecha, mmRaw] of byDay) {
     const mm = Math.round(mmRaw * 10) / 10;
     if (mm < 0.1) continue;
@@ -1177,8 +1208,55 @@ export async function syncLluviaDesdeYr(
     }
     upserted += 1;
   }
-
   return upserted;
+}
+
+/**
+ * Combina:
+ * - Open-Meteo para hoy y días pasados (yr.no no expone precipitación histórica)
+ * - yr.no locationforecast para días futuros
+ */
+export async function syncLluviaDesdeYr(
+  db: Db,
+  cuentaId: number,
+  lat: number,
+  lon: number,
+  marcadorId: number | null = null,
+): Promise<number> {
+  const today = toLocalDateUy(new Date().toISOString());
+  const byDay = new Map<string, number>();
+
+  let yrError: Error | null = null;
+  let meteoError: Error | null = null;
+
+  try {
+    const yrDays = await fetchYrForecastByDay(lat, lon);
+    for (const [fecha, mm] of yrDays) {
+      if (fecha > today) byDay.set(fecha, mm);
+    }
+  } catch (err) {
+    yrError = err instanceof Error ? err : new Error(String(err));
+  }
+
+  try {
+    const pastDays = await fetchOpenMeteoDailyPrecip(lat, lon, 7);
+    for (const [fecha, mm] of pastDays) {
+      if (fecha <= today) byDay.set(fecha, mm);
+    }
+  } catch (err) {
+    meteoError = err instanceof Error ? err : new Error(String(err));
+  }
+
+  if (byDay.size === 0) {
+    if (yrError && meteoError) {
+      throw new Error(`${yrError.message}; ${meteoError.message}`);
+    }
+    if (yrError) throw yrError;
+    if (meteoError) throw meteoError;
+    return 0;
+  }
+
+  return upsertLluviaSugeridaYr(db, cuentaId, marcadorId, byDay);
 }
 
 function pointFromGeoJson(geojson: string): { lat: number; lon: number } | null {
@@ -1357,37 +1435,51 @@ export async function syncLluviaEstablecimientosCuenta(
       Number.isFinite(Number(cuenta.yr_lon))
     ) {
       const last = cuenta.yr_ultima_sync ? Date.parse(String(cuenta.yr_ultima_sync)) : 0;
+      const lat = Number(cuenta.yr_lat);
+      const lon = Number(cuenta.yr_lon);
       if (!last || Date.now() - last >= maxAgeMs) {
-        const n = await syncLluviaDesdeYr(
-          db,
-          cuentaId,
-          Number(cuenta.yr_lat),
-          Number(cuenta.yr_lon),
-          null,
-        );
+        const n = await syncLluviaDesdeYr(db, cuentaId, lat, lon, null);
         await db
           .prepare(`UPDATE EMPRESAS_CUENTA SET yr_ultima_sync = NOW() WHERE id = ?`)
           .run(cuentaId);
         return n;
       }
+      const past = await fetchOpenMeteoDailyPrecip(lat, lon, 7);
+      const today = toLocalDateUy(new Date().toISOString());
+      const onlyPast = new Map<string, number>();
+      for (const [fecha, mm] of past) {
+        if (fecha <= today) onlyPast.set(fecha, mm);
+      }
+      return upsertLluviaSugeridaYr(db, cuentaId, null, onlyPast);
     }
     return 0;
   }
 
   let total = 0;
   for (const est of activos) {
-    const last = est.yr_ultima_sync ? Date.parse(est.yr_ultima_sync) : 0;
-    if (last && Date.now() - last < maxAgeMs) continue;
     if (est.lat == null || est.lon == null) continue;
+    const last = est.yr_ultima_sync ? Date.parse(est.yr_ultima_sync) : 0;
+    const stale = !last || Date.now() - last >= maxAgeMs;
     try {
-      total += await syncLluviaDesdeYr(db, cuentaId, est.lat, est.lon, est.marcador_id);
-      await db
-        .prepare(
-          `UPDATE OPERATIVA_ESTABLECIMIENTO_YR
-           SET yr_ultima_sync = NOW(), actualizado_en = NOW()
-           WHERE cuenta_id = ? AND marcador_id = ?`,
-        )
-        .run(cuentaId, est.marcador_id);
+      // Días pasados: siempre refrescar (Open-Meteo). yr.no solo en sync completo.
+      if (stale) {
+        total += await syncLluviaDesdeYr(db, cuentaId, est.lat, est.lon, est.marcador_id);
+        await db
+          .prepare(
+            `UPDATE OPERATIVA_ESTABLECIMIENTO_YR
+             SET yr_ultima_sync = NOW(), actualizado_en = NOW()
+             WHERE cuenta_id = ? AND marcador_id = ?`,
+          )
+          .run(cuentaId, est.marcador_id);
+      } else {
+        const past = await fetchOpenMeteoDailyPrecip(est.lat, est.lon, 7);
+        const today = toLocalDateUy(new Date().toISOString());
+        const onlyPast = new Map<string, number>();
+        for (const [fecha, mm] of past) {
+          if (fecha <= today) onlyPast.set(fecha, mm);
+        }
+        total += await upsertLluviaSugeridaYr(db, cuentaId, est.marcador_id, onlyPast);
+      }
     } catch (err) {
       console.warn(
         `[SGG] sync yr.no establecimiento #${est.marcador_id}:`,

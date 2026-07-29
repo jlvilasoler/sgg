@@ -129,9 +129,9 @@ export default function ConfigUbicacionEstablecimientos({
             </p>
             <h2 className="config-ubicacion-est-title">Ubicación Establecimientos</h2>
             <p className="muted config-ubicacion-est-sub">
-              Activá los establecimientos del mapa de la cuenta para detectar lluvias
-              automáticamente. Las coordenadas salen del marcador en el mapa; podés ajustarlas si
-              hace falta.
+              Activá los establecimientos del mapa para sugerir mm de lluvia. Días pasados y hoy:
+              estimación del modelo meteorológico. Días futuros: pronóstico yr.no. Las coordenadas
+              salen del marcador; podés ajustarlas si hace falta.
             </p>
           </div>
           <button
