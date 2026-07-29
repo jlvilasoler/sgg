@@ -873,53 +873,130 @@
 /* —— Lluvia del día —— */
 
 .bn-ui .tareas-op-lluvia {
-  margin: 0 0 0.95rem;
-  padding: 0.75rem 0.8rem 0.7rem;
-  border-radius: 0.8rem;
-  border: 1px solid color-mix(in srgb, #2563eb 22%, var(--tareas-op-border));
-  background: linear-gradient(
-    145deg,
-    color-mix(in srgb, #2563eb 8%, #fff) 0%,
-    #fff 70%
-  );
+  --lluvia-sky: #0e7490;
+  --lluvia-sky-soft: color-mix(in srgb, #0891b2 12%, #fff);
+  --lluvia-ink: #0f3d4a;
+  --lluvia-line: color-mix(in srgb, #0891b2 22%, var(--tareas-op-border));
+  position: relative;
+  margin: 0 0 1rem;
+  padding: 0.95rem 0.95rem 0.8rem;
+  border-radius: 1rem;
+  border: 1px solid var(--lluvia-line);
+  background:
+    radial-gradient(120% 80% at 100% 0%, color-mix(in srgb, #67e8f9 18%, transparent), transparent 55%),
+    linear-gradient(165deg, #f0fdfa 0%, #fff 48%, #f8fafc 100%);
+  overflow: hidden;
+  animation: tareas-op-lluvia-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.bn-ui .tareas-op-lluvia.is-confirmed {
+  --lluvia-sky: #0f766e;
+  --lluvia-sky-soft: color-mix(in srgb, #14b8a6 14%, #fff);
+  --lluvia-line: color-mix(in srgb, #14b8a6 28%, var(--tareas-op-border));
+}
+
+.bn-ui .tareas-op-lluvia.is-pending {
+  --lluvia-sky: #0369a1;
+  --lluvia-sky-soft: color-mix(in srgb, #38bdf8 16%, #fff);
+}
+
+@keyframes tareas-op-lluvia-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 .bn-ui .tareas-op-lluvia-head {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.55rem;
-  margin-bottom: 0.65rem;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 0.65rem 0.7rem;
+  margin-bottom: 0.85rem;
 }
 
 .bn-ui .tareas-op-lluvia-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.85rem;
-  height: 1.85rem;
-  border-radius: 0.55rem;
-  background: color-mix(in srgb, #2563eb 14%, #fff);
-  color: #1d4ed8;
+  width: 2.35rem;
+  height: 2.35rem;
+  border-radius: 0.75rem;
+  background: linear-gradient(145deg, color-mix(in srgb, var(--lluvia-sky) 18%, #fff), #fff);
+  color: var(--lluvia-sky);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--lluvia-sky) 16%, transparent);
   flex-shrink: 0;
 }
 
 .bn-ui .tareas-op-lluvia-copy {
   min-width: 0;
+  padding-top: 0.05rem;
+}
+
+.bn-ui .tareas-op-lluvia-kicker {
+  margin: 0 0 0.1rem;
+  font-size: 0.62rem;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--lluvia-sky) 75%, #64748b);
 }
 
 .bn-ui .tareas-op-lluvia-title {
   margin: 0;
-  font-size: 0.84rem;
+  font-size: 1rem;
   font-weight: 750;
-  color: #1e3a5f;
-  line-height: 1.25;
+  color: var(--lluvia-ink);
+  line-height: 1.2;
+  letter-spacing: -0.02em;
 }
 
 .bn-ui .tareas-op-lluvia-sub {
-  margin: 0.12rem 0 0;
-  font-size: 0.72rem;
+  margin: 0.2rem 0 0;
+  font-size: 0.74rem;
   color: var(--bn-muted, #64748b);
-  line-height: 1.35;
+  line-height: 1.4;
+}
+
+.bn-ui .tareas-op-lluvia-total {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  min-width: 4.5rem;
+  padding: 0.35rem 0.55rem;
+  border-radius: 0.7rem;
+  background: color-mix(in srgb, var(--lluvia-sky) 10%, #fff);
+  border: 1px solid color-mix(in srgb, var(--lluvia-sky) 18%, transparent);
+}
+
+.bn-ui .tareas-op-lluvia-total-label {
+  font-size: 0.58rem;
+  font-weight: 750;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--lluvia-sky) 70%, #64748b);
+}
+
+.bn-ui .tareas-op-lluvia-total-value {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.18rem;
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--lluvia-ink);
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+}
+
+.bn-ui .tareas-op-lluvia-total-value small {
+  font-size: 0.68rem;
+  font-weight: 750;
+  color: var(--lluvia-sky);
 }
 
 .bn-ui .tareas-op-lluvia-list {
@@ -928,70 +1005,155 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.45rem;
+  gap: 0.5rem;
 }
 
-.bn-ui .tareas-op-lluvia-row {
+.bn-ui .tareas-op-lluvia-card {
+  list-style: none;
+  margin: 0;
+  padding: 0.7rem 0.75rem;
+  border-radius: 0.8rem;
+  border: 1px solid color-mix(in srgb, var(--lluvia-sky) 14%, var(--tareas-op-border));
+  background: color-mix(in srgb, #fff 88%, var(--lluvia-sky-soft));
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
+}
+
+.bn-ui .tareas-op-lluvia-card.is-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: 0.55rem 0.75rem;
+  gap: 0.55rem 0.85rem;
 }
 
-.bn-ui .tareas-op-lluvia-label {
-  font-size: 0.8rem;
-  font-weight: 650;
-  color: var(--bn-text, #334155);
+.bn-ui .tareas-op-lluvia-card.is-sugerido {
+  border-style: solid;
+  border-color: color-mix(in srgb, #0284c7 28%, var(--tareas-op-border));
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, #e0f2fe 70%, #fff) 0%,
+    #fff 100%
+  );
+  box-shadow: 0 1px 0 color-mix(in srgb, #7dd3fc 35%, transparent);
+}
+
+.bn-ui .tareas-op-lluvia-card.is-yr {
+  border-color: color-mix(in srgb, #0d9488 26%, var(--tareas-op-border));
+}
+
+.bn-ui .tareas-op-lluvia-card.is-saved {
+  box-shadow: 0 0 0 2px color-mix(in srgb, #14b8a6 22%, transparent);
+}
+
+.bn-ui .tareas-op-lluvia-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+}
+
+.bn-ui .tareas-op-lluvia-place {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--lluvia-ink);
+  letter-spacing: -0.01em;
+}
+
+.bn-ui .tareas-op-lluvia-place svg {
+  flex-shrink: 0;
+  color: var(--lluvia-sky);
+  opacity: 0.9;
+}
+
+.bn-ui .tareas-op-lluvia-place-text {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
+  text-transform: none;
 }
 
-.bn-ui .tareas-op-lluvia-yr-mini {
+.bn-ui .tareas-op-lluvia-source {
   display: inline-flex;
-  padding: 0.08rem 0.32rem;
-  border-radius: 999px;
-  background: #1d4ed8;
-  color: #fff;
+  align-items: center;
+  flex-shrink: 0;
+  padding: 0.14rem 0.42rem;
+  border-radius: 0.4rem;
+  background: color-mix(in srgb, var(--lluvia-sky) 12%, #fff);
+  color: var(--lluvia-sky);
+  border: 1px solid color-mix(in srgb, var(--lluvia-sky) 22%, transparent);
   font-size: 0.58rem;
   font-weight: 800;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
-.bn-ui .tareas-op-lluvia-list > .tareas-op-lluvia-yr {
-  list-style: none;
+.bn-ui .tareas-op-lluvia-card-msg {
+  margin: 0 0 0.55rem;
+  font-size: 0.76rem;
+  line-height: 1.4;
+  color: #475569;
 }
 
-.bn-ui .tareas-op-lluvia-input-wrap {
+.bn-ui .tareas-op-lluvia-card-msg strong {
+  color: var(--lluvia-ink);
+  font-weight: 750;
+}
+
+.bn-ui .tareas-op-lluvia-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.65rem;
+}
+
+.bn-ui .tareas-op-lluvia-meter {
   display: inline-flex;
   align-items: center;
-  gap: 0.28rem;
-  min-width: 6.5rem;
+  gap: 0.35rem;
+  padding: 0.2rem 0.35rem 0.2rem 0.45rem;
+  border-radius: 0.7rem;
+  background: #fff;
+  border: 1px solid color-mix(in srgb, var(--lluvia-sky) 18%, var(--tareas-op-border));
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--lluvia-ink) 4%, transparent);
+}
+
+.bn-ui .tareas-op-lluvia-meter > svg {
+  color: var(--lluvia-sky);
+  opacity: 0.75;
+  flex-shrink: 0;
 }
 
 .bn-ui .tareas-op-lluvia-input {
-  width: 4.2rem;
-  min-height: 2.15rem;
-  padding: 0.28rem 0.45rem;
-  border: 1px solid color-mix(in srgb, #2563eb 28%, var(--tareas-op-border));
-  border-radius: 0.55rem;
-  background: #fff;
+  width: 3.6rem;
+  min-height: 1.85rem;
+  padding: 0.15rem 0.2rem;
+  border: none;
+  border-radius: 0.35rem;
+  background: transparent;
   font: inherit;
-  font-size: 0.9rem;
-  font-weight: 700;
+  font-size: 1rem;
+  font-weight: 800;
   text-align: right;
-  color: #1e3a5f;
+  color: var(--lluvia-ink);
+  letter-spacing: -0.02em;
 }
 
 .bn-ui .tareas-op-lluvia-input:focus {
   outline: none;
-  border-color: #2563eb;
-  box-shadow: 0 0 0 3px color-mix(in srgb, #2563eb 18%, transparent);
+}
+
+.bn-ui .tareas-op-lluvia-meter:focus-within {
+  border-color: var(--lluvia-sky);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--lluvia-sky) 16%, transparent);
 }
 
 .bn-ui .tareas-op-lluvia-input:disabled {
@@ -1002,22 +1164,23 @@
 .bn-ui .tareas-op-lluvia-unit {
   font-size: 0.72rem;
   font-weight: 750;
-  color: #2563eb;
+  color: var(--lluvia-sky);
   letter-spacing: 0.02em;
+  padding-right: 0.1rem;
 }
 
 .bn-ui .tareas-op-lluvia-status {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1rem;
-  color: #16a34a;
+  width: 1.1rem;
+  color: #0d9488;
   min-height: 1rem;
 }
 
 .bn-ui .tareas-op-lluvia-spin {
   animation: tareas-op-lluvia-spin 0.8s linear infinite;
-  color: #2563eb;
+  color: var(--lluvia-sky);
 }
 
 @keyframes tareas-op-lluvia-spin {
@@ -1026,79 +1189,29 @@
   }
 }
 
-.bn-ui .tareas-op-lluvia-hint {
-  margin: 0.55rem 0 0;
-  font-size: 0.68rem;
-  line-height: 1.35;
-  color: var(--bn-muted, #64748b);
-}
-
-.bn-ui .tareas-op-lluvia-yr {
-  margin: 0 0 0.65rem;
-  padding: 0.65rem 0.7rem;
-  border-radius: 0.7rem;
-  border: 1.5px dashed color-mix(in srgb, #2563eb 40%, var(--tareas-op-border));
-  background: color-mix(in srgb, #dbeafe 55%, #fff);
-}
-
-.bn-ui .tareas-op-lluvia-yr.is-confirmado {
-  border-style: solid;
-  border-color: color-mix(in srgb, #2563eb 45%, var(--tareas-op-border));
-  background: color-mix(in srgb, #2563eb 8%, #fff);
-}
-
-.bn-ui .tareas-op-lluvia-yr-top {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-  margin-bottom: 0.4rem;
-}
-
-.bn-ui .tareas-op-lluvia-yr-badge {
+.bn-ui .tareas-op-lluvia-btns {
   display: inline-flex;
-  align-items: center;
-  padding: 0.12rem 0.4rem;
-  border-radius: 999px;
-  background: #1d4ed8;
-  color: #fff;
-  font-size: 0.62rem;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.bn-ui .tareas-op-lluvia-yr-place {
-  font-size: 0.82rem;
-  font-weight: 700;
-  color: #1e3a5f;
-}
-
-.bn-ui .tareas-op-lluvia-yr-msg {
-  margin: 0 0 0.5rem;
-  font-size: 0.78rem;
-  line-height: 1.4;
-  color: #334155;
-}
-
-.bn-ui .tareas-op-lluvia-yr-actions {
-  display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  gap: 0.4rem 0.5rem;
+  gap: 0.4rem;
 }
 
 .bn-ui .tareas-op-lluvia-btn {
   display: inline-flex;
   align-items: center;
   gap: 0.28rem;
-  min-height: 2.15rem;
-  padding: 0.3rem 0.65rem;
-  border-radius: 0.55rem;
+  min-height: 2.05rem;
+  padding: 0.32rem 0.7rem;
+  border-radius: 0.6rem;
   border: 1px solid transparent;
   font: inherit;
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   font-weight: 700;
   cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease,
+    transform 0.15s ease;
 }
 
 .bn-ui .tareas-op-lluvia-btn:disabled {
@@ -1107,23 +1220,57 @@
 }
 
 .bn-ui .tareas-op-lluvia-btn--ok {
-  background: #2563eb;
+  background: linear-gradient(180deg, #0ea5e9 0%, #0284c7 100%);
   color: #fff;
+  box-shadow: 0 1px 2px color-mix(in srgb, #0369a1 28%, transparent);
 }
 
 .bn-ui .tareas-op-lluvia-btn--ok:hover:not(:disabled) {
-  background: #1d4ed8;
+  filter: brightness(1.05);
+  transform: translateY(-1px);
 }
 
 .bn-ui .tareas-op-lluvia-btn--no {
   background: #fff;
-  border-color: color-mix(in srgb, #94a3b8 50%, var(--tareas-op-border));
+  border-color: color-mix(in srgb, #94a3b8 45%, var(--tareas-op-border));
   color: #64748b;
 }
 
 .bn-ui .tareas-op-lluvia-btn--no:hover:not(:disabled) {
-  border-color: #ef4444;
+  border-color: #f87171;
   color: #dc2626;
+  background: #fff5f5;
+}
+
+.bn-ui .tareas-op-lluvia-hint {
+  margin: 0.65rem 0 0;
+  font-size: 0.68rem;
+  line-height: 1.4;
+  color: var(--bn-muted, #64748b);
+}
+
+@media (max-width: 420px) {
+  .bn-ui .tareas-op-lluvia-head {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .bn-ui .tareas-op-lluvia-total {
+    grid-column: 1 / -1;
+    align-items: flex-start;
+    flex-direction: row;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+
+  .bn-ui .tareas-op-lluvia-card.is-row {
+    grid-template-columns: 1fr;
+    gap: 0.55rem;
+  }
+
+  .bn-ui .tareas-op-lluvia-meter {
+    width: 100%;
+    justify-content: flex-end;
+  }
 }
 
 /* —— Task list —— */

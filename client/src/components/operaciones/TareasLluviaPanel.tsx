@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Check, CloudRain, Loader2, X } from "lucide-react";
+import { Check, CloudRain, Droplets, Loader2, MapPin, X } from "lucide-react";
 import { upsertOperativaLluvia } from "../../api";
 import type { CampoMapaElemento, OperativaLluviaDia } from "../../types";
 import { parseCampoMapaObjetoTipo } from "../campo/campo-mapa-objetos";
@@ -86,7 +86,6 @@ export default function TareasLluviaPanel({
       const row = lluviaByKey.get(k);
       next[k] = formatMmInput(row?.mm ?? row?.yr_mm);
     }
-    // Incluir sugerencias yr de marcadores que no estén en la lista (legacy null)
     for (const row of lluvias) {
       const k = String(row.marcador_id ?? 0);
       if (next[k] === undefined) next[k] = formatMmInput(row.mm ?? row.yr_mm);
@@ -99,6 +98,14 @@ export default function TareasLluviaPanel({
     () =>
       lluvias
         .filter((r) => r.estado === "confirmado")
+        .reduce((sum, row) => sum + (Number.isFinite(row.mm) ? row.mm : 0), 0),
+    [lluvias],
+  );
+
+  const totalSugerido = useMemo(
+    () =>
+      lluvias
+        .filter((r) => r.estado === "sugerido" && r.fuente === "yr")
         .reduce((sum, row) => sum + (Number.isFinite(row.mm) ? row.mm : 0), 0),
     [lluvias],
   );
@@ -190,7 +197,6 @@ export default function TareasLluviaPanel({
     }
   };
 
-  // Filas a mostrar: establecimientos + sugerencias yr huérfanas (cuenta legacy)
   const filas = useMemo(() => {
     const list = [...establecimientos];
     const ids = new Set(list.map((e) => String(e.id ?? 0)));
@@ -208,23 +214,44 @@ export default function TareasLluviaPanel({
   }, [establecimientos, lluvias]);
 
   const haySugeridos = lluvias.some((r) => r.estado === "sugerido" && r.fuente === "yr");
+  const totalDisplay =
+    totalConfirmado > 0
+      ? formatMmInput(totalConfirmado)
+      : haySugeridos
+        ? formatMmInput(totalSugerido)
+        : null;
+  const totalLabel =
+    totalConfirmado > 0 ? "Confirmado" : haySugeridos ? "Previsto yr.no" : null;
 
   return (
-    <section className="tareas-op-lluvia" aria-label="Lluvia del día">
+    <section
+      className={`tareas-op-lluvia${haySugeridos ? " is-pending" : ""}${totalConfirmado > 0 ? " is-confirmed" : ""}`}
+      aria-label="Lluvia del día"
+    >
       <header className="tareas-op-lluvia-head">
         <span className="tareas-op-lluvia-icon" aria-hidden>
-          <CloudRain size={16} strokeWidth={2} />
+          <CloudRain size={18} strokeWidth={2} />
         </span>
         <div className="tareas-op-lluvia-copy">
+          <p className="tareas-op-lluvia-kicker">Precipitación</p>
           <p className="tareas-op-lluvia-title">Lluvia del día</p>
           <p className="tareas-op-lluvia-sub">
             {totalConfirmado > 0
-              ? `Confirmado: ${formatMmInput(totalConfirmado)} mm`
+              ? "Valores guardados por establecimiento"
               : haySugeridos
-                ? "Total del día según yr.no — confirmá si coincide con el campo"
-                : "Sin dato yr.no para este día. Cargá los mm a mano."}
+                ? "Confirmá o ajustá el total según yr.no"
+                : "Sin dato yr.no — cargá los mm a mano"}
           </p>
         </div>
+        {totalDisplay != null && totalLabel ? (
+          <div className="tareas-op-lluvia-total" aria-label={`${totalLabel}: ${totalDisplay} mm`}>
+            <span className="tareas-op-lluvia-total-label">{totalLabel}</span>
+            <span className="tareas-op-lluvia-total-value">
+              {totalDisplay}
+              <small>mm</small>
+            </span>
+          </div>
+        ) : null}
       </header>
 
       <ul className="tareas-op-lluvia-list">
@@ -235,25 +262,30 @@ export default function TareasLluviaPanel({
           const yrConfirmado = row?.fuente === "yr" && row.estado === "confirmado";
           const state = saveState[key] ?? "idle";
           const busy = busyKey === key;
+          const mmShown = drafts[key] ?? "";
 
           if (yrSugerido) {
             return (
-              <li key={key} className="tareas-op-lluvia-yr is-sugerido">
-                <div className="tareas-op-lluvia-yr-top">
-                  <span className="tareas-op-lluvia-yr-badge">yr.no</span>
-                  <strong className="tareas-op-lluvia-yr-place">{est.nombre}</strong>
+              <li key={key} className="tareas-op-lluvia-card is-sugerido">
+                <div className="tareas-op-lluvia-card-top">
+                  <span className="tareas-op-lluvia-place">
+                    <MapPin size={14} strokeWidth={2.25} aria-hidden />
+                    {est.nombre}
+                  </span>
+                  <span className="tareas-op-lluvia-source">yr.no</span>
                 </div>
-                <p className="tareas-op-lluvia-yr-msg">
-                  Total del día (yr.no):{" "}
-                  <strong>{formatMmInput(row.yr_mm ?? row.mm)} mm</strong>. Confirmá o ajustá.
+                <p className="tareas-op-lluvia-card-msg">
+                  Total del día previsto:{" "}
+                  <strong>{formatMmInput(row.yr_mm ?? row.mm)} mm</strong>
                 </p>
-                <div className="tareas-op-lluvia-yr-actions">
-                  <div className="tareas-op-lluvia-input-wrap">
+                <div className="tareas-op-lluvia-card-actions">
+                  <div className="tareas-op-lluvia-meter">
+                    <Droplets size={14} strokeWidth={2.25} aria-hidden />
                     <input
                       className="tareas-op-lluvia-input"
                       type="text"
                       inputMode="decimal"
-                      value={drafts[key] ?? ""}
+                      value={mmShown}
                       disabled={!puedeEditar || !apiOnline || busy}
                       onChange={(e) =>
                         setDrafts((d) => ({
@@ -268,14 +300,18 @@ export default function TareasLluviaPanel({
                     </span>
                   </div>
                   {puedeEditar ? (
-                    <>
+                    <div className="tareas-op-lluvia-btns">
                       <button
                         type="button"
                         className="tareas-op-lluvia-btn tareas-op-lluvia-btn--ok"
                         disabled={!apiOnline || busy}
                         onClick={() => void confirmarYr(est.id)}
                       >
-                        {busy ? <Loader2 size={14} className="tareas-op-lluvia-spin" /> : <Check size={14} />}
+                        {busy ? (
+                          <Loader2 size={14} className="tareas-op-lluvia-spin" />
+                        ) : (
+                          <Check size={14} />
+                        )}
                         Confirmar
                       </button>
                       <button
@@ -287,7 +323,7 @@ export default function TareasLluviaPanel({
                         <X size={14} />
                         Descartar
                       </button>
-                    </>
+                    </div>
                   ) : null}
                 </div>
               </li>
@@ -297,22 +333,21 @@ export default function TareasLluviaPanel({
           return (
             <li
               key={key}
-              className={`tareas-op-lluvia-row${yrConfirmado ? " is-yr-confirmado" : ""}`}
+              className={`tareas-op-lluvia-card is-row${yrConfirmado ? " is-yr" : ""}${state === "saved" ? " is-saved" : ""}`}
             >
-              <label className="tareas-op-lluvia-label" htmlFor={`lluvia-mm-${key}`}>
-                {est.nombre}
-                {yrConfirmado ? (
-                  <span className="tareas-op-lluvia-yr-mini">yr.no</span>
-                ) : null}
+              <label className="tareas-op-lluvia-place" htmlFor={`lluvia-mm-${key}`}>
+                <MapPin size={14} strokeWidth={2.25} aria-hidden />
+                <span className="tareas-op-lluvia-place-text">{est.nombre}</span>
+                {yrConfirmado ? <span className="tareas-op-lluvia-source">yr.no</span> : null}
               </label>
-              <div className="tareas-op-lluvia-input-wrap">
+              <div className="tareas-op-lluvia-meter">
                 <input
                   id={`lluvia-mm-${key}`}
                   className="tareas-op-lluvia-input"
                   type="text"
                   inputMode="decimal"
                   placeholder="0"
-                  value={drafts[key] ?? ""}
+                  value={mmShown}
                   disabled={!puedeEditar || !apiOnline || state === "saving"}
                   onChange={(e) => {
                     setDrafts((d) => ({
@@ -337,7 +372,7 @@ export default function TareasLluviaPanel({
                   {state === "saving" ? (
                     <Loader2 size={14} className="tareas-op-lluvia-spin" />
                   ) : null}
-                  {state === "saved" ? <Check size={14} /> : null}
+                  {state === "saved" ? <Check size={14} strokeWidth={2.5} /> : null}
                 </span>
               </div>
             </li>
