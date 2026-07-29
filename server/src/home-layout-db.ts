@@ -5,6 +5,7 @@ export const HOME_PANEL_IDS = [
   "kpis_operativos",
   "kpis_gastos",
   "pizarron",
+  "lluvia_clima",
   "auto_pendientes",
   "actividad",
   "mapa_campo",
@@ -25,6 +26,7 @@ const DEFAULT_HOME_LAYOUT: HomeLayoutMap = {
   pizarron: true,
   auto_pendientes: true,
   actividad: true,
+  lluvia_clima: true,
   mapa_campo: true,
   vencimientos: true,
   stock_potrero: true,
@@ -36,7 +38,14 @@ const DEFAULT_HOME_PANEL_ORDER: HomePanelId[] = [...HOME_PANEL_IDS];
 
 function homePanelZone(id: HomePanelId): "top" | "main" | "side" {
   if (id === "kpis_operativos" || id === "kpis_gastos") return "top";
-  if (id === "pizarron" || id === "auto_pendientes" || id === "actividad") return "main";
+  if (
+    id === "pizarron" ||
+    id === "lluvia_clima" ||
+    id === "auto_pendientes" ||
+    id === "actividad"
+  ) {
+    return "main";
+  }
   return "side";
 }
 

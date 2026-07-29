@@ -43,6 +43,8 @@ function panelPermitidoPorPermisos(user: AuthUser, panelId: HomePanelId): boolea
       return listHomeActividadPanels(user).length > 0;
     case "mapa_campo":
       return canAccessScreen(user, "campo_mapa");
+    case "lluvia_clima":
+      return canAccessScreen(user, "tareas_operativas");
     case "vencimientos":
       return canAccessScreen(user, "vencimientos_impuestos");
     case "stock_potrero":

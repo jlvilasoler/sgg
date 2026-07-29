@@ -541,6 +541,42 @@ function PreviewActividad() {
   );
 }
 
+function PreviewLluviaClima() {
+  return (
+    <section className="config-home-screen-panel config-home-screen-panel--wx">
+      <div className="config-home-screen-wx">
+        <header className="config-home-screen-wx-head">
+          <p className="config-home-screen-panel-kicker">Lluvia · Jul</p>
+        </header>
+        <div className="config-home-screen-wx-locs">
+          <div>
+            <strong>Quitute</strong>
+            <span className="config-home-screen-wx-metrics">
+              <em>
+                <small>Mes</small>74
+              </em>
+              <em>
+                <small>Ejerc.</small>74
+              </em>
+            </span>
+          </div>
+          <div>
+            <strong>Don Carlitos</strong>
+            <span className="config-home-screen-wx-metrics">
+              <em>
+                <small>Mes</small>51
+              </em>
+              <em>
+                <small>Ejerc.</small>51
+              </em>
+            </span>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function PreviewMapa() {
   return (
     <section className="config-home-screen-panel config-home-screen-panel--mapa">
@@ -732,6 +768,7 @@ export default function HomeLayoutScreenPreview({
 
   const mainPanels: { id: HomePanelId; node: ReactNode }[] = [
     { id: "pizarron", node: <PreviewPizarron /> },
+    { id: "lluvia_clima", node: <PreviewLluviaClima /> },
     { id: "auto_pendientes", node: <PreviewAutoPendientes /> },
     { id: "actividad", node: <PreviewActividad /> },
   ];

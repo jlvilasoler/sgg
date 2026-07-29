@@ -34,6 +34,7 @@ import {
 import { confirmAction } from "../utils/confirm";
 import HomeHubDashboard from "./home/HomeHubDashboard";
 import HomeCampoMapaPanel from "./home/HomeCampoMapaPanel";
+import HomeLluviaDashboardPanel from "./home/HomeLluviaDashboardPanel";
 import HomeStockPotreroPanel from "./home/HomeStockPotreroPanel";
 import HomeStockEquinoPotreroPanel from "./home/HomeStockEquinoPotreroPanel";
 import HomeNotasBoard from "./home/HomeNotasBoard";
@@ -316,6 +317,8 @@ export default function HomeMenu({
   const puedeMapaCampo =
     canAccessScreen(user, "campo_mapa") && canShowHomePanel(user, "mapa_campo");
   const puedeTareasOperativas = canAccessScreen(user, "tareas_operativas");
+  const puedeLluviaClima =
+    puedeTareasOperativas && canShowHomePanel(user, "lluvia_clima");
   const puedeStockGanadero =
     canAccessScreen(user, "stock_ganadero") && canShowHomePanel(user, "stock_potrero");
   const puedeStockEquino =
@@ -416,6 +419,14 @@ export default function HomeMenu({
     />
   );
 
+  const renderLluviaClimaPanel = () => (
+    <HomeLluviaDashboardPanel
+      apiOnline={apiOnline}
+      user={user}
+      onOpen={() => onOpen("tareas_operativas")}
+    />
+  );
+
   const showStockInDashboardFs =
     dashboardFullscreen &&
     (puedeStockGanadero || puedeStockEquino) &&
@@ -423,7 +434,7 @@ export default function HomeMenu({
   const showFsSideStack =
     dashboardFullscreen &&
     showKpiDashboardPanel &&
-    (puedeMapaCampo || puedeVencimientos || puedeTareasOperativas);
+    (puedeMapaCampo || puedeVencimientos || puedeTareasOperativas || puedeLluviaClima);
   const showFsDashboardExtras = showStockInDashboardFs || showFsSideStack;
 
   const homeFullscreenBrand = (
@@ -590,7 +601,12 @@ export default function HomeMenu({
                   <div className="home-hub-dashboard-fs-side">
                     {puedeMapaCampo ? renderMapaCampoPanel() : null}
                     {puedeVencimientos ? renderVencimientosPanel() : null}
-                    {puedeTareasOperativas ? renderTareasOperativasPanel() : null}
+                    {puedeLluviaClima || puedeTareasOperativas ? (
+                      <div className="home-hub-lluvia-tareas-row">
+                        {puedeLluviaClima ? renderLluviaClimaPanel() : null}
+                        {puedeTareasOperativas ? renderTareasOperativasPanel() : null}
+                      </div>
+                    ) : null}
                   </div>
                 ) : null}
               </div>
@@ -599,8 +615,19 @@ export default function HomeMenu({
             <div className="sg-hub-panels home-hub-panels">
               <div className="home-hub-col">
                 {mainPanelOrder.map((panelId) => {
+                  if (panelId === "lluvia_clima") {
+                    /* Se renderiza junto al pizarrón, arriba de tareas operativas. */
+                    return null;
+                  }
                   if (panelId === "pizarron") {
-                    if (!puedeNotas && !showAsistenteHome && !puedeTareasOperativas) return null;
+                    if (
+                      !puedeNotas &&
+                      !showAsistenteHome &&
+                      !puedeTareasOperativas &&
+                      !puedeLluviaClima
+                    ) {
+                      return null;
+                    }
                     if (dashboardFullscreen && !showAsistenteHome) return null;
                     return (
                       <Fragment key="pizarron">
@@ -643,8 +670,11 @@ export default function HomeMenu({
                           </section>
                         ) : null}
 
-                        {puedeTareasOperativas && !dashboardFullscreen ? (
-                          renderTareasOperativasPanel()
+                        {((puedeLluviaClima || puedeTareasOperativas) && !dashboardFullscreen) ? (
+                          <div className="home-hub-lluvia-tareas-row">
+                            {puedeLluviaClima ? renderLluviaClimaPanel() : null}
+                            {puedeTareasOperativas ? renderTareasOperativasPanel() : null}
+                          </div>
                         ) : null}
 
                         {showAsistenteHome ? (
