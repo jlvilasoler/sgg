@@ -387,22 +387,16 @@ export default function HomeLluviaDashboardPanel({ apiOnline, user, onOpen }: Pr
         </div>
 
         <div className="wx-compact-top">
-          <div className="wx-compact-top-main">
-            <p className="wx-kicker">
-              {loading ? (
-                <>
-                  <Loader2 size={11} className="wx-spin" aria-hidden />
-                  Clima…
-                </>
-              ) : (
-                <>Lluvia · {monthShort(now)}</>
-              )}
-            </p>
-            <div className="wx-chart-legend" aria-hidden>
-              <span className="wx-chart-legend-item is-bars">Mes</span>
-              <span className="wx-chart-legend-item is-avg">Prom. acum.</span>
-            </div>
-          </div>
+          <p className="wx-kicker">
+            {loading ? (
+              <>
+                <Loader2 size={11} className="wx-spin" aria-hidden />
+                Clima…
+              </>
+            ) : (
+              <>Lluvia · {monthShort(now)}</>
+            )}
+          </p>
           <button type="button" className="wx-compact-link" onClick={onOpen}>
             Almanaque
             <ArrowRight size={12} strokeWidth={2.4} aria-hidden />
