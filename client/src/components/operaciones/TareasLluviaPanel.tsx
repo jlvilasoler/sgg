@@ -1,11 +1,9 @@
 import { useMemo, type ReactNode } from "react";
 import {
-  Cloud,
   CloudDrizzle,
   CloudFog,
   CloudLightning,
   CloudRain,
-  CloudSun,
   Sun,
 } from "lucide-react";
 import type { CampoMapaElemento, OperativaLluviaDia } from "../../types";
@@ -93,7 +91,7 @@ function climaDesdeMm(mm: number): ClimaInfo {
       nivel: "heavy",
       label: "Lluvia intensa",
       detail: "Acumulación importante",
-      icon: <Cloud size={size} strokeWidth={stroke} />,
+      icon: <CloudRain size={size} strokeWidth={stroke} />,
     };
   }
   return {
@@ -117,7 +115,7 @@ function climaIconSmall(nivel: ClimaNivel): ReactNode {
     case "rain":
       return <CloudRain size={size} strokeWidth={stroke} />;
     case "heavy":
-      return <CloudSun size={size} strokeWidth={stroke} />;
+      return <CloudRain size={size} strokeWidth={stroke} />;
     case "storm":
       return <CloudLightning size={size} strokeWidth={stroke} />;
   }
@@ -161,28 +159,28 @@ export default function TareasLluviaPanel({
     return list;
   }, [establecimientos, lluvias]);
 
-  const totalMm = useMemo(
+  const maxMm = useMemo(
     () =>
-      filas.reduce((sum, est) => {
+      filas.reduce((max, est) => {
         const row = lluviaByKey.get(String(est.id ?? 0));
         const mm = row?.mm ?? row?.auto_mm ?? 0;
-        return sum + (Number.isFinite(mm) ? mm : 0);
+        const n = Number.isFinite(mm) ? mm : 0;
+        return n > max ? n : max;
       }, 0),
     [filas, lluviaByKey],
   );
 
-  const fromAuto = lluvias.some((r) => r.fuente === "auto");
-  const clima = climaDesdeMm(totalMm);
+  const climaBoard = climaDesdeMm(maxMm);
   const showRainFx =
-    clima.nivel === "drizzle" ||
-    clima.nivel === "rain" ||
-    clima.nivel === "heavy" ||
-    clima.nivel === "storm";
+    climaBoard.nivel === "drizzle" ||
+    climaBoard.nivel === "rain" ||
+    climaBoard.nivel === "heavy" ||
+    climaBoard.nivel === "storm";
 
   return (
     <section
-      className={`wx-board is-${clima.nivel}${fromAuto ? " is-confirmed" : ""}`}
-      aria-label="Clima del día"
+      className={`wx-board wx-board--stations-only is-${climaBoard.nivel}`}
+      aria-label="Clima del día por establecimiento"
     >
       <div className="wx-board-sky" aria-hidden>
         {showRainFx ? (
@@ -195,23 +193,7 @@ export default function TareasLluviaPanel({
         <div className="wx-glow" />
       </div>
 
-      <header className="wx-hero">
-        <div className="wx-hero-icon" aria-hidden>
-          {clima.icon}
-        </div>
-        <div className="wx-hero-copy">
-          <p className="wx-kicker">Clima del día</p>
-          <h3 className="wx-condition">{clima.label}</h3>
-          <p className="wx-detail">{clima.detail}</p>
-        </div>
-        <div className="wx-hero-metric">
-          <span className="wx-metric-value">
-            {formatMm(totalMm)}
-            <small>mm</small>
-          </span>
-          <span className="wx-metric-label">Total del día</span>
-        </div>
-      </header>
+      <p className="wx-kicker wx-stations-kicker">Clima del día</p>
 
       <div className="wx-stations" role="list">
         {filas.map((est) => {
@@ -220,22 +202,23 @@ export default function TareasLluviaPanel({
           const mm = row?.mm ?? row?.auto_mm ?? 0;
           const localClima = climaDesdeMm(mm);
           const bar = intensidadPct(mm);
-          const isAuto = row?.fuente === "auto";
 
           return (
             <article
               key={key}
-              className={`wx-station is-row is-${localClima.nivel}${isAuto ? " is-yr" : ""}`}
+              className={`wx-station is-row is-${localClima.nivel}`}
               role="listitem"
             >
               <div className="wx-station-left">
-                <span className="wx-station-icon" aria-hidden>
+                <span
+                  className={`wx-station-icon wx-icon-anim wx-icon-anim--${localClima.nivel}`}
+                  aria-hidden
+                >
                   {climaIconSmall(localClima.nivel)}
                 </span>
                 <div className="wx-station-meta">
                   <div className="wx-station-title-row">
                     <strong className="wx-station-name">{est.nombre}</strong>
-                    {isAuto ? <span className="wx-badge">Auto</span> : null}
                   </div>
                   <p className="wx-station-cond">{localClima.label}</p>
                   <div className="wx-bar" aria-hidden>
@@ -253,11 +236,6 @@ export default function TareasLluviaPanel({
           );
         })}
       </div>
-
-      <p className="wx-hint">
-        Datos automáticos por ubicación del establecimiento. Se actualizan solos; no hace falta
-        confirmarlos.
-      </p>
     </section>
   );
 }

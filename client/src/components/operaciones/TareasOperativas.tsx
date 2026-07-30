@@ -222,24 +222,11 @@ export default function TareasOperativas({
   }, [dayPopover, rutinas]);
 
   const lluviaPorFecha = useMemo(() => {
-    const map = new Map<
-      string,
-      { confirmado: number; sugerido: number; tieneSugeridoYr: boolean }
-    >();
+    const map = new Map<string, number>();
     for (const row of lluviasMes) {
-      const prev = map.get(row.fecha) ?? {
-        confirmado: 0,
-        sugerido: 0,
-        tieneSugeridoYr: false,
-      };
       const mm = Number.isFinite(row.mm) ? row.mm : 0;
-      if (row.estado === "sugerido") {
-        prev.sugerido += mm;
-        if (row.fuente === "auto") prev.tieneSugeridoYr = true;
-      } else {
-        prev.confirmado += mm;
-      }
-      map.set(row.fecha, prev);
+      if (mm <= 0) continue;
+      map.set(row.fecha, (map.get(row.fecha) ?? 0) + mm);
     }
     return map;
   }, [lluviasMes]);
@@ -741,12 +728,8 @@ export default function TareasOperativas({
                     const dayRutinas = rutinasPorDia.get(iso) ?? [];
                     const inMonth = isSameMonth(iso, viewYear, viewMonth);
                     const tieneTareas = dayRutinas.length > 0;
-                    const lluviaInfo = lluviaPorFecha.get(iso);
-                    const lluviaConfirmada = (lluviaInfo?.confirmado ?? 0) > 0;
-                    const lluviaSugerida =
-                      !lluviaConfirmada && Boolean(lluviaInfo?.tieneSugeridoYr);
-                    const lluviaMm =
-                      (lluviaInfo?.confirmado ?? 0) + (lluviaInfo?.sugerido ?? 0);
+                    const lluviaMm = lluviaPorFecha.get(iso) ?? 0;
+                    const tieneLluvia = lluviaMm > 0;
                     const diaNum = parseIsoDate(iso).getDate();
                     return (
                       <button
@@ -759,8 +742,7 @@ export default function TareasOperativas({
                           isToday(iso) ? "is-today" : "",
                           !inMonth ? "is-outside" : "",
                           tieneTareas ? "has-rutinas" : "",
-                          lluviaConfirmada ? "has-lluvia" : "",
-                          lluviaSugerida ? "has-lluvia-sugerida" : "",
+                          tieneLluvia ? "has-lluvia" : "",
                         ]
                           .filter(Boolean)
                           .join(" ")}
@@ -773,26 +755,20 @@ export default function TareasOperativas({
                             tieneTareas
                               ? `${dayRutinas.length} rutina${dayRutinas.length === 1 ? "" : "s"}`
                               : null,
-                            lluviaConfirmada
-                              ? `${lluviaMm} mm de lluvia`
-                              : lluviaSugerida
-                                ? `${lluviaMm} mm sugeridos (automático)`
-                                : null,
+                            tieneLluvia ? `${lluviaMm} mm de lluvia estimada` : null,
                           ]
                             .filter(Boolean)
                             .join(", ")
                         }
                       >
                         <span className="tareas-op-day-num">{diaNum}</span>
-                        {(tieneTareas || lluviaConfirmada || lluviaSugerida) && (
+                        {(tieneTareas || tieneLluvia) && (
                           <span className="tareas-op-day-dots" aria-hidden>
                             {dayRutinas.slice(0, 3).map((t) => (
                               <span key={t.id} className="tareas-op-dot tareas-op-dot--rutina" />
                             ))}
-                            {lluviaConfirmada ? (
+                            {tieneLluvia ? (
                               <span className="tareas-op-dot tareas-op-dot--lluvia" />
-                            ) : lluviaSugerida ? (
-                              <span className="tareas-op-dot tareas-op-dot--lluvia-sugerida" />
                             ) : null}
                           </span>
                         )}
@@ -927,11 +903,7 @@ export default function TareasOperativas({
                 </span>
                 <span>
                   <i className="tareas-op-legend-dot tareas-op-legend-dot--lluvia" />
-                  Lluvia confirmada
-                </span>
-                <span>
-                  <i className="tareas-op-legend-dot tareas-op-legend-dot--lluvia-sugerida" />
-                  Lluvia automática
+                  Lluvia estimada
                 </span>
                 <span>
                   <i className="tareas-op-legend-ring" />
