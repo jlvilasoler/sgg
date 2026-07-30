@@ -280,7 +280,7 @@ export function buildConfigCuentaItems(user: AuthUser | null | undefined): SgHub
     items.push({
       id: "ubicacion_establecimientos",
       label: "Ubicación Establecimientos",
-      subtitle: "Precipitaciones yr.no por ubicación del mapa",
+      subtitle: "Precipitaciones por ubicación del mapa",
       icon: "stock_cabana",
     });
     items.push({
@@ -410,7 +410,7 @@ export function configHubMeta(
     },
     ubicacion_establecimientos: {
       title: "Ubicación Establecimientos",
-      subtitle: "Precipitaciones yr.no según el mapa de la cuenta.",
+      subtitle: "Precipitaciones según el mapa de la cuenta.",
     },
     admin_cuenta: {
       title: "Arquitectura del sistema",

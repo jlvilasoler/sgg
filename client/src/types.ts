@@ -524,9 +524,9 @@ export interface OperativaLluviaDia {
   marcador_id: number | null;
   marcador_nombre: string | null;
   mm: number;
-  fuente: "manual" | "yr";
+  fuente: "manual" | "auto";
   estado: "confirmado" | "sugerido";
-  yr_mm: number | null;
+  auto_mm: number | null;
   registrado_por_user_id: number | null;
   creado_en: string;
   actualizado_en: string;
@@ -547,8 +547,36 @@ export interface EstablecimientoYr {
   lat: number | null;
   lon: number | null;
   activo: boolean;
-  yr_ultima_sync: string | null;
+  ultima_sync: string | null;
   tiene_coords: boolean;
+}
+
+export type ClimaCondicion =
+  | "clear"
+  | "fair"
+  | "partlycloudy"
+  | "cloudy"
+  | "fog"
+  | "drizzle"
+  | "rain"
+  | "heavy"
+  | "sleet"
+  | "snow"
+  | "storm"
+  | "unknown";
+
+export interface ClimaActualEstablecimiento {
+  marcador_id: number;
+  nombre: string;
+  lat: number;
+  lon: number;
+  temperatura_c: number | null;
+  condicion: ClimaCondicion;
+  condicion_label: string;
+  symbol_code: string | null;
+  precipitacion_1h_mm: number | null;
+  actualizado_en: string;
+  error?: string;
 }
 
 export interface OperativaTareaInput {

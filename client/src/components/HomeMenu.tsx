@@ -35,6 +35,7 @@ import { confirmAction } from "../utils/confirm";
 import HomeHubDashboard from "./home/HomeHubDashboard";
 import HomeCampoMapaPanel from "./home/HomeCampoMapaPanel";
 import HomeLluviaDashboardPanel from "./home/HomeLluviaDashboardPanel";
+import HomeClimaActualBar from "./home/HomeClimaActualBar";
 import HomeStockPotreroPanel from "./home/HomeStockPotreroPanel";
 import HomeStockEquinoPotreroPanel from "./home/HomeStockEquinoPotreroPanel";
 import HomeNotasBoard from "./home/HomeNotasBoard";
@@ -551,7 +552,7 @@ export default function HomeMenu({
               {dashboardFullscreen ? (
                 homeFullscreenBrand
               ) : (
-                <div>
+                <div className="home-hub-head-lead">
                   <h1 className="sg-hub-main-title">Inicio</h1>
                   <p className="sg-hub-main-sub">
                     {saludoPorHora()}, {nombreCorto}. Resumen de {cuentaLabel} para arrancar con lo
@@ -559,7 +560,10 @@ export default function HomeMenu({
                   </p>
                 </div>
               )}
-              <div className="sg-hub-main-actions home-hub-fs-actions">
+              <div className="sg-hub-main-actions home-hub-fs-actions home-hub-fs-actions--with-clima">
+                {!dashboardFullscreen && (puedeLluviaClima || puedeTareasOperativas) ? (
+                  <HomeClimaActualBar apiOnline={apiOnline} />
+                ) : null}
                 <button
                   type="button"
                   className={`home-hub-fs-btn${dashboardFullscreen ? " is-active" : ""}`}

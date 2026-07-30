@@ -5,7 +5,7 @@
   "outputDirectory": "client/dist",
   "crons": [
     {
-      "path": "/api/cron/lluvia-yr",
+      "path": "/api/cron/lluvia-clima",
       "schedule": "0 4 * * *"
     }
   ],

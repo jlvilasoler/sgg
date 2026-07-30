@@ -77,9 +77,17 @@ function climaIcon(nivel: ClimaNivel, size = 14): ReactNode {
   }
 }
 
-function monthShort(d: Date): string {
-  const raw = d.toLocaleDateString("es-UY", { month: "short" }).replace(/\.$/, "");
-  return raw.charAt(0).toUpperCase() + raw.slice(1);
+function monthYearLabel(d: Date): string {
+  const mes = d.toLocaleDateString("es-UY", { month: "long" });
+  const anio = d.getFullYear();
+  return `${mes.charAt(0).toUpperCase()}${mes.slice(1)} ${anio}`;
+}
+
+/** Primera palabra arriba, resto abajo (p. ej. Estancia / Quitute). */
+function nombreEnDosFilas(nombre: string): { linea1: string; linea2: string | null } {
+  const parts = nombre.trim().split(/\s+/).filter(Boolean);
+  if (parts.length <= 1) return { linea1: nombre.trim(), linea2: null };
+  return { linea1: parts[0]!, linea2: parts.slice(1).join(" ") };
 }
 
 /** 12 meses del ejercicio contable vigente. */
@@ -387,16 +395,23 @@ export default function HomeLluviaDashboardPanel({ apiOnline, user, onOpen }: Pr
         </div>
 
         <div className="wx-compact-top">
-          <p className="wx-kicker">
-            {loading ? (
-              <>
-                <Loader2 size={11} className="wx-spin" aria-hidden />
-                Clima…
-              </>
-            ) : (
-              <>Lluvia · {monthShort(now)}</>
-            )}
-          </p>
+          <div className="wx-compact-top-main">
+            <p className="wx-kicker">
+              {loading ? (
+                <>
+                  <Loader2 size={11} className="wx-spin" aria-hidden />
+                  Clima…
+                </>
+              ) : (
+                <>Precipitaciones - {monthYearLabel(now)}</>
+              )}
+            </p>
+            {!loading && !error ? (
+              <span className="wx-ejercicio-range" title={`Ejercicio ${ejercicio.label}`}>
+                {ejercicio.label}
+              </span>
+            ) : null}
+          </div>
           <button type="button" className="wx-compact-link" onClick={onOpen}>
             Almanaque
             <ArrowRight size={12} strokeWidth={2.4} aria-hidden />
@@ -407,13 +422,17 @@ export default function HomeLluviaDashboardPanel({ apiOnline, user, onOpen }: Pr
           <div className="wx-loc-list" role="list">
             {estaciones.slice(0, 6).map((est) => {
               const estNivel = climaNivel(est.mesMm);
+              const nombre = nombreEnDosFilas(est.nombre);
               return (
                 <article key={est.key} className={`wx-loc-row is-${estNivel}`} role="listitem">
                   <div className="wx-loc-name">
                     <span className="wx-loc-icon" aria-hidden>
                       {climaIcon(estNivel)}
                     </span>
-                    <strong title={est.nombre}>{est.nombre}</strong>
+                    <strong title={est.nombre} className="wx-loc-name-text">
+                      <span>{nombre.linea1}</span>
+                      {nombre.linea2 ? <span>{nombre.linea2}</span> : null}
+                    </strong>
                   </div>
 
                   <div className="wx-loc-chart-wrap">
@@ -456,11 +475,7 @@ export default function HomeLluviaDashboardPanel({ apiOnline, user, onOpen }: Pr
         {loading ? <p className="wx-hint">Cargando localizaciones…</p> : null}
         {!loading && error ? <p className="wx-hint">{error}</p> : null}
         {!loading && !error && estaciones.length === 0 ? (
-          <p className="wx-hint">Sin registros aún · yr.no</p>
-        ) : !loading && !error ? (
-          <p className="wx-hint" title={ejercicio.label}>
-            Barras = mm/mes · línea = promedio acumulado · {ejercicio.label}
-          </p>
+          <p className="wx-hint">Sin registros aún</p>
         ) : null}
       </div>
     </section>

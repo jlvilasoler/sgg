@@ -1,4 +1,5 @@
 import type { Db } from "./db/pg-client.js";
+import { fetchWxForecastJson } from "./wx-provider.js";
 
 export const OPERATIVA_TAREA_ESTADOS = [
   "pendiente",
@@ -400,12 +401,12 @@ export async function initOperativaTareasTables(db: Db): Promise<void> {
     )
     .run();
 
-  // yr.no se aplica solo: no requiere confirmación del usuario
+  // Datos automáticos se confirman solos (sin acción del usuario).
   await db
     .prepare(
       `UPDATE OPERATIVA_LLUVIA_DIA
        SET estado = 'confirmado', actualizado_en = NOW()
-       WHERE fuente = 'yr' AND estado = 'sugerido'`,
+       WHERE fuente IN ('yr', 'auto') AND estado = 'sugerido'`,
     )
     .run();
 
@@ -899,9 +900,11 @@ export interface OperativaLluviaDiaRow {
   marcador_id: number | null;
   marcador_nombre: string | null;
   mm: number;
-  fuente: "manual" | "yr";
+  /** Origen público: manual | auto (interno DB puede ser 'yr'). */
+  fuente: "manual" | "auto";
   estado: "confirmado" | "sugerido";
-  yr_mm: number | null;
+  /** mm del proveedor automático (columna interna yr_mm). */
+  auto_mm: number | null;
   registrado_por_user_id: number | null;
   creado_en: string;
   actualizado_en: string;
@@ -915,9 +918,10 @@ export interface OperativaLluviaDiaInput {
 
 function rowToLluvia(row: Record<string, unknown>): OperativaLluviaDiaRow {
   const mmRaw = Number(row.mm);
-  const yrMmRaw = row.yr_mm != null ? Number(row.yr_mm) : null;
+  const autoMmRaw = row.yr_mm != null ? Number(row.yr_mm) : null;
   const fuenteRaw = String(row.fuente ?? "manual");
   const estadoRaw = String(row.estado ?? "confirmado");
+  const isAuto = fuenteRaw === "yr" || fuenteRaw === "auto";
   return {
     id: Number(row.id),
     cuenta_id: Number(row.cuenta_id),
@@ -925,10 +929,10 @@ function rowToLluvia(row: Record<string, unknown>): OperativaLluviaDiaRow {
     marcador_id: row.marcador_id != null ? Number(row.marcador_id) : null,
     marcador_nombre: row.marcador_nombre ? String(row.marcador_nombre) : null,
     mm: Number.isFinite(mmRaw) ? Math.round(mmRaw * 10) / 10 : 0,
-    fuente: fuenteRaw === "yr" ? "yr" : "manual",
+    fuente: isAuto ? "auto" : "manual",
     estado: estadoRaw === "sugerido" ? "sugerido" : "confirmado",
-    yr_mm:
-      yrMmRaw != null && Number.isFinite(yrMmRaw) ? Math.round(yrMmRaw * 10) / 10 : null,
+    auto_mm:
+      autoMmRaw != null && Number.isFinite(autoMmRaw) ? Math.round(autoMmRaw * 10) / 10 : null,
     registrado_por_user_id:
       row.registrado_por_user_id != null ? Number(row.registrado_por_user_id) : null,
     creado_en: String(row.creado_en ?? ""),
@@ -1033,7 +1037,8 @@ export async function upsertOperativaLluvia(
 
   if (mm === 0) return null;
 
-  const keepFuente = existing?.fuente === "yr" ? "yr" : "manual";
+  const keepFuente =
+    existing?.fuente === "yr" || existing?.fuente === "auto" ? "yr" : "manual";
   const keepYrMm =
     existing?.yr_mm != null && Number.isFinite(Number(existing.yr_mm))
       ? Number(existing.yr_mm)
@@ -1081,9 +1086,6 @@ export async function deleteOperativaLluvia(
     .run(id, cuentaId);
   return result.changes > 0;
 }
-
-const YR_USER_AGENT =
-  "SAG-Uruguay/1.0 (https://sgg-dcpo.onrender.com; soporte@sag.com.uy)";
 
 function toLocalDateUy(isoUtc: string): string {
   try {
@@ -1146,19 +1148,7 @@ export function aggregateYrPrecipitationByDay(
 }
 
 async function fetchYrForecastByDay(lat: number, lon: number): Promise<Map<string, number>> {
-  const latT = truncateCoord4(lat);
-  const lonT = truncateCoord4(lon);
-  const url = `https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=${latT}&lon=${lonT}`;
-  const res = await fetch(url, {
-    headers: {
-      "User-Agent": YR_USER_AGENT,
-      Accept: "application/json",
-    },
-  });
-  if (!res.ok) {
-    throw new Error(`yr.no respondió ${res.status}. Intentá más tarde.`);
-  }
-  const json = (await res.json()) as {
+  const json = (await fetchWxForecastJson(lat, lon)) as {
     properties?: {
       timeseries?: Array<{
         time?: string;
@@ -1234,7 +1224,7 @@ async function upsertLluviaDesdeYrAuto(
 }
 
 /**
- * Suma del día desde yr.no (locationforecast): lo previsto para hoy y días futuros.
+ * Suma del día desde el proveedor de clima: lo previsto para hoy y días futuros.
  * Se guarda automáticamente como dato confirmado (sin autorización del usuario).
  */
 export async function syncLluviaDesdeYr(
@@ -1290,7 +1280,7 @@ export interface EstablecimientoYrRow {
   lat: number | null;
   lon: number | null;
   activo: boolean;
-  yr_ultima_sync: string | null;
+  ultima_sync: string | null;
   tiene_coords: boolean;
 }
 
@@ -1350,7 +1340,7 @@ export async function listEstablecimientosYr(
       lat: lat != null && Number.isFinite(lat) ? truncateCoord4(lat) : null,
       lon: lon != null && Number.isFinite(lon) ? truncateCoord4(lon) : null,
       activo: cfg ? Number(cfg.activo) === 1 : true,
-      yr_ultima_sync: cfg?.yr_ultima_sync ? String(cfg.yr_ultima_sync) : null,
+      ultima_sync: cfg?.yr_ultima_sync ? String(cfg.yr_ultima_sync) : null,
       tiene_coords: lat != null && lon != null && Number.isFinite(lat) && Number.isFinite(lon),
     });
   }
@@ -1469,14 +1459,14 @@ export async function syncLluviaEstablecimientosCuenta(
   let total = 0;
   for (const est of activos) {
     if (est.lat == null || est.lon == null) continue;
-    const last = est.yr_ultima_sync ? Date.parse(est.yr_ultima_sync) : 0;
+    const last = est.ultima_sync ? Date.parse(est.ultima_sync) : 0;
     if (last && Date.now() - last < maxAgeMs) continue;
     try {
       total += await syncLluviaDesdeYr(db, cuentaId, est.lat, est.lon, est.marcador_id);
       await touchYrSyncTimestamp(db, cuentaId, est.marcador_id);
     } catch (err) {
       console.warn(
-        `[SGG] sync yr.no establecimiento #${est.marcador_id}:`,
+        `[SGG] sync clima establecimiento #${est.marcador_id}:`,
         err instanceof Error ? err.message : err,
       );
     }
@@ -1521,3 +1511,180 @@ export async function syncLluviaTodasLasCuentas(
   }
   return { cuentas: ids.size, upserts, errores };
 }
+
+export type ClimaCondicion =
+  | "clear"
+  | "fair"
+  | "partlycloudy"
+  | "cloudy"
+  | "fog"
+  | "drizzle"
+  | "rain"
+  | "heavy"
+  | "sleet"
+  | "snow"
+  | "storm"
+  | "unknown";
+
+export interface ClimaActualEstablecimiento {
+  marcador_id: number;
+  nombre: string;
+  lat: number;
+  lon: number;
+  temperatura_c: number | null;
+  condicion: ClimaCondicion;
+  condicion_label: string;
+  symbol_code: string | null;
+  precipitacion_1h_mm: number | null;
+  actualizado_en: string;
+  error?: string;
+}
+
+interface YrInstantPayload {
+  properties?: {
+    timeseries?: Array<{
+      time?: string;
+      data?: {
+        instant?: { details?: { air_temperature?: number } };
+        next_1_hours?: {
+          summary?: { symbol_code?: string };
+          details?: { precipitation_amount?: number };
+        };
+        next_6_hours?: {
+          summary?: { symbol_code?: string };
+          details?: { precipitation_amount?: number };
+        };
+      };
+    }>;
+  };
+}
+
+const climaYrCache = new Map<
+  string,
+  { expires: number; value: Omit<ClimaActualEstablecimiento, "marcador_id" | "nombre"> }
+>();
+const CLIMA_CACHE_MS = 15 * 60 * 1000;
+
+function normalizeYrSymbol(code: string | null | undefined): string {
+  return String(code ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/_(day|night|polartwilight)$/i, "");
+}
+
+export function mapYrSymbolToCondicion(symbolCode: string | null | undefined): {
+  condicion: ClimaCondicion;
+  label: string;
+} {
+  const base = normalizeYrSymbol(symbolCode);
+  if (!base) return { condicion: "unknown", label: "Sin dato" };
+  if (base.includes("thunder")) return { condicion: "storm", label: "Tormenta" };
+  if (base.includes("heavyrain") || base.includes("heavysleet") || base.includes("heavysnow")) {
+    if (base.includes("snow")) return { condicion: "snow", label: "Nevada intensa" };
+    if (base.includes("sleet")) return { condicion: "sleet", label: "Aguanieve intensa" };
+    return { condicion: "heavy", label: "Lluvia intensa" };
+  }
+  if (base.includes("snow")) return { condicion: "snow", label: "Nieve" };
+  if (base.includes("sleet")) return { condicion: "sleet", label: "Aguanieve" };
+  if (base.includes("rainshowers") || base.includes("lightrain")) {
+    return { condicion: "drizzle", label: "Llovizna" };
+  }
+  if (base.includes("rain")) return { condicion: "rain", label: "Lluvia" };
+  if (base.includes("fog")) return { condicion: "fog", label: "Niebla" };
+  if (base === "cloudy") return { condicion: "cloudy", label: "Nublado" };
+  if (base === "partlycloudy") return { condicion: "partlycloudy", label: "Parcial" };
+  if (base === "fair") return { condicion: "fair", label: "Despejado" };
+  if (base === "clearsky") return { condicion: "clear", label: "Soleado" };
+  return { condicion: "unknown", label: "Variable" };
+}
+
+async function fetchYrCurrentRaw(
+  lat: number,
+  lon: number,
+): Promise<{
+  temperatura_c: number | null;
+  symbol_code: string | null;
+  precipitacion_1h_mm: number | null;
+  actualizado_en: string;
+}> {
+  const json = (await fetchWxForecastJson(lat, lon)) as YrInstantPayload;
+  const first = json.properties?.timeseries?.[0];
+  const temp = first?.data?.instant?.details?.air_temperature;
+  const symbol =
+    first?.data?.next_1_hours?.summary?.symbol_code ??
+    first?.data?.next_6_hours?.summary?.symbol_code ??
+    null;
+  const p1 = first?.data?.next_1_hours?.details?.precipitation_amount;
+  return {
+    temperatura_c:
+      typeof temp === "number" && Number.isFinite(temp) ? Math.round(temp * 10) / 10 : null,
+    symbol_code: symbol ? String(symbol) : null,
+    precipitacion_1h_mm:
+      typeof p1 === "number" && Number.isFinite(p1) ? Math.round(p1 * 10) / 10 : null,
+    actualizado_en: first?.time ? String(first.time) : new Date().toISOString(),
+  };
+}
+
+async function getYrCurrentCached(
+  lat: number,
+  lon: number,
+): Promise<Omit<ClimaActualEstablecimiento, "marcador_id" | "nombre">> {
+  const key = `${truncateCoord4(lat)},${truncateCoord4(lon)}`;
+  const hit = climaYrCache.get(key);
+  if (hit && hit.expires > Date.now()) return hit.value;
+
+  const raw = await fetchYrCurrentRaw(lat, lon);
+  const mapped = mapYrSymbolToCondicion(raw.symbol_code);
+  const value: Omit<ClimaActualEstablecimiento, "marcador_id" | "nombre"> = {
+    lat: truncateCoord4(lat),
+    lon: truncateCoord4(lon),
+    temperatura_c: raw.temperatura_c,
+    condicion: mapped.condicion,
+    condicion_label: mapped.label,
+    symbol_code: raw.symbol_code,
+    precipitacion_1h_mm: raw.precipitacion_1h_mm,
+    actualizado_en: raw.actualizado_en,
+  };
+  climaYrCache.set(key, { expires: Date.now() + CLIMA_CACHE_MS, value });
+  return value;
+}
+
+/** Clima actual por establecimiento activo con coordenadas. */
+export async function getClimaActualEstablecimientos(
+  db: Db,
+  cuentaId: number,
+): Promise<ClimaActualEstablecimiento[]> {
+  const establecimientos = await listEstablecimientosYr(db, cuentaId);
+  const activos = establecimientos.filter((e) => e.activo && e.tiene_coords && e.lat != null && e.lon != null);
+  if (!activos.length) return [];
+
+  const results = await Promise.all(
+    activos.map(async (est): Promise<ClimaActualEstablecimiento> => {
+      try {
+        const clima = await getYrCurrentCached(est.lat!, est.lon!);
+        return {
+          marcador_id: est.marcador_id,
+          nombre: est.nombre,
+          ...clima,
+        };
+      } catch (err) {
+        return {
+          marcador_id: est.marcador_id,
+          nombre: est.nombre,
+          lat: est.lat!,
+          lon: est.lon!,
+          temperatura_c: null,
+          condicion: "unknown",
+          condicion_label: "Sin dato",
+          symbol_code: null,
+          precipitacion_1h_mm: null,
+          actualizado_en: new Date().toISOString(),
+          error: err instanceof Error ? err.message : "Error al consultar clima",
+        };
+      }
+    }),
+  );
+
+  return results.sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
+}
+

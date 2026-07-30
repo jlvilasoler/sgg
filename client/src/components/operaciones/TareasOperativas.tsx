@@ -235,7 +235,7 @@ export default function TareasOperativas({
       const mm = Number.isFinite(row.mm) ? row.mm : 0;
       if (row.estado === "sugerido") {
         prev.sugerido += mm;
-        if (row.fuente === "yr") prev.tieneSugeridoYr = true;
+        if (row.fuente === "auto") prev.tieneSugeridoYr = true;
       } else {
         prev.confirmado += mm;
       }
@@ -776,7 +776,7 @@ export default function TareasOperativas({
                             lluviaConfirmada
                               ? `${lluviaMm} mm de lluvia`
                               : lluviaSugerida
-                                ? `${lluviaMm} mm sugeridos por yr.no`
+                                ? `${lluviaMm} mm sugeridos (automático)`
                                 : null,
                           ]
                             .filter(Boolean)
@@ -931,7 +931,7 @@ export default function TareasOperativas({
                 </span>
                 <span>
                   <i className="tareas-op-legend-dot tareas-op-legend-dot--lluvia-sugerida" />
-                  Lluvia (yr.no)
+                  Lluvia automática
                 </span>
                 <span>
                   <i className="tareas-op-legend-ring" />

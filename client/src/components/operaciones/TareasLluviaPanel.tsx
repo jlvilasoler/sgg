@@ -60,7 +60,7 @@ function climaDesdeMm(mm: number): ClimaInfo {
     return {
       nivel: "clear",
       label: "Sin precipitación",
-      detail: "Según yr.no para este día",
+      detail: "Según el pronóstico del día",
       icon: <Sun size={size} strokeWidth={stroke} />,
     };
   }
@@ -150,10 +150,10 @@ export default function TareasLluviaPanel({
     const ids = new Set(list.map((e) => String(e.id ?? 0)));
     for (const row of lluvias) {
       const k = String(row.marcador_id ?? 0);
-      if (!ids.has(k) && row.fuente === "yr") {
+      if (!ids.has(k) && row.fuente === "auto") {
         list.push({
           id: row.marcador_id,
-          nombre: row.marcador_nombre?.trim() || "Campo (yr.no)",
+          nombre: row.marcador_nombre?.trim() || "Campo",
         });
         ids.add(k);
       }
@@ -165,13 +165,13 @@ export default function TareasLluviaPanel({
     () =>
       filas.reduce((sum, est) => {
         const row = lluviaByKey.get(String(est.id ?? 0));
-        const mm = row?.mm ?? row?.yr_mm ?? 0;
+        const mm = row?.mm ?? row?.auto_mm ?? 0;
         return sum + (Number.isFinite(mm) ? mm : 0);
       }, 0),
     [filas, lluviaByKey],
   );
 
-  const fromYr = lluvias.some((r) => r.fuente === "yr");
+  const fromAuto = lluvias.some((r) => r.fuente === "auto");
   const clima = climaDesdeMm(totalMm);
   const showRainFx =
     clima.nivel === "drizzle" ||
@@ -181,8 +181,8 @@ export default function TareasLluviaPanel({
 
   return (
     <section
-      className={`wx-board is-${clima.nivel}${fromYr ? " is-confirmed" : ""}`}
-      aria-label="Clima del día según yr.no"
+      className={`wx-board is-${clima.nivel}${fromAuto ? " is-confirmed" : ""}`}
+      aria-label="Clima del día"
     >
       <div className="wx-board-sky" aria-hidden>
         {showRainFx ? (
@@ -200,7 +200,7 @@ export default function TareasLluviaPanel({
           {clima.icon}
         </div>
         <div className="wx-hero-copy">
-          <p className="wx-kicker">Clima · yr.no</p>
+          <p className="wx-kicker">Clima del día</p>
           <h3 className="wx-condition">{clima.label}</h3>
           <p className="wx-detail">{clima.detail}</p>
         </div>
@@ -217,15 +217,15 @@ export default function TareasLluviaPanel({
         {filas.map((est) => {
           const key = String(est.id ?? 0);
           const row = lluviaByKey.get(key);
-          const mm = row?.mm ?? row?.yr_mm ?? 0;
+          const mm = row?.mm ?? row?.auto_mm ?? 0;
           const localClima = climaDesdeMm(mm);
           const bar = intensidadPct(mm);
-          const isYr = row?.fuente === "yr";
+          const isAuto = row?.fuente === "auto";
 
           return (
             <article
               key={key}
-              className={`wx-station is-row is-${localClima.nivel}${isYr ? " is-yr" : ""}`}
+              className={`wx-station is-row is-${localClima.nivel}${isAuto ? " is-yr" : ""}`}
               role="listitem"
             >
               <div className="wx-station-left">
@@ -235,7 +235,7 @@ export default function TareasLluviaPanel({
                 <div className="wx-station-meta">
                   <div className="wx-station-title-row">
                     <strong className="wx-station-name">{est.nombre}</strong>
-                    {isYr ? <span className="wx-badge">yr.no</span> : null}
+                    {isAuto ? <span className="wx-badge">Auto</span> : null}
                   </div>
                   <p className="wx-station-cond">{localClima.label}</p>
                   <div className="wx-bar" aria-hidden>
@@ -255,8 +255,8 @@ export default function TareasLluviaPanel({
       </div>
 
       <p className="wx-hint">
-        Datos automáticos de yr.no por ubicación del establecimiento. Se actualizan solos; no hace
-        falta confirmarlos.
+        Datos automáticos por ubicación del establecimiento. Se actualizan solos; no hace falta
+        confirmarlos.
       </p>
     </section>
   );

@@ -85,6 +85,7 @@ async function canViewUserProfilePhoto(
 const PUBLIC_PATHS = new Set([
   "/api/health",
   "/api/auth/login",
+  "/api/cron/lluvia-clima",
   "/api/cron/lluvia-yr",
 ]);
 

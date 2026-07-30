@@ -4297,12 +4297,12 @@ app.get("/api/operativa-lluvia", async (req, res) => {
     if (typeof q.desde === "string" && q.desde.trim()) filters.desde = q.desde.trim();
     if (typeof q.hasta === "string" && q.hasta.trim()) filters.hasta = q.hasta.trim();
 
-    // Sync lazy yr.no por establecimientos activos del mapa (máx. cada 3 h).
+    // Sync lazy de precipitación por establecimientos activos del mapa (máx. cada 3 h).
     try {
       await db.operativaTareas.syncLluviaEstablecimientos(cuentaId);
     } catch (syncErr) {
       console.warn(
-        "[SGG] sync lluvia yr.no:",
+        "[SGG] sync lluvia clima:",
         syncErr instanceof Error ? syncErr.message : syncErr,
       );
     }
@@ -4317,8 +4317,26 @@ app.get("/api/operativa-lluvia", async (req, res) => {
   }
 });
 
-/** Cron diario: captura mm por establecimiento y los guarda en OPERATIVA_LLUVIA_DIA. */
-app.get("/api/cron/lluvia-yr", async (req, res) => {
+/** Clima actual por establecimiento (cache 15 min). */
+app.get("/api/operativa-clima-actual", async (req, res) => {
+  try {
+    const cuentaId = await cuentaIdParaInsert(req.user!);
+    if (!cuentaId) {
+      res.status(400).json({ ok: false, error: "No se pudo determinar la cuenta" });
+      return;
+    }
+    const items = await db.operativaTareas.getClimaActualEstablecimientos(cuentaId);
+    res.json({ ok: true, data: items });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al obtener el clima actual",
+    });
+  }
+});
+
+/** Cron diario: captura mm por establecimiento. */
+app.get("/api/cron/lluvia-clima", async (req, res) => {
   const secret = process.env.CRON_SECRET?.trim();
   const auth = typeof req.headers.authorization === "string" ? req.headers.authorization : "";
   const vercelCron = req.headers["x-vercel-cron"];
@@ -4331,11 +4349,32 @@ app.get("/api/cron/lluvia-yr", async (req, res) => {
   try {
     const result = await db.operativaTareas.syncLluviaTodasLasCuentas();
     console.info(
-      `[SGG] cron lluvia-yr: cuentas=${result.cuentas} upserts=${result.upserts} errores=${result.errores}`,
+      `[SGG] cron lluvia-clima: cuentas=${result.cuentas} upserts=${result.upserts} errores=${result.errores}`,
     );
     res.json({ ok: true, data: result });
   } catch (e) {
-    console.error("[SGG] cron lluvia-yr:", e);
+    console.error("[SGG] cron lluvia-clima:", e);
+    res.status(500).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error en sync lluvia",
+    });
+  }
+});
+app.get("/api/cron/lluvia-yr", async (req, res) => {
+  // Alias de compatibilidad
+  const secret = process.env.CRON_SECRET?.trim();
+  const auth = typeof req.headers.authorization === "string" ? req.headers.authorization : "";
+  const vercelCron = req.headers["x-vercel-cron"];
+  const okSecret = Boolean(secret) && auth === `Bearer ${secret}`;
+  const okVercel = vercelCron === "1";
+  if (!okSecret && !okVercel) {
+    res.status(401).json({ ok: false, error: "No autorizado" });
+    return;
+  }
+  try {
+    const result = await db.operativaTareas.syncLluviaTodasLasCuentas();
+    res.json({ ok: true, data: result });
+  } catch (e) {
     res.status(500).json({
       ok: false,
       error: e instanceof Error ? e.message : "Error en sync lluvia",
@@ -4376,7 +4415,7 @@ app.put("/api/operativa-lluvia", async (req, res) => {
   }
 });
 
-app.get("/api/cuenta/ubicacion-yr", async (req, res) => {
+app.get("/api/cuenta/ubicacion-clima", async (req, res) => {
   try {
     const cuentaId = await cuentaIdParaInsert(req.user!);
     if (!cuentaId) {
@@ -4388,19 +4427,19 @@ app.get("/api/cuenta/ubicacion-yr", async (req, res) => {
   } catch (e) {
     res.status(400).json({
       ok: false,
-      error: e instanceof Error ? e.message : "Error al obtener ubicación yr.no",
+      error: e instanceof Error ? e.message : "Error al obtener ubicación de clima",
     });
   }
 });
 
-app.put("/api/cuenta/ubicacion-yr", async (req, res) => {
+app.put("/api/cuenta/ubicacion-clima", async (req, res) => {
   if (
     !req.user ||
     (req.user.rol !== "admin" && !req.user.es_super_admin && !req.user.es_admin_cuenta)
   ) {
     res.status(403).json({
       ok: false,
-      error: "Solo los administradores de la cuenta pueden configurar la ubicación yr.no",
+      error: "Solo los administradores de la cuenta pueden configurar la ubicación de clima",
     });
     return;
   }
@@ -4431,7 +4470,7 @@ app.put("/api/cuenta/ubicacion-yr", async (req, res) => {
         return;
       } catch (syncErr) {
         console.warn(
-          "[SGG] sync lluvia yr.no al guardar ubicación:",
+          "[SGG] sync lluvia al guardar ubicación:",
           syncErr instanceof Error ? syncErr.message : syncErr,
         );
       }
@@ -4440,12 +4479,12 @@ app.put("/api/cuenta/ubicacion-yr", async (req, res) => {
   } catch (e) {
     res.status(400).json({
       ok: false,
-      error: e instanceof Error ? e.message : "Error al guardar ubicación yr.no",
+      error: e instanceof Error ? e.message : "Error al guardar ubicación de clima",
     });
   }
 });
 
-app.get("/api/cuenta/establecimientos-yr", async (req, res) => {
+app.get("/api/cuenta/establecimientos-clima", async (req, res) => {
   try {
     const cuentaId = await cuentaIdParaInsert(req.user!);
     if (!cuentaId) {
@@ -4462,7 +4501,7 @@ app.get("/api/cuenta/establecimientos-yr", async (req, res) => {
   }
 });
 
-app.put("/api/cuenta/establecimientos-yr/:marcadorId", async (req, res) => {
+app.put("/api/cuenta/establecimientos-clima/:marcadorId", async (req, res) => {
   if (
     !req.user ||
     (req.user.rol !== "admin" && !req.user.es_super_admin && !req.user.es_admin_cuenta)
@@ -4514,7 +4553,7 @@ app.put("/api/cuenta/establecimientos-yr/:marcadorId", async (req, res) => {
         return;
       } catch (syncErr) {
         console.warn(
-          "[SGG] sync yr.no al activar establecimiento:",
+          "[SGG] sync clima al activar establecimiento:",
           syncErr instanceof Error ? syncErr.message : syncErr,
         );
       }

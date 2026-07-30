@@ -62,7 +62,7 @@ export const HOME_PANEL_META: HomePanelMeta[] = [
     id: "lluvia_clima",
     kicker: "Clima",
     label: "Precipitaciones",
-    hint: "Lluvia por establecimiento (yr.no), arriba de tareas operativas",
+    hint: "Lluvia por establecimiento, arriba de tareas operativas",
     zone: "main",
   },
   {

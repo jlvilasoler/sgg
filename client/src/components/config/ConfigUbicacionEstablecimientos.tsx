@@ -125,11 +125,11 @@ export default function ConfigUbicacionEstablecimientos({
           </span>
           <div>
             <p className="sg-hub-panel-kicker" style={{ margin: 0 }}>
-              Precipitaciones · yr.no
+              Precipitaciones automáticas
             </p>
             <h2 className="config-ubicacion-est-title">Ubicación Establecimientos</h2>
             <p className="muted config-ubicacion-est-sub">
-              Cada día se guarda automáticamente el total de mm según yr.no en cada establecimiento
+              Cada día se guarda automáticamente el total de mm en cada establecimiento
               (sin confirmación). Desactivá un punto solo si no querés seguimiento ahí.
             </p>
           </div>
@@ -154,7 +154,7 @@ export default function ConfigUbicacionEstablecimientos({
             <MapPin size={28} strokeWidth={1.5} aria-hidden />
             <p>
               No hay ubicaciones (marcadores) en el mapa de la cuenta. Creá establecimientos en{" "}
-              <strong>Tareas → Mapa del campo</strong> y volvé acá para activar yr.no.
+              <strong>Tareas → Mapa del campo</strong> y volvé acá para activar la captura automática.
             </p>
           </div>
         ) : (
@@ -178,8 +178,8 @@ export default function ConfigUbicacionEstablecimientos({
                     </div>
                     <p className="config-ubicacion-est-mapa muted">
                       Mapa: {fmtCoord(row.lat_mapa)}, {fmtCoord(row.lon_mapa)}
-                      {row.yr_ultima_sync
-                        ? ` · Última sync: ${new Date(row.yr_ultima_sync).toLocaleString("es-UY")}`
+                      {row.ultima_sync
+                        ? ` · Última sync: ${new Date(row.ultima_sync).toLocaleString("es-UY")}`
                         : ""}
                     </p>
                     <div className="config-ubicacion-est-coords">

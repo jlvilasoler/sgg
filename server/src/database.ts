@@ -648,6 +648,8 @@ export const operativaTareas = {
   syncLluviaTodasLasCuentas: () => operativaTareasDb.syncLluviaTodasLasCuentas(db),
   listEstablecimientosYr: (cuentaId: number) =>
     operativaTareasDb.listEstablecimientosYr(db, cuentaId),
+  getClimaActualEstablecimientos: (cuentaId: number) =>
+    operativaTareasDb.getClimaActualEstablecimientos(db, cuentaId),
   upsertEstablecimientoYr: (
     cuentaId: number,
     marcadorId: number,

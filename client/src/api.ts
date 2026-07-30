@@ -66,6 +66,7 @@ import type {
   OperativaLluviaDia,
   CuentaUbicacionYr,
   EstablecimientoYr,
+  ClimaActualEstablecimiento,
   StockGanaderaDispositivo,
   StockGanaderaDispositivoDetalle,
   StockGanaderaDispositivoHistorial,
@@ -1462,7 +1463,7 @@ export async function upsertOperativaLluvia(body: {
 }
 
 export async function fetchCuentaUbicacionYr(): Promise<CuentaUbicacionYr | null> {
-  const json = await request<{ data: CuentaUbicacionYr | null }>("/cuenta/ubicacion-yr");
+  const json = await request<{ data: CuentaUbicacionYr | null }>("/cuenta/ubicacion-clima");
   return json.data;
 }
 
@@ -1471,7 +1472,7 @@ export async function updateCuentaUbicacionYr(body: {
   lon: number | null;
   nombre?: string;
 }): Promise<CuentaUbicacionYr> {
-  const json = await request<{ data: CuentaUbicacionYr }>("/cuenta/ubicacion-yr", {
+  const json = await request<{ data: CuentaUbicacionYr }>("/cuenta/ubicacion-clima", {
     method: "PUT",
     body: JSON.stringify(body),
   });
@@ -1479,7 +1480,12 @@ export async function updateCuentaUbicacionYr(body: {
 }
 
 export async function fetchEstablecimientosYr(): Promise<EstablecimientoYr[]> {
-  const json = await request<{ data: EstablecimientoYr[] }>("/cuenta/establecimientos-yr");
+  const json = await request<{ data: EstablecimientoYr[] }>("/cuenta/establecimientos-clima");
+  return json.data;
+}
+
+export async function fetchOperativaClimaActual(): Promise<ClimaActualEstablecimiento[]> {
+  const json = await request<{ data: ClimaActualEstablecimiento[] }>("/operativa-clima-actual");
   return json.data;
 }
 
@@ -1488,7 +1494,7 @@ export async function updateEstablecimientoYr(
   body: { activo: boolean; lat?: number | null; lon?: number | null },
 ): Promise<EstablecimientoYr> {
   const json = await request<{ data: EstablecimientoYr }>(
-    `/cuenta/establecimientos-yr/${marcadorId}`,
+    `/cuenta/establecimientos-clima/${marcadorId}`,
     {
       method: "PUT",
       body: JSON.stringify(body),
