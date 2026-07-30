@@ -171,9 +171,9 @@ function LluviaMesChart({
 }) {
   const gid = useId().replace(/:/g, "");
   const W = 168;
-  const H = 46;
-  const padT = 4;
-  const padB = 12;
+  const H = 34;
+  const padT = 3;
+  const padB = 11;
   const padL = 2;
   const padR = 2;
   const chartH = H - padT - padB;
@@ -215,7 +215,7 @@ function LluviaMesChart({
       className="wx-loc-chart"
       viewBox={`0 0 ${W} ${H}`}
       width="100%"
-      height={H}
+      preserveAspectRatio="xMidYMid meet"
       role="img"
       aria-label="Precipitación mensual y promedio acumulado del ejercicio"
     >

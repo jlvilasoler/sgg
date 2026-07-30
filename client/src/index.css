@@ -1417,6 +1417,19 @@ body {
   gap: 0.65rem;
 }
 
+.home-hub-fs-stage:fullscreen .home-hub-lluvia-tareas-row {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.home-hub-fs-stage:fullscreen .home-hub-lluvia-tareas-row > .home-wx-wrap {
+  overflow: hidden;
+}
+
+.home-hub-fs-stage:fullscreen .home-wx-wrap .wx-loc-list {
+  overflow-x: hidden;
+}
+
 .home-hub-fs-stage:fullscreen
   .home-hub-dashboard-wrap--fs-stock:not(:has(.home-hub-dashboard-fs-stock))
   .home-hub-dashboard-fs-side {
