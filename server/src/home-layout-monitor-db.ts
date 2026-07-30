@@ -12,11 +12,11 @@ const PANEL_META: { id: HomePanelId; label: string; zone: "top" | "main" | "side
   { id: "pizarron", label: "Pizarrón de notas", zone: "main" },
   { id: "auto_pendientes", label: "Pagos pendientes", zone: "main" },
   { id: "actividad", label: "Últimos guardados", zone: "main" },
+  { id: "modulos_rapidos", label: "Módulos rápidos", zone: "main" },
   { id: "mapa_campo", label: "Mapa de potreros", zone: "side" },
   { id: "vencimientos", label: "Próximos vencimientos", zone: "side" },
   { id: "stock_potrero", label: "Animales por potrero", zone: "side" },
   { id: "stock_equino_potrero", label: "Equinos por potrero", zone: "side" },
-  { id: "modulos_rapidos", label: "Módulos rápidos", zone: "side" },
 ];
 
 export interface HomeLayoutMonitorUsuarioResumen {

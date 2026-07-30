@@ -94,17 +94,18 @@ export default function HomeClimaActualBar({ apiOnline }: Props) {
       </div>
 
       <div className="home-wx-now-inner">
-        <div className="home-wx-now-head">
-          <p className="wx-kicker">Clima ahora</p>
-          {loading ? (
-            <span className="home-wx-now-status">
-              <Loader2 size={12} className="wx-spin" aria-hidden />
-              Actualizando…
-            </span>
-          ) : error ? (
-            <span className="home-wx-now-status is-error">{error}</span>
-          ) : null}
-        </div>
+        {loading || error ? (
+          <div className="home-wx-now-head">
+            {loading ? (
+              <span className="home-wx-now-status">
+                <Loader2 size={12} className="wx-spin" aria-hidden />
+                Actualizando…
+              </span>
+            ) : (
+              <span className="home-wx-now-status is-error">{error}</span>
+            )}
+          </div>
+        ) : null}
 
         {!loading && !error && items.length > 0 ? (
           <div className="home-wx-now-list" role="list">
@@ -123,7 +124,10 @@ export default function HomeClimaActualBar({ apiOnline }: Props) {
                       }`
                 }
               >
-                <span className="home-wx-now-icon" aria-hidden>
+                <span
+                  className={`home-wx-now-icon home-wx-now-icon--${est.condicion}`}
+                  aria-hidden
+                >
                   {climaIcon(est.condicion)}
                 </span>
                 <div className="home-wx-now-copy">

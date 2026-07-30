@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useId, useMemo, useState, type ReactNode } from "react";
 import {
   ArrowRight,
-  Cloud,
   CloudDrizzle,
   CloudFog,
   CloudLightning,
@@ -71,7 +70,7 @@ function climaIcon(nivel: ClimaNivel, size = 14): ReactNode {
     case "rain":
       return <CloudRain size={size} strokeWidth={stroke} />;
     case "heavy":
-      return <Cloud size={size} strokeWidth={stroke} />;
+      return <CloudRain size={size} strokeWidth={stroke} />;
     case "storm":
       return <CloudLightning size={size} strokeWidth={stroke} />;
   }
@@ -426,7 +425,7 @@ export default function HomeLluviaDashboardPanel({ apiOnline, user, onOpen }: Pr
               return (
                 <article key={est.key} className={`wx-loc-row is-${estNivel}`} role="listitem">
                   <div className="wx-loc-name">
-                    <span className="wx-loc-icon" aria-hidden>
+                    <span className={`wx-loc-icon wx-loc-icon--${estNivel}`} aria-hidden>
                       {climaIcon(estNivel)}
                     </span>
                     <strong title={est.nombre} className="wx-loc-name-text">

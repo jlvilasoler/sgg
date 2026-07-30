@@ -9,11 +9,11 @@ export const HOME_PANEL_IDS = [
   "lluvia_clima",
   "auto_pendientes",
   "actividad",
+  "modulos_rapidos",
   "mapa_campo",
   "vencimientos",
   "stock_potrero",
   "stock_equino_potrero",
-  "modulos_rapidos",
 ] as const;
 
 export type HomePanelId = (typeof HOME_PANEL_IDS)[number];
@@ -80,6 +80,13 @@ export const HOME_PANEL_META: HomePanelMeta[] = [
     zone: "main",
   },
   {
+    id: "modulos_rapidos",
+    kicker: "Accesos",
+    label: "Accesos rápidos",
+    hint: "Atajos a módulos según perfil y uso reciente",
+    zone: "main",
+  },
+  {
     id: "mapa_campo",
     kicker: "Campo",
     label: "Mapa del predio",
@@ -105,13 +112,6 @@ export const HOME_PANEL_META: HomePanelMeta[] = [
     kicker: "Stock",
     label: "Equinos por potrero",
     hint: "Resumen equino y densidad UE/ha",
-    zone: "side",
-  },
-  {
-    id: "modulos_rapidos",
-    kicker: "Accesos",
-    label: "Accesos rápidos",
-    hint: "Atajos a módulos según perfil y uso reciente",
     zone: "side",
   },
 ];

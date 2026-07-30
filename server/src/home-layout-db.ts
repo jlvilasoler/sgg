@@ -8,11 +8,11 @@ export const HOME_PANEL_IDS = [
   "lluvia_clima",
   "auto_pendientes",
   "actividad",
+  "modulos_rapidos",
   "mapa_campo",
   "vencimientos",
   "stock_potrero",
   "stock_equino_potrero",
-  "modulos_rapidos",
 ] as const;
 
 export type HomePanelId = (typeof HOME_PANEL_IDS)[number];

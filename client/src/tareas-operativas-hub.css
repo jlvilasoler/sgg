@@ -1540,9 +1540,9 @@
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 0.35rem;
-  min-width: 0;
-  flex: 0 1 auto;
-  width: auto;
+  flex: 0 0 12.5rem;
+  width: 12.5rem;
+  min-width: 12.5rem;
   max-width: 12.5rem;
   padding: 0.28rem 0.4rem;
   border-radius: 0.55rem;
@@ -1551,9 +1551,11 @@
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 8%, transparent);
+  box-sizing: border-box;
 }
 
 .home-wx-now-icon {
+  position: relative;
   display: grid;
   place-items: center;
   width: 1.55rem;
@@ -1562,6 +1564,14 @@
   background: color-mix(in srgb, #fff 12%, transparent);
   border: 1px solid var(--wx-line);
   color: var(--wx-accent);
+  overflow: visible;
+  flex-shrink: 0;
+}
+
+.home-wx-now-icon svg {
+  display: block;
+  transform-origin: 50% 50%;
+  will-change: transform, opacity, filter;
 }
 
 .home-wx-now-card.is-clear .home-wx-now-icon,
@@ -1577,6 +1587,240 @@
 .home-wx-now-card.is-heavy .home-wx-now-icon,
 .home-wx-now-card.is-drizzle .home-wx-now-icon {
   color: #7dd3fc;
+}
+
+/* Gotas / nieve decorativas */
+.home-wx-now-icon--drizzle::before,
+.home-wx-now-icon--drizzle::after,
+.home-wx-now-icon--rain::before,
+.home-wx-now-icon--rain::after,
+.home-wx-now-icon--heavy::before,
+.home-wx-now-icon--heavy::after,
+.home-wx-now-icon--snow::before,
+.home-wx-now-icon--snow::after,
+.home-wx-now-icon--sleet::before,
+.home-wx-now-icon--sleet::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.home-wx-now-icon--drizzle::before,
+.home-wx-now-icon--drizzle::after,
+.home-wx-now-icon--rain::before,
+.home-wx-now-icon--rain::after,
+.home-wx-now-icon--heavy::before,
+.home-wx-now-icon--heavy::after {
+  width: 1.5px;
+  height: 5px;
+  border-radius: 1px;
+  background: color-mix(in srgb, #bae6fd 85%, transparent);
+  opacity: 0;
+}
+
+.home-wx-now-icon--drizzle::before,
+.home-wx-now-icon--rain::before,
+.home-wx-now-icon--heavy::before {
+  left: 28%;
+  top: 58%;
+}
+
+.home-wx-now-icon--drizzle::after,
+.home-wx-now-icon--rain::after,
+.home-wx-now-icon--heavy::after {
+  left: 62%;
+  top: 52%;
+  height: 4px;
+}
+
+.home-wx-now-icon--snow::before,
+.home-wx-now-icon--snow::after,
+.home-wx-now-icon--sleet::before,
+.home-wx-now-icon--sleet::after {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: #e2e8f0;
+  opacity: 0;
+}
+
+.home-wx-now-icon--snow::before,
+.home-wx-now-icon--sleet::before {
+  left: 26%;
+  top: 62%;
+}
+
+.home-wx-now-icon--snow::after,
+.home-wx-now-icon--sleet::after {
+  left: 66%;
+  top: 55%;
+}
+
+.home-wx-now-icon--storm::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow: 0 0 0 0 color-mix(in srgb, #c4b5fd 0%, transparent);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .home-wx-now-icon--clear svg,
+  .home-wx-now-icon--fair svg {
+    animation: home-wx-sun-spin 14s linear infinite;
+    filter: drop-shadow(0 0 2px color-mix(in srgb, #fde68a 55%, transparent));
+  }
+
+  .home-wx-now-icon--clear,
+  .home-wx-now-icon--fair {
+    animation: home-wx-sun-glow 2.6s ease-in-out infinite;
+  }
+
+  .home-wx-now-icon--partlycloudy svg {
+    animation: home-wx-float 4.8s ease-in-out infinite;
+  }
+
+  .home-wx-now-icon--cloudy svg {
+    animation: home-wx-drift 5.6s ease-in-out infinite;
+  }
+
+  .home-wx-now-icon--fog svg {
+    animation: home-wx-fog 3.4s ease-in-out infinite;
+  }
+
+  .home-wx-now-icon--drizzle svg,
+  .home-wx-now-icon--rain svg,
+  .home-wx-now-icon--heavy svg {
+    animation: home-wx-rain-bob 2.1s ease-in-out infinite;
+  }
+
+  .home-wx-now-icon--drizzle::before,
+  .home-wx-now-icon--rain::before,
+  .home-wx-now-icon--heavy::before {
+    animation: home-wx-drop 1.15s linear infinite;
+  }
+
+  .home-wx-now-icon--drizzle::after,
+  .home-wx-now-icon--rain::after,
+  .home-wx-now-icon--heavy::after {
+    animation: home-wx-drop 1.15s linear infinite 0.45s;
+  }
+
+  .home-wx-now-icon--heavy::before,
+  .home-wx-now-icon--heavy::after {
+    animation-duration: 0.85s;
+  }
+
+  .home-wx-now-icon--snow svg,
+  .home-wx-now-icon--sleet svg {
+    animation: home-wx-snow 3.8s ease-in-out infinite;
+  }
+
+  .home-wx-now-icon--snow::before,
+  .home-wx-now-icon--sleet::before {
+    animation: home-wx-flake 1.7s linear infinite;
+  }
+
+  .home-wx-now-icon--snow::after,
+  .home-wx-now-icon--sleet::after {
+    animation: home-wx-flake 1.7s linear infinite 0.55s;
+  }
+
+  .home-wx-now-icon--storm svg {
+    animation: home-wx-storm-shake 2.8s ease-in-out infinite;
+  }
+
+  .home-wx-now-icon--storm::after {
+    animation: home-wx-storm-flash 2.8s ease-in-out infinite;
+  }
+}
+
+@keyframes home-wx-sun-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes home-wx-sun-glow {
+  0%, 100% {
+    box-shadow:
+      inset 0 0 0 color-mix(in srgb, #fde68a 0%, transparent),
+      0 0 0 color-mix(in srgb, #fde68a 0%, transparent);
+  }
+  50% {
+    box-shadow:
+      inset 0 0 8px color-mix(in srgb, #fde68a 28%, transparent),
+      0 0 10px color-mix(in srgb, #fbbf24 35%, transparent);
+  }
+}
+
+@keyframes home-wx-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-1.5px); }
+}
+
+@keyframes home-wx-drift {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(1.5px); }
+}
+
+@keyframes home-wx-fog {
+  0%, 100% { opacity: 0.55; transform: translateX(-1px); }
+  50% { opacity: 1; transform: translateX(1px); }
+}
+
+@keyframes home-wx-rain-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(1px); }
+}
+
+@keyframes home-wx-drop {
+  0% {
+    opacity: 0;
+    transform: translateY(-2px);
+  }
+  25% { opacity: 0.9; }
+  100% {
+    opacity: 0;
+    transform: translateY(7px);
+  }
+}
+
+@keyframes home-wx-snow {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(1px) rotate(8deg); }
+}
+
+@keyframes home-wx-flake {
+  0% {
+    opacity: 0;
+    transform: translate(0, -1px);
+  }
+  30% { opacity: 0.95; }
+  100% {
+    opacity: 0;
+    transform: translate(2px, 7px);
+  }
+}
+
+@keyframes home-wx-storm-shake {
+  0%, 100% { transform: translate(0, 0); }
+  40% { transform: translate(0, 0); }
+  45% { transform: translate(-0.6px, 0.4px); }
+  50% { transform: translate(0.6px, -0.3px); }
+  55% { transform: translate(0, 0); }
+}
+
+@keyframes home-wx-storm-flash {
+  0%, 42%, 58%, 100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, #c4b5fd 0%, transparent);
+    background: transparent;
+  }
+  46%, 52% {
+    box-shadow: 0 0 10px 1px color-mix(in srgb, #c4b5fd 55%, transparent);
+    background: color-mix(in srgb, #a5b4fc 18%, transparent);
+  }
 }
 
 .home-wx-now-copy {
@@ -1596,11 +1840,11 @@
   letter-spacing: -0.01em;
   color: #fff;
   text-transform: none;
-  max-width: 7.5rem;
+  max-width: none;
 }
 
 .home-wx-now-cond {
-  font-size: 0.5rem;
+  font-size: 0.62rem;
   font-weight: 650;
   color: var(--wx-muted);
   line-height: 1.15;
@@ -1632,11 +1876,14 @@
   }
 
   .home-wx-now-card {
-    max-width: none;
+    flex: 1 1 12.5rem;
+    width: 12.5rem;
+    min-width: min(12.5rem, 100%);
+    max-width: 12.5rem;
   }
 
   .home-wx-now-name {
-    max-width: 9rem;
+    max-width: none;
   }
 }
 
@@ -1934,6 +2181,7 @@
 }
 
 .home-wx-wrap .wx-loc-icon {
+  position: relative;
   display: grid;
   place-items: center;
   width: 1.4rem;
@@ -1943,6 +2191,15 @@
   background: color-mix(in srgb, #fff 12%, transparent);
   color: var(--wx-accent);
   border: 1px solid var(--wx-line);
+  overflow: visible;
+}
+
+.home-wx-wrap .wx-loc-icon svg {
+  display: block;
+  transform-origin: 50% 50%;
+  will-change: transform, opacity, filter;
+  position: relative;
+  z-index: 1;
 }
 
 .home-wx-wrap .wx-loc-row.is-clear .wx-loc-icon { color: #fde68a; }
@@ -1951,6 +2208,96 @@
 .home-wx-wrap .wx-loc-row.is-rain .wx-loc-icon { color: #7dd3fc; }
 .home-wx-wrap .wx-loc-row.is-heavy .wx-loc-icon,
 .home-wx-wrap .wx-loc-row.is-storm .wx-loc-icon { color: #c4b5fd; }
+
+/* Gotas animadas en iconos de precipitación */
+.home-wx-wrap .wx-loc-icon--drizzle::before,
+.home-wx-wrap .wx-loc-icon--drizzle::after,
+.home-wx-wrap .wx-loc-icon--rain::before,
+.home-wx-wrap .wx-loc-icon--rain::after,
+.home-wx-wrap .wx-loc-icon--heavy::before,
+.home-wx-wrap .wx-loc-icon--heavy::after,
+.home-wx-wrap .wx-loc-icon--storm::before,
+.home-wx-wrap .wx-loc-icon--storm::after,
+.home-wx-wrap .wx-loc-icon--mist::before,
+.home-wx-wrap .wx-loc-icon--mist::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  z-index: 2;
+  width: 1.4px;
+  height: 4.5px;
+  border-radius: 1px;
+  background: color-mix(in srgb, #bae6fd 90%, transparent);
+  opacity: 0;
+}
+
+.home-wx-wrap .wx-loc-icon--drizzle::before,
+.home-wx-wrap .wx-loc-icon--rain::before,
+.home-wx-wrap .wx-loc-icon--heavy::before,
+.home-wx-wrap .wx-loc-icon--storm::before,
+.home-wx-wrap .wx-loc-icon--mist::before {
+  left: 26%;
+  top: 55%;
+}
+
+.home-wx-wrap .wx-loc-icon--drizzle::after,
+.home-wx-wrap .wx-loc-icon--rain::after,
+.home-wx-wrap .wx-loc-icon--heavy::after,
+.home-wx-wrap .wx-loc-icon--storm::after,
+.home-wx-wrap .wx-loc-icon--mist::after {
+  left: 60%;
+  top: 50%;
+  height: 3.5px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .home-wx-wrap .wx-loc-icon--clear svg {
+    animation: home-wx-sun-spin 14s linear infinite;
+    filter: drop-shadow(0 0 2px color-mix(in srgb, #fde68a 50%, transparent));
+  }
+
+  .home-wx-wrap .wx-loc-icon--clear {
+    animation: home-wx-sun-glow 2.6s ease-in-out infinite;
+  }
+
+  .home-wx-wrap .wx-loc-icon--mist svg {
+    animation: home-wx-fog 3.4s ease-in-out infinite;
+  }
+
+  .home-wx-wrap .wx-loc-icon--drizzle svg,
+  .home-wx-wrap .wx-loc-icon--rain svg,
+  .home-wx-wrap .wx-loc-icon--heavy svg,
+  .home-wx-wrap .wx-loc-icon--storm svg {
+    animation: home-wx-rain-bob 2.1s ease-in-out infinite;
+  }
+
+  .home-wx-wrap .wx-loc-icon--drizzle::before,
+  .home-wx-wrap .wx-loc-icon--rain::before,
+  .home-wx-wrap .wx-loc-icon--heavy::before,
+  .home-wx-wrap .wx-loc-icon--storm::before,
+  .home-wx-wrap .wx-loc-icon--mist::before {
+    animation: home-wx-drop 1.1s linear infinite;
+  }
+
+  .home-wx-wrap .wx-loc-icon--drizzle::after,
+  .home-wx-wrap .wx-loc-icon--rain::after,
+  .home-wx-wrap .wx-loc-icon--heavy::after,
+  .home-wx-wrap .wx-loc-icon--storm::after,
+  .home-wx-wrap .wx-loc-icon--mist::after {
+    animation: home-wx-drop 1.1s linear infinite 0.4s;
+  }
+
+  .home-wx-wrap .wx-loc-icon--heavy::before,
+  .home-wx-wrap .wx-loc-icon--heavy::after,
+  .home-wx-wrap .wx-loc-icon--storm::before,
+  .home-wx-wrap .wx-loc-icon--storm::after {
+    animation-duration: 0.8s;
+  }
+
+  .home-wx-wrap .wx-loc-icon--storm {
+    animation: home-wx-storm-flash 2.8s ease-in-out infinite;
+  }
+}
 
 .home-wx-wrap .wx-loc-name strong,
 .home-wx-wrap .wx-loc-name-text {

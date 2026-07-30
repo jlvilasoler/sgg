@@ -801,32 +801,6 @@ export default function HomeMenu({
                       </Fragment>
                     );
                   }
-                  return null;
-                })}
-              </div>
-
-              <div className="home-hub-col home-hub-col--side">
-                {sidePanelOrder.map((panelId) => {
-                  if (panelId === "mapa_campo" && puedeMapaCampo && !dashboardFullscreen) {
-                    return <Fragment key="mapa_campo">{renderMapaCampoPanel()}</Fragment>;
-                  }
-                  if (panelId === "vencimientos" && puedeVencimientos && !dashboardFullscreen) {
-                    return <Fragment key="vencimientos">{renderVencimientosPanel()}</Fragment>;
-                  }
-                  if (panelId === "stock_potrero" && puedeStockGanadero && !dashboardFullscreen) {
-                    return <Fragment key="stock_potrero">{renderStockPotreroPanel()}</Fragment>;
-                  }
-                  if (
-                    panelId === "stock_equino_potrero" &&
-                    puedeStockEquino &&
-                    !dashboardFullscreen
-                  ) {
-                    return (
-                      <Fragment key="stock_equino_potrero">
-                        {renderStockEquinoPotreroPanel()}
-                      </Fragment>
-                    );
-                  }
                   if (panelId === "modulos_rapidos" && showModulosRapidos && !dashboardFullscreen) {
                     return (
                       <section
@@ -897,6 +871,32 @@ export default function HomeMenu({
                           </div>
                         </div>
                       </section>
+                    );
+                  }
+                  return null;
+                })}
+              </div>
+
+              <div className="home-hub-col home-hub-col--side">
+                {sidePanelOrder.map((panelId) => {
+                  if (panelId === "mapa_campo" && puedeMapaCampo && !dashboardFullscreen) {
+                    return <Fragment key="mapa_campo">{renderMapaCampoPanel()}</Fragment>;
+                  }
+                  if (panelId === "vencimientos" && puedeVencimientos && !dashboardFullscreen) {
+                    return <Fragment key="vencimientos">{renderVencimientosPanel()}</Fragment>;
+                  }
+                  if (panelId === "stock_potrero" && puedeStockGanadero && !dashboardFullscreen) {
+                    return <Fragment key="stock_potrero">{renderStockPotreroPanel()}</Fragment>;
+                  }
+                  if (
+                    panelId === "stock_equino_potrero" &&
+                    puedeStockEquino &&
+                    !dashboardFullscreen
+                  ) {
+                    return (
+                      <Fragment key="stock_equino_potrero">
+                        {renderStockEquinoPotreroPanel()}
+                      </Fragment>
                     );
                   }
                   return null;

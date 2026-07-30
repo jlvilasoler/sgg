@@ -771,6 +771,10 @@ export default function HomeLayoutScreenPreview({
     { id: "lluvia_clima", node: <PreviewLluviaClima /> },
     { id: "auto_pendientes", node: <PreviewAutoPendientes /> },
     { id: "actividad", node: <PreviewActividad /> },
+    {
+      id: "modulos_rapidos",
+      node: <PreviewModulos quickModules={roleMeta.quickModules} />,
+    },
   ];
 
   const sidePanels: { id: HomePanelId; node: ReactNode }[] = [
@@ -778,10 +782,6 @@ export default function HomeLayoutScreenPreview({
     { id: "vencimientos", node: <PreviewVencimientos /> },
     { id: "stock_potrero", node: <PreviewStockPotrero /> },
     { id: "stock_equino_potrero", node: <PreviewStockEquinoPotrero /> },
-    {
-      id: "modulos_rapidos",
-      node: <PreviewModulos quickModules={roleMeta.quickModules} />,
-    },
   ];
 
   const dragProps = (id: HomePanelId) => ({
