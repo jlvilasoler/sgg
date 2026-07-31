@@ -443,8 +443,11 @@ body {
   align-items: start;
 }
 
+/* Misma proporción 50/50 que Tesorería | Financiero del dashboard de Inicio */
 .bn-ui .home-hub-panels.home-hub-panels {
   align-items: start;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0.65rem;
 }
 
 .home-hub-col {
