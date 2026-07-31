@@ -13,6 +13,7 @@ import {
   Tags,
 } from "lucide-react";
 import IconoCaballoEquinoSvg from "./IconoCaballoEquinoSvg";
+import IconoOvejaOvinoSvg from "./IconoOvejaOvinoSvg";
 
 export type StockControlSanitarioSectionIcon =
   | "admin"
@@ -26,6 +27,7 @@ export type StockControlSanitarioHeadIcon =
   | "header"
   | "modulo-ganadero"
   | "modulo-equino"
+  | "modulo-ovino"
   | "registro"
   | "vid"
   | "eid"
@@ -117,7 +119,7 @@ export function StockOvinoModuleIcon({
   strokeWidth?: number;
 }) {
   return (
-    <LucideBovineHoof
+    <IconoOvejaOvinoSvg
       className={className}
       size={size}
       strokeWidth={strokeWidth}
@@ -139,6 +141,8 @@ function renderIcon(icon: AnyIcon, size: number) {
       return <StockGanaderoModuleIcon size={size} strokeWidth={ICON_STROKE} />;
     case "modulo-equino":
       return <StockEquinoModuleIcon size={size} strokeWidth={ICON_STROKE} />;
+    case "modulo-ovino":
+      return <StockOvinoModuleIcon size={size} strokeWidth={ICON_STROKE} />;
     case "registro":
       return <ClipboardList {...props} />;
     case "vid":

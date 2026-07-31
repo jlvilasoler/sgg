@@ -408,6 +408,16 @@ body {
 .home-hub-nav-icon .menu-app-icon-svg {
   width: 1.1rem;
   height: 1.1rem;
+  /* Sin drop-shadow blanco: en el aside oscuro dejaba tags/siluetas demasiado “blancas”. */
+  filter: none;
+  opacity: 0.78;
+  color: inherit;
+}
+
+/* Silueta llena pesa más visualmente que los strokes: un poco más suave. */
+.home-hub-nav-icon .icon-oveja-ovino,
+.bn-ui .sg-hub-nav-icon .icon-oveja-ovino {
+  opacity: 0.58;
 }
 
 .home-hub-nav-badge,
