@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { RefreshCw, Search, SlidersHorizontal } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { ArrowDown, ArrowUp, ArrowUpDown, RefreshCw, Search, SlidersHorizontal } from "lucide-react";
 import {
   deleteStockGanaderaDispositivos,
   fetchEmpresasOperativasStock,
@@ -34,7 +34,7 @@ import {
   StockGanaderoHubAsideSearchField,
   useStockGanaderoAsideSearch,
 } from "./StockGanaderoHubAsideSearch";
-import type { CategoriaFiltroKey, EdadFiltroKey } from "./stock-ganadera-utils";
+import type { CategoriaFiltroKey, EdadFiltroKey, StockGanaderaSortDir, StockGanaderaSortKey } from "./stock-ganadera-utils";
 import {
   CATEGORIA_FILTRO_HEMBRA,
   CATEGORIA_FILTRO_MACHO,
@@ -44,6 +44,8 @@ import {
   coincideBusquedaDispositivo,
   coincideCategoriaFiltro,
   coincideSinFechaNacFiltro,
+  compareStockGanaderaDispositivos,
+  defaultStockGanaderaSortDir,
   dispositivoSinFechaNacimiento,
   dispositivoActivoEnStock,
   esDispositivoFueraDeStock,
@@ -167,6 +169,61 @@ interface Props {
   };
 }
 
+const SORT_HINTS: Record<StockGanaderaSortKey, { asc: string; desc: string }> = {
+  eid: { asc: "Menor a mayor", desc: "Mayor a menor" },
+  empresa: { asc: "A → Z", desc: "Z → A" },
+  generacion: { asc: "A → Z", desc: "Z → A" },
+  grupo: { asc: "A → Z", desc: "Z → A" },
+  potrero: { asc: "A → Z", desc: "Z → A" },
+  raza: { asc: "A → Z", desc: "Z → A" },
+  sexo: { asc: "A → Z", desc: "Z → A" },
+  edad: { asc: "Más joven → más viejo", desc: "Más viejo → más joven" },
+  ultima_lectura: { asc: "Más antigua → más reciente", desc: "Más reciente → más antigua" },
+  estado: { asc: "A → Z", desc: "Z → A" },
+};
+
+function StockSortableTh({
+  label,
+  sortKey,
+  activeKey,
+  activeDir,
+  className,
+  onSort,
+}: {
+  label: ReactNode;
+  sortKey: StockGanaderaSortKey;
+  activeKey: StockGanaderaSortKey | null;
+  activeDir: StockGanaderaSortDir;
+  className?: string;
+  onSort: (key: StockGanaderaSortKey) => void;
+}) {
+  const active = activeKey === sortKey;
+  const nextDir = active
+    ? activeDir === "asc"
+      ? "desc"
+      : "asc"
+    : defaultStockGanaderaSortDir(sortKey);
+  const hint = SORT_HINTS[sortKey][nextDir];
+  const Icon = !active ? ArrowUpDown : activeDir === "asc" ? ArrowUp : ArrowDown;
+
+  return (
+    <th
+      className={className}
+      aria-sort={active ? (activeDir === "asc" ? "ascending" : "descending") : "none"}
+    >
+      <button
+        type="button"
+        className={`stock-th-sort${active ? " is-active" : ""}`}
+        onClick={() => onSort(sortKey)}
+        title={`Ordenar: ${hint}`}
+      >
+        <span className="stock-th-sort-label">{label}</span>
+        <Icon className="stock-th-sort-icon" size={12} strokeWidth={2.4} aria-hidden />
+      </button>
+    </th>
+  );
+}
+
 export default function StockGanadera({
   apiOnline,
   currentUser,
@@ -212,6 +269,8 @@ export default function StockGanadera({
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<PageSize>(30);
+  const [sortKey, setSortKey] = useState<StockGanaderaSortKey | null>(null);
+  const [sortDir, setSortDir] = useState<StockGanaderaSortDir>("asc");
   const [seleccion, setSeleccion] = useState<Set<string>>(() => new Set());
   const [filtroSexo, setFiltroSexo] = useState<Set<string>>(() => new Set());
   const [filtroEmpresa, setFiltroEmpresa] = useState<Set<string>>(() => new Set());
@@ -421,6 +480,32 @@ export default function StockGanadera({
     return result;
   }, [rowsBase, filtroSexo, filtroEmpresa, filtroEstado, filtroEdad, filtroGrupoLibre, filtroPotrero, filtroRaza, filtroGeneracion, filtroUltimaLecturaMes, filtroCategoria, filtroSinFechaNac, filtroVentasCerradas, filtroSalidasSistema, ventasClaves, busqueda]);
 
+  const empresaLabel = useCallback(
+    (codigo: string) => fmtEmpresaOperativa(codigo, empresasOperativas),
+    [empresasOperativas],
+  );
+
+  const toggleSort = useCallback((key: StockGanaderaSortKey) => {
+    setSortKey((prev) => {
+      if (prev === key) {
+        setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+        return prev;
+      }
+      setSortDir(defaultStockGanaderaSortDir(key));
+      return key;
+    });
+    setPage(1);
+  }, []);
+
+  const sortedRows = useMemo(() => {
+    if (!sortKey) return filteredRows;
+    const next = filteredRows.slice();
+    next.sort((a, b) =>
+      compareStockGanaderaDispositivos(a, b, sortKey, sortDir, empresaLabel),
+    );
+    return next;
+  }, [filteredRows, sortKey, sortDir, empresaLabel]);
+
   const sinDatosPrevios = statsRows.length === 0 && rows.length === 0;
   const kpisCargando = loading;
   const mostrarCargaVacia = loading && sinDatosPrevios;
@@ -601,16 +686,16 @@ export default function StockGanadera({
     setFiltroSalidasSistema(false);
   };
 
-  const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
+  const totalPages = Math.max(1, Math.ceil(sortedRows.length / pageSize));
   const pageSafe = Math.min(page, totalPages);
   const rowsPagina = useMemo(
-    () => paginateSlice(filteredRows, pageSafe, pageSize),
-    [filteredRows, pageSafe, pageSize]
+    () => paginateSlice(sortedRows, pageSafe, pageSize),
+    [sortedRows, pageSafe, pageSize]
   );
 
   const seleccionados = useMemo(
-    () => filteredRows.filter((r) => seleccion.has(r.clave)),
-    [filteredRows, seleccion]
+    () => sortedRows.filter((r) => seleccion.has(r.clave)),
+    [sortedRows, seleccion]
   );
 
   const clavesPagina = useMemo(
@@ -645,7 +730,7 @@ export default function StockGanadera({
   };
 
   const seleccionarTodosFiltrados = () => {
-    setSeleccion(new Set(filteredRows.map((r) => r.clave)));
+    setSeleccion(new Set(sortedRows.map((r) => r.clave)));
   };
 
   const limpiarSeleccion = () => setSeleccion(new Set());
@@ -1443,18 +1528,86 @@ export default function StockGanadera({
                   aria-label="Seleccionado de cabaña"
                   title="Seleccionado"
                 />
-                <th className="stock-th stock-th--device-ids">
-                  EID / VID
-                </th>
-                <th className="stock-th stock-th--empresa">Empresa</th>
-                <th className="stock-th">Generación</th>
-                <th className="stock-th">Grupo</th>
-                <th className="stock-th stock-th--potrero">Potrero</th>
-                <th className="stock-th">Raza</th>
-                <th className="stock-th">Sexo</th>
-                <th className="stock-th stock-th--edad">Edad</th>
-                <th className="stock-th stock-th--time">Última lectura</th>
-                <th className="stock-th stock-th--estado">Estado</th>
+                <StockSortableTh
+                  label="EID / VID"
+                  sortKey="eid"
+                  activeKey={sortKey}
+                  activeDir={sortDir}
+                  className="stock-th stock-th--device-ids"
+                  onSort={toggleSort}
+                />
+                <StockSortableTh
+                  label="Empresa"
+                  sortKey="empresa"
+                  activeKey={sortKey}
+                  activeDir={sortDir}
+                  className="stock-th stock-th--empresa"
+                  onSort={toggleSort}
+                />
+                <StockSortableTh
+                  label="Generación"
+                  sortKey="generacion"
+                  activeKey={sortKey}
+                  activeDir={sortDir}
+                  className="stock-th"
+                  onSort={toggleSort}
+                />
+                <StockSortableTh
+                  label="Grupo"
+                  sortKey="grupo"
+                  activeKey={sortKey}
+                  activeDir={sortDir}
+                  className="stock-th"
+                  onSort={toggleSort}
+                />
+                <StockSortableTh
+                  label="Potrero"
+                  sortKey="potrero"
+                  activeKey={sortKey}
+                  activeDir={sortDir}
+                  className="stock-th stock-th--potrero"
+                  onSort={toggleSort}
+                />
+                <StockSortableTh
+                  label="Raza"
+                  sortKey="raza"
+                  activeKey={sortKey}
+                  activeDir={sortDir}
+                  className="stock-th"
+                  onSort={toggleSort}
+                />
+                <StockSortableTh
+                  label="Sexo"
+                  sortKey="sexo"
+                  activeKey={sortKey}
+                  activeDir={sortDir}
+                  className="stock-th"
+                  onSort={toggleSort}
+                />
+                <StockSortableTh
+                  label="Edad"
+                  sortKey="edad"
+                  activeKey={sortKey}
+                  activeDir={sortDir}
+                  className="stock-th stock-th--edad"
+                  onSort={toggleSort}
+                />
+                <StockSortableTh
+                  label="Última lectura"
+                  sortKey="ultima_lectura"
+                  activeKey={sortKey}
+                  activeDir={sortDir}
+                  className="stock-th stock-th--time"
+                  onSort={toggleSort}
+                />
+                <StockSortableTh
+                  label="Estado"
+                  sortKey="estado"
+                  activeKey={sortKey}
+                  activeDir={sortDir}
+                  className="stock-th stock-th--estado"
+                  onSort={toggleSort}
+                />
               </tr>
             </thead>
             <tbody>

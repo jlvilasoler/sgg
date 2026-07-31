@@ -1050,6 +1050,125 @@ export function coincideCategoriaFiltro(
   return false;
 }
 
+/** Columnas ordenables de la tabla Stock Ganadero. */
+export type StockGanaderaSortKey =
+  | "eid"
+  | "empresa"
+  | "generacion"
+  | "grupo"
+  | "potrero"
+  | "raza"
+  | "sexo"
+  | "edad"
+  | "ultima_lectura"
+  | "estado";
+
+export type StockGanaderaSortDir = "asc" | "desc";
+
+export function defaultStockGanaderaSortDir(key: StockGanaderaSortKey): StockGanaderaSortDir {
+  if (key === "eid" || key === "edad" || key === "ultima_lectura") return "desc";
+  return "asc";
+}
+
+function cmpTexto(a: string, b: string): number {
+  return a.localeCompare(b, "es", { sensitivity: "base", numeric: true });
+}
+
+function cmpNumeroNullLast(
+  a: number | null,
+  b: number | null,
+  dir: StockGanaderaSortDir,
+): number {
+  if (a == null && b == null) return 0;
+  if (a == null) return 1;
+  if (b == null) return -1;
+  return dir === "asc" ? a - b : b - a;
+}
+
+export function compareStockGanaderaDispositivos(
+  a: {
+    clave: string;
+    eid: string;
+    vid: string;
+    sexo: string;
+    empresa: string;
+    grupo: string;
+    grupo_libre: string;
+    potrero: string;
+    raza: string;
+    edad: number | null;
+    nacimiento_mes: number | null;
+    nacimiento_anio: number | null;
+    ultima_fecha: string;
+    ultima_hora: string;
+    estado: DispositivoEstado;
+  },
+  b: {
+    clave: string;
+    eid: string;
+    vid: string;
+    sexo: string;
+    empresa: string;
+    grupo: string;
+    grupo_libre: string;
+    potrero: string;
+    raza: string;
+    edad: number | null;
+    nacimiento_mes: number | null;
+    nacimiento_anio: number | null;
+    ultima_fecha: string;
+    ultima_hora: string;
+    estado: DispositivoEstado;
+  },
+  key: StockGanaderaSortKey,
+  dir: StockGanaderaSortDir,
+  empresaLabel: (codigo: string) => string,
+): number {
+  const mul = dir === "asc" ? 1 : -1;
+  let c = 0;
+
+  switch (key) {
+    case "eid":
+      c = cmpTexto(
+        `${a.eid || ""} ${a.vid || ""}`.trim(),
+        `${b.eid || ""} ${b.vid || ""}`.trim(),
+      );
+      break;
+    case "empresa":
+      c = cmpTexto(empresaLabel(a.empresa), empresaLabel(b.empresa));
+      break;
+    case "generacion":
+      c = cmpTexto(fmtGrupo(a.grupo), fmtGrupo(b.grupo));
+      break;
+    case "grupo":
+      c = cmpTexto(fmtGrupoLibre(a.grupo_libre), fmtGrupoLibre(b.grupo_libre));
+      break;
+    case "potrero":
+      c = cmpTexto(fmtPotrero(a.potrero), fmtPotrero(b.potrero));
+      break;
+    case "raza":
+      c = cmpTexto(fmtRaza(a.raza), fmtRaza(b.raza));
+      break;
+    case "sexo":
+      c = cmpTexto(a.sexo || "", b.sexo || "");
+      break;
+    case "edad":
+      return cmpNumeroNullLast(edadMesesDispositivo(a), edadMesesDispositivo(b), dir);
+    case "ultima_lectura": {
+      const ta = `${a.ultima_fecha || ""}T${a.ultima_hora || ""}`;
+      const tb = `${b.ultima_fecha || ""}T${b.ultima_hora || ""}`;
+      c = cmpTexto(ta, tb);
+      break;
+    }
+    case "estado":
+      c = cmpTexto(fmtEstadoDispositivo(a.estado), fmtEstadoDispositivo(b.estado));
+      break;
+  }
+
+  if (c !== 0) return c * mul;
+  return cmpTexto(a.clave, b.clave);
+}
+
 /** Años disponibles para nacimiento (actual hacia atrás). */
 export function listAniosNacimiento(): number[] {
   const max = new Date().getFullYear();
