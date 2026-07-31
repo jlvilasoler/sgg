@@ -27,7 +27,7 @@ const emptyMeta = (): StockDispositivoFotoMeta => ({
 });
 
 interface Props {
-  modulo: "ganadero" | "equino";
+  modulo: "ganadero" | "equino" | "ovino";
   clave: string;
   /** Metadatos ya conocidos (p. ej. desde la fila del stock). */
   initialMeta?: StockDispositivoFotoMeta | null;

@@ -130,7 +130,7 @@ export const MARCAS_REMEDIO_EQUINO: readonly MarcaRemedioCatalogo[] = [
   { nombre: "Zoetis", paises: ["UY", "AR", "BR"] },
 ];
 
-export type MarcaRemedioModulo = "ganadero" | "equino";
+export type MarcaRemedioModulo = "ganadero" | "equino" | "ovino";
 
 export function catalogoMarcasPorModulo(
   modulo: MarcaRemedioModulo

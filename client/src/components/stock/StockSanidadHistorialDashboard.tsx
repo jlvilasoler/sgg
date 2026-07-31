@@ -19,7 +19,7 @@ interface Props {
   refreshKey?: number;
   empresasOperativas?: EmpresaOperativaStock[];
   onError?: (msg: string) => void;
-  modulo?: "ganadero" | "equino";
+  modulo?: "ganadero" | "equino" | "ovino";
 }
 
 function fmtIsoDate(iso: string): string {

@@ -155,7 +155,7 @@ export const FORMULAS_REMEDIO_EQUINO: readonly string[] = [
   "Xilazina 2%",
 ].sort((a, b) => a.localeCompare(b, "es", { sensitivity: "base" }));
 
-export type FormulaRemedioModulo = "ganadero" | "equino";
+export type FormulaRemedioModulo = "ganadero" | "equino" | "ovino";
 
 export function catalogoFormulasPorModulo(
   modulo: FormulaRemedioModulo

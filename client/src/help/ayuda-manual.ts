@@ -566,7 +566,7 @@ export const AYUDA_ARTICULOS: AyudaArticulo[] = [
     pantallaRelacionada: "stock_ovino",
     intro:
       "Misma lógica que stock equino, adaptada a ovinos: altas con ID REG prefijo 199, fichas por dispositivo, salidas y sanidad.",
-    recorridoOperativo: [
+    procesoOperativo: [
       "Dá de alta animales (genérica o cabaña) con REG 199.",
       "Editá fichas (categoría, raza, potrero, etc.).",
       "Registrá bajas o salidas del sistema.",

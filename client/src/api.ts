@@ -3428,22 +3428,6 @@ export async function altaStockOvinoCabana(input: {
   };
 }
 
-export type AruBuscarPor = "registro" | "criador" | "nombre";
-
-export interface AruResultadoBusqueda {
-  rp: string;
-  criador: string;
-  registro: string;
-  nombre: string;
-  publico: boolean;
-  id_sesion: string;
-  id_filtro: string;
-  id: string;
-  id_especie: string;
-  id_raza: string;
-  detalle_url?: string;
-}
-
 export async function importStockOvinoBajaFile(
   file: File,
   tipo_baja: TipoBaja
