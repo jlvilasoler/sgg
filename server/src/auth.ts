@@ -12,6 +12,8 @@ import {
 import { dbCapacityHint, isDbCapacityError } from "./db/pg-client.js";
 import type { StockMovimientoTipo } from "./stock-auditoria-db.js";
 import { getDb, empresasCuenta, stockAuditoria } from "./database.js";
+import * as stockGanaderoDb from "./stock-ganadero-db.js";
+import * as stockEquinoDb from "./stock-equino-db.js";
 import { summarizeCuentasControlPlataforma } from "./plataforma-cuentas-control-db.js";
 import {
   attachApiActivityLogger,
@@ -1982,6 +1984,39 @@ export function registerAuthRoutes(app: Express): void {
       res.status(400).json({
         ok: false,
         error: e instanceof Error ? e.message : "Error al actualizar cuenta de empresa",
+      });
+    }
+  });
+
+  app.delete("/api/empresas-cuenta/:id", async (req, res) => {
+    if (!req.user?.es_super_admin) {
+      res.status(403).json({
+        ok: false,
+        error: "Solo el superadministrador puede eliminar cuentas madre",
+      });
+      return;
+    }
+    try {
+      const id = Number(req.params.id);
+      if (!Number.isFinite(id)) {
+        res.status(400).json({ ok: false, error: "ID inválido" });
+        return;
+      }
+      const db = getDb();
+      const deleted = await db.transaction(async (tx) => {
+        await stockGanaderoDb.vaciarStockGanaderaCompleto(tx, id);
+        await stockEquinoDb.vaciarStockEquinaCompleto(tx, id);
+        return empresasCuenta.deleteEmpresaCuenta(tx, id);
+      });
+      await authDb.recordAuthEvent(db, "empresa_cuenta_deleted", {
+        email: req.user!.email,
+        detalle: `cuenta=${deleted.nombre};codigo=${deleted.codigo};id=${deleted.id}`,
+      });
+      res.json({ ok: true, data: deleted });
+    } catch (e) {
+      res.status(400).json({
+        ok: false,
+        error: e instanceof Error ? e.message : "Error al eliminar cuenta de empresa",
       });
     }
   });

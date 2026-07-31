@@ -253,6 +253,11 @@ export default function ArquitecturaSistema({
         onCuentaUpdated={(updated) => {
           setEmpresas((prev) => prev.map((e) => (e.id === updated.id ? updated : e)));
         }}
+        onCuentaDeleted={(cuentaId) => {
+          setEmpresas((prev) => prev.filter((e) => e.id !== cuentaId));
+          setSelectedCuentaId(null);
+          setDetallePanel("none");
+        }}
         onError={onError}
         onSuccess={onSuccess}
       />

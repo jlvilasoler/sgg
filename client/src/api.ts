@@ -4498,6 +4498,16 @@ export async function actualizarEmpresaCuenta(
   return json.data;
 }
 
+export async function eliminarEmpresaCuenta(
+  id: number
+): Promise<{ id: number; nombre: string; codigo: string }> {
+  const json = await request<{ data: { id: number; nombre: string; codigo: string } }>(
+    `/empresas-cuenta/${id}`,
+    { method: "DELETE" }
+  );
+  return json.data;
+}
+
 export async function crearEmpresaOperativa(
   cuentaId: number,
   data: EmpresaOperativaForm

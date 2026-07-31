@@ -31592,27 +31592,62 @@ button.sg-kpi-card:disabled {
   width: 100%;
   min-height: 3rem;
   padding: 0.75rem 1rem;
-  border: 1px solid rgba(248, 246, 240, 0.1);
+  border: 1px solid rgba(248, 246, 240, 0.16);
   border-radius: 0.85rem;
-  background: rgba(255, 255, 255, 0.06);
-  color: #f8f6f0;
+  background: #ffffff;
+  color: #181a20;
+  caret-color: #181a20;
   font-size: 0.95rem;
   text-transform: none;
-  transition: border-color 0.15s ease, background 0.15s ease;
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
 }
 
 .auth-login-input::placeholder {
-  color: rgba(248, 246, 240, 0.38);
+  color: rgba(24, 26, 32, 0.42);
 }
 
 .auth-login-input:focus {
   outline: none;
-  border-color: color-mix(in srgb, var(--bn-gold) 55%, transparent);
-  background: rgba(255, 255, 255, 0.09);
+  border-color: color-mix(in srgb, var(--bn-gold) 70%, #181a20);
+  background: #ffffff;
+  color: #181a20;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--bn-gold) 28%, transparent);
 }
 
 .auth-login-input:disabled {
   opacity: 0.55;
+}
+
+.auth-login-form.auth-login-form--split .auth-login-input,
+.auth-login-form.auth-login-form--split input.auth-login-input {
+  background: #ffffff;
+  color: #181a20;
+  caret-color: #181a20;
+  border: 1px solid rgba(248, 246, 240, 0.16);
+  border-radius: 0.85rem;
+  min-height: 3rem;
+  padding: 0.75rem 1rem;
+  font-size: 0.95rem;
+}
+
+.auth-login-form.auth-login-form--split .auth-login-input:focus,
+.auth-login-form.auth-login-form--split input.auth-login-input:focus {
+  background: #ffffff;
+  color: #181a20;
+  border-color: color-mix(in srgb, var(--bn-gold) 70%, #181a20);
+}
+
+.auth-login-form.auth-login-form--split .auth-login-input::placeholder {
+  color: rgba(24, 26, 32, 0.42);
+}
+
+.auth-login-form.auth-login-form--split .auth-login-input:-webkit-autofill,
+.auth-login-form.auth-login-form--split .auth-login-input:-webkit-autofill:hover,
+.auth-login-form.auth-login-form--split .auth-login-input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #181a20;
+  caret-color: #181a20;
+  box-shadow: 0 0 0 1000px #ffffff inset;
+  transition: background-color 99999s ease-out;
 }
 
 .auth-login-password-wrap--split {
@@ -31634,12 +31669,12 @@ button.sg-kpi-card:disabled {
   justify-content: center;
   border: none;
   background: transparent;
-  color: rgba(248, 246, 240, 0.45);
+  color: rgba(24, 26, 32, 0.45);
   cursor: pointer;
 }
 
 .auth-login-toggle-pw--split:hover {
-  color: rgba(248, 246, 240, 0.75);
+  color: rgba(24, 26, 32, 0.75);
 }
 
 .auth-login-submit--split {
@@ -52525,7 +52560,10 @@ button.sg-kpi-card:disabled {
 
 /* —— Arquitectura del sistema —— */
 .arq-sistema-shell {
-  max-width: 1280px;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  box-sizing: border-box;
 }
 
 .arq-sistema-panel {
@@ -52734,8 +52772,10 @@ button.sg-kpi-card:disabled {
   box-shadow: inset 3px 0 0 #0ea5e9;
 }
 
-.arq-sistema-row--inactiva {
-  opacity: 0.82;
+.arq-sistema-row--inactiva .arq-sistema-account-name,
+.arq-sistema-row--inactiva .arquitectura-sistema-admin-chip,
+.arq-sistema-row--inactiva .arquitectura-sistema-admin-email {
+  opacity: 0.75;
 }
 
 .arq-sistema-row--inactiva td:first-child {
@@ -52764,10 +52804,22 @@ button.sg-kpi-card:disabled {
 
 .arq-sistema-actions {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   justify-content: flex-end;
-  gap: 0.35rem;
+  align-items: center;
+  gap: 0.4rem;
   white-space: nowrap;
+}
+
+.arq-sistema-actions .sg-hub-cta--compact {
+  flex: 0 0 auto;
+  min-width: 5.75rem;
+  min-height: 2.05rem;
+  padding: 0.42rem 0.95rem;
+  font-size: 0.78rem;
+  line-height: 1.15;
+  white-space: nowrap;
+  box-sizing: border-box;
 }
 
 .arq-sistema-status {

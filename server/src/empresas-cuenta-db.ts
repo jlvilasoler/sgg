@@ -1583,6 +1583,216 @@ export async function updateEmpresaCuenta(
   return (await getEmpresaCuentaById(db, id))!;
 }
 
+async function columnExistsPublic(
+  db: Db,
+  table: string,
+  column: string
+): Promise<boolean> {
+  const row = (await db
+    .prepare(
+      `SELECT 1 AS ok
+       FROM information_schema.columns
+       WHERE table_schema = 'public'
+         AND LOWER(table_name) = LOWER(?)
+         AND LOWER(column_name) = LOWER(?)`
+    )
+    .get(table, column)) as { ok: number } | undefined;
+  return Boolean(row);
+}
+
+async function deleteByCuentaIdSafe(
+  db: Db,
+  table: string,
+  cuentaId: number
+): Promise<void> {
+  if (!(await tableExists(db, table))) return;
+  if (!(await columnExistsPublic(db, table, "cuenta_id"))) return;
+  try {
+    await db.prepare(`DELETE FROM ${table} WHERE cuenta_id = ?`).run(cuentaId);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (/does not exist|undefined_table|undefined_column/i.test(msg)) return;
+    throw err;
+  }
+}
+
+function referencedTableFromFkError(err: unknown): string | null {
+  const msg = err instanceof Error ? err.message : String(err);
+  const m =
+    msg.match(/on table "([^"]+)"/i) ??
+    msg.match(/from table "([^"]+)"/i) ??
+    msg.match(/relation "([^"]+)"/i);
+  return m?.[1] ?? null;
+}
+
+/**
+ * Elimina definitivamente una cuenta madre y sus datos asociados (solo plataforma).
+ * Debe invocarse dentro de una transacción tras vaciar stock si aplica.
+ */
+export async function deleteEmpresaCuenta(
+  db: Db,
+  id: number
+): Promise<{ id: number; nombre: string; codigo: string }> {
+  const cuenta = await getEmpresaCuentaById(db, id);
+  if (!cuenta) throw new Error("Cuenta de empresa no encontrada");
+
+  const seedId = await getSeedCuentaMadreId(db);
+  if (seedId != null && seedId === id) {
+    throw new Error(
+      "No se puede eliminar la cuenta madre semilla del sistema (VILA DIAZ)"
+    );
+  }
+
+  await db
+    .prepare(
+      `UPDATE EMPRESAS_CUENTA
+       SET admin_user_id = NULL, ejercicio_empresa_id = NULL, actualizado_en = NOW()
+       WHERE id = ?`
+    )
+    .run(id);
+
+  const userRows = (await db
+    .prepare("SELECT id FROM USERS WHERE empresa_id = ?")
+    .all(id)) as { id: number }[];
+  for (const u of userRows) {
+    await authDeleteUserSessions(db, u.id);
+  }
+
+  // Dependencias típicas sin ON DELETE CASCADE (orden hoja → raíz).
+  if (await tableExists(db, "PRESUPUESTO_DOCUMENTOS")) {
+    try {
+      await db
+        .prepare(
+          `DELETE FROM PRESUPUESTO_DOCUMENTOS
+           WHERE presupuesto_id IN (SELECT id FROM PRESUPUESTO WHERE cuenta_id = ?)`
+        )
+        .run(id);
+    } catch {
+      /* tabla/columna puede no existir en entornos viejos */
+    }
+  }
+  if (await tableExists(db, "SUB_RUBRO_ITEMS")) {
+    try {
+      await db
+        .prepare(
+          `DELETE FROM SUB_RUBRO_ITEMS
+           WHERE sub_rubro_id IN (SELECT id FROM SUB_RUBROS WHERE cuenta_id = ?)`
+        )
+        .run(id);
+    } catch {
+      /* ignore */
+    }
+  }
+  if (await tableExists(db, "VENTA_SUB_RUBRO_ITEMS")) {
+    try {
+      await db
+        .prepare(
+          `DELETE FROM VENTA_SUB_RUBRO_ITEMS
+           WHERE sub_rubro_id IN (SELECT id FROM VENTA_SUB_RUBROS WHERE cuenta_id = ?)`
+        )
+        .run(id);
+    } catch {
+      /* ignore */
+    }
+  }
+  if (await tableExists(db, "RUBRO_SUB_RUBROS")) {
+    try {
+      await db
+        .prepare(
+          `DELETE FROM RUBRO_SUB_RUBROS
+           WHERE rubro_id IN (SELECT id FROM RUBROS WHERE cuenta_id = ?)
+              OR sub_rubro_id IN (SELECT id FROM SUB_RUBROS WHERE cuenta_id = ?)`
+        )
+        .run(id, id);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  const scopedTables = [
+    "STOCK_GANADERO_LOTE",
+    "STOCK_EQUINO_LOTE",
+    "STOCK_GANADERO_BACKUP",
+    "STOCK_EQUINO_BACKUP",
+    "SIMULADOR_VENTA_GANADO",
+    "PROVEEDORES",
+    "FUNCIONARIOS",
+    "RESPONSABLES",
+    "INGRESOS_VENTAS",
+    "VENTAS_AGRICULTURA",
+    "VENTAS_ARRENDAMIENTO",
+    "PRESUPUESTO",
+    "SUB_RUBROS",
+    "RUBROS",
+    "GRUPO_ICONOS",
+    "VENTA_SUB_RUBROS",
+    "VENTA_GRUPO_ICONOS",
+    "CHAT_CHANNELS",
+    "NOTAS",
+    "GASTO_AUTOMATIZACION",
+    "PAGOS_PERSONALIZADOS",
+    "CAMPO_MAPA_ELEMENTO",
+    "CAMPO_POTRERO_MAPA",
+    "STOCK_GANADERO_POTRERO",
+    "STOCK_GANADERO_GRUPO",
+    "USER_VENCIMIENTOS_PREFS",
+    "CUENTA_VENCIMIENTOS_PREFS",
+    "BILLING_CUENTA",
+    "BILLING_EVENTO",
+  ];
+  for (const table of scopedTables) {
+    await deleteByCuentaIdSafe(db, table, id);
+  }
+
+  try {
+    await db.prepare("DELETE FROM USERS WHERE empresa_id = ?").run(id);
+  } catch {
+    await db
+      .prepare(
+        `UPDATE USERS
+         SET empresa_id = NULL, activo = 0, actualizado_en = NOW()
+         WHERE empresa_id = ?`
+      )
+      .run(id);
+  }
+
+  for (let attempt = 0; attempt < 25; attempt++) {
+    try {
+      const result = await db
+        .prepare("DELETE FROM EMPRESAS_CUENTA WHERE id = ?")
+        .run(id);
+      if ((result.changes ?? 0) > 0) {
+        return { id: cuenta.id, nombre: cuenta.nombre, codigo: cuenta.codigo };
+      }
+      throw new Error("No se pudo eliminar la cuenta");
+    } catch (err) {
+      const child = referencedTableFromFkError(err);
+      if (!child) throw err;
+      if (await columnExistsPublic(db, child, "cuenta_id")) {
+        await db.prepare(`DELETE FROM ${child} WHERE cuenta_id = ?`).run(id);
+        continue;
+      }
+      throw new Error(
+        `No se puede eliminar la cuenta: hay datos vinculados en «${child}»`
+      );
+    }
+  }
+
+  throw new Error("No se pudo eliminar la cuenta por dependencias pendientes");
+}
+
+/** Evita import circular con auth-db: borra sesiones por SQL directo. */
+async function authDeleteUserSessions(db: Db, userId: number): Promise<void> {
+  if (await tableExistsPublic(db, "USER_SESSIONS")) {
+    await db.prepare("DELETE FROM USER_SESSIONS WHERE user_id = ?").run(userId);
+  }
+  if (await tableExistsPublic(db, "PASSWORD_RESET_TOKENS")) {
+    await db
+      .prepare("DELETE FROM PASSWORD_RESET_TOKENS WHERE user_id = ?")
+      .run(userId);
+  }
+}
+
 export async function insertEmpresaOperativa(
   db: Db,
   cuentaId: number,

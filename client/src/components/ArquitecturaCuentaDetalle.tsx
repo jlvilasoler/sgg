@@ -8,6 +8,7 @@ import {
   asignarAdminCuenta,
   crearEmpresaOperativa,
   crearUsuarioEmpresa,
+  eliminarEmpresaCuenta,
   fetchUsuarios,
 } from "../api";
 import type {
@@ -22,6 +23,7 @@ import {
   PASSWORD_POLICY_HINT,
   validatePasswordStrength,
 } from "../utils/password-policy";
+import { confirmAction } from "../utils/confirm";
 import SelectColorEmpresaOperativa from "./SelectColorEmpresaOperativa";
 import { hexColorCaravana } from "./stock/stock-dispositivo-color";
 import UserAvatar from "./UserAvatar";
@@ -45,6 +47,8 @@ interface Props {
   volverLabel?: string;
   onVolver: () => void;
   onCuentaUpdated: (cuenta: EmpresaCuenta) => void;
+  /** Solo plataforma / superadmin: cuenta borrada definitivamente. */
+  onCuentaDeleted?: (cuentaId: number) => void;
   onError: (msg: string) => void;
   onSuccess: (msg: string) => void;
   initialPanel?: CuentaDetallePanel;
@@ -62,6 +66,7 @@ export default function ArquitecturaCuentaDetalle({
   volverLabel,
   onVolver,
   onCuentaUpdated,
+  onCuentaDeleted,
   onError,
   onSuccess,
   initialPanel = "none",
@@ -73,6 +78,8 @@ export default function ArquitecturaCuentaDetalle({
   const puedeEditarDatosCuenta =
     (esCuentaPropia && Boolean(currentUser?.es_admin_cuenta)) ||
     Boolean(currentUser?.es_super_admin || currentUser?.es_admin_plataforma);
+  const puedeEliminarCuenta =
+    !esCuentaPropia && Boolean(currentUser?.es_super_admin);
   const backLabel =
     volverLabel ?? (esCuentaPropia ? "Volver a Configuración" : "Volver a cuentas madre");
   const [cuentaActual, setCuentaActual] = useState(cuenta);
@@ -112,6 +119,7 @@ export default function ArquitecturaCuentaDetalle({
   });
   const [savingCuenta, setSavingCuenta] = useState(false);
   const [showEditarCuentaModal, setShowEditarCuentaModal] = useState(false);
+  const [deletingCuenta, setDeletingCuenta] = useState(false);
 
   useEffect(() => {
     setCuentaForm({ nombre: cuenta.nombre });
@@ -167,6 +175,37 @@ export default function ArquitecturaCuentaDetalle({
       );
     } catch (err) {
       onError(err instanceof Error ? err.message : "Error al actualizar cuenta");
+    }
+  };
+
+  const handleEliminarCuenta = async () => {
+    if (!puedeEliminarCuenta || deletingCuenta) return;
+    const ok1 = await confirmAction({
+      title: "Eliminar cuenta madre",
+      message: `Se eliminará definitivamente «${cuentaActual.nombre}» (${cuentaActual.codigo}), con sus empresas, usuarios y datos asociados. Esta acción no se puede deshacer.`,
+      confirmText: "Continuar",
+      variant: "danger",
+    });
+    if (!ok1) return;
+    const ok2 = await confirmAction({
+      title: "Confirmación final",
+      message: `Para eliminar «${cuentaActual.nombre}», escribí el nombre exacto de la cuenta.`,
+      confirmText: "Sí, eliminar cuenta",
+      variant: "danger",
+      requireText: cuentaActual.nombre,
+      requireTextLabel: `Escribí ${cuentaActual.nombre} para confirmar`,
+    });
+    if (!ok2) return;
+    setDeletingCuenta(true);
+    try {
+      const deleted = await eliminarEmpresaCuenta(cuentaActual.id);
+      onSuccess(`Cuenta ${deleted.nombre} eliminada`);
+      onCuentaDeleted?.(deleted.id);
+      onVolver();
+    } catch (err) {
+      onError(err instanceof Error ? err.message : "Error al eliminar cuenta");
+    } finally {
+      setDeletingCuenta(false);
     }
   };
 
@@ -521,7 +560,7 @@ export default function ArquitecturaCuentaDetalle({
               ) : null}
             </div>
           </div>
-          {(puedeEditarDatosCuenta || !esCuentaPropia) && (
+          {(puedeEditarDatosCuenta || !esCuentaPropia || puedeEliminarCuenta) && (
             <div className="arq-cuenta-head-actions">
               {puedeEditarDatosCuenta ? (
                 <button type="button" className="btn btn-ghost btn-sm" onClick={openEditarCuentaModal}>
@@ -533,8 +572,19 @@ export default function ArquitecturaCuentaDetalle({
                   type="button"
                   className={`btn btn-sm${cuentaActual.activo ? " btn-ghost" : " btn-primary"}`}
                   onClick={() => void handleToggleActiva()}
+                  disabled={deletingCuenta}
                 >
                   {cuentaActual.activo ? "Desactivar" : "Activar"}
+                </button>
+              ) : null}
+              {puedeEliminarCuenta ? (
+                <button
+                  type="button"
+                  className="btn btn-sm btn-delete"
+                  onClick={() => void handleEliminarCuenta()}
+                  disabled={deletingCuenta}
+                >
+                  {deletingCuenta ? "Eliminando…" : "Eliminar"}
                 </button>
               ) : null}
             </div>

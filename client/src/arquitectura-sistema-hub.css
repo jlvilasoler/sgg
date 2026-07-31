@@ -10,7 +10,10 @@
 }
 
 .arq-sistema--hub.arq-sistema-shell {
-  max-width: 1320px;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  box-sizing: border-box;
 }
 
 .arq-sistema--hub .arq-sistema-panel {
@@ -205,8 +208,12 @@
   box-shadow: inset 3px 0 0 var(--arq-accent);
 }
 
-.arq-sistema--hub .arq-sistema-row--inactiva {
-  opacity: 0.78;
+.arq-sistema--hub .arq-sistema-row--inactiva .arq-sistema-account-name,
+.arq-sistema--hub .arq-sistema-row--inactiva .arquitectura-sistema-admin-chip,
+.arq-sistema--hub .arq-sistema-row--inactiva .arquitectura-sistema-admin-email,
+.arq-sistema--hub .arq-sistema-row--inactiva .arquitectura-sistema-pill,
+.arq-sistema--hub .arq-sistema-row--inactiva .arq-sistema-metric-pill {
+  opacity: 0.72;
 }
 
 .arq-sistema--hub .arq-sistema-row--inactiva td:first-child {
@@ -217,12 +224,32 @@
   background: color-mix(in srgb, var(--arq-accent) 4%, #fff);
 }
 
+.arq-sistema--hub .arq-sistema-actions {
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.arq-sistema--hub .arq-sistema-actions .sg-hub-cta--compact {
+  flex: 0 0 auto;
+  min-width: 5.75rem;
+  min-height: 2.05rem;
+  padding: 0.42rem 0.95rem;
+  font-size: 0.78rem;
+  font-weight: 650;
+  line-height: 1.15;
+  white-space: nowrap;
+  box-sizing: border-box;
+}
+
 .arq-sistema--hub .arq-sistema-account-cell {
   display: flex;
   align-items: flex-start;
   gap: 0.7rem;
   min-width: 0;
-  max-width: 22rem;
+  max-width: min(36rem, 100%);
 }
 
 .arq-sistema--hub .arq-sistema-table .arquitectura-sistema-empresa-avatar--sm {
@@ -330,14 +357,6 @@
 
 .arq-sistema--hub .arq-sistema-status--off .arq-sistema-status-dot {
   background: #94a3b8;
-}
-
-.arq-sistema--hub .arq-sistema-actions {
-  display: flex;
-  flex-wrap: nowrap;
-  justify-content: flex-end;
-  align-items: center;
-  gap: 0.35rem;
 }
 
 .arq-sistema--hub .arq-sistema-row-chevron {
