@@ -74,6 +74,7 @@ const EMPTY_MIN_HEIGHT: Partial<Record<HomePanelId, string>> = {
   vencimientos: "3.6rem",
   stock_potrero: "6.5rem",
   stock_equino_potrero: "6.5rem",
+  stock_ovino_potrero: "6.5rem",
   modulos_rapidos: "4.5rem",
 };
 
@@ -707,6 +708,49 @@ function PreviewStockEquinoPotrero() {
   );
 }
 
+function PreviewStockOvinoPotrero() {
+  return (
+    <section className="config-home-screen-panel">
+      <header className="config-home-screen-panel-head">
+        <div>
+          <p className="config-home-screen-panel-kicker">Stock Ovinos</p>
+          <h4>Ovinos por potrero</h4>
+        </div>
+      </header>
+      <table className="config-home-screen-stock-table">
+        <thead>
+          <tr>
+            <th>Potrero</th>
+            <th>Total</th>
+            <th>Ocupación</th>
+            <th>UO/ha</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Piquete</td>
+            <td>42</td>
+            <td className="is-ok">55%</td>
+            <td className="is-ok">0,55</td>
+          </tr>
+          <tr>
+            <td>Casco</td>
+            <td>12</td>
+            <td>28%</td>
+            <td>0,28</td>
+          </tr>
+          <tr className="is-muted">
+            <td>SIN POTRERO</td>
+            <td>3</td>
+            <td>—</td>
+            <td>—</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+  );
+}
+
 const QUICK_MODULE_LABELS: Partial<Record<TabId, string>> = {
   registro: "Presupuesto",
   listado: "Listado",
@@ -782,6 +826,7 @@ export default function HomeLayoutScreenPreview({
     { id: "vencimientos", node: <PreviewVencimientos /> },
     { id: "stock_potrero", node: <PreviewStockPotrero /> },
     { id: "stock_equino_potrero", node: <PreviewStockEquinoPotrero /> },
+    { id: "stock_ovino_potrero", node: <PreviewStockOvinoPotrero /> },
   ];
 
   const dragProps = (id: HomePanelId) => ({

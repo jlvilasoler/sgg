@@ -11,7 +11,7 @@ import {
   requiereFechaBaja,
 } from "./stock-ovina-utils";
 
-const MAX_MESES_GENERAL = 720;
+const MAX_MESES_GENERAL = 180;
 
 interface Props {
   sexo: DispositivoSexo;

@@ -13,6 +13,7 @@ export const HOME_PANEL_IDS = [
   "vencimientos",
   "stock_potrero",
   "stock_equino_potrero",
+  "stock_ovino_potrero",
 ] as const;
 
 export type HomePanelId = (typeof HOME_PANEL_IDS)[number];
@@ -31,6 +32,7 @@ const DEFAULT_HOME_LAYOUT: HomeLayoutMap = {
   vencimientos: true,
   stock_potrero: true,
   stock_equino_potrero: true,
+  stock_ovino_potrero: true,
   modulos_rapidos: true,
 };
 

@@ -648,6 +648,12 @@
   background: rgba(99, 102, 241, 0.28);
 }
 
+.campo-mapa-device-kind-btn--ovino.is-active {
+  color: #99f6e4;
+  border-color: rgba(45, 212, 191, 0.55);
+  background: rgba(13, 148, 136, 0.28);
+}
+
 .campo-mapa-potrero-resumen-total-only {
   margin: 0;
   padding: 0.1rem 0 0.15rem;
@@ -747,6 +753,15 @@
   box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.35);
 }
 
+.campo-mapa-potrero-resumen-kind--ovino .campo-mapa-potrero-resumen-kind-head {
+  color: #99f6e4;
+}
+
+.campo-mapa-potrero-resumen-kind--ovino .campo-mapa-potrero-resumen-swatch {
+  border-color: #99f6e4;
+  box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.35);
+}
+
 .campo-mapa-potrero-resumen-kind-foot {
   display: flex;
   align-items: center;
@@ -773,6 +788,10 @@
 
 .campo-mapa-potrero-resumen-kind--equino .campo-mapa-potrero-resumen-kind-total {
   color: #c7d2fe;
+}
+
+.campo-mapa-potrero-resumen-kind--ovino .campo-mapa-potrero-resumen-kind-total {
+  color: #99f6e4;
 }
 
 .campo-mapa-potrero-resumen-foot {

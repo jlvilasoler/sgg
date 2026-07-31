@@ -1,8 +1,10 @@
 import {
   fetchStockEquinaDispositivo,
   fetchStockGanaderaDispositivo,
+  fetchStockOvinaDispositivo,
   saveStockEquinaDispositivo,
   saveStockGanaderaDispositivo,
+  saveStockOvinaDispositivo,
 } from "../../api";
 import type { CampoMapaDispositivosMetadata } from "./campo-mapa-metadata";
 
@@ -126,6 +128,65 @@ async function syncEquinoPotrero(
   }
 }
 
+async function syncOvinoPotrero(
+  claves: string[],
+  potreroNombre: string,
+  previousClaves: string[],
+  previousPotreroNombre: string,
+): Promise<void> {
+  const toAssign = new Set(claves);
+  const toMaybeClear = previousClaves.filter((c) => !toAssign.has(c));
+
+  for (const clave of claves) {
+    const detalle = await fetchStockOvinaDispositivo(clave);
+    await saveStockOvinaDispositivo(
+      clave,
+      {
+        sexo: detalle.sexo,
+        empresa: detalle.empresa,
+        grupo: detalle.grupo,
+        grupo_libre: detalle.grupo_libre,
+        potrero: potreroNombre,
+        raza: detalle.raza,
+        nacimiento_mes: detalle.nacimiento_mes,
+        nacimiento_anio: detalle.nacimiento_anio,
+        observaciones: detalle.observaciones,
+        estado: detalle.estado,
+        tipo_baja: detalle.tipo_baja,
+        numero_guia: detalle.numero_guia,
+        baja_mes: detalle.baja_mes,
+        baja_anio: detalle.baja_anio,
+      },
+      detalle.eid,
+    );
+  }
+
+  for (const clave of toMaybeClear) {
+    const detalle = await fetchStockOvinaDispositivo(clave);
+    if (detalle.potrero.trim() !== previousPotreroNombre.trim()) continue;
+    await saveStockOvinaDispositivo(
+      clave,
+      {
+        sexo: detalle.sexo,
+        empresa: detalle.empresa,
+        grupo: detalle.grupo,
+        grupo_libre: detalle.grupo_libre,
+        potrero: "",
+        raza: detalle.raza,
+        nacimiento_mes: detalle.nacimiento_mes,
+        nacimiento_anio: detalle.nacimiento_anio,
+        observaciones: detalle.observaciones,
+        estado: detalle.estado,
+        tipo_baja: detalle.tipo_baja,
+        numero_guia: detalle.numero_guia,
+        baja_mes: detalle.baja_mes,
+        baja_anio: detalle.baja_anio,
+      },
+      detalle.eid,
+    );
+  }
+}
+
 export async function clearCampoMapaDispositivosPotrero(
   previous: CampoMapaDispositivosMetadata,
   previousPotreroNombre: string,
@@ -135,6 +196,7 @@ export async function clearCampoMapaDispositivosPotrero(
   await Promise.all([
     syncGanaderoPotrero([], "", previous.dispositivos_ganadero, prevName),
     syncEquinoPotrero([], "", previous.dispositivos_equino, prevName),
+    syncOvinoPotrero([], "", previous.dispositivos_ovino, prevName),
   ]);
 }
 
@@ -158,6 +220,12 @@ export async function syncCampoMapaDispositivosPotrero(
       next.dispositivos_equino,
       nombre,
       previous.dispositivos_equino,
+      previousPotreroNombre,
+    ),
+    syncOvinoPotrero(
+      next.dispositivos_ovino,
+      nombre,
+      previous.dispositivos_ovino,
       previousPotreroNombre,
     ),
   ]);

@@ -1,8 +1,8 @@
-/** Silueta de oveja/caballo — marcador bajo la línea de tiempo (hembras) */
+/** Silueta de oveja ï¿½ marcador bajo la lï¿½nea de tiempo (hembras) */
 export default function IconoOvejaEvolucion({ className = "" }: { className?: string }) {
   return (
     <img
-      src="/icons/oveja-evolucion.png?v=3"
+      src="/icons/oveja-evolucion.png?v=5"
       className={className}
       alt=""
       width={40}

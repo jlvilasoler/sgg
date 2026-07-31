@@ -1,10 +1,15 @@
 export interface CampoMapaDispositivosMetadata {
   dispositivos_ganadero: string[];
   dispositivos_equino: string[];
+  dispositivos_ovino: string[];
 }
 
 export function emptyCampoMapaDispositivosMetadata(): CampoMapaDispositivosMetadata {
-  return { dispositivos_ganadero: [], dispositivos_equino: [] };
+  return {
+    dispositivos_ganadero: [],
+    dispositivos_equino: [],
+    dispositivos_ovino: [],
+  };
 }
 
 export function parseCampoMapaDispositivosMetadata(
@@ -15,6 +20,7 @@ export function parseCampoMapaDispositivosMetadata(
     const parsed = JSON.parse(raw) as {
       dispositivos_ganadero?: unknown;
       dispositivos_equino?: unknown;
+      dispositivos_ovino?: unknown;
     };
     const ganadero = Array.isArray(parsed.dispositivos_ganadero)
       ? parsed.dispositivos_ganadero.map(String).filter(Boolean)
@@ -22,7 +28,14 @@ export function parseCampoMapaDispositivosMetadata(
     const equino = Array.isArray(parsed.dispositivos_equino)
       ? parsed.dispositivos_equino.map(String).filter(Boolean)
       : [];
-    return { dispositivos_ganadero: ganadero, dispositivos_equino: equino };
+    const ovino = Array.isArray(parsed.dispositivos_ovino)
+      ? parsed.dispositivos_ovino.map(String).filter(Boolean)
+      : [];
+    return {
+      dispositivos_ganadero: ganadero,
+      dispositivos_equino: equino,
+      dispositivos_ovino: ovino,
+    };
   } catch {
     return emptyCampoMapaDispositivosMetadata();
   }
@@ -47,6 +60,7 @@ export function mergeCampoMapaMetadata(
     ...base,
     dispositivos_ganadero: dispositivos.dispositivos_ganadero,
     dispositivos_equino: dispositivos.dispositivos_equino,
+    dispositivos_ovino: dispositivos.dispositivos_ovino,
   };
 }
 
@@ -117,12 +131,14 @@ export function enrichCampoMapaDispositivosFromStock(
   ganadero: { clave: string; potrero?: string | null }[],
   equino: { clave: string; potrero?: string | null }[],
   normalizarPotrero: (value: string | null | undefined) => string,
+  ovino: { clave: string; potrero?: string | null }[] = [],
 ): CampoMapaDispositivosMetadata {
   const nombreKey = normalizarPotrero(featureNombre).toLowerCase();
   if (!nombreKey) return meta;
 
   const ganaderoSet = new Set(meta.dispositivos_ganadero);
   const equinoSet = new Set(meta.dispositivos_equino);
+  const ovinoSet = new Set(meta.dispositivos_ovino);
 
   for (const d of ganadero) {
     if (normalizarPotrero(d.potrero).toLowerCase() === nombreKey) {
@@ -134,9 +150,15 @@ export function enrichCampoMapaDispositivosFromStock(
       equinoSet.add(d.clave);
     }
   }
+  for (const d of ovino) {
+    if (normalizarPotrero(d.potrero).toLowerCase() === nombreKey) {
+      ovinoSet.add(d.clave);
+    }
+  }
 
   return {
     dispositivos_ganadero: [...ganaderoSet],
     dispositivos_equino: [...equinoSet],
+    dispositivos_ovino: [...ovinoSet],
   };
 }

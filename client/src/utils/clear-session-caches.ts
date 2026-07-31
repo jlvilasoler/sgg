@@ -2,6 +2,7 @@ import { clearStockEquinaPageCache } from "../components/stock-equino/stock-equi
 import { clearStockGanaderaPageCache } from "../components/stock/stock-ganadera-page-cache";
 import { clearHomeStockPotreroCache } from "../components/home/HomeStockPotreroPanel";
 import { clearHomeStockEquinoPotreroCache } from "../components/home/HomeStockEquinoPotreroPanel";
+import { clearHomeStockOvinoPotreroCache } from "../components/home/HomeStockOvinoPotreroPanel";
 import { clearHomeActividadCache, clearHomeNotasCache } from "./home-panel-cache";
 import { clearHomeInsightsCache } from "./home-insights-cache";
 import { clearHomeRecentModulesCache } from "./home-quick-modules";
@@ -13,6 +14,7 @@ export function clearAllSessionCaches(): void {
   clearStockEquinaPageCache();
   clearHomeStockPotreroCache();
   clearHomeStockEquinoPotreroCache();
+  clearHomeStockOvinoPotreroCache();
   clearHomeNotasCache();
   clearHomeActividadCache();
   clearHomeInsightsCache();

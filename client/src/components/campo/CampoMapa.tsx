@@ -4,7 +4,7 @@ import type { LucideIcon } from "lucide-react";
 import { Building2, Boxes, ChevronDown, ChevronRight, CircleDot, Cpu, Info, ListTree, Map, MapPin, Maximize2, MessageSquare, Minimize2, Pencil, Plus, Search, Sigma, Tag, Tags, Trash2, Undo2, VenusAndMars, X } from "lucide-react";
 import SgHubShell from "../hub/SgHubShell";
 import { MenuAppIcon } from "../icons/MenuAppIcons";
-import { StockEquinoModuleIcon } from "../stock/StockControlSanitarioSectionTitle";
+import { StockEquinoModuleIcon, StockOvinoModuleIcon } from "../stock/StockControlSanitarioSectionTitle";
 import {
   createCampoMapaElemento,
   createCampoPotreroMapa,
@@ -15,6 +15,7 @@ import {
   fetchEmpresasOperativasStock,
   fetchStockEquinaDispositivos,
   fetchStockGanaderaDispositivos,
+  fetchStockOvinaDispositivos,
   type EmpresaOperativaStock,
   updateCampoMapaElemento,
   updateCampoPotreroMapa,
@@ -93,7 +94,7 @@ const POTRERO_RESUMEN_ICONS: Record<PotreroResumenModo, LucideIcon> = {
   totales: Sigma,
 };
 
-type CampoMapaDeviceKind = "ganadero" | "equino";
+type CampoMapaDeviceKind = "ganadero" | "equino" | "ovino";
 
 const CAMPO_MAPA_DEVICE_KIND_OPTIONS: {
   id: CampoMapaDeviceKind;
@@ -101,6 +102,7 @@ const CAMPO_MAPA_DEVICE_KIND_OPTIONS: {
 }[] = [
   { id: "ganadero", label: "Ganado" },
   { id: "equino", label: "Equinos" },
+  { id: "ovino", label: "Ovinos" },
 ];
 import {
   availableSaveTargets,
@@ -275,6 +277,7 @@ export default function CampoMapa({
   const showDevicesOnMap = deviceKindsOnMap.length > 0;
   const showGanaderoOnMap = deviceKindsOnMap.includes("ganadero");
   const showEquinoOnMap = deviceKindsOnMap.includes("equino");
+  const showOvinoOnMap = deviceKindsOnMap.includes("ovino");
   const [potreroResumenModos, setPotreroResumenModos] = useState<PotreroResumenModo[]>([]);
   const [potreroResumenMenuOpen, setPotreroResumenMenuOpen] = useState(false);
   const potreroResumenMenuRef = useRef<HTMLDivElement | null>(null);
@@ -284,6 +287,7 @@ export default function CampoMapa({
   );
   const [stockGanadero, setStockGanadero] = useState<StockGanaderaDispositivo[]>([]);
   const [stockEquino, setStockEquino] = useState<StockGanaderaDispositivo[]>([]);
+  const [stockOvino, setStockOvino] = useState<StockGanaderaDispositivo[]>([]);
   const [empresasOperativas, setEmpresasOperativas] = useState<EmpresaOperativaStock[]>([]);
   const [dispositivosModalOpen, setDispositivosModalOpen] = useState(false);
   const [editingSelectionContent, setEditingSelectionContent] = useState(false);
@@ -651,17 +655,20 @@ export default function CampoMapa({
       setPotreros(potreroData);
       setElementos(elementoData);
       if (apiOnline) {
-        const [ganaderoData, equinoData, empresasData] = await Promise.all([
+        const [ganaderoData, equinoData, ovinoData, empresasData] = await Promise.all([
           fetchStockGanaderaDispositivos({}),
           fetchStockEquinaDispositivos({}),
+          fetchStockOvinaDispositivos({}),
           fetchEmpresasOperativasStock(),
         ]);
         setStockGanadero(ganaderoData.filter((d) => d.estado === "VIVO"));
         setStockEquino(equinoData.filter((d) => d.estado === "VIVO"));
+        setStockOvino(ovinoData.filter((d) => d.estado === "VIVO"));
         setEmpresasOperativas(empresasData);
       } else {
         setStockGanadero([]);
         setStockEquino([]);
+        setStockOvino([]);
         setEmpresasOperativas([]);
       }
     } catch (e) {
@@ -680,9 +687,10 @@ export default function CampoMapa({
         stockGanadero,
         stockEquino,
         normalizarPotrero,
+        stockOvino,
       );
     },
-    [stockEquino, stockGanadero],
+    [stockEquino, stockGanadero, stockOvino],
   );
 
   useEffect(() => {
@@ -732,7 +740,9 @@ export default function CampoMapa({
   }, [selection]);
 
   const dispositivosVinculadosCount =
-    editDispositivos.dispositivos_ganadero.length + editDispositivos.dispositivos_equino.length;
+    editDispositivos.dispositivos_ganadero.length +
+    editDispositivos.dispositivos_equino.length +
+    editDispositivos.dispositivos_ovino.length;
 
   const startEditingSelectionContent = useCallback(() => {
     setEditingSelectionContent(true);
@@ -993,6 +1003,10 @@ export default function CampoMapa({
     () => (showEquinoOnMap ? stockEquino : []),
     [showEquinoOnMap, stockEquino],
   );
+  const stockOvinoVisible = useMemo(
+    () => (showOvinoOnMap ? stockOvino : []),
+    [showOvinoOnMap, stockOvino],
+  );
 
   const dispositivoMapMarkers = useMemo(
     () =>
@@ -1002,8 +1016,16 @@ export default function CampoMapa({
         stockGanaderoVisible,
         stockEquinoVisible,
         empresasOperativas,
+        stockOvinoVisible,
       ),
-    [elementos, empresasOperativas, potreros, stockEquinoVisible, stockGanaderoVisible],
+    [
+      elementos,
+      empresasOperativas,
+      potreros,
+      stockEquinoVisible,
+      stockGanaderoVisible,
+      stockOvinoVisible,
+    ],
   );
 
   useEffect(() => {
@@ -1021,7 +1043,8 @@ export default function CampoMapa({
     // Si hay filtro de capas activo, el resumen sigue la misma visibilidad.
     const ganadero = showDevicesOnMap ? stockGanaderoVisible : stockGanadero;
     const equino = showDevicesOnMap ? stockEquinoVisible : stockEquino;
-    return buildAllPotreroResumenes(potreros, ganadero, equino, empresasOperativas);
+    const ovino = showDevicesOnMap ? stockOvinoVisible : stockOvino;
+    return buildAllPotreroResumenes(potreros, ganadero, equino, empresasOperativas, ovino);
   }, [
     empresasOperativas,
     potreros,
@@ -1030,6 +1053,8 @@ export default function CampoMapa({
     stockEquinoVisible,
     stockGanadero,
     stockGanaderoVisible,
+    stockOvino,
+    stockOvinoVisible,
   ]);
 
 
@@ -2227,12 +2252,14 @@ export default function CampoMapa({
       setEditDispositivos(modalDispositivos);
       editDispositivosPrevRef.current = modalDispositivos;
       if (apiOnline) {
-        const [ganaderoData, equinoData] = await Promise.all([
+        const [ganaderoData, equinoData, ovinoData] = await Promise.all([
           fetchStockGanaderaDispositivos({}),
           fetchStockEquinaDispositivos({}),
+          fetchStockOvinaDispositivos({}),
         ]);
         setStockGanadero(ganaderoData.filter((d) => d.estado === "VIVO"));
         setStockEquino(equinoData.filter((d) => d.estado === "VIVO"));
+        setStockOvino(ovinoData.filter((d) => d.estado === "VIVO"));
       }
       setDispositivosModalOpen(false);
       onSuccess("Dispositivos actualizados.");
@@ -3016,7 +3043,8 @@ export default function CampoMapa({
               <Cpu size={15} aria-hidden />
               Dispositivos (
               {editDispositivos.dispositivos_ganadero.length +
-                editDispositivos.dispositivos_equino.length}
+                editDispositivos.dispositivos_equino.length +
+                editDispositivos.dispositivos_ovino.length}
               )
             </button>
           ) : null}
@@ -3227,7 +3255,9 @@ export default function CampoMapa({
                           role="menuitemcheckbox"
                           className={`campo-mapa-map-corner-btn campo-mapa-resumen-menu-item${
                             active ? " is-active" : ""
-                          }${opcion.id === "equino" ? " campo-mapa-device-kind-btn--equino" : ""}`}
+                          }${opcion.id === "equino" ? " campo-mapa-device-kind-btn--equino" : ""}${
+                            opcion.id === "ovino" ? " campo-mapa-device-kind-btn--ovino" : ""
+                          }`}
                           aria-checked={active}
                           aria-label={opcion.label}
                           title={opcion.label}
@@ -3235,8 +3265,10 @@ export default function CampoMapa({
                         >
                           {opcion.id === "ganadero" ? (
                             <Tags size={18} aria-hidden />
-                          ) : (
+                          ) : opcion.id === "equino" ? (
                             <StockEquinoModuleIcon size={18} strokeWidth={1.75} />
+                          ) : (
+                            <StockOvinoModuleIcon size={18} strokeWidth={1.75} />
                           )}
                         </button>
                       );

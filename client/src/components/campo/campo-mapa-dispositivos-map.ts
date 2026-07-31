@@ -17,13 +17,14 @@ export interface CampoMapaDispositivoMarker {
   lng: number;
   label: string;
   potreroNombre: string;
-  kind: "ganadero" | "equino";
+  kind: "ganadero" | "equino" | "ovino";
   fillColor: string;
   empresaNombre: string;
 }
 
 const DEFAULT_MARKER_COLOR = "#94a3b8";
 const EQUINO_MARKER_STROKE = "#ffffff";
+const OVINO_MARKER_STROKE = "#99f6e4";
 
 function darkenHexColor(hex: string, factor = 0.72): string {
   const cleaned = hex.replace("#", "").trim();
@@ -44,16 +45,26 @@ function deviceMarkerFillColor(
   return hexColorCaravana(colorId) ?? DEFAULT_MARKER_COLOR;
 }
 
-/** Equinos: borde blanco. Ganaderos: sin blanco (borde oscurecido del mismo color). */
+/** Equinos: borde blanco. Ovinos: borde teal. Ganaderos: borde oscurecido. */
 function dispositivoCircleMarkerOptions(
   fillColor: string,
   radius: number,
-  kind: "ganadero" | "equino",
+  kind: "ganadero" | "equino" | "ovino",
 ): L.CircleMarkerOptions {
   if (kind === "equino") {
     return {
       radius,
       color: EQUINO_MARKER_STROKE,
+      weight: 2,
+      opacity: 1,
+      fillColor,
+      fillOpacity: 0.95,
+    };
+  }
+  if (kind === "ovino") {
+    return {
+      radius,
+      color: OVINO_MARKER_STROKE,
       weight: 2,
       opacity: 1,
       fillColor,
@@ -73,7 +84,7 @@ function dispositivoCircleMarkerOptions(
 type AssignedDevice = {
   clave: string;
   label: string;
-  kind: "ganadero" | "equino";
+  kind: "ganadero" | "equino" | "ovino";
   device: StockGanaderaDispositivo;
 };
 
@@ -143,12 +154,16 @@ export function collectCampoMapaFeatureDevices(
   metadataRaw: string | undefined | null,
   ganadero: StockGanaderaDispositivo[],
   equino: StockGanaderaDispositivo[],
+  ovino: StockGanaderaDispositivo[] = [],
 ): AssignedDevice[] {
   const meta = parseCampoMapaDispositivosMetadata(metadataRaw);
   const seen = new Set<string>();
   const result: AssignedDevice[] = [];
 
-  const push = (device: StockGanaderaDispositivo, kind: "ganadero" | "equino") => {
+  const push = (
+    device: StockGanaderaDispositivo,
+    kind: "ganadero" | "equino" | "ovino",
+  ) => {
     const key = `${kind}:${device.clave}`;
     if (seen.has(key)) return;
     seen.add(key);
@@ -168,6 +183,10 @@ export function collectCampoMapaFeatureDevices(
     const d = equino.find((item) => item.clave === clave);
     if (d) push(d, "equino");
   }
+  for (const clave of meta.dispositivos_ovino) {
+    const d = ovino.find((item) => item.clave === clave);
+    if (d) push(d, "ovino");
+  }
 
   const nombreNorm = normalizeNombre(featureNombre);
   if (nombreNorm) {
@@ -179,6 +198,11 @@ export function collectCampoMapaFeatureDevices(
     for (const d of equino) {
       if (normalizeNombre(d.potrero) === nombreNorm) {
         push(d, "equino");
+      }
+    }
+    for (const d of ovino) {
+      if (normalizeNombre(d.potrero) === nombreNorm) {
+        push(d, "ovino");
       }
     }
   }
@@ -194,8 +218,15 @@ function markersForPolygonFeature(
   ganadero: StockGanaderaDispositivo[],
   equino: StockGanaderaDispositivo[],
   empresas: EmpresaOperativaStock[],
+  ovino: StockGanaderaDispositivo[] = [],
 ): CampoMapaDispositivoMarker[] {
-  const devices = collectCampoMapaFeatureDevices(featureNombre, metadataRaw, ganadero, equino);
+  const devices = collectCampoMapaFeatureDevices(
+    featureNombre,
+    metadataRaw,
+    ganadero,
+    equino,
+    ovino,
+  );
   if (devices.length === 0) return [];
 
   const positions = distributePointsInPolygon(ring, devices.length);
@@ -221,6 +252,7 @@ export function buildCampoMapaDispositivoMarkers(
   ganadero: StockGanaderaDispositivo[],
   equino: StockGanaderaDispositivo[],
   empresas: EmpresaOperativaStock[] = [],
+  ovino: StockGanaderaDispositivo[] = [],
 ): CampoMapaDispositivoMarker[] {
   const markers: CampoMapaDispositivoMarker[] = [];
 
@@ -237,6 +269,7 @@ export function buildCampoMapaDispositivoMarkers(
           ganadero,
           equino,
           empresas,
+          ovino,
         ),
       );
     } catch {
@@ -258,6 +291,7 @@ export function buildCampoMapaDispositivoMarkers(
           ganadero,
           equino,
           empresas,
+          ovino,
         ),
       );
     } catch {
@@ -296,7 +330,8 @@ function dispositivoMarkerCardHtml(
   marker: CampoMapaDispositivoMarker,
   expanded: boolean,
 ): string {
-  const kindLabel = marker.kind === "ganadero" ? "Ganadero" : "Equino";
+  const kindLabel =
+    marker.kind === "ganadero" ? "Ganadero" : marker.kind === "equino" ? "Equino" : "Ovino";
   const meta = [marker.empresaNombre, marker.potreroNombre, kindLabel]
     .filter(Boolean)
     .join(" · ");

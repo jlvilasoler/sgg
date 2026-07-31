@@ -292,6 +292,11 @@ export function canAccessConfigDotacionEquina(user: AuthUser | null): boolean {
   return Boolean(user?.es_super_admin);
 }
 
+/** Dotación ovina — equivalencias UO (Configuración SAG): solo superadministrador. */
+export function canAccessConfigDotacionOvina(user: AuthUser | null): boolean {
+  return Boolean(user?.es_super_admin);
+}
+
 /** Panel Rubros y sub-rubros SAG (catálogo global): solo superadministrador. */
 export function canAccessConfigRubrosSag(user: AuthUser | null): boolean {
   return Boolean(user?.es_super_admin);

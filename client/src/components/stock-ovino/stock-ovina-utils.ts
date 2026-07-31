@@ -147,8 +147,8 @@ export function fmtEdadMeses(mes: number | null, anio: number | null): string {
   return `${edad} meses`;
 }
 
-/** Escala del cronograma: 60 años = 720 meses. */
-export const MACHO_ESCALA_MAX_MESES = 720;
+/** Escala del cronograma: 15 años = 180 meses. */
+export const MACHO_ESCALA_MAX_MESES = 180;
 export const MACHO_FRONTERA_CORDERO = 12;
 export const MACHO_FRONTERA_BORREGO = 36;
 /** @deprecated Usar MACHO_FRONTERA_CORDERO */
@@ -183,7 +183,7 @@ export const ETAPAS_EVOLUCION_MACHO: EtapaEvolucionMacho[] = [
   {
     id: "ADULTO",
     titulo: "Capón / Carnero",
-    rango: "36 meses – 60 años",
+    rango: "36 meses – 15 años",
     desdeMes: MACHO_FRONTERA_BORREGO,
     hastaMes: MACHO_ESCALA_MAX_MESES,
   },
@@ -201,8 +201,8 @@ export function pctEscalaMeses(meses: number, max: number): number {
 
 const MACHO_SEGMENTO_PCT = 100 / 3;
 
-/** Escala del cronograma: 60 años = 720 meses. */
-export const HEMBRA_ESCALA_MAX_MESES = 720;
+/** Escala del cronograma: 15 años = 180 meses. */
+export const HEMBRA_ESCALA_MAX_MESES = 180;
 export const HEMBRA_FRONTERA_CORDERA = 12;
 export const HEMBRA_FRONTERA_BORREGA = 36;
 /** @deprecated Usar HEMBRA_FRONTERA_CORDERA */
@@ -239,7 +239,7 @@ export const ETAPAS_EVOLUCION_HEMBRA: EtapaEvolucionHembra[] = [
   {
     id: "OVEJA",
     titulo: "Oveja",
-    rango: "36 meses – 60 años",
+    rango: "36 meses – 15 años",
     desdeMes: HEMBRA_FRONTERA_BORREGA,
     hastaMes: HEMBRA_ESCALA_MAX_MESES,
   },
@@ -302,7 +302,7 @@ export const ESCALA_MARCAS_MACHO: readonly EscalaMarcaMeses[] = [
   { label: "0 m", pct: 0, align: "left" },
   { label: "12 m", pct: MACHO_SEGMENTO_PCT, align: "center" },
   { label: "36 m", pct: MACHO_SEGMENTO_PCT * 2, align: "center" },
-  { label: "720 m", pct: 100, align: "right" },
+  { label: "180 m", pct: 100, align: "right" },
 ];
 
 /** Hitos de meses alineados a los límites visuales del cronograma hembra (3 tramos). */
@@ -310,7 +310,7 @@ export const ESCALA_MARCAS_HEMBRA: readonly EscalaMarcaMeses[] = [
   { label: "0 m", pct: 0, align: "left" },
   { label: "12 m", pct: HEMBRA_SEGMENTO_PCT, align: "center" },
   { label: "36 m", pct: HEMBRA_SEGMENTO_PCT * 2, align: "center" },
-  { label: "720 m", pct: 100, align: "right" },
+  { label: "180 m", pct: 100, align: "right" },
 ];
 
 /** Hitos en años (misma posición % que los meses de corte). */
@@ -318,14 +318,14 @@ export const ESCALA_MARCAS_ANIOS_MACHO: readonly EscalaMarcaMeses[] = [
   { label: "0 años", pct: 0, align: "left" },
   { label: "1 año", pct: MACHO_SEGMENTO_PCT, align: "center" },
   { label: "3 años", pct: MACHO_SEGMENTO_PCT * 2, align: "center" },
-  { label: "60 años", pct: 100, align: "right" },
+  { label: "15 años", pct: 100, align: "right" },
 ];
 
 export const ESCALA_MARCAS_ANIOS_HEMBRA: readonly EscalaMarcaMeses[] = [
   { label: "0 años", pct: 0, align: "left" },
   { label: "1 año", pct: HEMBRA_SEGMENTO_PCT, align: "center" },
   { label: "3 años", pct: HEMBRA_SEGMENTO_PCT * 2, align: "center" },
-  { label: "60 años", pct: 100, align: "right" },
+  { label: "15 años", pct: 100, align: "right" },
 ];
 
 /** Avance 0–100 % dentro de la etapa productiva actual (macho). */

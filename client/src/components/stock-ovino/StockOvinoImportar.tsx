@@ -38,11 +38,11 @@ type CategoriaAltaOvino =
 const CATEGORIA_ALTA_LABELS: Record<CategoriaAltaOvino, string> = {
   CORDERA: "Cordera (0–12 meses)",
   BORREGA: "Borrega (12–36 meses)",
-  OVEJA: "Oveja (36 meses – 60 años)",
+  OVEJA: "Oveja (36 meses – 15 años)",
   CORDERO: "Cordero (0–12 meses)",
   BORREGO: "Borrego (12–36 meses)",
-  CAPON: "Capón (36 meses – 60 años · castrado)",
-  CARNERO: "Carnero (36 meses – 60 años · no castrado)",
+  CAPON: "Capón (36 meses – 15 años · castrado)",
+  CARNERO: "Carnero (36 meses – 15 años · no castrado)",
 };
 
 const OVINO_FRONTERA_JOVEN = 12;

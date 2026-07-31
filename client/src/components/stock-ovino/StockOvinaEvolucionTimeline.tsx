@@ -27,8 +27,8 @@ import {
   type EscalaMarcaMeses,
 } from "./stock-ovina-utils";
 
-const MAX_MESES_GENERAL = 720;
-const MARCAS_GENERAL = [144, 288, 432, 576, 720] as const;
+const MAX_MESES_GENERAL = HEMBRA_ESCALA_MAX_MESES;
+const MARCAS_GENERAL = [36, 72, 108, 144, 180] as const;
 
 interface Props {
   nacimientoMes: number | null;
@@ -568,18 +568,18 @@ export default function StockOvinaEvolucionTimeline({
             <>
               Completá la fecha de nacimiento para ver la evolución por etapas:
               Cordero (0–12 meses), Borrego (12–36 meses) y Capón / Carnero
-              (36 meses – 60 años).
+              (36 meses – 15 años).
             </>
           ) : esHembra ? (
             <>
               Completá la fecha de nacimiento para ver la evolución por etapas:
-              Cordera (0–12 meses), Borrega (12–36 meses) y Oveja (36 meses – 60
+              Cordera (0–12 meses), Borrega (12–36 meses) y Oveja (36 meses – 15
               años).
             </>
           ) : (
             <>
               Completá la fecha de nacimiento para ver la línea de tiempo desde
-              el nacimiento hasta los {MAX_MESES_GENERAL} meses (60 años).
+              el nacimiento hasta los {MAX_MESES_GENERAL} meses (15 años).
             </>
           )}
         </div>

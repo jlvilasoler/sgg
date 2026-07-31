@@ -939,6 +939,28 @@ body {
     linear-gradient(155deg, #1e1b4b 0%, #312e81 48%, #1e3a5f 100%);
 }
 
+.home-stock-ovino-potrero-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.home-hub-panel--stock-ovino-potrero .home-stock-ovino-potrero-kpi-sub-ring {
+  filter: drop-shadow(0 0 0 #fff);
+}
+
+.home-hub-panel--stock-ovino-potrero .home-stock-ovino-potrero-kpi-sub-ring-fg {
+  stroke: #5eead4;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 0.55px #fff) drop-shadow(0 0 0.55px #fff);
+}
+
+.home-hub-panel--stock-ovino-potrero .home-stock-ovino-potrero-kpi-combined {
+  background:
+    radial-gradient(ellipse 70% 55% at 85% 20%, rgba(20, 184, 166, 0.22), transparent 55%),
+    linear-gradient(155deg, #042f2e 0%, #0f766e 48%, #134e4a 100%);
+}
+
 .home-stock-potrero-kpi-sexo .sg-hub-kpi-sexo {
   margin-top: 0.15rem;
 }

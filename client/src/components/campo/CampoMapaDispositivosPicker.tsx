@@ -3,6 +3,7 @@ import {
   fetchEmpresasOperativasStock,
   fetchStockEquinaDispositivos,
   fetchStockGanaderaDispositivos,
+  fetchStockOvinaDispositivos,
   type EmpresaOperativaStock,
 } from "../../api";
 import type { StockGanaderaDispositivo } from "../../types";
@@ -78,6 +79,7 @@ export default function CampoMapaDispositivosPicker({
 }: Props) {
   const [ganadero, setGanadero] = useState<StockGanaderaDispositivo[]>([]);
   const [equino, setEquino] = useState<StockGanaderaDispositivo[]>([]);
+  const [ovino, setOvino] = useState<StockGanaderaDispositivo[]>([]);
   const [empresas, setEmpresas] = useState<EmpresaOperativaStock[]>([]);
   const [loading, setLoading] = useState(false);
   const [filtro, setFiltro] = useState("");
@@ -86,22 +88,26 @@ export default function CampoMapaDispositivosPicker({
     if (!apiOnline) {
       setGanadero([]);
       setEquino([]);
+      setOvino([]);
       setEmpresas([]);
       return;
     }
     setLoading(true);
     try {
-      const [g, e, emp] = await Promise.all([
+      const [g, e, o, emp] = await Promise.all([
         fetchStockGanaderaDispositivos({}),
         fetchStockEquinaDispositivos({}),
+        fetchStockOvinaDispositivos({}),
         fetchEmpresasOperativasStock(),
       ]);
       setGanadero(g.filter((d) => d.estado === "VIVO"));
       setEquino(e.filter((d) => d.estado === "VIVO"));
+      setOvino(o.filter((d) => d.estado === "VIVO"));
       setEmpresas(emp);
     } catch {
       setGanadero([]);
       setEquino([]);
+      setOvino([]);
       setEmpresas([]);
     } finally {
       setLoading(false);
@@ -138,15 +144,35 @@ export default function CampoMapaDispositivosPicker({
       .slice(0, 80);
   }, [equino, empresas, q]);
 
-  const toggle = (kind: "ganadero" | "equino", clave: string) => {
-    const key = kind === "ganadero" ? "dispositivos_ganadero" : "dispositivos_equino";
+  const ovinoFiltrado = useMemo(() => {
+    if (!q) return ovino.slice(0, 80);
+    return ovino
+      .filter((d) => {
+        const empresaNombre = fmtEmpresaOperativa(d.empresa, empresas);
+        const hay =
+          `${d.clave} ${d.eid} ${d.vid} ${d.potrero} ${d.empresa} ${empresaNombre}`.toLowerCase();
+        return hay.includes(q);
+      })
+      .slice(0, 80);
+  }, [ovino, empresas, q]);
+
+  const toggle = (kind: "ganadero" | "equino" | "ovino", clave: string) => {
+    const key =
+      kind === "ganadero"
+        ? "dispositivos_ganadero"
+        : kind === "equino"
+          ? "dispositivos_equino"
+          : "dispositivos_ovino";
     const set = new Set(value[key]);
     if (set.has(clave)) set.delete(clave);
     else set.add(clave);
     onChange({ ...value, [key]: [...set] });
   };
 
-  const total = value.dispositivos_ganadero.length + value.dispositivos_equino.length;
+  const total =
+    value.dispositivos_ganadero.length +
+    value.dispositivos_equino.length +
+    value.dispositivos_ovino.length;
 
   return (
     <div className="campo-mapa-dispositivos-picker">
@@ -157,11 +183,11 @@ export default function CampoMapaDispositivosPicker({
       {potreroNombre?.trim() ? (
         <p className="campo-mapa-aside-hint">
           Al guardar, el potrero <strong>{potreroNombre.trim()}</strong> se sincroniza en stock
-          ganadero y equino.
+          ganadero, equino y ovino.
         </p>
       ) : (
         <p className="campo-mapa-aside-hint">
-          Vinculá animales del stock ganadero y equino a este elemento del mapa.
+          Vinculá animales del stock ganadero, equino y ovino a este elemento del mapa.
         </p>
       )}
       <input
@@ -210,6 +236,30 @@ export default function CampoMapaDispositivosPicker({
                   type="checkbox"
                   checked={value.dispositivos_equino.includes(d.clave)}
                   onChange={() => toggle("equino", d.clave)}
+                  disabled={disabled}
+                />
+                <span className="campo-mapa-dispositivos-picker-item-text">
+                  <span className="campo-mapa-dispositivos-picker-item-num">
+                    {deviceNumeroLabel(d)}
+                  </span>
+                  <CampoMapaDispositivoEmpresaMeta d={d} empresas={empresas} />
+                </span>
+              </label>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <div className="campo-mapa-dispositivos-picker-group">
+        <p className="campo-mapa-dispositivos-picker-group-title">Stock ovino</p>
+        <ul className="campo-mapa-dispositivos-picker-list">
+          {ovinoFiltrado.map((d) => (
+            <li key={`o-${d.clave}`}>
+              <label className="campo-mapa-dispositivos-picker-item">
+                <input
+                  type="checkbox"
+                  checked={value.dispositivos_ovino.includes(d.clave)}
+                  onChange={() => toggle("ovino", d.clave)}
                   disabled={disabled}
                 />
                 <span className="campo-mapa-dispositivos-picker-item-text">

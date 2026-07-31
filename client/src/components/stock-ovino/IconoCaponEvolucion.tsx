@@ -1,8 +1,8 @@
-/** Silueta de capón — marcador bajo la línea de tiempo (machos) */
+/** Silueta de capï¿½n/carnero ï¿½ marcador bajo la lï¿½nea de tiempo (machos) */
 export default function IconoCaponEvolucion({ className = "" }: { className?: string }) {
   return (
     <img
-      src="/icons/capón-evolucion.png?v=3"
+      src="/icons/capon-evolucion.png?v=5"
       className={className}
       alt=""
       width={40}

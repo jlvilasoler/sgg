@@ -14,6 +14,7 @@ export const HOME_PANEL_IDS = [
   "vencimientos",
   "stock_potrero",
   "stock_equino_potrero",
+  "stock_ovino_potrero",
 ] as const;
 
 export type HomePanelId = (typeof HOME_PANEL_IDS)[number];
@@ -114,6 +115,13 @@ export const HOME_PANEL_META: HomePanelMeta[] = [
     hint: "Resumen equino y densidad UE/ha",
     zone: "side",
   },
+  {
+    id: "stock_ovino_potrero",
+    kicker: "Stock",
+    label: "Ovinos por potrero",
+    hint: "Resumen ovino y densidad UO/ha",
+    zone: "side",
+  },
 ];
 
 /** Bloques que se muestran en la UI de configuración (1:1 con contenedores del Home). */
@@ -149,6 +157,7 @@ export const DEFAULT_HOME_LAYOUT: HomeLayoutMap = {
   vencimientos: true,
   stock_potrero: true,
   stock_equino_potrero: true,
+  stock_ovino_potrero: true,
   modulos_rapidos: true,
 };
 

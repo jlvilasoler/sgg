@@ -4,6 +4,7 @@ import {
   fetchEmpresasOperativasStock,
   fetchStockEquinaDispositivos,
   fetchStockGanaderaDispositivos,
+  fetchStockOvinaDispositivos,
   type EmpresaOperativaStock,
 } from "../../api";
 import type { StockGanaderaDispositivo } from "../../types";
@@ -46,6 +47,7 @@ export default function CampoMapaDispositivosModal({
 }: Props) {
   const [ganadero, setGanadero] = useState<StockGanaderaDispositivo[]>([]);
   const [equino, setEquino] = useState<StockGanaderaDispositivo[]>([]);
+  const [ovino, setOvino] = useState<StockGanaderaDispositivo[]>([]);
   const [empresas, setEmpresas] = useState<EmpresaOperativaStock[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -53,22 +55,26 @@ export default function CampoMapaDispositivosModal({
     if (!apiOnline) {
       setGanadero([]);
       setEquino([]);
+      setOvino([]);
       setEmpresas([]);
       return;
     }
     setLoading(true);
     try {
-      const [g, e, emp] = await Promise.all([
+      const [g, e, o, emp] = await Promise.all([
         fetchStockGanaderaDispositivos({}),
         fetchStockEquinaDispositivos({}),
+        fetchStockOvinaDispositivos({}),
         fetchEmpresasOperativasStock(),
       ]);
       setGanadero(g);
       setEquino(e);
+      setOvino(o);
       setEmpresas(emp);
     } catch {
       setGanadero([]);
       setEquino([]);
+      setOvino([]);
       setEmpresas([]);
     } finally {
       setLoading(false);
@@ -99,7 +105,13 @@ export default function CampoMapaDispositivosModal({
     [dispositivos.dispositivos_equino, equino],
   );
 
-  const totalAsignados = asignadosGanadero.length + asignadosEquino.length;
+  const asignadosOvino = useMemo(
+    () => ovino.filter((d) => dispositivos.dispositivos_ovino.includes(d.clave)),
+    [dispositivos.dispositivos_ovino, ovino],
+  );
+
+  const totalAsignados =
+    asignadosGanadero.length + asignadosEquino.length + asignadosOvino.length;
 
   if (!open) return null;
 
@@ -172,6 +184,17 @@ export default function CampoMapaDispositivosModal({
                 {asignadosEquino.map((d) => (
                   <span key={`e-${d.clave}`} className="campo-mapa-dispositivos-modal-chip">
                     <span className="campo-mapa-dispositivos-modal-chip-kind">Equino</span>
+                    <span className="campo-mapa-dispositivos-modal-chip-body">
+                      <span className="campo-mapa-dispositivos-modal-chip-num">
+                        {deviceChipLabel(d)}
+                      </span>
+                      <CampoMapaDispositivoEmpresaMeta d={d} empresas={empresas} />
+                    </span>
+                  </span>
+                ))}
+                {asignadosOvino.map((d) => (
+                  <span key={`o-${d.clave}`} className="campo-mapa-dispositivos-modal-chip">
+                    <span className="campo-mapa-dispositivos-modal-chip-kind">Ovino</span>
                     <span className="campo-mapa-dispositivos-modal-chip-body">
                       <span className="campo-mapa-dispositivos-modal-chip-num">
                         {deviceChipLabel(d)}

@@ -28,9 +28,10 @@ export interface PotreroDispositivoResumen {
   total: number;
   ganadero: PotreroResumenKindBlock;
   equino: PotreroResumenKindBlock;
-  /** @deprecated usar ganadero/equino; se mantiene para compat. */
+  ovino: PotreroResumenKindBlock;
+  /** @deprecated usar ganadero/equino/ovino; se mantiene para compat. */
   porEmpresa: PotreroResumenFila[];
-  /** @deprecated usar ganadero/equino; se mantiene para compat. */
+  /** @deprecated usar ganadero/equino/ovino; se mantiene para compat. */
   porSexo: PotreroResumenFila[];
 }
 
@@ -128,12 +129,14 @@ export function buildPotreroDispositivoResumen(
   ganadero: StockGanaderaDispositivo[],
   equino: StockGanaderaDispositivo[],
   empresas: EmpresaOperativaStock[],
+  ovino: StockGanaderaDispositivo[] = [],
 ): PotreroDispositivoResumen {
   const assigned = collectCampoMapaFeatureDevices(
     potrero.nombre,
     potrero.metadata,
     ganadero,
     equino,
+    ovino,
   );
 
   const devicesGanadero = assigned
@@ -142,10 +145,14 @@ export function buildPotreroDispositivoResumen(
   const devicesEquino = assigned
     .filter((item) => item.kind === "equino")
     .map((item) => item.device);
+  const devicesOvino = assigned
+    .filter((item) => item.kind === "ovino")
+    .map((item) => item.device);
 
   const ganaderoBlock = buildKindBlock(devicesGanadero, empresas);
   const equinoBlock = buildKindBlock(devicesEquino, empresas);
-  const allDevices = [...devicesGanadero, ...devicesEquino];
+  const ovinoBlock = buildKindBlock(devicesOvino, empresas);
+  const allDevices = [...devicesGanadero, ...devicesEquino, ...devicesOvino];
   const { porEmpresa, porSexo } = buildDispositivoResumenFilas(allDevices, empresas);
 
   return {
@@ -154,6 +161,7 @@ export function buildPotreroDispositivoResumen(
     total: allDevices.length,
     ganadero: ganaderoBlock,
     equino: equinoBlock,
+    ovino: ovinoBlock,
     porEmpresa,
     porSexo,
   };
@@ -164,9 +172,10 @@ export function buildAllPotreroResumenes(
   ganadero: StockGanaderaDispositivo[],
   equino: StockGanaderaDispositivo[],
   empresas: EmpresaOperativaStock[],
+  ovino: StockGanaderaDispositivo[] = [],
 ): PotreroDispositivoResumen[] {
   return potreros.map((potrero) =>
-    buildPotreroDispositivoResumen(potrero, ganadero, equino, empresas),
+    buildPotreroDispositivoResumen(potrero, ganadero, equino, empresas, ovino),
   );
 }
 
@@ -202,7 +211,7 @@ function renderKindBlockHtml(
   kindLabel: string,
   block: PotreroResumenKindBlock,
   modos: ReadonlySet<PotreroResumenModo>,
-  kindClass: "ganadero" | "equino",
+  kindClass: "ganadero" | "equino" | "ovino",
 ): string {
   if (block.total === 0) return "";
 
@@ -233,10 +242,12 @@ function renderKindBlockHtml(
 }
 
 function renderResumenFoot(resumen: PotreroDispositivoResumen): string {
-  const hasGanadero = resumen.ganadero.total > 0;
-  const hasEquino = resumen.equino.total > 0;
+  const kinds: { label: string; total: number }[] = [];
+  if (resumen.ganadero.total > 0) kinds.push({ label: "Ganado", total: resumen.ganadero.total });
+  if (resumen.equino.total > 0) kinds.push({ label: "Equinos", total: resumen.equino.total });
+  if (resumen.ovino.total > 0) kinds.push({ label: "Ovinos", total: resumen.ovino.total });
 
-  if (!hasGanadero && !hasEquino) {
+  if (kinds.length === 0) {
     return `<footer class="campo-mapa-potrero-resumen-foot">
       <span>Total</span>
       <strong>0</strong>
@@ -244,13 +255,16 @@ function renderResumenFoot(resumen: PotreroDispositivoResumen): string {
   }
 
   // Un solo tipo: el bloque ya muestra su total.
-  if (hasGanadero !== hasEquino) {
+  if (kinds.length === 1) {
     return "";
   }
 
+  const parts = kinds
+    .map((k) => `<span>${k.label} <strong>${k.total}</strong></span>`)
+    .join("");
+
   return `<footer class="campo-mapa-potrero-resumen-foot campo-mapa-potrero-resumen-foot--split">
-    <span>Ganado <strong>${resumen.ganadero.total}</strong></span>
-    <span>Equinos <strong>${resumen.equino.total}</strong></span>
+    ${parts}
     <span class="campo-mapa-potrero-resumen-foot-total">Total <strong>${resumen.total}</strong></span>
   </footer>`;
 }
@@ -270,11 +284,13 @@ export function potreroResumenPanelHtml(
     "ganadero",
   );
   const equinoHtml = renderKindBlockHtml("Equinos", resumen.equino, modos, "equino");
+  const ovinoHtml = renderKindBlockHtml("Ovinos", resumen.ovino, modos, "ovino");
 
   if (ganaderoHtml) parts.push(ganaderoHtml);
   if (equinoHtml) parts.push(equinoHtml);
+  if (ovinoHtml) parts.push(ovinoHtml);
 
-  if (!ganaderoHtml && !equinoHtml) {
+  if (!ganaderoHtml && !equinoHtml && !ovinoHtml) {
     parts.push(`<p class="campo-mapa-potrero-resumen-empty">Sin animales</p>`);
   }
 
