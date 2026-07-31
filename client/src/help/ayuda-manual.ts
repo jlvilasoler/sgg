@@ -558,6 +558,30 @@ export const AYUDA_ARTICULOS: AyudaArticulo[] = [
     ],
   },
   {
+    id: "stock-ovino",
+    label: "Stock ovino",
+    subtitle: "REG internos y dispositivos de ovinos",
+    icon: "stock_cabana",
+    grupo: "campo",
+    pantallaRelacionada: "stock_ovino",
+    intro:
+      "Misma lógica que stock equino, adaptada a ovinos: altas con ID REG prefijo 199, fichas por dispositivo, salidas y sanidad.",
+    recorridoOperativo: [
+      "Dá de alta animales (genérica o cabaña) con REG 199.",
+      "Editá fichas (categoría, raza, potrero, etc.).",
+      "Registrá bajas o salidas del sistema.",
+    ],
+    bloques: [
+      {
+        titulo: "Identificación",
+        parrafos: [
+          "No usa caravana RFID de ganadero: cada ovino recibe un REG interno con prefijo 199.",
+          "La base es independiente del stock bovino y equino.",
+        ],
+      },
+    ],
+  },
+  {
     id: "campo-mapa",
     label: "Mapa del campo",
     subtitle: "Potreros, marcaciones, medición y capas de stock",

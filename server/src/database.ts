@@ -42,12 +42,14 @@ import * as vsubItems from "./venta-sub-rubro-items-db.js";
 import * as vgicon from "./venta-grupo-iconos-db.js";
 import * as stock from "./stock-ganadero-db.js";
 import * as stockEquinoDb from "./stock-equino-db.js";
+import * as stockOvinoDb from "./stock-ovino-db.js";
 import * as campoPotreroMapa from "./campo-potrero-mapa-db.js";
 import * as campoMapaElementosDb from "./campo-mapa-elementos-db.js";
 import * as operativaTareasDb from "./operativa-tareas-db.js";
 import * as gastosAutoDb from "./gastos-automatizacion-db.js";
 import * as stockSalidas from "./stock-ganadera-salidas.js";
 import * as stockEquinoSalidas from "./stock-equina-salidas.js";
+import * as stockOvinoSalidas from "./stock-ovina-salidas.js";
 import * as stockAud from "./stock-auditoria-db.js";
 import * as auth from "./auth-db.js";
 import * as empresasCuenta from "./empresas-cuenta-db.js";
@@ -114,6 +116,7 @@ async function runModuleSeeds(): Promise<void> {
     vgicon.initVentaGrupoIconosTable(db),
     stock.initStockGanaderoTables(db),
     stockEquinoDb.initStockEquinoTables(db),
+    stockOvinoDb.initStockOvinoTables(db),
   ]);
 
   await sub.migrateUnificarGruposIconos(db);
@@ -190,8 +193,15 @@ async function connectWithRetry(attempts = 4): Promise<void> {
 }
 
 export async function initDb(): Promise<void> {
+  const t0 = Date.now();
+  const mark = (label: string, since: number) => {
+    if (process.env.SCG_INIT_TIMING === "0") return;
+    console.info(`[SGG] initDb ${label}: ${Date.now() - since}ms (total ${Date.now() - t0}ms)`);
+  };
+
   await connectWithRetry();
   db = new PgDb();
+  mark("connect", t0);
 
   const existing = await schemaAlreadyApplied();
   const lockWaitMs = existing ? 3_000 : 50_000;
@@ -210,51 +220,93 @@ export async function initDb(): Promise<void> {
     } else if (!existing) {
       console.warn("[SGG] Init en curso en otra instancia; omitiendo seeds pesados");
     }
-    await empresasCuenta.initEmpresasCuentaTables(db);
-    await auth.initAuthTables(db);
-    await vencImpPrefs.initVencimientosImpuestosPrefsTable(db);
-    await pagosPersonalizadosDb.initPagosPersonalizadosTables(db);
-    await platformNotif.initPlatformNotificationsTables(db);
-    await notasDb.initNotasTable(db);
+    mark("schema", t0);
+
+    await Promise.all([
+      empresasCuenta.initEmpresasCuentaTables(db),
+      auth.initAuthTables(db),
+      vencImpPrefs.initVencimientosImpuestosPrefsTable(db),
+      pagosPersonalizadosDb.initPagosPersonalizadosTables(db),
+      platformNotif.initPlatformNotificationsTables(db),
+      notasDb.initNotasTable(db),
+    ]);
+    mark("core-tables", t0);
+
     await empresasCuenta.ensureCuentaMadreAdmin(db);
-    await empresasCuenta.backfillCuentaMadreUsuarios(db);
-    await empresasCuenta.syncCuentaAdminsEmpresaId(db);
-    await docDig.initDocumentosDigitalesTables(db);
     await Promise.all([
-      chat.initChatTables(db),
-      stock.initStockGanaderoTables(db),
-    stockEquinoDb.initStockEquinoTables(db),
-      stockAud.initStockAuditoriaTable(db),
-      pgan.initPreciosGanadoTable(db),
+      empresasCuenta.backfillCuentaMadreUsuarios(db),
+      empresasCuenta.syncCuentaAdminsEmpresaId(db),
     ]);
-    await campoPotreroMapa.initCampoPotreroMapaTable(db);
-    await campoMapaElementosDb.initCampoMapaElementosTable(db);
-    await operativaTareasDb.initOperativaTareasTables(db);
-    await gastosAutoDb.initGastosAutomatizacionTables(db);
-    await billingDb.initBillingTables(db);
-    await Promise.all([
-      simVenta.initSimuladorVentaGanadoTable(db),
-      simVentaAud.initSimuladorVentaAuditoriaTable(db),
-      simVentaDisp.initSimuladorVentaDispositivosTable(db),
-      ventasAgri.initVentasAgriculturaTable(db),
-      ventasArr.initVentasArrendamientosTable(db),
-    ]);
-    await migratePresupuestoIngresadoPor(db);
-    await migrateGastosRubrosCuentaScope(db);
-    await migratePresupuestoCuentaScope(db);
-    await prov.initProveedoresTable(db);
-    await resp.initResponsablesTable(db);
-    await func.initFuncionariosTable(db);
-    await ventas.initVentasTable(db);
-    await vsub.initVentaSubRubrosTable(db);
-    await vsubItems.initVentaSubRubroItemsTable(db);
-    await vgicon.initVentaGrupoIconosTable(db);
-    await presDoc.initPresupuestoDocumentosTable(db);
+    mark("cuenta-madre", t0);
   } finally {
     if (locked) await releaseAdvisoryLock();
   }
 
+  // En local, el resto de migraciones (stock, mapa, billing, etc.) sigue en
+  // background para no bloquear Vite/~api/health. En Vercel corremos todo
+  // síncrono porque el cold start debe dejar el schema completo.
+  const deferHeavy =
+    process.env.VERCEL !== "1" && process.env.SCG_SYNC_FULL_INIT !== "1";
+
+  if (deferHeavy) {
+    mark("essential-ready", t0);
+    void runDeferredModuleInits(db, t0).catch((err) => {
+      console.error(
+        "[SGG] Init diferido de módulos falló (API ya operativa):",
+        err instanceof Error ? err.message : err
+      );
+    });
+    scheduleTeamChannelSync(db);
+    return;
+  }
+
+  await runDeferredModuleInits(db, t0);
   scheduleTeamChannelSync(db);
+  mark("done", t0);
+}
+
+async function runDeferredModuleInits(database: PgDb, t0: number): Promise<void> {
+  const mark = (label: string) => {
+    if (process.env.SCG_INIT_TIMING === "0") return;
+    console.info(`[SGG] initDb ${label}: total ${Date.now() - t0}ms`);
+  };
+
+  await Promise.all([
+    docDig.initDocumentosDigitalesTables(database),
+    chat.initChatTables(database),
+    stock.initStockGanaderoTables(database),
+    stockEquinoDb.initStockEquinoTables(database),
+    stockOvinoDb.initStockOvinoTables(database),
+    stockAud.initStockAuditoriaTable(database),
+    pgan.initPreciosGanadoTable(database),
+    campoPotreroMapa.initCampoPotreroMapaTable(database),
+    campoMapaElementosDb.initCampoMapaElementosTable(database),
+    operativaTareasDb.initOperativaTareasTables(database),
+    gastosAutoDb.initGastosAutomatizacionTables(database),
+    billingDb.initBillingTables(database),
+    simVenta.initSimuladorVentaGanadoTable(database),
+    simVentaAud.initSimuladorVentaAuditoriaTable(database),
+    simVentaDisp.initSimuladorVentaDispositivosTable(database),
+    ventasAgri.initVentasAgriculturaTable(database),
+    ventasArr.initVentasArrendamientosTable(database),
+  ]);
+  mark("modules");
+
+  await Promise.all([
+    migratePresupuestoIngresadoPor(database),
+    migrateGastosRubrosCuentaScope(database),
+    migratePresupuestoCuentaScope(database),
+    prov.initProveedoresTable(database),
+    resp.initResponsablesTable(database),
+    func.initFuncionariosTable(database),
+    ventas.initVentasTable(database),
+    vsub.initVentaSubRubrosTable(database),
+    vsubItems.initVentaSubRubroItemsTable(database),
+    vgicon.initVentaGrupoIconosTable(database),
+    presDoc.initPresupuestoDocumentosTable(database),
+  ]);
+  mark("legacy-tables");
+  console.info(`[SGG] Init de módulos completado (${Date.now() - t0}ms)`);
 }
 
 export async function peekNextNroRegistro(): Promise<number> {
@@ -741,6 +793,89 @@ export const stockEquino = {
   listHistorialCambios: (clave: string) =>
     stockEquinoDb.listStockEquinaDispositivoHistorial(db, clave),
 };
+
+export const stockOvino = {
+  listLotes: (filters?: stockOvinoDb.StockOvinoFilters) =>
+    stockOvinoDb.listStockOvinoLotes(db, filters),
+  getLote: (id: number) => stockOvinoDb.getStockOvinoLoteById(db, id),
+  listRegistros: (filters?: stockOvinoDb.StockOvinoFilters) =>
+    stockOvinoDb.listStockOvinoRegistros(db, filters),
+  importRows: (
+    nombreArchivo: string,
+    rows: stockOvinoDb.StockOvinoRowInput[],
+    cuentaId?: number | null
+  ) => stockOvinoDb.importStockOvinoRows(db, nombreArchivo, rows, cuentaId),
+  altaGenerica: (
+    input: stockOvinoDb.AltaOvinoGenericaInput,
+    cuentaId?: number | null,
+    autor?: stockOvinoDb.HistorialAutor
+  ) => stockOvinoDb.crearOvinosGenericos(db, input, cuentaId, autor),
+  altaCabana: (
+    input: stockOvinoDb.AltaOvinoCabanaInput,
+    cuentaId?: number | null,
+    autor?: stockOvinoDb.HistorialAutor
+  ) => stockOvinoDb.crearOvinoCabana(db, input, cuentaId, autor),
+  listRazas: () => stockOvinoDb.listStockOvinoRazas(db),
+  createRaza: (nombre: string) => stockOvinoDb.createStockOvinoRaza(db, nombre),
+  deleteRaza: (nombre: string) => stockOvinoDb.deleteStockOvinoRaza(db, nombre),
+  importBaja: (
+    rows: stockOvinoDb.StockOvinoRowInput[],
+    tipo_baja: stockOvinoDb.TipoBaja,
+    autor?: stockOvinoDb.HistorialAutor
+  ) => stockOvinoDb.importBajaDispositivos(db, rows, tipo_baja, autor),
+  importBajaNumeros: (
+    numeros: string[],
+    tipo_baja: stockOvinoDb.TipoBaja,
+    autor?: stockOvinoDb.HistorialAutor
+  ) => stockOvinoDb.importBajaPorNumeros(db, numeros, tipo_baja, autor),
+  importBajaDetalle: (items: stockOvinoDb.BajaDispositivoItemInput[], autor?: stockOvinoDb.HistorialAutor) =>
+    stockOvinoDb.importBajaDetalle(db, items, autor),
+  deleteLote: (id: number) => stockOvinoDb.deleteStockOvinoLote(db, id),
+  countRegistros: (filters?: stockOvinoDb.StockOvinoFilters) =>
+    stockOvinoDb.countStockOvinoRegistros(db, filters),
+  estadisticas: (filters?: stockOvinoDb.StockOvinoFilters) =>
+    stockOvinoDb.getStockOvinoEstadisticas(db, filters),
+  listDispositivos: (filters?: stockOvinoDb.StockOvinoFilters) =>
+    stockOvinoDb.listStockOvinaDispositivos(db, filters),
+  listSalidas: (filters?: stockOvinoDb.StockOvinoFilters) =>
+    stockOvinoSalidas.listSalidasSistemaDispositivos(db, filters),
+  getDispositivo: (clave: string, filters?: stockOvinoDb.StockOvinoFilters) =>
+    stockOvinoDb.getStockOvinaDispositivoDetalle(db, clave, filters),
+  countDispositivos: (filters?: stockOvinoDb.StockOvinoFilters) =>
+    stockOvinoDb.countStockOvinaDispositivosActivos(db, filters),
+  countDispositivosTotal: (filters?: stockOvinoDb.StockOvinoFilters) =>
+    stockOvinoDb.countStockOvinaDispositivos(db, filters),
+  updateDispositivoSexo: (
+    clave: string,
+    sexo: stockOvinoDb.DispositivoSexo,
+    eid?: string,
+    autor?: stockOvinoDb.HistorialAutor
+  ) => stockOvinoDb.updateStockOvinaDispositivoSexo(db, clave, sexo, eid, autor),
+  updateDispositivoEdad: (clave: string, edad: number | null, eid?: string) =>
+    stockOvinoDb.updateStockOvinaDispositivoEdad(db, clave, edad, eid),
+  saveDispositivo: (
+    clave: string,
+    input: stockOvinoDb.DispositivoMetaInput,
+    eid?: string,
+    autor?: stockOvinoDb.HistorialAutor
+  ) => stockOvinoDb.saveStockOvinaDispositivo(db, clave, input, eid, autor),
+  bulkPatchDispositivos: (
+    claves: string[],
+    patch: stockOvinoDb.DispositivoMetaPatch,
+    eids?: Record<string, string>,
+    autor?: stockOvinoDb.HistorialAutor
+  ) => stockOvinoDb.bulkPatchStockOvinaDispositivos(db, claves, patch, eids, autor),
+  deleteDispositivos: (claves: string[]) =>
+    stockOvinoDb.deleteStockOvinaDispositivos(db, claves),
+  vaciarCompleto: (cuentaId: number | null) =>
+    stockOvinoDb.vaciarStockOvinaCompleto(db, cuentaId),
+  backupInfo: (cuentaId: number) => stockOvinoDb.infoStockOvinaBackup(db, cuentaId),
+  restaurarDesdeBackup: (cuentaId: number) =>
+    stockOvinoDb.restaurarStockOvinaDesdeBackup(db, cuentaId),
+  listHistorialCambios: (clave: string) =>
+    stockOvinoDb.listStockOvinaDispositivoHistorial(db, clave),
+};
+
 
 export const stockAuditoria = {
   record: (input: stockAud.StockMovimientoAuditoriaInput) =>

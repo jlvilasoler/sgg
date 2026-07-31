@@ -2,17 +2,20 @@ import type { Db } from "./db/pg-client.js";
 import { listCampoPotrerosMapa, updateCampoPotreroMapa } from "./campo-potrero-mapa-db.js";
 import { normalizarPotrero } from "./stock-ganadero-potrero-db.js";
 
-export type CampoMapaDispositivoKind = "ganadero" | "equino";
+export type CampoMapaDispositivoKind = "ganadero" | "equino" | "ovino";
 
 interface CampoMapaDispositivosMetadata {
   dispositivos_ganadero: string[];
   dispositivos_equino: string[];
+  dispositivos_ovino: string[];
 }
 
 function metadataKey(
   kind: CampoMapaDispositivoKind,
-): "dispositivos_ganadero" | "dispositivos_equino" {
-  return kind === "ganadero" ? "dispositivos_ganadero" : "dispositivos_equino";
+): "dispositivos_ganadero" | "dispositivos_equino" | "dispositivos_ovino" {
+  if (kind === "ganadero") return "dispositivos_ganadero";
+  if (kind === "equino") return "dispositivos_equino";
+  return "dispositivos_ovino";
 }
 
 function parseMetadata(raw: string): CampoMapaDispositivosMetadata & Record<string, unknown> {
@@ -33,10 +36,14 @@ function parseMetadata(raw: string): CampoMapaDispositivosMetadata & Record<stri
   const equino = Array.isArray(base.dispositivos_equino)
     ? base.dispositivos_equino.map(String).filter(Boolean)
     : [];
+  const ovino = Array.isArray(base.dispositivos_ovino)
+    ? base.dispositivos_ovino.map(String).filter(Boolean)
+    : [];
   return {
     ...base,
     dispositivos_ganadero: ganadero,
     dispositivos_equino: equino,
+    dispositivos_ovino: ovino,
   };
 }
 

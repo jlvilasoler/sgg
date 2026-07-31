@@ -3,7 +3,7 @@ import fs from "fs";
 import path from "path";
 import { scgDataPath } from "./data-dir.js";
 
-export type StockDispositivoModulo = "ganadero" | "equino";
+export type StockDispositivoModulo = "ganadero" | "equino" | "ovino";
 
 export const STOCK_DISPOSITIVO_FOTOS_DIR = scgDataPath("stock-dispositivo-fotos");
 export const STOCK_DISPOSITIVO_FOTO_MAX_BYTES = 4 * 1024 * 1024;
@@ -13,16 +13,19 @@ const FOTO_THUMB_MAX_PX = 192;
 const TABLE: Record<StockDispositivoModulo, string> = {
   ganadero: "STOCK_GANADERO_DISPOSITIVO",
   equino: "STOCK_EQUINO_DISPOSITIVO",
+  ovino: "STOCK_OVINO_DISPOSITIVO",
 };
 
 const FOTOS_TABLE: Record<StockDispositivoModulo, string> = {
   ganadero: "STOCK_GANADERO_DISPOSITIVO_FOTOS",
   equino: "STOCK_EQUINO_DISPOSITIVO_FOTOS",
+  ovino: "STOCK_OVINO_DISPOSITIVO_FOTOS",
 };
 
 const HIST_TABLE: Record<StockDispositivoModulo, string> = {
   ganadero: "STOCK_GANADERO_DISPOSITIVO_HISTORIAL",
   equino: "STOCK_EQUINO_DISPOSITIVO_HISTORIAL",
+  ovino: "STOCK_OVINO_DISPOSITIVO_HISTORIAL",
 };
 
 const MIME_EXT: Record<string, string> = {

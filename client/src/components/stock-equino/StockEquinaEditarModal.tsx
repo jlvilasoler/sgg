@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { saveStockEquinaDispositivo, type EmpresaOperativaStock, type StockDispositivoFotoMeta } from "../../api";
 import { useHeaderBackStep } from "../../header-back";
 import type {

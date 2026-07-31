@@ -1712,8 +1712,10 @@ export async function deleteEmpresaCuenta(
   const scopedTables = [
     "STOCK_GANADERO_LOTE",
     "STOCK_EQUINO_LOTE",
+    "STOCK_OVINO_LOTE",
     "STOCK_GANADERO_BACKUP",
     "STOCK_EQUINO_BACKUP",
+    "STOCK_OVINO_BACKUP",
     "SIMULADOR_VENTA_GANADO",
     "PROVEEDORES",
     "FUNCIONARIOS",
@@ -1783,10 +1785,10 @@ export async function deleteEmpresaCuenta(
 
 /** Evita import circular con auth-db: borra sesiones por SQL directo. */
 async function authDeleteUserSessions(db: Db, userId: number): Promise<void> {
-  if (await tableExistsPublic(db, "USER_SESSIONS")) {
+  if (await tableExists(db, "USER_SESSIONS")) {
     await db.prepare("DELETE FROM USER_SESSIONS WHERE user_id = ?").run(userId);
   }
-  if (await tableExistsPublic(db, "PASSWORD_RESET_TOKENS")) {
+  if (await tableExists(db, "PASSWORD_RESET_TOKENS")) {
     await db
       .prepare("DELETE FROM PASSWORD_RESET_TOKENS WHERE user_id = ?")
       .run(userId);

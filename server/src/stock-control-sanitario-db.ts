@@ -8,11 +8,12 @@ import {
   sanitizeProductoFichaFoto,
 } from "./stock-producto-ficha-foto.js";
 
-export type StockDispositivoModulo = "ganadero" | "equino";
+export type StockDispositivoModulo = "ganadero" | "equino" | "ovino";
 
 const TABLE: Record<StockDispositivoModulo, string> = {
   ganadero: "STOCK_GANADERO_CONTROL_SANITARIO",
   equino: "STOCK_EQUINO_CONTROL_SANITARIO",
+  ovino: "STOCK_OVINO_CONTROL_SANITARIO",
 };
 
 export interface StockControlSanitarioRecord {
@@ -470,28 +471,44 @@ function normalizeCantidadValor(val: unknown): string {
     .slice(0, 80);
 }
 
-export async function migrateStockControlSanitarioCantidadCatalog(db: Db): Promise<void> {
-  await db
-    .prepare(
-      `CREATE TABLE IF NOT EXISTS ${CANTIDAD_CATALOGO_TABLE} (
-         id SERIAL PRIMARY KEY,
-         valor TEXT NOT NULL,
-         creado_en TEXT NOT NULL,
-         creado_por TEXT NOT NULL DEFAULT ''
-       )`
-    )
-    .run();
+/** Evita repetir migraciones compartidas cuando ganadero/equino/ovino arrancan en paralelo. */
+const sharedMigrateOnce = new Map<string, Promise<void>>();
 
-  try {
+function runSharedMigrateOnce(key: string, fn: () => Promise<void>): Promise<void> {
+  const existing = sharedMigrateOnce.get(key);
+  if (existing) return existing;
+  const pending = fn().catch((err) => {
+    sharedMigrateOnce.delete(key);
+    throw err;
+  });
+  sharedMigrateOnce.set(key, pending);
+  return pending;
+}
+
+export async function migrateStockControlSanitarioCantidadCatalog(db: Db): Promise<void> {
+  return runSharedMigrateOnce("cantidad-catalog", async () => {
     await db
       .prepare(
-        `CREATE UNIQUE INDEX IF NOT EXISTS idx_${CANTIDAD_CATALOGO_TABLE.toLowerCase()}_valor
-         ON ${CANTIDAD_CATALOGO_TABLE} (LOWER(valor))`
+        `CREATE TABLE IF NOT EXISTS ${CANTIDAD_CATALOGO_TABLE} (
+           id SERIAL PRIMARY KEY,
+           valor TEXT NOT NULL,
+           creado_en TEXT NOT NULL,
+           creado_por TEXT NOT NULL DEFAULT ''
+         )`
       )
       .run();
-  } catch {
-    /* índice ya existe */
-  }
+
+    try {
+      await db
+        .prepare(
+          `CREATE UNIQUE INDEX IF NOT EXISTS idx_${CANTIDAD_CATALOGO_TABLE.toLowerCase()}_valor
+           ON ${CANTIDAD_CATALOGO_TABLE} (LOWER(valor))`
+        )
+        .run();
+    } catch {
+      /* índice ya existe */
+    }
+  });
 }
 
 export async function listStockControlSanitarioCantidadCatalog(
@@ -574,45 +591,48 @@ function normalizeEsperaValor(val: unknown): string {
 }
 
 export async function migrateStockControlSanitarioEsperaCatalog(db: Db): Promise<void> {
-  await db
-    .prepare(
-      `CREATE TABLE IF NOT EXISTS ${ESPERA_CATALOGO_TABLE} (
-         id SERIAL PRIMARY KEY,
-         valor TEXT NOT NULL,
-         creado_en TEXT NOT NULL,
-         creado_por TEXT NOT NULL DEFAULT ''
-       )`
-    )
-    .run();
-
-  try {
+  return runSharedMigrateOnce("espera-catalog", async () => {
     await db
       .prepare(
-        `CREATE UNIQUE INDEX IF NOT EXISTS idx_${ESPERA_CATALOGO_TABLE.toLowerCase()}_valor
-         ON ${ESPERA_CATALOGO_TABLE} (LOWER(valor))`
+        `CREATE TABLE IF NOT EXISTS ${ESPERA_CATALOGO_TABLE} (
+           id SERIAL PRIMARY KEY,
+           valor TEXT NOT NULL,
+           creado_en TEXT NOT NULL,
+           creado_por TEXT NOT NULL DEFAULT ''
+         )`
       )
       .run();
-  } catch {
-    /* índice ya existe */
-  }
 
-  const creadoEn = new Date().toISOString();
-  for (const valor of ESPERAS_CATALOGO_SEED) {
-    const existente = (await db
-      .prepare(
-        `SELECT id FROM ${ESPERA_CATALOGO_TABLE}
-         WHERE LOWER(valor) = LOWER(@valor)
-         LIMIT 1`
-      )
-      .get({ valor })) as { id: number } | undefined;
-    if (existente) continue;
-    await db
-      .prepare(
-        `INSERT INTO ${ESPERA_CATALOGO_TABLE} (valor, creado_en, creado_por)
-         VALUES (@valor, @creado_en, @creado_por)`
-      )
-      .run({ valor, creado_en: creadoEn, creado_por: "sistema" });
-  }
+    try {
+      await db
+        .prepare(
+          `CREATE UNIQUE INDEX IF NOT EXISTS idx_${ESPERA_CATALOGO_TABLE.toLowerCase()}_valor
+           ON ${ESPERA_CATALOGO_TABLE} (LOWER(valor))`
+        )
+        .run();
+    } catch {
+      /* índice ya existe */
+    }
+
+    const existentes = (await db
+      .prepare(`SELECT LOWER(valor) AS v FROM ${ESPERA_CATALOGO_TABLE}`)
+      .all()) as { v: string }[];
+    const have = new Set(existentes.map((r) => String(r.v ?? "")));
+    const missing = ESPERAS_CATALOGO_SEED.filter(
+      (valor) => !have.has(valor.toLocaleLowerCase("es"))
+    );
+    if (missing.length === 0) return;
+
+    const creadoEn = new Date().toISOString();
+    for (const valor of missing) {
+      await db
+        .prepare(
+          `INSERT INTO ${ESPERA_CATALOGO_TABLE} (valor, creado_en, creado_por)
+           VALUES (@valor, @creado_en, @creado_por)`
+        )
+        .run({ valor, creado_en: creadoEn, creado_por: "sistema" });
+    }
+  });
 }
 
 export async function listStockControlSanitarioEsperaCatalog(
@@ -719,69 +739,91 @@ function normalizeFichaNombre(val: unknown): string {
 }
 
 export async function migrateStockControlSanitarioProductoFicha(db: Db): Promise<void> {
-  await db
-    .prepare(
-      `CREATE TABLE IF NOT EXISTS ${PRODUCTO_FICHA_TABLE} (
-         id SERIAL PRIMARY KEY,
-         nombre TEXT NOT NULL,
-         laboratorio TEXT NOT NULL DEFAULT '',
-         principio_activo TEXT NOT NULL DEFAULT '',
-         presentacion TEXT NOT NULL DEFAULT '',
-         via_administracion TEXT NOT NULL DEFAULT '',
-         especie TEXT NOT NULL DEFAULT '',
-         tiempo_espera_carne TEXT NOT NULL DEFAULT '',
-         tiempo_espera_leche TEXT NOT NULL DEFAULT '',
-         detalles_tecnicos TEXT NOT NULL DEFAULT '',
-         caracteristicas TEXT NOT NULL DEFAULT '',
-         foto_data TEXT NOT NULL DEFAULT '',
-         creado_en TEXT NOT NULL,
-         actualizado_en TEXT NOT NULL,
-         actualizado_por TEXT NOT NULL DEFAULT '',
-         creado_por TEXT NOT NULL DEFAULT ''
-       )`
-    )
-    .run();
-
-  try {
+  return runSharedMigrateOnce("producto-ficha", async () => {
     await db
       .prepare(
-        `CREATE UNIQUE INDEX IF NOT EXISTS idx_${PRODUCTO_FICHA_TABLE.toLowerCase()}_nombre
-         ON ${PRODUCTO_FICHA_TABLE} (LOWER(nombre))`
+        `CREATE TABLE IF NOT EXISTS ${PRODUCTO_FICHA_TABLE} (
+           id SERIAL PRIMARY KEY,
+           nombre TEXT NOT NULL,
+           laboratorio TEXT NOT NULL DEFAULT '',
+           principio_activo TEXT NOT NULL DEFAULT '',
+           presentacion TEXT NOT NULL DEFAULT '',
+           via_administracion TEXT NOT NULL DEFAULT '',
+           especie TEXT NOT NULL DEFAULT '',
+           tiempo_espera_carne TEXT NOT NULL DEFAULT '',
+           tiempo_espera_leche TEXT NOT NULL DEFAULT '',
+           detalles_tecnicos TEXT NOT NULL DEFAULT '',
+           caracteristicas TEXT NOT NULL DEFAULT '',
+           foto_data TEXT NOT NULL DEFAULT '',
+           creado_en TEXT NOT NULL,
+           actualizado_en TEXT NOT NULL,
+           actualizado_por TEXT NOT NULL DEFAULT '',
+           creado_por TEXT NOT NULL DEFAULT ''
+         )`
       )
       .run();
-  } catch {
-    /* índice ya existe */
-  }
 
-  try {
-    await db
+    try {
+      await db
+        .prepare(
+          `CREATE UNIQUE INDEX IF NOT EXISTS idx_${PRODUCTO_FICHA_TABLE.toLowerCase()}_nombre
+           ON ${PRODUCTO_FICHA_TABLE} (LOWER(nombre))`
+        )
+        .run();
+    } catch {
+      /* índice ya existe */
+    }
+
+    try {
+      await db
+        .prepare(
+          `ALTER TABLE ${PRODUCTO_FICHA_TABLE} ADD COLUMN creado_por TEXT NOT NULL DEFAULT ''`
+        )
+        .run();
+    } catch {
+      /* columna ya existe */
+    }
+
+    const expectedSeed =
+      PRODUCTO_FICHAS_SEED.length + PRODUCTO_FICHAS_SEED_EQUINO.length;
+    const seeded = (await db
       .prepare(
-        `ALTER TABLE ${PRODUCTO_FICHA_TABLE} ADD COLUMN creado_por TEXT NOT NULL DEFAULT ''`
+        `SELECT COUNT(*)::int AS n FROM ${PRODUCTO_FICHA_TABLE}
+         WHERE TRIM(detalles_tecnicos) <> ''`
       )
-      .run();
-  } catch {
-    /* columna ya existe */
-  }
+      .get()) as { n: number | string } | undefined;
+    const seededCount = Number(seeded?.n ?? 0);
+    const forceRepair = process.env.SCG_REPAIR_FICHAS === "1";
 
-  try {
-    await db
-      .prepare(
-        `UPDATE ${PRODUCTO_FICHA_TABLE}
-         SET creado_por = actualizado_por
-         WHERE TRIM(creado_por) = ''
-           AND TRIM(actualizado_por) <> ''
-           AND TRIM(laboratorio) = ''
-           AND TRIM(principio_activo) = ''
-           AND TRIM(foto_data) = ''`
-      )
-      .run();
-  } catch {
-    /* backfill opcional */
-  }
+    // Arranques posteriores: si el catálogo ya está sembrado, no repasar
+    // cientos de fichas ni bajar foto_data (muy costoso contra Supabase).
+    if (seededCount >= expectedSeed && !forceRepair) {
+      return;
+    }
 
-  await seedStockControlSanitarioProductoFichasIfMissing(db);
-  await repairProductoFichasFotosInvalidas(db);
-  await backfillProductoFichaFotosVacias(db);
+    try {
+      await db
+        .prepare(
+          `UPDATE ${PRODUCTO_FICHA_TABLE}
+           SET creado_por = actualizado_por
+           WHERE TRIM(creado_por) = ''
+             AND TRIM(actualizado_por) <> ''
+             AND TRIM(laboratorio) = ''
+             AND TRIM(principio_activo) = ''
+             AND TRIM(foto_data) = ''`
+        )
+        .run();
+    } catch {
+      /* backfill opcional */
+    }
+
+    await seedStockControlSanitarioProductoFichasIfMissing(db);
+    // Repair/backfill de fotos es caro (trae foto_data). Solo bajo demanda.
+    if (forceRepair) {
+      await repairProductoFichasFotosInvalidas(db);
+      await backfillProductoFichaFotosVacias(db);
+    }
+  });
 }
 
 export async function repairProductoFichasFotosInvalidas(db: Db): Promise<void> {
@@ -815,16 +857,27 @@ export async function backfillProductoFichaFotosVacias(db: Db): Promise<void> {
 }
 
 export async function seedStockControlSanitarioProductoFichasIfMissing(db: Db): Promise<void> {
-  for (const seed of [...PRODUCTO_FICHAS_SEED, ...PRODUCTO_FICHAS_SEED_EQUINO]) {
-    const existente = await getStockControlSanitarioProductoFicha(db, seed.nombre);
+  const seeds = [...PRODUCTO_FICHAS_SEED, ...PRODUCTO_FICHAS_SEED_EQUINO];
+  const existentes = (await db
+    .prepare(
+      `SELECT LOWER(nombre) AS nombre, detalles_tecnicos
+       FROM ${PRODUCTO_FICHA_TABLE}`
+    )
+    .all()) as {
+    nombre: string;
+    detalles_tecnicos: string;
+  }[];
+  const byNombre = new Map(
+    existentes.map((r) => [String(r.nombre ?? "").toLocaleLowerCase("es"), r])
+  );
+
+  for (const seed of seeds) {
+    const key = seed.nombre.trim().toLocaleLowerCase("es");
+    const existente = byNombre.get(key);
     if (existente?.detalles_tecnicos?.trim()) continue;
 
-    const fotoExistente = existente?.foto_data?.trim() ?? "";
     const fotoSeed = seed.foto ?? "";
-    const foto_data =
-      fotoExistente && esFotoProductoAceptable(fotoExistente)
-        ? fotoExistente
-        : mejorFotoRasterProducto(seed.nombre, fotoSeed) || fotoSeed || fotoExistente;
+    const foto_data = mejorFotoRasterProducto(seed.nombre, fotoSeed) || fotoSeed;
 
     await upsertStockControlSanitarioProductoFicha(
       db,
@@ -1039,7 +1092,13 @@ export async function listStockControlSanitarioProductoNombresGlobales(
   ];
 
   const tablaUsos =
-    modulo === "equino" ? TABLE.equino : modulo === "ganadero" ? TABLE.ganadero : null;
+    modulo === "equino"
+      ? TABLE.equino
+      : modulo === "ovino"
+        ? TABLE.ovino
+        : modulo === "ganadero"
+          ? TABLE.ganadero
+          : null;
 
   const usosCuentaMap = new Map<string, number>();
   if (autoresNorm.length > 0) {

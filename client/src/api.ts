@@ -85,6 +85,12 @@ import type {
   StockEquinaDispositivo,
   StockEquinaDispositivoDetalle,
   StockEquinaDispositivoHistorial,
+  StockOvinoLote,
+  StockOvinoRegistro,
+  StockOvinoEstadisticas,
+  StockOvinaDispositivo,
+  StockOvinaDispositivoDetalle,
+  StockOvinaDispositivoHistorial,
   StockMovimientoAuditoria,
   AuthActividadLog,
   UsuarioOnline,
@@ -970,7 +976,7 @@ export async function fetchStockGanaderaDispositivoHistorial(
   return json.data;
 }
 
-export type StockDispositivoModulo = "ganadero" | "equino";
+export type StockDispositivoModulo = "ganadero" | "equino" | "ovino";
 
 export async function fetchStockControlSanitario(
   modulo: StockDispositivoModulo,
@@ -2876,6 +2882,694 @@ export async function importStockEquinoBajaDispositivos(
 export async function deleteStockEquinoLote(id: number): Promise<void> {
   await request(`/stock-equino/lotes/${id}`, { method: "DELETE" });
 }
+
+export async function fetchStockOvinoLotes(): Promise<StockOvinoLote[]> {
+  const json = await request<{ data: StockOvinoLote[] }>("/stock-ovino/lotes");
+  return json.data;
+}
+
+export async function fetchStockOvinoUltimaImportacionArchivo(): Promise<{
+  id: number;
+  nombre: string;
+  filas: number;
+} | null> {
+  const json = await request<{
+    data: { id: number; nombre: string; filas: number } | null;
+  }>("/stock-ovino/ultima-importacion-archivo");
+  return json.data ?? null;
+}
+
+export async function fetchStockOvinoRegistros(filters: {
+  lote_id?: number;
+  busqueda?: string;
+  fecha_desde?: string;
+  fecha_hasta?: string;
+  solo_repetidos?: boolean;
+}): Promise<StockOvinoRegistro[]> {
+  const params = new URLSearchParams();
+  if (filters.lote_id) params.set("lote_id", String(filters.lote_id));
+  if (filters.busqueda?.trim()) params.set("busqueda", filters.busqueda.trim());
+  if (filters.fecha_desde) params.set("fecha_desde", filters.fecha_desde);
+  if (filters.fecha_hasta) params.set("fecha_hasta", filters.fecha_hasta);
+  if (filters.solo_repetidos) params.set("solo_repetidos", "1");
+  const q = params.toString() ? `?${params}` : "";
+  const json = await request<{ data: StockOvinoRegistro[] }>(
+    `/stock-ovino/registros${q}`
+  );
+  return json.data;
+}
+
+export async function fetchStockOvinoEstadisticas(filters: {
+  lote_id?: number;
+  busqueda?: string;
+  fecha_desde?: string;
+  fecha_hasta?: string;
+}): Promise<StockOvinoEstadisticas> {
+  const params = new URLSearchParams();
+  if (filters.lote_id) params.set("lote_id", String(filters.lote_id));
+  if (filters.busqueda?.trim()) params.set("busqueda", filters.busqueda.trim());
+  if (filters.fecha_desde) params.set("fecha_desde", filters.fecha_desde);
+  if (filters.fecha_hasta) params.set("fecha_hasta", filters.fecha_hasta);
+  const q = params.toString() ? `?${params}` : "";
+  const json = await request<{ data: StockOvinoEstadisticas }>(
+    `/stock-ovino/estadisticas${q}`
+  );
+  return json.data;
+}
+
+export async function fetchStockOvinoResumen(): Promise<{
+  lotes: number;
+  registros: number;
+  dispositivos: number;
+  dispositivos_total: number;
+  ventas_dispositivos: number;
+}> {
+  const json = await request<{
+    data: {
+      lotes: number;
+      registros: number;
+      dispositivos: number;
+      dispositivos_total?: number;
+      ventas_dispositivos: number;
+    };
+  }>("/stock-ovino/resumen");
+  return {
+    lotes: json.data.lotes,
+    registros: json.data.registros,
+    dispositivos: json.data.dispositivos,
+    dispositivos_total: json.data.dispositivos_total ?? json.data.dispositivos,
+    ventas_dispositivos: json.data.ventas_dispositivos,
+  };
+}
+
+export async function fetchStockOvinaVentasDispositivos(): Promise<{
+  total: number;
+  claves: string[];
+}> {
+  const json = await request<{ data: { total: number; claves: string[] } }>(
+    "/stock-ovino/ventas-dispositivos"
+  );
+  return json.data;
+}
+
+export async function fetchStockOvinaSalidas(filters: {
+  busqueda?: string;
+  fecha_desde?: string;
+  fecha_hasta?: string;
+  estado_dispositivo?: DispositivoEstado;
+} = {}): Promise<{
+  dispositivos: StockOvinaDispositivo[];
+  bajasReparadas: number;
+}> {
+  const params = new URLSearchParams();
+  if (filters.busqueda?.trim()) params.set("busqueda", filters.busqueda.trim());
+  if (filters.fecha_desde) params.set("fecha_desde", filters.fecha_desde);
+  if (filters.fecha_hasta) params.set("fecha_hasta", filters.fecha_hasta);
+  if (
+    filters.estado_dispositivo === "MUERTO" ||
+    filters.estado_dispositivo === "VENDIDO" ||
+    filters.estado_dispositivo === "FRIGORIFICO" ||
+    filters.estado_dispositivo === "PERDIDO"
+  ) {
+    params.set("estado_dispositivo", filters.estado_dispositivo);
+  }
+  const q = params.toString() ? `?${params}` : "";
+  const json = await request<{
+    data: StockOvinaDispositivo[];
+    bajas_reparadas: number;
+  }>(`/stock-ovino/salidas${q}`);
+  return {
+    dispositivos: json.data,
+    bajasReparadas: json.bajas_reparadas ?? 0,
+  };
+}
+
+export async function fetchStockOvinaDispositivos(filters: {
+  busqueda?: string;
+  fecha_desde?: string;
+  fecha_hasta?: string;
+  solo_repetidos?: boolean;
+  solo_bajas?: boolean;
+  estado_dispositivo?: DispositivoEstado;
+}): Promise<StockOvinaDispositivo[]> {
+  const params = new URLSearchParams();
+  if (filters.busqueda?.trim()) params.set("busqueda", filters.busqueda.trim());
+  if (filters.fecha_desde) params.set("fecha_desde", filters.fecha_desde);
+  if (filters.fecha_hasta) params.set("fecha_hasta", filters.fecha_hasta);
+  if (filters.solo_repetidos) params.set("solo_repetidos", "1");
+  if (filters.solo_bajas) params.set("solo_bajas", "1");
+  if (
+    filters.estado_dispositivo === "MUERTO" ||
+    filters.estado_dispositivo === "VENDIDO" ||
+    filters.estado_dispositivo === "FRIGORIFICO" ||
+    filters.estado_dispositivo === "PERDIDO"
+  ) {
+    params.set("estado_dispositivo", filters.estado_dispositivo);
+  }
+  const q = params.toString() ? `?${params}` : "";
+  const json = await request<{ data: StockOvinaDispositivo[] }>(
+    `/stock-ovino/dispositivos${q}`
+  );
+  return json.data;
+}
+
+export async function fetchStockOvinaDispositivo(
+  clave: string
+): Promise<StockOvinaDispositivoDetalle> {
+  const json = await request<{ data: StockOvinaDispositivoDetalle }>(
+    `/stock-ovino/dispositivos/${encodeURIComponent(clave)}`
+  );
+  return json.data;
+}
+
+export async function fetchStockOvinaDispositivoHistorial(
+  clave: string
+): Promise<StockOvinaDispositivoHistorial[]> {
+  const json = await request<{ data: StockOvinaDispositivoHistorial[] }>(
+    `/stock-ovino/dispositivos/${encodeURIComponent(clave)}/historial-cambios`
+  );
+  return json.data;
+}
+
+export async function updateStockOvinaDispositivoSexo(
+  clave: string,
+  sexo: DispositivoSexo,
+  eid?: string
+): Promise<DispositivoSexo> {
+  const json = await request<{ data: { sexo: DispositivoSexo } }>(
+    `/stock-ovino/dispositivos/${encodeURIComponent(clave)}/sexo`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ sexo, eid }),
+    }
+  );
+  return json.data.sexo;
+}
+
+export async function updateStockOvinaDispositivoEdad(
+  clave: string,
+  edad: number | null,
+  eid?: string
+): Promise<number | null> {
+  const json = await request<{ data: { edad: number | null } }>(
+    `/stock-ovino/dispositivos/${encodeURIComponent(clave)}/edad`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ edad, eid }),
+    }
+  );
+  return json.data.edad;
+}
+
+export async function saveStockOvinaDispositivo(
+  clave: string,
+  data: {
+    sexo: DispositivoSexo;
+    empresa: DispositivoEmpresa;
+    grupo: string;
+    grupo_libre: string;
+    potrero?: string;
+    raza?: string;
+    pelaje?: string;
+    nacimiento_mes: number | null;
+    nacimiento_anio: number | null;
+    observaciones: string;
+    estado: DispositivoEstado;
+    tipo_baja?: TipoBaja | "";
+    numero_guia?: string;
+    baja_mes: number | null;
+    baja_anio: number | null;
+    rp?: string;
+    nombre_animal?: string;
+    registro?: string;
+    premios?: string;
+  },
+  eid?: string
+): Promise<{
+  sexo: DispositivoSexo;
+  empresa: DispositivoEmpresa;
+  grupo: string;
+  grupo_libre: string;
+  potrero: string;
+  raza: string;
+  pelaje: string;
+  edad: number | null;
+  nacimiento_mes: number | null;
+  nacimiento_anio: number | null;
+  observaciones: string;
+  estado: DispositivoEstado;
+  tipo_baja: TipoBaja | "";
+  numero_guia: string;
+  baja_mes: number | null;
+  baja_anio: number | null;
+  rp?: string;
+  nombre_animal?: string;
+  registro?: string;
+  premios?: string;
+}> {
+  const json = await request<{
+    data: {
+      sexo: DispositivoSexo;
+      empresa: DispositivoEmpresa;
+      grupo: string;
+      grupo_libre: string;
+      potrero: string;
+      raza: string;
+      pelaje: string;
+      edad: number | null;
+      nacimiento_mes: number | null;
+      nacimiento_anio: number | null;
+      observaciones: string;
+      estado: DispositivoEstado;
+      tipo_baja: TipoBaja | "";
+      numero_guia: string;
+      baja_mes: number | null;
+      baja_anio: number | null;
+      rp?: string;
+      nombre_animal?: string;
+      registro?: string;
+      premios?: string;
+    };
+  }>(`/stock-ovino/dispositivos/${encodeURIComponent(clave)}`, {
+    method: "PATCH",
+    body: JSON.stringify({ ...data, eid }),
+  });
+  return json.data;
+}
+
+export async function bulkPatchStockOvinaDispositivos(
+  claves: string[],
+  patch: Record<string, unknown>,
+  eids: Record<string, string> = {}
+): Promise<{
+  actualizados: number;
+  errores: { clave: string; mensaje: string }[];
+}> {
+  const json = await request<{
+    data: {
+      actualizados: number;
+      errores: { clave: string; mensaje: string }[];
+    };
+  }>("/stock-ovino/dispositivos/bulk", {
+    method: "PATCH",
+    body: JSON.stringify({ claves, patch, eids }),
+  });
+  return json.data;
+}
+
+export async function deleteStockOvinaDispositivos(claves: string[]): Promise<{
+  eliminados: number;
+  lecturas_eliminadas: number;
+  no_encontrados: string[];
+}> {
+  const json = await request<{
+    data: {
+      eliminados: number;
+      lecturas_eliminadas: number;
+      no_encontrados: string[];
+    };
+  }>("/stock-ovino/dispositivos/bulk-delete", {
+    method: "POST",
+    body: JSON.stringify({ claves }),
+  });
+  return json.data;
+}
+
+export async function vaciarStockOvinaCompleto(): Promise<{
+  dispositivos_eliminados: number;
+  lecturas_eliminadas: number;
+  vinculos_sim_venta: number;
+}> {
+  const json = await request<{
+    data: {
+      dispositivos_eliminados: number;
+      lecturas_eliminadas: number;
+      vinculos_sim_venta: number;
+    };
+  }>("/stock-ovino/dispositivos/wipe-all", {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+  return json.data;
+}
+
+export async function fetchStockOvinaBackupInfo(): Promise<{
+  disponible: boolean;
+  creado_en: string | null;
+  dispositivos: number;
+  lecturas: number;
+  historial: number;
+  vinculos_sim: number;
+}> {
+  const json = await request<{
+    data: {
+      disponible: boolean;
+      creado_en: string | null;
+      dispositivos: number;
+      lecturas: number;
+      historial: number;
+      vinculos_sim: number;
+    };
+  }>("/stock-ovino/backup");
+  return json.data;
+}
+
+export async function restaurarStockOvinaDesdeBackup(): Promise<{
+  dispositivos_restaurados: number;
+  lecturas_restauradas: number;
+  historial_restaurado: number;
+  vinculos_sim_restaurados: number;
+}> {
+  const json = await request<{
+    data: {
+      dispositivos_restaurados: number;
+      lecturas_restauradas: number;
+      historial_restaurado: number;
+      vinculos_sim_restaurados: number;
+    };
+  }>("/stock-ovino/backup/restore", {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+  return json.data;
+}
+
+export async function importStockOvinoFile(
+  file: File,
+  empresa: string
+): Promise<{ message: string; lote_id: number; insertados: number }> {
+  const form = new FormData();
+  form.append("file", file);
+  form.append("empresa", empresa);
+  let res: Response;
+  try {
+    res = await fetch(`${API}/stock-ovino/import/file`, {
+      ...FETCH_INIT,
+      method: "POST",
+      body: form,
+    });
+  } catch {
+    throw new Error(apiConnectionError());
+  }
+  const json = (await res.json()) as {
+    ok?: boolean;
+    error?: string;
+    message?: string;
+    data?: { lote_id: number; insertados: number };
+  };
+  if (!json.ok || !json.data) {
+    throw new Error(json.error || "Error al importar");
+  }
+  return {
+    message: json.message ?? "Importación completada",
+    lote_id: json.data.lote_id,
+    insertados: json.data.insertados,
+  };
+}
+
+export async function importStockOvinoText(
+  texto: string,
+  nombreArchivo = "pegado.txt"
+): Promise<{ message: string; lote_id: number; insertados: number }> {
+  const json = await request<{
+    message: string;
+    data: { lote_id: number; insertados: number };
+  }>("/stock-ovino/import/text", {
+    method: "POST",
+    body: JSON.stringify({ texto, nombre_archivo: nombreArchivo }),
+  });
+  return {
+    message: json.message,
+    lote_id: json.data.lote_id,
+    insertados: json.data.insertados,
+  };
+}
+
+export async function importStockOvinoRows(
+  rows: Array<{
+    eid: string;
+    vid?: string;
+    fecha: string;
+    hora?: string;
+    condicion?: string;
+    empresa?: string;
+  }>,
+  nombreArchivo = "carga-manual"
+): Promise<{ message: string; lote_id: number; insertados: number }> {
+  const json = await request<{
+    message: string;
+    data: { lote_id: number; insertados: number };
+  }>("/stock-ovino/import/rows", {
+    method: "POST",
+    body: JSON.stringify({ rows, nombre_archivo: nombreArchivo }),
+  });
+  return {
+    message: json.message,
+    lote_id: json.data.lote_id,
+    insertados: json.data.insertados,
+  };
+}
+
+export async function fetchStockOvinoRazas(): Promise<string[]> {
+  const json = await request<{ data: string[] }>("/stock-ovino/razas");
+  return json.data ?? [];
+}
+
+export async function createStockOvinoRaza(nombre: string): Promise<string> {
+  const json = await request<{ data: { nombre: string } }>("/stock-ovino/razas", {
+    method: "POST",
+    body: JSON.stringify({ nombre }),
+  });
+  return json.data.nombre;
+}
+
+export async function deleteStockOvinoRaza(nombre: string): Promise<string> {
+  const json = await request<{ data: { nombre: string } }>("/stock-ovino/razas", {
+    method: "DELETE",
+    body: JSON.stringify({ nombre }),
+  });
+  return json.data.nombre;
+}
+
+export async function altaStockOvinoGenerica(input: {
+  cantidad: number;
+  sexo: "MACHO" | "HEMBRA";
+  fecha_nacimiento?: string;
+  castrado?: boolean | null;
+  potrero: string;
+  empresa: string;
+  raza?: string;
+  pelaje?: string;
+}): Promise<{
+  message: string;
+  creados: number;
+  claves: string[];
+  desde: string;
+  hasta: string;
+  lote_id: number;
+  categoria: string;
+}> {
+  const json = await request<{
+    message: string;
+    data: {
+      creados: number;
+      claves: string[];
+      desde: string;
+      hasta: string;
+      lote_id: number;
+      categoria: string;
+    };
+  }>("/stock-ovino/alta-generica", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+  return {
+    message: json.message,
+    ...json.data,
+  };
+}
+
+export async function altaStockOvinoCabana(input: {
+  rp: string;
+  nombre_animal: string;
+  fecha_nacimiento: string;
+  sexo: "MACHO" | "HEMBRA";
+  registro: string;
+  premios?: string;
+  raza?: string;
+  pelaje?: string;
+  castrado?: boolean | null;
+  potrero: string;
+  empresa: string;
+}): Promise<{
+  message: string;
+  clave: string;
+  lote_id: number;
+  categoria: string;
+  rp: string;
+  nombre_animal: string;
+}> {
+  const json = await request<{
+    message: string;
+    data: {
+      clave: string;
+      lote_id: number;
+      categoria: string;
+      rp: string;
+      nombre_animal: string;
+    };
+  }>("/stock-ovino/alta-cabana", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+  return {
+    message: json.message,
+    ...json.data,
+  };
+}
+
+export type AruBuscarPor = "registro" | "criador" | "nombre";
+
+export interface AruResultadoBusqueda {
+  rp: string;
+  criador: string;
+  registro: string;
+  nombre: string;
+  publico: boolean;
+  id_sesion: string;
+  id_filtro: string;
+  id: string;
+  id_especie: string;
+  id_raza: string;
+  detalle_url?: string;
+}
+
+export async function importStockOvinoBajaFile(
+  file: File,
+  tipo_baja: TipoBaja
+): Promise<ImportBajaDispositivosResult> {
+  const form = new FormData();
+  form.append("file", file);
+  form.append("tipo_baja", tipo_baja);
+  let res: Response;
+  try {
+    res = await fetch(`${API}/stock-ovino/baja/file`, {
+      ...FETCH_INIT,
+      method: "POST",
+      body: form,
+    });
+  } catch {
+    throw new Error(apiConnectionError());
+  }
+  const json = (await res.json()) as {
+    ok?: boolean;
+    error?: string;
+    message?: string;
+    data?: {
+      actualizados: number;
+      no_encontrados: number;
+      duplicados_omitidos: number;
+      ambiguos: number;
+      muestra_no_encontrados: string[];
+      muestra_ambiguos: string[];
+      estado: TipoBajaImport;
+      tipo_baja?: TipoBaja;
+    };
+  };
+  if (!json.ok || !json.data) {
+    throw new Error(json.error || "Error al importar bajas");
+  }
+  return {
+    message: json.message ?? "Bajas procesadas",
+    ...json.data,
+  };
+}
+
+export async function importStockOvinoBajaText(
+  texto: string,
+  estado: TipoBajaImport
+): Promise<ImportBajaDispositivosResult> {
+  const json = await request<{
+    message: string;
+    data: {
+      actualizados: number;
+      no_encontrados: number;
+      duplicados_omitidos: number;
+      ambiguos: number;
+      muestra_no_encontrados: string[];
+      muestra_ambiguos: string[];
+      estado: TipoBajaImport;
+      tipo_baja?: TipoBaja;
+    };
+  }>("/stock-ovino/baja/text", {
+    method: "POST",
+    body: JSON.stringify({ texto, estado }),
+  });
+  return {
+    message: json.message,
+    ...json.data,
+  };
+}
+
+export async function importStockOvinoBajaRows(
+  rows: Array<{
+    eid: string;
+    vid?: string;
+    fecha: string;
+    hora?: string;
+    condicion?: string;
+  }>,
+  estado: TipoBajaImport
+): Promise<ImportBajaDispositivosResult> {
+  const json = await request<{
+    message: string;
+    data: {
+      actualizados: number;
+      no_encontrados: number;
+      duplicados_omitidos: number;
+      ambiguos: number;
+      muestra_no_encontrados: string[];
+      muestra_ambiguos: string[];
+      estado: TipoBajaImport;
+      tipo_baja?: TipoBaja;
+    };
+  }>("/stock-ovino/baja/rows", {
+    method: "POST",
+    body: JSON.stringify({ rows, estado }),
+  });
+  return {
+    message: json.message,
+    ...json.data,
+  };
+}
+
+export async function importStockOvinoBajaDispositivos(
+  items: BajaDispositivoDetalleInput[]
+): Promise<ImportBajaDispositivosResult> {
+  const json = await request<{
+    message: string;
+    data: {
+      actualizados: number;
+      no_encontrados: number;
+      duplicados_omitidos: number;
+      ambiguos: number;
+      muestra_no_encontrados: string[];
+      muestra_ambiguos: string[];
+    };
+  }>("/stock-ovino/baja/dispositivos", {
+    method: "POST",
+    body: JSON.stringify({ items }),
+  });
+  return {
+    message: json.message,
+    ...json.data,
+  };
+}
+
+export async function deleteStockOvinoLote(id: number): Promise<void> {
+  await request(`/stock-ovino/lotes/${id}`, { method: "DELETE" });
+}
+
 
 export async function fetchProveedores(
   busqueda?: string,

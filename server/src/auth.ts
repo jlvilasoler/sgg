@@ -14,6 +14,7 @@ import type { StockMovimientoTipo } from "./stock-auditoria-db.js";
 import { getDb, empresasCuenta, stockAuditoria } from "./database.js";
 import * as stockGanaderoDb from "./stock-ganadero-db.js";
 import * as stockEquinoDb from "./stock-equino-db.js";
+import * as stockOvinoDb from "./stock-ovino-db.js";
 import { summarizeCuentasControlPlataforma } from "./plataforma-cuentas-control-db.js";
 import {
   attachApiActivityLogger,
@@ -218,6 +219,7 @@ export function moduleFromApiPath(path: string): Modulo | null {
   }
   if (p.startsWith("/api/stock-ganadero")) return "stock";
   if (p.startsWith("/api/stock-equino")) return "stock";
+  if (p.startsWith("/api/stock-ovino")) return "stock";
   if (isCampoMapaApiPath(p)) return "stock";
   if (p.startsWith("/api/documentos-digitales")) return "documentos_digitales";
   if (p.startsWith("/api/catalogos") || p.startsWith("/api/empresas-operativas")) {
@@ -341,7 +343,8 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
   const stockDispositivosLectura =
     req.method === "GET" &&
     (path.startsWith("/api/stock-ganadero/dispositivos") ||
-      path.startsWith("/api/stock-equino/dispositivos"));
+      path.startsWith("/api/stock-equino/dispositivos") ||
+      path.startsWith("/api/stock-ovino/dispositivos"));
   const empresasOperativasLectura =
     req.method === "GET" && path.startsWith("/api/empresas-operativas");
   const tiposGastoLectura =
@@ -2006,6 +2009,7 @@ export function registerAuthRoutes(app: Express): void {
       const deleted = await db.transaction(async (tx) => {
         await stockGanaderoDb.vaciarStockGanaderaCompleto(tx, id);
         await stockEquinoDb.vaciarStockEquinaCompleto(tx, id);
+        await stockOvinoDb.vaciarStockOvinaCompleto(tx, id);
         return empresasCuenta.deleteEmpresaCuenta(tx, id);
       });
       await authDb.recordAuthEvent(db, "empresa_cuenta_deleted", {

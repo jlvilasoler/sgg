@@ -130,15 +130,18 @@ body:has(.layout-content :is(.sg-module-page, .venc-imp-hub-page)) {
 
 /* Vista dispositivos: el hub está anidado (module-page > devices-page > sg-hub) */
 .bn-ui .sg-module-page.stock-equino-module-page.stock-equino-devices-page,
+.bn-ui .sg-module-page.stock-ovino-module-page.stock-ovino-devices-page,
 .bn-ui .sg-module-page.stock-ganadero-module-page.stock-ganadero-devices-page {
   min-height: 0;
   height: 100%;
   max-height: 100%;
 }
 
-/* Al abrir ficha equina, el módulo deja de bloquear el scroll */
+/* Al abrir ficha equina/ovina, el módulo deja de bloquear el scroll */
 .bn-ui .sg-module-page.stock-equino-module-page.stock-equino-devices-page:has(.stock-equina-editar-page),
-.bn-ui .sg-module-page.stock-equino-module-page.stock-equino-devices-page:has(.stock-equina-detalle-page) {
+.bn-ui .sg-module-page.stock-equino-module-page.stock-equino-devices-page:has(.stock-equina-detalle-page),
+.bn-ui .sg-module-page.stock-ovino-module-page.stock-ovino-devices-page:has(.stock-ovina-editar-page),
+.bn-ui .sg-module-page.stock-ovino-module-page.stock-ovino-devices-page:has(.stock-ovina-detalle-page) {
   overflow-y: auto;
   overflow-x: hidden;
   overscroll-behavior: contain;
@@ -149,6 +152,7 @@ body:has(.layout-content :is(.sg-module-page, .venc-imp-hub-page)) {
 }
 
 .bn-ui .sg-module-page > .stock-equino-devices-page,
+.bn-ui .sg-module-page > .stock-ovino-devices-page,
 .bn-ui .sg-module-page > .stock-ganadero-devices-page {
   flex: 1 1 auto;
   min-height: 0;

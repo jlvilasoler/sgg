@@ -55,6 +55,12 @@ const CATALOGOS: SgHubItem[] = [
     subtitle: "Vaciar y administrar la base de dispositivos equinos",
     icon: "stock_dispositivos",
   },
+  {
+    id: "stock_ovino",
+    label: "Administración de Stock Ovino",
+    subtitle: "Vaciar y administrar la base de dispositivos ovinos",
+    icon: "stock_dispositivos",
+  },
 ];
 
 const SAG_ITEMS: SgHubItem[] = [
@@ -260,7 +266,7 @@ export function flattenConfigNavLayout(layout: ConfigNavLayout): SgHubItem[] {
 
 export function buildConfigCuentaItems(user: AuthUser | null | undefined): SgHubItem[] {
   const items = CATALOGOS.filter((item) => {
-    if (item.id === "stock_ganadero" || item.id === "stock_equino") {
+    if (item.id === "stock_ganadero" || item.id === "stock_equino" || item.id === "stock_ovino") {
       return canAccessStockGanaderoAdmin(user ?? null);
     }
     if (item.id === "rubros") {
@@ -407,6 +413,10 @@ export function configHubMeta(
     stock_equino: {
       title: "Administración Stock Equino",
       subtitle: "Vaciar y administrar dispositivos equinos.",
+    },
+    stock_ovino: {
+      title: "Administración de Stock Ovino",
+      subtitle: "Vaciar y administrar la base de dispositivos ovinos",
     },
     ubicacion_establecimientos: {
       title: "Ubicación Establecimientos",

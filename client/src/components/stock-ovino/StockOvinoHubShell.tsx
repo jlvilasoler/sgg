@@ -1,0 +1,116 @@
+import type { ReactNode } from "react";
+import { StockOvinoModuleIcon } from "../stock/StockControlSanitarioSectionTitle";
+import StockOvinoHubNav from "./StockOvinoHubNav";
+import type { StockOvinoHubItem } from "./StockOvinoHub";
+import {
+  StockOvinoHubAsideSearchField,
+  useStockOvinoAsideSearch,
+} from "./StockOvinoHubAsideSearch";
+
+interface Props {
+  activeId: string;
+  items: StockOvinoHubItem[];
+  onNavigate: (id: string) => void;
+  onVolverDashboard: () => void;
+  onVolverInicio?: () => void;
+  apiOnline: boolean;
+  title: string;
+  subtitle?: ReactNode;
+  headerActions?: ReactNode;
+  sidebarExtra?: ReactNode;
+  asideKicker?: string;
+  asideTitle?: string;
+  children: ReactNode;
+  className?: string;
+  hubClassName?: string;
+}
+
+export default function StockOvinoHubShell({
+  activeId,
+  items,
+  onNavigate,
+  onVolverDashboard,
+  onVolverInicio,
+  apiOnline: _apiOnline,
+  title,
+  subtitle,
+  headerActions,
+  sidebarExtra,
+  asideKicker = "SAG",
+  asideTitle = "Stock Ovino",
+  children,
+  className = "",
+  hubClassName = "",
+}: Props) {
+  const {
+    busquedaModulos,
+    setBusquedaModulos,
+    busquedaInputRef,
+    consultaActiva,
+    itemsFiltrados,
+    mostrarDashboard,
+  } = useStockOvinoAsideSearch(items);
+
+  return (
+    <div className={`sg-hub sg-hub--module${hubClassName ? ` ${hubClassName}` : ""}${className ? ` ${className}` : ""}`}>
+      <aside className="sg-hub-aside sg-hub-aside--module" aria-label="Navegación Stock Ovino">
+        <div className="sg-hub-aside-brand">
+          <span className="sg-hub-aside-logo" aria-hidden>
+            <StockOvinoModuleIcon size={20} strokeWidth={1.75} />
+          </span>
+          <div>
+            <p className="sg-hub-aside-kicker">{asideKicker}</p>
+            <p className="sg-hub-aside-title">{asideTitle}</p>
+          </div>
+        </div>
+
+        <StockOvinoHubAsideSearchField
+          value={busquedaModulos}
+          onChange={setBusquedaModulos}
+          inputRef={busquedaInputRef}
+        />
+
+        <StockOvinoHubNav
+          items={itemsFiltrados}
+          activeId={activeId}
+          onNavigate={onNavigate}
+          onVolverDashboard={onVolverDashboard}
+          showDashboard={mostrarDashboard}
+          showSubtitles={consultaActiva}
+          navLabel={consultaActiva ? `Resultados (${itemsFiltrados.length})` : "Principal"}
+        />
+
+        {consultaActiva && !mostrarDashboard && itemsFiltrados.length === 0 ? (
+          <p className="sg-hub-aside-nav-empty">Ningún módulo coincide con la búsqueda.</p>
+        ) : null}
+
+        {sidebarExtra}
+
+        {onVolverInicio ? (
+          <div className="sg-hub-aside-foot">
+            <button
+              type="button"
+              className="sg-hub-nav-item sg-hub-nav-item--muted"
+              onClick={onVolverInicio}
+            >
+              ‹ Volver al inicio
+            </button>
+          </div>
+        ) : null}
+      </aside>
+
+      <main className="sg-hub-main sg-hub-main--module">
+        <header className="sg-hub-main-head">
+          <div>
+            <h1 className="sg-hub-main-title">{title}</h1>
+            {subtitle ? <p className="sg-hub-main-sub">{subtitle}</p> : null}
+          </div>
+          <div className="sg-hub-main-actions">
+            {headerActions}
+          </div>
+        </header>
+        {children}
+      </main>
+    </div>
+  );
+}

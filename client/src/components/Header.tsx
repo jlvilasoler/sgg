@@ -10,6 +10,7 @@ export type TabId =
   | "ingresos_ventas"
   | "stock_ganadero"
   | "stock_equino"
+  | "stock_ovino"
   | "stock_movimientos"
   | "registro_actividad"
   | "usuarios"

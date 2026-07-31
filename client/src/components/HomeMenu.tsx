@@ -100,6 +100,11 @@ export const MENU_APPS: MenuApp[] = [
     subtitle: "Alta genérica · lecturas RFID · stock y sanidad",
   },
   {
+    id: "stock_ovino",
+    label: "Stock Ovino",
+    subtitle: "Alta genérica · REG 199 · stock y sanidad",
+  },
+  {
     id: "notas",
     label: "Notas",
     subtitle: "Apuntes personales y notas compartidas con el equipo",
@@ -135,6 +140,7 @@ export const MENU_SECTIONS: { id: string; label: string; appIds: TabId[] }[] = [
       "recursos_humanos",
       "stock_ganadero",
       "stock_equino",
+      "stock_ovino",
       "notas",
       "chat",
       "ayuda",

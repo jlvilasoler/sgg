@@ -853,6 +853,32 @@ export type StockEquinaLecturaDetalle = StockGanaderaLecturaDetalle;
 export type StockEquinaDispositivoDetalle = StockGanaderaDispositivoDetalle;
 export type StockEquinaDispositivoHistorial = StockGanaderaDispositivoHistorial;
 
+export type StockOvinoLote = StockGanaderoLote;
+export interface StockOvinoRegistro extends StockGanaderoRegistro {
+  clave?: string;
+  sexo?: string;
+  categoria?: string;
+  castrado?: boolean | null;
+  origen_alta?: string;
+  rp?: string;
+  nombre_animal?: string;
+  registro?: string;
+  premios?: string;
+  empresa?: string;
+  potrero?: string;
+  grupo?: string;
+  edad?: number | null;
+  nacimiento_mes?: number | null;
+  nacimiento_anio?: number | null;
+  estado?: string;
+}
+export type StockOvinoEidRepetido = StockGanaderoEidRepetido;
+export type StockOvinoEstadisticas = StockGanaderoEstadisticas;
+export type StockOvinaDispositivo = StockGanaderaDispositivo;
+export type StockOvinaLecturaDetalle = StockGanaderaLecturaDetalle;
+export type StockOvinaDispositivoDetalle = StockGanaderaDispositivoDetalle;
+export type StockOvinaDispositivoHistorial = StockGanaderaDispositivoHistorial;
+
 export type StockMovimientoTipo = "ALTA" | "BAJA" | "MODIFICACION";
 
 export interface StockMovimientoBajaDispositivo {

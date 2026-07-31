@@ -107,6 +107,24 @@ export function StockEquinoModuleIcon({
   );
 }
 
+export function StockOvinoModuleIcon({
+  className,
+  size = 16,
+  strokeWidth = ICON_STROKE,
+}: {
+  className?: string;
+  size?: number;
+  strokeWidth?: number;
+}) {
+  return (
+    <LucideBovineHoof
+      className={className}
+      size={size}
+      strokeWidth={strokeWidth}
+    />
+  );
+}
+
 function renderIcon(icon: AnyIcon, size: number) {
   const props: LucideProps = {
     size,

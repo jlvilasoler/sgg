@@ -1,4 +1,4 @@
-﻿import type { DispositivoEstado, DispositivoSexo, TipoBaja } from "../../types";
+import type { DispositivoEstado, DispositivoSexo, TipoBaja } from "../../types";
 
 /** Longitud del prefijo EID en RFID Tru-Test (ej. 858). */
 export const EID_PREFIX_LEN = 3;
@@ -997,4 +997,159 @@ export function listAniosNacimiento(): number[] {
   const years: number[] = [];
   for (let y = max; y >= ANIO_NACIMIENTO_MIN; y--) years.push(y);
   return years;
+}
+
+export function fmtCategoriaEquino(categoria: string | null | undefined): string {
+  const c = String(categoria ?? "").trim().toUpperCase();
+  const map: Record<string, string> = {
+    POTRANCA: "Potranca",
+    POTRA: "Potra",
+    YEGUA: "Yegua",
+    POTRILLO: "Potrillo",
+    POTRO: "Potro",
+    CABALLO: "Caballo",
+    PADRILLO: "Padrillo",
+  };
+  return map[c] ?? (c || "—");
+}
+
+function nombreEquinoSortValue(d: {
+  nombre_animal?: string;
+  nombre_cabana?: string;
+  rp?: string;
+}): string {
+  const nombre = d.nombre_animal?.trim() || d.nombre_cabana?.trim() || "";
+  if (nombre) return nombre;
+  const rp = d.rp?.trim();
+  return rp ? `RP ${rp}` : "";
+}
+
+/** Columnas ordenables de la tabla Stock Equino. */
+export type StockEquinaSortKey =
+  | "reg"
+  | "nombre"
+  | "empresa"
+  | "generacion"
+  | "grupo"
+  | "potrero"
+  | "categoria"
+  | "sexo"
+  | "edad"
+  | "ultima_lectura"
+  | "estado";
+
+export type StockEquinaSortDir = "asc" | "desc";
+
+export function defaultStockEquinaSortDir(key: StockEquinaSortKey): StockEquinaSortDir {
+  if (key === "reg" || key === "edad" || key === "ultima_lectura") return "desc";
+  return "asc";
+}
+
+function cmpTexto(a: string, b: string): number {
+  return a.localeCompare(b, "es", { sensitivity: "base", numeric: true });
+}
+
+function cmpNumeroNullLast(
+  a: number | null,
+  b: number | null,
+  dir: StockEquinaSortDir,
+): number {
+  if (a == null && b == null) return 0;
+  if (a == null) return 1;
+  if (b == null) return -1;
+  return dir === "asc" ? a - b : b - a;
+}
+
+export function compareStockEquinaDispositivos(
+  a: {
+    clave: string;
+    eid: string;
+    vid: string;
+    sexo: string;
+    empresa: string;
+    grupo: string;
+    grupo_libre: string;
+    potrero: string;
+    categoria?: string;
+    nombre_animal?: string;
+    nombre_cabana?: string;
+    rp?: string;
+    edad: number | null;
+    nacimiento_mes: number | null;
+    nacimiento_anio: number | null;
+    ultima_fecha: string;
+    ultima_hora: string;
+    estado: DispositivoEstado;
+  },
+  b: {
+    clave: string;
+    eid: string;
+    vid: string;
+    sexo: string;
+    empresa: string;
+    grupo: string;
+    grupo_libre: string;
+    potrero: string;
+    categoria?: string;
+    nombre_animal?: string;
+    nombre_cabana?: string;
+    rp?: string;
+    edad: number | null;
+    nacimiento_mes: number | null;
+    nacimiento_anio: number | null;
+    ultima_fecha: string;
+    ultima_hora: string;
+    estado: DispositivoEstado;
+  },
+  key: StockEquinaSortKey,
+  dir: StockEquinaSortDir,
+  empresaLabel: (codigo: string) => string,
+  potreroLabel: (potrero: string) => string = (p) => p || "—",
+): number {
+  const mul = dir === "asc" ? 1 : -1;
+  let c = 0;
+
+  switch (key) {
+    case "reg":
+      c = cmpTexto(
+        `${a.eid || ""} ${a.vid || ""}`.trim(),
+        `${b.eid || ""} ${b.vid || ""}`.trim(),
+      );
+      break;
+    case "nombre":
+      c = cmpTexto(nombreEquinoSortValue(a), nombreEquinoSortValue(b));
+      break;
+    case "empresa":
+      c = cmpTexto(empresaLabel(a.empresa), empresaLabel(b.empresa));
+      break;
+    case "generacion":
+      c = cmpTexto(fmtGrupo(a.grupo), fmtGrupo(b.grupo));
+      break;
+    case "grupo":
+      c = cmpTexto(fmtGrupoLibre(a.grupo_libre), fmtGrupoLibre(b.grupo_libre));
+      break;
+    case "potrero":
+      c = cmpTexto(potreroLabel(a.potrero), potreroLabel(b.potrero));
+      break;
+    case "categoria":
+      c = cmpTexto(fmtCategoriaEquino(a.categoria), fmtCategoriaEquino(b.categoria));
+      break;
+    case "sexo":
+      c = cmpTexto(a.sexo || "", b.sexo || "");
+      break;
+    case "edad":
+      return cmpNumeroNullLast(edadMesesDispositivo(a), edadMesesDispositivo(b), dir);
+    case "ultima_lectura": {
+      const ta = `${a.ultima_fecha || ""}T${a.ultima_hora || ""}`;
+      const tb = `${b.ultima_fecha || ""}T${b.ultima_hora || ""}`;
+      c = cmpTexto(ta, tb);
+      break;
+    }
+    case "estado":
+      c = cmpTexto(fmtEstadoDispositivo(a.estado), fmtEstadoDispositivo(b.estado));
+      break;
+  }
+
+  if (c !== 0) return c * mul;
+  return cmpTexto(a.clave, b.clave);
 }

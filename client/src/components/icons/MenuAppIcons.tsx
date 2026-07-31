@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { ArrowLeftRight, CircleDollarSign } from "lucide-react";
 import type { TabId } from "../Header";
-import { StockGanaderoModuleIcon, StockEquinoModuleIcon } from "../stock/StockControlSanitarioSectionTitle";
+import { StockGanaderoModuleIcon, StockEquinoModuleIcon, StockOvinoModuleIcon } from "../stock/StockControlSanitarioSectionTitle";
 
 type IconProps = { className?: string };
 
@@ -112,6 +112,10 @@ function IconStockGanadero({ className }: IconProps) {
 
 function IconStockEquino({ className }: IconProps) {
   return <StockEquinoModuleIcon className={className} size={24} strokeWidth={1.65} />;
+}
+
+function IconStockOvino({ className }: IconProps) {
+  return <StockOvinoModuleIcon className={className} size={24} strokeWidth={1.65} />;
 }
 
 function IconStockMovimientos({ className }: IconProps) {
@@ -325,6 +329,7 @@ const ICONS: Record<TabId, (props: IconProps) => ReactNode> = {
   campo_mapa: IconCampoMapa,
   tareas_operativas: IconTareasOperativas,
   stock_equino: IconStockEquino,
+  stock_ovino: IconStockOvino,
   stock_movimientos: IconStockMovimientos,
   registro_actividad: IconRegistroActividad,
   notas: IconNotas,
@@ -417,6 +422,11 @@ export const MENU_APP_THEMES: Record<TabId, MenuAppTheme> = {
     accent: "#4338ca",
     accentSoft: "linear-gradient(145deg, #eef2ff 0%, #e0e7ff 45%, #c7d2fe 100%)",
     accentGlow: "rgba(67, 56, 202, 0.28)",
+  },
+  stock_ovino: {
+    accent: "#0f766e",
+    accentSoft: "linear-gradient(145deg, #f0fdfa 0%, #ccfbf1 45%, #99f6e4 100%)",
+    accentGlow: "rgba(15, 118, 110, 0.28)",
   },
   stock_movimientos: {
     accent: "#ea580c",

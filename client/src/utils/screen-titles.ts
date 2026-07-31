@@ -15,6 +15,7 @@ const SCREEN_TITLES: Record<TabId, string> = {
   campo_mapa: "Mapa del campo",
   tareas_operativas: "Tareas operativas",
   stock_equino: "Stock Equino",
+  stock_ovino: "Stock Ovino",
   stock_movimientos: "Movimientos de Dispositivos",
   registro_actividad: "Registro de actividad",
   notas: "Notas",

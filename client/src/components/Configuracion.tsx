@@ -30,6 +30,7 @@ import Rubros from "./Rubros";
 import RubrosSag from "./rubros/RubrosSag";
 import StockGanaderoAdmin from "./stock/StockGanaderoAdmin";
 import StockEquinoAdmin from "./stock-equino/StockEquinoAdmin";
+import StockOvinoAdmin from "./stock-ovino/StockOvinoAdmin";
 import AdministradorCuenta from "./AdministradorCuenta";
 import SuscripcionCuenta from "./SuscripcionCuenta";
 import ConfigUbicacionEstablecimientos from "./config/ConfigUbicacionEstablecimientos";
@@ -62,6 +63,7 @@ type CatalogoModulo =
   | "rubros"
   | "stock_ganadero"
   | "stock_equino"
+  | "stock_ovino"
   | "ubicacion_establecimientos"
   | "suscripcion"
   | "admin_cuenta"
@@ -207,7 +209,7 @@ export default function Configuracion({
       setModulo(esSuperAdmin ? "sag_hub" : "menu");
     }
     if (
-      (modulo === "stock_ganadero" || modulo === "stock_equino") &&
+      (modulo === "stock_ganadero" || modulo === "stock_equino" || modulo === "stock_ovino") &&
       !canAccessStockGanaderoAdmin(currentUser ?? null)
     ) {
       setModulo("cuenta_hub");
@@ -386,6 +388,19 @@ export default function Configuracion({
         onError={onError}
         onSuccess={onSuccess}
         onVolver={() => volverConfigDashboard("stock_equino")}
+      />
+    );
+  }
+
+  if (modulo === "stock_ovino") {
+    return wrapConfigSubmodule(
+      "stock_ovino",
+      <StockOvinoAdmin
+        apiOnline={apiOnline}
+        currentUser={currentUser}
+        onError={onError}
+        onSuccess={onSuccess}
+        onVolver={() => volverConfigDashboard("stock_ovino")}
       />
     );
   }

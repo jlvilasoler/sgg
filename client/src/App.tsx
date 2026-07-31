@@ -37,6 +37,7 @@ import StockGanadero from "./components/stock/StockGanadero";
 import CampoMapa from "./components/campo/CampoMapa";
 import TareasOperativas from "./components/operaciones/TareasOperativas";
 import StockEquino from "./components/stock-equino/StockEquino";
+import StockOvino from "./components/stock-ovino/StockOvino";
 import DocumentosDigitales from "./components/DocumentosDigitales";
 import VencimientosImpuestos from "./components/VencimientosImpuestos";
 import ChatPanel from "./components/ChatPanel";
@@ -773,6 +774,15 @@ export default function App() {
             )}
             {screen === "stock_equino" && (
               <StockEquino
+                apiOnline={apiOnline}
+                currentUser={user}
+                onError={(m) => notify(m, false)}
+                onSuccess={(m, t) => notify(m, true, t)}
+                onVolver={goHome}
+              />
+            )}
+            {screen === "stock_ovino" && (
+              <StockOvino
                 apiOnline={apiOnline}
                 currentUser={user}
                 onError={(m) => notify(m, false)}

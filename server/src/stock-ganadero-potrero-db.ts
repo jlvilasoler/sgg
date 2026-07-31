@@ -95,6 +95,34 @@ export async function migrateEquinoPotreroColumn(db: Db): Promise<void> {
     .run();
 }
 
+export async function migrateOvinoPotreroColumn(db: Db): Promise<void> {
+  const done = (await db
+    .prepare(
+      `SELECT 1 AS ok FROM STOCK_OVINO_DISPOSITIVO_HISTORIAL
+       WHERE clave = '__meta__' AND campo = 'potrero_col' LIMIT 1`
+    )
+    .get()) as { ok: number } | undefined;
+  if (done) return;
+
+  try {
+    await db
+      .prepare(
+        `ALTER TABLE STOCK_OVINO_DISPOSITIVO ADD COLUMN potrero TEXT NOT NULL DEFAULT ''`
+      )
+      .run();
+  } catch {
+    /* columna ya existe */
+  }
+
+  await db
+    .prepare(
+      `INSERT INTO STOCK_OVINO_DISPOSITIVO_HISTORIAL
+         (clave, campo, etiqueta, valor_anterior, valor_nuevo)
+       VALUES ('__meta__', 'potrero_col', '', '', '')`
+    )
+    .run();
+}
+
 export async function migratePotreroCatalogTable(db: Db): Promise<void> {
   const done = (await db
     .prepare(

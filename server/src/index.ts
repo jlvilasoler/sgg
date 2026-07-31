@@ -60,6 +60,7 @@ import {
 } from "./parse-stock-ganadero-txt.js";
 import type { DispositivoMetaPatch, StockGanaderoFilters } from "./stock-ganadero-db.js";
 import type { StockEquinoFilters } from "./stock-equino-db.js";
+import type { StockOvinoFilters } from "./stock-ovino-db.js";
 import { parseTipoBaja, tipoBajaDesdeEstadoImport, type TipoBaja } from "./stock-ganadero-db.js";
 import { auditBajasDispositivos, auditStockMovimiento, historialAutorFromRequest, historialAutorLabelFromRequest } from "./stock-audit.js";
 import { type Empresa, type Presupuesto, type PresupuestoInput } from "./types.js";
@@ -916,6 +917,39 @@ function stockGanaderoQueryBase(req: Request): StockGanaderoFilters {
 function stockEquinoQueryBase(req: Request): StockEquinoFilters {
   return stockGanaderoQueryBase(req) as StockEquinoFilters;
 }
+
+async function stockOvinoFiltersFromRequest(
+  req: Request,
+  base: StockOvinoFilters = {}
+): Promise<StockOvinoFilters> {
+  const user = req.user;
+  if (!user) return base;
+  let filters: StockOvinoFilters = { ...base };
+  const empresas = await empresasCuenta.getEmpresasCodigosScopeFilter(db.getDb(), user);
+  if (empresas) filters = { ...filters, empresas };
+  const lecturasScope = await stockLecturasFiltersFromRequest(req, {});
+  if (lecturasScope.cuenta_id != null) {
+    filters = { ...filters, cuenta_id: lecturasScope.cuenta_id };
+  }
+  return filters;
+}
+
+async function assertLoteOvinoEnCuentaUsuario(req: Request, loteId: number): Promise<void> {
+  const lote = await db.stockOvino.getLote(loteId);
+  if (!lote) throw new Error("Lote no encontrado");
+  const user = req.user!;
+  if (user.es_super_admin) return;
+  const cuentaId = await cuentaIdForUser(user);
+  const loteCuenta = lote.cuenta_id ?? null;
+  if (!cuentaId || loteCuenta !== cuentaId) {
+    throw new Error("Sin permiso sobre esta importación");
+  }
+}
+
+function stockOvinoQueryBase(req: Request): StockOvinoFilters {
+  return stockGanaderoQueryBase(req) as StockOvinoFilters;
+}
+
 
 async function applyEmpresaScopeToFilters(
   filters: db.ListFilters,
@@ -2038,6 +2072,12 @@ async function assertStockEquinoDispositivoEnScope(req: Request, clave: string):
   if (!detalle) throw new Error("Dispositivo no encontrado");
 }
 
+async function assertStockOvinoDispositivoEnScope(req: Request, clave: string): Promise<void> {
+  const filters = await stockOvinoFiltersFromRequest(req, stockOvinoQueryBase(req));
+  const detalle = await db.stockOvino.getDispositivo(clave, filters);
+  if (!detalle) throw new Error("Dispositivo no encontrado");
+}
+
 async function assertEmpresaPermitida(user: UserPublic, empresa: string): Promise<void> {
   const nombre = empresa.trim();
   if (!nombre) throw new Error("La empresa es obligatoria.");
@@ -3073,8 +3113,8 @@ app.get("/api/stock-ganadero/control-sanitario/producto-nombres", async (req, re
     const autoresCuenta = req.user ? await autoresLabelsForMarcaScope(req.user) : [];
     const moduloRaw = String(req.query.modulo ?? "").trim().toLowerCase();
     const modulo =
-      moduloRaw === "equino" || moduloRaw === "ganadero"
-        ? (moduloRaw as "equino" | "ganadero")
+      moduloRaw === "equino" || moduloRaw === "ovino" || moduloRaw === "ganadero"
+        ? (moduloRaw as "equino" | "ovino" | "ganadero")
         : undefined;
     const data = await stockControlSanitario.listStockControlSanitarioProductoNombresGlobales(
       db.getDb(),
@@ -5074,7 +5114,7 @@ app.delete("/api/stock-ganadero/lotes/:id", async (req, res) => {
   res.json({ ok: true, message: "Importación eliminada" });
 });
 
-// —— Stock equino (clon de rutas ganadero) ——
+// —— stock ovino (clon de rutas ganadero) ——
 app.get("/api/stock-equino/ultima-importacion-archivo", async (req, res) => {
   const filters = await stockLecturasFiltersFromRequest(req);
   const lotes = await db.stockEquino.listLotes(filters);
@@ -5600,7 +5640,7 @@ app.post("/api/stock-equino/dispositivos/wipe-all", async (req, res) => {
   try {
     const result = await db.stockEquino.vaciarCompleto(cuentaId);
     await auditStockMovimiento(req, "MODIFICACION", {
-      resumen: "Vació todo el stock equino",
+      resumen: "Vació todo el stock ovino",
       detalle: { ...result },
     });
     res.json({ ok: true, data: result });
@@ -6099,7 +6139,7 @@ app.post("/api/stock-equino/razas", async (req, res) => {
     const nombre = typeof req.body?.nombre === "string" ? req.body.nombre : "";
     const raza = await db.stockEquino.createRaza(nombre);
     await auditStockMovimiento(req, "MODIFICACION", {
-      resumen: `Agregó raza equina ${raza} al catálogo`,
+      resumen: `Agregó raza ovina ${raza} al catálogo`,
       detalle: { raza },
     });
     res.json({ ok: true, data: { nombre: raza } });
@@ -6123,7 +6163,7 @@ app.delete("/api/stock-equino/razas", async (req, res) => {
     const nombre = typeof req.body?.nombre === "string" ? req.body.nombre : "";
     const eliminada = await db.stockEquino.deleteRaza(nombre);
     await auditStockMovimiento(req, "MODIFICACION", {
-      resumen: `Eliminó raza equina ${eliminada} del catálogo`,
+      resumen: `Eliminó raza ovina ${eliminada} del catálogo`,
       detalle: { raza: eliminada },
     });
     res.json({ ok: true, data: { nombre: eliminada } });
@@ -6537,6 +6577,1232 @@ function parseProveedorBody(req: Request) {
     ciudad: String(body.ciudad ?? "").trim(),
   };
 }
+
+
+app.get("/api/stock-ovino/ultima-importacion-archivo", async (req, res) => {
+  const filters = await stockLecturasFiltersFromRequest(req);
+  const lotes = await db.stockOvino.listLotes(filters);
+  const lote = lotes.find((l) => l.nombre_archivo !== "carga-manual");
+  if (!lote) {
+    res.json({ ok: true, data: null });
+    return;
+  }
+  res.json({
+    ok: true,
+    data: { id: lote.id, nombre: lote.nombre_archivo, filas: lote.filas },
+  });
+});
+
+app.get("/api/stock-ovino/lotes", async (req, res) => {
+  const filters = await stockLecturasFiltersFromRequest(req);
+  res.json({ ok: true, data: await db.stockOvino.listLotes(filters) });
+});
+
+app.get("/api/stock-ovino/registros", async (req, res) => {
+  const loteId = req.query.lote_id ? Number(req.query.lote_id) : undefined;
+  const filters = await stockLecturasFiltersFromRequest(req, {
+    lote_id: loteId && Number.isFinite(loteId) ? loteId : undefined,
+    busqueda: req.query.busqueda as string | undefined,
+    fecha_desde: req.query.fecha_desde as string | undefined,
+    fecha_hasta: req.query.fecha_hasta as string | undefined,
+    solo_repetidos: req.query.solo_repetidos === "1" || req.query.solo_repetidos === "true",
+  });
+  res.json({
+    ok: true,
+    data: await db.stockOvino.listRegistros(filters),
+  });
+});
+
+app.get("/api/stock-ovino/estadisticas", async (req, res) => {
+  const loteId = req.query.lote_id ? Number(req.query.lote_id) : undefined;
+  const filters = await stockLecturasFiltersFromRequest(req, {
+    lote_id: loteId && Number.isFinite(loteId) ? loteId : undefined,
+    busqueda: req.query.busqueda as string | undefined,
+    fecha_desde: req.query.fecha_desde as string | undefined,
+    fecha_hasta: req.query.fecha_hasta as string | undefined,
+  });
+  res.json({
+    ok: true,
+    data: await db.stockOvino.estadisticas(filters),
+  });
+});
+
+app.get("/api/stock-ovino/salidas", async (req, res) => {
+  const filters = await stockOvinoFiltersFromRequest(req, stockOvinoQueryBase(req));
+  const { data, bajas_reparadas } = await db.stockOvino.listSalidas(filters);
+  res.json({ ok: true, data, bajas_reparadas });
+});
+
+app.get("/api/stock-ovino/empresas-operativas", async (req, res) => {
+  const detalle = await empresasCuenta.getEmpresasOperativasDetallePermitidas(
+    db.getDb(),
+    req.user!
+  );
+  res.json({ ok: true, data: detalle });
+});
+
+app.get("/api/stock-ovino/dispositivos", async (req, res) => {
+  const filters = await stockOvinoFiltersFromRequest(req, {
+    ...stockOvinoQueryBase(req),
+    solo_repetidos:
+      req.query.solo_repetidos === "1" || req.query.solo_repetidos === "true",
+    solo_bajas:
+      req.query.solo_bajas === "1" || req.query.solo_bajas === "true",
+  });
+  res.json({
+    ok: true,
+    data: await db.stockOvino.listDispositivos(filters),
+  });
+});
+
+app.get("/api/stock-ovino/dispositivos/:clave", async (req, res) => {
+  const filters = await stockOvinoFiltersFromRequest(req, stockOvinoQueryBase(req));
+  const detalle = await db.stockOvino.getDispositivo(req.params.clave, filters);
+  if (!detalle) {
+    res.status(404).json({ ok: false, error: "Dispositivo no encontrado" });
+    return;
+  }
+  res.json({ ok: true, data: detalle });
+});
+
+app.get("/api/stock-ovino/dispositivos/:clave/historial-cambios", async (req, res) => {
+  try {
+    await assertStockOvinoDispositivoEnScope(req, req.params.clave);
+    const data = await db.stockOvino.listHistorialCambios(req.params.clave);
+    res.json({ ok: true, data });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al cargar historial",
+    });
+  }
+});
+
+app.get("/api/stock-ovino/control-sanitario/cantidad-opciones", async (_req, res) => {
+  try {
+    const data = await stockControlSanitario.listStockControlSanitarioCantidadCatalog(
+      db.getDb()
+    );
+    res.json({ ok: true, data });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al cargar cantidades",
+    });
+  }
+});
+
+app.post("/api/stock-ovino/control-sanitario/cantidad-opciones", async (req, res) => {
+  try {
+    const autor = historialAutorLabelFromRequest(req);
+    const valor = String(req.body?.valor ?? "");
+    const data = await stockControlSanitario.createStockControlSanitarioCantidadCatalog(
+      db.getDb(),
+      valor,
+      autor
+    );
+    res.json({ ok: true, data });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al guardar cantidad",
+    });
+  }
+});
+
+app.get("/api/stock-ovino/control-sanitario/espera-opciones", async (_req, res) => {
+  try {
+    const data = await stockControlSanitario.listStockControlSanitarioEsperaCatalog(db.getDb());
+    res.json({ ok: true, data });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al cargar tiempos de espera",
+    });
+  }
+});
+
+app.post("/api/stock-ovino/control-sanitario/espera-opciones", async (req, res) => {
+  try {
+    const autor = historialAutorLabelFromRequest(req);
+    const valor = String(req.body?.valor ?? "");
+    const data = await stockControlSanitario.createStockControlSanitarioEsperaCatalog(
+      db.getDb(),
+      valor,
+      autor
+    );
+    res.json({ ok: true, data });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al guardar tiempo de espera",
+    });
+  }
+});
+
+app.get("/api/stock-ovino/control-sanitario/producto-ficha/:nombre", async (req, res) => {
+  try {
+    const data = await stockControlSanitario.getStockControlSanitarioProductoFicha(
+      db.getDb(),
+      String(req.params.nombre ?? "")
+    );
+    res.json({ ok: true, data });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al cargar ficha del producto",
+    });
+  }
+});
+
+app.put("/api/stock-ovino/control-sanitario/producto-ficha", async (req, res) => {
+  try {
+    const autor = historialAutorLabelFromRequest(req);
+    const data = await stockControlSanitario.upsertStockControlSanitarioProductoFicha(
+      db.getDb(),
+      req.body ?? {},
+      autor
+    );
+    res.json({ ok: true, data });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al guardar ficha del producto",
+    });
+  }
+});
+
+app.get("/api/stock-ovino/dispositivos/:clave/control-sanitario", async (req, res) => {
+  try {
+    await assertStockOvinoDispositivoEnScope(req, req.params.clave);
+    const data = await stockControlSanitario.listStockControlSanitario(
+      db.getDb(),
+      "ovino",
+      String(req.params.clave)
+    );
+    res.json({ ok: true, data });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al cargar control sanitario",
+    });
+  }
+});
+
+app.post("/api/stock-ovino/dispositivos/:clave/control-sanitario", async (req, res) => {
+  try {
+    await assertStockOvinoDispositivoEnScope(req, req.params.clave);
+    const autor = historialAutorLabelFromRequest(req);
+    const data = await stockControlSanitario.createStockControlSanitario(
+      db.getDb(),
+      "ovino",
+      String(req.params.clave),
+      req.body ?? {},
+      autor
+    );
+    res.json({ ok: true, data });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al guardar control sanitario",
+    });
+  }
+});
+
+app.delete(
+  "/api/stock-ovino/dispositivos/:clave/control-sanitario/:id",
+  async (req, res) => {
+    try {
+      await assertStockOvinoDispositivoEnScope(req, req.params.clave);
+      const id = Number(req.params.id);
+      await stockControlSanitario.deleteStockControlSanitario(
+        db.getDb(),
+        "ovino",
+        String(req.params.clave),
+        id
+      );
+      res.json({ ok: true });
+    } catch (e) {
+      res.status(400).json({
+        ok: false,
+        error: e instanceof Error ? e.message : "Error al eliminar registro",
+      });
+    }
+  }
+);
+
+app.get("/api/stock-ovino/dispositivos/:clave/fotos", async (req, res) => {
+  try {
+    const clave = String(req.params.clave);
+    const data = await stockDispositivoFoto.getStockDispositivoFotoDto(
+      db.getDb(),
+      "ovino",
+      clave
+    );
+    res.json({ ok: true, data });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al listar fotos",
+    });
+  }
+});
+
+app.get("/api/stock-ovino/dispositivos/:clave/foto/:fotoId", async (req, res) => {
+  try {
+    const clave = String(req.params.clave);
+    const fotoId = Number(req.params.fotoId);
+    if (!Number.isFinite(fotoId) || fotoId < 1) {
+      res.status(400).json({ ok: false, error: "Foto inválida" });
+      return;
+    }
+    const image = await stockDispositivoFoto.loadStockDispositivoFotoById(
+      db.getDb(),
+      "ovino",
+      clave,
+      fotoId,
+      { thumb: wantsFotoThumb(req) }
+    );
+    if (!image) {
+      res.status(404).json({ ok: false, error: "Sin foto del animal" });
+      return;
+    }
+    setStockDispositivoFotoCacheHeaders(req, res);
+    res.type(image.mime).send(image.buffer);
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al cargar foto",
+    });
+  }
+});
+
+app.patch(
+  "/api/stock-ovino/dispositivos/:clave/foto/:fotoId/principal",
+  async (req, res) => {
+    try {
+      const clave = String(req.params.clave);
+      const fotoId = Number(req.params.fotoId);
+      if (!Number.isFinite(fotoId) || fotoId < 1) {
+        res.status(400).json({ ok: false, error: "Foto inválida" });
+        return;
+      }
+      const data = await stockDispositivoFoto.setStockDispositivoFotoPrincipal(
+        db.getDb(),
+        "ovino",
+        clave,
+        fotoId
+      );
+      res.json({ ok: true, data });
+    } catch (e) {
+      res.status(400).json({
+        ok: false,
+        error: e instanceof Error ? e.message : "Error al marcar foto principal",
+      });
+    }
+  }
+);
+
+app.delete("/api/stock-ovino/dispositivos/:clave/foto/:fotoId", async (req, res) => {
+  try {
+    const clave = String(req.params.clave);
+    const fotoId = Number(req.params.fotoId);
+    if (!Number.isFinite(fotoId) || fotoId < 1) {
+      res.status(400).json({ ok: false, error: "Foto inválida" });
+      return;
+    }
+    const data = await stockDispositivoFoto.deleteStockDispositivoFotoById(
+      db.getDb(),
+      "ovino",
+      clave,
+      fotoId
+    );
+    res.json({ ok: true, data });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al quitar foto",
+    });
+  }
+});
+
+app.get("/api/stock-ovino/dispositivos/:clave/foto", async (req, res) => {
+  try {
+    const clave = String(req.params.clave);
+    const image = await stockDispositivoFoto.loadStockDispositivoFoto(
+      db.getDb(),
+      "ovino",
+      clave
+    );
+    if (!image) {
+      res.status(404).json({ ok: false, error: "Sin foto del animal" });
+      return;
+    }
+    setStockDispositivoFotoCacheHeaders(req, res);
+    res.type(image.mime).send(image.buffer);
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al cargar foto",
+    });
+  }
+});
+
+app.post(
+  "/api/stock-ovino/dispositivos/:clave/foto",
+  iconUpload.single("foto"),
+  async (req, res) => {
+    try {
+      const clave = String(req.params.clave);
+      const file = req.file;
+      if (!file?.buffer?.length) {
+        res.status(400).json({ ok: false, error: "Seleccioná una imagen" });
+        return;
+      }
+      const data = await stockDispositivoFoto.saveStockDispositivoFoto(
+        db.getDb(),
+        "ovino",
+        clave,
+        file.buffer,
+        file.mimetype
+      );
+      res.json({ ok: true, data });
+    } catch (e) {
+      res.status(400).json({
+        ok: false,
+        error: e instanceof Error ? e.message : "Error al subir foto",
+      });
+    }
+  }
+);
+
+app.delete("/api/stock-ovino/dispositivos/:clave/foto", async (req, res) => {
+  try {
+    const clave = String(req.params.clave);
+    const data = await stockDispositivoFoto.clearStockDispositivoFoto(
+      db.getDb(),
+      "ovino",
+      clave
+    );
+    res.json({ ok: true, data });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al quitar foto",
+    });
+  }
+});
+
+app.patch("/api/stock-ovino/dispositivos/bulk", async (req, res) => {
+  try {
+    const body = req.body ?? {};
+    const claves = Array.isArray(body.claves)
+      ? body.claves.map((c: unknown) => String(c).trim()).filter(Boolean)
+      : [];
+    const patch = (body.patch ?? {}) as Record<string, unknown>;
+    const eids =
+      body.eids && typeof body.eids === "object" && !Array.isArray(body.eids)
+        ? (body.eids as Record<string, string>)
+        : {};
+
+    const metaPatch: DispositivoMetaPatch = {};
+    if (patch.sexo !== undefined) {
+      metaPatch.sexo = String(patch.sexo).toUpperCase() as "" | "MACHO" | "HEMBRA";
+    }
+    if (patch.empresa !== undefined) {
+      const empresa = String(patch.empresa).trim().toUpperCase();
+      await assertEmpresaCodigoPermitida(req.user!, empresa);
+      metaPatch.empresa = empresa;
+    }
+    if (patch.nacimiento_mes !== undefined) {
+      const v = patch.nacimiento_mes;
+      metaPatch.nacimiento_mes =
+        v === null || v === "" ? null : Number(v);
+    }
+    if (patch.nacimiento_anio !== undefined) {
+      const v = patch.nacimiento_anio;
+      metaPatch.nacimiento_anio =
+        v === null || v === "" ? null : Number(v);
+    }
+    if (patch.observaciones !== undefined) {
+      metaPatch.observaciones = String(patch.observaciones);
+    }
+    if (patch.estado !== undefined) {
+      metaPatch.estado = String(patch.estado).toUpperCase() as
+        | "VIVO"
+        | "MUERTO"
+        | "VENDIDO"
+        | "FRIGORIFICO";
+    }
+    if (patch.baja_mes !== undefined) {
+      const v = patch.baja_mes;
+      metaPatch.baja_mes = v === null || v === "" ? null : Number(v);
+    }
+    if (patch.baja_anio !== undefined) {
+      const v = patch.baja_anio;
+      metaPatch.baja_anio = v === null || v === "" ? null : Number(v);
+    }
+
+    const result = await db.stockOvino.bulkPatchDispositivos(
+      claves,
+      metaPatch,
+      eids,
+      historialAutorFromRequest(req, "MASIVO")
+    );
+    if (result.actualizados > 0) {
+      await auditStockMovimiento(req, "MODIFICACION", {
+        cantidad: result.actualizados,
+        resumen: `Modificación masiva de ${result.actualizados} dispositivo(s)`,
+        detalle: { claves: claves.slice(0, 25), patch: metaPatch },
+      });
+    }
+    res.json({ ok: true, data: result });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al actualizar dispositivos",
+    });
+  }
+});
+
+app.post("/api/stock-ovino/dispositivos/bulk-delete", async (req, res) => {
+  if (!req.user || req.user.rol !== "admin") {
+    res.status(403).json({ ok: false, error: "Solo administradores" });
+    return;
+  }
+  try {
+    const body = req.body ?? {};
+    const claves = Array.isArray(body.claves)
+      ? body.claves.map((c: unknown) => String(c).trim()).filter(Boolean)
+      : [];
+    const result = await db.stockOvino.deleteDispositivos(claves);
+    await auditStockMovimiento(req, "MODIFICACION", {
+      cantidad: result.eliminados,
+      resumen: `Eliminó ${result.eliminados} dispositivo(s) del sistema`,
+      detalle: {
+        claves: claves.slice(0, 25),
+        lecturas_eliminadas: result.lecturas_eliminadas,
+        no_encontrados: result.no_encontrados,
+      },
+    });
+    res.json({ ok: true, data: result });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al eliminar dispositivos",
+    });
+  }
+});
+
+app.post("/api/stock-ovino/dispositivos/wipe-all", async (req, res) => {
+  if (!req.user || req.user.rol !== "admin") {
+    res.status(403).json({ ok: false, error: "Solo administradores" });
+    return;
+  }
+  const cuentaId = await requireStockAdminCuentaId(req, res);
+  if (cuentaId == null && !req.user!.es_super_admin) return;
+  try {
+    const result = await db.stockOvino.vaciarCompleto(cuentaId);
+    await auditStockMovimiento(req, "MODIFICACION", {
+      resumen: "Vació todo el stock ovino",
+      detalle: { ...result },
+    });
+    res.json({ ok: true, data: result });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al vaciar el stock",
+    });
+  }
+});
+
+app.get("/api/stock-ovino/backup", async (req, res) => {
+  if (!req.user || req.user.rol !== "admin") {
+    res.status(403).json({ ok: false, error: "Solo administradores" });
+    return;
+  }
+  const cuentaId = await requireStockAdminCuentaId(req, res);
+  if (cuentaId == null) {
+    if (req.user.es_super_admin) {
+      res.json({
+        ok: true,
+        data: {
+          disponible: false,
+          creado_en: null,
+          dispositivos: 0,
+          lecturas: 0,
+          historial: 0,
+          vinculos_sim: 0,
+        },
+      });
+      return;
+    }
+    return;
+  }
+  try {
+    res.json({ ok: true, data: await db.stockOvino.backupInfo(cuentaId) });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al leer respaldo",
+    });
+  }
+});
+
+app.post("/api/stock-ovino/backup/restore", async (req, res) => {
+  if (!req.user || req.user.rol !== "admin") {
+    res.status(403).json({ ok: false, error: "Solo administradores" });
+    return;
+  }
+  const cuentaId = await requireStockAdminCuentaId(req, res);
+  if (cuentaId == null) {
+    if (!req.user.es_super_admin) return;
+    res.status(400).json({
+      ok: false,
+      error: "Recuperación de respaldo requiere una cuenta madre asociada",
+    });
+    return;
+  }
+  try {
+    const result = await db.stockOvino.restaurarDesdeBackup(cuentaId);
+    await auditStockMovimiento(req, "MODIFICACION", {
+      resumen: `Restauró stock ganadero desde respaldo (${result.dispositivos_restaurados} dispositivo(s))`,
+      detalle: { ...result },
+    });
+    res.json({ ok: true, data: result });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al restaurar respaldo",
+    });
+  }
+});
+
+app.patch("/api/stock-ovino/dispositivos/:clave/sexo", async (req, res) => {
+  try {
+    const sexo = String(req.body?.sexo ?? "").toUpperCase() as
+      | ""
+      | "MACHO"
+      | "HEMBRA";
+    const eid = typeof req.body?.eid === "string" ? req.body.eid : undefined;
+    const actualizado = await db.stockOvino.updateDispositivoSexo(
+      req.params.clave,
+      sexo,
+      eid,
+      historialAutorFromRequest(req, "FICHA")
+    );
+    await auditStockMovimiento(req, "MODIFICACION", {
+      clave: req.params.clave,
+      resumen: `Cambió sexo del dispositivo ${req.params.clave}`,
+      detalle: { sexo: actualizado },
+    });
+    res.json({ ok: true, data: { sexo: actualizado } });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al guardar sexo",
+    });
+  }
+});
+
+app.patch("/api/stock-ovino/dispositivos/:clave", async (req, res) => {
+  try {
+    const body = req.body ?? {};
+    const sexo = String(body.sexo ?? "").toUpperCase() as "" | "MACHO" | "HEMBRA";
+    const empresa = String(body.empresa ?? "").trim().toUpperCase();
+    await assertEmpresaCodigoPermitida(req.user!, empresa);
+    const mesRaw = body.nacimiento_mes;
+    const nacimiento_mes =
+      mesRaw === null || mesRaw === undefined || mesRaw === ""
+        ? null
+        : Number(mesRaw);
+    const anioRaw = body.nacimiento_anio;
+    const nacimiento_anio =
+      anioRaw === null || anioRaw === undefined || anioRaw === ""
+        ? null
+        : Number(anioRaw);
+    const observaciones =
+      typeof body.observaciones === "string" ? body.observaciones : "";
+    const grupo_libre =
+      typeof body.grupo_libre === "string" ? body.grupo_libre : "";
+    const potrero = typeof body.potrero === "string" ? body.potrero : "";
+    const raza = typeof body.raza === "string" ? body.raza : "";
+    const pelaje = typeof body.pelaje === "string" ? body.pelaje : "";
+    const rp = typeof body.rp === "string" ? body.rp : "";
+    const nombre_animal = typeof body.nombre_animal === "string" ? body.nombre_animal : "";
+    const registro = typeof body.registro === "string" ? body.registro : "";
+    const premios = typeof body.premios === "string" ? body.premios : "";
+    const estado = String(body.estado ?? "VIVO").toUpperCase() as
+      | "VIVO"
+      | "MUERTO"
+      | "VENDIDO"
+      | "FRIGORIFICO"
+      | "PERDIDO";
+    const tipo_baja = optionalTipoBaja(body.tipo_baja);
+    const numero_guia =
+      typeof body.numero_guia === "string" ? body.numero_guia : "";
+    const bajaMesRaw = body.baja_mes;
+    const baja_mes =
+      bajaMesRaw === null || bajaMesRaw === undefined || bajaMesRaw === ""
+        ? null
+        : Number(bajaMesRaw);
+    const bajaAnioRaw = body.baja_anio;
+    const baja_anio =
+      bajaAnioRaw === null || bajaAnioRaw === undefined || bajaAnioRaw === ""
+        ? null
+        : Number(bajaAnioRaw);
+    const eid = typeof body.eid === "string" ? body.eid : undefined;
+
+    const data = await db.stockOvino.saveDispositivo(
+      req.params.clave,
+      {
+        sexo,
+        empresa,
+        grupo: "",
+        grupo_libre,
+        potrero,
+        raza,
+        pelaje,
+        nacimiento_mes,
+        nacimiento_anio,
+        observaciones,
+        estado,
+        tipo_baja,
+        numero_guia,
+        baja_mes,
+        baja_anio,
+        rp,
+        nombre_animal,
+        registro,
+        premios,
+      },
+      eid,
+      historialAutorFromRequest(req, "FICHA")
+    );
+    await auditStockMovimiento(req, "MODIFICACION", {
+      clave: req.params.clave,
+      resumen: `Modificó dispositivo ${req.params.clave}`,
+      detalle: {
+        estado: data.estado,
+        tipo_baja: data.tipo_baja,
+        sexo: data.sexo,
+        empresa: data.empresa,
+      },
+    });
+    res.json({ ok: true, data });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al guardar dispositivo",
+    });
+  }
+});
+
+app.patch("/api/stock-ovino/dispositivos/:clave/edad", async (req, res) => {
+  try {
+    const raw = req.body?.edad;
+    const edad =
+      raw === null || raw === undefined || raw === ""
+        ? null
+        : Number(raw);
+    const eid = typeof req.body?.eid === "string" ? req.body.eid : undefined;
+    const actualizado = await db.stockOvino.updateDispositivoEdad(
+      req.params.clave,
+      edad,
+      eid
+    );
+    await auditStockMovimiento(req, "MODIFICACION", {
+      clave: req.params.clave,
+      resumen: `Actualizó edad del dispositivo ${req.params.clave}`,
+      detalle: { edad: actualizado },
+    });
+    res.json({ ok: true, data: { edad: actualizado } });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al guardar edad",
+    });
+  }
+});
+
+app.get("/api/stock-ovino/resumen", async (req, res) => {
+  const filters = await stockOvinoFiltersFromRequest(req);
+  const lecturasFilters = await stockLecturasFiltersFromRequest(req);
+  const lotes = await db.stockOvino.listLotes(lecturasFilters);
+  const [ventasClavesTodas, dispositivosEnScope] = await Promise.all([
+    db.simuladorVentaDispositivos.listClavesEnVentasCerradas(),
+    db.stockOvino.listDispositivos(filters),
+  ]);
+  const clavesEnScope = new Set(dispositivosEnScope.map((dispositivo) => dispositivo.clave));
+  const ventasClaves = ventasClavesTodas.filter((clave) => clavesEnScope.has(clave));
+  res.json({
+    ok: true,
+    data: {
+      lotes: lotes.length,
+      registros: await db.stockOvino.countRegistros(lecturasFilters),
+      dispositivos: await db.stockOvino.countDispositivos(filters),
+      dispositivos_total: await db.stockOvino.countDispositivosTotal(filters),
+      ventas_dispositivos: ventasClaves.length,
+    },
+  });
+});
+
+app.get("/api/stock-ovino/ventas-dispositivos", async (req, res) => {
+  const filters = await stockOvinoFiltersFromRequest(req);
+  const [todas, dispositivos] = await Promise.all([
+    db.simuladorVentaDispositivos.listClavesEnVentasCerradas(),
+    db.stockOvino.listDispositivos(filters),
+  ]);
+  const permitidas = new Set(dispositivos.map((dispositivo) => dispositivo.clave));
+  const claves = todas.filter((clave) => permitidas.has(clave));
+  res.json({ ok: true, data: { total: claves.length, claves } });
+});
+
+app.post("/api/stock-ovino/import/file", upload.single("file"), async (req, res) => {
+  try {
+    const file = req.file;
+    if (!file?.buffer?.length) {
+      res.status(400).json({ ok: false, error: "Seleccioná un archivo .txt, .csv o .xlsx" });
+      return;
+    }
+    if (!Object.prototype.hasOwnProperty.call(req.body ?? {}, "empresa")) {
+      res.status(400).json({ ok: false, error: "Seleccioná la empresa de los animales del archivo" });
+      return;
+    }
+    const empresaDefault = String((req.body as { empresa?: string }).empresa ?? "").trim();
+    let rows = await parseStockGanaderoFile(file.buffer, file.originalname || "import.txt");
+    rows = applyDefaultEmpresaToStockRows(rows, empresaDefault);
+    await assertStockImportRowsEmpresas(req.user!, rows);
+    const cuentaId = await cuentaIdParaInsert(req.user!);
+    const result = await db.stockOvino.importRows(
+      file.originalname || "import.txt",
+      rows,
+      cuentaId
+    );
+    const lote = await db.stockOvino.getLote(result.lote_id);
+    if (result.insertados > 0) {
+      await auditStockMovimiento(req, "ALTA", {
+        cantidad: result.insertados,
+        resumen: `Importó ${result.insertados} lectura(s) desde archivo`,
+        detalle: {
+          archivo: lote?.nombre_archivo ?? file.originalname,
+          lote_id: result.lote_id,
+        },
+      });
+    }
+    res.status(201).json({
+      ok: true,
+      message: `Importadas ${result.insertados} lectura(s) desde «${lote?.nombre_archivo ?? "archivo"}»`,
+      data: { ...result, lote },
+    });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: (e as Error).message });
+  }
+});
+
+app.post("/api/stock-ovino/import/text", async (req, res) => {
+  try {
+    const texto = String((req.body as { texto?: string }).texto ?? "");
+    const nombre = String((req.body as { nombre_archivo?: string }).nombre_archivo ?? "pegado.txt");
+    const rows = parseStockGanaderoText(texto);
+    const cuentaId = await cuentaIdParaInsert(req.user!);
+    const result = await db.stockOvino.importRows(nombre, rows, cuentaId);
+    const lote = await db.stockOvino.getLote(result.lote_id);
+    if (result.insertados > 0) {
+      await auditStockMovimiento(req, "ALTA", {
+        cantidad: result.insertados,
+        resumen: `Importó ${result.insertados} lectura(s) desde texto`,
+        detalle: { archivo: nombre, lote_id: result.lote_id },
+      });
+    }
+    res.status(201).json({
+      ok: true,
+      message: `Importadas ${result.insertados} lectura(s)`,
+      data: { ...result, lote },
+    });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: (e as Error).message });
+  }
+});
+
+app.post("/api/stock-ovino/import/rows", async (req, res) => {
+  try {
+    const body = req.body as {
+      rows?: Array<{
+        eid?: string;
+        vid?: string;
+        fecha?: string;
+        hora?: string;
+        condicion?: string;
+        empresa?: string;
+      }>;
+      nombre_archivo?: string;
+    };
+    const rows = normalizeStockGanaderoRows(body.rows ?? []);
+    await assertStockImportRowsEmpresas(req.user!, rows);
+    const nombre = String(body.nombre_archivo ?? "carga-manual").trim() || "carga-manual";
+    const cuentaId = await cuentaIdParaInsert(req.user!);
+    const result = await db.stockOvino.importRows(nombre, rows, cuentaId);
+    const lote = await db.stockOvino.getLote(result.lote_id);
+    if (result.insertados > 0) {
+      await auditStockMovimiento(req, "ALTA", {
+        cantidad: result.insertados,
+        resumen: `Carga manual: ${result.insertados} lectura(s)`,
+        detalle: { archivo: nombre, lote_id: result.lote_id },
+      });
+    }
+    res.status(201).json({
+      ok: true,
+      message: `Importadas ${result.insertados} lectura(s) (carga manual)`,
+      data: { ...result, lote },
+    });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: (e as Error).message });
+  }
+});
+
+app.post("/api/stock-ovino/alta-generica", async (req, res) => {
+  try {
+    const body = req.body as {
+      cantidad?: number;
+      sexo?: string;
+      fecha_nacimiento?: string;
+      castrado?: boolean | null;
+      potrero?: string;
+      empresa?: string;
+      raza?: string;
+      pelaje?: string;
+    };
+    const empresa = String(body.empresa ?? "").trim();
+    await assertEmpresaCodigoPermitida(req.user!, empresa);
+    const cuentaId = await cuentaIdParaInsert(req.user!);
+    const castradoRaw = body.castrado;
+    const castrado =
+      castradoRaw === true || castradoRaw === false
+        ? castradoRaw
+        : castradoRaw === null
+          ? null
+          : undefined;
+    const result = await db.stockOvino.altaGenerica(
+      {
+        cantidad: Number(body.cantidad),
+        sexo: String(body.sexo ?? "").toUpperCase() as "" | "MACHO" | "HEMBRA",
+        fecha_nacimiento: String(body.fecha_nacimiento ?? ""),
+        castrado,
+        potrero: String(body.potrero ?? ""),
+        empresa,
+        raza: String(body.raza ?? ""),
+        pelaje: String(body.pelaje ?? ""),
+      },
+      cuentaId,
+      historialAutorFromRequest(req, "FICHA")
+    );
+    if (result.creados > 0) {
+      await auditStockMovimiento(req, "ALTA", {
+        cantidad: result.creados,
+        resumen: `Alta genérica: ${result.creados} ovino(s)`,
+        detalle: {
+          desde: result.desde,
+          hasta: result.hasta,
+          categoria: result.categoria,
+          fecha_nacimiento: String(body.fecha_nacimiento ?? ""),
+          potrero: String(body.potrero ?? ""),
+          lote_id: result.lote_id,
+        },
+      });
+    }
+    res.status(201).json({
+      ok: true,
+      message: result.categoria
+        ? `Se dieron de alta ${result.creados} ovino(s) (${result.categoria})`
+        : `Se dieron de alta ${result.creados} ovino(s) (sin fecha de nacimiento)`,
+      data: result,
+    });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: (e as Error).message });
+  }
+});
+
+app.post("/api/stock-ovino/alta-cabana", async (req, res) => {
+  try {
+    const body = req.body as {
+      rp?: string;
+      nombre_animal?: string;
+      fecha_nacimiento?: string;
+      sexo?: string;
+      registro?: string;
+      premios?: string;
+      raza?: string;
+      pelaje?: string;
+      castrado?: boolean | null;
+      potrero?: string;
+      empresa?: string;
+    };
+    const empresa = String(body.empresa ?? "").trim();
+    await assertEmpresaCodigoPermitida(req.user!, empresa);
+    const cuentaId = await cuentaIdParaInsert(req.user!);
+    const castradoRaw = body.castrado;
+    const castrado =
+      castradoRaw === true || castradoRaw === false
+        ? castradoRaw
+        : castradoRaw === null
+          ? null
+          : undefined;
+    const result = await db.stockOvino.altaCabana(
+      {
+        rp: String(body.rp ?? ""),
+        nombre_animal: String(body.nombre_animal ?? ""),
+        fecha_nacimiento: String(body.fecha_nacimiento ?? ""),
+        sexo: String(body.sexo ?? "").toUpperCase() as "" | "MACHO" | "HEMBRA",
+        registro: String(body.registro ?? ""),
+        premios: String(body.premios ?? ""),
+        raza: String(body.raza ?? ""),
+        pelaje: String(body.pelaje ?? ""),
+        castrado,
+        potrero: String(body.potrero ?? ""),
+        empresa,
+      },
+      cuentaId,
+      historialAutorFromRequest(req, "FICHA")
+    );
+    await auditStockMovimiento(req, "ALTA", {
+      cantidad: 1,
+      resumen: `Alta cabaña: ${result.nombre_animal} (RP ${result.rp})`,
+      detalle: {
+        clave: result.clave,
+        categoria: result.categoria,
+        rp: result.rp,
+        nombre_animal: result.nombre_animal,
+        lote_id: result.lote_id,
+      },
+    });
+    res.status(201).json({
+      ok: true,
+      message: `Se dio de alta «${result.nombre_animal}» (${result.categoria})`,
+      data: result,
+    });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: (e as Error).message });
+  }
+});
+
+app.get("/api/stock-ovino/razas", async (_req, res) => {
+  try {
+    const razas = await db.stockOvino.listRazas();
+    res.json({ ok: true, data: razas });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al listar razas",
+    });
+  }
+});
+
+app.post("/api/stock-ovino/razas", async (req, res) => {
+  try {
+    const nombre = typeof req.body?.nombre === "string" ? req.body.nombre : "";
+    const raza = await db.stockOvino.createRaza(nombre);
+    await auditStockMovimiento(req, "MODIFICACION", {
+      resumen: `Agregó raza ovina ${raza} al catálogo`,
+      detalle: { raza },
+    });
+    res.json({ ok: true, data: { nombre: raza } });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al agregar raza",
+    });
+  }
+});
+
+app.delete("/api/stock-ovino/razas", async (req, res) => {
+  if (!req.user?.es_super_admin) {
+    res.status(403).json({
+      ok: false,
+      error: "Solo el superadministrador puede eliminar razas del catálogo",
+    });
+    return;
+  }
+  try {
+    const nombre = typeof req.body?.nombre === "string" ? req.body.nombre : "";
+    const eliminada = await db.stockOvino.deleteRaza(nombre);
+    await auditStockMovimiento(req, "MODIFICACION", {
+      resumen: `Eliminó raza ovina ${eliminada} del catálogo`,
+      detalle: { raza: eliminada },
+    });
+    res.json({ ok: true, data: { nombre: eliminada } });
+  } catch (e) {
+    res.status(400).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Error al eliminar raza",
+    });
+  }
+});
+
+app.post("/api/stock-ovino/baja/file", upload.single("file"), async (req, res) => {
+  try {
+    const file = req.file;
+    if (!file?.buffer?.length) {
+      res.status(400).json({ ok: false, error: "Seleccioná un archivo .txt o .csv" });
+      return;
+    }
+    const tipo_baja = parseTipoBajaForImport(req.body ?? {});
+    const rows = parseStockGanaderoBuffer(file.buffer);
+    const result = await db.stockOvino.importBaja(
+      rows,
+      tipo_baja,
+      historialAutorFromRequest(req, "IMPORT")
+    );
+    if (result.dispositivos_bajados.length > 0) {
+      await auditBajasDispositivos(req, result.dispositivos_bajados);
+    }
+    res.status(201).json({
+      ok: true,
+      message: mensajeImportBaja(result, tipo_baja),
+      data: { ...result, tipo_baja },
+    });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: (e as Error).message });
+  }
+});
+
+app.post("/api/stock-ovino/baja/text", async (req, res) => {
+  try {
+    const body = req.body as { texto?: string; tipo_baja?: string; estado?: string };
+    const texto = String(body.texto ?? "");
+    const tipo_baja = parseTipoBajaForImport(body);
+    const rows = parseStockGanaderoText(texto);
+    const result = await db.stockOvino.importBaja(
+      rows,
+      tipo_baja,
+      historialAutorFromRequest(req, "IMPORT")
+    );
+    if (result.dispositivos_bajados.length > 0) {
+      await auditBajasDispositivos(req, result.dispositivos_bajados);
+    }
+    res.status(201).json({
+      ok: true,
+      message: mensajeImportBaja(result, tipo_baja),
+      data: { ...result, tipo_baja },
+    });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: (e as Error).message });
+  }
+});
+
+app.post("/api/stock-ovino/baja/rows", async (req, res) => {
+  try {
+    const body = req.body as {
+      rows?: Array<{
+        eid?: string;
+        vid?: string;
+        fecha?: string;
+        hora?: string;
+        condicion?: string;
+      }>;
+      tipo_baja?: string;
+      estado?: string;
+    };
+    const tipo_baja = parseTipoBajaForImport(body);
+    const rows = normalizeStockGanaderoRows(body.rows ?? []);
+    const result = await db.stockOvino.importBaja(
+      rows,
+      tipo_baja,
+      historialAutorFromRequest(req, "IMPORT")
+    );
+    if (result.dispositivos_bajados.length > 0) {
+      await auditBajasDispositivos(req, result.dispositivos_bajados);
+    }
+    res.status(201).json({
+      ok: true,
+      message: mensajeImportBaja(result, tipo_baja),
+      data: { ...result, tipo_baja },
+    });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: (e as Error).message });
+  }
+});
+
+app.post("/api/stock-ovino/baja/dispositivos", async (req, res) => {
+  try {
+    const body = req.body as {
+      items?: Array<{
+        numero?: string;
+        tipo_baja?: string;
+        fecha?: string;
+        numero_guia?: string;
+        observaciones?: string;
+      }>;
+      dispositivos?: string[];
+      estado?: string;
+    };
+
+    if (Array.isArray(body.items) && body.items.length > 0) {
+      const items = body.items.map((item) => ({
+        numero: String(item.numero ?? "").trim(),
+        tipo_baja: parseTipoBaja(item.tipo_baja),
+        fecha: String(item.fecha ?? "").trim(),
+        numero_guia: String(item.numero_guia ?? "").trim() || undefined,
+        observaciones: String(item.observaciones ?? "").trim() || undefined,
+      }));
+      const result = await db.stockOvino.importBajaDetalle(
+        items,
+        historialAutorFromRequest(req, "IMPORT")
+      );
+      if (result.dispositivos_bajados.length > 0) {
+        await auditBajasDispositivos(req, result.dispositivos_bajados);
+      }
+      res.status(201).json({
+        ok: true,
+        message: mensajeImportBajaDetalle(result),
+        data: result,
+      });
+      return;
+    }
+
+    const tipo_baja = parseTipoBajaForImport(body);
+    const dispositivos = Array.isArray(body.dispositivos)
+      ? body.dispositivos.map((n) => String(n ?? "").trim()).filter(Boolean)
+      : [];
+    const result = await db.stockOvino.importBajaNumeros(
+      dispositivos,
+      tipo_baja,
+      historialAutorFromRequest(req, "IMPORT")
+    );
+    if (result.dispositivos_bajados.length > 0) {
+      await auditBajasDispositivos(req, result.dispositivos_bajados);
+    }
+    res.status(201).json({
+      ok: true,
+      message: mensajeImportBaja(result, tipo_baja),
+      data: { ...result, tipo_baja },
+    });
+  } catch (e) {
+    res.status(400).json({ ok: false, error: (e as Error).message });
+  }
+});
+
+app.delete("/api/stock-ovino/lotes/:id", async (req, res) => {
+  const id = Number(req.params.id);
+  try {
+    await assertLoteOvinoEnCuentaUsuario(req, id);
+  } catch (e) {
+    res.status(403).json({
+      ok: false,
+      error: e instanceof Error ? e.message : "Sin permiso sobre esta importación",
+    });
+    return;
+  }
+  if (!await db.stockOvino.deleteLote(id)) {
+    res.status(404).json({ ok: false, error: "Lote no encontrado" });
+    return;
+  }
+  await auditStockMovimiento(req, "MODIFICACION", {
+    resumen: `Eliminó lote de importación #${id}`,
+    detalle: { lote_id: id },
+  });
+  res.json({ ok: true, message: "Importación eliminada" });
+});
 
 app.get("/api/proveedores", async (req, res) => {
   const busqueda = req.query.busqueda as string | undefined;
@@ -8980,7 +10246,7 @@ if (!IS_VERCEL) {
   server.on("error", (err: NodeJS.ErrnoException) => {
     if (err.code === "EADDRINUSE") {
       console.error(
-        `[SGG] Puerto ${PORT} en uso. Cerrá la otra instancia de npm run dev antes de reiniciar.`
+        `[SGG] Puerto ${PORT} en uso. Cerrá la otra instancia o volvé a correr npm run dev (libera el puerto automáticamente).`
       );
       process.exit(1);
     }
