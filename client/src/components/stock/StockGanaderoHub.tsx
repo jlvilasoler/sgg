@@ -89,7 +89,7 @@ export default function StockGanaderoHub({
         </div>
       </aside>
 
-      <main className="sg-hub-main">
+      <main className="sg-hub-main sg-hub-main--module">
         <header className="sg-hub-main-head">
           <div>
             <h1 className="sg-hub-main-title">Dashboard</h1>

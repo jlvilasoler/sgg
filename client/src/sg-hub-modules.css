@@ -113,7 +113,8 @@ body:has(.layout-content :is(.sg-module-page, .venc-imp-hub-page)) {
 }
 
 .bn-ui :is(.sg-module-page, .venc-imp-hub-page) .sg-hub-main--module,
-.bn-ui .sg-module-page .sg-hub-main--devices {
+.bn-ui .sg-module-page .sg-hub-main--devices,
+.bn-ui .sg-module-page > .sg-hub > .sg-hub-main {
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;

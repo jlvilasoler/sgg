@@ -54926,26 +54926,38 @@ button.sg-kpi-card:disabled {
   --sg-hub-radius-md: 0.65rem;
   --sg-hub-radius-card: 1.35rem;
   --sg-hub-shadow: 0 18px 48px rgba(20, 28, 20, 0.1);
-}.bn-ui .stock-ganadero-hub-page,
-.bn-ui .stock-equino-hub-page{
+}
+
+.bn-ui .stock-ganadero-hub-page,
+.bn-ui .stock-equino-hub-page {
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
-  min-height: calc(100dvh - 11rem);
-}.layout-content:has(.stock-ganadero-hub-page),
-.layout-content:has(.stock-equino-hub-page){
+  min-height: 0;
+  max-height: 100%;
+  overflow: hidden;
+}
+
+.layout-content:has(.stock-ganadero-hub-page),
+.layout-content:has(.stock-equino-hub-page) {
   display: flex;
   flex-direction: column;
-}.bn-ui .stock-ganadero-hub-page > .sg-hub,
-.bn-ui .stock-equino-hub-page > .sg-hub{
+}
+
+.bn-ui .stock-ganadero-hub-page > .sg-hub,
+.bn-ui .stock-equino-hub-page > .sg-hub {
   flex: 1 1 auto;
-  min-height: 100%;
+  min-height: 0;
+  max-height: 100%;
   align-items: stretch;
   width: 100%;
-}.bn-ui .stock-ganadero-hub-page .sg-hub-aside,
-.bn-ui .stock-equino-hub-page .sg-hub-aside{
+  overflow: hidden;
+}
+
+.bn-ui .stock-ganadero-hub-page .sg-hub-aside,
+.bn-ui .stock-equino-hub-page .sg-hub-aside {
   align-self: stretch;
-  min-height: 100%;
+  min-height: 0;
 }
 
 /* Más ancho útil en hub y dispositivos EID */
@@ -55394,11 +55406,15 @@ button.sg-kpi-card:disabled {
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
-  min-height: calc(100dvh - 11rem);
+  min-height: 0;
+  max-height: 100%;
   width: 100%;
   max-width: none;
-}.page-main.bn-ui:has(.stock-ganadero-module-page),
-.page-main.bn-ui:has(.stock-equino-module-page){
+  overflow: hidden;
+}
+
+.page-main.bn-ui:has(.stock-ganadero-module-page),
+.page-main.bn-ui:has(.stock-equino-module-page) {
   display: flex;
   flex-direction: column;
   flex: 1;
@@ -55415,21 +55431,31 @@ button.sg-kpi-card:disabled {
     padding-left: max(0.65rem, env(safe-area-inset-left, 0px));
     padding-right: max(0.65rem, env(safe-area-inset-right, 0px));
   }
-}.layout-content:has(.stock-ganadero-module-page),
-.layout-content:has(.stock-equino-module-page){
+}
+
+.layout-content:has(.stock-ganadero-module-page),
+.layout-content:has(.stock-equino-module-page) {
   display: flex;
   flex-direction: column;
-}.bn-ui .stock-ganadero-module-page > .sg-hub,
-.bn-ui .stock-equino-module-page > .sg-hub{
+}
+
+.bn-ui .stock-ganadero-module-page > .sg-hub,
+.bn-ui .stock-equino-module-page > .sg-hub {
   flex: 1 1 auto;
-  min-height: 100%;
+  min-height: 0;
+  max-height: 100%;
   align-items: stretch;
-}.bn-ui .stock-ganadero-module-page .sg-hub-aside,
-.bn-ui .stock-equino-module-page .sg-hub-aside{
+  overflow: hidden;
+}
+
+.bn-ui .stock-ganadero-module-page .sg-hub-aside,
+.bn-ui .stock-equino-module-page .sg-hub-aside {
   align-self: stretch;
-  min-height: 100%;
-}.bn-ui .stock-ganadero-module-page .sg-hub--module,
-.bn-ui .stock-equino-module-page .sg-hub--module{
+  min-height: 0;
+}
+
+.bn-ui .stock-ganadero-module-page .sg-hub--module,
+.bn-ui .stock-equino-module-page .sg-hub--module {
   width: 100%;
 }
 
