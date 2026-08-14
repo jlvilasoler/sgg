@@ -47,4 +47,5 @@ export const emptyOperativaForm = (): EmpresaOperativaForm => ({
   codigo: "",
   color: "",
   activo: true,
+  dicose: "",
 });

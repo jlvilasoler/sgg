@@ -1,12 +1,20 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { FORMAS_ADMIN_REMEDIO } from "./stock-control-sanitario-formas";
+import {
+  catalogoFormasPorModulo,
+  type FormaAdminRemedioModulo,
+} from "./stock-control-sanitario-formas";
 
-const STORAGE_KEY = "scg-formas-admin-remedio-extras";
+const STORAGE_KEY_GANADERO = "scg-formas-admin-remedio-extras";
+const STORAGE_KEY_OVINO = "scg-formas-admin-remedio-extras-ovino";
 const MAX_FORMA_LEN = 80;
 
-function loadFormaExtras(): string[] {
+function storageKey(modulo: FormaAdminRemedioModulo): string {
+  return modulo === "ovino" ? STORAGE_KEY_OVINO : STORAGE_KEY_GANADERO;
+}
+
+function loadFormaExtras(modulo: FormaAdminRemedioModulo): string[] {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(storageKey(modulo));
     if (!raw) return [];
     const parsed = JSON.parse(raw) as unknown;
     if (!Array.isArray(parsed)) return [];
@@ -20,8 +28,8 @@ function loadFormaExtras(): string[] {
   }
 }
 
-function saveFormaExtras(list: string[]): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+function saveFormaExtras(modulo: FormaAdminRemedioModulo, list: string[]): void {
+  localStorage.setItem(storageKey(modulo), JSON.stringify(list));
 }
 
 interface Props {
@@ -29,6 +37,7 @@ interface Props {
   onChange: (value: string) => void;
   disabled?: boolean;
   historialFormas?: string[];
+  modulo?: FormaAdminRemedioModulo;
 }
 
 export default function StockControlSanitarioFormaSelect({
@@ -36,6 +45,7 @@ export default function StockControlSanitarioFormaSelect({
   onChange,
   disabled = false,
   historialFormas = [],
+  modulo = "ganadero",
 }: Props) {
   const rootRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -45,7 +55,13 @@ export default function StockControlSanitarioFormaSelect({
   const [busqueda, setBusqueda] = useState("");
   const [modoNuevo, setModoNuevo] = useState(false);
   const [nuevaForma, setNuevaForma] = useState("");
-  const [extras, setExtras] = useState<string[]>(() => loadFormaExtras());
+  const [extras, setExtras] = useState<string[]>(() => loadFormaExtras(modulo));
+
+  useEffect(() => {
+    setExtras(loadFormaExtras(modulo));
+  }, [modulo]);
+
+  const catalogoFormas = useMemo(() => catalogoFormasPorModulo(modulo), [modulo]);
 
   const todasLasFormas = useMemo(() => {
     const seen = new Set<string>();
@@ -59,12 +75,12 @@ export default function StockControlSanitarioFormaSelect({
       seen.add(key);
       list.push(t);
     };
-    for (const f of FORMAS_ADMIN_REMEDIO) push(f);
+    for (const f of catalogoFormas) push(f);
     for (const f of extras) push(f);
     for (const f of historialFormas) push(f);
     if (String(value ?? "").trim()) push(String(value ?? ""));
     return list.sort((a, b) => a.localeCompare(b, "es", { sensitivity: "base" }));
-  }, [extras, historialFormas, value]);
+  }, [catalogoFormas, extras, historialFormas, value]);
 
   const listaFiltrada = useMemo(() => {
     const t = busqueda.trim().toLowerCase();
@@ -84,20 +100,14 @@ export default function StockControlSanitarioFormaSelect({
       onChange(forma);
       cerrar();
     },
-    [onChange, cerrar]
+    [cerrar, onChange],
   );
 
   const abrir = () => {
     if (disabled) return;
     setAbierto(true);
-    setBusqueda("");
     setModoNuevo(false);
-    setNuevaForma("");
-  };
-
-  const abrirNuevo = (sugerida = "") => {
-    setNuevaForma(sugerida.trim().slice(0, MAX_FORMA_LEN));
-    setModoNuevo(true);
+    setBusqueda("");
   };
 
   const guardarNueva = () => {
@@ -110,9 +120,9 @@ export default function StockControlSanitarioFormaSelect({
         return prev;
       }
       const next = [...prev, nombre].sort((a, b) =>
-        a.localeCompare(b, "es", { sensitivity: "base" })
+        a.localeCompare(b, "es", { sensitivity: "base" }),
       );
-      saveFormaExtras(next);
+      saveFormaExtras(modulo, next);
       return next;
     });
     onChange(nombre);
@@ -202,7 +212,9 @@ export default function StockControlSanitarioFormaSelect({
           <p className="proveedor-panel-meta">
             {busqueda.trim()
               ? `${listaFiltrada.length} coincidencia(s) de ${todasLasFormas.length}`
-              : `${FORMAS_ADMIN_REMEDIO.length} formas — buscá o agregá una nueva`}
+              : `${catalogoFormas.length} formas${
+                  modulo === "ovino" ? " ovinas" : ""
+                } — buscá o agregá una nueva`}
           </p>
 
           {modoNuevo ? (
@@ -228,7 +240,7 @@ export default function StockControlSanitarioFormaSelect({
                   type="text"
                   className="proveedor-panel-input"
                   maxLength={MAX_FORMA_LEN}
-                  placeholder="Ej. Intranasal, Implante…"
+                  placeholder="Ej. Oral (drench), Subcutánea…"
                   value={nuevaForma}
                   onChange={(e) => setNuevaForma(e.target.value)}
                 />
@@ -245,56 +257,50 @@ export default function StockControlSanitarioFormaSelect({
                 <button
                   type="button"
                   className="btn btn-ghost btn-sm"
-                  onClick={() => setModoNuevo(false)}
+                  onClick={() => {
+                    setModoNuevo(false);
+                    setNuevaForma("");
+                  }}
                 >
                   Cancelar
                 </button>
               </div>
             </div>
-          ) : null}
-
-          <ul className="proveedor-dropdown" role="listbox">
-            {!modoNuevo ? (
-              <li>
-                <button
-                  type="button"
-                  className="proveedor-dropdown-item-nuevo"
-                  onClick={() => abrirNuevo()}
-                >
-                  <strong>+</strong>
-                  <span>Nueva forma de administración</span>
-                </button>
-              </li>
-            ) : null}
-
-            {!modoNuevo && listaFiltrada.length === 0 && busqueda.trim() ? (
-              <li>
-                <button
-                  type="button"
-                  className="proveedor-dropdown-item-nuevo proveedor-dropdown-item-nuevo--sugerido"
-                  onClick={() => abrirNuevo(busqueda.trim())}
-                >
-                  <strong>+</strong>
-                  <span>Crear «{busqueda.trim()}»</span>
-                </button>
-              </li>
-            ) : null}
-
-            {!modoNuevo
-              ? listaFiltrada.map((f) => (
-                  <li key={f}>
+          ) : (
+            <>
+              <button
+                type="button"
+                className="proveedor-option proveedor-option--nueva"
+                onClick={() => {
+                  setModoNuevo(true);
+                  setBusqueda("");
+                }}
+              >
+                <span>+ Nueva forma de administración</span>
+              </button>
+              <ul className="proveedor-list" role="listbox">
+                {listaFiltrada.map((forma) => (
+                  <li key={forma}>
                     <button
                       type="button"
                       role="option"
-                      aria-selected={value === f}
-                      onClick={() => elegir(f)}
+                      aria-selected={
+                        value.localeCompare(forma, "es", { sensitivity: "base" }) === 0
+                      }
+                      className={`proveedor-option${
+                        value.localeCompare(forma, "es", { sensitivity: "base" }) === 0
+                          ? " is-selected"
+                          : ""
+                      }`}
+                      onClick={() => elegir(forma)}
                     >
-                      {f}
+                      {forma}
                     </button>
                   </li>
-                ))
-              : null}
-          </ul>
+                ))}
+              </ul>
+            </>
+          )}
         </div>
       ) : null}
     </div>

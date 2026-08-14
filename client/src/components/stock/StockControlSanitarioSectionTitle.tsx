@@ -20,6 +20,7 @@ export type StockControlSanitarioSectionIcon =
   | "producto"
   | "animal-vacuno"
   | "animal-equino"
+  | "animal-ovino"
   | "controles"
   | "historial";
 
@@ -159,6 +160,8 @@ function renderIcon(icon: AnyIcon, size: number) {
       return <LucideBovineHoof {...props} />;
     case "animal-equino":
       return <LucideHorseHoof {...props} />;
+    case "animal-ovino":
+      return <IconoOvejaOvinoSvg size={props.size ?? 16} className={props.className} />;
     case "controles":
       return <ClipboardCheck {...props} />;
     case "historial":

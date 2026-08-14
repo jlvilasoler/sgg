@@ -11,7 +11,7 @@ import {
   requiereFechaBaja,
 } from "./stock-ganadera-utils";
 
-const MAX_MESES_GENERAL = 120;
+const MAX_MESES_GENERAL = 192;
 
 interface Props {
   sexo: DispositivoSexo;

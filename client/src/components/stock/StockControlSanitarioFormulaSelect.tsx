@@ -6,10 +6,13 @@ import {
 
 const STORAGE_KEY_GANADERO = "scg-formulas-remedio-extras";
 const STORAGE_KEY_EQUINO = "scg-formulas-remedio-extras-equino";
+const STORAGE_KEY_OVINO = "scg-formulas-remedio-extras-ovino";
 const MAX_FORMULA_LEN = 80;
 
 function storageKey(modulo: FormulaRemedioModulo): string {
-  return modulo === "equino" ? STORAGE_KEY_EQUINO : STORAGE_KEY_GANADERO;
+  if (modulo === "equino") return STORAGE_KEY_EQUINO;
+  if (modulo === "ovino") return STORAGE_KEY_OVINO;
+  return STORAGE_KEY_GANADERO;
 }
 
 function loadFormulaExtras(modulo: FormulaRemedioModulo): string[] {
@@ -157,7 +160,9 @@ export default function StockControlSanitarioFormulaSelect({
   const metaLabel =
     modulo === "equino"
       ? `${todasLasFormulas.length} fórmula(s) equina(s) — buscá o agregá una nueva`
-      : `${todasLasFormulas.length} fórmula(s) — buscá o agregá una nueva`;
+      : modulo === "ovino"
+        ? `${todasLasFormulas.length} fórmula(s) ovina(s) — buscá o agregá una nueva`
+        : `${todasLasFormulas.length} fórmula(s) — buscá o agregá una nueva`;
 
   return (
     <div className="stock-control-sanitario-formula-select" ref={rootRef}>
@@ -246,7 +251,9 @@ export default function StockControlSanitarioFormulaSelect({
                   placeholder={
                     modulo === "equino"
                       ? "Ej. Ivermectina 1,87% pasta oral, Flunixin 2,5%…"
-                      : "Ej. Ivermectina 1%, Albendazol 10%…"
+                      : modulo === "ovino"
+                        ? "Ej. Albendazol 10%, Ivermectina 1%…"
+                        : "Ej. Ivermectina 1%, Albendazol 10%…"
                   }
                   value={nuevaFormula}
                   onChange={(e) => setNuevaFormula(e.target.value)}

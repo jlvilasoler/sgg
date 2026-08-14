@@ -155,10 +155,54 @@ export const FORMULAS_REMEDIO_EQUINO: readonly string[] = [
   "Xilazina 2%",
 ].sort((a, b) => a.localeCompare(b, "es", { sensitivity: "base" }));
 
+/** Fórmulas frecuentes en sanidad ovina (sugerencias). */
+export const FORMULAS_REMEDIO_OVINO: readonly string[] = [
+  "Albendazol 2,5%",
+  "Albendazol 10%",
+  "Albendazol 25%",
+  "Albendazol 10% + Cobre 0,5%",
+  "Clostridium perfringens tipo D — toxoide",
+  "Clostridium septicum — bacterina",
+  "Dexametasona 2 mg/ml",
+  "Doramectina 0,5%",
+  "Doramectina 1%",
+  "Enrofloxacina 5%",
+  "Enrofloxacina 10%",
+  "Fenbendazol 10%",
+  "Fenbendazol 20%",
+  "Flunixin meglumine 2,5%",
+  "Ivermectina 0,2% L.A.",
+  "Ivermectina 0,5% pour-on",
+  "Ivermectina 1%",
+  "Ivermectina 3,15%",
+  "Ketoprofeno 10%",
+  "Levamisol 7,5%",
+  "Levamisol 10%",
+  "Meloxicam 2%",
+  "Moxidectina 1%",
+  "Moxidectina 2%",
+  "Nitroxinil 34%",
+  "Oxitetraciclina 10% L.A.",
+  "Oxitetraciclina 20% L.A.",
+  "Oxfendazol 4,5%",
+  "Oxfendazol 9,06%",
+  "Penicilina G procainica 300.000 UI/ml",
+  "Rafoxanida 12%",
+  "Rafoxanida 7,5%",
+  "Selenio 0,1% + Vitamina E",
+  "Triclabendazol 5%",
+  "Triclabendazol 10%",
+  "Triclabendazol 12%",
+  "Vitamina A + D3 + E inyectable",
+  "Vitamina E + Selenio inyectable",
+].sort((a, b) => a.localeCompare(b, "es", { sensitivity: "base" }));
+
 export type FormulaRemedioModulo = "ganadero" | "equino" | "ovino";
 
 export function catalogoFormulasPorModulo(
   modulo: FormulaRemedioModulo
 ): readonly string[] {
-  return modulo === "equino" ? FORMULAS_REMEDIO_EQUINO : FORMULAS_REMEDIO_GANADO;
+  if (modulo === "equino") return FORMULAS_REMEDIO_EQUINO;
+  if (modulo === "ovino") return FORMULAS_REMEDIO_OVINO;
+  return FORMULAS_REMEDIO_GANADO;
 }

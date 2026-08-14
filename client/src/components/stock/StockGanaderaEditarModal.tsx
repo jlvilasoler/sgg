@@ -40,7 +40,7 @@ import {
   resolverFechaBajaFormulario,
 } from "./stock-ganadera-utils";
 import { normalizarColorCaravana } from "./stock-dispositivo-color";
-import { colorEmpresaOperativa } from "./stock-empresa-utils";
+import { colorEmpresaOperativa, fmtDicoseEmpresa, SIN_DICOSE_LABEL } from "./stock-empresa-utils";
 
 interface Props {
   dispositivo: StockGanaderaDispositivo;
@@ -424,6 +424,20 @@ export default function StockGanaderaEditarPanel({
                         setEmpresa(e === EMPRESA_PENDIENTE ? "" : (e as DispositivoEmpresa))
                       }
                     />
+                  </div>
+                  <div className="stock-editar-ficha-cell">
+                    <StockEditarFichaLabel icon="empresa" as="span">
+                      DICOSE
+                    </StockEditarFichaLabel>
+                    <p
+                      className={`stock-editar-ficha-readonly${
+                        fmtDicoseEmpresa(empresa, empresas) === SIN_DICOSE_LABEL
+                          ? " stock-editar-ficha-readonly--sin-dicose"
+                          : ""
+                      }`}
+                    >
+                      {fmtDicoseEmpresa(empresa, empresas)}
+                    </p>
                   </div>
                   <div className="stock-editar-ficha-cell">
                     <StockEditarFichaLabel icon="raza" htmlFor="edit-ganadera-raza">

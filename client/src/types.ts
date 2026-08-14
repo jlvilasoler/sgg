@@ -1712,6 +1712,7 @@ export interface EmpresaOperativa {
   color: string;
   activo: boolean;
   rut: string;
+  dicose: string;
   ejercicio_inicio_mes: number;
   ejercicio_inicio_dia: number;
   creado_en: string;
@@ -1723,7 +1724,7 @@ export interface EmpresaCuentaForm {
   codigo?: string;
   activo?: boolean;
   admin_email?: string;
-  empresa_operativa?: Pick<EmpresaOperativaForm, "nombre" | "color">;
+  empresa_operativa?: Pick<EmpresaOperativaForm, "nombre" | "color" | "dicose">;
 }
 
 export interface EmpresaCuentaCreateResult {
@@ -2005,6 +2006,7 @@ export interface EmpresaOperativaForm {
   color?: string;
   activo?: boolean;
   rut?: string | null;
+  dicose?: string | null;
   ejercicio_inicio_mes?: number | null;
   ejercicio_inicio_dia?: number | null;
 }

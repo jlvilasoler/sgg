@@ -27,8 +27,8 @@ import {
   type EscalaMarcaMeses,
 } from "./stock-ganadera-utils";
 
-const MAX_MESES_GENERAL = 120;
-const MARCAS_GENERAL = [24, 48, 72, 96, 120] as const;
+const MAX_MESES_GENERAL = 192;
+const MARCAS_GENERAL = [48, 96, 144, 192] as const;
 
 interface Props {
   nacimientoMes: number | null;
@@ -562,12 +562,12 @@ export default function StockGanaderaEvolucionTimeline({
             <>
               Completá la fecha de nacimiento para ver la evolución por etapas:
               Ternera (0–12 meses), Vaquillona (1–2 años), Vaquillona (+2 años,
-              24–36 meses) y Vaca (36–120 meses).
+              24–36 meses) y Vaca (36–192 meses).
             </>
           ) : (
             <>
               Completá la fecha de nacimiento para ver la línea de tiempo desde
-              el nacimiento hasta los {MAX_MESES_GENERAL} meses.
+              el nacimiento hasta los {MAX_MESES_GENERAL} meses (16 años).
             </>
           )}
         </div>

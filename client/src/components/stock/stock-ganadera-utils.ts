@@ -113,7 +113,7 @@ export function fmtEdadMeses(mes: number | null, anio: number | null): string {
   return `${edad} meses`;
 }
 
-export const MACHO_ESCALA_MAX_MESES = 120;
+export const MACHO_ESCALA_MAX_MESES = 192;
 export const MACHO_FRONTERA_TERNERO = 12;
 export const MACHO_FRONTERA_NOVILLO = 24;
 
@@ -162,7 +162,7 @@ export function pctEscalaMeses(meses: number, max: number): number {
 
 const MACHO_SEGMENTO_PCT = 100 / 3;
 
-export const HEMBRA_ESCALA_MAX_MESES = 120;
+export const HEMBRA_ESCALA_MAX_MESES = 192;
 export const HEMBRA_FRONTERA_TERNERA = 12;
 export const HEMBRA_FRONTERA_VAQUILLONA = 24;
 export const HEMBRA_FRONTERA_VAQUILLONA_MAS_2 = 36;
@@ -201,7 +201,7 @@ export const ETAPAS_EVOLUCION_HEMBRA: EtapaEvolucionHembra[] = [
   {
     id: "VACA",
     titulo: "Vaca",
-    rango: "36 – 120 meses",
+    rango: "36 – 192 meses",
     desdeMes: HEMBRA_FRONTERA_VAQUILLONA_MAS_2,
     hastaMes: HEMBRA_ESCALA_MAX_MESES,
   },
@@ -271,7 +271,7 @@ export const ESCALA_MARCAS_MACHO: readonly EscalaMarcaMeses[] = [
   { label: "0 m", pct: 0, align: "left" },
   { label: "12 m", pct: MACHO_SEGMENTO_PCT, align: "center" },
   { label: "24 m", pct: MACHO_SEGMENTO_PCT * 2, align: "center" },
-  { label: "120 m", pct: 100, align: "right" },
+  { label: "192 m", pct: 100, align: "right" },
 ];
 
 /** Hitos de meses alineados a los límites visuales del cronograma hembra (4 tramos). */
@@ -280,7 +280,7 @@ export const ESCALA_MARCAS_HEMBRA: readonly EscalaMarcaMeses[] = [
   { label: "12 m", pct: HEMBRA_SEGMENTO_PCT, align: "center" },
   { label: "24 m", pct: HEMBRA_SEGMENTO_PCT * 2, align: "center" },
   { label: "36 m", pct: HEMBRA_SEGMENTO_PCT * 3, align: "center" },
-  { label: "120 m", pct: 100, align: "right" },
+  { label: "192 m", pct: 100, align: "right" },
 ];
 
 /** Hitos en años (misma posición % que los meses de corte). */
@@ -288,7 +288,7 @@ export const ESCALA_MARCAS_ANIOS_MACHO: readonly EscalaMarcaMeses[] = [
   { label: "0 años", pct: 0, align: "left" },
   { label: "1 año", pct: MACHO_SEGMENTO_PCT, align: "center" },
   { label: "2 años", pct: MACHO_SEGMENTO_PCT * 2, align: "center" },
-  { label: "10 años", pct: 100, align: "right" },
+  { label: "16 años", pct: 100, align: "right" },
 ];
 
 export const ESCALA_MARCAS_ANIOS_HEMBRA: readonly EscalaMarcaMeses[] = [
@@ -296,7 +296,7 @@ export const ESCALA_MARCAS_ANIOS_HEMBRA: readonly EscalaMarcaMeses[] = [
   { label: "1 año", pct: HEMBRA_SEGMENTO_PCT, align: "center" },
   { label: "2 años", pct: HEMBRA_SEGMENTO_PCT * 2, align: "center" },
   { label: "3 años", pct: HEMBRA_SEGMENTO_PCT * 3, align: "center" },
-  { label: "10 años", pct: 100, align: "right" },
+  { label: "16 años", pct: 100, align: "right" },
 ];
 
 /** Avance 0–100 % dentro de la etapa productiva actual (macho). */
@@ -1054,6 +1054,7 @@ export function coincideCategoriaFiltro(
 export type StockGanaderaSortKey =
   | "eid"
   | "empresa"
+  | "dicose"
   | "generacion"
   | "grupo"
   | "potrero"
@@ -1123,6 +1124,7 @@ export function compareStockGanaderaDispositivos(
   key: StockGanaderaSortKey,
   dir: StockGanaderaSortDir,
   empresaLabel: (codigo: string) => string,
+  dicoseLabel: (codigo: string) => string = () => "",
 ): number {
   const mul = dir === "asc" ? 1 : -1;
   let c = 0;
@@ -1136,6 +1138,9 @@ export function compareStockGanaderaDispositivos(
       break;
     case "empresa":
       c = cmpTexto(empresaLabel(a.empresa), empresaLabel(b.empresa));
+      break;
+    case "dicose":
+      c = cmpTexto(dicoseLabel(a.empresa), dicoseLabel(b.empresa));
       break;
     case "generacion":
       c = cmpTexto(fmtGrupo(a.grupo), fmtGrupo(b.grupo));

@@ -283,10 +283,11 @@ export default function StockControlSanitarioModal({
     [registros]
   );
 
-  const tituloModulo = useMemo(
-    () => (modulo === "ganadero" ? "Stock Ganadero" : "Stock Equino"),
-    [modulo]
-  );
+  const tituloModulo = useMemo(() => {
+    if (modulo === "equino") return "Stock Equino";
+    if (modulo === "ovino") return "Stock Ovino";
+    return "Stock Ganadero";
+  }, [modulo]);
 
   const patchForm = (patch: Partial<FormState>) => {
     const clean = Object.fromEntries(
@@ -422,7 +423,13 @@ export default function StockControlSanitarioModal({
               <p className="stock-control-sanitario-kicker">
                 <span className="stock-control-sanitario-kicker-icon" aria-hidden>
                   <StockControlSanitarioIconSvg
-                    icon={modulo === "ganadero" ? "modulo-ganadero" : "modulo-equino"}
+                    icon={
+                      modulo === "ganadero"
+                        ? "modulo-ganadero"
+                        : modulo === "ovino"
+                          ? "modulo-ovino"
+                          : "modulo-equino"
+                    }
                     size={13}
                   />
                 </span>
@@ -608,6 +615,7 @@ export default function StockControlSanitarioModal({
                       }}
                       disabled={guardando}
                       historialFormas={historialFormasAdmin}
+                      modulo={modulo}
                     />
                   </div>
                   <div className="field">
@@ -639,7 +647,13 @@ export default function StockControlSanitarioModal({
 
               <section className="stock-control-sanitario-section">
                 <StockControlSanitarioSectionTitle
-                  icon={modulo === "ganadero" ? "animal-vacuno" : "animal-equino"}
+                  icon={
+                    modulo === "ganadero"
+                      ? "animal-vacuno"
+                      : modulo === "ovino"
+                        ? "animal-ovino"
+                        : "animal-equino"
+                  }
                 >
                   Identificación animal
                   {desdeDispositivo ? (
@@ -698,6 +712,7 @@ export default function StockControlSanitarioModal({
                       onChange={(v) => patchForm({ control_motivo: v })}
                       disabled={guardando}
                       historialMotivos={historialMotivos}
+                      modulo={modulo}
                     />
                   </div>
                   <div className="field">

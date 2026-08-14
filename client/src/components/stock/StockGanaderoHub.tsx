@@ -46,7 +46,7 @@ export default function StockGanaderoHub({
     mostrarDashboard,
   } = useStockGanaderoAsideSearch(items);
 
-  const primaryIds = new Set(["ganadera", "importar", "sanidad", "salidas"]);
+  const primaryIds = new Set(["ganadera", "importar", "detectar", "sanidad", "salidas"]);
   const primaryItems = items.filter((i) => primaryIds.has(i.id));
   const secondaryItems = items.filter((i) => !primaryIds.has(i.id));
 

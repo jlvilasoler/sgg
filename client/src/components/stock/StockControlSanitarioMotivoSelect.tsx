@@ -1,12 +1,20 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { MOTIVOS_CONTROL_SANITARIO } from "./stock-control-sanitario-motivos";
+import {
+  catalogoMotivosPorModulo,
+  type MotivoControlSanitarioModulo,
+} from "./stock-control-sanitario-motivos";
 
-const STORAGE_KEY = "scg-motivos-control-sanitario-extras";
+const STORAGE_KEY_GANADERO = "scg-motivos-control-sanitario-extras";
+const STORAGE_KEY_OVINO = "scg-motivos-control-sanitario-extras-ovino";
 const MAX_MOTIVO_LEN = 500;
 
-function loadMotivoExtras(): string[] {
+function storageKey(modulo: MotivoControlSanitarioModulo): string {
+  return modulo === "ovino" ? STORAGE_KEY_OVINO : STORAGE_KEY_GANADERO;
+}
+
+function loadMotivoExtras(modulo: MotivoControlSanitarioModulo): string[] {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(storageKey(modulo));
     if (!raw) return [];
     const parsed = JSON.parse(raw) as unknown;
     if (!Array.isArray(parsed)) return [];
@@ -19,8 +27,8 @@ function loadMotivoExtras(): string[] {
   }
 }
 
-function saveMotivoExtras(list: string[]): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+function saveMotivoExtras(modulo: MotivoControlSanitarioModulo, list: string[]): void {
+  localStorage.setItem(storageKey(modulo), JSON.stringify(list));
 }
 
 interface Props {
@@ -28,6 +36,7 @@ interface Props {
   onChange: (value: string) => void;
   disabled?: boolean;
   historialMotivos?: string[];
+  modulo?: MotivoControlSanitarioModulo;
 }
 
 export default function StockControlSanitarioMotivoSelect({
@@ -35,6 +44,7 @@ export default function StockControlSanitarioMotivoSelect({
   onChange,
   disabled = false,
   historialMotivos = [],
+  modulo = "ganadero",
 }: Props) {
   const rootRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -44,7 +54,13 @@ export default function StockControlSanitarioMotivoSelect({
   const [busqueda, setBusqueda] = useState("");
   const [modoNuevo, setModoNuevo] = useState(false);
   const [nuevoMotivo, setNuevoMotivo] = useState("");
-  const [extras, setExtras] = useState<string[]>(() => loadMotivoExtras());
+  const [extras, setExtras] = useState<string[]>(() => loadMotivoExtras(modulo));
+
+  useEffect(() => {
+    setExtras(loadMotivoExtras(modulo));
+  }, [modulo]);
+
+  const catalogoMotivos = useMemo(() => catalogoMotivosPorModulo(modulo), [modulo]);
 
   const todosLosMotivos = useMemo(() => {
     const seen = new Set<string>();
@@ -57,12 +73,12 @@ export default function StockControlSanitarioMotivoSelect({
       seen.add(key);
       list.push(t);
     };
-    for (const m of MOTIVOS_CONTROL_SANITARIO) push(m);
+    for (const m of catalogoMotivos) push(m);
     for (const m of extras) push(m);
     for (const m of historialMotivos) push(m);
     if (value.trim()) push(value);
     return list.sort((a, b) => a.localeCompare(b, "es", { sensitivity: "base" }));
-  }, [extras, historialMotivos, value]);
+  }, [catalogoMotivos, extras, historialMotivos, value]);
 
   const listaFiltrada = useMemo(() => {
     const t = busqueda.trim().toLowerCase();
@@ -109,7 +125,7 @@ export default function StockControlSanitarioMotivoSelect({
       const next = [...prev, nombre].sort((a, b) =>
         a.localeCompare(b, "es", { sensitivity: "base" })
       );
-      saveMotivoExtras(next);
+      saveMotivoExtras(modulo, next);
       return next;
     });
     onChange(nombre);
@@ -199,7 +215,9 @@ export default function StockControlSanitarioMotivoSelect({
           <p className="proveedor-panel-meta">
             {busqueda.trim()
               ? `${listaFiltrada.length} coincidencia(s) de ${todosLosMotivos.length}`
-              : `${MOTIVOS_CONTROL_SANITARIO.length} motivos — buscá o agregá uno nuevo`}
+              : `${catalogoMotivos.length} motivos${
+                  modulo === "ovino" ? " ovinos" : ""
+                } — buscá o agregá uno nuevo`}
           </p>
 
           {modoNuevo ? (

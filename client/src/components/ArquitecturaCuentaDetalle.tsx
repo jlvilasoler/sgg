@@ -301,6 +301,7 @@ export default function ArquitecturaCuentaDetalle({
       const created = await crearEmpresaOperativa(cuentaActual.id, {
         nombre: operativaForm.nombre.trim(),
         color: operativaForm.color,
+        dicose: operativaForm.dicose?.trim() || "",
         activo: true,
       });
       syncCuenta({
@@ -326,6 +327,7 @@ export default function ArquitecturaCuentaDetalle({
       nombre: op.nombre,
       color: op.color ?? "",
       activo: op.activo,
+      dicose: op.dicose ?? "",
     });
     setShowOperativaForm(false);
     closeEditUser();
@@ -352,6 +354,7 @@ export default function ArquitecturaCuentaDetalle({
         nombre: operativaEditForm.nombre.trim(),
         color: operativaEditForm.color,
         activo: operativaEditForm.activo,
+        dicose: operativaEditForm.dicose?.trim() || "",
       });
       syncCuenta({
         ...cuentaActual,
@@ -787,6 +790,22 @@ export default function ArquitecturaCuentaDetalle({
                                   autoFocus
                                 />
                               </label>
+                              <label>
+                                <span>Número de DICOSE</span>
+                                <input
+                                  type="text"
+                                  inputMode="numeric"
+                                  value={operativaEditForm.dicose ?? ""}
+                                  onChange={(e) =>
+                                    setOperativaEditForm((f) => ({
+                                      ...f,
+                                      dicose: e.target.value.replace(/\D/g, "").slice(0, 12),
+                                    }))
+                                  }
+                                  placeholder="Ej. 130748368"
+                                  autoComplete="off"
+                                />
+                              </label>
                               <div className="cuenta-entity-edit-color cuenta-entity-edit-color--full">
                                 <span className="cuenta-entity-edit-color-label">Color</span>
                                 <SelectColorEmpresaOperativa
@@ -849,6 +868,12 @@ export default function ArquitecturaCuentaDetalle({
                                 <span className="arquitectura-sistema-pill arquitectura-sistema-pill--codigo arquitectura-sistema-pill--inline">
                                   {op.codigo}
                                 </span>
+                                {op.dicose ? (
+                                  <>
+                                    {" · "}
+                                    DICOSE {op.dicose}
+                                  </>
+                                ) : null}
                               </span>
                             </div>
                             <span
@@ -898,6 +923,22 @@ export default function ArquitecturaCuentaDetalle({
                           }
                           placeholder="INGRESAR NUEVA EMPRESA"
                           required
+                        />
+                      </label>
+                      <label>
+                        <span>Número de DICOSE</span>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          value={operativaForm.dicose ?? ""}
+                          onChange={(e) =>
+                            setOperativaForm((f) => ({
+                              ...f,
+                              dicose: e.target.value.replace(/\D/g, "").slice(0, 12),
+                            }))
+                          }
+                          placeholder="Opcional — registro MGAP"
+                          autoComplete="off"
                         />
                       </label>
                     </div>

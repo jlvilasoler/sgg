@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { fetchStockGanaderaDispositivo } from "../../api";
+import { fetchStockGanaderaDispositivo, type EmpresaOperativaStock } from "../../api";
 import { useHeaderBackStep } from "../../header-back";
 import type { StockGanaderaDispositivoDetalle } from "../../types";
 import { fmtDate } from "../../utils";
@@ -11,11 +11,13 @@ import BadgeEstadoDispositivo from "./BadgeEstadoDispositivo";
 import IconoDispositivoWifi from "./IconoDispositivoWifi";
 import StockGanaderaHistorialCambiosPanel from "./StockGanaderaHistorialCambiosPanel";
 import { fmtEdadMeses, fmtNacimiento } from "./stock-ganadera-utils";
+import { fmtDicoseEmpresa, fmtEmpresaOperativa } from "./stock-empresa-utils";
 import { PageModuleHeadRow } from "../PageModuleHead";
 
 interface Props {
   clave: string;
   apiOnline: boolean;
+  empresas?: EmpresaOperativaStock[];
   onError: (msg: string) => void;
   onVolver: () => void;
 }
@@ -68,6 +70,7 @@ function fmtSexo(sexo: StockGanaderaDispositivoDetalle["sexo"]): string {
 export default function StockGanaderaDetalle({
   clave,
   apiOnline,
+  empresas = [],
   onError,
   onVolver,
 }: Props) {
@@ -209,7 +212,14 @@ export default function StockGanaderaDetalle({
               <section className="stock-ganadera-detalle-block" aria-label="Ficha del animal">
                 <h3 className="stock-ganadera-detalle-block-title">Ficha del animal</h3>
                 <div className="stock-ganadera-detalle-fields stock-ganadera-detalle-fields--3">
-                  <Campo label="Empresa" value={detalle.empresa} />
+                  <Campo
+                    label="Empresa"
+                    value={fmtEmpresaOperativa(detalle.empresa, empresas)}
+                  />
+                  <Campo
+                    label="DICOSE"
+                    value={fmtDicoseEmpresa(detalle.empresa, empresas)}
+                  />
                   <Campo label="Generación" value={detalle.grupo} />
                   <Campo label="Grupo" value={detalle.grupo_libre} />
                   <Campo label="Potrero" value={detalle.potrero} />

@@ -40,6 +40,11 @@ export function normalizeRut(value: unknown): string {
   return String(value ?? "").replace(/\D/g, "").slice(0, 12);
 }
 
+/** Número DICOSE (registro MGAP del establecimiento): solo dígitos. Vacío permitido. */
+export function normalizeDicose(value: unknown): string {
+  return String(value ?? "").replace(/\D/g, "").slice(0, 12);
+}
+
 export function normalizeEjercicioFiscal(
   mes: unknown,
   dia: unknown,
@@ -63,6 +68,7 @@ export interface EmpresaOperativaRow {
   color: string;
   activo: number;
   rut: string | null;
+  dicose: string | null;
   ejercicio_inicio_mes: number | null;
   ejercicio_inicio_dia: number | null;
   creado_en: string;
@@ -77,6 +83,7 @@ export interface EmpresaOperativa {
   color: string;
   activo: boolean;
   rut: string;
+  dicose: string;
   ejercicio_inicio_mes: number;
   ejercicio_inicio_dia: number;
   creado_en: string;
@@ -122,6 +129,7 @@ export interface EmpresaOperativaInput {
   color?: string;
   activo?: boolean;
   rut?: string | null;
+  dicose?: string | null;
   ejercicio_inicio_mes?: number | null;
   ejercicio_inicio_dia?: number | null;
 }
@@ -130,13 +138,18 @@ export type EmpresaOperativaDetalle = {
   codigo: string;
   nombre: string;
   color: string;
+  dicose: string;
 };
 
 const SEED_CUENTA_MADRE = { nombre: "VILA DIAZ", codigo: "VILADIAZ" };
 
-const SEED_EMPRESAS_OPERATIVAS: Array<{ nombre: string; codigo: string }> = [
-  { nombre: "GANADERA GUAVIYU", codigo: "GUAVIYU" },
-  { nombre: "GANADERA CHIVILCOY", codigo: "CHIVILCOY" },
+const SEED_EMPRESAS_OPERATIVAS: Array<{
+  nombre: string;
+  codigo: string;
+  dicose: string;
+}> = [
+  { nombre: "GANADERA GUAVIYU", codigo: "GUAVIYU", dicose: "130715699" },
+  { nombre: "GANADERA CHIVILCOY", codigo: "CHIVILCOY", dicose: "130748368" },
 ];
 
 function pgNum(value: unknown, fallback = 0): number {
@@ -346,6 +359,7 @@ function operativaToPublic(row: EmpresaOperativaRow): EmpresaOperativa {
     color: colorDb.normalizarColorCaravana(row.color),
     activo: pgNum(row.activo) === 1,
     rut: normalizeRut(row.rut),
+    dicose: normalizeDicose(row.dicose),
     ejercicio_inicio_mes: ej.inicio_mes,
     ejercicio_inicio_dia: ej.inicio_dia,
     creado_en: pgTimestampString(row.creado_en),
@@ -471,7 +485,7 @@ async function ensureSeedCuentaMadre(db: Db): Promise<number> {
 async function ensureEmpresaOperativaSeed(
   db: Db,
   cuentaId: number,
-  seed: { nombre: string; codigo: string }
+  seed: { nombre: string; codigo: string; dicose?: string }
 ): Promise<void> {
   const exists = (await db
     .prepare(
@@ -480,12 +494,13 @@ async function ensureEmpresaOperativaSeed(
     .get(cuentaId, seed.nombre)) as { id: number } | undefined;
   if (exists) return;
 
+  const dicose = normalizeDicose(seed.dicose);
   await db
     .prepare(
-      `INSERT INTO EMPRESAS_OPERATIVAS (cuenta_id, nombre, codigo, activo)
-       VALUES (?, ?, ?, 1)`
+      `INSERT INTO EMPRESAS_OPERATIVAS (cuenta_id, nombre, codigo, activo, dicose)
+       VALUES (?, ?, ?, 1, ?)`
     )
-    .run(cuentaId, seed.nombre, await nextEmpresaOperativaCodigo(db));
+    .run(cuentaId, seed.nombre, await nextEmpresaOperativaCodigo(db), dicose || null);
 }
 
 async function migrateCuentaAdminColumn(db: Db): Promise<void> {
@@ -641,13 +656,17 @@ async function migrateEmpresaOperativaRutEjercicioColumns(db: Db): Promise<void>
       `SELECT column_name FROM information_schema.columns
        WHERE table_schema = 'public'
          AND table_name = 'empresas_operativas'
-         AND column_name IN ('rut', 'ejercicio_inicio_mes', 'ejercicio_inicio_dia')`,
+         AND column_name IN ('rut', 'dicose', 'ejercicio_inicio_mes', 'ejercicio_inicio_dia')`,
     )
     .all()) as { column_name: string }[];
   const existentes = new Set(cols.map((c) => c.column_name));
   if (!existentes.has("rut")) {
     await db.prepare("ALTER TABLE EMPRESAS_OPERATIVAS ADD COLUMN rut TEXT").run();
     console.info("[SGG Empresas] Migración: columna empresas_operativas.rut agregada");
+  }
+  if (!existentes.has("dicose")) {
+    await db.prepare("ALTER TABLE EMPRESAS_OPERATIVAS ADD COLUMN dicose TEXT").run();
+    console.info("[SGG Empresas] Migración: columna empresas_operativas.dicose agregada");
   }
   if (!existentes.has("ejercicio_inicio_mes")) {
     await db
@@ -664,6 +683,26 @@ async function migrateEmpresaOperativaRutEjercicioColumns(db: Db): Promise<void>
     console.info(
       "[SGG Empresas] Migración: columna empresas_operativas.ejercicio_inicio_dia agregada",
     );
+  }
+}
+
+/** Completa DICOSE conocidos de VILA DIAZ solo si aún están vacíos. */
+async function migrateSeedDicoseEmpresasOperativas(db: Db): Promise<void> {
+  for (const seed of SEED_EMPRESAS_OPERATIVAS) {
+    if (!seed.dicose) continue;
+    const res = await db
+      .prepare(
+        `UPDATE EMPRESAS_OPERATIVAS
+         SET dicose = ?, actualizado_en = NOW()
+         WHERE LOWER(nombre) = LOWER(?)
+           AND (dicose IS NULL OR TRIM(dicose) = '')`
+      )
+      .run(seed.dicose, seed.nombre);
+    if (res.changes > 0) {
+      console.info(
+        `[SGG Empresas] DICOSE cargado para ${seed.nombre}: ${seed.dicose}`
+      );
+    }
   }
 }
 
@@ -1170,6 +1209,7 @@ export async function initEmpresasCuentaTables(db: Db): Promise<void> {
   await migrateEmpresaOperativaRutEjercicioColumns(db);
   await migrateDropEmpresaCheckConstraints(db);
   await migrateVilaDiazStructure(db);
+  await migrateSeedDicoseEmpresasOperativas(db);
   await migrateEmpresaOperativaCodigosCorrelativos(db);
   await migrateCuentaMadreCodigosCorrelativos(db);
   await migrateCuentaUbicacionYrColumns(db);
@@ -1254,17 +1294,23 @@ export async function getEmpresasOperativasDetalleActivas(
 ): Promise<EmpresaOperativaDetalle[]> {
   const rows = (await db
     .prepare(
-      `SELECT op.codigo, op.nombre, op.color
+      `SELECT op.codigo, op.nombre, op.color, op.dicose
        FROM EMPRESAS_OPERATIVAS op
        INNER JOIN EMPRESAS_CUENTA c ON c.id = op.cuenta_id
        WHERE op.activo = 1 AND c.activo = 1
        ORDER BY LOWER(op.nombre) ASC`
     )
-    .all()) as { codigo: string; nombre: string; color: string }[];
+    .all()) as {
+    codigo: string;
+    nombre: string;
+    color: string;
+    dicose: string | null;
+  }[];
   return rows.map((r) => ({
     codigo: r.codigo,
     nombre: r.nombre,
     color: colorDb.normalizarColorCaravana(r.color),
+    dicose: normalizeDicose(r.dicose),
   }));
 }
 
@@ -1275,7 +1321,12 @@ export async function getEmpresasOperativasDetallePorCuenta(
   const ops = await listEmpresasOperativas(db, cuentaId);
   return ops
     .filter((o) => o.activo)
-    .map((o) => ({ codigo: o.codigo, nombre: o.nombre, color: o.color }));
+    .map((o) => ({
+      codigo: o.codigo,
+      nombre: o.nombre,
+      color: o.color,
+      dicose: o.dicose,
+    }));
 }
 
 /** ID de la cuenta madre semilla (VILA DIAZ). Usado para backfill de datos legacy. */
@@ -1824,12 +1875,20 @@ export async function insertEmpresaOperativa(
   const color = normalizarColorEmpresaOperativa(input.color, true);
   await assertColorEmpresaOperativaDisponible(db, cuentaId, color);
 
+  const dicose = normalizeDicose(input.dicose);
   const result = await db
     .prepare(
-      `INSERT INTO EMPRESAS_OPERATIVAS (cuenta_id, nombre, codigo, color, activo)
-       VALUES (?, ?, ?, ?, ?)`
+      `INSERT INTO EMPRESAS_OPERATIVAS (cuenta_id, nombre, codigo, color, activo, dicose)
+       VALUES (?, ?, ?, ?, ?, ?)`
     )
-    .run(cuentaId, nombre, codigo, color, input.activo === false ? 0 : 1);
+    .run(
+      cuentaId,
+      nombre,
+      codigo,
+      color,
+      input.activo === false ? 0 : 1,
+      dicose || null
+    );
 
   const row = (await db
     .prepare("SELECT * FROM EMPRESAS_OPERATIVAS WHERE id = ?")
@@ -1862,6 +1921,10 @@ export async function updateEmpresaOperativa(
 
   const rut =
     input.rut !== undefined ? normalizeRut(input.rut) : normalizeRut(current.rut);
+  const dicose =
+    input.dicose !== undefined
+      ? normalizeDicose(input.dicose)
+      : normalizeDicose(current.dicose);
 
   const ejActual =
     current.ejercicio_inicio_mes == null
@@ -1888,7 +1951,7 @@ export async function updateEmpresaOperativa(
   await db
     .prepare(
       `UPDATE EMPRESAS_OPERATIVAS
-       SET nombre = ?, color = ?, activo = ?, rut = ?,
+       SET nombre = ?, color = ?, activo = ?, rut = ?, dicose = ?,
            ejercicio_inicio_mes = ?, ejercicio_inicio_dia = ?, actualizado_en = NOW()
        WHERE id = ? AND cuenta_id = ?`
     )
@@ -1897,6 +1960,7 @@ export async function updateEmpresaOperativa(
       color,
       activo,
       rut,
+      dicose || null,
       ejercicio.inicio_mes,
       ejercicio.inicio_dia,
       empresaId,

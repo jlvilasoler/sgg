@@ -8,6 +8,7 @@ import {
 import type { StockControlSanitarioProductoFichaInput } from "../../types";
 import {
   buscarMarcaCatalogo,
+  especieFichaDefaultPorModulo,
   formatMarcaPaises,
 } from "./stock-control-sanitario-marcas";
 import { sanitizeProductoFichaFoto, buildProductoFichaFotoCandidatos } from "./stock-producto-ficha-foto";
@@ -102,7 +103,7 @@ function emptyForm(modulo: StockDispositivoModulo): ProductoFichaFormState {
     principio_activo: "",
     presentacion: "",
     via_administracion: "",
-    especie: modulo === "equino" ? "Equinos" : "Bovinos",
+    especie: especieFichaDefaultPorModulo(modulo),
     tiempo_espera_carne: "",
     tiempo_espera_leche: "",
     detalles_tecnicos: "",

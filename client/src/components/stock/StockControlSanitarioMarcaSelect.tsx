@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   catalogoMarcasPorModulo,
+  especieFichaDefaultPorModulo,
   marcaCoincideBusqueda,
   marcaGlobalVisibleEnModulo,
   type MarcaRemedioCatalogo,
@@ -19,6 +20,7 @@ import StockControlSanitarioProductoFichaModal from "./StockControlSanitarioProd
 
 const STORAGE_KEY_GANADERO = "scg-marcas-remedio-extras";
 const STORAGE_KEY_EQUINO = "scg-marcas-remedio-extras-equino";
+const STORAGE_KEY_OVINO = "scg-marcas-remedio-extras-ovino";
 const MAX_MARCA_LEN = 120;
 const TOP_MARCAS_DESTACADAS = 10;
 const TOP_MARCAS_CUENTA = 8;
@@ -210,7 +212,12 @@ function etiquetaSeccionMarca(
 }
 
 function loadMarcaExtras(modulo: StockDispositivoModulo): MarcaExtra[] {
-  const key = modulo === "equino" ? STORAGE_KEY_EQUINO : STORAGE_KEY_GANADERO;
+  const key =
+    modulo === "equino"
+      ? STORAGE_KEY_EQUINO
+      : modulo === "ovino"
+        ? STORAGE_KEY_OVINO
+        : STORAGE_KEY_GANADERO;
   try {
     const raw = localStorage.getItem(key);
     if (!raw) return [];
@@ -242,7 +249,12 @@ function loadMarcaExtras(modulo: StockDispositivoModulo): MarcaExtra[] {
 }
 
 function saveMarcaExtras(list: MarcaExtra[], modulo: StockDispositivoModulo): void {
-  const key = modulo === "equino" ? STORAGE_KEY_EQUINO : STORAGE_KEY_GANADERO;
+  const key =
+    modulo === "equino"
+      ? STORAGE_KEY_EQUINO
+      : modulo === "ovino"
+        ? STORAGE_KEY_OVINO
+        : STORAGE_KEY_GANADERO;
   localStorage.setItem(key, JSON.stringify(list));
 }
 
@@ -325,7 +337,7 @@ export default function StockControlSanitarioMarcaSelect({
         try {
           await saveStockControlSanitarioProductoFicha(modulo, {
             nombre: extra.nombre,
-            especie: modulo === "equino" ? "Equinos" : "Bovinos",
+            especie: especieFichaDefaultPorModulo(modulo),
           });
         } catch {
           /* omitir duplicados o errores puntuales */
@@ -507,7 +519,7 @@ export default function StockControlSanitarioMarcaSelect({
     try {
       await saveStockControlSanitarioProductoFicha(modulo, {
         nombre,
-        especie: modulo === "equino" ? "Equinos" : "Bovinos",
+        especie: especieFichaDefaultPorModulo(modulo),
       });
       await reloadMarcas();
       onChange(nombre);
@@ -635,7 +647,9 @@ export default function StockControlSanitarioMarcaSelect({
                       ? ` · ${ultimasAgregadasCount} agregada(s) este mes`
                       : ""
                   }`
-                : `${catalogoMarcas.length} marcas${modulo === "equino" ? " equinas" : ""} — buscá o agregá una nueva`}
+                : `${catalogoMarcas.length} marcas${
+                    modulo === "equino" ? " equinas" : modulo === "ovino" ? " ovinas" : ""
+                  } — buscá o agregá una nueva`}
           </p>
 
           {modoNuevo ? (

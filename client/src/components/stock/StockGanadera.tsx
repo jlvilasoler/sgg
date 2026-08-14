@@ -72,7 +72,7 @@ import {
   ultimaLecturaMesFiltroKey,
   SIN_FECHA_NAC_FILTRO_KEY,
 } from "./stock-ganadera-utils";
-import { fmtEmpresaOperativa } from "./stock-empresa-utils";
+import { fmtEmpresaOperativa, dicoseFiltroKey, fmtDicoseEmpresa, labelDicoseFiltro, SIN_DICOSE_FILTRO_KEY, SIN_DICOSE_LABEL } from "./stock-empresa-utils";
 import {
   clearStockGanaderaPageCache,
   filtrosCacheKey,
@@ -94,6 +94,7 @@ function aplicaFacetas(
   rows: StockGanaderaDispositivo[],
   filtroSexo: Set<string>,
   filtroEmpresa: Set<string>,
+  filtroDicose: Set<string>,
   filtroEstado: Set<DispositivoEstado>,
   filtroEdad: Set<string>,
   filtroGrupoLibre: Set<string>,
@@ -102,11 +103,16 @@ function aplicaFacetas(
   filtroGeneracion: Set<string>,
   filtroUltimaLecturaMes: Set<string>,
   filtroCategoria: Set<string>,
-  filtroSinFechaNac: Set<string>
+  filtroSinFechaNac: Set<string>,
+  empresasOperativas: Awaited<ReturnType<typeof fetchEmpresasOperativasStock>>
 ): StockGanaderaDispositivo[] {
   return rows.filter((d) => {
     if (filtroSexo.size > 0 && !filtroSexo.has(d.sexo || "")) return false;
     if (filtroEmpresa.size > 0 && !filtroEmpresa.has(d.empresa || "")) return false;
+    if (filtroDicose.size > 0) {
+      const key = dicoseFiltroKey(d.empresa, empresasOperativas);
+      if (!filtroDicose.has(key)) return false;
+    }
     if (filtroEstado.size > 0 && !filtroEstado.has(d.estado)) return false;
     if (filtroEdad.size > 0) {
       const edadKey = edadFiltroKey(d);
@@ -172,6 +178,7 @@ interface Props {
 const SORT_HINTS: Record<StockGanaderaSortKey, { asc: string; desc: string }> = {
   eid: { asc: "Menor a mayor", desc: "Mayor a menor" },
   empresa: { asc: "A → Z", desc: "Z → A" },
+  dicose: { asc: "A → Z", desc: "Z → A" },
   generacion: { asc: "A → Z", desc: "Z → A" },
   grupo: { asc: "A → Z", desc: "Z → A" },
   potrero: { asc: "A → Z", desc: "Z → A" },
@@ -274,6 +281,7 @@ export default function StockGanadera({
   const [seleccion, setSeleccion] = useState<Set<string>>(() => new Set());
   const [filtroSexo, setFiltroSexo] = useState<Set<string>>(() => new Set());
   const [filtroEmpresa, setFiltroEmpresa] = useState<Set<string>>(() => new Set());
+  const [filtroDicose, setFiltroDicose] = useState<Set<string>>(() => new Set());
   const [filtroEstado, setFiltroEstado] = useState<Set<DispositivoEstado>>(
     () => new Set()
   );
@@ -326,12 +334,34 @@ export default function StockGanadera({
     [empresasOperativas]
   );
 
+  const dicoseOpciones = useMemo(() => {
+    const seen = new Set<string>();
+    const opts: Array<{ key: string; label: string }> = [];
+    for (const e of empresasOperativas) {
+      const n = (e.dicose ?? "").trim();
+      if (n && !seen.has(n)) {
+        seen.add(n);
+        opts.push({ key: n, label: n });
+      }
+    }
+    opts.sort((a, b) => a.label.localeCompare(b.label, "es", { numeric: true }));
+    opts.push({ key: SIN_DICOSE_FILTRO_KEY, label: SIN_DICOSE_LABEL });
+    return opts;
+  }, [empresasOperativas]);
+
   useEffect(() => {
     if (filtroEmpresa.size === 0) return;
     const validas = new Set(empresaOpciones.map((o) => o.key));
     const next = new Set([...filtroEmpresa].filter((k) => validas.has(k)));
     if (next.size !== filtroEmpresa.size) setFiltroEmpresa(next);
   }, [empresaOpciones, filtroEmpresa]);
+
+  useEffect(() => {
+    if (filtroDicose.size === 0) return;
+    const validas = new Set(dicoseOpciones.map((o) => o.key));
+    const next = new Set([...filtroDicose].filter((k) => validas.has(k)));
+    if (next.size !== filtroDicose.size) setFiltroDicose(next);
+  }, [dicoseOpciones, filtroDicose]);
 
   useHeaderBackStep(!!editarDispositivo, volverEditar, "Stock Ganadero");
   useHeaderBackStep(!!bulkOpen, volverBulk, "Stock Ganadero");
@@ -417,7 +447,7 @@ export default function StockGanadera({
   useEffect(() => {
     setPage(1);
     setSeleccion(new Set());
-  }, [busqueda, fechaDesde, fechaHasta, pageSize, filtroSexo, filtroEmpresa, filtroEstado, filtroEdad, filtroGrupoLibre, filtroPotrero, filtroRaza, filtroGeneracion, filtroUltimaLecturaMes, filtroCategoria, filtroSinFechaNac, filtroVentasCerradas, filtroSalidasSistema]);
+  }, [busqueda, fechaDesde, fechaHasta, pageSize, filtroSexo, filtroEmpresa, filtroDicose, filtroEstado, filtroEdad, filtroGrupoLibre, filtroPotrero, filtroRaza, filtroGeneracion, filtroUltimaLecturaMes, filtroCategoria, filtroSinFechaNac, filtroVentasCerradas, filtroSalidasSistema]);
 
   const resumenKpis = useMemo(
     () => calcularResumenStockGanaderaKpis(statsRows, ventasClaves),
@@ -458,6 +488,7 @@ export default function StockGanadera({
       rowsBase,
       filtroSexo,
       filtroEmpresa,
+      filtroDicose,
       filtroEstado,
       filtroEdad,
       filtroGrupoLibre,
@@ -466,7 +497,8 @@ export default function StockGanadera({
       filtroGeneracion,
       filtroUltimaLecturaMes,
       filtroCategoria,
-      filtroSinFechaNac
+      filtroSinFechaNac,
+      empresasOperativas
     );
     if (filtroVentasCerradas) {
       result = result.filter((d) => ventasClaves.has(d.clave));
@@ -478,10 +510,15 @@ export default function StockGanadera({
       result = result.filter((d) => coincideBusquedaDispositivo(d, busqueda));
     }
     return result;
-  }, [rowsBase, filtroSexo, filtroEmpresa, filtroEstado, filtroEdad, filtroGrupoLibre, filtroPotrero, filtroRaza, filtroGeneracion, filtroUltimaLecturaMes, filtroCategoria, filtroSinFechaNac, filtroVentasCerradas, filtroSalidasSistema, ventasClaves, busqueda]);
+  }, [rowsBase, filtroSexo, filtroEmpresa, filtroDicose, filtroEstado, filtroEdad, filtroGrupoLibre, filtroPotrero, filtroRaza, filtroGeneracion, filtroUltimaLecturaMes, filtroCategoria, filtroSinFechaNac, filtroVentasCerradas, filtroSalidasSistema, ventasClaves, busqueda, empresasOperativas]);
 
   const empresaLabel = useCallback(
     (codigo: string) => fmtEmpresaOperativa(codigo, empresasOperativas),
+    [empresasOperativas],
+  );
+
+  const dicoseLabel = useCallback(
+    (codigo: string) => fmtDicoseEmpresa(codigo, empresasOperativas),
     [empresasOperativas],
   );
 
@@ -501,10 +538,10 @@ export default function StockGanadera({
     if (!sortKey) return filteredRows;
     const next = filteredRows.slice();
     next.sort((a, b) =>
-      compareStockGanaderaDispositivos(a, b, sortKey, sortDir, empresaLabel),
+      compareStockGanaderaDispositivos(a, b, sortKey, sortDir, empresaLabel, dicoseLabel),
     );
     return next;
-  }, [filteredRows, sortKey, sortDir, empresaLabel]);
+  }, [filteredRows, sortKey, sortDir, empresaLabel, dicoseLabel]);
 
   const sinDatosPrevios = statsRows.length === 0 && rows.length === 0;
   const kpisCargando = loading;
@@ -542,6 +579,11 @@ export default function StockGanadera({
     const sexo: Record<string, number> = { MACHO: 0, HEMBRA: 0, "": 0 };
     const empresa: Record<string, number> = { "": 0 };
     for (const e of empresasOperativas) empresa[e.codigo] = 0;
+    const dicose: Record<string, number> = { [SIN_DICOSE_FILTRO_KEY]: 0 };
+    for (const e of empresasOperativas) {
+      const n = (e.dicose ?? "").trim();
+      if (n) dicose[n] = 0;
+    }
     const estado: Record<string, number> = {};
     const edad: Record<string, number> = {};
     const grupoLibre: Record<string, number> = {};
@@ -562,6 +604,8 @@ export default function StockGanadera({
     for (const d of rows) {
       sexo[d.sexo || ""] = (sexo[d.sexo || ""] ?? 0) + 1;
       empresa[d.empresa || ""] = (empresa[d.empresa || ""] ?? 0) + 1;
+      const dKey = dicoseFiltroKey(d.empresa, empresasOperativas);
+      dicose[dKey] = (dicose[dKey] ?? 0) + 1;
       estado[d.estado] = (estado[d.estado] ?? 0) + 1;
       const edadKey = edadFiltroKey(d);
       if (edadKey !== null) edad[edadKey] = (edad[edadKey] ?? 0) + 1;
@@ -583,6 +627,7 @@ export default function StockGanadera({
     return {
       sexo,
       empresa,
+      dicose,
       estado,
       edad,
       grupoLibre,
@@ -658,6 +703,7 @@ export default function StockGanadera({
   const hayFacetasActivas =
     filtroSexo.size > 0 ||
     filtroEmpresa.size > 0 ||
+    filtroDicose.size > 0 ||
     filtroEstado.size > 0 ||
     filtroEdad.size > 0 ||
     filtroGrupoLibre.size > 0 ||
@@ -673,6 +719,7 @@ export default function StockGanadera({
   const limpiarFacetas = () => {
     setFiltroSexo(new Set());
     setFiltroEmpresa(new Set());
+    setFiltroDicose(new Set());
     setFiltroEstado(new Set());
     setFiltroEdad(new Set());
     setFiltroGrupoLibre(new Set());
@@ -953,6 +1000,7 @@ export default function StockGanadera({
       <StockGanaderaDetalle
         clave={detalleClave}
         apiOnline={apiOnline}
+        empresas={empresasOperativas}
         onError={onError}
         onVolver={() => setDetalleClave(null)}
       />
@@ -1008,6 +1056,7 @@ export default function StockGanadera({
               embedded
               tone="dark"
               empresaOpciones={empresaOpciones}
+              dicoseOpciones={dicoseOpciones}
               fechaDesde={fechaDesde}
               fechaHasta={fechaHasta}
               onFechaDesde={setFechaDesde}
@@ -1024,6 +1073,7 @@ export default function StockGanadera({
               ultimaLecturaMesOpciones={ultimaLecturaMesOpciones}
               filtroSexo={filtroSexo}
               filtroEmpresa={filtroEmpresa}
+              filtroDicose={filtroDicose}
               filtroEstado={filtroEstado}
               filtroEdad={filtroEdad}
               filtroGrupoLibre={filtroGrupoLibre}
@@ -1038,6 +1088,7 @@ export default function StockGanadera({
               generacionOpciones={generacionOpciones}
               onToggleSexo={(k) => setFiltroSexo((p) => toggleSet(p, k))}
               onToggleEmpresa={(k) => setFiltroEmpresa((p) => toggleSet(p, k))}
+              onToggleDicose={(k) => setFiltroDicose((p) => toggleSet(p, k))}
               onToggleEstado={(e) => setFiltroEstado((p) => toggleSet(p, e))}
               onToggleEdad={(k) => setFiltroEdad((p) => toggleSet(p, k))}
               onToggleGrupoLibre={(k) => setFiltroGrupoLibre((p) => toggleSet(p, k))}
@@ -1050,6 +1101,7 @@ export default function StockGanadera({
               }
               onLimpiarSexo={() => setFiltroSexo(new Set())}
               onLimpiarEmpresa={() => setFiltroEmpresa(new Set())}
+              onLimpiarDicose={() => setFiltroDicose(new Set())}
               onLimpiarEstado={() => setFiltroEstado(new Set())}
               onLimpiarEdad={() => setFiltroEdad(new Set())}
               onLimpiarGrupoLibre={() => setFiltroGrupoLibre(new Set())}
@@ -1351,6 +1403,18 @@ export default function StockGanadera({
                     </button>
                   </span>
                 ))}
+                {[...filtroDicose].map((k) => (
+                  <span key={`dicose-${k}`} className="stock-ganadera-chip">
+                    DICOSE: {labelDicoseFiltro(k)}
+                    <button
+                      type="button"
+                      aria-label="Quitar filtro de DICOSE"
+                      onClick={() => setFiltroDicose((p) => toggleSet(p, k))}
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
                 {[...filtroRaza].map((k) => (
                   <span key={`raza-${k}`} className="stock-ganadera-chip">
                     Raza: {labelRazaFiltro(k)}
@@ -1545,6 +1609,14 @@ export default function StockGanadera({
                   onSort={toggleSort}
                 />
                 <StockSortableTh
+                  label="DICOSE"
+                  sortKey="dicose"
+                  activeKey={sortKey}
+                  activeDir={sortDir}
+                  className="stock-th stock-th--dicose"
+                  onSort={toggleSort}
+                />
+                <StockSortableTh
                   label="Generación"
                   sortKey="generacion"
                   activeKey={sortKey}
@@ -1613,19 +1685,19 @@ export default function StockGanadera({
             <tbody>
               {mostrarCargaVacia ? (
                 <tr>
-                  <td colSpan={12} className="empty">
+                  <td colSpan={13} className="empty">
                     Cargando…
                   </td>
                 </tr>
               ) : !apiOnline ? (
                 <tr>
-                  <td colSpan={12} className="empty">
+                  <td colSpan={13} className="empty">
                     API no conectada
                   </td>
                 </tr>
               ) : filteredRows.length === 0 ? (
                 <tr>
-                  <td colSpan={12} className="empty">
+                  <td colSpan={13} className="empty">
                     Sin dispositivos para los filtros aplicados.
                   </td>
                 </tr>
@@ -1635,6 +1707,7 @@ export default function StockGanadera({
                     d.empresa,
                     empresasOperativas
                   );
+                  const dicoseTxt = fmtDicoseEmpresa(d.empresa, empresasOperativas);
                   return (
                   <tr
                     key={d.clave}
@@ -1693,6 +1766,14 @@ export default function StockGanadera({
                       >
                         {empresaNombre}
                       </span>
+                    </td>
+                    <td
+                      className={`stock-td stock-td--muted stock-td--dicose${
+                        dicoseTxt === SIN_DICOSE_LABEL ? " stock-td--dicose-sin" : ""
+                      }`}
+                      title={dicoseTxt}
+                    >
+                      {dicoseTxt}
                     </td>
                     <td className="stock-td stock-td--muted stock-td--generacion">{fmtGrupo(d.grupo)}</td>
                     <td className="stock-td stock-td--muted stock-td--grupo">{fmtGrupoLibre(d.grupo_libre)}</td>

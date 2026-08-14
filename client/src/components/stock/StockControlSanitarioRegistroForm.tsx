@@ -267,6 +267,7 @@ export default function StockControlSanitarioRegistroForm({
                   onChange={(v) => onPatch({ control_motivo: v })}
                   disabled={guardando}
                   historialMotivos={historialMotivos}
+                  modulo={modulo}
                 />
               </div>
             ) : null}
@@ -344,6 +345,7 @@ export default function StockControlSanitarioRegistroForm({
             }}
             disabled={guardando}
             historialFormas={historialFormas}
+            modulo={modulo}
           />
         </div>
         <div className="field">
@@ -392,6 +394,7 @@ export default function StockControlSanitarioRegistroForm({
             onChange={(v) => onPatch({ control_motivo: v })}
             disabled={guardando}
             historialMotivos={historialMotivos}
+            modulo={modulo}
           />
         </div>
       </div>

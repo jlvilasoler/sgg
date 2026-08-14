@@ -7,6 +7,7 @@ import StockGanaderaSalidas from "./StockGanaderaSalidas";
 import StockGanaderoHistorial from "./StockGanaderoHistorial";
 import StockGanaderoImportar from "./StockGanaderoImportar";
 import StockGanaderoImportarBaja from "./StockGanaderoImportarBaja";
+import StockGanaderoDetectarDispositivo from "./StockGanaderoDetectarDispositivo";
 import StockGanaderoListado from "./StockGanaderoListado";
 import StockGanaderoCabanaSeleccion from "./StockGanaderoCabanaSeleccion";
 import StockGanaderoSanidad from "./StockGanaderoSanidad";
@@ -17,6 +18,7 @@ type VistaStock =
   | "menu"
   | "importar"
   | "importar_baja"
+  | "detectar"
   | "listado"
   | "historial"
   | "ganadera"
@@ -58,6 +60,12 @@ export const STOCK_GANADERO_SUBMENU: StockGanaderoHubItem[] = [
     icon: "stock_dispositivos",
   },
   {
+    id: "detectar",
+    label: "Detectar dispositivo en Base de Datos",
+    subtitle: "Cruzá TXT/Excel con el stock de esta cuenta",
+    icon: "stock_detectar",
+  },
+  {
     id: "salidas",
     label: "Salidas del sistema",
     subtitle: "Muertes, ventas y frigorífico registradas",
@@ -89,6 +97,11 @@ const MODULE_META: Record<
   importar_baja: {
     title: "Baja de Dispositivo",
     subtitle: "Importá un archivo TXT de bajas o registrá salidas manualmente por caravana.",
+  },
+  detectar: {
+    title: "Detectar dispositivo en Base de Datos",
+    subtitle:
+      "Subí un TXT o Excel con caravanas y descargá el mismo listado enriquecido con datos del stock de esta cuenta.",
   },
   listado: {
     title: "Lecturas importadas",
@@ -207,6 +220,19 @@ export default function StockGanadero({
           setListRefresh((k) => k + 1);
           setVista("ganadera");
         }}
+        onError={onError}
+        onSuccess={onSuccess}
+        onVolver={volverMenu}
+      />,
+    );
+  }
+
+  if (vista === "detectar") {
+    return wrapModule(
+      "detectar",
+      <StockGanaderoDetectarDispositivo
+        embedded
+        apiOnline={apiOnline}
         onError={onError}
         onSuccess={onSuccess}
         onVolver={volverMenu}

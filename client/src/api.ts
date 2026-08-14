@@ -306,6 +306,7 @@ export interface EmpresaOperativaStock {
   codigo: string;
   nombre: string;
   color: string;
+  dicose: string;
 }
 
 /** Empresas operativas con código y nombre (Stock Ganadero). */
@@ -1895,6 +1896,75 @@ export async function importStockGanaderoFile(
     message: json.message ?? "Importación completada",
     lote_id: json.data.lote_id,
     insertados: json.data.insertados,
+  };
+}
+
+export interface StockDetectarDispositivoRow {
+  eid: string;
+  vid: string;
+  fecha_archivo: string;
+  hora_archivo: string;
+  condicion_archivo: string;
+  encontrado: boolean;
+  empresa: string;
+  establecimiento: string;
+  sexo: string;
+  fecha_nacimiento: string;
+  potrero: string;
+  ultima_lectura: string;
+  edad: string;
+}
+
+export interface StockDetectarDispositivosResult {
+  message: string;
+  total: number;
+  encontrados: number;
+  no_encontrados: number;
+  rows: StockDetectarDispositivoRow[];
+  tsv: string;
+  nombre_sugerido: string;
+}
+
+/** Cruza TXT/Excel con el stock ganadero de la cuenta (privado por cuenta). */
+export async function detectarStockGanaderoDispositivos(
+  file: File
+): Promise<StockDetectarDispositivosResult> {
+  const form = new FormData();
+  form.append("file", file);
+  let res: Response;
+  try {
+    res = await fetch(`${API}/stock-ganadero/detectar-dispositivos`, {
+      ...FETCH_INIT,
+      method: "POST",
+      body: form,
+    });
+  } catch {
+    throw new Error(apiConnectionError());
+  }
+  const json = (await res.json()) as {
+    ok?: boolean;
+    error?: string;
+    message?: string;
+    data?: {
+      total: number;
+      encontrados: number;
+      no_encontrados: number;
+      rows: StockDetectarDispositivoRow[];
+      tsv: string;
+      nombre_sugerido: string;
+    };
+  };
+  if (!json.ok || !json.data) {
+    throw new Error(json.error || "Error al detectar dispositivos");
+  }
+  return {
+    message: json.message ?? "Cruce completado",
+    total: json.data.total,
+    encontrados: json.data.encontrados,
+    no_encontrados: json.data.no_encontrados,
+    rows: json.data.rows,
+    tsv: json.data.tsv,
+    nombre_sugerido: json.data.nombre_sugerido,
   };
 }
 

@@ -58,6 +58,10 @@ import {
   normalizeStockGanaderoRows,
   applyDefaultEmpresaToStockRows,
 } from "./parse-stock-ganadero-txt.js";
+import {
+  detectarDispositivosToTsv,
+  enriquecerDetectarDispositivos,
+} from "./stock-ganadero-detectar.js";
 import type { DispositivoMetaPatch, StockGanaderoFilters } from "./stock-ganadero-db.js";
 import type { StockEquinoFilters } from "./stock-equino-db.js";
 import type { StockOvinoFilters } from "./stock-ovino-db.js";
@@ -4793,6 +4797,81 @@ app.post("/api/stock-ganadero/import/file", upload.single("file"), async (req, r
     res.status(400).json({ ok: false, error: (e as Error).message });
   }
 });
+
+/**
+ * Cruza un TXT/Excel (mismo formato de alta) con el stock ganadero de la cuenta
+ * del usuario. Nunca consulta dispositivos de otras cuentas.
+ */
+app.post(
+  "/api/stock-ganadero/detectar-dispositivos",
+  upload.single("file"),
+  async (req, res) => {
+    try {
+      const file = req.file;
+      if (!file?.buffer?.length) {
+        res.status(400).json({
+          ok: false,
+          error: "Seleccioná un archivo .txt, .csv o .xlsx",
+        });
+        return;
+      }
+
+      const filas = await parseStockGanaderoFile(
+        file.buffer,
+        file.originalname || "detectar.txt"
+      );
+      const filters = await stockGanaderoFiltersFromRequest(
+        req,
+        stockGanaderoQueryBase(req)
+      );
+      const [dispositivos, empresas, cuentaId] = await Promise.all([
+        db.stockGanadero.listDispositivos(filters),
+        empresasCuenta.getEmpresasOperativasDetallePermitidas(
+          db.getDb(),
+          req.user!
+        ),
+        cuentaIdForUser(req.user!),
+      ]);
+
+      let establecimientoCuenta = "";
+      if (cuentaId != null) {
+        const cuenta = await empresasCuenta.getEmpresaCuentaById(
+          db.getDb(),
+          cuentaId
+        );
+        establecimientoCuenta = cuenta?.nombre?.trim() ?? "";
+      }
+
+      const rows = enriquecerDetectarDispositivos(
+        filas,
+        dispositivos,
+        empresas,
+        establecimientoCuenta
+      );
+      const encontrados = rows.filter((r) => r.encontrado).length;
+      const tsv = detectarDispositivosToTsv(rows);
+      const baseName = (file.originalname || "detectar.txt").replace(
+        /\.(txt|csv|xlsx|xls)$/i,
+        ""
+      );
+
+      res.json({
+        ok: true,
+        message: `Se cruzaron ${rows.length} dispositivo(s): ${encontrados} en la base de esta cuenta, ${rows.length - encontrados} sin coincidencia.`,
+        data: {
+          total: rows.length,
+          encontrados,
+          no_encontrados: rows.length - encontrados,
+          rows,
+          tsv,
+          nombre_sugerido: `${baseName}_detectado.txt`,
+        },
+      });
+    } catch (e) {
+      res.status(400).json({ ok: false, error: (e as Error).message });
+    }
+  }
+);
 
 app.post("/api/stock-ganadero/import/text", async (req, res) => {
   try {

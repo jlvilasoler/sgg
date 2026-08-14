@@ -43,6 +43,7 @@ export type HubIconId =
   | "stock_baja"
   | "stock_lecturas"
   | "stock_dispositivos"
+  | "stock_detectar"
   | "stock_salidas"
   | "stock_cabana"
   | "stock_sanidad"
@@ -142,6 +143,16 @@ function IconImport({ className }: IconProps) {
     <IconShell className={className}>
       <path d="M12 4v10M8.5 10.5 12 14l3.5-3.5" {...stroke} />
       <path d="M5 16.5v1.75A1.75 1.75 0 0 0 6.75 20h10.5A1.75 1.75 0 0 0 19 18.25V16.5" {...stroke} />
+    </IconShell>
+  );
+}
+
+function IconDetectarDb({ className }: IconProps) {
+  return (
+    <IconShell className={className}>
+      <circle cx="10.5" cy="10.5" r="5.25" {...stroke} />
+      <path d="M14.5 14.5 19 19" {...stroke} />
+      <path d="M8.4 10.5h4.2M10.5 8.4v4.2" {...stroke} strokeWidth="1.45" />
     </IconShell>
   );
 }
@@ -333,6 +344,7 @@ const ICONS: Record<HubIconId, (props: IconProps) => ReactNode> = {
   stock_baja: IconExportBaja,
   stock_lecturas: IconClipboard,
   stock_dispositivos: IconStockDispositivos,
+  stock_detectar: IconDetectarDb,
   stock_salidas: IconSalidas,
   stock_cabana: IconCabana,
   stock_sanidad: IconSanidad,
@@ -437,6 +449,11 @@ export const HUB_ICON_THEMES: Record<HubIconId, MenuAppTheme> = {
     accent: "#92400e",
     accentSoft: "linear-gradient(145deg, #fffbeb 0%, #fde68a 40%, #fbbf24 100%)",
     accentGlow: "rgba(146, 64, 14, 0.26)",
+  },
+  stock_detectar: {
+    accent: "#0369a1",
+    accentSoft: "linear-gradient(145deg, #f0f9ff 0%, #e0f2fe 52%, #bae6fd 100%)",
+    accentGlow: "rgba(3, 105, 161, 0.28)",
   },
   stock_salidas: {
     accent: "#be123c",

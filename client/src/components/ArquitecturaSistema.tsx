@@ -200,6 +200,7 @@ export default function ArquitecturaSistema({
         empresa_operativa: {
           nombre: opNombre,
           color: operativaForm.color,
+          dicose: operativaForm.dicose?.trim() || "",
         },
       });
       setEmpresas((prev) =>
@@ -707,6 +708,23 @@ export default function ArquitecturaSistema({
                           }
                           placeholder="Nombre de la empresa"
                           required
+                        />
+                      </div>
+                      <div className="field usuarios-form-grid-span-full">
+                        <label htmlFor="arq-op-dicose">Número de DICOSE</label>
+                        <input
+                          id="arq-op-dicose"
+                          type="text"
+                          inputMode="numeric"
+                          value={operativaForm.dicose ?? ""}
+                          onChange={(e) =>
+                            setOperativaForm((f) => ({
+                              ...f,
+                              dicose: e.target.value.replace(/\D/g, "").slice(0, 12),
+                            }))
+                          }
+                          placeholder="Opcional — registro MGAP del establecimiento"
+                          autoComplete="off"
                         />
                       </div>
                       <div className="field usuarios-form-grid-span-full">

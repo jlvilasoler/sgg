@@ -1891,6 +1891,7 @@ export function registerAuthRoutes(app: Express): void {
       const opRaw = body.empresa_operativa ?? {};
       const opNombre = String(opRaw.nombre ?? "").trim();
       const opColor = String(opRaw.color ?? "").trim();
+      const opDicose = String(opRaw.dicose ?? "").trim();
       if (!opNombre) {
         res.status(400).json({
           ok: false,
@@ -1931,6 +1932,7 @@ export function registerAuthRoutes(app: Express): void {
           nombre: opNombre,
           color: opColor,
           activo: true,
+          dicose: opDicose,
         });
         return (await empresasCuenta.getEmpresaCuentaById(tx, withAdmin.id))!;
       });
@@ -2079,6 +2081,7 @@ export function registerAuthRoutes(app: Express): void {
         nombre: String(body.nombre ?? ""),
         color: String(body.color ?? ""),
         activo: body.activo !== false,
+        dicose: body.dicose !== undefined ? String(body.dicose ?? "") : undefined,
       });
       res.status(201).json({ ok: true, data: empresa });
     } catch (e) {
@@ -2107,6 +2110,7 @@ export function registerAuthRoutes(app: Express): void {
       if (body.color !== undefined) patch.color = String(body.color);
       if (body.activo !== undefined) patch.activo = body.activo !== false;
       if (body.rut !== undefined) patch.rut = String(body.rut ?? "");
+      if (body.dicose !== undefined) patch.dicose = String(body.dicose ?? "");
       if (body.ejercicio_inicio_mes !== undefined) {
         patch.ejercicio_inicio_mes = Number(body.ejercicio_inicio_mes);
       }

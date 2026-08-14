@@ -130,12 +130,58 @@ export const MARCAS_REMEDIO_EQUINO: readonly MarcaRemedioCatalogo[] = [
   { nombre: "Zoetis", paises: ["UY", "AR", "BR"] },
 ];
 
+/** Marcas con uso en ovinos (fichas «… y Ovinos» / catálogo ovino). */
+export const MARCAS_REMEDIO_OVINO: readonly MarcaRemedioCatalogo[] = [
+  { nombre: "Agrovet Market", paises: ["UY"] },
+  { nombre: "Albex", paises: ["UY", "AR", "BR"] },
+  { nombre: "Albenil", paises: ["UY", "AR", "BR"] },
+  { nombre: "Bago", paises: ["AR", "UY"] },
+  { nombre: "Bectin", paises: ["UY", "AR", "BR"] },
+  { nombre: "Biogenesis Bagó", paises: ["AR", "UY", "BR"] },
+  { nombre: "Boehringer Ingelheim", paises: ["UY", "AR", "BR"] },
+  { nombre: "Calier", paises: ["AR", "UY", "BR"] },
+  { nombre: "Ceva Salud Animal", paises: ["UY", "AR", "BR"] },
+  { nombre: "Cobalt", paises: ["UY", "AR", "BR"] },
+  { nombre: "Cydectin", paises: ["UY", "AR", "BR"] },
+  { nombre: "Dectomax", paises: ["UY", "AR", "BR"] },
+  { nombre: "Ectocide", paises: ["UY", "AR"] },
+  { nombre: "Elanco", paises: ["UY", "AR", "BR"] },
+  { nombre: "Engemycin", paises: ["UY", "AR", "BR"] },
+  { nombre: "Fasinex", paises: ["UY", "AR", "BR"] },
+  { nombre: "Hertape Calier", paises: ["BR", "AR"] },
+  { nombre: "Ivomec", paises: ["UY", "AR", "BR"] },
+  { nombre: "Ivosan", paises: ["UY", "AR", "BR"] },
+  { nombre: "Ivermet", paises: ["UY", "AR", "BR"] },
+  { nombre: "Konig", paises: ["AR"] },
+  { nombre: "Lafox", paises: ["UY", "AR", "BR"] },
+  { nombre: "Maximec", paises: ["UY", "AR", "BR"] },
+  { nombre: "Merck Animal Health", paises: ["UY", "AR", "BR"] },
+  { nombre: "MSD Salud Animal", paises: ["UY", "AR", "BR"] },
+  { nombre: "Ouro Fino Saúde Animal", paises: ["BR", "UY", "AR"] },
+  { nombre: "Panacur", paises: ["UY", "AR", "BR"] },
+  { nombre: "Panacur 25", paises: ["UY", "AR", "BR"] },
+  { nombre: "Rycoben", paises: ["UY", "AR", "BR"] },
+  { nombre: "Supracid", paises: ["UY", "AR", "BR"] },
+  { nombre: "Tasignol", paises: ["UY", "AR", "BR"] },
+  { nombre: "Terramicina LA", paises: ["UY", "AR", "BR"] },
+  { nombre: "VAC-SULES", paises: ["UY", "AR", "BR"] },
+  { nombre: "Valbazen", paises: ["UY", "AR", "BR"] },
+  { nombre: "Verben", paises: ["UY", "AR", "BR"] },
+  { nombre: "Vermitan", paises: ["UY", "AR", "BR"] },
+  { nombre: "Vetanco", paises: ["AR", "UY", "BR"] },
+  { nombre: "Virbac", paises: ["UY", "AR", "BR"] },
+  { nombre: "Virbamec", paises: ["UY", "AR", "BR"] },
+  { nombre: "Zoetis", paises: ["UY", "AR", "BR"] },
+];
+
 export type MarcaRemedioModulo = "ganadero" | "equino" | "ovino";
 
 export function catalogoMarcasPorModulo(
   modulo: MarcaRemedioModulo
 ): readonly MarcaRemedioCatalogo[] {
-  return modulo === "equino" ? MARCAS_REMEDIO_EQUINO : MARCAS_REMEDIO_GANADO;
+  if (modulo === "equino") return MARCAS_REMEDIO_EQUINO;
+  if (modulo === "ovino") return MARCAS_REMEDIO_OVINO;
+  return MARCAS_REMEDIO_GANADO;
 }
 
 export function nombreEnCatalogoModulo(nombre: string, modulo: MarcaRemedioModulo): boolean {
@@ -150,11 +196,29 @@ export function especieIndicaEquinos(especie: string): boolean {
   return /equino/i.test(String(especie ?? "").trim());
 }
 
+export function especieIndicaOvinos(especie: string): boolean {
+  return /ovino/i.test(String(especie ?? "").trim());
+}
+
+export function especieIndicaSoloBovinosPuros(especie: string): boolean {
+  const e = String(especie ?? "").trim();
+  if (!e) return false;
+  if (especieIndicaOvinos(e) || especieIndicaEquinos(e)) return false;
+  return /bovino|vacuno/i.test(e);
+}
+
+/** Para filtrar equino: ganado no-equino (incluye «Bovinos y Ovinos»). */
 export function especieIndicaSoloBovinos(especie: string): boolean {
   const e = String(especie ?? "").trim();
   if (!e) return false;
   if (especieIndicaEquinos(e)) return false;
   return /bovino|vacuno|ovino|caprino|porcino/i.test(e);
+}
+
+export function especieFichaDefaultPorModulo(modulo: MarcaRemedioModulo): string {
+  if (modulo === "equino") return "Equinos";
+  if (modulo === "ovino") return "Ovinos";
+  return "Bovinos";
 }
 
 export function marcaGlobalVisibleEnModulo(
@@ -167,6 +231,21 @@ export function marcaGlobalVisibleEnModulo(
   if (modulo === "equino") {
     if (especieIndicaSoloBovinos(especie)) return false;
     if (especieIndicaEquinos(especie)) return true;
+    if (enCatalogo) return true;
+    if (!opts.en_ficha) return true;
+    return false;
+  }
+
+  if (modulo === "ovino") {
+    if (especieIndicaSoloBovinosPuros(especie)) return false;
+    if (
+      especieIndicaEquinos(especie) &&
+      !especieIndicaOvinos(especie) &&
+      !/bovino|vacuno|caprino|porcino/i.test(especie)
+    ) {
+      return false;
+    }
+    if (especieIndicaOvinos(especie)) return true;
     if (enCatalogo) return true;
     if (!opts.en_ficha) return true;
     return false;

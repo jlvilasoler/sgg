@@ -139,7 +139,8 @@ const MOLECULA_DEFAULT_EQUINO: Readonly<Record<string, string>> = {
 };
 
 function moleculaDefault(modulo: FormulaRemedioModulo): Readonly<Record<string, string>> {
-  return modulo === "equino" ? MOLECULA_DEFAULT_EQUINO : MOLECULA_DEFAULT_GANADO;
+  if (modulo === "equino") return MOLECULA_DEFAULT_EQUINO;
+  return MOLECULA_DEFAULT_GANADO;
 }
 
 export interface ProductoSugeridoPatch {

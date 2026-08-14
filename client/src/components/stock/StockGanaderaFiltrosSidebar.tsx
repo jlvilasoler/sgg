@@ -11,10 +11,12 @@ import {
   labelRazaFiltro,
   labelUltimaLecturaMesFiltro,
 } from "./stock-ganadera-utils";
+import { labelDicoseFiltro } from "./stock-empresa-utils";
 
 export interface FacetCounts {
   sexo: Record<string, number>;
   empresa: Record<string, number>;
+  dicose: Record<string, number>;
   estado: Record<string, number>;
   edad: Record<string, number>;
   grupoLibre: Record<string, number>;
@@ -36,8 +38,10 @@ interface Props {
   onLimpiarUltimaLectura: () => void;
   ultimaLecturaMesOpciones: string[];
   empresaOpciones: Array<{ key: string; label: string }>;
+  dicoseOpciones: Array<{ key: string; label: string }>;
   filtroSexo: Set<string>;
   filtroEmpresa: Set<string>;
+  filtroDicose: Set<string>;
   filtroEstado: Set<DispositivoEstado>;
   filtroEdad: Set<string>;
   filtroGrupoLibre: Set<string>;
@@ -52,6 +56,7 @@ interface Props {
   generacionOpciones: string[];
   onToggleSexo: (key: string) => void;
   onToggleEmpresa: (key: string) => void;
+  onToggleDicose: (key: string) => void;
   onToggleEstado: (estado: DispositivoEstado) => void;
   onToggleEdad: (key: string) => void;
   onToggleGrupoLibre: (key: string) => void;
@@ -62,6 +67,7 @@ interface Props {
   onToggleSinFechaNac: () => void;
   onLimpiarSexo: () => void;
   onLimpiarEmpresa: () => void;
+  onLimpiarDicose: () => void;
   onLimpiarEstado: () => void;
   onLimpiarEdad: () => void;
   onLimpiarGrupoLibre: () => void;
@@ -147,8 +153,10 @@ export default function StockGanaderaFiltrosSidebar({
   onLimpiarUltimaLectura,
   ultimaLecturaMesOpciones,
   empresaOpciones,
+  dicoseOpciones,
   filtroSexo,
   filtroEmpresa,
+  filtroDicose,
   filtroEstado,
   filtroEdad,
   filtroGrupoLibre,
@@ -163,6 +171,7 @@ export default function StockGanaderaFiltrosSidebar({
   generacionOpciones,
   onToggleSexo,
   onToggleEmpresa,
+  onToggleDicose,
   onToggleEstado,
   onToggleEdad,
   onToggleGrupoLibre,
@@ -173,6 +182,7 @@ export default function StockGanaderaFiltrosSidebar({
   onToggleSinFechaNac,
   onLimpiarSexo,
   onLimpiarEmpresa,
+  onLimpiarDicose,
   onLimpiarEstado,
   onLimpiarEdad,
   onLimpiarGrupoLibre,
@@ -297,6 +307,22 @@ export default function StockGanaderaFiltrosSidebar({
               label={o.label}
               count={counts.empresa[o.key] ?? 0}
               onChange={() => onToggleEmpresa(o.key)}
+            />
+          ))}
+        </FacetGroup>
+
+        <FacetGroup
+          title="DICOSE"
+          showClear={filtroDicose.size > 0}
+          onClear={onLimpiarDicose}
+        >
+          {dicoseOpciones.map((o) => (
+            <FacetOption
+              key={o.key || "sin"}
+              checked={filtroDicose.has(o.key)}
+              label={labelDicoseFiltro(o.label)}
+              count={counts.dicose[o.key] ?? 0}
+              onChange={() => onToggleDicose(o.key)}
             />
           ))}
         </FacetGroup>
