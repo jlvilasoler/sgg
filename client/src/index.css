@@ -46934,7 +46934,17 @@ button.sg-kpi-card:disabled {
 }
 
 .stock-editar-ficha-zone--ident {
-  flex: 1.6 1 14rem;
+  flex: 2.15 1 17rem;
+}
+
+.stock-editar-ficha-zone--ident > .stock-editar-ficha-cell:first-child {
+  flex: 1.65 1 0;
+  min-width: 10.5rem;
+}
+
+.stock-editar-ficha-zone--ident > .stock-editar-ficha-cell:nth-child(2) {
+  flex: 0.8 1 0;
+  max-width: 7.5rem;
 }
 
 /* —— Ficha equina: layout en 3 filas claras —— */
@@ -47440,7 +47450,8 @@ button.sg-kpi-card:disabled {
 }
 
 .stock-editar-ficha-zone--potrero {
-  flex: 0.9 1 8rem;
+  flex: 0.55 1 5.5rem;
+  max-width: 8.5rem;
 }
 
 .stock-editar-ficha-cell {
