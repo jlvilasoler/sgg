@@ -22790,7 +22790,11 @@ button.sg-kpi-card:disabled {
   font-size: 0.92rem;
   line-height: 1.45;
   color: var(--muted, #5b6470);
-  max-width: 46rem;
+  max-width: 52rem;
+}
+
+.stock-detectar-chips {
+  margin: 0;
 }
 
 .stock-detectar-result {

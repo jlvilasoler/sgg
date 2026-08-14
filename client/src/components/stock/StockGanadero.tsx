@@ -101,7 +101,7 @@ const MODULE_META: Record<
   detectar: {
     title: "Detectar dispositivo en Base de Datos",
     subtitle:
-      "Subí un TXT o Excel con caravanas y descargá el mismo listado enriquecido con datos del stock de esta cuenta.",
+      "Mismo formato que Alta de Dispositivo: columnas EID (IDE), VID (IDV), Date/Fecha, Time/Hora y Condición. Descargá el listado enriquecido con datos del stock de esta cuenta.",
   },
   listado: {
     title: "Lecturas importadas",

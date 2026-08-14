@@ -209,7 +209,7 @@ export default function StockGanaderoDetectarDispositivo({
           <span className="stock-dropzone-graphic" aria-hidden />
           <p className="stock-dropzone-title">Soltá el archivo aquí</p>
           <p className="stock-dropzone-sub">
-            .txt, .csv o .xlsx — mismo formato que Alta de Dispositivo (EID / Caravana)
+            .txt, .csv o .xlsx — columnas EID · VID · Date · Time · Condición
           </p>
         </>
       )}
@@ -226,10 +226,22 @@ export default function StockGanaderoDetectarDispositivo({
       ) : null}
 
       <p className="stock-detectar-lead">
-        Cargá un listado de caravanas y el sistema completa empresa, sexo, nacimiento,
-        establecimiento, potrero, última lectura y edad según el stock de{" "}
-        <strong>esta cuenta</strong> (no se consultan otras cuentas).
+        Mismo formato que <strong>Alta de Dispositivo</strong>: archivo{" "}
+        <strong>.txt</strong>, <strong>.csv</strong> o <strong>.xlsx</strong> con las columnas{" "}
+        <strong>EID</strong> (IDE), <strong>VID</strong> (IDV), <strong>Date</strong> / Fecha,{" "}
+        <strong>Time</strong> / Hora y <strong>Condición</strong>. Separador tab o{" "}
+        <code>;</code>. El sistema completa empresa, sexo, nacimiento, establecimiento, potrero,
+        última lectura y edad según el stock de <strong>esta cuenta</strong> (no se consultan otras
+        cuentas).
       </p>
+
+      <div className="stock-import-chips stock-detectar-chips" aria-label="Columnas del archivo">
+        <span className="stock-import-chip">EID</span>
+        <span className="stock-import-chip">VID</span>
+        <span className="stock-import-chip">Date</span>
+        <span className="stock-import-chip">Time</span>
+        <span className="stock-import-chip">Condición</span>
+      </div>
 
       {dropzone}
 
