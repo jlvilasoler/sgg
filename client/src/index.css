@@ -16287,9 +16287,9 @@ button.stock-device-ids__stack-btn {
 }
 
 .stock-table-pro .stock-td--dicose-sin {
-  color: #b45309;
-  font-weight: 600;
-  font-size: 0.72rem;
+  color: var(--muted, #64748b);
+  font-weight: 500;
+  font-size: 0.78rem;
 }
 
 .stock-equina-table.stock-table-pro .stock-th--nombre,
@@ -47490,10 +47490,10 @@ button.sg-kpi-card:disabled {
 }
 
 .stock-editar-ficha-readonly--sin-dicose {
-  color: #b45309;
-  background: #fffbeb;
-  border-color: rgba(180, 83, 9, 0.28);
-  font-size: 0.8rem;
+  color: var(--muted, #64748b);
+  background: #f8fafc;
+  border-color: rgba(15, 23, 42, 0.1);
+  font-weight: 500;
 }
 
 .stock-editar-ficha-cell--anio {

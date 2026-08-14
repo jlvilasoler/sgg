@@ -31,7 +31,7 @@ export function colorEmpresaOperativa(
   return match?.color ?? "";
 }
 
-export const SIN_DICOSE_LABEL = "SIN NUMERO";
+export const SIN_DICOSE_LABEL = "—";
 
 /** Clave de filtro para animales cuya empresa no tiene DICOSE configurado. */
 export const SIN_DICOSE_FILTRO_KEY = "__sin_dicose__";
@@ -59,7 +59,7 @@ export function dicoseEmpresaOperativa(
   return (match?.dicose ?? "").trim();
 }
 
-/** Texto para tabla/ficha: número o «SIN NUMERO». */
+/** Texto para tabla/ficha: número o «—» si no hay DICOSE. */
 export function fmtDicoseEmpresa(
   codigo: string | null | undefined,
   empresas: EmpresaOperativaStock[]
