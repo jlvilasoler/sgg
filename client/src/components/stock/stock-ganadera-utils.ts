@@ -160,8 +160,6 @@ export function pctEscalaMeses(meses: number, max: number): number {
   return Math.min(100, Math.max(0, (meses / max) * 100));
 }
 
-const MACHO_SEGMENTO_PCT = 100 / 3;
-
 export const HEMBRA_ESCALA_MAX_MESES = 192;
 export const HEMBRA_FRONTERA_TERNERA = 12;
 export const HEMBRA_FRONTERA_VAQUILLONA = 24;
@@ -214,48 +212,22 @@ export function etapaHembraDesdeMeses(meses: number): EtapaEvolucionHembra {
   return ETAPAS_EVOLUCION_HEMBRA[3];
 }
 
-const HEMBRA_SEGMENTO_PCT = 100 / 4;
-
-/** Posición visual en la barra hembra: 4 tramos iguales. */
+/**
+ * Posición en la barra: escala temporal lineal (meses / tope).
+ * Así 1 año ocupa lo mismo al inicio y al final (p. ej. 93 m ≈ mitad de 16 años).
+ */
 export function pctHembraVisual(meses: number): number {
-  const m = Math.min(Math.max(0, meses), HEMBRA_ESCALA_MAX_MESES);
-  if (m <= HEMBRA_FRONTERA_TERNERA) {
-    return (m / HEMBRA_FRONTERA_TERNERA) * HEMBRA_SEGMENTO_PCT;
-  }
-  if (m <= HEMBRA_FRONTERA_VAQUILLONA) {
-    const t =
-      (m - HEMBRA_FRONTERA_TERNERA) /
-      (HEMBRA_FRONTERA_VAQUILLONA - HEMBRA_FRONTERA_TERNERA);
-    return HEMBRA_SEGMENTO_PCT + t * HEMBRA_SEGMENTO_PCT;
-  }
-  if (m <= HEMBRA_FRONTERA_VAQUILLONA_MAS_2) {
-    const t =
-      (m - HEMBRA_FRONTERA_VAQUILLONA) /
-      (HEMBRA_FRONTERA_VAQUILLONA_MAS_2 - HEMBRA_FRONTERA_VAQUILLONA);
-    return HEMBRA_SEGMENTO_PCT * 2 + t * HEMBRA_SEGMENTO_PCT;
-  }
-  const t =
-    (m - HEMBRA_FRONTERA_VAQUILLONA_MAS_2) /
-    (HEMBRA_ESCALA_MAX_MESES - HEMBRA_FRONTERA_VAQUILLONA_MAS_2);
-  return HEMBRA_SEGMENTO_PCT * 3 + t * HEMBRA_SEGMENTO_PCT;
+  return pctEscalaMeses(meses, HEMBRA_ESCALA_MAX_MESES);
 }
 
-/** Posición visual en la barra macho: 3 tramos iguales (ternero / 1-2a / +2a). */
+/** Posición visual macho: misma escala lineal que hembra (0–16 años). */
 export function pctMachoVisual(meses: number): number {
-  const m = Math.min(Math.max(0, meses), MACHO_ESCALA_MAX_MESES);
-  if (m <= MACHO_FRONTERA_TERNERO) {
-    return (m / MACHO_FRONTERA_TERNERO) * MACHO_SEGMENTO_PCT;
-  }
-  if (m <= MACHO_FRONTERA_NOVILLO) {
-    const t =
-      (m - MACHO_FRONTERA_TERNERO) /
-      (MACHO_FRONTERA_NOVILLO - MACHO_FRONTERA_TERNERO);
-    return MACHO_SEGMENTO_PCT + t * MACHO_SEGMENTO_PCT;
-  }
-  const t =
-    (m - MACHO_FRONTERA_NOVILLO) /
-    (MACHO_ESCALA_MAX_MESES - MACHO_FRONTERA_NOVILLO);
-  return MACHO_SEGMENTO_PCT * 2 + t * MACHO_SEGMENTO_PCT;
+  return pctEscalaMeses(meses, MACHO_ESCALA_MAX_MESES);
+}
+
+/** % de un mes concreto sobre el tope de la escala ganadera. */
+function pctMesEnEscala(meses: number, max = HEMBRA_ESCALA_MAX_MESES): number {
+  return pctEscalaMeses(meses, max);
 }
 
 export type EscalaMarcaAlineacion = "left" | "center" | "right";
@@ -266,37 +238,54 @@ export interface EscalaMarcaMeses {
   align: EscalaMarcaAlineacion;
 }
 
-/** Hitos de meses alineados a los límites visuales del cronograma macho (3 tramos). */
+/**
+ * Hitos de meses (lineales). Incluye cortes de etapa al inicio y
+ * marcas cada ~4 años en la adultez para que el tramo largo se lea bien.
+ */
 export const ESCALA_MARCAS_MACHO: readonly EscalaMarcaMeses[] = [
   { label: "0 m", pct: 0, align: "left" },
-  { label: "12 m", pct: MACHO_SEGMENTO_PCT, align: "center" },
-  { label: "24 m", pct: MACHO_SEGMENTO_PCT * 2, align: "center" },
+  { label: "24 m", pct: pctMesEnEscala(24, MACHO_ESCALA_MAX_MESES), align: "center" },
+  { label: "96 m", pct: pctMesEnEscala(96, MACHO_ESCALA_MAX_MESES), align: "center" },
+  { label: "144 m", pct: pctMesEnEscala(144, MACHO_ESCALA_MAX_MESES), align: "center" },
   { label: "192 m", pct: 100, align: "right" },
 ];
 
-/** Hitos de meses alineados a los límites visuales del cronograma hembra (4 tramos). */
 export const ESCALA_MARCAS_HEMBRA: readonly EscalaMarcaMeses[] = [
   { label: "0 m", pct: 0, align: "left" },
-  { label: "12 m", pct: HEMBRA_SEGMENTO_PCT, align: "center" },
-  { label: "24 m", pct: HEMBRA_SEGMENTO_PCT * 2, align: "center" },
-  { label: "36 m", pct: HEMBRA_SEGMENTO_PCT * 3, align: "center" },
+  { label: "36 m", pct: pctMesEnEscala(36), align: "center" },
+  { label: "96 m", pct: pctMesEnEscala(96), align: "center" },
+  { label: "144 m", pct: pctMesEnEscala(144), align: "center" },
   { label: "192 m", pct: 100, align: "right" },
 ];
 
-/** Hitos en años (misma posición % que los meses de corte). */
+/** Hitos en años alineados a la misma escala lineal. */
 export const ESCALA_MARCAS_ANIOS_MACHO: readonly EscalaMarcaMeses[] = [
   { label: "0 años", pct: 0, align: "left" },
-  { label: "1 año", pct: MACHO_SEGMENTO_PCT, align: "center" },
-  { label: "2 años", pct: MACHO_SEGMENTO_PCT * 2, align: "center" },
+  { label: "2 años", pct: pctMesEnEscala(24, MACHO_ESCALA_MAX_MESES), align: "center" },
+  { label: "8 años", pct: pctMesEnEscala(96, MACHO_ESCALA_MAX_MESES), align: "center" },
+  { label: "12 años", pct: pctMesEnEscala(144, MACHO_ESCALA_MAX_MESES), align: "center" },
   { label: "16 años", pct: 100, align: "right" },
 ];
 
 export const ESCALA_MARCAS_ANIOS_HEMBRA: readonly EscalaMarcaMeses[] = [
   { label: "0 años", pct: 0, align: "left" },
-  { label: "1 año", pct: HEMBRA_SEGMENTO_PCT, align: "center" },
-  { label: "2 años", pct: HEMBRA_SEGMENTO_PCT * 2, align: "center" },
-  { label: "3 años", pct: HEMBRA_SEGMENTO_PCT * 3, align: "center" },
+  { label: "3 años", pct: pctMesEnEscala(36), align: "center" },
+  { label: "8 años", pct: pctMesEnEscala(96), align: "center" },
+  { label: "12 años", pct: pctMesEnEscala(144), align: "center" },
   { label: "16 años", pct: 100, align: "right" },
+];
+
+/** Fronteras de etapa hembra en % lineales (para divisores del track). */
+export const HEMBRA_TRACK_DIVISORES_PCT: readonly number[] = [
+  pctMesEnEscala(HEMBRA_FRONTERA_TERNERA),
+  pctMesEnEscala(HEMBRA_FRONTERA_VAQUILLONA),
+  pctMesEnEscala(HEMBRA_FRONTERA_VAQUILLONA_MAS_2),
+];
+
+/** Fronteras de etapa macho en % lineales. */
+export const MACHO_TRACK_DIVISORES_PCT: readonly number[] = [
+  pctMesEnEscala(MACHO_FRONTERA_TERNERO, MACHO_ESCALA_MAX_MESES),
+  pctMesEnEscala(MACHO_FRONTERA_NOVILLO, MACHO_ESCALA_MAX_MESES),
 ];
 
 /** Avance 0–100 % dentro de la etapa productiva actual (macho). */

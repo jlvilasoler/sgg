@@ -18775,10 +18775,8 @@ button.stock-device-ids__stack-btn {
     linear-gradient(
       90deg,
       #f4f1ea 0%,
-      #f4f1ea 33.33%,
-      #d4e8d8 33.33%,
-      #d4e8d8 66.66%,
-      #9fbf9f 66.66%,
+      #d4e8d8 18%,
+      #9fbf9f 55%,
       #7fa88a 100%
     );
   background-size: 220% 100%, 100% 100%;
@@ -18788,30 +18786,21 @@ button.stock-device-ids__stack-btn {
   overflow: visible;
 }
 
+.stock-evo-macho-track--lineal {
+  background:
+    linear-gradient(
+      105deg,
+      transparent 38%,
+      rgba(255, 255, 255, 0.55) 50%,
+      transparent 62%
+    ),
+    var(--evo-track-bands, linear-gradient(90deg, #f4f1ea 0%, #7fa88a 100%));
+  background-size: 220% 100%, 100% 100%;
+}
+
 .stock-evo-macho-track::before,
 .stock-evo-macho-track::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 2px;
-  margin-left: -1px;
-  background: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.9),
-    rgba(240, 185, 11, 0.35),
-    rgba(255, 255, 255, 0.75)
-  );
-  z-index: 1;
-  pointer-events: none;
-}
-
-.stock-evo-macho-track::before {
-  left: 33.333%;
-}
-
-.stock-evo-macho-track::after {
-  left: 66.666%;
+  content: none;
 }
 
 .stock-evo-macho-track-fill {
@@ -19499,12 +19488,9 @@ button.stock-device-ids__stack-btn {
     linear-gradient(
       90deg,
       #f4f1ea 0%,
-      #f4f1ea 25%,
-      #e4ebe0 25%,
-      #e4ebe0 50%,
-      #c8dcc8 50%,
-      #c8dcc8 75%,
-      #a8c4a8 75%,
+      #e4ebe0 12%,
+      #c8dcc8 35%,
+      #a8c4a8 70%,
       #8fb396 100%
     );
   background-size: 220% 100%, 100% 100%;
@@ -19514,32 +19500,24 @@ button.stock-device-ids__stack-btn {
   overflow: visible;
 }
 
+.stock-evo-hembra-track--lineal {
+  background:
+    linear-gradient(
+      105deg,
+      transparent 38%,
+      rgba(255, 255, 255, 0.5) 50%,
+      transparent 62%
+    ),
+    var(--evo-track-bands, linear-gradient(90deg, #f4f1ea 0%, #8fb396 100%));
+  background-size: 220% 100%, 100% 100%;
+}
+
 .stock-evo-hembra-track::before,
 .stock-evo-hembra-track::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 2px;
-  margin-left: -1px;
-  background: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.9),
-    rgba(240, 185, 11, 0.32),
-    rgba(255, 255, 255, 0.75)
-  );
-  z-index: 1;
-  pointer-events: none;
+  content: none;
 }
 
-.stock-evo-hembra-track::before {
-  left: 25%;
-}
-
-.stock-evo-hembra-track::after {
-  left: 50%;
-}
-
+.stock-evo-macho-track-div,
 .stock-evo-hembra-track-div {
   position: absolute;
   top: 0;

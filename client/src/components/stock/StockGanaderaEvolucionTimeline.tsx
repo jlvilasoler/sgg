@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, type CSSProperties } from "react";
 import type { DispositivoEstado, DispositivoSexo } from "../../types";
 import StockEditarFichaEdadDisplay from "./StockEditarFichaEdadDisplay";
 import StockEditarSectionTitle from "./StockEditarSectionTitle";
@@ -16,8 +16,10 @@ import {
   etiquetaFechaBaja,
   fmtNacimiento,
   HEMBRA_ESCALA_MAX_MESES,
+  HEMBRA_TRACK_DIVISORES_PCT,
   listAniosNacimiento,
   MACHO_ESCALA_MAX_MESES,
+  MACHO_TRACK_DIVISORES_PCT,
   MESES_NACIMIENTO,
   mesesReferenciaTimeline,
   pctEscalaMeses,
@@ -186,6 +188,7 @@ interface ChartEtapasProps {
   claseBase: "macho" | "hembra";
   escalaMarcas: readonly EscalaMarcaMeses[];
   escalaMarcasAnios: readonly EscalaMarcaMeses[];
+  trackDivisoresPct: readonly number[];
 }
 
 function claseEscalaMarca(align: EscalaMarcaMeses["align"]): string {
@@ -230,11 +233,30 @@ function ChartEtapas({
   claseBase,
   escalaMarcas,
   escalaMarcasAnios,
+  trackDivisoresPct,
 }: ChartEtapasProps) {
   const pref = `stock-evo-${claseBase}`;
   const superaMax = mesesPin > escalaMax;
   const enBaja = requiereFechaBaja(estado);
   const etiquetaBaja = etiquetaFechaBaja(estado);
+  const trackStops = [
+    0,
+    ...trackDivisoresPct,
+    100,
+  ];
+  const trackGradient = trackStops
+    .map((pct, i) => {
+      const colors =
+        claseBase === "macho"
+          ? ["#f4f1ea", "#d4e8d8", "#9fbf9f", "#7fa88a"]
+          : ["#f4f1ea", "#e4ebe0", "#c8dcc8", "#a8c4a8", "#8fb396"];
+      const color = colors[Math.min(i, colors.length - 1)];
+      const next = trackStops[i + 1];
+      if (next == null) return null;
+      return `${color} ${pct}%, ${color} ${next}%`;
+    })
+    .filter(Boolean)
+    .join(", ");
 
   return (
     <div className={pref}>
@@ -283,10 +305,23 @@ function ChartEtapas({
         })}
 
         <div className={`${pref}-track-wrap`}>
-          <div className={`${pref}-track`} role="img" aria-hidden>
-            {etapas.length === 4 && (
-              <span className={`${pref}-track-div ${pref}-track-div--75`} />
-            )}
+          <div
+            className={`${pref}-track ${pref}-track--lineal`}
+            role="img"
+            aria-hidden
+            style={
+              {
+                "--evo-track-bands": `linear-gradient(90deg, ${trackGradient})`,
+              } as CSSProperties
+            }
+          >
+            {trackDivisoresPct.map((pct) => (
+              <span
+                key={`div-${pct}`}
+                className={`${pref}-track-div`}
+                style={{ left: `${pct}%` }}
+              />
+            ))}
             <div
               className={`${pref}-track-fill`}
               style={{ width: `${posicionPct}%` }}
@@ -323,13 +358,22 @@ function ChartEtapas({
         <div className={`${pref}-escala-wrap`}>
           <div className={`${pref}-track-escala`}>
             <div
-              className={`${pref}-track ${pref}-track--escala`}
+              className={`${pref}-track ${pref}-track--escala ${pref}-track--lineal`}
               role="img"
               aria-hidden
+              style={
+                {
+                  "--evo-track-bands": `linear-gradient(90deg, ${trackGradient})`,
+                } as CSSProperties
+              }
             >
-              {etapas.length === 4 && (
-                <span className={`${pref}-track-div ${pref}-track-div--75`} />
-              )}
+              {trackDivisoresPct.map((pct) => (
+                <span
+                  key={`esc-div-${pct}`}
+                  className={`${pref}-track-div`}
+                  style={{ left: `${pct}%` }}
+                />
+              ))}
               <div
                 className={`${pref}-track-fill`}
                 style={{ width: `${posicionPct}%` }}
@@ -377,6 +421,7 @@ function ChartMacho({ edadMeses, mesesPin, estado, etapaActivaId }: ChartMachoPr
       claseBase="macho"
       escalaMarcas={ESCALA_MARCAS_MACHO}
       escalaMarcasAnios={ESCALA_MARCAS_ANIOS_MACHO}
+      trackDivisoresPct={MACHO_TRACK_DIVISORES_PCT}
     />
   );
 }
@@ -403,6 +448,7 @@ function ChartHembra({ edadMeses, mesesPin, estado, etapaActivaId }: ChartHembra
       claseBase="hembra"
       escalaMarcas={ESCALA_MARCAS_HEMBRA}
       escalaMarcasAnios={ESCALA_MARCAS_ANIOS_HEMBRA}
+      trackDivisoresPct={HEMBRA_TRACK_DIVISORES_PCT}
     />
   );
 }
