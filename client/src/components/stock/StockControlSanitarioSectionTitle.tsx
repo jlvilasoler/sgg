@@ -161,7 +161,7 @@ function renderIcon(icon: AnyIcon, size: number) {
     case "animal-equino":
       return <LucideHorseHoof {...props} />;
     case "animal-ovino":
-      return <IconoOvejaOvinoSvg size={props.size ?? 16} className={props.className} />;
+      return <StockOvinoModuleIcon size={size} strokeWidth={ICON_STROKE} />;
     case "controles":
       return <ClipboardCheck {...props} />;
     case "historial":

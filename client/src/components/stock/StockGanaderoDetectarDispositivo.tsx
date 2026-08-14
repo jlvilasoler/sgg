@@ -219,7 +219,10 @@ export default function StockGanaderoDetectarDispositivo({
   return (
     <div className="stock-import-pane stock-detectar-pane">
       {!embedded ? (
-        <PageModuleHeadRow title="Detectar dispositivo en Base de Datos" />
+        <PageModuleHeadRow
+          icon={{ source: "hub", id: "stock_detectar" }}
+          title="Detectar dispositivo en Base de Datos"
+        />
       ) : null}
 
       <p className="stock-detectar-lead">
