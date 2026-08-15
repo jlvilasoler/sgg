@@ -626,6 +626,32 @@ export async function updateSimulacionVentaGanado(
   return row;
 }
 
+/** Solo corrige categoría (p. ej. al vincular dispositivos del stock). No toca precios ni totales. */
+export async function updateCategoriaSimulacionVentaGanado(
+  db: Db,
+  id: number,
+  categoria: string,
+  cuentaId?: number | null
+): Promise<SimuladorVentaGanadoRow> {
+  const existing = await getSimulacionVentaGanadoById(db, id, cuentaId);
+  if (!existing) throw new Error("Simulación no encontrada");
+
+  const cat = String(categoria ?? "").trim().toUpperCase();
+  const permitidas = categoriasPorTipo(existing.tipo);
+  if (!permitidas.includes(cat as (typeof permitidas)[number])) {
+    throw new Error(`Categoría ${cat} no válida para este tipo de venta`);
+  }
+  if (existing.categoria === cat) return existing;
+
+  await db
+    .prepare(`UPDATE SIMULADOR_VENTA_GANADO SET categoria = ? WHERE id = ?`)
+    .run(cat, id);
+
+  const row = await getSimulacionVentaGanadoById(db, id, cuentaId);
+  if (!row) throw new Error("No se pudo recuperar la simulación actualizada");
+  return row;
+}
+
 export async function patchSimulacionVentaGanado(
   db: Db,
   id: number,

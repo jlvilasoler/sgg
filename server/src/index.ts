@@ -50,6 +50,7 @@ import {
   auditSimuladorEliminacion,
   auditSimuladorPatch,
 } from "./simulador-venta-audit.js";
+import { corregirCategoriaVentaDesdeDispositivos } from "./simulador-venta-categoria-sync.js";
 import { normalizarTituloRubro } from "./text-normalize.js";
 import {
   parseStockGanaderoBuffer,
@@ -10009,10 +10010,38 @@ app.put("/api/simulador-venta-ganado/:id/dispositivos", async (req, res) => {
         detalle: { simulacion_id: id, restaurados },
       });
     }
+
+    let categoriaCorregida: {
+      antes: string;
+      despues: string;
+      labelAntes: string;
+      labelDespues: string;
+    } | null = null;
+    const correccion = await corregirCategoriaVentaDesdeDispositivos(
+      db.getDb(),
+      existing,
+      data.map((d) => d.clave),
+      await cuentaIdForScopedRead(req.user!)
+    );
+    if (correccion) {
+      categoriaCorregida = {
+        antes: correccion.antes,
+        despues: correccion.despues,
+        labelAntes: correccion.labelAntes,
+        labelDespues: correccion.labelDespues,
+      };
+      await auditSimuladorActualizacion(req, existing, correccion.row);
+    }
+
     const parts: string[] = [];
     if (data.length > 0) parts.push(`${data.length} dispositivo(s) vinculado(s) a la venta`);
     if (bajados.length > 0) parts.push(`${bajados.length} dado(s) de baja en stock`);
     if (restaurados > 0) parts.push(`${restaurados} restaurado(s) al stock activo`);
+    if (categoriaCorregida) {
+      parts.push(
+        `categoría corregida: ${categoriaCorregida.labelAntes} → ${categoriaCorregida.labelDespues}`
+      );
+    }
     const message =
       parts.length > 0 ? parts.join(" · ") : "Sin dispositivos vinculados a la venta";
     res.json({
@@ -10020,6 +10049,8 @@ app.put("/api/simulador-venta-ganado/:id/dispositivos", async (req, res) => {
       data,
       bajados: bajados.length,
       restaurados,
+      categoria: categoriaCorregida?.despues ?? existing.categoria,
+      categoria_corregida: categoriaCorregida,
       message,
     });
   } catch (e) {

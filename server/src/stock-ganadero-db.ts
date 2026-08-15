@@ -2105,6 +2105,38 @@ export async function getEstadoDispositivoStock(
     : "VIVO";
 }
 
+/** Metadatos de evolución (sexo/edad) para inferir categoría de venta. */
+export async function getMetasDispositivosPorClaves(
+  db: Db,
+  claves: readonly string[]
+): Promise<Map<string, DispositivoMetaGuardada>> {
+  const uniq = [
+    ...new Set(
+      claves.map((c) => normalizarClaveDispositivo(String(c ?? ""))).filter(Boolean)
+    ),
+  ];
+  const map = new Map<string, DispositivoMetaGuardada>();
+  if (!uniq.length) return map;
+
+  const placeholders = uniq.map(() => "?").join(", ");
+  const rows = (await db
+    .prepare(
+      `SELECT clave, sexo, empresa, grupo, grupo_libre, potrero, raza, color_caravana,
+              edad, nacimiento_mes, nacimiento_anio, observaciones, estado, tipo_baja,
+              numero_guia, baja_mes, baja_anio
+       FROM STOCK_GANADERO_DISPOSITIVO
+       WHERE clave IN (${placeholders})`
+    )
+    .all(...uniq)) as DispositivoMetaRow[];
+
+  for (const row of rows) {
+    const clave = String(row.clave ?? "").trim();
+    if (!clave) continue;
+    map.set(clave, aplicarEdadCalculada(normalizarMetaDispositivo(row)));
+  }
+  return map;
+}
+
 export async function aplicarBajaDispositivoStock(
   db: Db,
   clave: string,

@@ -712,15 +712,25 @@ export default function SimuladorVentaPanel({
         onVolver={() => setCaravanasRow(null)}
         onError={onError}
         onSuccess={onSuccess}
-        onDispositivosSaved={(count) => {
+        onDispositivosSaved={({ count, categoria }) => {
           setHistorial((prev) =>
             replaceHistorialRow(
               prev,
-              normalizeSimuladorRow({ ...caravanasRow, dispositivos_count: count })
+              normalizeSimuladorRow({
+                ...caravanasRow,
+                dispositivos_count: count,
+                ...(categoria ? { categoria } : {}),
+              })
             )
           );
           setCaravanasRow((current) =>
-            current ? { ...current, dispositivos_count: count } : null
+            current
+              ? {
+                  ...current,
+                  dispositivos_count: count,
+                  ...(categoria ? { categoria } : {}),
+                }
+              : null
           );
         }}
       />

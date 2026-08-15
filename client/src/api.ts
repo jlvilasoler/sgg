@@ -4534,6 +4534,13 @@ export async function saveSimuladorVentaDispositivos(
   message: string;
   restaurados?: number;
   bajados?: number;
+  categoria?: string;
+  categoria_corregida?: {
+    antes: string;
+    despues: string;
+    labelAntes: string;
+    labelDespues: string;
+  } | null;
 }> {
   return request(`/simulador-venta-ganado/${id}/dispositivos`, {
     method: "PUT",

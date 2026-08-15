@@ -25,7 +25,10 @@ interface Props {
   onVolver: () => void;
   onError: (msg: string) => void;
   onSuccess: (msg: string) => void;
-  onDispositivosSaved?: (count: number) => void;
+  onDispositivosSaved?: (payload: {
+    count: number;
+    categoria?: string;
+  }) => void;
 }
 
 type Seleccion = Pick<StockGanaderaDispositivo, "clave" | "eid" | "vid">;
@@ -121,7 +124,10 @@ export default function SimuladorVentaCaravanasPanel({
         res.data.map((d) => ({ clave: d.clave, eid: d.eid, vid: d.vid }))
       );
       setRefreshKey((k) => k + 1);
-      onDispositivosSaved?.(res.data.length);
+      onDispositivosSaved?.({
+        count: res.data.length,
+        categoria: res.categoria_corregida?.despues ?? res.categoria,
+      });
       onSuccess(res.message);
       onVolver();
     } catch (e) {

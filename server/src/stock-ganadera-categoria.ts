@@ -119,6 +119,8 @@ function categoriasDispositivo(d: {
   return ["SIN_SEXO"];
 }
 
+export { categoriasDispositivo };
+
 /** Etiqueta legible de categoría al momento de la baja. */
 export function labelCategoriaSalidaDispositivo(d: {
   sexo: DispositivoSexo;
