@@ -158,7 +158,11 @@ export default function BuscadorCaravanaActiva({
   const [abierto, setAbierto] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const onErrorRef = useRef(onError);
+  onErrorRef.current = onError;
   const txt = textosBuscador(variant, incluirFueraDeStock);
+  const errorCargarRef = useRef(txt.errorCargar);
+  errorCargarRef.current = txt.errorCargar;
   const esCabana = variant === "cabana";
   const mostrarFuera = variant === "dispositivos" && incluirFueraDeStock;
 
@@ -195,7 +199,9 @@ export default function BuscadorCaravanaActiva({
       })
       .catch((e) => {
         if (cancel) return;
-        onError?.(e instanceof Error ? e.message : txt.errorCargar);
+        onErrorRef.current?.(
+          e instanceof Error ? e.message : errorCargarRef.current
+        );
         setActivos([]);
       })
       .finally(() => {
@@ -204,7 +210,7 @@ export default function BuscadorCaravanaActiva({
     return () => {
       cancel = true;
     };
-  }, [apiOnline, refreshKey, onError, txt.errorCargar, variant, incluirFueraDeStock]);
+  }, [apiOnline, refreshKey, variant, incluirFueraDeStock]);
 
   useEffect(() => {
     if (!abierto) return;

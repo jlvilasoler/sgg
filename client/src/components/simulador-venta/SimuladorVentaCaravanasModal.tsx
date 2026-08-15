@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useEffectEvent, useMemo, useState } from "react";
 import {
   fetchSimuladorVentaDispositivos,
   saveSimuladorVentaDispositivos,
@@ -112,6 +112,15 @@ export default function SimuladorVentaCaravanasPanel({
     ? (config.labels[filtroCategoria] ?? filtroCategoria)
     : undefined;
 
+  // Evitar loop: callbacks del padre cambian en cada render y no deben re-disparar load.
+  const onErrorEvent = useEffectEvent(onError);
+  const onDispositivosSavedEvent = useEffectEvent(
+    onDispositivosSaved ?? ((_payload: { count: number; categoria?: CategoriaPrecioGanado }) => {})
+  );
+  const onCategoriaCorregidaEvent = useEffectEvent(
+    onCategoriaCorregida ?? ((_msg: string) => {})
+  );
+
   const load = useCallback(async () => {
     if (!apiOnline) {
       setSeleccionadas([]);
@@ -131,21 +140,21 @@ export default function SimuladorVentaCaravanasPanel({
         const { labelAntes, labelDespues, despues } = res.categoria_corregida;
         setCategoriaActual(despues);
         setFiltroCategoria(despues);
-        onDispositivosSaved?.({
+        onDispositivosSavedEvent({
           count: res.data.length,
           categoria: despues,
         });
-        onCategoriaCorregida?.(
+        onCategoriaCorregidaEvent(
           `Categoría corregida según el dispositivo: ${labelAntes} → ${labelDespues}`
         );
       }
     } catch (e) {
-      onError(e instanceof Error ? e.message : "Error al cargar dispositivos");
+      onErrorEvent(e instanceof Error ? e.message : "Error al cargar dispositivos");
       setSeleccionadas([]);
     } finally {
       setLoading(false);
     }
-  }, [apiOnline, onError, onDispositivosSaved, onCategoriaCorregida, row.id]);
+  }, [apiOnline, row.id]);
 
   useEffect(() => {
     setCategoriaActual(row.categoria);

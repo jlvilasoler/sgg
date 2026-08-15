@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { fetchSimuladorVentaDispositivos } from "../../api";
 import { useHeaderBackStep } from "../../header-back";
 import type { SimuladorVentaGanadoRow, SimuladorVentaDispositivoRow } from "../../types";
@@ -24,6 +24,8 @@ export default function SimuladorVentaDispositivosVerPanel({
   useHeaderBackStep(true, onVolver, "Simulador de ventas");
   const [items, setItems] = useState<SimuladorVentaDispositivoRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const onErrorRef = useRef(onError);
+  onErrorRef.current = onError;
 
   const catLabel = config.labels[row.categoria] ?? row.categoria;
   const opCode = row.numero_operacion || `#${row.id}`;
@@ -41,12 +43,12 @@ export default function SimuladorVentaDispositivosVerPanel({
       const res = await fetchSimuladorVentaDispositivos(row.id);
       setItems(res.data);
     } catch (e) {
-      onError(e instanceof Error ? e.message : "Error al cargar dispositivos");
+      onErrorRef.current(e instanceof Error ? e.message : "Error al cargar dispositivos");
       setItems([]);
     } finally {
       setLoading(false);
     }
-  }, [apiOnline, onError, row.id]);
+  }, [apiOnline, row.id]);
 
   useEffect(() => {
     void load();
