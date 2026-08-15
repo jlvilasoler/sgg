@@ -733,6 +733,7 @@ export default function SimuladorVentaPanel({
               : null
           );
         }}
+        onCategoriaCorregida={(msg) => onSuccess(msg)}
       />
     );
   }

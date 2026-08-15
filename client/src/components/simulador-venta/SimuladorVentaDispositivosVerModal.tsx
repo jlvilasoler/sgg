@@ -38,8 +38,8 @@ export default function SimuladorVentaDispositivosVerPanel({
     }
     setLoading(true);
     try {
-      const data = await fetchSimuladorVentaDispositivos(row.id);
-      setItems(data);
+      const res = await fetchSimuladorVentaDispositivos(row.id);
+      setItems(res.data);
     } catch (e) {
       onError(e instanceof Error ? e.message : "Error al cargar dispositivos");
       setItems([]);

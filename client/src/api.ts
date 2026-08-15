@@ -4520,11 +4520,32 @@ export async function fetchSimuladorVentaAuditoria(
 
 export async function fetchSimuladorVentaDispositivos(
   id: number
-): Promise<SimuladorVentaDispositivoRow[]> {
-  const json = await request<{ ok: boolean; data: SimuladorVentaDispositivoRow[] }>(
-    `/simulador-venta-ganado/${id}/dispositivos`
-  );
-  return json.data;
+): Promise<{
+  data: SimuladorVentaDispositivoRow[];
+  categoria?: CategoriaPrecioGanado;
+  categoria_corregida?: {
+    antes: string;
+    despues: CategoriaPrecioGanado;
+    labelAntes: string;
+    labelDespues: string;
+  } | null;
+}> {
+  const json = await request<{
+    ok: boolean;
+    data: SimuladorVentaDispositivoRow[];
+    categoria?: CategoriaPrecioGanado;
+    categoria_corregida?: {
+      antes: string;
+      despues: CategoriaPrecioGanado;
+      labelAntes: string;
+      labelDespues: string;
+    } | null;
+  }>(`/simulador-venta-ganado/${id}/dispositivos`);
+  return {
+    data: json.data,
+    categoria: json.categoria,
+    categoria_corregida: json.categoria_corregida ?? null,
+  };
 }
 
 export async function saveSimuladorVentaDispositivos(

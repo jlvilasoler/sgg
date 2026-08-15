@@ -27,24 +27,69 @@ const FILTRO_A_SIMULADOR: Record<SimuladorVentaTipo, Record<string, string>> = {
   },
 };
 
+/** Si no hay edad/nacimiento, el sexo alcanza para no dejar mal una venta (ej. Novillo vs Vaca). */
+const FALLBACK_POR_SEXO: Record<SimuladorVentaTipo, Record<"MACHO" | "HEMBRA", string>> = {
+  EN_PIE: {
+    MACHO: "TERNERO",
+    HEMBRA: "VACA_INVERNADA",
+  },
+  CUARTA_BALANZA: {
+    MACHO: "NOVILLO",
+    HEMBRA: "VACA",
+  },
+};
+
 export function categoriaSimuladorDesdeFiltroKeys(
   tipo: SimuladorVentaTipo,
   filtroKeys: readonly string[]
 ): string | null {
-  const permitidas = new Set(categoriasPorTipo(tipo));
+  const permitidas = new Set(categoriasPorTipo(tipo).map((c) => String(c)));
   const map = FILTRO_A_SIMULADOR[tipo] ?? {};
   const encontradas = new Set<string>();
   for (const key of filtroKeys) {
     const cat = map[key];
-    if (cat && permitidas.has(cat as never)) encontradas.add(cat);
+    if (cat && permitidas.has(cat)) encontradas.add(cat);
   }
   if (encontradas.size === 1) return [...encontradas][0]!;
   return null;
 }
 
+function categoriaDesdeSexoFallback(
+  tipo: SimuladorVentaTipo,
+  sexo: "" | "MACHO" | "HEMBRA"
+): string | null {
+  if (sexo !== "MACHO" && sexo !== "HEMBRA") return null;
+  const cat = FALLBACK_POR_SEXO[tipo]?.[sexo];
+  if (!cat) return null;
+  const permitidas = new Set(categoriasPorTipo(tipo).map((c) => String(c)));
+  return permitidas.has(cat) ? cat : null;
+}
+
+/**
+ * Categoría de un dispositivo: primero por edad/sexo de evolución;
+ * si faltan fechas, usa el sexo (HEMBRA→Vaca / MACHO→Novillo en cuarta balanza).
+ */
+export function inferirCategoriaSimuladorDispositivo(
+  tipo: SimuladorVentaTipo,
+  meta: {
+    sexo: "" | "MACHO" | "HEMBRA";
+    edad: number | null;
+    nacimiento_mes: number | null;
+    nacimiento_anio: number | null;
+    estado: "VIVO" | "MUERTO" | "VENDIDO" | "FRIGORIFICO" | "PERDIDO";
+    baja_mes: number | null;
+    baja_anio: number | null;
+  }
+): string | null {
+  const keys = categoriasDispositivo(meta);
+  const porEdad = categoriaSimuladorDesdeFiltroKeys(tipo, keys);
+  if (porEdad) return porEdad;
+  return categoriaDesdeSexoFallback(tipo, meta.sexo);
+}
+
 /**
  * Si todos los dispositivos vinculados apuntan a la misma categoría válida
- * para el tipo de venta, la devuelve. Si hay mezcla o datos incompletos, null.
+ * para el tipo de venta, la devuelve. Si hay mezcla, null.
  */
 export function inferirCategoriaSimuladorUnanime(
   tipo: SimuladorVentaTipo,
@@ -62,8 +107,7 @@ export function inferirCategoriaSimuladorUnanime(
 
   const cats: string[] = [];
   for (const meta of metas) {
-    const keys = categoriasDispositivo(meta);
-    const cat = categoriaSimuladorDesdeFiltroKeys(tipo, keys);
+    const cat = inferirCategoriaSimuladorDispositivo(tipo, meta);
     if (!cat) return null;
     cats.push(cat);
   }
@@ -95,13 +139,20 @@ export async function corregirCategoriaVentaDesdeDispositivos(
 ): Promise<CorregirCategoriaDesdeDispositivosResult | null> {
   if (!claves.length) return null;
 
-  const metasMap = await getMetasDispositivosPorClaves(db, claves);
-  if (metasMap.size !== new Set(claves.map((c) => String(c).replace(/\D/g, "")).filter(Boolean)).size) {
+  const uniqClaves = [
+    ...new Set(claves.map((c) => String(c ?? "").replace(/\D/g, "")).filter(Boolean)),
+  ];
+  if (!uniqClaves.length) return null;
+
+  let metasMap: Awaited<ReturnType<typeof getMetasDispositivosPorClaves>>;
+  try {
+    metasMap = await getMetasDispositivosPorClaves(db, uniqClaves);
+  } catch {
     return null;
   }
-  const metas = [...metasMap.values()];
-  if (!metas.length) return null;
+  if (metasMap.size !== uniqClaves.length) return null;
 
+  const metas = [...metasMap.values()];
   const inferida = inferirCategoriaSimuladorUnanime(simulacion.tipo, metas);
   if (!inferida || inferida === simulacion.categoria) return null;
 

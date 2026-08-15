@@ -11,7 +11,7 @@ import type {
 } from "../../types";
 import { fmtNum } from "../divisas/divisas-utils";
 import BuscadorCaravanaActiva from "../stock/BuscadorCaravanaActiva";
-import { etiquetaCaravana } from "../stock/stock-ganadera-utils";
+import { etiquetaCaravana, categoriasDispositivo } from "../stock/stock-ganadera-utils";
 import { useHeaderBackStep } from "../../header-back";
 import { canWriteSimuladorVentaGanado } from "../../utils/auth-permissions";
 import { simuladorCategoriaAFiltroKeys, type SimuladorVentaTipoConfig } from "./simulador-venta-config";
@@ -20,6 +20,43 @@ import {
   mensajeLimiteDispositivosVenta,
   puedeAgregarDispositivoVenta,
 } from "./simulador-venta-dispositivos-utils";
+
+/** Inferencia rápida en UI al elegir un dispositivo (el servidor confirma al guardar). */
+function categoriaDesdeDispositivoUi(
+  tipo: SimuladorVentaGanadoRow["tipo"],
+  d: StockGanaderaDispositivo,
+  categoriasValidas: readonly string[]
+): CategoriaPrecioGanado | null {
+  const permitidas = new Set(categoriasValidas);
+  const keys = [...categoriasDispositivo(d)];
+  const map: Record<string, Record<string, string>> = {
+    EN_PIE: { TERNERO: "TERNERO", TERNERA: "TERNERA", VACA: "VACA_INVERNADA" },
+    CUARTA_BALANZA: {
+      NOVILLO_1_2: "NOVILLO",
+      NOVILLO_MAS_2: "NOVILLO",
+      TORO_1_2: "NOVILLO",
+      TORO_MAS_2: "NOVILLO",
+      VACA: "VACA",
+      VAQUILLONA_1_2: "VAQUILLONA",
+      VAQUILLONA_MAS_2: "VAQUILLONA",
+    },
+  };
+  const found = new Set<string>();
+  for (const k of keys) {
+    const cat = map[tipo]?.[k];
+    if (cat && permitidas.has(cat)) found.add(cat);
+  }
+  if (found.size === 1) return [...found][0] as CategoriaPrecioGanado;
+  if (d.sexo === "HEMBRA") {
+    const fb = tipo === "EN_PIE" ? "VACA_INVERNADA" : "VACA";
+    return permitidas.has(fb) ? (fb as CategoriaPrecioGanado) : null;
+  }
+  if (d.sexo === "MACHO") {
+    const fb = tipo === "EN_PIE" ? "TERNERO" : "NOVILLO";
+    return permitidas.has(fb) ? (fb as CategoriaPrecioGanado) : null;
+  }
+  return null;
+}
 
 interface Props {
   row: SimuladorVentaGanadoRow;
@@ -33,6 +70,8 @@ interface Props {
     count: number;
     categoria?: CategoriaPrecioGanado;
   }) => void;
+  /** Aviso suave cuando se corrige categoría al abrir (sin guardar). */
+  onCategoriaCorregida?: (msg: string) => void;
 }
 
 type Seleccion = Pick<StockGanaderaDispositivo, "clave" | "eid" | "vid">;
@@ -46,17 +85,19 @@ export default function SimuladorVentaCaravanasPanel({
   onError,
   onSuccess,
   onDispositivosSaved,
+  onCategoriaCorregida,
 }: Props) {
   useHeaderBackStep(true, onVolver, "Simulador de ventas");
   const [seleccionadas, setSeleccionadas] = useState<Seleccion[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [categoriaActual, setCategoriaActual] = useState<CategoriaPrecioGanado>(row.categoria);
   const [filtroCategoria, setFiltroCategoria] = useState<string>(row.categoria);
   const [incluirFueraDeStock, setIncluirFueraDeStock] = useState(false);
 
   const puedeGuardar = canWriteSimuladorVentaGanado(user);
-  const catLabel = config.labels[row.categoria] ?? row.categoria;
+  const catLabel = config.labels[categoriaActual] ?? categoriaActual;
   const opCode = row.numero_operacion || `#${row.id}`;
   const cabObjetivo = limiteDispositivosVenta(row);
   const limiteAlcanzado =
@@ -79,17 +120,36 @@ export default function SimuladorVentaCaravanasPanel({
     }
     setLoading(true);
     try {
-      const data = await fetchSimuladorVentaDispositivos(row.id);
+      const res = await fetchSimuladorVentaDispositivos(row.id);
       setSeleccionadas(
-        data.map((d) => ({ clave: d.clave, eid: d.eid, vid: d.vid }))
+        res.data.map((d) => ({ clave: d.clave, eid: d.eid, vid: d.vid }))
       );
+      if (res.categoria) {
+        setCategoriaActual(res.categoria);
+      }
+      if (res.categoria_corregida) {
+        const { labelAntes, labelDespues, despues } = res.categoria_corregida;
+        setCategoriaActual(despues);
+        setFiltroCategoria(despues);
+        onDispositivosSaved?.({
+          count: res.data.length,
+          categoria: despues,
+        });
+        onCategoriaCorregida?.(
+          `Categoría corregida según el dispositivo: ${labelAntes} → ${labelDespues}`
+        );
+      }
     } catch (e) {
       onError(e instanceof Error ? e.message : "Error al cargar dispositivos");
       setSeleccionadas([]);
     } finally {
       setLoading(false);
     }
-  }, [apiOnline, onError, row.id]);
+  }, [apiOnline, onError, onDispositivosSaved, onCategoriaCorregida, row.id]);
+
+  useEffect(() => {
+    setCategoriaActual(row.categoria);
+  }, [row.categoria]);
 
   useEffect(() => {
     void load();
@@ -109,6 +169,11 @@ export default function SimuladorVentaCaravanasPanel({
       if (prev.some((x) => x.clave === d.clave)) return prev;
       return [...prev, { clave: d.clave, eid: d.eid, vid: d.vid }];
     });
+    const inferida = categoriaDesdeDispositivoUi(row.tipo, d, config.categorias);
+    if (inferida && inferida !== categoriaActual) {
+      setCategoriaActual(inferida);
+      setFiltroCategoria(inferida);
+    }
   };
 
   const quitar = (clave: string) => {
@@ -132,6 +197,11 @@ export default function SimuladorVentaCaravanasPanel({
         count: res.data.length,
         categoria: res.categoria_corregida?.despues ?? res.categoria,
       });
+      if (res.categoria_corregida?.despues) {
+        setCategoriaActual(res.categoria_corregida.despues);
+      } else if (res.categoria) {
+        setCategoriaActual(res.categoria);
+      }
       onSuccess(res.message);
       onVolver();
     } catch (e) {

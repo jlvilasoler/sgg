@@ -9946,7 +9946,8 @@ app.get("/api/simulador-venta-ganado/:id/dispositivos", async (req, res) => {
     res.status(400).json({ ok: false, error: "ID inválido" });
     return;
   }
-  const existing = await db.simuladorVentaGanado.getById(id, await cuentaIdForScopedRead(req.user!));
+  const cuentaId = await cuentaIdForScopedRead(req.user!);
+  const existing = await db.simuladorVentaGanado.getById(id, cuentaId);
   if (!existing) {
     res.status(404).json({ ok: false, error: "Simulación no encontrada" });
     return;
@@ -9956,7 +9957,37 @@ app.get("/api/simulador-venta-ganado/:id/dispositivos", async (req, res) => {
     return;
   }
   const data = await db.simuladorVentaDispositivos.list(id);
-  res.json({ ok: true, data });
+
+  let categoriaCorregida: {
+    antes: string;
+    despues: string;
+    labelAntes: string;
+    labelDespues: string;
+  } | null = null;
+  if (data.length > 0) {
+    const correccion = await corregirCategoriaVentaDesdeDispositivos(
+      db.getDb(),
+      existing,
+      data.map((d) => d.clave),
+      cuentaId
+    );
+    if (correccion) {
+      categoriaCorregida = {
+        antes: correccion.antes,
+        despues: correccion.despues,
+        labelAntes: correccion.labelAntes,
+        labelDespues: correccion.labelDespues,
+      };
+      await auditSimuladorActualizacion(req, existing, correccion.row);
+    }
+  }
+
+  res.json({
+    ok: true,
+    data,
+    categoria: categoriaCorregida?.despues ?? existing.categoria,
+    categoria_corregida: categoriaCorregida,
+  });
 });
 
 app.put("/api/simulador-venta-ganado/:id/dispositivos", async (req, res) => {
