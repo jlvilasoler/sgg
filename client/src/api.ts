@@ -135,6 +135,7 @@ import type {
   DetectarCamposDocumentoResult,
   Nota,
   NotaInput,
+  CategoriaPrecioGanado,
 } from "./types";
 import type {
   ContribucionRuralCalendariosStore,
@@ -4534,10 +4535,10 @@ export async function saveSimuladorVentaDispositivos(
   message: string;
   restaurados?: number;
   bajados?: number;
-  categoria?: string;
+  categoria?: CategoriaPrecioGanado;
   categoria_corregida?: {
     antes: string;
-    despues: string;
+    despues: CategoriaPrecioGanado;
     labelAntes: string;
     labelDespues: string;
   } | null;

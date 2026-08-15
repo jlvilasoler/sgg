@@ -3,14 +3,18 @@ import {
   fetchSimuladorVentaDispositivos,
   saveSimuladorVentaDispositivos,
 } from "../../api";
-import type { SimuladorVentaGanadoRow, StockGanaderaDispositivo } from "../../types";
+import type {
+  AuthUser,
+  CategoriaPrecioGanado,
+  SimuladorVentaGanadoRow,
+  StockGanaderaDispositivo,
+} from "../../types";
 import { fmtNum } from "../divisas/divisas-utils";
 import BuscadorCaravanaActiva from "../stock/BuscadorCaravanaActiva";
 import { etiquetaCaravana } from "../stock/stock-ganadera-utils";
 import { useHeaderBackStep } from "../../header-back";
 import { canWriteSimuladorVentaGanado } from "../../utils/auth-permissions";
 import { simuladorCategoriaAFiltroKeys, type SimuladorVentaTipoConfig } from "./simulador-venta-config";
-import type { AuthUser } from "../../types";
 import {
   limiteDispositivosVenta,
   mensajeLimiteDispositivosVenta,
@@ -27,7 +31,7 @@ interface Props {
   onSuccess: (msg: string) => void;
   onDispositivosSaved?: (payload: {
     count: number;
-    categoria?: string;
+    categoria?: CategoriaPrecioGanado;
   }) => void;
 }
 
