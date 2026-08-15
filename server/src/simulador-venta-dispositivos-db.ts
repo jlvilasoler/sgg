@@ -34,10 +34,14 @@ export async function initSimuladorVentaDispositivosTable(db: Db): Promise<void>
     )`
   ).run();
 
-  await db.prepare(
-    `ALTER TABLE SIMULADOR_VENTA_GANADO_DISPOSITIVO
-     ADD COLUMN IF NOT EXISTS aplico_baja_stock BOOLEAN NOT NULL DEFAULT TRUE`
-  ).run();
+  try {
+    await db.prepare(
+      `ALTER TABLE SIMULADOR_VENTA_GANADO_DISPOSITIVO
+       ADD COLUMN IF NOT EXISTS aplico_baja_stock BOOLEAN NOT NULL DEFAULT TRUE`
+    ).run();
+  } catch {
+    /* columna ya existe o migración concurrente */
+  }
 
   await db.prepare(
     `CREATE INDEX IF NOT EXISTS idx_sim_venta_disp_sim

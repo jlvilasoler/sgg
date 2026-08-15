@@ -452,6 +452,10 @@ export default function App() {
         busy={false}
       >
         {bootError ? <code className="app-boot-code">{bootError}</code> : null}
+        <p className="app-boot-hint muted" style={{ marginTop: "0.75rem", fontSize: "0.85rem" }}>
+          Si el error habla de conexiones o EMAXCONN, esperá un minuto, cerrá cualquier{" "}
+          <code>npm run dev</code> local contra la misma base y pulsá Reintentar.
+        </p>
         <button type="button" className="btn btn-primary app-boot-retry" onClick={retryBoot}>
           Reintentar
         </button>

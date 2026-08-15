@@ -9,12 +9,18 @@ let pool: PgPool | null = null;
 
 export function isDbCapacityError(err: unknown): boolean {
   const msg = err instanceof Error ? err.message : String(err);
-  return /EMAXCONN|max clients reached|too many clients|Connection terminated unexpectedly/i.test(
+  return /EMAXCONN|max clients? connections? reached|too many clients|Connection terminated unexpectedly/i.test(
     msg
   );
 }
 
 export function dbCapacityHint(): string {
+  if (process.env.VERCEL === "1") {
+    return (
+      "Supabase alcanzó el límite de conexiones. Esperá 30–60 segundos y pulsá Reintentar. " +
+      "Si tenés `npm run dev` abierto en la PC contra la misma base, cerralo para liberar cupo."
+    );
+  }
   return (
     "Supabase limitó las conexiones simultáneas. Detené todas las instancias de npm run dev " +
     "(Administrador de tareas → procesos node) y volvé a iniciar una sola."

@@ -156,9 +156,12 @@ const VITE_DEV_URL = process.env.SCG_VITE_URL || "http://127.0.0.1:5173";
 let lastDbInitError: string | null = null;
 let dbInitOk = false;
 let dbInitPromise: Promise<void> | null = null;
+let lastDbInitFailedAt = 0;
 
 const DB_INIT_TRANSIENT =
-  /ECONNRESET|ECONNREFUSED|ETIMEDOUT|Connection terminated|socket hang up|Client has encountered a connection error|Cannot use a pool after calling end/i;
+  /ECONNRESET|ECONNREFUSED|ETIMEDOUT|EMAXCONN|max clients? connections? reached|too many clients|Connection terminated|socket hang up|Client has encountered a connection error|Cannot use a pool after calling end/i;
+
+const DB_CAPACITY_RETRY_COOLDOWN_MS = 8_000;
 
 async function runDbInitAttempt(): Promise<void> {
   await db.initDb();
@@ -177,13 +180,15 @@ async function runDbInitWithRetry(maxAttempts = 5): Promise<void> {
         `[SGG] Error al inicializar la base de datos (intento ${attempt}/${maxAttempts}):`,
         err
       );
-      if (attempt < maxAttempts && DB_INIT_TRANSIENT.test(msg)) {
+      const transient = DB_INIT_TRANSIENT.test(msg) || isDbCapacityError(err);
+      if (attempt < maxAttempts && transient) {
         try {
           await closePool();
         } catch {
           /* ignore */
         }
-        await new Promise((r) => setTimeout(r, 1500 * attempt));
+        const waitMs = isDbCapacityError(err) ? 2500 * attempt : 1500 * attempt;
+        await new Promise((r) => setTimeout(r, waitMs));
         continue;
       }
       throw err;
@@ -193,19 +198,32 @@ async function runDbInitWithRetry(maxAttempts = 5): Promise<void> {
 }
 
 function beginDbInit(): Promise<void> {
+  // Tras un fallo por cupo de conexiones, permitir reintento cuando pasó el cooldown.
+  if (
+    dbInitPromise &&
+    lastDbInitError &&
+    isDbCapacityError(lastDbInitError) &&
+    Date.now() - lastDbInitFailedAt >= DB_CAPACITY_RETRY_COOLDOWN_MS
+  ) {
+    dbInitPromise = null;
+  }
+
   if (!dbInitPromise) {
     dbInitPromise = runDbInitWithRetry()
       .then(() => {
         dbInitOk = true;
         lastDbInitError = null;
+        lastDbInitFailedAt = 0;
         console.info("[SGG] Base de datos lista");
-        // Pre-calentar conexiones para que la primera ráfaga del dashboard no
-        // pague la creación de todas las conexiones SSL a la vez.
-        void warmupPool();
+        // En Vercel el pool es 1: no precalentar si acabamos de pelear por cupo.
+        if (process.env.VERCEL !== "1") {
+          void warmupPool();
+        }
       })
       .catch((err) => {
         dbInitOk = false;
         lastDbInitError = err instanceof Error ? err.message : String(err);
+        lastDbInitFailedAt = Date.now();
         throw err;
       });
   }
@@ -286,16 +304,22 @@ app.get("/api/health", async (_req, res) => {
   }
 
   if (lastDbInitError) {
+    const capacity = isDbCapacityError(lastDbInitError);
     res.json({
       ok: true,
       service: "scg-api",
       database: "postgres",
       ready: false,
       error: "Base de datos no disponible",
+      hint: capacity
+        ? dbCapacityHint()
+        : "El servidor está iniciando o no pudo conectar con Supabase. Esperá unos segundos y reintentá.",
       password_reset_email: passwordResetEmail,
       ...(clientSafeErrorDetail(lastDbInitError)
         ? { detail: clientSafeErrorDetail(lastDbInitError) }
-        : {}),
+        : capacity
+          ? { detail: "Límite de conexiones de Supabase (EMAXCONN)" }
+          : {}),
     });
     return;
   }
@@ -318,13 +342,17 @@ app.post("/api/health/retry-init", async (_req, res) => {
     res.json({ ok: true, ready: true });
     return;
   }
+  const capacity = isDbCapacityError(lastDbInitError);
   res.status(503).json({
     ok: true,
     ready: false,
     error: "Base de datos no disponible",
+    hint: capacity ? dbCapacityHint() : undefined,
     ...(clientSafeErrorDetail(lastDbInitError)
       ? { detail: clientSafeErrorDetail(lastDbInitError) }
-      : {}),
+      : capacity
+        ? { detail: "Límite de conexiones de Supabase (EMAXCONN)" }
+        : {}),
   });
 });
 
