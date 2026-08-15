@@ -41433,6 +41433,39 @@ button.sg-kpi-card:disabled {
   font-size: 0.76rem;
 }
 
+.sim-caravanas-alcance {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin: 0 0 0.65rem;
+  padding: 0.55rem 0.65rem;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: #475569;
+  cursor: pointer;
+}
+
+.sim-caravanas-alcance input {
+  margin-top: 0.15rem;
+  flex-shrink: 0;
+}
+
+.sim-caravanas-alcance strong {
+  color: #334155;
+  font-weight: 650;
+}
+
+.stock-buscador-caravana-opcion--fuera .stock-buscador-caravana-opcion-main {
+  color: #9a3412;
+}
+
+.stock-buscador-caravana-opcion-sub--fuera {
+  color: #b45309;
+}
+
 .sim-caravanas-search .stock-buscador-caravana-panel {
   z-index: 5;
 }

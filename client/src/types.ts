@@ -1403,6 +1403,7 @@ export interface SimuladorVentaDispositivoRow {
   clave: string;
   eid: string;
   vid: string;
+  aplico_baja_stock?: boolean;
   creado_en: string;
 }
 

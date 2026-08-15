@@ -7,6 +7,8 @@ export interface SimuladorVentaDispositivoRow {
   clave: string;
   eid: string;
   vid: string;
+  /** Si true, al desvincular se restaura el dispositivo a stock activo. */
+  aplico_baja_stock: boolean;
   creado_en: string;
 }
 
@@ -14,6 +16,8 @@ export interface SimuladorVentaDispositivoInput {
   clave: string;
   eid: string;
   vid: string;
+  /** Default true. false = ya estaba fuera del stock al vincular. */
+  aplico_baja_stock?: boolean;
 }
 
 export async function initSimuladorVentaDispositivosTable(db: Db): Promise<void> {
@@ -24,9 +28,15 @@ export async function initSimuladorVentaDispositivosTable(db: Db): Promise<void>
       clave TEXT NOT NULL,
       eid TEXT NOT NULL DEFAULT '',
       vid TEXT NOT NULL DEFAULT '',
+      aplico_baja_stock BOOLEAN NOT NULL DEFAULT TRUE,
       creado_en TIMESTAMPTZ DEFAULT NOW(),
       UNIQUE (simulacion_id, clave)
     )`
+  ).run();
+
+  await db.prepare(
+    `ALTER TABLE SIMULADOR_VENTA_GANADO_DISPOSITIVO
+     ADD COLUMN IF NOT EXISTS aplico_baja_stock BOOLEAN NOT NULL DEFAULT TRUE`
   ).run();
 
   await db.prepare(
@@ -47,6 +57,7 @@ function mapRow(row: Record<string, unknown>): SimuladorVentaDispositivoRow {
     clave: String(row.clave ?? ""),
     eid: String(row.eid ?? ""),
     vid: String(row.vid ?? ""),
+    aplico_baja_stock: row.aplico_baja_stock !== false && row.aplico_baja_stock !== 0,
     creado_en: String(row.creado_en ?? ""),
   };
 }
@@ -57,7 +68,7 @@ export async function listDispositivosBySimulacion(
 ): Promise<SimuladorVentaDispositivoRow[]> {
   const rows = (await db
     .prepare(
-      `SELECT id, simulacion_id, clave, eid, vid, creado_en
+      `SELECT id, simulacion_id, clave, eid, vid, aplico_baja_stock, creado_en
        FROM SIMULADOR_VENTA_GANADO_DISPOSITIVO
        WHERE simulacion_id = ?
        ORDER BY creado_en ASC, id ASC`
@@ -152,11 +163,18 @@ export async function replaceDispositivosBySimulacionInTx(
     .run(simulacionId);
 
   const ins = tx.prepare(
-    `INSERT INTO SIMULADOR_VENTA_GANADO_DISPOSITIVO (simulacion_id, clave, eid, vid)
-     VALUES (?, ?, ?, ?)`
+    `INSERT INTO SIMULADOR_VENTA_GANADO_DISPOSITIVO
+      (simulacion_id, clave, eid, vid, aplico_baja_stock)
+     VALUES (?, ?, ?, ?, ?)`
   );
   for (const item of normalized) {
-    await ins.run(simulacionId, item.clave, item.eid, item.vid);
+    await ins.run(
+      simulacionId,
+      item.clave,
+      item.eid,
+      item.vid,
+      item.aplico_baja_stock === false ? false : true
+    );
   }
 }
 
@@ -175,6 +193,7 @@ export async function replaceDispositivosBySimulacion(
       clave,
       eid: String(item.eid ?? "").trim(),
       vid: String(item.vid ?? "").trim(),
+      aplico_baja_stock: item.aplico_baja_stock !== false,
     });
   }
 

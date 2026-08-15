@@ -46,6 +46,7 @@ export default function SimuladorVentaCaravanasPanel({
   const [saving, setSaving] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [filtroCategoria, setFiltroCategoria] = useState<string>(row.categoria);
+  const [incluirFueraDeStock, setIncluirFueraDeStock] = useState(false);
 
   const puedeGuardar = canWriteSimuladorVentaGanado(user);
   const catLabel = config.labels[row.categoria] ?? row.categoria;
@@ -214,13 +215,27 @@ export default function SimuladorVentaCaravanasPanel({
           {puedeGuardar && (
             <section className="sim-caravanas-search">
               <label htmlFor="sim-caravanas-buscador" className="sim-caravanas-search-label">
-                Buscar dispositivo activo
+                {incluirFueraDeStock
+                  ? "Buscar dispositivo (activos y salidas)"
+                  : "Buscar dispositivo activo"}
               </label>
               {!limiteAlcanzado && (
                 <p className="sim-caravanas-search-hint muted">
                   EID, VID o número de dispositivo · filtrá por categoría en el mismo campo.
                 </p>
               )}
+              <label className="sim-caravanas-alcance">
+                <input
+                  type="checkbox"
+                  checked={incluirFueraDeStock}
+                  disabled={saving || loading || limiteAlcanzado}
+                  onChange={(e) => setIncluirFueraDeStock(e.target.checked)}
+                />
+                <span>
+                  Incluir también dispositivos <strong>fuera del sistema</strong> (salidas). No se
+                  agregan solos: solo aparecen en la búsqueda para que los elijas.
+                </span>
+              </label>
               <BuscadorCaravanaActiva
                 id="sim-caravanas-buscador"
                 variant="dispositivos"
@@ -229,6 +244,7 @@ export default function SimuladorVentaCaravanasPanel({
                 excludeClaves={excludeClaves}
                 filtroCategoria={filtroCategoriaKeys}
                 filtroCategoriaLabel={filtroCategoriaLabel}
+                incluirFueraDeStock={incluirFueraDeStock}
                 categoriaSelect={{
                   id: "sim-caravanas-filtro-cat",
                   value: filtroCategoria,
