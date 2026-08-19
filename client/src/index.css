@@ -58247,7 +58247,7 @@ button.sg-kpi-card:disabled {
   max-height: 100%;
   overflow: hidden;
   align-self: stretch;
-  padding: 1.35rem 1rem 1rem;
+  padding: 1.35rem 1rem 1.65rem;
   box-sizing: border-box;
 }
 
@@ -58259,9 +58259,10 @@ button.sg-kpi-card:disabled {
 .bn-ui .venc-imp-hub-page .venc-imp-aside-config {
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
+  gap: 0.4rem;
   margin-top: auto;
-  padding-top: 0.75rem;
+  padding-top: 0.85rem;
+  padding-bottom: 0.55rem;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
