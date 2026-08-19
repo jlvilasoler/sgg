@@ -1471,15 +1471,21 @@ export default function VencimientosImpuestos({
             )}
 
             {puedeConfigurar && (
-              <div className="sg-hub-aside-foot">
+              <div className="sg-hub-aside-foot venc-imp-aside-config">
+                <p className="sg-hub-aside-nav-label">Cuenta</p>
                 <button
                   type="button"
-                  className="sg-hub-nav-item sg-hub-nav-item--muted"
+                  className="sg-hub-nav-item venc-imp-aside-config-btn"
                   onClick={abrirPreferencias}
-                  title="Preferencias compartidas de la cuenta: los cambios aplican a todos los usuarios"
+                  title="Cambiar departamentos, cuotas e impuestos que sigue esta cuenta"
                 >
-                  <Settings size={16} aria-hidden />
-                  Preferencias de la cuenta
+                  <span className="sg-hub-nav-icon" aria-hidden>
+                    <Settings size={16} />
+                  </span>
+                  <span className="sg-hub-nav-copy">
+                    <span>Configurar calendario</span>
+                    <span className="sg-hub-nav-sub">Departamentos e impuestos</span>
+                  </span>
                 </button>
               </div>
             )}

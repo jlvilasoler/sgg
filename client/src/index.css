@@ -58256,6 +58256,31 @@ button.sg-kpi-card:disabled {
   flex-shrink: 0;
 }
 
+.bn-ui .venc-imp-hub-page .venc-imp-aside-config {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-top: auto;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.bn-ui .venc-imp-hub-page .venc-imp-aside-config-btn {
+  align-items: flex-start;
+  background: color-mix(in srgb, var(--sg-hub-accent, #84cc16) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--sg-hub-accent, #84cc16) 28%, transparent);
+  color: #ecfccb;
+}
+
+.bn-ui .venc-imp-hub-page .venc-imp-aside-config-btn:hover {
+  background: color-mix(in srgb, var(--sg-hub-accent, #84cc16) 22%, transparent);
+  color: #fff;
+}
+
+.bn-ui .venc-imp-hub-page .venc-imp-aside-config-btn .sg-hub-nav-sub {
+  color: color-mix(in srgb, #ecfccb 72%, transparent);
+}
+
 .bn-ui .venc-imp-hub-page .sg-hub-aside--venc .sg-hub-aside-brand {
   padding-top: 0.2rem;
   margin-bottom: 0.2rem;
