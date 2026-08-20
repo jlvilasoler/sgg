@@ -38,6 +38,9 @@ interface CuotaNacionalItem {
   fechaLabel: string;
   planLabel: string;
   diasRestantes: number;
+  /** Cuando Primaria se configura por establecimiento/departamento. */
+  configId?: ContribucionRuralJurisdiccionId;
+  configLabel?: string;
 }
 
 export function contarImpuestosVencHabilitados(
@@ -144,17 +147,21 @@ export function consolidarCuotasVencimientos(input: {
   }
 
   for (const item of input.primaria) {
+    const titulo = item.configLabel?.trim() || "Primaria rural";
     out.push({
-      key: `primaria-${item.cuota}-${item.fecha}`,
+      key: `primaria-${item.configId ?? "nac"}-${item.cuota}-${item.fecha}`,
       tipo: "primaria",
       fecha: item.fecha,
       fechaLabel: item.fechaLabel,
       diasRestantes: item.diasRestantes,
-      titulo: "Primaria rural",
+      titulo,
       impuestoLabel: "Primaria (DGI)",
       cuotaLabel: `Cuota ${item.cuota}ª · ${item.planLabel}`,
-      escudoSrc: "/logo-dgi-compact.svg",
-      escudoClassName: "venc-imp-proximo-escudo--dgi",
+      escudoSrc: item.configId
+        ? escudoDepartamentoSrc(item.configId)
+        : "/logo-dgi-compact.svg",
+      escudoClassName: item.configId ? undefined : "venc-imp-proximo-escudo--dgi",
+      configId: item.configId,
     });
   }
 

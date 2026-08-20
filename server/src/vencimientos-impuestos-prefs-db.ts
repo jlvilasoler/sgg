@@ -22,6 +22,7 @@ export interface CuentaVencimientosImpuestosPrefs {
   seguir_bps_caja_rural: boolean;
   seguir_primaria_rural: boolean;
   regimen_primaria_rural: RegimenPrimariaRural;
+  regimen_primaria_por_jurisdiccion: Partial<Record<ContribucionRuralJurisdiccionId, RegimenPrimariaRural>>;
   onboarding_completado: boolean;
   actualizado_por_user_id: number | null;
   actualizado_en: string;
@@ -39,6 +40,7 @@ export interface CuentaVencimientosImpuestosPrefsInput {
   seguir_bps_caja_rural?: boolean;
   seguir_primaria_rural?: boolean;
   regimen_primaria_rural?: RegimenPrimariaRural;
+  regimen_primaria_por_jurisdiccion?: Partial<Record<ContribucionRuralJurisdiccionId, RegimenPrimariaRural>>;
   onboarding_completado?: boolean;
 }
 
@@ -95,6 +97,52 @@ function normalizePlanesCuotasInput(
     out[key] = plan as PlanCuotasJurisdiccionKey;
   }
   return out;
+}
+
+function parseRegimenPrimariaPorJurisdiccionFromRow(
+  row: Record<string, unknown>,
+): Partial<Record<ContribucionRuralJurisdiccionId, RegimenPrimariaRural>> {
+  const raw = row.regimen_primaria_por_jurisdiccion;
+  if (typeof raw !== "string" || !raw.trim()) return {};
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+    const out: Partial<Record<ContribucionRuralJurisdiccionId, RegimenPrimariaRural>> = {};
+    for (const [key, value] of Object.entries(parsed)) {
+      if (!isValidJurisdiccionId(key)) continue;
+      const regimen = String(value);
+      if (!isValidRegimenPrimariaRural(regimen)) continue;
+      out[key] = regimen;
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
+
+function normalizeRegimenPrimariaPorJurisdiccionInput(
+  ids: ContribucionRuralJurisdiccionId[],
+  input: Partial<Record<ContribucionRuralJurisdiccionId, RegimenPrimariaRural>> | undefined,
+  fallback: RegimenPrimariaRural,
+): Partial<Record<ContribucionRuralJurisdiccionId, RegimenPrimariaRural>> {
+  const out: Partial<Record<ContribucionRuralJurisdiccionId, RegimenPrimariaRural>> = {};
+  for (const id of ids) {
+    const prev = input?.[id];
+    out[id] = prev && isValidRegimenPrimariaRural(prev) ? prev : fallback;
+  }
+  return out;
+}
+
+function regimenPrimariaGlobalDesdeMap(
+  ids: ContribucionRuralJurisdiccionId[],
+  map: Partial<Record<ContribucionRuralJurisdiccionId, RegimenPrimariaRural>>,
+  fallback: RegimenPrimariaRural,
+): RegimenPrimariaRural {
+  if (ids.length === 0) return fallback;
+  if (ids.some((id) => (map[id] ?? fallback) === "con_explotacion")) {
+    return "con_explotacion";
+  }
+  return "sin_explotacion";
 }
 
 function normalizeJurisdiccionIds(
@@ -303,6 +351,15 @@ export async function initVencimientosImpuestosPrefsTable(db: Db): Promise<void>
     console.info("[SGG] Migración: columna regimen_primaria_rural agregada a USER_VENCIMIENTOS_PREFS");
   }
 
+  if (!(await prefsColumnExists(db, "regimen_primaria_por_jurisdiccion"))) {
+    await db
+      .prepare("ALTER TABLE USER_VENCIMIENTOS_PREFS ADD COLUMN regimen_primaria_por_jurisdiccion TEXT")
+      .run();
+    console.info(
+      "[SGG] Migración: columna regimen_primaria_por_jurisdiccion agregada a USER_VENCIMIENTOS_PREFS",
+    );
+  }
+
   await migratePrefsToCuentaScope(db);
 
   await db
@@ -347,6 +404,24 @@ function rowToPrefs(row: Record<string, unknown>): CuentaVencimientosImpuestosPr
   const modalidad_pago_patente = isValidModalidadPago(modalidadPatenteRaw)
     ? modalidadPatenteRaw
     : modalidad;
+  const regimen_primaria_rural: RegimenPrimariaRural = isValidRegimenPrimariaRural(
+    String(row.regimen_primaria_rural ?? ""),
+  )
+    ? (String(row.regimen_primaria_rural) as RegimenPrimariaRural)
+    : "con_explotacion";
+  const regimenMapRaw = parseRegimenPrimariaPorJurisdiccionFromRow(row);
+  const regimen_primaria_por_jurisdiccion =
+    Object.keys(regimenMapRaw).length > 0
+      ? normalizeRegimenPrimariaPorJurisdiccionInput(
+          jurisdiccion_ids,
+          regimenMapRaw,
+          regimen_primaria_rural,
+        )
+      : normalizeRegimenPrimariaPorJurisdiccionInput(
+          jurisdiccion_ids,
+          undefined,
+          regimen_primaria_rural,
+        );
   return {
     cuenta_id: Number(row.cuenta_id),
     jurisdiccion_ids,
@@ -356,9 +431,8 @@ function rowToPrefs(row: Record<string, unknown>): CuentaVencimientosImpuestosPr
     seguir_patente_sucive,
     seguir_bps_caja_rural,
     seguir_primaria_rural,
-    regimen_primaria_rural: isValidRegimenPrimariaRural(String(row.regimen_primaria_rural ?? ""))
-      ? (String(row.regimen_primaria_rural) as RegimenPrimariaRural)
-      : "con_explotacion",
+    regimen_primaria_rural,
+    regimen_primaria_por_jurisdiccion,
     onboarding_completado: Number(row.onboarding_completado) === 1,
     actualizado_por_user_id:
       row.actualizado_por_user_id != null ? Number(row.actualizado_por_user_id) : null,
@@ -374,7 +448,7 @@ export async function getCuentaVencimientosPrefs(
     .prepare(
       `SELECT cuenta_id, jurisdiccion_id, jurisdiccion_ids, modalidad_pago, modalidad_pago_patente,
               planes_cuotas_por_jurisdiccion, seguir_patente_sucive, seguir_bps_caja_rural,
-              seguir_primaria_rural, regimen_primaria_rural,
+              seguir_primaria_rural, regimen_primaria_rural, regimen_primaria_por_jurisdiccion,
               onboarding_completado, actualizado_por_user_id, actualizado_en
        FROM USER_VENCIMIENTOS_PREFS WHERE cuenta_id = ?`,
     )
@@ -401,10 +475,20 @@ export async function saveCuentaVencimientosPrefs(
   const seguir_patente_sucive = input.seguir_patente_sucive !== false;
   const seguir_bps_caja_rural = input.seguir_bps_caja_rural !== false;
   const seguir_primaria_rural = input.seguir_primaria_rural !== false;
-  const regimen_primaria_rural: RegimenPrimariaRural =
+  const regimenFallback: RegimenPrimariaRural =
     input.regimen_primaria_rural && isValidRegimenPrimariaRural(input.regimen_primaria_rural)
       ? input.regimen_primaria_rural
       : "con_explotacion";
+  const regimen_primaria_por_jurisdiccion = normalizeRegimenPrimariaPorJurisdiccionInput(
+    jurisdiccion_ids,
+    input.regimen_primaria_por_jurisdiccion,
+    regimenFallback,
+  );
+  const regimen_primaria_rural = regimenPrimariaGlobalDesdeMap(
+    jurisdiccion_ids,
+    regimen_primaria_por_jurisdiccion,
+    regimenFallback,
+  );
   if (
     jurisdiccion_ids.length === 0 &&
     !seguir_patente_sucive &&
@@ -434,6 +518,7 @@ export async function saveCuentaVencimientosPrefs(
   const idsJson = JSON.stringify(jurisdiccion_ids);
   const planesCuotas = normalizePlanesCuotasInput(jurisdiccion_ids, input.planes_cuotas_por_jurisdiccion);
   const planesJson = JSON.stringify(planesCuotas);
+  const regimenJson = JSON.stringify(regimen_primaria_por_jurisdiccion);
   const legacyPrimary = jurisdiccion_ids[0] ?? LEGACY_PLACEHOLDER_DEPT;
   const seguirPatenteInt = seguir_patente_sucive ? 1 : 0;
   const seguirBpsInt = seguir_bps_caja_rural ? 1 : 0;
@@ -444,10 +529,10 @@ export async function saveCuentaVencimientosPrefs(
       `INSERT INTO USER_VENCIMIENTOS_PREFS (
          cuenta_id, jurisdiccion_id, jurisdiccion_ids, modalidad_pago, modalidad_pago_patente,
          planes_cuotas_por_jurisdiccion, seguir_patente_sucive, seguir_bps_caja_rural,
-         seguir_primaria_rural, regimen_primaria_rural,
+         seguir_primaria_rural, regimen_primaria_rural, regimen_primaria_por_jurisdiccion,
          onboarding_completado, actualizado_por_user_id, actualizado_en
        )
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
        ON CONFLICT (cuenta_id) DO UPDATE SET
          jurisdiccion_id = excluded.jurisdiccion_id,
          jurisdiccion_ids = excluded.jurisdiccion_ids,
@@ -458,6 +543,7 @@ export async function saveCuentaVencimientosPrefs(
          seguir_bps_caja_rural = excluded.seguir_bps_caja_rural,
          seguir_primaria_rural = excluded.seguir_primaria_rural,
          regimen_primaria_rural = excluded.regimen_primaria_rural,
+         regimen_primaria_por_jurisdiccion = excluded.regimen_primaria_por_jurisdiccion,
          onboarding_completado = excluded.onboarding_completado,
          actualizado_por_user_id = excluded.actualizado_por_user_id,
          actualizado_en = NOW()`,
@@ -473,6 +559,7 @@ export async function saveCuentaVencimientosPrefs(
       seguirBpsInt,
       seguirPrimariaInt,
       regimen_primaria_rural,
+      regimenJson,
       completado,
       userId,
     );

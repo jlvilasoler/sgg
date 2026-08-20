@@ -58207,7 +58207,8 @@ button.sg-kpi-card:disabled {
   min-height: 0;
   overflow: hidden;
   padding-top: 0.75rem;
-  padding-bottom: 0.45rem;
+  /* Footer es position:fixed: hay que reservar su altura o el aside queda debajo */
+  padding-bottom: calc(var(--app-footer-height, 3rem) + env(safe-area-inset-bottom, 0px) + 0.55rem);
 }
 
 .page-main.bn-ui:has(.venc-imp-hub-page) {
@@ -58247,7 +58248,7 @@ button.sg-kpi-card:disabled {
   max-height: 100%;
   overflow: hidden;
   align-self: stretch;
-  padding: 1.35rem 1rem 1.65rem;
+  padding: 1.35rem 1rem 1.25rem;
   box-sizing: border-box;
 }
 
@@ -58262,7 +58263,7 @@ button.sg-kpi-card:disabled {
   gap: 0.4rem;
   margin-top: auto;
   padding-top: 0.85rem;
-  padding-bottom: 0.55rem;
+  padding-bottom: 0.15rem;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
@@ -58276,10 +58277,6 @@ button.sg-kpi-card:disabled {
 .bn-ui .venc-imp-hub-page .venc-imp-aside-config-btn:hover {
   background: color-mix(in srgb, var(--sg-hub-accent, #84cc16) 22%, transparent);
   color: #fff;
-}
-
-.bn-ui .venc-imp-hub-page .venc-imp-aside-config-btn .sg-hub-nav-sub {
-  color: color-mix(in srgb, #ecfccb 72%, transparent);
 }
 
 .bn-ui .venc-imp-hub-page .sg-hub-aside--venc .sg-hub-aside-brand {

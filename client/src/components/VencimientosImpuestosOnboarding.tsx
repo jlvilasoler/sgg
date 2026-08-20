@@ -14,8 +14,13 @@ import {
   labelCuotasFijas,
   normalizarBusquedaJurisdiccion,
   normalizarPlanesCuotasPorJurisdiccion,
+  planConfigDeJurisdiccion,
   planesDisponibles,
 } from "../utils/contribucion-rural-view";
+import {
+  normalizarRegimenPrimariaPorJurisdiccion,
+  regimenPrimariaGlobalDesdeMap,
+} from "../utils/primaria-rural-view";
 import { escudoDepartamentoSrc } from "../utils/escudos-departamentos";
 import { MenuAppIcon } from "./icons/MenuAppIcons";
 
@@ -29,6 +34,9 @@ interface Props {
   initialSeguirBps?: boolean;
   initialSeguirPrimaria?: boolean;
   initialRegimenPrimaria?: RegimenPrimariaRuralKey;
+  initialRegimenPrimariaPorJurisdiccion?: Partial<
+    Record<ContribucionRuralJurisdiccionId, RegimenPrimariaRuralKey>
+  >;
   initialPlanesCuotas?: Partial<Record<ContribucionRuralJurisdiccionId, PlanCuotasJurisdiccionKey>>;
   modoEdicion?: boolean;
   pasoInicialOverride?: Paso;
@@ -42,6 +50,9 @@ interface Props {
     seguir_bps_caja_rural: boolean;
     seguir_primaria_rural: boolean;
     regimen_primaria_rural: RegimenPrimariaRuralKey;
+    regimen_primaria_por_jurisdiccion: Partial<
+      Record<ContribucionRuralJurisdiccionId, RegimenPrimariaRuralKey>
+    >;
   }) => void;
 }
 
@@ -75,6 +86,7 @@ export default function VencimientosImpuestosOnboarding({
   initialSeguirBps = true,
   initialSeguirPrimaria = true,
   initialRegimenPrimaria = "con_explotacion",
+  initialRegimenPrimariaPorJurisdiccion = {},
   initialPlanesCuotas = {},
   modoEdicion = false,
   pasoInicialOverride,
@@ -97,6 +109,15 @@ export default function VencimientosImpuestosOnboarding({
   const [seguirBps, setSeguirBps] = useState(initialSeguirBps);
   const [seguirPrimaria, setSeguirPrimaria] = useState(initialSeguirPrimaria);
   const [regimenPrimaria, setRegimenPrimaria] = useState<RegimenPrimariaRuralKey>(initialRegimenPrimaria);
+  const [regimenPrimariaPorDepto, setRegimenPrimariaPorDepto] = useState<
+    Partial<Record<ContribucionRuralJurisdiccionId, RegimenPrimariaRuralKey>>
+  >(() =>
+    normalizarRegimenPrimariaPorJurisdiccion(
+      initialJurisdiccionIds,
+      initialRegimenPrimariaPorJurisdiccion,
+      initialRegimenPrimaria,
+    ),
+  );
   const [planesCuotasPorDepto, setPlanesCuotasPorDepto] = useState<
     Partial<Record<ContribucionRuralJurisdiccionId, PlanCuotasJurisdiccionKey>>
   >(() =>
@@ -114,6 +135,12 @@ export default function VencimientosImpuestosOnboarding({
       normalizarPlanesCuotasPorJurisdiccion(jurisdiccionIds, store.jurisdicciones, prev),
     );
   }, [jurisdiccionIds, store.jurisdicciones]);
+
+  useEffect(() => {
+    setRegimenPrimariaPorDepto((prev) =>
+      normalizarRegimenPrimariaPorJurisdiccion(jurisdiccionIds, prev, regimenPrimaria),
+    );
+  }, [jurisdiccionIds, regimenPrimaria]);
 
   const departamentos = useMemo(() => {
     const q = normalizarBusquedaJurisdiccion(busqueda);
@@ -436,13 +463,15 @@ export default function VencimientosImpuestosOnboarding({
                                       }))
                                     }
                                   >
-                                    {config.planes![planKey].label}
+                                    {planConfigDeJurisdiccion(config, planKey)?.label ??
+                                      `${planKey} cuotas`}
                                   </button>
                                 ))}
                               </div>
                             ) : planes.length === 1 ? (
                               <span className="venc-imp-onboard-planes-fijo">
-                                {config.planes![planes[0]].label}
+                                {planConfigDeJurisdiccion(config, planes[0])?.label ??
+                                  labelCuotasFijas(config)}
                               </span>
                             ) : (
                               <span className="venc-imp-onboard-planes-fijo">{labelCuotasFijas(config)}</span>
@@ -719,7 +748,58 @@ export default function VencimientosImpuestosOnboarding({
                   </button>
                 </div>
 
-                {seguirPrimaria && (
+                {seguirPrimaria && jurisdiccionIds.length > 0 && (
+                  <>
+                    <h4 className="venc-imp-onboard-subtitle venc-imp-onboard-subtitle--planes">
+                      Régimen por establecimiento
+                    </h4>
+                    <p className="venc-imp-onboard-hint">
+                      Indicá para cada departamento si el padrón tiene explotación agropecuaria
+                      (ganado) o no (campo vacío o arrendado).
+                    </p>
+                    <ul className="venc-imp-onboard-planes-list">
+                      {seleccionados.map((config) => {
+                        const regimenActivo =
+                          regimenPrimariaPorDepto[config.id] ?? regimenPrimaria;
+                        return (
+                          <li key={config.id} className="venc-imp-onboard-planes-row">
+                            <span className="venc-imp-onboard-planes-depto">{config.label}</span>
+                            <div
+                              className="venc-imp-onboard-planes-options"
+                              role="radiogroup"
+                              aria-label={`Régimen Primaria en ${config.label}`}
+                            >
+                              {(
+                                [
+                                  ["con_explotacion", "Con explotación"],
+                                  ["sin_explotacion", "Sin explotación"],
+                                ] as const
+                              ).map(([key, label]) => (
+                                <button
+                                  key={key}
+                                  type="button"
+                                  role="radio"
+                                  aria-checked={regimenActivo === key}
+                                  className={`venc-imp-onboard-plan${regimenActivo === key ? " venc-imp-onboard-plan--active" : ""}`}
+                                  onClick={() =>
+                                    setRegimenPrimariaPorDepto((prev) => ({
+                                      ...prev,
+                                      [config.id]: key,
+                                    }))
+                                  }
+                                >
+                                  {label}
+                                </button>
+                              ))}
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </>
+                )}
+
+                {seguirPrimaria && jurisdiccionIds.length === 0 && (
                   <>
                     <h4 className="venc-imp-onboard-subtitle">Tipo de padrón rural</h4>
                     <div
@@ -795,7 +875,16 @@ export default function VencimientosImpuestosOnboarding({
                       seguir_patente_sucive: seguirPatente,
                       seguir_bps_caja_rural: seguirBps,
                       seguir_primaria_rural: seguirPrimaria,
-                      regimen_primaria_rural: regimenPrimaria,
+                      regimen_primaria_por_jurisdiccion: normalizarRegimenPrimariaPorJurisdiccion(
+                        jurisdiccionIds,
+                        regimenPrimariaPorDepto,
+                        regimenPrimaria,
+                      ),
+                      regimen_primaria_rural: regimenPrimariaGlobalDesdeMap(
+                        jurisdiccionIds,
+                        regimenPrimariaPorDepto,
+                        regimenPrimaria,
+                      ),
                     });
                   }}
                 >

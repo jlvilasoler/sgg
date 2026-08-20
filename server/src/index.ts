@@ -1246,6 +1246,7 @@ app.put("/api/vencimientos-impuestos/preferencias", async (req, res) => {
         seguir_bps_caja_rural: body.seguir_bps_caja_rural,
         seguir_primaria_rural: body.seguir_primaria_rural,
         regimen_primaria_rural: body.regimen_primaria_rural,
+        regimen_primaria_por_jurisdiccion: body.regimen_primaria_por_jurisdiccion,
         onboarding_completado: body.onboarding_completado ?? true,
       },
     );

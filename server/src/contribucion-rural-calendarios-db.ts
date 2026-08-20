@@ -65,7 +65,7 @@ export interface ContribucionRuralJurisdiccionConfig {
   /** Cuotas fijas (Río Negro, Florida). */
   cuotas?: CuotaContribucionRural[];
   /** Planes múltiples (Rivera). */
-  planes?: Record<"4" | "6" | "12", ContribucionRuralPlanConfig>;
+  planes?: Partial<Record<"4" | "6" | "12", ContribucionRuralPlanConfig>>;
   primeraCuotaPagoContado?: boolean;
 }
 
@@ -185,6 +185,28 @@ export function defaultContribucionRuralCalendarios(): ContribucionRuralCalendar
           { cuota: 5, fecha: "2026-10-16" },
           { cuota: 6, fecha: "2026-12-18" },
         ],
+        planes: {
+          "6": {
+            label: "6 cuotas",
+            cuotas: [
+              { cuota: 1, fecha: "2026-02-13" },
+              { cuota: 2, fecha: "2026-04-10" },
+              { cuota: 3, fecha: "2026-06-12" },
+              { cuota: 4, fecha: "2026-08-14" },
+              { cuota: 5, fecha: "2026-10-16" },
+              { cuota: 6, fecha: "2026-12-18" },
+            ],
+          },
+          "4": {
+            label: "4 cuotas",
+            cuotas: [
+              { cuota: 1, fecha: "2026-02-13" },
+              { cuota: 2, fecha: "2026-06-12" },
+              { cuota: 3, fecha: "2026-08-14" },
+              { cuota: 4, fecha: "2026-12-18" },
+            ],
+          },
+        },
       },
       florida: {
         id: "florida",

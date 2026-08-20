@@ -7,7 +7,7 @@ import {
 } from "./contribucion-rural-view";
 import { patenteComoCalendarioConfig } from "./patente-sucive-view";
 import { bpsComoCalendarioConfig } from "./bps-caja-rural-view";
-import { primariaComoCalendarioConfig } from "./primaria-rural-view";
+import { primariaComoCalendarioConfig, regimenPrimariaDeJurisdiccion } from "./primaria-rural-view";
 import {
   diasHastaVencimientoCuota,
   formatearFechaContribucionRural,
@@ -42,6 +42,8 @@ function cuotasNacionalesFuturas(
     fechaLabel: string;
     planLabel: string;
     diasRestantes: number;
+    configId?: import("../types/contribucion-rural").ContribucionRuralJurisdiccionId;
+    configLabel?: string;
   }> = [];
   for (const item of vista.cuotas) {
     const dias = diasHastaVencimientoCuota(item.fecha);
@@ -54,6 +56,58 @@ function cuotasNacionalesFuturas(
       diasRestantes: dias,
     });
   }
+  return out.sort(
+    (a, b) => parseFechaLocal(a.fecha).getTime() - parseFechaLocal(b.fecha).getTime(),
+  );
+}
+
+function cuotasPrimariaDesdeBootstrap(
+  bootstrap: VencimientosImpuestosBootstrap,
+  prefs: NonNullable<VencimientosImpuestosBootstrap["preferencias"]>,
+) {
+  const regimenFallback: RegimenPrimariaRuralKey =
+    prefs.regimen_primaria_rural ?? "con_explotacion";
+  const regimenMap = prefs.regimen_primaria_por_jurisdiccion ?? {};
+  const ids = prefs.jurisdiccion_ids ?? [];
+  const out: Array<{
+    cuota: number;
+    fecha: string;
+    fechaLabel: string;
+    planLabel: string;
+    diasRestantes: number;
+    configId?: import("../types/contribucion-rural").ContribucionRuralJurisdiccionId;
+    configLabel?: string;
+  }> = [];
+
+  if (ids.length === 0) {
+    const config = primariaComoCalendarioConfig(bootstrap.primaria, regimenFallback);
+    return cuotasNacionalesFuturas(config, "cuotas");
+  }
+
+  for (const id of ids) {
+    const depto = bootstrap.rural.jurisdicciones[id];
+    if (!depto) continue;
+    const regimen = regimenPrimariaDeJurisdiccion(id, regimenMap, regimenFallback);
+    const config = primariaComoCalendarioConfig(bootstrap.primaria, regimen, {
+      jurisdiccionId: id,
+      jurisdiccionLabel: depto.label,
+    });
+    const vista = vistaCalendarioParaUsuario(config, "cuotas");
+    for (const item of vista.cuotas) {
+      const dias = diasHastaVencimientoCuota(item.fecha);
+      if (dias < 0) continue;
+      out.push({
+        cuota: item.cuota,
+        fecha: item.fecha,
+        fechaLabel: formatearFechaContribucionRural(item.fecha),
+        planLabel: vista.tituloPlan,
+        diasRestantes: dias,
+        configId: id,
+        configLabel: depto.label,
+      });
+    }
+  }
+
   return out.sort(
     (a, b) => parseFechaLocal(a.fecha).getTime() - parseFechaLocal(b.fecha).getTime(),
   );
@@ -75,8 +129,6 @@ function consolidadasDesdeBootstrap(
   const modalidadPatente: ModalidadPagoVencImp =
     prefs.modalidad_pago_patente ?? prefs.modalidad_pago ?? "cuotas";
   const planesCuotasPrefs = prefs.planes_cuotas_por_jurisdiccion ?? {};
-  const regimenPrimaria: RegimenPrimariaRuralKey =
-    prefs.regimen_primaria_rural ?? "con_explotacion";
 
   const configsCuenta = ruralListo
     ? prefs.jurisdiccion_ids
@@ -94,9 +146,6 @@ function consolidadasDesdeBootstrap(
 
   const patenteConfig = patenteListo ? patenteComoCalendarioConfig(bootstrap.patente) : null;
   const bpsConfig = bpsListo ? bpsComoCalendarioConfig(bootstrap.bps) : null;
-  const primariaConfig = primariaListo
-    ? primariaComoCalendarioConfig(bootstrap.primaria, regimenPrimaria)
-    : null;
 
   return consolidarCuotasVencimientos({
     rural: cuotasRural,
@@ -104,7 +153,7 @@ function consolidadasDesdeBootstrap(
     patente: cuotasNacionalesFuturas(patenteConfig, modalidadPatente),
     modalidadPatente,
     bps: cuotasNacionalesFuturas(bpsConfig, "cuotas"),
-    primaria: cuotasNacionalesFuturas(primariaConfig, "cuotas"),
+    primaria: primariaListo ? cuotasPrimariaDesdeBootstrap(bootstrap, prefs) : [],
   });
 }
 

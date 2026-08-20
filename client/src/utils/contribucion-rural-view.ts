@@ -15,11 +15,81 @@ export type PlanCuotasKey = "4" | "6" | "12";
 
 export const PLAN_CUOTAS_ORDER: PlanCuotasKey[] = ["12", "6", "4"];
 
+type PlanMap = NonNullable<ContribucionRuralJurisdiccionConfig["planes"]>;
+
+/** Toma k fechas equiespaciadas del calendario base (para armar planes 4/6 desde uno más largo). */
+function subsampleCuotas(
+  cuotas: { cuota: number; fecha: string }[],
+  k: number,
+): { cuota: number; fecha: string }[] {
+  if (k <= 0) return [];
+  if (cuotas.length <= k) {
+    return cuotas.map((c, i) => ({ cuota: i + 1, fecha: c.fecha }));
+  }
+  const out: { cuota: number; fecha: string }[] = [];
+  for (let i = 0; i < k; i++) {
+    const idx = Math.round((i * (cuotas.length - 1)) / (k - 1));
+    out.push({ cuota: i + 1, fecha: cuotas[idx]!.fecha });
+  }
+  return out;
+}
+
+/**
+ * Planes oficiales del departamento, o síntesis 12/6/4 a partir de `cuotas`
+ * para poder elegir cantidad por departamento en preferencias.
+ */
+export function planesDeJurisdiccion(
+  config: ContribucionRuralJurisdiccionConfig,
+): PlanMap | null {
+  if (config.esPatenteSucive || config.esBpsCajaRural || config.esPrimariaRural) {
+    return null;
+  }
+  if (config.planes) return config.planes;
+
+  const base = config.cuotas;
+  if (!base?.length) return null;
+
+  const n = base.length;
+  const out = {} as PlanMap;
+
+  if (n >= 12) {
+    out["12"] = { label: "12 cuotas", cuotas: subsampleCuotas(base, 12) };
+    out["6"] = { label: "6 cuotas", cuotas: subsampleCuotas(base, 6) };
+    out["4"] = { label: "4 cuotas", cuotas: subsampleCuotas(base, 4) };
+  } else if (n >= 6) {
+    out["6"] = {
+      label: n === 6 ? "6 cuotas" : `${n} cuotas`,
+      cuotas: n === 6 ? subsampleCuotas(base, 6) : base.map((c, i) => ({ cuota: i + 1, fecha: c.fecha })),
+    };
+    out["4"] = { label: "4 cuotas", cuotas: subsampleCuotas(base, 4) };
+  } else if (n === 4) {
+    out["4"] = { label: "4 cuotas", cuotas: subsampleCuotas(base, 4) };
+  } else if (n === 5) {
+    out["6"] = {
+      label: "5 cuotas",
+      cuotas: base.map((c, i) => ({ cuota: i + 1, fecha: c.fecha })),
+    };
+    out["4"] = { label: "4 cuotas", cuotas: subsampleCuotas(base, 4) };
+  } else {
+    return null;
+  }
+
+  return out;
+}
+
+export function planConfigDeJurisdiccion(
+  config: ContribucionRuralJurisdiccionConfig,
+  planKey: PlanCuotasKey,
+): { label: string; cuotas: { cuota: number; fecha: string }[] } | null {
+  return planesDeJurisdiccion(config)?.[planKey] ?? null;
+}
+
 export function planesDisponibles(
   config: ContribucionRuralJurisdiccionConfig,
 ): PlanCuotasKey[] {
-  if (!config.planes) return [];
-  return PLAN_CUOTAS_ORDER.filter((key) => config.planes?.[key]);
+  const planes = planesDeJurisdiccion(config);
+  if (!planes) return [];
+  return PLAN_CUOTAS_ORDER.filter((key) => Boolean(planes[key]));
 }
 
 export function planPorDefecto(config: ContribucionRuralJurisdiccionConfig): PlanCuotasKey {
@@ -78,9 +148,11 @@ export interface ModalidadPagoInfo {
 export function modalidadesPago(config: ContribucionRuralJurisdiccionConfig): ModalidadPagoInfo[] {
   const items: ModalidadPagoInfo[] = [];
 
-  if (config.planes) {
+  const planesMap = planesDeJurisdiccion(config);
+  if (planesMap) {
     for (const key of planesDisponibles(config)) {
-      const plan = config.planes[key];
+      const plan = planesMap[key];
+      if (!plan) continue;
       items.push({
         id: `plan-${key}`,
         label: plan.label,
@@ -141,10 +213,11 @@ export function proximoVencimiento(
     }
   };
 
-  if (config.planes) {
+  const planesMapProx = planesDeJurisdiccion(config);
+  if (planesMapProx) {
     const keys = planActivo ? [planActivo] : planesDisponibles(config);
     for (const key of keys) {
-      const plan = config.planes[key];
+      const plan = planesMapProx[key];
       if (plan) pushCuotas(plan.cuotas, plan.label);
     }
   } else if (config.cuotas) {
@@ -209,6 +282,7 @@ export function vistaCalendarioParaUsuario(
   }
 
   const planes = planesDisponibles(config);
+  const planesMap = planesDeJurisdiccion(config);
 
   if (modalidad === "contado") {
     if (config.primeraCuotaPagoContado && config.cuotas?.length) {
@@ -220,9 +294,9 @@ export function vistaCalendarioParaUsuario(
         planesVisibles: [],
       };
     }
-    if (config.planes) {
+    if (planesMap) {
       const key = planes.includes("4") ? "4" : planes[0];
-      const plan = key ? config.planes[key] : null;
+      const plan = key ? planesMap[key] : null;
       if (plan?.cuotas.length) {
         return {
           cuotas: [plan.cuotas[0]],
@@ -252,17 +326,19 @@ export function vistaCalendarioParaUsuario(
     };
   }
 
-  if (config.planes && planes.length) {
+  if (planesMap && planes.length) {
     const key =
       planActivo && planes.includes(planActivo) ? planActivo : planPorDefecto(config);
-    const plan = config.planes[key];
-    return {
-      cuotas: plan.cuotas,
-      tituloPlan: plan.label,
-      esPagoContado: false,
-      planKey: key,
-      planesVisibles: planes,
-    };
+    const plan = planesMap[key];
+    if (plan) {
+      return {
+        cuotas: plan.cuotas,
+        tituloPlan: plan.label,
+        esPagoContado: false,
+        planKey: key,
+        planesVisibles: planes,
+      };
+    }
   }
 
   return {

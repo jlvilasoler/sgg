@@ -17,6 +17,9 @@ export interface VencImpAsideInfoContext {
   bpsAnio?: number;
   primariaAnio?: number;
   regimenPrimaria: RegimenPrimariaRuralKey;
+  regimenPrimariaPorDepto?: Partial<
+    Record<ContribucionRuralJurisdiccionConfig["id"], RegimenPrimariaRuralKey>
+  >;
   djPrimaria?: { fechaLabel: string; diasRestantes: number } | null;
 }
 
@@ -59,7 +62,22 @@ export function buildVencImpAsideInfoText(ctx: VencImpAsideInfoContext): string 
     lines.push(
       "Primaria rural (DGI): impuesto de Enseñanza Primaria sobre padrones rurales (tres cuotas anuales).",
     );
-    lines.push(`Régimen: ${REGIMEN_PRIMARIA_RURAL_LABEL[ctx.regimenPrimaria]}.`);
+    if (ctx.configsCuenta.length > 0) {
+      lines.push(
+        `Régimen por establecimiento: ${ctx.configsCuenta
+          .map((c) => {
+            const regimen =
+              ctx.regimenPrimariaPorDepto?.[c.id] === "sin_explotacion" ||
+              ctx.regimenPrimariaPorDepto?.[c.id] === "con_explotacion"
+                ? ctx.regimenPrimariaPorDepto[c.id]!
+                : ctx.regimenPrimaria;
+            return `${c.label} (${REGIMEN_PRIMARIA_RURAL_LABEL[regimen]})`;
+          })
+          .join("; ")}.`,
+      );
+    } else {
+      lines.push(`Régimen: ${REGIMEN_PRIMARIA_RURAL_LABEL[ctx.regimenPrimaria]}.`);
+    }
     if (ctx.djPrimaria && ctx.djPrimaria.diasRestantes >= 0) {
       lines.push(
         `Declaración jurada: ${ctx.djPrimaria.fechaLabel} (${diasRestantesLabel(ctx.djPrimaria.diasRestantes)}).`,

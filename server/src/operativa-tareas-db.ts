@@ -1037,24 +1037,33 @@ export async function upsertOperativaLluvia(
 
   if (mm === 0) return null;
 
-  const keepFuente =
-    existing?.fuente === "yr" || existing?.fuente === "auto" ? "yr" : "manual";
-  const keepYrMm =
+  // Al pasar a manual, conservar el mm automático como referencia (yr_mm).
+  let yrMmToKeep: number | null =
     existing?.yr_mm != null && Number.isFinite(Number(existing.yr_mm))
       ? Number(existing.yr_mm)
-      : keepFuente === "yr"
-        ? mm
-        : null;
+      : null;
+  if (
+    yrMmToKeep == null &&
+    existing &&
+    (existing.fuente === "yr" || existing.fuente === "auto")
+  ) {
+    const prevMm = (await db
+      .prepare(`SELECT mm FROM OPERATIVA_LLUVIA_DIA WHERE id = ? AND cuenta_id = ?`)
+      .get(existing.id, cuentaId)) as { mm: number } | undefined;
+    if (prevMm && Number.isFinite(Number(prevMm.mm))) {
+      yrMmToKeep = Number(prevMm.mm);
+    }
+  }
 
   if (existing) {
     await db
       .prepare(
         `UPDATE OPERATIVA_LLUVIA_DIA
-         SET mm = ?, fuente = ?, estado = 'confirmado', yr_mm = ?,
+         SET mm = ?, fuente = 'manual', estado = 'confirmado', yr_mm = ?,
              registrado_por_user_id = ?, actualizado_en = NOW()
          WHERE id = ? AND cuenta_id = ?`,
       )
-      .run(mm, keepFuente, keepYrMm, userId, existing.id, cuentaId);
+      .run(mm, yrMmToKeep, userId, existing.id, cuentaId);
     const rows = await listOperativaLluvia(db, cuentaId, { fecha });
     const updated = rows.find((r) => r.id === existing.id);
     if (!updated) throw new Error("No se pudo actualizar el registro de lluvia.");

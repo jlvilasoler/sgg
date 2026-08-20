@@ -13,6 +13,7 @@ import {
   MODALIDAD_PAGO_LABEL,
   labelCuotasFijas,
   modalidadesPago,
+  planConfigDeJurisdiccion,
   planPorDefecto,
   planesDisponibles,
   proximoVencimientoParaUsuario,
@@ -149,12 +150,13 @@ export default function ContribucionRuralCalendarioSection({
   const modalidades = useMemo(() => {
     if (!soloPreferenciaCuenta) return modalidadesPago(config);
     if (modalidadUsuario === "cuotas") {
-      if (planUsuario && config.planes?.[planUsuario]) {
+      const plan = planUsuario ? planConfigDeJurisdiccion(config, planUsuario) : null;
+      if (plan) {
         return [
           {
             id: `plan-${planUsuario}`,
-            label: config.planes[planUsuario].label,
-            detalle: `${config.planes[planUsuario].cuotas.length} vencimientos`,
+            label: plan.label,
+            detalle: `${plan.cuotas.length} vencimientos`,
           },
         ];
       }
@@ -167,7 +169,7 @@ export default function ContribucionRuralCalendarioSection({
 
   const planesSeleccionables = useMemo(() => {
     if (soloPreferenciaCuenta) {
-      if (modalidadUsuario !== "cuotas" || !config.planes) return [];
+      if (modalidadUsuario !== "cuotas") return [];
       if (planUsuario && planesDisponibles(config).includes(planUsuario)) {
         return [planUsuario];
       }
@@ -353,7 +355,7 @@ export default function ContribucionRuralCalendarioSection({
                       className={`home-contrib-rural-plan${planActivo === p ? " home-contrib-rural-plan--active" : ""}`}
                       onClick={() => setPlanActivo(p)}
                     >
-                      {config.planes![p].label}
+                      {planConfigDeJurisdiccion(config, p)?.label ?? `${p} cuotas`}
                     </button>
                   ))}
                 </div>
@@ -450,7 +452,7 @@ export default function ContribucionRuralCalendarioSection({
                   className={`home-contrib-rural-plan${planActivo === p ? " home-contrib-rural-plan--active" : ""}`}
                   onClick={() => setPlanActivo(p)}
                 >
-                  {config.planes![p].label}
+                  {planConfigDeJurisdiccion(config, p)?.label ?? `${p} cuotas`}
                 </button>
               ))}
             </div>

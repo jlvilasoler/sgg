@@ -1,11 +1,15 @@
-import { useMemo, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
+  Check,
   CloudDrizzle,
   CloudFog,
   CloudLightning,
   CloudRain,
+  Loader2,
+  Pencil,
   Sun,
 } from "lucide-react";
+import { upsertOperativaLluvia } from "../../api";
 import type { CampoMapaElemento, OperativaLluviaDia } from "../../types";
 import { parseCampoMapaObjetoTipo } from "../campo/campo-mapa-objetos";
 
@@ -26,6 +30,7 @@ interface Props {
 }
 
 type ClimaNivel = "clear" | "mist" | "drizzle" | "rain" | "heavy" | "storm";
+type FuenteUi = "manual" | "auto" | null;
 
 interface ClimaInfo {
   nivel: ClimaNivel;
@@ -50,6 +55,14 @@ function formatMm(mm: number | null | undefined): string {
   return Number.isInteger(rounded) ? String(rounded) : String(rounded);
 }
 
+function parseMmInput(raw: string): number | null {
+  const cleaned = raw.trim().replace(",", ".");
+  if (!cleaned) return 0;
+  const n = Number(cleaned);
+  if (!Number.isFinite(n) || n < 0) return null;
+  return Math.round(n * 10) / 10;
+}
+
 function climaDesdeMm(mm: number): ClimaInfo {
   const n = Number.isFinite(mm) ? mm : 0;
   const size = 28;
@@ -58,7 +71,7 @@ function climaDesdeMm(mm: number): ClimaInfo {
     return {
       nivel: "clear",
       label: "Sin precipitación",
-      detail: "Según el pronóstico del día",
+      detail: "Cargá los mm reales si llovió",
       icon: <Sun size={size} strokeWidth={stroke} />,
     };
   }
@@ -126,9 +139,26 @@ function intensidadPct(mm: number): number {
   return Math.min(100, Math.round((Math.log10(mm + 1) / Math.log10(41)) * 100));
 }
 
+function mmActual(row: OperativaLluviaDia | undefined): number {
+  if (!row) return 0;
+  const mm = row.mm ?? row.auto_mm ?? 0;
+  return Number.isFinite(mm) ? mm : 0;
+}
+
+function fuenteDe(row: OperativaLluviaDia | undefined): FuenteUi {
+  if (!row) return null;
+  return row.fuente === "manual" ? "manual" : "auto";
+}
+
 export default function TareasLluviaPanel({
+  fecha,
+  apiOnline,
+  puedeEditar,
   elementosMapa,
   lluvias,
+  onChange,
+  onError,
+  onSuccess,
 }: Props) {
   const establecimientos = useMemo(
     () => establecimientosDesdeMapa(elementosMapa),
@@ -148,7 +178,7 @@ export default function TareasLluviaPanel({
     const ids = new Set(list.map((e) => String(e.id ?? 0)));
     for (const row of lluvias) {
       const k = String(row.marcador_id ?? 0);
-      if (!ids.has(k) && row.fuente === "auto") {
+      if (!ids.has(k)) {
         list.push({
           id: row.marcador_id,
           nombre: row.marcador_nombre?.trim() || "Campo",
@@ -159,15 +189,50 @@ export default function TareasLluviaPanel({
     return list;
   }, [establecimientos, lluvias]);
 
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [savingKey, setSavingKey] = useState<string | null>(null);
+  const [savedKey, setSavedKey] = useState<string | null>(null);
+  const [focusedKey, setFocusedKey] = useState<string | null>(null);
+  const draftsRef = useRef(drafts);
+  draftsRef.current = drafts;
+  const focusedKeyRef = useRef<string | null>(null);
+  const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    setDrafts((prev) => {
+      const next: Record<string, string> = {};
+      for (const est of filas) {
+        const key = String(est.id ?? 0);
+        // No pisar lo que el usuario está escribiendo.
+        if (
+          (focusedKeyRef.current === key || savingKey === key) &&
+          prev[key] != null
+        ) {
+          next[key] = prev[key]!;
+          continue;
+        }
+        next[key] = formatMm(mmActual(lluviaByKey.get(key)));
+      }
+      return next;
+    });
+  }, [fecha, filas, lluviaByKey, savingKey]);
+
+  useEffect(
+    () => () => {
+      if (savedTimer.current) clearTimeout(savedTimer.current);
+    },
+    [],
+  );
+
   const maxMm = useMemo(
     () =>
       filas.reduce((max, est) => {
-        const row = lluviaByKey.get(String(est.id ?? 0));
-        const mm = row?.mm ?? row?.auto_mm ?? 0;
-        const n = Number.isFinite(mm) ? mm : 0;
+        const key = String(est.id ?? 0);
+        const draft = parseMmInput(drafts[key] ?? "");
+        const n = draft ?? mmActual(lluviaByKey.get(key));
         return n > max ? n : max;
       }, 0),
-    [filas, lluviaByKey],
+    [filas, drafts, lluviaByKey],
   );
 
   const climaBoard = climaDesdeMm(maxMm);
@@ -177,10 +242,66 @@ export default function TareasLluviaPanel({
     climaBoard.nivel === "heavy" ||
     climaBoard.nivel === "storm";
 
+  const editable = puedeEditar && apiOnline;
+
+  const guardar = async (est: EstablecimientoOpcion, force = false) => {
+    if (!editable) return;
+    const key = String(est.id ?? 0);
+    if (savingKey && savingKey !== key) return;
+    const parsed = parseMmInput(draftsRef.current[key] ?? "");
+    if (parsed == null) {
+      onError("Indicá un valor válido de milímetros (0 o más).");
+      setDrafts((prev) => ({
+        ...prev,
+        [key]: formatMm(mmActual(lluviaByKey.get(key))),
+      }));
+      return;
+    }
+
+    const row = lluviaByKey.get(key);
+    const actual = mmActual(row);
+    if (!force && parsed === actual) {
+      setDrafts((prev) => ({ ...prev, [key]: formatMm(parsed) }));
+      return;
+    }
+    if (!force && parsed === 0 && !row) {
+      setDrafts((prev) => ({ ...prev, [key]: "0" }));
+      return;
+    }
+
+    setSavingKey(key);
+    try {
+      const saved = await upsertOperativaLluvia({
+        fecha,
+        marcador_id: est.id,
+        mm: parsed,
+      });
+      const without = lluvias.filter((r) => String(r.marcador_id ?? 0) !== key);
+      onChange(saved ? [...without, saved] : without);
+      setDrafts((prev) => ({ ...prev, [key]: formatMm(parsed) }));
+      setSavedKey(key);
+      if (savedTimer.current) clearTimeout(savedTimer.current);
+      savedTimer.current = setTimeout(() => setSavedKey(null), 1800);
+      onSuccess?.(
+        parsed > 0
+          ? `Lluvia manual guardada: ${formatMm(parsed)} mm · ${est.nombre}`
+          : `Lluvia borrada en ${est.nombre}`,
+      );
+    } catch (e) {
+      onError(e instanceof Error ? e.message : "No se pudo guardar la lluvia.");
+      setDrafts((prev) => ({
+        ...prev,
+        [key]: formatMm(mmActual(lluviaByKey.get(key))),
+      }));
+    } finally {
+      setSavingKey(null);
+    }
+  };
+
   return (
     <section
       className={`wx-board wx-board--stations-only is-${climaBoard.nivel}`}
-      aria-label="Clima del día por establecimiento"
+      aria-label="Lluvia del día por establecimiento"
     >
       <div className="wx-board-sky" aria-hidden>
         {showRainFx ? (
@@ -193,20 +314,52 @@ export default function TareasLluviaPanel({
         <div className="wx-glow" />
       </div>
 
-      <p className="wx-kicker wx-stations-kicker">Clima del día</p>
+      <p className="wx-kicker wx-stations-kicker">Lluvia del día</p>
+      <p className="wx-hint">
+        {editable
+          ? "Podés corregir los mm de la app con el valor real. Azul = automático · Verde = manual."
+          : apiOnline
+            ? "Solo lectura: no tenés permiso para editar lluvia."
+            : "Sin conexión: no se puede guardar lluvia."}
+      </p>
+      <div className="wx-fuente-legend" aria-hidden>
+        <span className="wx-fuente-chip wx-fuente-chip--auto">Automática</span>
+        <span className="wx-fuente-chip wx-fuente-chip--manual">Manual</span>
+      </div>
 
       <div className="wx-stations" role="list">
         {filas.map((est) => {
           const key = String(est.id ?? 0);
           const row = lluviaByKey.get(key);
-          const mm = row?.mm ?? row?.auto_mm ?? 0;
+          const draftParsed = parseMmInput(drafts[key] ?? "");
+          const mm = draftParsed ?? mmActual(row);
           const localClima = climaDesdeMm(mm);
           const bar = intensidadPct(mm);
+          const isSaving = savingKey === key;
+          const isSaved = savedKey === key;
+          const fuente = fuenteDe(row);
+          const draftStr = (drafts[key] ?? "").trim().replace(",", ".");
+          const actualStr = formatMm(mmActual(row));
+          const valueDirty = draftStr !== actualStr;
+
+          const autoRef =
+            row?.auto_mm != null && Number.isFinite(row.auto_mm) && row.fuente === "manual"
+              ? row.auto_mm
+              : null;
 
           return (
             <article
               key={key}
-              className={`wx-station is-row is-${localClima.nivel}`}
+              className={[
+                "wx-station",
+                "is-row",
+                `is-${localClima.nivel}`,
+                fuente === "manual" ? "is-fuente-manual" : "",
+                fuente === "auto" ? "is-fuente-auto" : "",
+                row?.estado === "sugerido" ? "is-sugerido" : "",
+              ]
+                .filter(Boolean)
+                .join(" ")}
               role="listitem"
             >
               <div className="wx-station-left">
@@ -219,18 +372,88 @@ export default function TareasLluviaPanel({
                 <div className="wx-station-meta">
                   <div className="wx-station-title-row">
                     <strong className="wx-station-name">{est.nombre}</strong>
+                    {fuente === "manual" ? (
+                      <span className="wx-badge wx-badge--manual">Manual</span>
+                    ) : fuente === "auto" ? (
+                      <span className="wx-badge wx-badge--auto">Automática</span>
+                    ) : null}
                   </div>
                   <p className="wx-station-cond">{localClima.label}</p>
+                  {autoRef != null && row?.fuente === "manual" ? (
+                    <p className="wx-station-auto-ref">App midió {formatMm(autoRef)} mm</p>
+                  ) : fuente === "auto" && editable ? (
+                    <p className="wx-station-auto-ref">Tocá el valor para corregirlo</p>
+                  ) : null}
                   <div className="wx-bar" aria-hidden>
                     <span className="wx-bar-fill" style={{ width: `${bar}%` }} />
                   </div>
                 </div>
               </div>
               <div className="wx-station-right">
-                <div className="wx-readout" aria-label={`${formatMm(mm)} milímetros`}>
-                  <span className="wx-readout-value">{formatMm(mm)}</span>
-                  <span className="wx-readout-unit">mm</span>
-                </div>
+                {editable ? (
+                  <div className="wx-edit-block">
+                    <label
+                      className={`wx-meter wx-meter--editable${fuente === "manual" ? " is-manual" : " is-auto"}${focusedKey === key ? " is-focused" : ""}`}
+                      aria-label={`Milímetros reales en ${est.nombre}`}
+                    >
+                      <Pencil size={12} className="wx-meter-pencil" aria-hidden />
+                      <input
+                        className="wx-input"
+                        type="text"
+                        inputMode="decimal"
+                        value={drafts[key] ?? "0"}
+                        disabled={isSaving}
+                        title="Escribí los mm reales y salí del campo o tocá Guardar"
+                        onFocus={(e) => {
+                          focusedKeyRef.current = key;
+                          setFocusedKey(key);
+                          e.currentTarget.select();
+                        }}
+                        onChange={(e) =>
+                          setDrafts((prev) => ({ ...prev, [key]: e.target.value }))
+                        }
+                        onBlur={() => {
+                          focusedKeyRef.current = null;
+                          setFocusedKey(null);
+                          void guardar(est);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            (e.target as HTMLInputElement).blur();
+                          }
+                        }}
+                      />
+                      <span className="wx-unit">mm</span>
+                      <span className="wx-status" aria-live="polite">
+                        {isSaving ? (
+                          <Loader2 size={14} className="spin" aria-label="Guardando" />
+                        ) : isSaved ? (
+                          <Check size={14} aria-label="Guardado" />
+                        ) : null}
+                      </span>
+                    </label>
+                    {valueDirty ? (
+                      <button
+                        type="button"
+                        className="wx-btn wx-btn--ok"
+                        disabled={isSaving}
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => void guardar(est, true)}
+                      >
+                        Guardar
+                      </button>
+                    ) : null}
+                  </div>
+                ) : (
+                  <div
+                    className={`wx-readout${fuente === "manual" ? " is-manual" : " is-auto"}`}
+                    aria-label={`${formatMm(mm)} milímetros`}
+                  >
+                    <span className="wx-readout-value">{formatMm(mm)}</span>
+                    <span className="wx-readout-unit">mm</span>
+                  </div>
+                )}
               </div>
             </article>
           );

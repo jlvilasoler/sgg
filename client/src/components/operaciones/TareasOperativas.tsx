@@ -143,6 +143,11 @@ function tareaToForm(t: OperativaTarea): FormState {
   };
 }
 
+function formatMmDisplay(mm: number): string {
+  const rounded = Math.round(mm * 10) / 10;
+  return Number.isInteger(rounded) ? String(rounded) : String(rounded);
+}
+
 function rutinaEnDia(t: OperativaTarea, iso: string): boolean {
   if (t.dia_semana == null || t.estado === "cancelada") return false;
   return Number(t.dia_semana) === isoWeekday(iso);
@@ -227,6 +232,19 @@ export default function TareasOperativas({
       const mm = Number.isFinite(row.mm) ? row.mm : 0;
       if (mm <= 0) continue;
       map.set(row.fecha, (map.get(row.fecha) ?? 0) + mm);
+    }
+    return map;
+  }, [lluviasMes]);
+
+  const lluviaFuentePorFecha = useMemo(() => {
+    const map = new Map<string, "manual" | "auto" | "mixto">();
+    for (const row of lluviasMes) {
+      const mm = Number.isFinite(row.mm) ? row.mm : 0;
+      if (mm <= 0) continue;
+      const fuente = row.fuente === "manual" ? "manual" : "auto";
+      const prev = map.get(row.fecha);
+      if (!prev) map.set(row.fecha, fuente);
+      else if (prev !== fuente) map.set(row.fecha, "mixto");
     }
     return map;
   }, [lluviasMes]);
@@ -730,6 +748,7 @@ export default function TareasOperativas({
                     const tieneTareas = dayRutinas.length > 0;
                     const lluviaMm = lluviaPorFecha.get(iso) ?? 0;
                     const tieneLluvia = lluviaMm > 0;
+                    const lluviaFuente = lluviaFuentePorFecha.get(iso);
                     const diaNum = parseIsoDate(iso).getDate();
                     return (
                       <button
@@ -755,20 +774,55 @@ export default function TareasOperativas({
                             tieneTareas
                               ? `${dayRutinas.length} rutina${dayRutinas.length === 1 ? "" : "s"}`
                               : null,
-                            tieneLluvia ? `${lluviaMm} mm de lluvia estimada` : null,
+                            tieneLluvia
+                              ? `${lluviaMm} mm de lluvia${
+                                  lluviaFuente === "manual"
+                                    ? " (manual)"
+                                    : lluviaFuente === "auto"
+                                      ? " (automática)"
+                                      : lluviaFuente === "mixto"
+                                        ? " (manual y automática)"
+                                        : ""
+                                }`
+                              : null,
                           ]
                             .filter(Boolean)
                             .join(", ")
                         }
                       >
                         <span className="tareas-op-day-num">{diaNum}</span>
+                        {tieneLluvia ? (
+                          <span
+                            className={`tareas-op-day-mm${
+                              lluviaFuente === "manual"
+                                ? " tareas-op-day-mm--manual"
+                                : lluviaFuente === "auto"
+                                  ? " tareas-op-day-mm--auto"
+                                  : lluviaFuente === "mixto"
+                                    ? " tareas-op-day-mm--mixto"
+                                    : ""
+                            }`}
+                          >
+                            {formatMmDisplay(lluviaMm)}
+                          </span>
+                        ) : null}
                         {(tieneTareas || tieneLluvia) && (
                           <span className="tareas-op-day-dots" aria-hidden>
                             {dayRutinas.slice(0, 3).map((t) => (
                               <span key={t.id} className="tareas-op-dot tareas-op-dot--rutina" />
                             ))}
                             {tieneLluvia ? (
-                              <span className="tareas-op-dot tareas-op-dot--lluvia" />
+                              <span
+                                className={`tareas-op-dot${
+                                  lluviaFuente === "manual"
+                                    ? " tareas-op-dot--lluvia-manual"
+                                    : lluviaFuente === "auto"
+                                      ? " tareas-op-dot--lluvia-auto"
+                                      : lluviaFuente === "mixto"
+                                        ? " tareas-op-dot--lluvia-mixto"
+                                        : " tareas-op-dot--lluvia"
+                                }`}
+                              />
                             ) : null}
                           </span>
                         )}
@@ -902,8 +956,12 @@ export default function TareasOperativas({
                   Con tareas
                 </span>
                 <span>
-                  <i className="tareas-op-legend-dot tareas-op-legend-dot--lluvia" />
-                  Lluvia estimada
+                  <i className="tareas-op-legend-dot tareas-op-legend-dot--lluvia-auto" />
+                  Automática
+                </span>
+                <span>
+                  <i className="tareas-op-legend-dot tareas-op-legend-dot--lluvia-manual" />
+                  Manual
                 </span>
                 <span>
                   <i className="tareas-op-legend-ring" />

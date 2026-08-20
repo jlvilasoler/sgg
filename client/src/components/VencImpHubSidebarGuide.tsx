@@ -35,6 +35,9 @@ export interface VencImpHubSidebarGuideProps {
   bpsAnio?: number;
   primariaAnio?: number;
   regimenPrimaria: RegimenPrimariaRuralKey;
+  regimenPrimariaPorDepto?: Partial<
+    Record<ContribucionRuralJurisdiccionConfig["id"], RegimenPrimariaRuralKey>
+  >;
   djPrimaria?: { fechaLabel: string; diasRestantes: number } | null;
   primariaFuenteUrls?: { vencimientos: string; padrones: string; dj: string };
 }
@@ -52,6 +55,7 @@ export default function VencImpHubSidebarGuide({
   bpsAnio,
   primariaAnio,
   regimenPrimaria,
+  regimenPrimariaPorDepto,
   djPrimaria,
   primariaFuenteUrls,
 }: VencImpHubSidebarGuideProps) {
@@ -239,7 +243,26 @@ export default function VencImpHubSidebarGuide({
           </div>
           <div className="venc-imp-hub-aside-block">
             <h4 className="venc-imp-hub-aside-subtitle">Régimen</h4>
-            <p className="venc-imp-hub-aside-note">{REGIMEN_PRIMARIA_RURAL_LABEL[regimenPrimaria]}</p>
+            {configsCuenta.length > 0 ? (
+              <ul className="venc-imp-hub-aside-leyenda" aria-label="Régimen por establecimiento">
+                {configsCuenta.map((config) => {
+                  const regimen =
+                    regimenPrimariaPorDepto?.[config.id] === "sin_explotacion" ||
+                    regimenPrimariaPorDepto?.[config.id] === "con_explotacion"
+                      ? regimenPrimariaPorDepto[config.id]!
+                      : regimenPrimaria;
+                  return (
+                    <li key={config.id}>
+                      <strong>{config.label}</strong>
+                      {": "}
+                      {REGIMEN_PRIMARIA_RURAL_LABEL[regimen]}
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <p className="venc-imp-hub-aside-note">{REGIMEN_PRIMARIA_RURAL_LABEL[regimenPrimaria]}</p>
+            )}
           </div>
           {djPrimaria && djPrimaria.diasRestantes >= 0 && (
             <div className="venc-imp-hub-aside-block venc-imp-hub-aside-block--alert">

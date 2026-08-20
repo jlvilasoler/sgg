@@ -45,7 +45,11 @@ import {
 } from "../utils/contribucion-rural-view";
 import { patenteComoCalendarioConfig } from "../utils/patente-sucive-view";
 import { bpsComoCalendarioConfig } from "../utils/bps-caja-rural-view";
-import { primariaComoCalendarioConfig } from "../utils/primaria-rural-view";
+import {
+  primariaComoCalendarioConfig,
+  regimenPrimariaDeJurisdiccion,
+  tienePrimariaConExplotacion,
+} from "../utils/primaria-rural-view";
 import {
   formatearFechaContribucionRural,
   parseFechaLocal,
@@ -463,6 +467,7 @@ export default function VencimientosImpuestos({
 
   const regimenPrimaria: RegimenPrimariaRuralKey =
     prefs?.regimen_primaria_rural ?? "con_explotacion";
+  const regimenPrimariaPorDepto = prefs?.regimen_primaria_por_jurisdiccion ?? {};
 
   const primariaConfig = useMemo(
     () => (primariaStore ? primariaComoCalendarioConfig(primariaStore, regimenPrimaria) : null),
@@ -550,31 +555,74 @@ export default function VencimientosImpuestos({
     return { rojo, amarillo, verde, total: cuotasBpsFuturas.length };
   }, [cuotasBpsFuturas]);
 
+  const departamentosCuenta = useMemo(
+    () => prefs?.jurisdiccion_ids ?? [],
+    [prefs?.jurisdiccion_ids],
+  );
+
+  const configsCuenta = useMemo(() => {
+    if (!store || departamentosCuenta.length === 0) return [];
+    return departamentosCuenta
+      .map((id) => store.jurisdicciones[id])
+      .filter(Boolean);
+  }, [store, departamentosCuenta]);
+
+  const primariaConfigsPorDepto = useMemo(() => {
+    if (!primariaStore) return [];
+    if (configsCuenta.length === 0) {
+      return primariaConfig
+        ? [{ config: primariaConfig, regimen: regimenPrimaria, configLabel: null as string | null }]
+        : [];
+    }
+    return configsCuenta.map((depto) => {
+      const regimen = regimenPrimariaDeJurisdiccion(
+        depto.id,
+        regimenPrimariaPorDepto,
+        regimenPrimaria,
+      );
+      return {
+        config: primariaComoCalendarioConfig(primariaStore, regimen, {
+          jurisdiccionId: depto.id,
+          jurisdiccionLabel: depto.label,
+        }),
+        regimen,
+        configLabel: depto.label,
+      };
+    });
+  }, [primariaStore, configsCuenta, regimenPrimariaPorDepto, regimenPrimaria, primariaConfig]);
+
   const cuotasPrimariaFuturas = useMemo(() => {
-    if (!primariaConfig) return [];
-    const vista = vistaCalendarioParaUsuario(primariaConfig, modalidadPrimaria);
     const out: Array<{
       cuota: number;
       fecha: string;
       fechaLabel: string;
       planLabel: string;
       diasRestantes: number;
+      configId?: ContribucionRuralJurisdiccionId;
+      configLabel?: string;
+      regimen: RegimenPrimariaRuralKey;
     }> = [];
-    for (const item of vista.cuotas) {
-      const dias = diasHastaVencimientoCuota(item.fecha);
-      if (dias < 0) continue;
-      out.push({
-        cuota: item.cuota,
-        fecha: item.fecha,
-        fechaLabel: formatearFechaContribucionRural(item.fecha),
-        planLabel: vista.tituloPlan,
-        diasRestantes: dias,
-      });
+    for (const entry of primariaConfigsPorDepto) {
+      const vista = vistaCalendarioParaUsuario(entry.config, modalidadPrimaria);
+      for (const item of vista.cuotas) {
+        const dias = diasHastaVencimientoCuota(item.fecha);
+        if (dias < 0) continue;
+        out.push({
+          cuota: item.cuota,
+          fecha: item.fecha,
+          fechaLabel: formatearFechaContribucionRural(item.fecha),
+          planLabel: vista.tituloPlan,
+          diasRestantes: dias,
+          configId: entry.configLabel ? entry.config.id : undefined,
+          configLabel: entry.configLabel ?? undefined,
+          regimen: entry.regimen,
+        });
+      }
     }
     return out.sort(
       (a, b) => parseFechaLocal(a.fecha).getTime() - parseFechaLocal(b.fecha).getTime(),
     );
-  }, [primariaConfig, modalidadPrimaria]);
+  }, [primariaConfigsPorDepto, modalidadPrimaria]);
 
   const statsPrimariaSemaforo = useMemo(() => {
     let rojo = 0;
@@ -588,18 +636,6 @@ export default function VencimientosImpuestos({
     }
     return { rojo, amarillo, verde, total: cuotasPrimariaFuturas.length };
   }, [cuotasPrimariaFuturas]);
-
-  const departamentosCuenta = useMemo(
-    () => prefs?.jurisdiccion_ids ?? [],
-    [prefs?.jurisdiccion_ids],
-  );
-
-  const configsCuenta = useMemo(() => {
-    if (!store || departamentosCuenta.length === 0) return [];
-    return departamentosCuenta
-      .map((id) => store.jurisdicciones[id])
-      .filter(Boolean);
-  }, [store, departamentosCuenta]);
 
   const cuotasFuturas = useMemo(
     () => cuotasFuturasCuentaRural(configsCuenta, modalidadRural, planParaConfig),
@@ -664,13 +700,20 @@ export default function VencimientosImpuestos({
     });
   }, [bpsConfig, modalidadBps]);
 
-  const abrirCalendarioPrimaria = useCallback(() => {
-    if (!primariaConfig) return;
-    setCalendarioModal({
-      config: primariaConfig,
-      modalidadUsuario: modalidadPrimaria,
-    });
-  }, [primariaConfig, modalidadPrimaria]);
+  const abrirCalendarioPrimaria = useCallback(
+    (configId?: ContribucionRuralJurisdiccionId) => {
+      const entry =
+        (configId
+          ? primariaConfigsPorDepto.find((e) => e.config.id === configId)
+          : null) ?? primariaConfigsPorDepto[0];
+      if (!entry) return;
+      setCalendarioModal({
+        config: entry.config,
+        modalidadUsuario: modalidadPrimaria,
+      });
+    },
+    [primariaConfigsPorDepto, modalidadPrimaria],
+  );
 
   const handleOnboardingComplete = async (payload: {
     jurisdiccion_ids: ContribucionRuralJurisdiccionId[];
@@ -681,6 +724,7 @@ export default function VencimientosImpuestos({
     seguir_bps_caja_rural: boolean;
     seguir_primaria_rural: boolean;
     regimen_primaria_rural: RegimenPrimariaRuralKey;
+    regimen_primaria_por_jurisdiccion: UserVencimientosImpuestosPrefs["regimen_primaria_por_jurisdiccion"];
   }) => {
     if (!puedeConfigurar) {
       onError("No tenés permiso para configurar vencimientos de la cuenta.");
@@ -760,7 +804,7 @@ export default function VencimientosImpuestos({
   const primariaListo =
     !loading &&
     primariaStore &&
-    primariaConfig &&
+    primariaConfigsPorDepto.length > 0 &&
     cuentaConfigurada &&
     prefs?.seguir_primaria_rural !== false;
 
@@ -915,7 +959,7 @@ export default function VencimientosImpuestos({
         abrirCalendarioBps();
         return;
       }
-      abrirCalendarioPrimaria();
+      abrirCalendarioPrimaria(item.configId);
     },
     [abrirCalendarioRural, abrirCalendarioPatente, abrirCalendarioBps, abrirCalendarioPrimaria],
   );
@@ -957,10 +1001,10 @@ export default function VencimientosImpuestos({
   const proximoBannerPrimaria = useMemo(
     () =>
       listarProximosBanner(cuotasPrimariaFuturas, (c) => ({
-        key: `primaria-${c.cuota}`,
-        escudoSrc: "/logo-dgi-compact.svg",
-        escudoClassName: "venc-imp-banner-next-escudo--dgi",
-        titulo: "Primaria rural",
+        key: `primaria-${c.configId ?? "nac"}-${c.cuota}`,
+        escudoSrc: c.configId ? escudoDepartamentoSrc(c.configId) : "/logo-dgi-compact.svg",
+        escudoClassName: c.configId ? undefined : "venc-imp-banner-next-escudo--dgi",
+        titulo: c.configLabel ?? "Primaria rural",
       })),
     [cuotasPrimariaFuturas],
   );
@@ -1192,13 +1236,30 @@ export default function VencimientosImpuestos({
     ) : null;
 
   const djPrimaria =
-    regimenPrimaria === "con_explotacion" && primariaStore
+    tienePrimariaConExplotacion(departamentosCuenta, regimenPrimariaPorDepto, regimenPrimaria) &&
+    primariaStore
       ? {
           fecha: primariaStore.calendario.declaracionJuradaFecha,
           fechaLabel: formatearFechaContribucionRural(primariaStore.calendario.declaracionJuradaFecha),
           diasRestantes: diasHastaVencimientoCuota(primariaStore.calendario.declaracionJuradaFecha),
         }
       : null;
+
+  const resumenRegimenPrimaria = useMemo(() => {
+    if (configsCuenta.length === 0) {
+      return REGIMEN_PRIMARIA_RURAL_LABEL[regimenPrimaria];
+    }
+    return configsCuenta
+      .map((depto) => {
+        const regimen = regimenPrimariaDeJurisdiccion(
+          depto.id,
+          regimenPrimariaPorDepto,
+          regimenPrimaria,
+        );
+        return `${depto.label}: ${REGIMEN_PRIMARIA_RURAL_LABEL[regimen]}`;
+      })
+      .join(" · ");
+  }, [configsCuenta, regimenPrimariaPorDepto, regimenPrimaria]);
 
   const asideInfoText = useMemo(() => {
     if (!mostrarBarraFiltros) return "";
@@ -1215,6 +1276,7 @@ export default function VencimientosImpuestos({
       bpsAnio: bpsStore?.calendario.anio,
       primariaAnio: primariaStore?.calendario.anio,
       regimenPrimaria,
+      regimenPrimariaPorDepto,
       djPrimaria,
     });
   }, [
@@ -1231,11 +1293,12 @@ export default function VencimientosImpuestos({
     bpsStore?.calendario.anio,
     primariaStore?.calendario.anio,
     regimenPrimaria,
+    regimenPrimariaPorDepto,
     djPrimaria,
   ]);
 
   const primariaPanel =
-    tipoImpuesto === "primaria" && primariaListo && primariaStore && primariaConfig ? (
+    tipoImpuesto === "primaria" && primariaListo && primariaStore && primariaConfigsPorDepto.length > 0 ? (
       <div className="venc-imp-hub-panel sg-hub-panel">
               <VencImpUserContextBanner ariaLabel="Impuesto Primaria rural" proximos={proximoBannerPrimaria}>
                   <div className="venc-imp-brand-row">
@@ -1258,7 +1321,7 @@ export default function VencimientosImpuestos({
                         )}
                       </div>
                       <p className="venc-imp-user-banner-text">
-                        <strong>{REGIMEN_PRIMARIA_RURAL_LABEL[regimenPrimaria]}</strong>
+                        <strong>{resumenRegimenPrimaria}</strong>
                       </p>
                       <p className="venc-imp-user-banner-deptos">
                         3 cuotas · calendario nacional · ejercicio {primariaStore.calendario.anio}
@@ -1271,7 +1334,7 @@ export default function VencimientosImpuestos({
                 ariaLabel="Próximos vencimientos Primaria"
                 kicker="Calendario DGI"
                 title="Próximos vencimientos"
-                subtitle={`${REGIMEN_PRIMARIA_RURAL_LABEL[regimenPrimaria]} · ejercicio ${primariaStore.calendario.anio}`}
+                subtitle={`${resumenRegimenPrimaria} · ejercicio ${primariaStore.calendario.anio}`}
                 count={cuotasPrimariaFuturas.length}
                 itemCount={cuotasPrimariaFuturas.length}
                 carouselAriaLabel="Próximos vencimientos Impuesto Primaria rural"
@@ -1282,23 +1345,29 @@ export default function VencimientosImpuestos({
                       return (
                         <button
                           type="button"
-                          key={`primaria-${item.cuota}-${item.fecha}`}
+                          key={`primaria-${item.configId ?? "nac"}-${item.cuota}-${item.fecha}`}
                           className={`venc-imp-proximo-card venc-imp-proximo-card--pro venc-imp-proximo-card--${semaforo.nivel}`}
                           role="listitem"
-                          onClick={abrirCalendarioPrimaria}
+                          onClick={() => abrirCalendarioPrimaria(item.configId)}
                           aria-label={`Ver calendario completo de Primaria rural · ${item.fechaLabel}`}
                         >
                           <span className="venc-imp-proximo-accent" aria-hidden />
                           <div className="venc-imp-proximo-top">
                             <img
-                              src="/logo-dgi-compact.svg"
+                              src={
+                                item.configId
+                                  ? escudoDepartamentoSrc(item.configId)
+                                  : "/logo-dgi-compact.svg"
+                              }
                               alt=""
-                              className="venc-imp-proximo-escudo venc-imp-proximo-escudo--dgi"
+                              className={`venc-imp-proximo-escudo${item.configId ? "" : " venc-imp-proximo-escudo--dgi"}`}
                               loading="lazy"
                               decoding="async"
                             />
                             <div className="venc-imp-proximo-meta">
-                              <p className="venc-imp-proximo-depto">Primaria rural</p>
+                              <p className="venc-imp-proximo-depto">
+                                {item.configLabel ?? "Primaria rural"}
+                              </p>
                               <p className="venc-imp-proximo-plazo">{diasRestantesLabel(item.diasRestantes)}</p>
                             </div>
                           </div>
@@ -1417,6 +1486,7 @@ export default function VencimientosImpuestos({
           initialSeguirBps={prefs?.seguir_bps_caja_rural ?? true}
           initialSeguirPrimaria={prefs?.seguir_primaria_rural ?? true}
           initialRegimenPrimaria={prefs?.regimen_primaria_rural ?? "con_explotacion"}
+          initialRegimenPrimariaPorJurisdiccion={prefs?.regimen_primaria_por_jurisdiccion ?? {}}
           initialPlanesCuotas={prefs?.planes_cuotas_por_jurisdiccion ?? {}}
           modoEdicion={cuentaConfigurada}
           pasoInicialOverride={onboardingPasoInicial}
@@ -1484,7 +1554,6 @@ export default function VencimientosImpuestos({
                   </span>
                   <span className="sg-hub-nav-copy">
                     <span>Configurar calendario</span>
-                    <span className="sg-hub-nav-sub">Departamentos e impuestos</span>
                   </span>
                 </button>
               </div>

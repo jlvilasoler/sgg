@@ -37,7 +37,7 @@ export interface ContribucionRuralJurisdiccionConfig {
   fuenteUrl: string;
   fuenteNota: string;
   cuotas?: CuotaContribucionRural[];
-  planes?: Record<"4" | "6" | "12", ContribucionRuralPlanConfig>;
+  planes?: Partial<Record<"4" | "6" | "12", ContribucionRuralPlanConfig>>;
   primeraCuotaPagoContado?: boolean;
   /** Calendario nacional SUCIVE (no es contribución rural departamental). */
   esPatenteSucive?: boolean;
@@ -123,6 +123,9 @@ export interface UserVencimientosImpuestosPrefs {
   seguir_bps_caja_rural: boolean;
   seguir_primaria_rural: boolean;
   regimen_primaria_rural: import("./primaria-rural").RegimenPrimariaRural;
+  regimen_primaria_por_jurisdiccion: Partial<
+    Record<ContribucionRuralJurisdiccionId, import("./primaria-rural").RegimenPrimariaRural>
+  >;
   onboarding_completado: boolean;
   actualizado_por_user_id?: number | null;
   actualizado_en: string;
@@ -137,5 +140,8 @@ export interface UserVencimientosImpuestosPrefsInput {
   seguir_bps_caja_rural?: boolean;
   seguir_primaria_rural?: boolean;
   regimen_primaria_rural?: import("./primaria-rural").RegimenPrimariaRural;
+  regimen_primaria_por_jurisdiccion?: Partial<
+    Record<ContribucionRuralJurisdiccionId, import("./primaria-rural").RegimenPrimariaRural>
+  >;
   onboarding_completado?: boolean;
 }
