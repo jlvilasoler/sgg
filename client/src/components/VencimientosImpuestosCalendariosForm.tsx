@@ -167,25 +167,31 @@ export default function VencimientosImpuestosCalendariosForm({ store, saving, on
 
               {j.planes ? (
                 <div className="venc-imp-form-planes">
-                  {(["12", "6", "4"] as const).map((planKey) => (
-                    <details key={planKey} className="venc-imp-form-plan" open={planKey === "12"}>
-                      <summary>{j.planes![planKey].label}</summary>
-                      <CuotasEditor
-                        cuotas={j.planes![planKey].cuotas}
-                        onChange={(cuotas) =>
-                          setDraft((prev) => {
-                            const current = prev.jurisdicciones[id];
-                            return updateJurisdiccion(prev, id, {
-                              planes: {
-                                ...current.planes!,
-                                [planKey]: { ...current.planes![planKey], cuotas },
-                              },
-                            });
-                          })
-                        }
-                      />
-                    </details>
-                  ))}
+                  {(["12", "6", "4"] as const).map((planKey) => {
+                    const plan = j.planes?.[planKey];
+                    if (!plan) return null;
+                    return (
+                      <details key={planKey} className="venc-imp-form-plan" open={planKey === "12"}>
+                        <summary>{plan.label}</summary>
+                        <CuotasEditor
+                          cuotas={plan.cuotas}
+                          onChange={(cuotas) =>
+                            setDraft((prev) => {
+                              const current = prev.jurisdicciones[id];
+                              const currentPlan = current.planes?.[planKey];
+                              if (!currentPlan) return prev;
+                              return updateJurisdiccion(prev, id, {
+                                planes: {
+                                  ...current.planes,
+                                  [planKey]: { ...currentPlan, cuotas },
+                                },
+                              });
+                            })
+                          }
+                        />
+                      </details>
+                    );
+                  })}
                 </div>
               ) : (
                 <CuotasEditor
