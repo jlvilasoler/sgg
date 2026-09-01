@@ -1090,7 +1090,28 @@ export async function listOperativaLluvia(
   }
   sql += ` ORDER BY l.fecha ASC, COALESCE(e.nombre, '') ASC, l.id ASC`;
   const rows = (await db.prepare(sql).all(...params)) as Record<string, unknown>[];
-  return rows.map(rowToLluvia);
+  const mapped = rows.map(rowToLluvia);
+  // Consolidado: una fila por fecha+nombre (max mm) — evita N copias del mismo establecimiento.
+  if (filters.filterEmpresaOperativaId == null) {
+    const best = new Map<string, OperativaLluviaDiaRow>();
+    for (const row of mapped) {
+      const nameKey = String(row.marcador_nombre ?? "")
+        .trim()
+        .toLocaleLowerCase("es")
+        .replace(/\s+/g, " ");
+      const key = `${row.fecha}|${nameKey || `id:${row.marcador_id ?? 0}`}`;
+      const prev = best.get(key);
+      if (!prev || (Number(row.mm) || 0) >= (Number(prev.mm) || 0)) {
+        best.set(key, row);
+      }
+    }
+    return [...best.values()].sort(
+      (a, b) =>
+        a.fecha.localeCompare(b.fecha) ||
+        String(a.marcador_nombre ?? "").localeCompare(String(b.marcador_nombre ?? ""), "es"),
+    );
+  }
+  return mapped;
 }
 
 export async function upsertOperativaLluvia(

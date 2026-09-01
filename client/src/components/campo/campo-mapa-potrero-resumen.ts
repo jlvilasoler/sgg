@@ -8,6 +8,7 @@ import {
 import { colorEmpresaOperativa, fmtEmpresaOperativa } from "../stock/stock-empresa-utils";
 import { collectCampoMapaFeatureDevices } from "./campo-mapa-dispositivos-map";
 import { centroidOfPaths, openRingFromGeoJson } from "./campo-mapa-geo";
+import { dedupeCampoPotrerosMapaByNombre } from "./campo-potrero-dedupe";
 
 export interface PotreroResumenFila {
   key: string;
@@ -174,7 +175,7 @@ export function buildAllPotreroResumenes(
   empresas: EmpresaOperativaStock[],
   ovino: StockGanaderaDispositivo[] = [],
 ): PotreroDispositivoResumen[] {
-  return potreros.map((potrero) =>
+  return dedupeCampoPotrerosMapaByNombre(potreros).map((potrero) =>
     buildPotreroDispositivoResumen(potrero, ganadero, equino, empresas, ovino),
   );
 }

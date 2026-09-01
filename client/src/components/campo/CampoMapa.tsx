@@ -23,6 +23,8 @@ import {
 import type { CampoMapaElemento, CampoMapaElementoTipo, CampoPotreroMapa, StockGanaderaDispositivo } from "../../types";
 import { hubAsideKicker } from "../../brand";
 import { normalizarPotrero } from "../stock/stock-ganadera-utils";
+import { dedupeMarcadoresMapaByNombre } from "./campo-establecimiento-dedupe";
+import { dedupeCampoPotrerosMapaByNombre } from "./campo-potrero-dedupe";
 import {
   computeDistanceMeters,
   computeHectareas,
@@ -421,10 +423,11 @@ export default function CampoMapa({
 
   const marcadoresUbicacion = useMemo(
     () =>
-      elementos
-        .filter(
+      dedupeMarcadoresMapaByNombre(
+        elementos.filter(
           (item) => item.tipo === "marcador" && parseCampoMapaObjetoTipo(item.metadata) == null,
-        )
+        ),
+      )
         .slice()
         .sort((a, b) => a.nombre.localeCompare(b.nombre)),
     [elementos],
@@ -470,7 +473,7 @@ export default function CampoMapa({
       items: [],
     };
 
-    for (const potrero of potreros) {
+    for (const potrero of dedupeCampoPotrerosMapaByNombre(potreros)) {
       const marcadorId = parseCampoMapaMarcadorId(potrero.metadata);
       const grupo =
         marcadorId != null && grupos.has(`m-${marcadorId}`)

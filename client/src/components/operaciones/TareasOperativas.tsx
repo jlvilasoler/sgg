@@ -31,6 +31,8 @@ import {
   fetchUsuariosMiCuenta,
   updateOperativaTarea,
 } from "../../api";
+import { claveNombreEstablecimiento } from "../campo/campo-establecimiento-dedupe";
+import { dedupeCampoPotrerosMapaByNombre } from "../campo/campo-potrero-dedupe";
 import type {
   AuthUser,
   CampoMapaElemento,
@@ -227,20 +229,37 @@ export default function TareasOperativas({
   }, [dayPopover, rutinas]);
 
   const lluviaPorFecha = useMemo(() => {
-    const map = new Map<string, number>();
+    // Por fecha+nombre: max mm (copias del mismo establecimiento no se suman).
+    const byFechaNombre = new Map<string, number>();
     for (const row of lluviasMes) {
       const mm = Number.isFinite(row.mm) ? row.mm : 0;
       if (mm <= 0) continue;
-      map.set(row.fecha, (map.get(row.fecha) ?? 0) + mm);
+      const nameKey =
+        claveNombreEstablecimiento(row.marcador_nombre) || `id:${row.marcador_id ?? 0}`;
+      const fk = `${row.fecha}|${nameKey}`;
+      byFechaNombre.set(fk, Math.max(byFechaNombre.get(fk) ?? 0, mm));
+    }
+    const map = new Map<string, number>();
+    for (const [fk, mm] of byFechaNombre) {
+      const fecha = fk.slice(0, fk.indexOf("|"));
+      map.set(fecha, Math.round(((map.get(fecha) ?? 0) + mm) * 10) / 10);
     }
     return map;
   }, [lluviasMes]);
 
   const lluviaFuentePorFecha = useMemo(() => {
-    const map = new Map<string, "manual" | "auto" | "mixto">();
+    const bestByFechaNombre = new Map<string, OperativaLluviaDia>();
     for (const row of lluviasMes) {
       const mm = Number.isFinite(row.mm) ? row.mm : 0;
       if (mm <= 0) continue;
+      const nameKey =
+        claveNombreEstablecimiento(row.marcador_nombre) || `id:${row.marcador_id ?? 0}`;
+      const fk = `${row.fecha}|${nameKey}`;
+      const prev = bestByFechaNombre.get(fk);
+      if (!prev || mm >= (Number(prev.mm) || 0)) bestByFechaNombre.set(fk, row);
+    }
+    const map = new Map<string, "manual" | "auto" | "mixto">();
+    for (const row of bestByFechaNombre.values()) {
       const fuente = row.fuente === "manual" ? "manual" : "auto";
       const prev = map.get(row.fecha);
       if (!prev) map.set(row.fecha, fuente);
@@ -248,6 +267,11 @@ export default function TareasOperativas({
     }
     return map;
   }, [lluviasMes]);
+
+  const potrerosUnicos = useMemo(
+    () => dedupeCampoPotrerosMapaByNombre(potreros),
+    [potreros],
+  );
 
   const lluviasDelDia = useMemo(
     () => lluviasMes.filter((row) => row.fecha === selectedDate),
@@ -1288,7 +1312,7 @@ export default function TareasOperativas({
                                 disabled={!puedeEditar || saving}
                               >
                                 <option value="">Sin potrero del mapa</option>
-                                {potreros.map((p) => (
+                                {potrerosUnicos.map((p) => (
                                   <option key={p.id} value={p.id}>
                                     {p.nombre}
                                     {p.hectareas != null ? ` (${p.hectareas} ha)` : ""}

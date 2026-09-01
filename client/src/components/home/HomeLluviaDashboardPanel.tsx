@@ -15,6 +15,7 @@ import {
   ejercicioConfigFromUser,
   ejercicioVigente,
 } from "../../utils/ejercicio-contable";
+import { claveNombreEstablecimiento } from "../campo/campo-establecimiento-dedupe";
 
 interface Props {
   apiOnline: boolean;
@@ -111,18 +112,29 @@ function acumularPorEstablecimiento(
   desde: string,
   hasta: string,
 ): Map<string, { nombre: string; mm: number }> {
-  const byEst = new Map<string, { nombre: string; mm: number }>();
+  // Por nombre+fecha: max (evita sumar copias del mismo lugar por empresa).
+  const byNameFecha = new Map<string, number>();
+  const nombres = new Map<string, string>();
   for (const row of rows) {
     if (row.fecha < desde || row.fecha > hasta) continue;
     const mm = Number.isFinite(row.mm) ? row.mm : 0;
     if (mm < 0) continue;
-    const key = String(row.marcador_id ?? 0);
-    const prev = byEst.get(key) ?? {
-      nombre: row.marcador_nombre?.trim() || "Campo",
+    const nameKey =
+      claveNombreEstablecimiento(row.marcador_nombre) || `id:${row.marcador_id ?? 0}`;
+    const display = row.marcador_nombre?.trim() || "Campo";
+    if (!nombres.has(nameKey)) nombres.set(nameKey, display);
+    const fk = `${nameKey}|${row.fecha}`;
+    byNameFecha.set(fk, Math.max(byNameFecha.get(fk) ?? 0, mm));
+  }
+  const byEst = new Map<string, { nombre: string; mm: number }>();
+  for (const [fk, mm] of byNameFecha) {
+    const nameKey = fk.slice(0, fk.lastIndexOf("|"));
+    const prev = byEst.get(nameKey) ?? {
+      nombre: nombres.get(nameKey) ?? "Campo",
       mm: 0,
     };
     prev.mm += mm;
-    byEst.set(key, prev);
+    byEst.set(nameKey, prev);
   }
   for (const [k, v] of byEst) {
     byEst.set(k, { ...v, mm: Math.round(v.mm * 10) / 10 });
@@ -132,16 +144,22 @@ function acumularPorEstablecimiento(
 
 function mensualPorEstablecimiento(
   rows: OperativaLluviaDia[],
-  estKey: string,
+  nameKey: string,
   meses: MesBucket[],
 ): number[] {
-  const totals = new Map(meses.map((m) => [m.key, 0]));
+  const byFecha = new Map<string, number>();
   for (const row of rows) {
-    if (String(row.marcador_id ?? 0) !== estKey) continue;
-    const mk = row.fecha.slice(0, 7);
-    if (!totals.has(mk)) continue;
+    const rowKey =
+      claveNombreEstablecimiento(row.marcador_nombre) || `id:${row.marcador_id ?? 0}`;
+    if (rowKey !== nameKey) continue;
     const mm = Number.isFinite(row.mm) ? row.mm : 0;
     if (mm <= 0) continue;
+    byFecha.set(row.fecha, Math.max(byFecha.get(row.fecha) ?? 0, mm));
+  }
+  const totals = new Map(meses.map((m) => [m.key, 0]));
+  for (const [fecha, mm] of byFecha) {
+    const mk = fecha.slice(0, 7);
+    if (!totals.has(mk)) continue;
     totals.set(mk, (totals.get(mk) ?? 0) + mm);
   }
   return meses.map((m) => Math.round((totals.get(m.key) ?? 0) * 10) / 10);

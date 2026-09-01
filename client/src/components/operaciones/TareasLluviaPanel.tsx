@@ -12,6 +12,10 @@ import {
 import { upsertOperativaLluvia } from "../../api";
 import type { CampoMapaElemento, OperativaLluviaDia } from "../../types";
 import { parseCampoMapaObjetoTipo } from "../campo/campo-mapa-objetos";
+import {
+  claveNombreEstablecimiento,
+  dedupeMarcadoresMapaByNombre,
+} from "../campo/campo-establecimiento-dedupe";
 
 interface EstablecimientoOpcion {
   id: number | null;
@@ -40,11 +44,14 @@ interface ClimaInfo {
 }
 
 function establecimientosDesdeMapa(elementos: CampoMapaElemento[]): EstablecimientoOpcion[] {
-  const marcadores = elementos
-    .filter((item) => item.tipo === "marcador" && parseCampoMapaObjetoTipo(item.metadata) == null)
+  const marcadores = dedupeMarcadoresMapaByNombre(
+    elementos
+      .filter((item) => item.tipo === "marcador" && parseCampoMapaObjetoTipo(item.metadata) == null)
+      .map((item) => ({ id: item.id as number, nombre: item.nombre.trim() || "Sin nombre" })),
+  )
     .slice()
     .sort((a, b) => a.nombre.localeCompare(b.nombre))
-    .map((item) => ({ id: item.id as number | null, nombre: item.nombre.trim() || "Sin nombre" }));
+    .map((item) => ({ id: item.id as number | null, nombre: item.nombre }));
   if (marcadores.length > 0) return marcadores;
   return [{ id: null, nombre: "Campo (sin ubicación en mapa)" }];
 }
@@ -150,6 +157,18 @@ function fuenteDe(row: OperativaLluviaDia | undefined): FuenteUi {
   return row.fuente === "manual" ? "manual" : "auto";
 }
 
+function lluviaDeEstablecimiento(
+  map: Map<string, OperativaLluviaDia>,
+  est: EstablecimientoOpcion,
+): OperativaLluviaDia | undefined {
+  const byId = map.get(String(est.id ?? 0));
+  const nameKey = claveNombreEstablecimiento(est.nombre);
+  const byName = nameKey ? map.get(`name:${nameKey}`) : undefined;
+  if (!byId) return byName;
+  if (!byName) return byId;
+  return mmActual(byName) >= mmActual(byId) ? byName : byId;
+}
+
 export default function TareasLluviaPanel({
   fecha,
   apiOnline,
@@ -166,17 +185,36 @@ export default function TareasLluviaPanel({
   );
 
   const lluviaByKey = useMemo(() => {
-    const map = new Map<string, OperativaLluviaDia>();
+    // Preferir la fila con más mm cuando hay copias del mismo establecimiento.
+    const byId = new Map<string, OperativaLluviaDia>();
+    const byName = new Map<string, OperativaLluviaDia>();
     for (const row of lluvias) {
-      map.set(String(row.marcador_id ?? 0), row);
+      const idKey = String(row.marcador_id ?? 0);
+      const prevId = byId.get(idKey);
+      if (!prevId || (Number(row.mm) || 0) >= (Number(prevId.mm) || 0)) {
+        byId.set(idKey, row);
+      }
+      const nameKey = claveNombreEstablecimiento(row.marcador_nombre) || `id:${idKey}`;
+      const prevName = byName.get(nameKey);
+      if (!prevName || (Number(row.mm) || 0) >= (Number(prevName.mm) || 0)) {
+        byName.set(nameKey, row);
+      }
     }
+    const map = new Map<string, OperativaLluviaDia>();
+    for (const [idKey, row] of byId) map.set(idKey, row);
+    for (const [nameKey, row] of byName) map.set(`name:${nameKey}`, row);
     return map;
   }, [lluvias]);
 
   const filas = useMemo(() => {
     const list = [...establecimientos];
     const ids = new Set(list.map((e) => String(e.id ?? 0)));
+    const names = new Set(
+      list.map((e) => claveNombreEstablecimiento(e.nombre)).filter(Boolean),
+    );
     for (const row of lluvias) {
+      const nameKey = claveNombreEstablecimiento(row.marcador_nombre);
+      if (nameKey && names.has(nameKey)) continue;
       const k = String(row.marcador_id ?? 0);
       if (!ids.has(k)) {
         list.push({
@@ -184,6 +222,7 @@ export default function TareasLluviaPanel({
           nombre: row.marcador_nombre?.trim() || "Campo",
         });
         ids.add(k);
+        if (nameKey) names.add(nameKey);
       }
     }
     return list;
@@ -211,7 +250,7 @@ export default function TareasLluviaPanel({
           next[key] = prev[key]!;
           continue;
         }
-        next[key] = formatMm(mmActual(lluviaByKey.get(key)));
+        next[key] = formatMm(mmActual(lluviaDeEstablecimiento(lluviaByKey, est)));
       }
       return next;
     });
@@ -229,7 +268,7 @@ export default function TareasLluviaPanel({
       filas.reduce((max, est) => {
         const key = String(est.id ?? 0);
         const draft = parseMmInput(drafts[key] ?? "");
-        const n = draft ?? mmActual(lluviaByKey.get(key));
+        const n = draft ?? mmActual(lluviaDeEstablecimiento(lluviaByKey, est));
         return n > max ? n : max;
       }, 0),
     [filas, drafts, lluviaByKey],
@@ -253,12 +292,12 @@ export default function TareasLluviaPanel({
       onError("Indicá un valor válido de milímetros (0 o más).");
       setDrafts((prev) => ({
         ...prev,
-        [key]: formatMm(mmActual(lluviaByKey.get(key))),
+        [key]: formatMm(mmActual(lluviaDeEstablecimiento(lluviaByKey, est))),
       }));
       return;
     }
 
-    const row = lluviaByKey.get(key);
+    const row = lluviaDeEstablecimiento(lluviaByKey, est);
     const actual = mmActual(row);
     if (!force && parsed === actual) {
       setDrafts((prev) => ({ ...prev, [key]: formatMm(parsed) }));
@@ -276,7 +315,12 @@ export default function TareasLluviaPanel({
         marcador_id: est.id,
         mm: parsed,
       });
-      const without = lluvias.filter((r) => String(r.marcador_id ?? 0) !== key);
+      const nameKey = claveNombreEstablecimiento(est.nombre);
+      const without = lluvias.filter((r) => {
+        if (String(r.marcador_id ?? 0) === key) return false;
+        if (nameKey && claveNombreEstablecimiento(r.marcador_nombre) === nameKey) return false;
+        return true;
+      });
       onChange(saved ? [...without, saved] : without);
       setDrafts((prev) => ({ ...prev, [key]: formatMm(parsed) }));
       setSavedKey(key);
@@ -291,7 +335,7 @@ export default function TareasLluviaPanel({
       onError(e instanceof Error ? e.message : "No se pudo guardar la lluvia.");
       setDrafts((prev) => ({
         ...prev,
-        [key]: formatMm(mmActual(lluviaByKey.get(key))),
+        [key]: formatMm(mmActual(lluviaDeEstablecimiento(lluviaByKey, est))),
       }));
     } finally {
       setSavingKey(null);
@@ -330,7 +374,7 @@ export default function TareasLluviaPanel({
       <div className="wx-stations" role="list">
         {filas.map((est) => {
           const key = String(est.id ?? 0);
-          const row = lluviaByKey.get(key);
+          const row = lluviaDeEstablecimiento(lluviaByKey, est);
           const draftParsed = parseMmInput(drafts[key] ?? "");
           const mm = draftParsed ?? mmActual(row);
           const localClima = climaDesdeMm(mm);
