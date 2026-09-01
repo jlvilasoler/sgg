@@ -23,7 +23,6 @@ import {
 import type { CampoMapaElemento, CampoMapaElementoTipo, CampoPotreroMapa, StockGanaderaDispositivo } from "../../types";
 import { hubAsideKicker } from "../../brand";
 import { normalizarPotrero } from "../stock/stock-ganadera-utils";
-import { dedupeMarcadoresMapaByNombre } from "./campo-establecimiento-dedupe";
 import { dedupeCampoPotrerosMapaByNombre } from "./campo-potrero-dedupe";
 import {
   computeDistanceMeters,
@@ -270,6 +269,10 @@ export default function CampoMapa({
   const editNombrePrevRef = useRef("");
   const [potreros, setPotreros] = useState<CampoPotreroMapa[]>([]);
   const [elementos, setElementos] = useState<CampoMapaElemento[]>([]);
+  const potrerosUnicos = useMemo(
+    () => dedupeCampoPotrerosMapaByNombre(potreros),
+    [potreros],
+  );
   const [loading, setLoading] = useState(true);
   const [mapReady, setMapReady] = useState(false);
   const [showMapDetails, setShowMapDetails] = useState(loadCampoMapaShowDetails);
@@ -300,6 +303,9 @@ export default function CampoMapa({
   const [editingSelectionContent, setEditingSelectionContent] = useState(false);
   const [mapaInfoOpen, setMapaInfoOpen] = useState(false);
   const [ubicacionesExpandidas, setUbicacionesExpandidas] = useState<Record<string, boolean>>({});
+  const [selectedPotreroIds, setSelectedPotreroIds] = useState<Set<number>>(() => new Set());
+  const [bulkDestinoMarcadorId, setBulkDestinoMarcadorId] = useState<string>("");
+  const [bulkMoving, setBulkMoving] = useState(false);
   const mapaInfoRef = useRef<HTMLDivElement | null>(null);
   const [modalDispositivos, setModalDispositivos] = useState<CampoMapaDispositivosMetadata>(
     emptyCampoMapaDispositivosMetadata(),
@@ -423,11 +429,10 @@ export default function CampoMapa({
 
   const marcadoresUbicacion = useMemo(
     () =>
-      dedupeMarcadoresMapaByNombre(
-        elementos.filter(
+      elementos
+        .filter(
           (item) => item.tipo === "marcador" && parseCampoMapaObjetoTipo(item.metadata) == null,
-        ),
-      )
+        )
         .slice()
         .sort((a, b) => a.nombre.localeCompare(b.nombre)),
     [elementos],
@@ -473,7 +478,7 @@ export default function CampoMapa({
       items: [],
     };
 
-    for (const potrero of dedupeCampoPotrerosMapaByNombre(potreros)) {
+    for (const potrero of potrerosUnicos) {
       const marcadorId = parseCampoMapaMarcadorId(potrero.metadata);
       const grupo =
         marcadorId != null && grupos.has(`m-${marcadorId}`)
@@ -493,7 +498,7 @@ export default function CampoMapa({
       grupo.items.sort((a, b) => a.nombre.localeCompare(b.nombre));
     }
     return ordered;
-  }, [marcadoresUbicacion, potreros]);
+  }, [marcadoresUbicacion, potrerosUnicos]);
 
   const elementosSinMarcadoresNiObjetos = useMemo(() => {
     const grouped = new globalThis.Map<CampoMapaElementoTipo, CampoMapaElemento[]>();
@@ -559,6 +564,106 @@ export default function CampoMapa({
     if (items.length === 0 || totalHa <= 0) return countLabel;
     return `${countLabel} · ${formatHectareas(totalHa)}`;
   }, []);
+
+  const togglePotreroSeleccionado = useCallback((id: number) => {
+    setSelectedPotreroIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const seleccionarPotrerosGrupo = useCallback((items: CampoPotreroMapa[]) => {
+    setSelectedPotreroIds((prev) => {
+      const next = new Set(prev);
+      const ids = items.map((p) => p.id);
+      const allSelected = ids.length > 0 && ids.every((id) => next.has(id));
+      if (allSelected) {
+        for (const id of ids) next.delete(id);
+      } else {
+        for (const id of ids) next.add(id);
+      }
+      return next;
+    });
+  }, []);
+
+  const limpiarSeleccionPotreros = useCallback(() => {
+    setSelectedPotreroIds(new Set());
+    setBulkDestinoMarcadorId("");
+  }, []);
+
+  const moverPotrerosSeleccionados = useCallback(async () => {
+    if (!puedeEditar || bulkMoving) return;
+    const ids = [...selectedPotreroIds];
+    if (ids.length === 0) return;
+    const destino =
+      bulkDestinoMarcadorId.trim() === ""
+        ? null
+        : Number(bulkDestinoMarcadorId);
+    if (destino != null && (!Number.isFinite(destino) || destino <= 0)) {
+      onError("Elegí una ubicación válida.");
+      return;
+    }
+    const destinoNombre =
+      destino == null
+        ? "Sin ubicación"
+        : marcadoresUbicacion.find((m) => m.id === destino)?.nombre ?? "ubicación";
+
+    setBulkMoving(true);
+    try {
+      const updatedList = await Promise.all(
+        ids.map(async (id) => {
+          const potrero = potreros.find((p) => p.id === id);
+          if (!potrero) return null;
+          let base: Record<string, unknown> = {};
+          try {
+            const parsed = JSON.parse(potrero.metadata || "{}");
+            if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+              base = { ...(parsed as Record<string, unknown>) };
+            }
+          } catch {
+            base = {};
+          }
+          return updateCampoPotreroMapa(id, {
+            metadata: withCampoMapaMarcadorId(base, destino),
+          });
+        }),
+      );
+      const byId = new Map(
+        updatedList.filter((row): row is CampoPotreroMapa => row != null).map((row) => [row.id, row]),
+      );
+      if (byId.size === 0) {
+        onError("No se pudo mover la selección.");
+        return;
+      }
+      setPotreros((prev) =>
+        prev
+          .map((item) => byId.get(item.id) ?? item)
+          .sort((a, b) => a.nombre.localeCompare(b.nombre)),
+      );
+      limpiarSeleccionPotreros();
+      onSuccess(
+        byId.size === 1
+          ? `1 potrero movido a ${destinoNombre}.`
+          : `${byId.size} potreros movidos a ${destinoNombre}.`,
+      );
+    } catch (e) {
+      onError(e instanceof Error ? e.message : "No se pudieron mover los potreros.");
+    } finally {
+      setBulkMoving(false);
+    }
+  }, [
+    bulkDestinoMarcadorId,
+    bulkMoving,
+    limpiarSeleccionPotreros,
+    marcadoresUbicacion,
+    onError,
+    onSuccess,
+    puedeEditar,
+    potreros,
+    selectedPotreroIds,
+  ]);
 
   const toolDef = getToolDef(activeTool);
   const isSketching =
@@ -923,7 +1028,7 @@ export default function CampoMapa({
     elementoLayersRef.current.forEach((layer) => layer.remove());
     elementoLayersRef.current.clear();
 
-    for (const item of potreros) {
+    for (const item of potrerosUnicos) {
       if (potreroShapeEdit?.potreroId === item.id) continue;
       const layer = renderPotreroLayer(
         map,
@@ -945,7 +1050,7 @@ export default function CampoMapa({
       );
       if (layer) elementoLayersRef.current.set(item.id, layer);
     }
-  }, [borderWeight, elementos, handleMapFeatureClick, potreroShapeEdit, potreros, selection, showFeatureNames]);
+  }, [borderWeight, elementos, handleMapFeatureClick, potreroShapeEdit, potrerosUnicos, selection, showFeatureNames]);
 
   useEffect(() => {
     if (!cuentaTieneGeometriaEnMapa(potreros, elementos)) {
@@ -1052,10 +1157,10 @@ export default function CampoMapa({
     const ganadero = showDevicesOnMap ? stockGanaderoVisible : stockGanadero;
     const equino = showDevicesOnMap ? stockEquinoVisible : stockEquino;
     const ovino = showDevicesOnMap ? stockOvinoVisible : stockOvino;
-    return buildAllPotreroResumenes(potreros, ganadero, equino, empresasOperativas, ovino);
+    return buildAllPotreroResumenes(potrerosUnicos, ganadero, equino, empresasOperativas, ovino);
   }, [
     empresasOperativas,
-    potreros,
+    potrerosUnicos,
     showDevicesOnMap,
     stockEquino,
     stockEquinoVisible,
@@ -2547,7 +2652,7 @@ export default function CampoMapa({
       <div className="campo-mapa-aside-section">
         <p className="campo-mapa-aside-label">Ubicaciones y potreros</p>
         {loading ? <p className="campo-mapa-aside-hint">Cargando…</p> : null}
-        {!loading && potreros.length === 0 && marcadoresUbicacion.length === 0 ? (
+        {!loading && potrerosUnicos.length === 0 && marcadoresUbicacion.length === 0 ? (
           <div className="campo-mapa-aside-empty">
             <MapPin size={18} aria-hidden />
             <p>Sin ubicaciones ni potreros todavía.</p>
@@ -2556,9 +2661,62 @@ export default function CampoMapa({
             </p>
           </div>
         ) : null}
+
+        {puedeEditar && selectedPotreroIds.size > 0 ? (
+          <div className="campo-mapa-bulk-bar" role="region" aria-label="Mover potreros seleccionados">
+            <p className="campo-mapa-bulk-bar-count">
+              {selectedPotreroIds.size === 1
+                ? "1 potrero seleccionado"
+                : `${selectedPotreroIds.size} potreros seleccionados`}
+            </p>
+            <label className="campo-mapa-bulk-bar-field">
+              <span>Mover a</span>
+              <select
+                value={bulkDestinoMarcadorId}
+                onChange={(e) => setBulkDestinoMarcadorId(e.target.value)}
+                disabled={bulkMoving || saving}
+              >
+                <option value="">Sin ubicación</option>
+                {marcadoresUbicacion.map((m) => (
+                  <option key={m.id} value={String(m.id)}>
+                    {m.nombre}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="campo-mapa-bulk-bar-actions">
+              <button
+                type="button"
+                className="campo-mapa-aside-btn campo-mapa-aside-btn--primary"
+                onClick={() => void moverPotrerosSeleccionados()}
+                disabled={bulkMoving || saving}
+              >
+                {bulkMoving ? "Moviendo…" : "Mover"}
+              </button>
+              <button
+                type="button"
+                className="campo-mapa-aside-btn"
+                onClick={limpiarSeleccionPotreros}
+                disabled={bulkMoving || saving}
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        ) : puedeEditar && potrerosUnicos.length > 0 ? (
+          <p className="campo-mapa-aside-hint campo-mapa-aside-hint--bulk">
+            Marcá varios potreros y movelos juntos a una ubicación.
+          </p>
+        ) : null}
+
         <ul className="campo-mapa-aside-tree">
           {potrerosPorUbicacion.map((grupo) => {
             const expandida = ubicacionesExpandidas[grupo.key] ?? true;
+            const grupoIds = grupo.items.map((p) => p.id);
+            const todosGrupo =
+              grupoIds.length > 0 && grupoIds.every((id) => selectedPotreroIds.has(id));
+            const algunosGrupo =
+              !todosGrupo && grupoIds.some((id) => selectedPotreroIds.has(id));
             return (
               <li key={grupo.key} className="campo-mapa-aside-tree-branch">
                 <div className="campo-mapa-aside-tree-parent">
@@ -2605,38 +2763,71 @@ export default function CampoMapa({
                       </span>
                     </div>
                   )}
+                  {puedeEditar && grupo.items.length > 0 ? (
+                    <button
+                      type="button"
+                      className={`campo-mapa-aside-select-all${todosGrupo ? " is-on" : ""}${
+                        algunosGrupo ? " is-partial" : ""
+                      }`}
+                      onClick={() => seleccionarPotrerosGrupo(grupo.items)}
+                      disabled={bulkMoving || saving}
+                      title={todosGrupo ? "Quitar selección del grupo" : "Seleccionar todos del grupo"}
+                    >
+                      {todosGrupo ? "Ninguno" : "Todos"}
+                    </button>
+                  ) : null}
                 </div>
                 {expandida ? (
                   grupo.items.length > 0 ? (
                     <ul className="campo-mapa-aside-tree-children">
-                      {grupo.items.map((item) => (
-                        <li key={item.id} className="campo-mapa-aside-tree-child">
-                          <button
-                            type="button"
-                            className={`campo-mapa-aside-item campo-mapa-aside-item--potrero${
-                              selection?.kind === "potrero" && selection.id === item.id
-                                ? " is-active"
-                                : ""
-                            }`}
-                            onClick={() => selectPotrero(item.id)}
-                          >
-                            <MapPin
-                              size={16}
-                              className="campo-mapa-aside-pin"
-                              style={{ color: item.color }}
-                              aria-hidden
-                            />
-                            <span className="campo-mapa-aside-item-text">
-                              <strong>{item.nombre}</strong>
-                              <span>
-                                {item.hectareas != null
-                                  ? `${item.hectareas} ha`
-                                  : "Sin superficie"}
-                              </span>
-                            </span>
-                          </button>
-                        </li>
-                      ))}
+                      {grupo.items.map((item) => {
+                        const checked = selectedPotreroIds.has(item.id);
+                        return (
+                          <li key={item.id} className="campo-mapa-aside-tree-child">
+                            <div
+                              className={`campo-mapa-aside-potrero-row${
+                                checked ? " is-checked" : ""
+                              }`}
+                            >
+                              {puedeEditar ? (
+                                <label className="campo-mapa-aside-check">
+                                  <input
+                                    type="checkbox"
+                                    checked={checked}
+                                    disabled={bulkMoving || saving}
+                                    onChange={() => togglePotreroSeleccionado(item.id)}
+                                    aria-label={`Seleccionar ${item.nombre}`}
+                                  />
+                                </label>
+                              ) : null}
+                              <button
+                                type="button"
+                                className={`campo-mapa-aside-item campo-mapa-aside-item--potrero${
+                                  selection?.kind === "potrero" && selection.id === item.id
+                                    ? " is-active"
+                                    : ""
+                                }`}
+                                onClick={() => selectPotrero(item.id)}
+                              >
+                                <MapPin
+                                  size={16}
+                                  className="campo-mapa-aside-pin"
+                                  style={{ color: item.color }}
+                                  aria-hidden
+                                />
+                                <span className="campo-mapa-aside-item-text">
+                                  <strong>{item.nombre}</strong>
+                                  <span>
+                                    {item.hectareas != null
+                                      ? `${item.hectareas} ha`
+                                      : "Sin superficie"}
+                                  </span>
+                                </span>
+                              </button>
+                            </div>
+                          </li>
+                        );
+                      })}
                     </ul>
                   ) : grupo.marcador ? (
                     <p className="campo-mapa-aside-hint campo-mapa-aside-hint--nested">

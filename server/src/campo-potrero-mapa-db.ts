@@ -156,20 +156,100 @@ function sqlVisibleEmpresaScope(filterId: number | null | undefined): {
   };
 }
 
+function parseMarcadorIdFromMetadata(metadata: string): number | null {
+  if (!metadata?.trim()) return null;
+  try {
+    const parsed = JSON.parse(metadata) as { marcador_id?: unknown };
+    const id = Number(parsed.marcador_id);
+    return Number.isFinite(id) && id > 0 ? Math.trunc(id) : null;
+  } catch {
+    return null;
+  }
+}
+
 /** En consolidado, tras particionar por empresa, el mismo potrero aparece N veces. */
 function dedupePotrerosConsolidadoByNombre(
   rows: CampoPotreroMapaRow[],
 ): CampoPotreroMapaRow[] {
-  const seen = new Set<string>();
-  const out: CampoPotreroMapaRow[] = [];
+  const byKey = new Map<string, CampoPotreroMapaRow>();
   const sorted = [...rows].sort((a, b) => a.id - b.id);
   for (const row of sorted) {
     const key = normalizarPotrero(row.nombre).toLocaleLowerCase("es");
-    if (!key || seen.has(key)) continue;
-    seen.add(key);
-    out.push(row);
+    if (!key) continue;
+    const prev = byKey.get(key);
+    if (!prev) {
+      byKey.set(key, row);
+      continue;
+    }
+    // Preferir la copia que conserva vínculo a ubicación/estancia.
+    const prevHas = parseMarcadorIdFromMetadata(prev.metadata) != null;
+    const rowHas = parseMarcadorIdFromMetadata(row.metadata) != null;
+    if (!prevHas && rowHas) byKey.set(key, row);
   }
-  return out;
+  return [...byKey.values()];
+}
+
+function withRemappedMarcadorId(metadata: string, newMarcadorId: number): string {
+  let base: Record<string, unknown> = {};
+  try {
+    const parsed = JSON.parse(metadata || "{}");
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      base = { ...(parsed as Record<string, unknown>) };
+    }
+  } catch {
+    base = {};
+  }
+  base.marcador_id = newMarcadorId;
+  return JSON.stringify(base);
+}
+
+/**
+ * Tras dedupe de marcadores, los potreros pueden seguir apuntando al id de una copia
+ * descartada. Reescribe metadata.marcador_id al id canónico del mismo nombre.
+ */
+async function remapPotreroMarcadorIdsConsolidado(
+  db: Db,
+  cuentaId: number,
+  potreros: CampoPotreroMapaRow[],
+): Promise<CampoPotreroMapaRow[]> {
+  const marcadores = (await db
+    .prepare(
+      `SELECT id, nombre
+       FROM CAMPO_MAPA_ELEMENTO
+       WHERE cuenta_id = ? AND tipo = 'marcador'
+       ORDER BY id ASC`,
+    )
+    .all(cuentaId)) as Array<{ id: number; nombre: string }>;
+  if (!marcadores.length) return potreros;
+
+  const keptByNombre = new Map<string, number>();
+  const aliasToKept = new Map<number, number>();
+  for (const m of marcadores) {
+    const key = String(m.nombre ?? "")
+      .trim()
+      .toLocaleLowerCase("es")
+      .replace(/\s+/g, " ");
+    if (!key) continue;
+    const id = Number(m.id);
+    const kept = keptByNombre.get(key);
+    if (kept == null) {
+      keptByNombre.set(key, id);
+      aliasToKept.set(id, id);
+    } else {
+      aliasToKept.set(id, kept);
+    }
+  }
+
+  return potreros.map((p) => {
+    const rawId = parseMarcadorIdFromMetadata(p.metadata);
+    if (rawId == null) return p;
+    const keptId = aliasToKept.get(rawId);
+    if (keptId == null || keptId === rawId) return p;
+    return {
+      ...p,
+      metadata: withRemappedMarcadorId(p.metadata, keptId),
+    };
+  });
 }
 
 /**
@@ -246,7 +326,8 @@ export async function listCampoPotrerosMapa(
   const mapped = rows.map(rowToCampoPotrero);
   // Consolidado (sin filtro de empresa): evitar N copias del mismo potrero por operativa.
   if (scope?.filterEmpresaOperativaId == null) {
-    return dedupePotrerosConsolidadoByNombre(mapped);
+    const deduped = dedupePotrerosConsolidadoByNombre(mapped);
+    return remapPotreroMarcadorIdsConsolidado(db, cuentaId, deduped);
   }
   return mapped;
 }
