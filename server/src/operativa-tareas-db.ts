@@ -401,12 +401,9 @@ export async function initOperativaTareasTables(db: Db): Promise<void> {
   await db
     .prepare(`DROP INDEX IF EXISTS uq_operativa_lluvia_cuenta_fecha_marcador`)
     .run();
-
-  // Incluye empresa para modo individual (misma fecha/marcador por operativa).
   await db
     .prepare(
-      `CREATE UNIQUE INDEX IF NOT EXISTS uq_operativa_lluvia_cuenta_fecha_marcador_empresa
-       ON OPERATIVA_LLUVIA_DIA (cuenta_id, fecha, COALESCE(marcador_id, 0), COALESCE(empresa_operativa_id, 0))`,
+      `DROP INDEX IF EXISTS uq_operativa_lluvia_cuenta_fecha_marcador_empresa`,
     )
     .run();
 
@@ -522,6 +519,14 @@ export async function initOperativaTareasTables(db: Db): Promise<void> {
     .prepare(
       `CREATE INDEX IF NOT EXISTS idx_operativa_lluvia_empresa
        ON OPERATIVA_LLUVIA_DIA(cuenta_id, empresa_operativa_id)`,
+    )
+    .run();
+
+  // Después de agregar empresa_operativa_id (modo individual: misma fecha/marcador por operativa).
+  await db
+    .prepare(
+      `CREATE UNIQUE INDEX IF NOT EXISTS uq_operativa_lluvia_cuenta_fecha_marcador_empresa
+       ON OPERATIVA_LLUVIA_DIA (cuenta_id, fecha, COALESCE(marcador_id, 0), COALESCE(empresa_operativa_id, 0))`,
     )
     .run();
 

@@ -263,7 +263,16 @@ export async function initDb(): Promise<void> {
     return;
   }
 
-  await runDeferredModuleInits(db, t0);
+  // En Vercel también toleramos fallos de módulos no críticos: el login
+  // no debe quedar bloqueado por una migración puntual (p. ej. operativa).
+  try {
+    await runDeferredModuleInits(db, t0);
+  } catch (err) {
+    console.error(
+      "[SGG] Init de módulos falló tras core (API operativa; reintentá luego):",
+      err instanceof Error ? err.message : err
+    );
+  }
   scheduleTeamChannelSync(db);
   mark("done", t0);
 }
