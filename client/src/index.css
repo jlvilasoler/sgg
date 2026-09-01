@@ -43268,6 +43268,48 @@ button.sg-kpi-card:disabled {
     inset 0 0 0 1px rgba(255, 255, 255, 0.35);
 }
 
+.mi-cuenta-empresa-logo {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  flex-shrink: 0;
+  border-radius: 0.75rem;
+  color: #2d5a3d !important;
+  background: #e8f0ea !important;
+  border: 1px solid #b7cfc0 !important;
+  box-shadow: 0 1px 3px rgba(20, 35, 22, 0.1);
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+.mi-cuenta-empresa-logo svg {
+  display: block !important;
+  width: 1.35rem !important;
+  height: 1.35rem !important;
+  color: #2d5a3d !important;
+  stroke: #2d5a3d !important;
+  fill: none !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  flex-shrink: 0;
+}
+
+.mi-cuenta-empresa-logo--nueva {
+  color: #2d5a3d !important;
+  background: #ffffff !important;
+  border: 1.5px dashed #9bb8a6 !important;
+  box-shadow: 0 1px 3px rgba(20, 35, 22, 0.08);
+}
+
+.mi-cuenta-empresa-logo--nueva svg {
+  color: #2d5a3d !important;
+  stroke: #2d5a3d !important;
+}
+
 .mi-cuenta-empresa-card-titles {
   display: flex;
   flex-direction: column;
@@ -43322,6 +43364,26 @@ button.sg-kpi-card:disabled {
   gap: 0.55rem;
 }
 
+.mi-cuenta-empresa-section--box {
+  gap: 0.65rem;
+  padding: 0.75rem 0.85rem 0.85rem;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--border) 88%, var(--primary));
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--surface) 96%, #fff) 0%,
+      color-mix(in srgb, var(--bg) 28%, var(--surface)) 100%
+    );
+  box-shadow: 0 1px 2px rgba(30, 41, 30, 0.04);
+}
+
+.mi-cuenta-empresa-section--box > .mi-cuenta-empresa-section-label {
+  padding-bottom: 0.35rem;
+  margin-bottom: 0.05rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+}
+
 .mi-cuenta-empresa-section-label {
   margin: 0;
   font-size: 0.68rem;
@@ -43331,10 +43393,65 @@ button.sg-kpi-card:disabled {
   color: color-mix(in srgb, var(--primary) 50%, var(--muted));
 }
 
-.mi-cuenta-empresa-section-label:has(svg) {
+.mi-cuenta-empresa-section-label:has(svg),
+.mi-cuenta-empresa-section-label:has(.mi-cuenta-empresa-section-logo) {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.mi-cuenta-empresa-section-logo {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  width: 1.65rem;
+  height: 1.65rem;
+  min-width: 1.65rem;
+  min-height: 1.65rem;
+  flex-shrink: 0;
+  border-radius: 0.45rem;
+  color: #2d5a3d !important;
+  background: #e8f0ea !important;
+  border: 1px solid #b7cfc0;
+  box-shadow: 0 1px 2px rgba(20, 35, 22, 0.08);
+}
+
+.mi-cuenta-empresa-section-logo svg {
+  display: block !important;
+  width: 0.95rem !important;
+  height: 0.95rem !important;
+  color: #2d5a3d !important;
+  stroke: #2d5a3d !important;
+  fill: none !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+.mi-cuenta-empresa-field .mi-cuenta-ejercicio-label {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
+}
+
+.mi-cuenta-empresa-field-logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.2rem;
+  height: 1.2rem;
+  min-width: 1.2rem;
+  border-radius: 0.35rem;
+  color: color-mix(in srgb, var(--empresa-color, var(--primary, #2d5a3d)) 78%, #12301c);
+  background: color-mix(in srgb, var(--empresa-color, var(--primary, #2d5a3d)) 14%, #ffffff);
+  border: 1px solid color-mix(in srgb, var(--empresa-color, var(--primary, #2d5a3d)) 22%, var(--border, #d0d5d0));
+}
+
+.mi-cuenta-empresa-field-logo svg {
+  display: block;
+  width: 0.7rem;
+  height: 0.7rem;
+  color: inherit;
+  stroke: currentColor;
 }
 
 .mi-cuenta-empresa-usuarios-hint {
@@ -43713,6 +43830,9 @@ button.sg-kpi-card:disabled {
 }
 
 .mi-cuenta-empresa-field .mi-cuenta-ejercicio-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
   font-size: 0.68rem;
   font-weight: 700;
   letter-spacing: 0.05em;

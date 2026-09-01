@@ -1,10 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Building2,
+  CalendarCheck,
+  CalendarPlus,
   CalendarRange,
+  FileDigit,
+  IdCard,
   Layers,
   Plus,
   Save,
+  ScanBarcode,
+  Signature,
   SplitSquareHorizontal,
   X,
 } from "lucide-react";
@@ -447,7 +453,9 @@ export default function MiCuentaEmpresas({
               <div className="mi-cuenta-empresa-card-inner">
                 <div className="mi-cuenta-empresa-card-head">
                   <div className="mi-cuenta-empresa-card-head-main">
-                    <span className="mi-cuenta-empresa-dot" aria-hidden="true" />
+                    <span className="mi-cuenta-empresa-logo mi-cuenta-empresa-logo--nueva" aria-hidden="true" title="Nueva empresa">
+                      <Building2 size={22} strokeWidth={2.35} color="#2d5a3d" />
+                    </span>
                     <div className="mi-cuenta-empresa-card-titles">
                       <span className="mi-cuenta-empresa-card-name">Nueva empresa</span>
                       <span className="mi-cuenta-empresa-codigo">Alta</span>
@@ -464,11 +472,21 @@ export default function MiCuentaEmpresas({
                   </button>
                 </div>
 
-                <div className="mi-cuenta-empresa-section">
-                  <p className="mi-cuenta-empresa-section-label">Identificación</p>
+                <div className="mi-cuenta-empresa-section mi-cuenta-empresa-section--box">
+                  <p className="mi-cuenta-empresa-section-label">
+                    <span className="mi-cuenta-empresa-section-logo" aria-hidden="true" title="Identificación">
+                      <IdCard size={16} strokeWidth={2.35} color="#2d5a3d" />
+                    </span>
+                    Identificación
+                  </p>
                   <div className="mi-cuenta-empresa-grid mi-cuenta-empresa-grid--datos">
                     <label className="mi-cuenta-empresa-field">
-                      <span className="mi-cuenta-ejercicio-label">Nombre</span>
+                      <span className="mi-cuenta-ejercicio-label">
+                        <span className="mi-cuenta-empresa-field-logo" aria-hidden="true">
+                          <Signature size={12} strokeWidth={2.2} />
+                        </span>
+                        Nombre
+                      </span>
                       <input
                         className="mi-cuenta-empresa-input"
                         value={nueva.nombre}
@@ -479,7 +497,12 @@ export default function MiCuentaEmpresas({
                       />
                     </label>
                     <label className="mi-cuenta-empresa-field">
-                      <span className="mi-cuenta-ejercicio-label">RUT</span>
+                      <span className="mi-cuenta-ejercicio-label">
+                        <span className="mi-cuenta-empresa-field-logo" aria-hidden="true">
+                          <FileDigit size={12} strokeWidth={2.2} />
+                        </span>
+                        RUT
+                      </span>
                       <input
                         className="mi-cuenta-empresa-input"
                         value={fmtRut(nueva.rut)}
@@ -491,7 +514,12 @@ export default function MiCuentaEmpresas({
                       />
                     </label>
                     <label className="mi-cuenta-empresa-field">
-                      <span className="mi-cuenta-ejercicio-label">DICOSE</span>
+                      <span className="mi-cuenta-ejercicio-label">
+                        <span className="mi-cuenta-empresa-field-logo" aria-hidden="true">
+                          <ScanBarcode size={12} strokeWidth={2.2} />
+                        </span>
+                        DICOSE
+                      </span>
                       <input
                         className="mi-cuenta-empresa-input"
                         value={nueva.dicose}
@@ -510,11 +538,21 @@ export default function MiCuentaEmpresas({
                   </div>
                 </div>
 
-                <div className="mi-cuenta-empresa-section">
-                  <p className="mi-cuenta-empresa-section-label">Ejercicio fiscal</p>
+                <div className="mi-cuenta-empresa-section mi-cuenta-empresa-section--box">
+                  <p className="mi-cuenta-empresa-section-label">
+                    <span className="mi-cuenta-empresa-section-logo" aria-hidden="true" title="Ejercicio fiscal">
+                      <CalendarRange size={16} strokeWidth={2.35} color="#2d5a3d" />
+                    </span>
+                    Ejercicio fiscal
+                  </p>
                   <div className="mi-cuenta-empresa-grid">
                     <div className="mi-cuenta-empresa-field">
-                      <span className="mi-cuenta-ejercicio-label">Inicio</span>
+                      <span className="mi-cuenta-ejercicio-label">
+                        <span className="mi-cuenta-empresa-field-logo" aria-hidden="true">
+                          <CalendarPlus size={12} strokeWidth={2.2} />
+                        </span>
+                        Inicio
+                      </span>
                       <div className="mi-cuenta-ejercicio-inputs">
                         <select
                           aria-label="Día de inicio"
@@ -551,7 +589,12 @@ export default function MiCuentaEmpresas({
                       </div>
                     </div>
                     <div className="mi-cuenta-empresa-field">
-                      <span className="mi-cuenta-ejercicio-label">Fin</span>
+                      <span className="mi-cuenta-ejercicio-label">
+                        <span className="mi-cuenta-empresa-field-logo" aria-hidden="true">
+                          <CalendarCheck size={12} strokeWidth={2.2} />
+                        </span>
+                        Fin
+                      </span>
                       <div className="mi-cuenta-ejercicio-fin" title="Se calcula automáticamente">
                         <CalendarRange size={14} strokeWidth={2} />
                         {finDelEjercicio(nueva.mes, clampDia(nueva.mes, nueva.dia))}
@@ -602,7 +645,9 @@ export default function MiCuentaEmpresas({
                 <div className="mi-cuenta-empresa-card-inner">
                   <div className="mi-cuenta-empresa-card-head">
                     <div className="mi-cuenta-empresa-card-head-main">
-                      <span className="mi-cuenta-empresa-dot" aria-hidden="true" />
+                      <span className="mi-cuenta-empresa-logo" aria-hidden="true" title="Empresa">
+                        <Building2 size={22} strokeWidth={2.35} color="#2d5a3d" />
+                      </span>
                       <div className="mi-cuenta-empresa-card-titles">
                         <span className="mi-cuenta-empresa-card-name">
                           {d.nombre.trim() || e.nombre}
@@ -617,11 +662,21 @@ export default function MiCuentaEmpresas({
                     ) : null}
                   </div>
 
-                  <div className="mi-cuenta-empresa-section">
-                    <p className="mi-cuenta-empresa-section-label">Identificación</p>
+                  <div className="mi-cuenta-empresa-section mi-cuenta-empresa-section--box">
+                    <p className="mi-cuenta-empresa-section-label">
+                      <span className="mi-cuenta-empresa-section-logo" aria-hidden="true" title="Identificación">
+                        <IdCard size={16} strokeWidth={2.35} color="#2d5a3d" />
+                      </span>
+                      Identificación
+                    </p>
                     <div className="mi-cuenta-empresa-grid mi-cuenta-empresa-grid--datos">
                       <label className="mi-cuenta-empresa-field">
-                        <span className="mi-cuenta-ejercicio-label">Nombre</span>
+                        <span className="mi-cuenta-ejercicio-label">
+                          <span className="mi-cuenta-empresa-field-logo" aria-hidden="true">
+                            <Signature size={12} strokeWidth={2.2} />
+                          </span>
+                          Nombre
+                        </span>
                         <input
                           className="mi-cuenta-empresa-input"
                           value={d.nombre}
@@ -631,7 +686,12 @@ export default function MiCuentaEmpresas({
                       </label>
 
                       <label className="mi-cuenta-empresa-field">
-                        <span className="mi-cuenta-ejercicio-label">RUT</span>
+                        <span className="mi-cuenta-ejercicio-label">
+                          <span className="mi-cuenta-empresa-field-logo" aria-hidden="true">
+                            <FileDigit size={12} strokeWidth={2.2} />
+                          </span>
+                          RUT
+                        </span>
                         <input
                           className="mi-cuenta-empresa-input"
                           value={fmtRut(d.rut)}
@@ -644,7 +704,12 @@ export default function MiCuentaEmpresas({
                       </label>
 
                       <label className="mi-cuenta-empresa-field">
-                        <span className="mi-cuenta-ejercicio-label">DICOSE</span>
+                        <span className="mi-cuenta-ejercicio-label">
+                          <span className="mi-cuenta-empresa-field-logo" aria-hidden="true">
+                            <ScanBarcode size={12} strokeWidth={2.2} />
+                          </span>
+                          DICOSE
+                        </span>
                         <input
                           className="mi-cuenta-empresa-input"
                           value={d.dicose}
@@ -662,11 +727,21 @@ export default function MiCuentaEmpresas({
                     </div>
                   </div>
 
-                  <div className="mi-cuenta-empresa-section">
-                    <p className="mi-cuenta-empresa-section-label">Ejercicio fiscal</p>
+                  <div className="mi-cuenta-empresa-section mi-cuenta-empresa-section--box">
+                    <p className="mi-cuenta-empresa-section-label">
+                      <span className="mi-cuenta-empresa-section-logo" aria-hidden="true" title="Ejercicio fiscal">
+                        <CalendarRange size={16} strokeWidth={2.35} color="#2d5a3d" />
+                      </span>
+                      Ejercicio fiscal
+                    </p>
                     <div className="mi-cuenta-empresa-grid">
                       <div className="mi-cuenta-empresa-field">
-                        <span className="mi-cuenta-ejercicio-label">Inicio</span>
+                        <span className="mi-cuenta-ejercicio-label">
+                          <span className="mi-cuenta-empresa-field-logo" aria-hidden="true">
+                            <CalendarPlus size={12} strokeWidth={2.2} />
+                          </span>
+                          Inicio
+                        </span>
                         <div className="mi-cuenta-ejercicio-inputs">
                           <select
                             aria-label="Día de inicio"
@@ -697,7 +772,12 @@ export default function MiCuentaEmpresas({
                       </div>
 
                       <div className="mi-cuenta-empresa-field">
-                        <span className="mi-cuenta-ejercicio-label">Fin</span>
+                        <span className="mi-cuenta-ejercicio-label">
+                          <span className="mi-cuenta-empresa-field-logo" aria-hidden="true">
+                            <CalendarCheck size={12} strokeWidth={2.2} />
+                          </span>
+                          Fin
+                        </span>
                         <div
                           className="mi-cuenta-ejercicio-fin"
                           title="Se calcula automáticamente (12 meses)"

@@ -185,7 +185,7 @@ export default function MiCuentaEmpresaUsuariosVisibilidad({
   const admins = rows.filter((u) => u.bypass);
 
   return (
-    <div className="mi-cuenta-empresa-section mi-cuenta-empresa-usuarios">
+    <div className="mi-cuenta-empresa-section mi-cuenta-empresa-section--box mi-cuenta-empresa-usuarios">
       <p className="mi-cuenta-empresa-section-label">
         <Users size={13} strokeWidth={2.2} aria-hidden="true" />
         Accesos a esta empresa
