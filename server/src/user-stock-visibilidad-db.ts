@@ -24,6 +24,7 @@ export function shouldBypassStockEmpresaVisibilidad(user: {
 }
 
 export async function initUserStockVisibilidadTable(db: Db): Promise<void> {
+  // Requiere USERS y EMPRESAS_OPERATIVAS ya creadas.
   await db
     .prepare(
       `CREATE TABLE IF NOT EXISTS USER_STOCK_EMPRESA_VISIBILIDAD (
@@ -34,12 +35,16 @@ export async function initUserStockVisibilidadTable(db: Db): Promise<void> {
       )`
     )
     .run();
-  await db
-    .prepare(
-      `CREATE INDEX IF NOT EXISTS idx_user_stock_visib_user
-       ON USER_STOCK_EMPRESA_VISIBILIDAD(user_id)`
-    )
-    .run();
+  try {
+    await db
+      .prepare(
+        `CREATE INDEX IF NOT EXISTS idx_user_stock_visib_user
+         ON USER_STOCK_EMPRESA_VISIBILIDAD(user_id)`
+      )
+      .run();
+  } catch {
+    /* índice opcional */
+  }
 }
 
 /** IDs de empresas operativas denegadas (opt-out). Vacío = ve todo. */

@@ -230,8 +230,9 @@ export async function initDb(): Promise<void> {
       pagosPersonalizadosDb.initPagosPersonalizadosTables(db),
       platformNotif.initPlatformNotificationsTables(db),
       notasDb.initNotasTable(db),
-      userStockVisib.initUserStockVisibilidadTable(db),
     ]);
+    // Después de USERS + EMPRESAS_OPERATIVAS (FK). No puede ir en el Promise.all de arriba.
+    await userStockVisib.initUserStockVisibilidadTable(db);
     mark("core-tables", t0);
 
     await empresasCuenta.ensureCuentaMadreAdmin(db);
