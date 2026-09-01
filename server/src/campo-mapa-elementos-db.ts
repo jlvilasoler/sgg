@@ -175,6 +175,25 @@ function sqlVisibleEmpresaScope(filterId: number | null | undefined): {
   };
 }
 
+/** En consolidado, tras particionar, el mismo marcador/línea aparece N veces. */
+function dedupeElementosConsolidadoByTipoNombre(
+  rows: CampoMapaElementoRow[],
+): CampoMapaElementoRow[] {
+  const seen = new Set<string>();
+  const out: CampoMapaElementoRow[] = [];
+  const sorted = [...rows].sort((a, b) => a.id - b.id);
+  for (const row of sorted) {
+    const key = `${row.tipo}:${String(row.nombre ?? "")
+      .trim()
+      .toLocaleLowerCase("es")
+      .replace(/\s+/g, " ")}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(row);
+  }
+  return out;
+}
+
 /**
  * Particiona elementos del mapa sin empresa a cada operativa activa (modo individual).
  * Idempotente sobre filas con empresa_operativa_id IS NULL.
@@ -245,7 +264,11 @@ export async function listCampoMapaElementos(
        ORDER BY creado_en DESC, id DESC`,
     )
     .all(cuentaId, ...vis.params)) as Record<string, unknown>[];
-  return rows.map(rowToElemento);
+  const mapped = rows.map(rowToElemento);
+  if (scope?.filterEmpresaOperativaId == null) {
+    return dedupeElementosConsolidadoByTipoNombre(mapped);
+  }
+  return mapped;
 }
 
 export async function getCampoMapaElementoById(

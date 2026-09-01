@@ -1438,8 +1438,14 @@ export async function listEstablecimientosYr(
   const byId = new Map(configs.map((c) => [Number(c.marcador_id), c]));
 
   const rows: EstablecimientoYrRow[] = [];
+  const seenNombre = new Set<string>();
   for (const el of elementos) {
     if (isMapObjeto(String(el.metadata ?? ""))) continue;
+    const nombre = String(el.nombre ?? "").trim() || "Sin nombre";
+    const nameKey = nombre.toLocaleLowerCase("es").replace(/\s+/g, " ");
+    // Tras particionar por empresa, el mismo establecimiento aparece N veces.
+    if (seenNombre.has(nameKey)) continue;
+    seenNombre.add(nameKey);
     const point = pointFromGeoJson(String(el.geojson ?? ""));
     const cfg = byId.get(Number(el.id));
     const latOverride = cfg?.lat != null ? Number(cfg.lat) : null;
@@ -1454,7 +1460,7 @@ export async function listEstablecimientosYr(
         : point?.lon ?? null;
     rows.push({
       marcador_id: Number(el.id),
-      nombre: String(el.nombre ?? "").trim() || "Sin nombre",
+      nombre,
       lat_mapa: point?.lat ?? null,
       lon_mapa: point?.lon ?? null,
       lat: lat != null && Number.isFinite(lat) ? truncateCoord4(lat) : null,
@@ -1769,13 +1775,38 @@ async function getYrCurrentCached(
   return value;
 }
 
+/** Evita repetir el mismo lugar cuando el mapa duplicó marcadores por empresa. */
+function dedupeEstablecimientosParaClima<
+  T extends { marcador_id: number; nombre: string; lat: number | null; lon: number | null },
+>(rows: T[]): T[] {
+  const seen = new Set<string>();
+  const out: T[] = [];
+  for (const row of rows) {
+    const nameKey = `name:${row.nombre.trim().toLowerCase().replace(/\s+/g, " ")}`;
+    const coordKey =
+      row.lat != null &&
+      row.lon != null &&
+      Number.isFinite(row.lat) &&
+      Number.isFinite(row.lon)
+        ? `coord:${truncateCoord4(row.lat)},${truncateCoord4(row.lon)}`
+        : `id:${row.marcador_id}`;
+    if (seen.has(coordKey) || seen.has(nameKey)) continue;
+    seen.add(coordKey);
+    seen.add(nameKey);
+    out.push(row);
+  }
+  return out;
+}
+
 /** Clima actual por establecimiento activo con coordenadas. */
 export async function getClimaActualEstablecimientos(
   db: Db,
   cuentaId: number,
 ): Promise<ClimaActualEstablecimiento[]> {
   const establecimientos = await listEstablecimientosYr(db, cuentaId);
-  const activos = establecimientos.filter((e) => e.activo && e.tiene_coords && e.lat != null && e.lon != null);
+  const activos = dedupeEstablecimientosParaClima(
+    establecimientos.filter((e) => e.activo && e.tiene_coords && e.lat != null && e.lon != null),
+  );
   if (!activos.length) return [];
 
   const results = await Promise.all(

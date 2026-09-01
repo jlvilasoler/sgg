@@ -1,5 +1,6 @@
 import type { CampoPotreroMapa, StockGanaderaDispositivo } from "../../types";
 import { collectCampoMapaFeatureDevices } from "../campo/campo-mapa-dispositivos-map";
+import { dedupeCampoPotrerosMapaByNombre } from "../campo/campo-potrero-dedupe";
 import {
   buildDotacionGanaderaResumen,
   dotacionPromedioPonderada,
@@ -54,11 +55,12 @@ export function buildHomeStockPotreroSnapshot(
   potrerosMapa: CampoPotreroMapa[],
   ganadero: StockGanaderaDispositivo[],
 ): HomeStockPotreroSnapshot {
+  const potrerosUnicos = dedupeCampoPotrerosMapaByNombre(potrerosMapa);
   const activos = filtrarDispositivosActivosStock(ganadero);
   const asignados = new Set<string>();
   const potreros: PotreroStockResumenHome[] = [];
 
-  for (const potrero of potrerosMapa) {
+  for (const potrero of potrerosUnicos) {
     const devices = collectCampoMapaFeatureDevices(
       potrero.nombre,
       potrero.metadata,
@@ -106,7 +108,7 @@ export function buildHomeStockPotreroSnapshot(
       sinPotrero: sinPotreroDevices.length,
     },
     potrerosConStock: potreros.filter((p) => p.potreroId !== SIN_POTRERO_ID).length,
-    potrerosEnMapa: potrerosMapa.length,
+    potrerosEnMapa: potrerosUnicos.length,
     dotacionPromedio: dotacionPromedioPonderada(potreros, SIN_POTRERO_ID),
   };
 }

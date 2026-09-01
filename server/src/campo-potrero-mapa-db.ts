@@ -156,6 +156,22 @@ function sqlVisibleEmpresaScope(filterId: number | null | undefined): {
   };
 }
 
+/** En consolidado, tras particionar por empresa, el mismo potrero aparece N veces. */
+function dedupePotrerosConsolidadoByNombre(
+  rows: CampoPotreroMapaRow[],
+): CampoPotreroMapaRow[] {
+  const seen = new Set<string>();
+  const out: CampoPotreroMapaRow[] = [];
+  const sorted = [...rows].sort((a, b) => a.id - b.id);
+  for (const row of sorted) {
+    const key = normalizarPotrero(row.nombre).toLocaleLowerCase("es");
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push(row);
+  }
+  return out;
+}
+
 /**
  * Si la cuenta pasa a modo individual con potreros/elementos sin empresa,
  * duplica cada ítem huérfano para cada empresa activa (el original queda en la 1ª).
@@ -227,7 +243,12 @@ export async function listCampoPotrerosMapa(
        ORDER BY LOWER(nombre) ASC, id ASC`,
     )
     .all(cuentaId, ...vis.params)) as Record<string, unknown>[];
-  return rows.map(rowToCampoPotrero);
+  const mapped = rows.map(rowToCampoPotrero);
+  // Consolidado (sin filtro de empresa): evitar N copias del mismo potrero por operativa.
+  if (scope?.filterEmpresaOperativaId == null) {
+    return dedupePotrerosConsolidadoByNombre(mapped);
+  }
+  return mapped;
 }
 
 export async function getCampoPotreroMapaById(
