@@ -1523,36 +1523,6 @@
   gap: 0.4rem;
 }
 
-.campo-mapa-aside-select-all {
-  flex-shrink: 0;
-  align-self: center;
-  height: 1.55rem;
-  padding: 0 0.45rem;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  background: rgba(255, 255, 255, 0.06);
-  color: rgba(248, 246, 240, 0.78);
-  font-size: 0.68rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  cursor: pointer;
-}
-
-.campo-mapa-aside-select-all:hover {
-  background: rgba(124, 179, 66, 0.18);
-  border-color: rgba(124, 179, 66, 0.4);
-}
-
-.campo-mapa-aside-select-all.is-on {
-  background: rgba(124, 179, 66, 0.28);
-  border-color: rgba(124, 179, 66, 0.55);
-  color: #eef8e0;
-}
-
-.campo-mapa-aside-select-all.is-partial {
-  border-style: dashed;
-}
-
 .campo-mapa-aside-potrero-row {
   display: flex;
   align-items: stretch;

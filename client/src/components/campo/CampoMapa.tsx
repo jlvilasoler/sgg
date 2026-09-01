@@ -574,20 +574,6 @@ export default function CampoMapa({
     });
   }, []);
 
-  const seleccionarPotrerosGrupo = useCallback((items: CampoPotreroMapa[]) => {
-    setSelectedPotreroIds((prev) => {
-      const next = new Set(prev);
-      const ids = items.map((p) => p.id);
-      const allSelected = ids.length > 0 && ids.every((id) => next.has(id));
-      if (allSelected) {
-        for (const id of ids) next.delete(id);
-      } else {
-        for (const id of ids) next.add(id);
-      }
-      return next;
-    });
-  }, []);
-
   const limpiarSeleccionPotreros = useCallback(() => {
     setSelectedPotreroIds(new Set());
     setBulkDestinoMarcadorId("");
@@ -2712,11 +2698,6 @@ export default function CampoMapa({
         <ul className="campo-mapa-aside-tree">
           {potrerosPorUbicacion.map((grupo) => {
             const expandida = ubicacionesExpandidas[grupo.key] ?? true;
-            const grupoIds = grupo.items.map((p) => p.id);
-            const todosGrupo =
-              grupoIds.length > 0 && grupoIds.every((id) => selectedPotreroIds.has(id));
-            const algunosGrupo =
-              !todosGrupo && grupoIds.some((id) => selectedPotreroIds.has(id));
             return (
               <li key={grupo.key} className="campo-mapa-aside-tree-branch">
                 <div className="campo-mapa-aside-tree-parent">
@@ -2763,19 +2744,6 @@ export default function CampoMapa({
                       </span>
                     </div>
                   )}
-                  {puedeEditar && grupo.items.length > 0 ? (
-                    <button
-                      type="button"
-                      className={`campo-mapa-aside-select-all${todosGrupo ? " is-on" : ""}${
-                        algunosGrupo ? " is-partial" : ""
-                      }`}
-                      onClick={() => seleccionarPotrerosGrupo(grupo.items)}
-                      disabled={bulkMoving || saving}
-                      title={todosGrupo ? "Quitar selección del grupo" : "Seleccionar todos del grupo"}
-                    >
-                      {todosGrupo ? "Ninguno" : "Todos"}
-                    </button>
-                  ) : null}
                 </div>
                 {expandida ? (
                   grupo.items.length > 0 ? (
