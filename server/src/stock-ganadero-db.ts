@@ -3484,10 +3484,11 @@ function filtrarDispositivosPorEmpresas(
 ): StockGanaderaDispositivo[] {
   if (!empresas) return dispositivos;
   if (empresas.length === 1 && empresas[0] === SIN_EMPRESAS_SCOPE) return [];
-  const set = new Set(empresas);
+  const set = new Set(empresas.map((e) => e.trim().toUpperCase()).filter(Boolean));
   return dispositivos.filter((d) => {
-    const emp = (d.empresa || "").trim();
-    if (!emp) return true;
+    const emp = (d.empresa || "").trim().toUpperCase();
+    // En scope individual no filtrar “sin empresa” como si fueran de todas.
+    if (!emp) return false;
     return set.has(emp);
   });
 }

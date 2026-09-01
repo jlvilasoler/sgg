@@ -4055,10 +4055,10 @@ function filtrarDispositivosPorEmpresas(
 ): StockEquinaDispositivo[] {
   if (!empresas) return dispositivos;
   if (empresas.length === 1 && empresas[0] === SIN_EMPRESAS_SCOPE) return [];
-  const set = new Set(empresas);
+  const set = new Set(empresas.map((e) => e.trim().toUpperCase()).filter(Boolean));
   return dispositivos.filter((d) => {
-    const emp = (d.empresa || "").trim();
-    if (!emp) return true;
+    const emp = (d.empresa || "").trim().toUpperCase();
+    if (!emp) return false;
     return set.has(emp);
   });
 }

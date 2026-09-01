@@ -238,6 +238,11 @@ export default function CampoMapa({
   onVolver,
 }: Props) {
   const puedeEditar = canWriteCampoMapa(currentUser);
+  const mapaIndividual = currentUser.login_mode === "individual";
+  const empresaActivaNombre =
+    currentUser.empresa_activa_nombre?.trim() ||
+    currentUser.empresa_nombre?.trim() ||
+    "";
   const cuentaNombre =
     currentUser.cuenta_actividad_nombre?.trim() ||
     currentUser.empresa_nombre?.trim() ||
@@ -2398,7 +2403,11 @@ export default function CampoMapa({
       <button
         type="button"
         className={`campo-mapa-aside-info-btn${mapaInfoOpen ? " is-open" : ""}`}
-        aria-label="Información del mapa compartido"
+        aria-label={
+          mapaIndividual
+            ? "Información del mapa de la empresa"
+            : "Información del mapa compartido"
+        }
         aria-expanded={mapaInfoOpen}
         aria-controls="campo-mapa-aside-info-panel"
         title="Información del mapa"
@@ -2412,8 +2421,17 @@ export default function CampoMapa({
           className="campo-mapa-aside-info-panel"
           role="note"
         >
-          Mapa compartido de <strong>{cuentaNombre}</strong>. Potreros y ubicaciones los ven y
-          editan todos los integrantes del equipo en esta cuenta.
+          {mapaIndividual ? (
+            <>
+              Mapa de <strong>{empresaActivaNombre || "la empresa elegida"}</strong> en esta
+              sesión. Solo ves y editás potreros y ubicaciones de esa empresa.
+            </>
+          ) : (
+            <>
+              Mapa compartido de <strong>{cuentaNombre}</strong>. Potreros y ubicaciones los ven y
+              editan todos los integrantes del equipo en esta cuenta.
+            </>
+          )}
         </div>
       ) : null}
     </div>
@@ -3090,7 +3108,11 @@ export default function CampoMapa({
         onVolverInicio={onVolver}
         apiOnline={apiOnline}
         title="Mapa del campo"
-        subtitle="Vista satelital compartida con tu equipo. Los cambios en potreros y ubicaciones aplican a toda la cuenta."
+        subtitle={
+          mapaIndividual
+            ? `Vista de ${empresaActivaNombre || "la empresa elegida"} en esta sesión. Los cambios aplican solo a esa empresa.`
+            : "Vista satelital compartida con tu equipo. Los cambios en potreros y ubicaciones aplican a toda la cuenta."
+        }
         asideKicker={hubAsideKicker("CAMPO")}
         asideTitle="Mapa"
         asideLogo={<MenuAppIcon id="campo_mapa" />}

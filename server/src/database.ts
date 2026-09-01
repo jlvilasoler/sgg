@@ -61,6 +61,7 @@ import * as vencImpPrefs from "./vencimientos-impuestos-prefs-db.js";
 import * as pagosPersonalizadosDb from "./pagos-personalizados-db.js";
 import * as platformNotif from "./platform-notifications-db.js";
 import * as notasDb from "./notas-db.js";
+import * as userStockVisib from "./user-stock-visibilidad-db.js";
 import { scheduleTeamChannelSync } from "./chat-channels-db.js";
 import * as simVenta from "./simulador-venta-ganado-db.js";
 import * as simVentaAud from "./simulador-venta-auditoria-db.js";
@@ -229,6 +230,7 @@ export async function initDb(): Promise<void> {
       pagosPersonalizadosDb.initPagosPersonalizadosTables(db),
       platformNotif.initPlatformNotificationsTables(db),
       notasDb.initNotasTable(db),
+      userStockVisib.initUserStockVisibilidadTable(db),
     ]);
     mark("core-tables", t0);
 
@@ -584,37 +586,52 @@ export const stockGanadero = {
 };
 
 export const campoPotreros = {
-  list: (cuentaId: number) => campoPotreroMapa.listCampoPotrerosMapa(db, cuentaId),
-  getById: (cuentaId: number, id: number) =>
-    campoPotreroMapa.getCampoPotreroMapaById(db, cuentaId, id),
-  create: (cuentaId: number, input: campoPotreroMapa.CampoPotreroMapaInput) =>
-    campoPotreroMapa.createCampoPotreroMapa(db, cuentaId, input),
+  list: (cuentaId: number, scope?: campoPotreroMapa.CampoMapaEmpresaScope) =>
+    campoPotreroMapa.listCampoPotrerosMapa(db, cuentaId, scope),
+  getById: (cuentaId: number, id: number, scope?: campoPotreroMapa.CampoMapaEmpresaScope) =>
+    campoPotreroMapa.getCampoPotreroMapaById(db, cuentaId, id, scope),
+  create: (
+    cuentaId: number,
+    input: campoPotreroMapa.CampoPotreroMapaInput,
+    scope?: campoPotreroMapa.CampoMapaEmpresaScope,
+  ) => campoPotreroMapa.createCampoPotreroMapa(db, cuentaId, input, scope),
   update: (
     cuentaId: number,
     id: number,
     input: Partial<campoPotreroMapa.CampoPotreroMapaInput>,
-  ) => campoPotreroMapa.updateCampoPotreroMapa(db, cuentaId, id, input),
-  delete: (cuentaId: number, id: number) =>
-    campoPotreroMapa.deleteCampoPotreroMapa(db, cuentaId, id),
+    scope?: campoPotreroMapa.CampoMapaEmpresaScope,
+  ) => campoPotreroMapa.updateCampoPotreroMapa(db, cuentaId, id, input, scope),
+  delete: (cuentaId: number, id: number, scope?: campoPotreroMapa.CampoMapaEmpresaScope) =>
+    campoPotreroMapa.deleteCampoPotreroMapa(db, cuentaId, id, scope),
+  partitionOrphans: (cuentaId: number, empresaIds: number[]) =>
+    campoPotreroMapa.partitionOrphanCampoPotrerosToEmpresas(db, cuentaId, empresaIds),
 };
 
 export const campoMapaElementos = {
-  list: (cuentaId: number) => campoMapaElementosDb.listCampoMapaElementos(db, cuentaId),
-  getById: (cuentaId: number, id: number) =>
-    campoMapaElementosDb.getCampoMapaElementoById(db, cuentaId, id),
-  create: (cuentaId: number, input: campoMapaElementosDb.CampoMapaElementoInput) =>
-    campoMapaElementosDb.createCampoMapaElemento(db, cuentaId, input),
+  list: (cuentaId: number, scope?: campoMapaElementosDb.CampoMapaElementoScope) =>
+    campoMapaElementosDb.listCampoMapaElementos(db, cuentaId, scope),
+  getById: (cuentaId: number, id: number, scope?: campoMapaElementosDb.CampoMapaElementoScope) =>
+    campoMapaElementosDb.getCampoMapaElementoById(db, cuentaId, id, scope),
+  create: (
+    cuentaId: number,
+    input: campoMapaElementosDb.CampoMapaElementoInput,
+    scope?: campoMapaElementosDb.CampoMapaElementoScope,
+  ) => campoMapaElementosDb.createCampoMapaElemento(db, cuentaId, input, scope),
   update: (
     cuentaId: number,
     id: number,
     input: Partial<campoMapaElementosDb.CampoMapaElementoInput>,
-  ) => campoMapaElementosDb.updateCampoMapaElemento(db, cuentaId, id, input),
-  delete: (cuentaId: number, id: number) =>
-    campoMapaElementosDb.deleteCampoMapaElemento(db, cuentaId, id),
+    scope?: campoMapaElementosDb.CampoMapaElementoScope,
+  ) => campoMapaElementosDb.updateCampoMapaElemento(db, cuentaId, id, input, scope),
+  delete: (cuentaId: number, id: number, scope?: campoMapaElementosDb.CampoMapaElementoScope) =>
+    campoMapaElementosDb.deleteCampoMapaElemento(db, cuentaId, id, scope),
+  partitionOrphans: (cuentaId: number, empresaIds: number[]) =>
+    campoMapaElementosDb.partitionOrphanCampoMapaElementosToEmpresas(db, cuentaId, empresaIds),
 };
 
 export const gastosAutomatizacion = {
-  list: (cuentaId: number) => gastosAutoDb.listGastoAutomatizaciones(db, cuentaId),
+  list: (cuentaId: number, empresas?: string[]) =>
+    gastosAutoDb.listGastoAutomatizaciones(db, cuentaId, empresas),
   getById: (cuentaId: number, id: number) =>
     gastosAutoDb.getGastoAutomatizacionById(db, cuentaId, id),
   createFromPresupuesto: (
@@ -658,39 +675,76 @@ export const gastosAutomatizacion = {
 export const operativaTareas = {
   list: (cuentaId: number, filters?: operativaTareasDb.OperativaTareaListFilters) =>
     operativaTareasDb.listOperativaTareas(db, cuentaId, filters),
-  getById: (cuentaId: number, id: number) =>
-    operativaTareasDb.getOperativaTareaById(db, cuentaId, id),
+  getById: (
+    cuentaId: number,
+    id: number,
+    scope?: operativaTareasDb.OperativaEmpresaScope,
+  ) => operativaTareasDb.getOperativaTareaById(db, cuentaId, id, scope),
   create: (
     cuentaId: number,
     creadoPorUserId: number | null,
     input: operativaTareasDb.OperativaTareaInput,
-  ) => operativaTareasDb.createOperativaTarea(db, cuentaId, creadoPorUserId, input),
+    scope?: operativaTareasDb.OperativaEmpresaScope,
+  ) => operativaTareasDb.createOperativaTarea(db, cuentaId, creadoPorUserId, input, scope),
   update: (
     cuentaId: number,
     id: number,
     input: Partial<operativaTareasDb.OperativaTareaInput>,
-  ) => operativaTareasDb.updateOperativaTarea(db, cuentaId, id, input),
-  delete: (cuentaId: number, id: number) =>
-    operativaTareasDb.deleteOperativaTarea(db, cuentaId, id),
-  listRegistros: (cuentaId: number, tareaId: number, fechaEjecucion?: string) =>
-    operativaTareasDb.listOperativaTareaRegistros(db, cuentaId, tareaId, fechaEjecucion),
-  listRegistrosPorFecha: (cuentaId: number, fecha: string) =>
-    operativaTareasDb.listOperativaRegistrosPorFecha(db, cuentaId, fecha),
+    scope?: operativaTareasDb.OperativaEmpresaScope,
+  ) => operativaTareasDb.updateOperativaTarea(db, cuentaId, id, input, scope),
+  delete: (
+    cuentaId: number,
+    id: number,
+    scope?: operativaTareasDb.OperativaEmpresaScope,
+  ) => operativaTareasDb.deleteOperativaTarea(db, cuentaId, id, scope),
+  listRegistros: (
+    cuentaId: number,
+    tareaId: number,
+    fechaEjecucion?: string,
+    scope?: operativaTareasDb.OperativaEmpresaScope,
+  ) =>
+    operativaTareasDb.listOperativaTareaRegistros(
+      db,
+      cuentaId,
+      tareaId,
+      fechaEjecucion,
+      scope,
+    ),
+  listRegistrosPorFecha: (
+    cuentaId: number,
+    fecha: string,
+    scope?: operativaTareasDb.OperativaEmpresaScope,
+  ) => operativaTareasDb.listOperativaRegistrosPorFecha(db, cuentaId, fecha, scope),
   createRegistro: (
     cuentaId: number,
     tareaId: number,
     userId: number | null,
     input: operativaTareasDb.OperativaTareaRegistroInput,
-  ) => operativaTareasDb.createOperativaTareaRegistro(db, cuentaId, tareaId, userId, input),
+    scope?: operativaTareasDb.OperativaEmpresaScope,
+  ) =>
+    operativaTareasDb.createOperativaTareaRegistro(
+      db,
+      cuentaId,
+      tareaId,
+      userId,
+      input,
+      scope,
+    ),
   listLluvia: (
     cuentaId: number,
-    filters?: { fecha?: string; desde?: string; hasta?: string },
+    filters?: {
+      fecha?: string;
+      desde?: string;
+      hasta?: string;
+      filterEmpresaOperativaId?: number | null;
+    },
   ) => operativaTareasDb.listOperativaLluvia(db, cuentaId, filters),
   upsertLluvia: (
     cuentaId: number,
     userId: number | null,
     input: operativaTareasDb.OperativaLluviaDiaInput,
-  ) => operativaTareasDb.upsertOperativaLluvia(db, cuentaId, userId, input),
+    scope?: operativaTareasDb.OperativaEmpresaScope,
+  ) => operativaTareasDb.upsertOperativaLluvia(db, cuentaId, userId, input, scope),
   deleteLluvia: (cuentaId: number, id: number) =>
     operativaTareasDb.deleteOperativaLluvia(db, cuentaId, id),
   syncLluviaYr: (cuentaId: number, lat: number, lon: number, marcadorId?: number | null) =>

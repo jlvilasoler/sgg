@@ -4,7 +4,10 @@ import { RefreshCw, Search, UserPlus } from "lucide-react";
 import {
   actualizarUsuario,
   crearUsuario,
+  fetchStockEmpresasVisibilidad,
   fetchUsuarios,
+  saveStockEmpresasVisibilidad,
+  type StockEmpresaVisibilidadItem,
 } from "../api";
 import type { AuthUser, Rol, UserForm } from "../types";
 import { ALL_ROLES, ROL_DESCRIPCION, ROL_INFO_DETALLE, ROL_LABELS_DETALLE } from "../types";
@@ -259,6 +262,11 @@ export default function Usuarios({
   const [filtroTexto, setFiltroTexto] = useState("");
   const [filtroRol, setFiltroRol] = useState<"" | Rol>("");
   const [filtroEstado, setFiltroEstado] = useState<"" | "activo" | "inactivo">("");
+  const [stockEmpresas, setStockEmpresas] = useState<StockEmpresaVisibilidadItem[]>(
+    []
+  );
+  const [stockBypass, setStockBypass] = useState(false);
+  const [stockVisibLoading, setStockVisibLoading] = useState(false);
 
   const load = useCallback(async () => {
     if (!apiOnline) {
@@ -338,6 +346,8 @@ export default function Usuarios({
     setCreating(true);
     setForm(emptyForm());
     setShowPassword(false);
+    setStockEmpresas([]);
+    setStockBypass(false);
   };
 
   const openEdit = (u: AuthUser) => {
@@ -351,6 +361,25 @@ export default function Usuarios({
       password: "",
     });
     setShowPassword(false);
+    setStockEmpresas([]);
+    setStockBypass(false);
+    const canConfigure =
+      u.rol !== "admin" && !u.es_super_admin && !u.es_admin_cuenta;
+    if (!canConfigure || !apiOnline) return;
+    setStockVisibLoading(true);
+    void fetchStockEmpresasVisibilidad(u.id)
+      .then((data) => {
+        setStockBypass(data.bypass);
+        setStockEmpresas(data.empresas);
+      })
+      .catch((e) => {
+        onError(
+          e instanceof Error
+            ? e.message
+            : "Error al cargar empresas visibles en stock"
+        );
+      })
+      .finally(() => setStockVisibLoading(false));
   };
 
   const closeForm = useCallback(() => {
@@ -358,6 +387,9 @@ export default function Usuarios({
     setCreating(false);
     setForm(emptyForm());
     setShowPassword(false);
+    setStockEmpresas([]);
+    setStockBypass(false);
+    setStockVisibLoading(false);
   }, []);
 
   const save = async () => {
@@ -392,6 +424,18 @@ export default function Usuarios({
           patch.password = form.password;
         }
         await actualizarUsuario(editing.id, patch);
+        if (
+          form.rol !== "admin" &&
+          !editing.es_super_admin &&
+          !editing.es_admin_cuenta &&
+          !stockBypass &&
+          stockEmpresas.length > 0
+        ) {
+          const denegadas = stockEmpresas
+            .filter((e) => !e.visible)
+            .map((e) => e.id);
+          await saveStockEmpresasVisibilidad(editing.id, denegadas);
+        }
         onSuccess("Usuario actualizado");
       }
       closeForm();
@@ -925,6 +969,65 @@ export default function Usuarios({
                   </label>
                 )}
               </div>
+              {!creating &&
+                editing &&
+                form.rol !== "admin" &&
+                !editing.es_super_admin &&
+                !editing.es_admin_cuenta && (
+                  <div className="usuarios-stock-visibilidad">
+                    <h3 className="usuarios-stock-visibilidad-title">
+                      Empresas visibles en stock
+                    </h3>
+                    <p className="usuarios-stock-visibilidad-hint">
+                      Afecta ganadería, ovino y equino. Admin siempre ve todo.
+                    </p>
+                    {stockVisibLoading ? (
+                      <p className="usuarios-stock-visibilidad-hint">Cargando empresas…</p>
+                    ) : stockBypass ? (
+                      <p className="usuarios-stock-visibilidad-hint">
+                        Este usuario ve todas las empresas (sin restricción).
+                      </p>
+                    ) : stockEmpresas.length === 0 ? (
+                      <p className="usuarios-stock-visibilidad-hint">
+                        No hay empresas operativas en la cuenta.
+                      </p>
+                    ) : (
+                      <ul className="usuarios-stock-visibilidad-list">
+                        {stockEmpresas.map((emp) => (
+                          <li key={emp.id}>
+                            <label className="inline-check usuarios-stock-visibilidad-item">
+                              <input
+                                type="checkbox"
+                                checked={emp.visible}
+                                disabled={saving}
+                                onChange={(e) => {
+                                  const checked = e.target.checked;
+                                  setStockEmpresas((prev) =>
+                                    prev.map((x) =>
+                                      x.id === emp.id
+                                        ? { ...x, visible: checked }
+                                        : x
+                                    )
+                                  );
+                                }}
+                              />
+                              <span>
+                                <strong>{emp.nombre}</strong>
+                                {(emp.rut || emp.dicose) && (
+                                  <span className="usuarios-stock-visibilidad-meta">
+                                    {[emp.rut && `RUT ${emp.rut}`, emp.dicose && `DICOSE ${emp.dicose}`]
+                                      .filter(Boolean)
+                                      .join(" · ")}
+                                  </span>
+                                )}
+                              </span>
+                            </label>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                )}
             </div>
           </div>
           <footer className="usuarios-form-modal-footer">
@@ -938,7 +1041,7 @@ export default function Usuarios({
             </button>
             <button
               type="button"
-              className="sg-hub-cta"
+              className="sg-hub-cta usuarios-form-modal-ok"
               disabled={saving || !apiOnline}
               onClick={() => void save()}
             >

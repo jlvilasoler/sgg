@@ -1138,6 +1138,146 @@ export function registerAuthRoutes(app: Express): void {
     }
   });
 
+  app.get("/api/auth/users/:id/stock-empresas-visibilidad", async (req, res) => {
+    if (!(await requireCuentaAdmin(req, res))) return;
+    try {
+      const id = Number(req.params.id);
+      if (!Number.isFinite(id) || id <= 0) {
+        res.status(400).json({ ok: false, error: "ID inválido" });
+        return;
+      }
+      const target = await authDb.getUserById(getDb(), id);
+      if (!target) {
+        res.status(404).json({ ok: false, error: "Usuario no encontrado" });
+        return;
+      }
+      if (!(await assertUserInCuentaScope(req.user!, target, res))) return;
+
+      const cuentaId = await empresasCuenta.resolveCuentaMadreIdForUser(
+        getDb(),
+        target
+      );
+      if (cuentaId == null) {
+        res.status(400).json({
+          ok: false,
+          error: "El usuario no pertenece a una cuenta con empresas operativas",
+        });
+        return;
+      }
+
+      const userStockVisib = await import("./user-stock-visibilidad-db.js");
+      if (userStockVisib.shouldBypassStockEmpresaVisibilidad(target)) {
+        const empresas = await userStockVisib.listStockEmpresasVisibilidadForUser(
+          getDb(),
+          target.id,
+          cuentaId
+        );
+        res.json({
+          ok: true,
+          data: {
+            bypass: true,
+            empresas: empresas.map((e) => ({ ...e, visible: true })),
+          },
+        });
+        return;
+      }
+
+      const empresas = await userStockVisib.listStockEmpresasVisibilidadForUser(
+        getDb(),
+        target.id,
+        cuentaId
+      );
+      res.json({ ok: true, data: { bypass: false, empresas } });
+    } catch (e) {
+      res.status(400).json({
+        ok: false,
+        error:
+          e instanceof Error
+            ? e.message
+            : "Error al cargar visibilidad de empresas",
+      });
+    }
+  });
+
+  app.put("/api/auth/users/:id/stock-empresas-visibilidad", async (req, res) => {
+    if (!(await requireCuentaAdmin(req, res))) return;
+    try {
+      const id = Number(req.params.id);
+      if (!Number.isFinite(id) || id <= 0) {
+        res.status(400).json({ ok: false, error: "ID inválido" });
+        return;
+      }
+      const target = await authDb.getUserById(getDb(), id);
+      if (!target) {
+        res.status(404).json({ ok: false, error: "Usuario no encontrado" });
+        return;
+      }
+      if (!(await assertUserInCuentaScope(req.user!, target, res))) return;
+
+      const userStockVisib = await import("./user-stock-visibilidad-db.js");
+      if (userStockVisib.shouldBypassStockEmpresaVisibilidad(target)) {
+        res.status(400).json({
+          ok: false,
+          error:
+            "Administradores y superadministradores siempre ven todas las empresas",
+        });
+        return;
+      }
+
+      const cuentaId = await empresasCuenta.resolveCuentaMadreIdForUser(
+        getDb(),
+        target
+      );
+      if (cuentaId == null) {
+        res.status(400).json({
+          ok: false,
+          error: "El usuario no pertenece a una cuenta con empresas operativas",
+        });
+        return;
+      }
+
+      const raw = req.body?.denegadas;
+      if (!Array.isArray(raw)) {
+        res.status(400).json({
+          ok: false,
+          error: "Body inválido: se espera { denegadas: number[] }",
+        });
+        return;
+      }
+      const denegadas = raw.map((n: unknown) => Number(n));
+
+      await userStockVisib.setDeniedEmpresaOperativaIds(
+        getDb(),
+        target.id,
+        cuentaId,
+        denegadas
+      );
+      const empresas = await userStockVisib.listStockEmpresasVisibilidadForUser(
+        getDb(),
+        target.id,
+        cuentaId
+      );
+      await recordUserActivity(
+        req.user!,
+        "user_updated",
+        `Actualizó visibilidad de stock de ${target.email}`,
+        {
+          ip: clientIp(req),
+          userAgent: req.headers["user-agent"],
+        }
+      );
+      res.json({ ok: true, data: { bypass: false, empresas } });
+    } catch (e) {
+      res.status(400).json({
+        ok: false,
+        error:
+          e instanceof Error
+            ? e.message
+            : "Error al guardar visibilidad de empresas",
+      });
+    }
+  });
+
   app.get("/api/auth/actividad/online", async (req, res) => {
     const actor = req.user;
     if (!actor) {
@@ -2079,9 +2219,18 @@ export function registerAuthRoutes(app: Express): void {
       const body = req.body ?? {};
       const empresa = await empresasCuenta.insertEmpresaOperativa(getDb(), cuentaId, {
         nombre: String(body.nombre ?? ""),
-        color: String(body.color ?? ""),
+        color: body.color != null ? String(body.color) : undefined,
         activo: body.activo !== false,
+        rut: body.rut !== undefined ? String(body.rut ?? "") : undefined,
         dicose: body.dicose !== undefined ? String(body.dicose ?? "") : undefined,
+        ejercicio_inicio_mes:
+          body.ejercicio_inicio_mes !== undefined
+            ? Number(body.ejercicio_inicio_mes)
+            : undefined,
+        ejercicio_inicio_dia:
+          body.ejercicio_inicio_dia !== undefined
+            ? Number(body.ejercicio_inicio_dia)
+            : undefined,
       });
       res.status(201).json({ ok: true, data: empresa });
     } catch (e) {

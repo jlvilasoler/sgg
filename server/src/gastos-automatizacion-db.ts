@@ -436,14 +436,20 @@ export async function initGastosAutomatizacionTables(db: Db): Promise<void> {
 export async function listGastoAutomatizaciones(
   db: Db,
   cuentaId: number,
+  empresas?: string[],
 ): Promise<GastoAutomatizacionRow[]> {
-  const rows = (await db
-    .prepare(
-      `SELECT * FROM GASTO_AUTOMATIZACION
-       WHERE cuenta_id = ?
-       ORDER BY activo DESC, nombre ASC, id ASC`,
-    )
-    .all(cuentaId)) as Record<string, unknown>[];
+  let sql = `SELECT * FROM GASTO_AUTOMATIZACION WHERE cuenta_id = ?`;
+  const params: unknown[] = [cuentaId];
+  if (empresas && empresas.length > 0) {
+    if (empresas.length === 1 && empresas[0] === "__sin_empresas__") {
+      return [];
+    }
+    const placeholders = empresas.map(() => "?").join(", ");
+    sql += ` AND UPPER(TRIM(empresa)) IN (${placeholders})`;
+    params.push(...empresas.map((e) => e.trim().toUpperCase()));
+  }
+  sql += ` ORDER BY activo DESC, nombre ASC, id ASC`;
+  const rows = (await db.prepare(sql).all(...params)) as Record<string, unknown>[];
   return rows.map(rowToPlantilla);
 }
 

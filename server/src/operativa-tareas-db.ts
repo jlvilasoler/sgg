@@ -25,6 +25,7 @@ export interface OperativaTareaAsignado {
 export interface OperativaTareaRow {
   id: number;
   cuenta_id: number;
+  empresa_operativa_id: number | null;
   titulo: string;
   descripcion: string;
   notas: string;
@@ -90,6 +91,28 @@ export interface OperativaTareaListFilters {
   hasta?: string;
   asignado_user_id?: number;
   estado?: OperativaTareaEstado;
+  /** null = toda la cuenta; -1 = vacío; >0 = esa empresa */
+  filterEmpresaOperativaId?: number | null;
+  stampEmpresaOperativaId?: number | null;
+}
+
+/** Scope por empresa activa (modo individual). */
+export interface OperativaEmpresaScope {
+  filterEmpresaOperativaId?: number | null;
+  stampEmpresaOperativaId?: number | null;
+}
+
+function sqlVisibleEmpresaScopeAliased(
+  alias: string,
+  filterId: number | null | undefined,
+): { clause: string; params: number[] } {
+  if (filterId == null) return { clause: "", params: [] };
+  if (filterId < 0) return { clause: " AND 1=0", params: [] };
+  // Legacy sin empresa sigue visible; lo de otras operativas no.
+  return {
+    clause: ` AND (${alias}.empresa_operativa_id = ? OR ${alias}.empresa_operativa_id IS NULL)`,
+    params: [filterId],
+  };
 }
 
 function isEstado(value: string): value is OperativaTareaEstado {
@@ -163,6 +186,10 @@ function rowToTarea(row: Record<string, unknown>): OperativaTareaRow {
   return {
     id: Number(row.id),
     cuenta_id: Number(row.cuenta_id),
+    empresa_operativa_id:
+      row.empresa_operativa_id != null && Number.isFinite(Number(row.empresa_operativa_id))
+        ? Number(row.empresa_operativa_id)
+        : null,
     titulo: String(row.titulo ?? ""),
     descripcion: String(row.descripcion ?? ""),
     notas: String(row.notas ?? ""),
@@ -218,7 +245,7 @@ function rowToRegistro(row: Record<string, unknown>): OperativaTareaRegistroRow 
 }
 
 const TAREA_SELECT = `
-  SELECT t.id, t.cuenta_id, t.titulo, t.descripcion, t.notas, t.fecha, t.fecha_hasta,
+  SELECT t.id, t.cuenta_id, t.empresa_operativa_id, t.titulo, t.descripcion, t.notas, t.fecha, t.fecha_hasta,
          t.dia_semana, t.estado, t.prioridad, t.asignado_user_id, ua.nombre AS asignado_nombre,
          t.creado_por_user_id, uc.nombre AS creado_por_nombre,
          t.potrero_id, p.nombre AS potrero_nombre, t.ubicacion,
@@ -372,9 +399,14 @@ export async function initOperativaTareasTables(db: Db): Promise<void> {
     .run();
 
   await db
+    .prepare(`DROP INDEX IF EXISTS uq_operativa_lluvia_cuenta_fecha_marcador`)
+    .run();
+
+  // Incluye empresa para modo individual (misma fecha/marcador por operativa).
+  await db
     .prepare(
-      `CREATE UNIQUE INDEX IF NOT EXISTS uq_operativa_lluvia_cuenta_fecha_marcador
-       ON OPERATIVA_LLUVIA_DIA (cuenta_id, fecha, COALESCE(marcador_id, 0))`,
+      `CREATE UNIQUE INDEX IF NOT EXISTS uq_operativa_lluvia_cuenta_fecha_marcador_empresa
+       ON OPERATIVA_LLUVIA_DIA (cuenta_id, fecha, COALESCE(marcador_id, 0), COALESCE(empresa_operativa_id, 0))`,
     )
     .run();
 
@@ -469,6 +501,32 @@ export async function initOperativaTareasTables(db: Db): Promise<void> {
 
   await db
     .prepare(
+      `ALTER TABLE OPERATIVA_TAREA ADD COLUMN IF NOT EXISTS empresa_operativa_id INTEGER REFERENCES EMPRESAS_OPERATIVAS(id) ON DELETE SET NULL`,
+    )
+    .run();
+
+  await db
+    .prepare(
+      `CREATE INDEX IF NOT EXISTS idx_operativa_tarea_empresa
+       ON OPERATIVA_TAREA(cuenta_id, empresa_operativa_id)`,
+    )
+    .run();
+
+  await db
+    .prepare(
+      `ALTER TABLE OPERATIVA_LLUVIA_DIA ADD COLUMN IF NOT EXISTS empresa_operativa_id INTEGER REFERENCES EMPRESAS_OPERATIVAS(id) ON DELETE SET NULL`,
+    )
+    .run();
+
+  await db
+    .prepare(
+      `CREATE INDEX IF NOT EXISTS idx_operativa_lluvia_empresa
+       ON OPERATIVA_LLUVIA_DIA(cuenta_id, empresa_operativa_id)`,
+    )
+    .run();
+
+  await db
+    .prepare(
       `ALTER TABLE OPERATIVA_TAREA_REGISTRO ADD COLUMN IF NOT EXISTS fecha_ejecucion DATE`,
     )
     .run();
@@ -542,8 +600,9 @@ export async function listOperativaTareas(
   cuentaId: number,
   filters: OperativaTareaListFilters = {},
 ): Promise<OperativaTareaRow[]> {
-  let sql = `${TAREA_SELECT} WHERE t.cuenta_id = ?`;
-  const params: unknown[] = [cuentaId];
+  const vis = sqlVisibleEmpresaScopeAliased("t", filters.filterEmpresaOperativaId);
+  let sql = `${TAREA_SELECT} WHERE t.cuenta_id = ?${vis.clause}`;
+  const params: unknown[] = [cuentaId, ...vis.params];
 
   if (filters.desde) {
     sql += ` AND (t.dia_semana IS NOT NULL OR t.fecha >= ?)`;
@@ -575,10 +634,12 @@ export async function getOperativaTareaById(
   db: Db,
   cuentaId: number,
   id: number,
+  scope?: OperativaEmpresaScope,
 ): Promise<OperativaTareaRow | null> {
+  const vis = sqlVisibleEmpresaScopeAliased("t", scope?.filterEmpresaOperativaId);
   const row = (await db
-    .prepare(`${TAREA_SELECT} WHERE t.cuenta_id = ? AND t.id = ? LIMIT 1`)
-    .get(cuentaId, id)) as Record<string, unknown> | undefined;
+    .prepare(`${TAREA_SELECT} WHERE t.cuenta_id = ? AND t.id = ?${vis.clause} LIMIT 1`)
+    .get(cuentaId, id, ...vis.params)) as Record<string, unknown> | undefined;
   return row ? enrichTarea(db, rowToTarea(row)) : null;
 }
 
@@ -626,6 +687,7 @@ export async function createOperativaTarea(
   cuentaId: number,
   creadoPorUserId: number | null,
   input: OperativaTareaInput,
+  scope?: OperativaEmpresaScope,
 ): Promise<OperativaTareaRow> {
   if (!Number.isFinite(cuentaId) || cuentaId <= 0) {
     throw new Error("Cuenta inválida para registrar la tarea.");
@@ -657,18 +719,20 @@ export async function createOperativaTarea(
       : null;
   const ganadoDetalle = String(input.ganado_detalle ?? "").trim().slice(0, 500);
   const completadoEn = null;
+  const empresaOperativaId = scope?.stampEmpresaOperativaId ?? null;
 
   const inserted = (await db
     .prepare(
       `INSERT INTO OPERATIVA_TAREA (
-         cuenta_id, titulo, descripcion, notas, fecha, fecha_hasta, dia_semana, estado, prioridad,
+         cuenta_id, empresa_operativa_id, titulo, descripcion, notas, fecha, fecha_hasta, dia_semana, estado, prioridad,
          asignado_user_id, creado_por_user_id, potrero_id, ubicacion,
          ganado_cantidad, ganado_detalle, completado_en
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
        RETURNING id`,
     )
     .get(
       cuentaId,
+      empresaOperativaId,
       titulo,
       descripcion,
       notas,
@@ -688,7 +752,7 @@ export async function createOperativaTarea(
 
   await replaceTareaAsignados(db, cuentaId, Number(inserted.id), asignadosIds);
 
-  const created = await getOperativaTareaById(db, cuentaId, Number(inserted.id));
+  const created = await getOperativaTareaById(db, cuentaId, Number(inserted.id), scope);
   if (!created) throw new Error("No se pudo crear la tarea.");
   return created;
 }
@@ -698,8 +762,9 @@ export async function updateOperativaTarea(
   cuentaId: number,
   id: number,
   input: Partial<OperativaTareaInput>,
+  scope?: OperativaEmpresaScope,
 ): Promise<OperativaTareaRow> {
-  const existing = await getOperativaTareaById(db, cuentaId, id);
+  const existing = await getOperativaTareaById(db, cuentaId, id, scope);
   if (!existing) throw new Error("Tarea no encontrada.");
 
   const titulo =
@@ -761,13 +826,18 @@ export async function updateOperativaTarea(
     completadoEn = null;
   }
 
+  const empresaOperativaId =
+    existing.empresa_operativa_id == null && scope?.stampEmpresaOperativaId != null
+      ? scope.stampEmpresaOperativaId
+      : existing.empresa_operativa_id;
+
   await db
     .prepare(
       `UPDATE OPERATIVA_TAREA
        SET titulo = ?, descripcion = ?, notas = ?, fecha = ?, fecha_hasta = ?,
            dia_semana = ?, estado = ?, prioridad = ?, asignado_user_id = ?, potrero_id = ?,
            ubicacion = ?, ganado_cantidad = ?, ganado_detalle = ?,
-           completado_en = ?, actualizado_en = NOW()
+           completado_en = ?, empresa_operativa_id = ?, actualizado_en = NOW()
        WHERE cuenta_id = ? AND id = ?`,
     )
     .run(
@@ -785,6 +855,7 @@ export async function updateOperativaTarea(
       ganadoCantidad,
       ganadoDetalle,
       completadoEn,
+      empresaOperativaId,
       cuentaId,
       id,
     );
@@ -793,7 +864,7 @@ export async function updateOperativaTarea(
     await replaceTareaAsignados(db, cuentaId, id, asignadosToSave);
   }
 
-  const updated = await getOperativaTareaById(db, cuentaId, id);
+  const updated = await getOperativaTareaById(db, cuentaId, id, scope);
   if (!updated) throw new Error("Tarea no encontrada.");
   return updated;
 }
@@ -802,7 +873,10 @@ export async function deleteOperativaTarea(
   db: Db,
   cuentaId: number,
   id: number,
+  scope?: OperativaEmpresaScope,
 ): Promise<void> {
+  const existing = await getOperativaTareaById(db, cuentaId, id, scope);
+  if (!existing) throw new Error("Tarea no encontrada.");
   const result = await db
     .prepare(`DELETE FROM OPERATIVA_TAREA WHERE cuenta_id = ? AND id = ?`)
     .run(cuentaId, id);
@@ -814,8 +888,9 @@ export async function listOperativaTareaRegistros(
   cuentaId: number,
   tareaId: number,
   fechaEjecucion?: string,
+  scope?: OperativaEmpresaScope,
 ): Promise<OperativaTareaRegistroRow[]> {
-  const tarea = await getOperativaTareaById(db, cuentaId, tareaId);
+  const tarea = await getOperativaTareaById(db, cuentaId, tareaId, scope);
   if (!tarea) throw new Error("Tarea no encontrada.");
 
   let sql = `
@@ -839,18 +914,21 @@ export async function listOperativaRegistrosPorFecha(
   db: Db,
   cuentaId: number,
   fecha: string,
+  scope?: OperativaEmpresaScope,
 ): Promise<OperativaTareaRegistroRow[]> {
   const fechaNorm = normalizeFecha(fecha);
+  const vis = sqlVisibleEmpresaScopeAliased("t", scope?.filterEmpresaOperativaId);
   const rows = (await db
     .prepare(
       `SELECT r.id, r.tarea_id, r.cuenta_id, r.user_id, u.nombre AS user_nombre,
               r.texto, r.ganado_cantidad, r.ganado_detalle, r.fecha_ejecucion, r.creado_en
        FROM OPERATIVA_TAREA_REGISTRO r
        LEFT JOIN USERS u ON u.id = r.user_id
-       WHERE r.cuenta_id = ? AND r.fecha_ejecucion = ?
+       INNER JOIN OPERATIVA_TAREA t ON t.id = r.tarea_id AND t.cuenta_id = r.cuenta_id
+       WHERE r.cuenta_id = ? AND r.fecha_ejecucion = ?${vis.clause}
        ORDER BY r.creado_en DESC, r.id DESC`,
     )
-    .all(cuentaId, fechaNorm)) as Record<string, unknown>[];
+    .all(cuentaId, fechaNorm, ...vis.params)) as Record<string, unknown>[];
   return rows.map(rowToRegistro);
 }
 
@@ -860,8 +938,9 @@ export async function createOperativaTareaRegistro(
   tareaId: number,
   userId: number | null,
   input: OperativaTareaRegistroInput,
+  scope?: OperativaEmpresaScope,
 ): Promise<OperativaTareaRegistroRow> {
-  const tarea = await getOperativaTareaById(db, cuentaId, tareaId);
+  const tarea = await getOperativaTareaById(db, cuentaId, tareaId, scope);
   if (!tarea) throw new Error("Tarea no encontrada.");
 
   const texto = String(input.texto ?? "").trim().slice(0, 2000);
@@ -887,7 +966,7 @@ export async function createOperativaTareaRegistro(
       fechaEjecucion,
     )) as { id: number };
 
-  const rows = await listOperativaTareaRegistros(db, cuentaId, tareaId);
+  const rows = await listOperativaTareaRegistros(db, cuentaId, tareaId, undefined, scope);
   const created = rows.find((r) => r.id === Number(inserted.id));
   if (!created) throw new Error("No se pudo guardar el registro.");
   return created;
@@ -971,7 +1050,7 @@ async function resolveMarcadorId(
 }
 
 const LLUVIA_SELECT = `
-  SELECT l.id, l.cuenta_id, l.fecha, l.marcador_id, e.nombre AS marcador_nombre,
+  SELECT l.id, l.cuenta_id, l.empresa_operativa_id, l.fecha, l.marcador_id, e.nombre AS marcador_nombre,
          l.mm, l.fuente, l.estado, l.yr_mm, l.registrado_por_user_id,
          l.creado_en, l.actualizado_en
   FROM OPERATIVA_LLUVIA_DIA l
@@ -981,10 +1060,16 @@ const LLUVIA_SELECT = `
 export async function listOperativaLluvia(
   db: Db,
   cuentaId: number,
-  filters: { fecha?: string; desde?: string; hasta?: string } = {},
+  filters: {
+    fecha?: string;
+    desde?: string;
+    hasta?: string;
+    filterEmpresaOperativaId?: number | null;
+  } = {},
 ): Promise<OperativaLluviaDiaRow[]> {
-  let sql = `${LLUVIA_SELECT} WHERE l.cuenta_id = ?`;
-  const params: unknown[] = [cuentaId];
+  const vis = sqlVisibleEmpresaScopeAliased("l", filters.filterEmpresaOperativaId);
+  let sql = `${LLUVIA_SELECT} WHERE l.cuenta_id = ?${vis.clause}`;
+  const params: unknown[] = [cuentaId, ...vis.params];
   if (filters.fecha) {
     sql += ` AND l.fecha = ?`;
     params.push(normalizeFecha(filters.fecha));
@@ -1008,6 +1093,7 @@ export async function upsertOperativaLluvia(
   cuentaId: number,
   userId: number | null,
   input: OperativaLluviaDiaInput,
+  scope?: OperativaEmpresaScope,
 ): Promise<OperativaLluviaDiaRow | null> {
   if (!Number.isFinite(cuentaId) || cuentaId <= 0) {
     throw new Error("Cuenta inválida para registrar la lluvia.");
@@ -1015,16 +1101,28 @@ export async function upsertOperativaLluvia(
   const fecha = normalizeFecha(input.fecha);
   const marcadorId = await resolveMarcadorId(db, cuentaId, input.marcador_id);
   const mm = normalizeMm(input.mm);
+  const empresaStamp = scope?.stampEmpresaOperativaId ?? null;
 
   const existing = (await db
     .prepare(
-      `SELECT id, fuente, estado, yr_mm FROM OPERATIVA_LLUVIA_DIA
+      `SELECT id, fuente, estado, yr_mm, empresa_operativa_id FROM OPERATIVA_LLUVIA_DIA
        WHERE cuenta_id = ? AND fecha = ?
          AND COALESCE(marcador_id, 0) = COALESCE(?, 0)
+         AND (
+           empresa_operativa_id IS NULL
+           OR empresa_operativa_id = COALESCE(?, empresa_operativa_id)
+         )
+       ORDER BY CASE WHEN empresa_operativa_id IS NULL THEN 1 ELSE 0 END ASC
        LIMIT 1`,
     )
-    .get(cuentaId, fecha, marcadorId)) as
-    | { id: number; fuente: string; estado: string; yr_mm: number | null }
+    .get(cuentaId, fecha, marcadorId, empresaStamp)) as
+    | {
+        id: number;
+        fuente: string;
+        estado: string;
+        yr_mm: number | null;
+        empresa_operativa_id: number | null;
+      }
     | undefined;
 
   if (mm === 0 && existing) {
@@ -1060,11 +1158,16 @@ export async function upsertOperativaLluvia(
       .prepare(
         `UPDATE OPERATIVA_LLUVIA_DIA
          SET mm = ?, fuente = 'manual', estado = 'confirmado', yr_mm = ?,
-             registrado_por_user_id = ?, actualizado_en = NOW()
+             registrado_por_user_id = ?,
+             empresa_operativa_id = COALESCE(empresa_operativa_id, ?),
+             actualizado_en = NOW()
          WHERE id = ? AND cuenta_id = ?`,
       )
-      .run(mm, yrMmToKeep, userId, existing.id, cuentaId);
-    const rows = await listOperativaLluvia(db, cuentaId, { fecha });
+      .run(mm, yrMmToKeep, userId, empresaStamp, existing.id, cuentaId);
+    const rows = await listOperativaLluvia(db, cuentaId, {
+      fecha,
+      filterEmpresaOperativaId: scope?.filterEmpresaOperativaId,
+    });
     const updated = rows.find((r) => r.id === existing.id);
     if (!updated) throw new Error("No se pudo actualizar el registro de lluvia.");
     return updated;
@@ -1073,13 +1176,16 @@ export async function upsertOperativaLluvia(
   const inserted = (await db
     .prepare(
       `INSERT INTO OPERATIVA_LLUVIA_DIA (
-         cuenta_id, fecha, marcador_id, mm, fuente, estado, yr_mm, registrado_por_user_id
-       ) VALUES (?, ?, ?, ?, 'manual', 'confirmado', NULL, ?)
+         cuenta_id, empresa_operativa_id, fecha, marcador_id, mm, fuente, estado, yr_mm, registrado_por_user_id
+       ) VALUES (?, ?, ?, ?, ?, 'manual', 'confirmado', NULL, ?)
        RETURNING id`,
     )
-    .get(cuentaId, fecha, marcadorId, mm, userId)) as { id: number };
+    .get(cuentaId, empresaStamp, fecha, marcadorId, mm, userId)) as { id: number };
 
-  const rows = await listOperativaLluvia(db, cuentaId, { fecha });
+  const rows = await listOperativaLluvia(db, cuentaId, {
+    fecha,
+    filterEmpresaOperativaId: scope?.filterEmpresaOperativaId,
+  });
   const created = rows.find((r) => r.id === Number(inserted.id));
   if (!created) throw new Error("No se pudo guardar el registro de lluvia.");
   return created;

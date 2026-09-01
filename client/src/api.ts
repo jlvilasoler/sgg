@@ -5471,6 +5471,44 @@ export async function actualizarUsuario(
   return json.data;
 }
 
+export type StockEmpresaVisibilidadItem = {
+  id: number;
+  nombre: string;
+  codigo: string;
+  rut: string;
+  dicose: string;
+  activo: boolean;
+  visible: boolean;
+};
+
+export type StockEmpresasVisibilidadResponse = {
+  bypass: boolean;
+  empresas: StockEmpresaVisibilidadItem[];
+};
+
+export async function fetchStockEmpresasVisibilidad(
+  userId: number
+): Promise<StockEmpresasVisibilidadResponse> {
+  const json = await request<{ data: StockEmpresasVisibilidadResponse }>(
+    `/auth/users/${userId}/stock-empresas-visibilidad`
+  );
+  return json.data;
+}
+
+export async function saveStockEmpresasVisibilidad(
+  userId: number,
+  denegadas: number[]
+): Promise<StockEmpresasVisibilidadResponse> {
+  const json = await request<{ data: StockEmpresasVisibilidadResponse }>(
+    `/auth/users/${userId}/stock-empresas-visibilidad`,
+    {
+      method: "PUT",
+      body: JSON.stringify({ denegadas }),
+    }
+  );
+  return json.data;
+}
+
 export async function fetchRolePermissions(): Promise<RolPermisosConfig[]> {
   const json = await request<{ data: RolPermisosConfig[] }>("/auth/role-permissions");
   return json.data;

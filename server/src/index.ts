@@ -70,6 +70,7 @@ import { parseTipoBaja, tipoBajaDesdeEstadoImport, type TipoBaja } from "./stock
 import { auditBajasDispositivos, auditStockMovimiento, historialAutorFromRequest, historialAutorLabelFromRequest } from "./stock-audit.js";
 import { type Empresa, type Presupuesto, type PresupuestoInput } from "./types.js";
 import { empresasCuenta } from "./database.js";
+import * as userStockVisib from "./user-stock-visibilidad-db.js";
 import {
   assertGastosRubroRowWritable,
   gastosRubrosReadScopeFromRequest,
@@ -853,7 +854,12 @@ async function stockGanaderoFiltersFromRequest(
   const user = req.user;
   if (!user) return base;
   let filters: StockGanaderoFilters = { ...base };
-  const empresas = await empresasCuenta.getEmpresasCodigosScopeFilter(db.getDb(), user);
+  let empresas = await empresasCuenta.getEmpresasCodigosScopeFilter(db.getDb(), user);
+  empresas = await userStockVisib.applyStockEmpresaVisibilidadToCodigos(
+    db.getDb(),
+    user,
+    empresas
+  );
   if (empresas) filters = { ...filters, empresas };
   const lecturasScope = await stockLecturasFiltersFromRequest(req, {});
   if (lecturasScope.cuenta_id != null) {
@@ -869,7 +875,12 @@ async function stockEquinoFiltersFromRequest(
   const user = req.user;
   if (!user) return base;
   let filters: StockEquinoFilters = { ...base };
-  const empresas = await empresasCuenta.getEmpresasCodigosScopeFilter(db.getDb(), user);
+  let empresas = await empresasCuenta.getEmpresasCodigosScopeFilter(db.getDb(), user);
+  empresas = await userStockVisib.applyStockEmpresaVisibilidadToCodigos(
+    db.getDb(),
+    user,
+    empresas
+  );
   if (empresas) filters = { ...filters, empresas };
   const lecturasScope = await stockLecturasFiltersFromRequest(req, {});
   if (lecturasScope.cuenta_id != null) {
@@ -958,7 +969,12 @@ async function stockOvinoFiltersFromRequest(
   const user = req.user;
   if (!user) return base;
   let filters: StockOvinoFilters = { ...base };
-  const empresas = await empresasCuenta.getEmpresasCodigosScopeFilter(db.getDb(), user);
+  let empresas = await empresasCuenta.getEmpresasCodigosScopeFilter(db.getDb(), user);
+  empresas = await userStockVisib.applyStockEmpresaVisibilidadToCodigos(
+    db.getDb(),
+    user,
+    empresas
+  );
   if (empresas) filters = { ...filters, empresas };
   const lecturasScope = await stockLecturasFiltersFromRequest(req, {});
   if (lecturasScope.cuenta_id != null) {
@@ -1014,6 +1030,39 @@ async function resumenEmpresaScope(
     return { ...cuentaScope, empresa };
   }
   return { ...cuentaScope, empresas: permitidas };
+}
+
+/** Scope de mapa/campo según modalidad individual vs consolidado. */
+async function campoMapaEmpresaScope(user: UserPublic, cuentaId: number) {
+  const scope = await empresasCuenta.resolveEmpresaOperativaDataScope(
+    db.getDb(),
+    user,
+    cuentaId,
+  );
+  return {
+    filterEmpresaOperativaId: scope.filterEmpresaOperativaId,
+    stampEmpresaOperativaId: scope.stampEmpresaOperativaId,
+  };
+}
+
+/**
+ * En modo individual, el mapa legacy (sin empresa) se parte una vez por cuenta:
+ * cada operativa recibe su copia y deja de verse el mapa compartido.
+ */
+async function ensureCampoMapaParticionadoSiIndividual(
+  cuentaId: number,
+  scope: { filterEmpresaOperativaId: number | null },
+): Promise<void> {
+  if (scope.filterEmpresaOperativaId == null || scope.filterEmpresaOperativaId < 0) {
+    return;
+  }
+  const empresas = (await empresasCuenta.listEmpresasOperativas(db.getDb(), cuentaId)).filter(
+    (e) => e.activo,
+  );
+  const ids = empresas.map((e) => e.id);
+  if (!ids.length) return;
+  await db.campoPotreros.partitionOrphans(cuentaId, ids);
+  await db.campoMapaElementos.partitionOrphans(cuentaId, ids);
 }
 
 async function presupuestoListFilters(req: Request): Promise<db.ListFilters> {
@@ -1586,11 +1635,24 @@ app.get("/api/presupuesto/automatizacion", async (req, res) => {
       return;
     }
     await db.gastosAutomatizacion.syncPendientes(cuentaId);
-    const plantillas = await db.gastosAutomatizacion.list(cuentaId);
+    const empresas = await empresasPermitidas(req.user!);
+    const plantillas = await db.gastosAutomatizacion.list(
+      cuentaId,
+      empresas.length ? empresas : undefined,
+    );
     const pendientes = await db.gastosAutomatizacion.listPendientes(cuentaId, {
       soloPendientes: true,
     });
-    res.json({ ok: true, data: { plantillas, pendientes } });
+    const empresasSet = new Set(empresas.map((e) => e.trim().toUpperCase()).filter(Boolean));
+    const pendientesScoped =
+      empresas.length === 0
+        ? []
+        : empresas.includes("__sin_empresas__")
+          ? []
+          : pendientes.filter((p) =>
+              empresasSet.has(String(p.plantilla?.empresa ?? "").trim().toUpperCase()),
+            );
+    res.json({ ok: true, data: { plantillas, pendientes: pendientesScoped } });
   } catch (e) {
     res.status(400).json({
       ok: false,
@@ -3960,7 +4022,9 @@ app.get("/api/campo-potreros", async (req, res) => {
       });
       return;
     }
-    const items = await db.campoPotreros.list(cuentaId);
+    const scope = await campoMapaEmpresaScope(req.user!, cuentaId);
+    await ensureCampoMapaParticionadoSiIndividual(cuentaId, scope);
+    const items = await db.campoPotreros.list(cuentaId, scope);
     res.json({ ok: true, data: items });
   } catch (e) {
     res.status(400).json({
@@ -3980,16 +4044,21 @@ app.post("/api/campo-potreros", async (req, res) => {
       });
       return;
     }
+    const scope = await campoMapaEmpresaScope(req.user!, cuentaId);
     const body = req.body ?? {};
-    const item = await db.campoPotreros.create(cuentaId, {
-      nombre: typeof body.nombre === "string" ? body.nombre : "",
-      geojson: body.geojson,
-      color: typeof body.color === "string" ? body.color : undefined,
-      hectareas: body.hectareas,
-      notas: typeof body.notas === "string" ? body.notas : undefined,
-      metadata:
-        body.metadata && typeof body.metadata === "object" ? body.metadata : undefined,
-    });
+    const item = await db.campoPotreros.create(
+      cuentaId,
+      {
+        nombre: typeof body.nombre === "string" ? body.nombre : "",
+        geojson: body.geojson,
+        color: typeof body.color === "string" ? body.color : undefined,
+        hectareas: body.hectareas,
+        notas: typeof body.notas === "string" ? body.notas : undefined,
+        metadata:
+          body.metadata && typeof body.metadata === "object" ? body.metadata : undefined,
+      },
+      scope,
+    );
     await auditStockMovimiento(req, "MODIFICACION", {
       resumen: `Dibujó potrero ${item.nombre} en el mapa del campo`,
       detalle: { potrero_id: item.id, nombre: item.nombre, cuenta_id: cuentaId },
@@ -4018,16 +4087,22 @@ app.put("/api/campo-potreros/:id", async (req, res) => {
       res.status(400).json({ ok: false, error: "Potrero inválido" });
       return;
     }
+    const scope = await campoMapaEmpresaScope(req.user!, cuentaId);
     const body = req.body ?? {};
-    const item = await db.campoPotreros.update(cuentaId, id, {
-      nombre: typeof body.nombre === "string" ? body.nombre : undefined,
-      geojson: body.geojson,
-      color: typeof body.color === "string" ? body.color : undefined,
-      hectareas: body.hectareas,
-      notas: typeof body.notas === "string" ? body.notas : undefined,
-      metadata:
-        body.metadata && typeof body.metadata === "object" ? body.metadata : undefined,
-    });
+    const item = await db.campoPotreros.update(
+      cuentaId,
+      id,
+      {
+        nombre: typeof body.nombre === "string" ? body.nombre : undefined,
+        geojson: body.geojson,
+        color: typeof body.color === "string" ? body.color : undefined,
+        hectareas: body.hectareas,
+        notas: typeof body.notas === "string" ? body.notas : undefined,
+        metadata:
+          body.metadata && typeof body.metadata === "object" ? body.metadata : undefined,
+      },
+      scope,
+    );
     res.json({ ok: true, data: item });
   } catch (e) {
     res.status(400).json({
@@ -4052,8 +4127,9 @@ app.delete("/api/campo-potreros/:id", async (req, res) => {
       res.status(400).json({ ok: false, error: "Potrero inválido" });
       return;
     }
-    const existing = await db.campoPotreros.getById(cuentaId, id);
-    await db.campoPotreros.delete(cuentaId, id);
+    const scope = await campoMapaEmpresaScope(req.user!, cuentaId);
+    const existing = await db.campoPotreros.getById(cuentaId, id, scope);
+    await db.campoPotreros.delete(cuentaId, id, scope);
     if (existing) {
       await auditStockMovimiento(req, "MODIFICACION", {
         resumen: `Eliminó potrero ${existing.nombre} del mapa del campo`,
@@ -4076,7 +4152,9 @@ app.get("/api/campo-mapa-elementos", async (req, res) => {
       res.status(400).json({ ok: false, error: "No se pudo determinar la cuenta" });
       return;
     }
-    const items = await db.campoMapaElementos.list(cuentaId);
+    const scope = await campoMapaEmpresaScope(req.user!, cuentaId);
+    await ensureCampoMapaParticionadoSiIndividual(cuentaId, scope);
+    const items = await db.campoMapaElementos.list(cuentaId, scope);
     res.json({ ok: true, data: items });
   } catch (e) {
     res.status(400).json({
@@ -4093,16 +4171,21 @@ app.post("/api/campo-mapa-elementos", async (req, res) => {
       res.status(400).json({ ok: false, error: "No se pudo determinar la cuenta" });
       return;
     }
+    const scope = await campoMapaEmpresaScope(req.user!, cuentaId);
     const body = req.body ?? {};
-    const item = await db.campoMapaElementos.create(cuentaId, {
-      tipo: typeof body.tipo === "string" ? body.tipo : "marcador",
-      nombre: typeof body.nombre === "string" ? body.nombre : "",
-      geojson: body.geojson,
-      notas: typeof body.notas === "string" ? body.notas : undefined,
-      color: typeof body.color === "string" ? body.color : undefined,
-      metadata:
-        body.metadata && typeof body.metadata === "object" ? body.metadata : undefined,
-    });
+    const item = await db.campoMapaElementos.create(
+      cuentaId,
+      {
+        tipo: typeof body.tipo === "string" ? body.tipo : "marcador",
+        nombre: typeof body.nombre === "string" ? body.nombre : "",
+        geojson: body.geojson,
+        notas: typeof body.notas === "string" ? body.notas : undefined,
+        color: typeof body.color === "string" ? body.color : undefined,
+        metadata:
+          body.metadata && typeof body.metadata === "object" ? body.metadata : undefined,
+      },
+      scope,
+    );
     res.status(201).json({ ok: true, data: item });
   } catch (e) {
     res.status(400).json({
@@ -4124,16 +4207,22 @@ app.put("/api/campo-mapa-elementos/:id", async (req, res) => {
       res.status(400).json({ ok: false, error: "Elemento inválido" });
       return;
     }
+    const scope = await campoMapaEmpresaScope(req.user!, cuentaId);
     const body = req.body ?? {};
-    const item = await db.campoMapaElementos.update(cuentaId, id, {
-      tipo: typeof body.tipo === "string" ? body.tipo : undefined,
-      nombre: typeof body.nombre === "string" ? body.nombre : undefined,
-      geojson: body.geojson,
-      notas: typeof body.notas === "string" ? body.notas : undefined,
-      color: typeof body.color === "string" ? body.color : undefined,
-      metadata:
-        body.metadata && typeof body.metadata === "object" ? body.metadata : undefined,
-    });
+    const item = await db.campoMapaElementos.update(
+      cuentaId,
+      id,
+      {
+        tipo: typeof body.tipo === "string" ? body.tipo : undefined,
+        nombre: typeof body.nombre === "string" ? body.nombre : undefined,
+        geojson: body.geojson,
+        notas: typeof body.notas === "string" ? body.notas : undefined,
+        color: typeof body.color === "string" ? body.color : undefined,
+        metadata:
+          body.metadata && typeof body.metadata === "object" ? body.metadata : undefined,
+      },
+      scope,
+    );
     res.json({ ok: true, data: item });
   } catch (e) {
     res.status(400).json({
@@ -4155,7 +4244,8 @@ app.delete("/api/campo-mapa-elementos/:id", async (req, res) => {
       res.status(400).json({ ok: false, error: "Elemento inválido" });
       return;
     }
-    await db.campoMapaElementos.delete(cuentaId, id);
+    const scope = await campoMapaEmpresaScope(req.user!, cuentaId);
+    await db.campoMapaElementos.delete(cuentaId, id, scope);
     res.json({ ok: true });
   } catch (e) {
     res.status(400).json({
@@ -4177,7 +4267,8 @@ app.get("/api/operativa-tareas/registros-dia", async (req, res) => {
       res.status(400).json({ ok: false, error: "Indicá la fecha (AAAA-MM-DD)." });
       return;
     }
-    const items = await db.operativaTareas.listRegistrosPorFecha(cuentaId, fecha);
+    const scope = await campoMapaEmpresaScope(req.user!, cuentaId);
+    const items = await db.operativaTareas.listRegistrosPorFecha(cuentaId, fecha, scope);
     res.json({ ok: true, data: items });
   } catch (e) {
     res.status(400).json({
@@ -4194,8 +4285,12 @@ app.get("/api/operativa-tareas", async (req, res) => {
       res.status(400).json({ ok: false, error: "No se pudo determinar la cuenta" });
       return;
     }
+    const scope = await campoMapaEmpresaScope(req.user!, cuentaId);
     const q = req.query;
-    const filters: OperativaTareaListFilters = {};
+    const filters: OperativaTareaListFilters = {
+      filterEmpresaOperativaId: scope.filterEmpresaOperativaId,
+      stampEmpresaOperativaId: scope.stampEmpresaOperativaId,
+    };
     if (typeof q.desde === "string" && q.desde.trim()) filters.desde = q.desde.trim();
     if (typeof q.hasta === "string" && q.hasta.trim()) filters.hasta = q.hasta.trim();
     if (q.asignado_user_id != null) {
@@ -4225,20 +4320,28 @@ app.post("/api/operativa-tareas", async (req, res) => {
       res.status(400).json({ ok: false, error: "No se pudo determinar la cuenta" });
       return;
     }
+    const scope = await campoMapaEmpresaScope(req.user!, cuentaId);
     const body = req.body ?? {};
-    const item = await db.operativaTareas.create(cuentaId, req.user!.id, {
-      titulo: typeof body.titulo === "string" ? body.titulo : "",
-      descripcion: typeof body.descripcion === "string" ? body.descripcion : undefined,
-      notas: typeof body.notas === "string" ? body.notas : undefined,
-      fecha: typeof body.fecha === "string" ? body.fecha : undefined,
-      dia_semana: body.dia_semana,
-      asignado_user_id: body.asignado_user_id,
-      asignados_user_ids: Array.isArray(body.asignados_user_ids)
-        ? body.asignados_user_ids.map((id: unknown) => Number(id)).filter((id: number) => Number.isFinite(id))
-        : undefined,
-      potrero_id: body.potrero_id,
-      ubicacion: typeof body.ubicacion === "string" ? body.ubicacion : undefined,
-    });
+    const item = await db.operativaTareas.create(
+      cuentaId,
+      req.user!.id,
+      {
+        titulo: typeof body.titulo === "string" ? body.titulo : "",
+        descripcion: typeof body.descripcion === "string" ? body.descripcion : undefined,
+        notas: typeof body.notas === "string" ? body.notas : undefined,
+        fecha: typeof body.fecha === "string" ? body.fecha : undefined,
+        dia_semana: body.dia_semana,
+        asignado_user_id: body.asignado_user_id,
+        asignados_user_ids: Array.isArray(body.asignados_user_ids)
+          ? body.asignados_user_ids
+              .map((id: unknown) => Number(id))
+              .filter((id: number) => Number.isFinite(id))
+          : undefined,
+        potrero_id: body.potrero_id,
+        ubicacion: typeof body.ubicacion === "string" ? body.ubicacion : undefined,
+      },
+      scope,
+    );
     res.status(201).json({ ok: true, data: item });
   } catch (e) {
     res.status(400).json({
@@ -4260,19 +4363,27 @@ app.put("/api/operativa-tareas/:id", async (req, res) => {
       res.status(400).json({ ok: false, error: "Tarea inválida" });
       return;
     }
+    const scope = await campoMapaEmpresaScope(req.user!, cuentaId);
     const body = req.body ?? {};
-    const item = await db.operativaTareas.update(cuentaId, id, {
-      titulo: typeof body.titulo === "string" ? body.titulo : undefined,
-      descripcion: typeof body.descripcion === "string" ? body.descripcion : undefined,
-      notas: typeof body.notas === "string" ? body.notas : undefined,
-      dia_semana: body.dia_semana,
-      asignado_user_id: body.asignado_user_id,
-      asignados_user_ids: Array.isArray(body.asignados_user_ids)
-        ? body.asignados_user_ids.map((id: unknown) => Number(id)).filter((id: number) => Number.isFinite(id))
-        : undefined,
-      potrero_id: body.potrero_id,
-      ubicacion: typeof body.ubicacion === "string" ? body.ubicacion : undefined,
-    });
+    const item = await db.operativaTareas.update(
+      cuentaId,
+      id,
+      {
+        titulo: typeof body.titulo === "string" ? body.titulo : undefined,
+        descripcion: typeof body.descripcion === "string" ? body.descripcion : undefined,
+        notas: typeof body.notas === "string" ? body.notas : undefined,
+        dia_semana: body.dia_semana,
+        asignado_user_id: body.asignado_user_id,
+        asignados_user_ids: Array.isArray(body.asignados_user_ids)
+          ? body.asignados_user_ids
+              .map((id: unknown) => Number(id))
+              .filter((id: number) => Number.isFinite(id))
+          : undefined,
+        potrero_id: body.potrero_id,
+        ubicacion: typeof body.ubicacion === "string" ? body.ubicacion : undefined,
+      },
+      scope,
+    );
     res.json({ ok: true, data: item });
   } catch (e) {
     res.status(400).json({
@@ -4294,7 +4405,8 @@ app.delete("/api/operativa-tareas/:id", async (req, res) => {
       res.status(400).json({ ok: false, error: "Tarea inválida" });
       return;
     }
-    await db.operativaTareas.delete(cuentaId, id);
+    const scope = await campoMapaEmpresaScope(req.user!, cuentaId);
+    await db.operativaTareas.delete(cuentaId, id, scope);
     res.json({ ok: true });
   } catch (e) {
     res.status(400).json({
@@ -4316,11 +4428,12 @@ app.get("/api/operativa-tareas/:id/registros", async (req, res) => {
       res.status(400).json({ ok: false, error: "Tarea inválida" });
       return;
     }
+    const scope = await campoMapaEmpresaScope(req.user!, cuentaId);
     const fecha =
       typeof req.query.fecha === "string" && req.query.fecha.trim()
         ? req.query.fecha.trim()
         : undefined;
-    const items = await db.operativaTareas.listRegistros(cuentaId, id, fecha);
+    const items = await db.operativaTareas.listRegistros(cuentaId, id, fecha, scope);
     res.json({ ok: true, data: items });
   } catch (e) {
     res.status(400).json({
@@ -4342,13 +4455,20 @@ app.post("/api/operativa-tareas/:id/registros", async (req, res) => {
       res.status(400).json({ ok: false, error: "Tarea inválida" });
       return;
     }
+    const scope = await campoMapaEmpresaScope(req.user!, cuentaId);
     const body = req.body ?? {};
-    const item = await db.operativaTareas.createRegistro(cuentaId, id, req.user!.id, {
-      texto: typeof body.texto === "string" ? body.texto : "",
-      ganado_detalle: typeof body.ganado_detalle === "string" ? body.ganado_detalle : undefined,
-      fecha_ejecucion:
-        typeof body.fecha_ejecucion === "string" ? body.fecha_ejecucion : "",
-    });
+    const item = await db.operativaTareas.createRegistro(
+      cuentaId,
+      id,
+      req.user!.id,
+      {
+        texto: typeof body.texto === "string" ? body.texto : "",
+        ganado_detalle: typeof body.ganado_detalle === "string" ? body.ganado_detalle : undefined,
+        fecha_ejecucion:
+          typeof body.fecha_ejecucion === "string" ? body.fecha_ejecucion : "",
+      },
+      scope,
+    );
     res.status(201).json({ ok: true, data: item });
   } catch (e) {
     res.status(400).json({
@@ -4365,8 +4485,16 @@ app.get("/api/operativa-lluvia", async (req, res) => {
       res.status(400).json({ ok: false, error: "No se pudo determinar la cuenta" });
       return;
     }
+    const scope = await campoMapaEmpresaScope(req.user!, cuentaId);
     const q = req.query;
-    const filters: { fecha?: string; desde?: string; hasta?: string } = {};
+    const filters: {
+      fecha?: string;
+      desde?: string;
+      hasta?: string;
+      filterEmpresaOperativaId?: number | null;
+    } = {
+      filterEmpresaOperativaId: scope.filterEmpresaOperativaId,
+    };
     if (typeof q.fecha === "string" && q.fecha.trim()) filters.fecha = q.fecha.trim();
     if (typeof q.desde === "string" && q.desde.trim()) filters.desde = q.desde.trim();
     if (typeof q.hasta === "string" && q.hasta.trim()) filters.hasta = q.hasta.trim();
@@ -4463,17 +4591,23 @@ app.put("/api/operativa-lluvia", async (req, res) => {
       res.status(400).json({ ok: false, error: "No se pudo determinar la cuenta" });
       return;
     }
+    const scope = await campoMapaEmpresaScope(req.user!, cuentaId);
     const body = req.body ?? {};
     const marcadorRaw = body.marcador_id;
     const marcadorId =
       marcadorRaw == null || marcadorRaw === ""
         ? null
         : Number(marcadorRaw);
-    const item = await db.operativaTareas.upsertLluvia(cuentaId, req.user!.id, {
-      fecha: typeof body.fecha === "string" ? body.fecha : "",
-      marcador_id: Number.isFinite(marcadorId as number) ? (marcadorId as number) : null,
-      mm: body.mm,
-    });
+    const item = await db.operativaTareas.upsertLluvia(
+      cuentaId,
+      req.user!.id,
+      {
+        fecha: typeof body.fecha === "string" ? body.fecha : "",
+        marcador_id: Number.isFinite(marcadorId as number) ? (marcadorId as number) : null,
+        mm: body.mm,
+      },
+      scope,
+    );
     res.json({
       ok: true,
       data: item,

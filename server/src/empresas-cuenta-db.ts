@@ -1872,14 +1872,37 @@ export async function insertEmpresaOperativa(
     .get(codigo)) as { id: number } | undefined;
   if (dupCodigo) throw new Error("Ya existe una empresa con ese código");
 
-  const color = normalizarColorEmpresaOperativa(input.color, true);
+  let color = normalizarColorEmpresaOperativa(input.color, false);
+  if (!color) {
+    const usadosRows = (await db
+      .prepare(`SELECT color FROM EMPRESAS_OPERATIVAS WHERE cuenta_id = ?`)
+      .all(cuentaId)) as { color: string }[];
+    const usados = new Set(
+      usadosRows.map((r) => colorDb.normalizarColorCaravana(r.color)).filter(Boolean),
+    );
+    const libre = colorDb.COLORES_CARAVANA.find((c) => !usados.has(c.id));
+    if (!libre) {
+      throw new Error(
+        "No hay colores disponibles para una empresa nueva. Liberá un color o editá una existente.",
+      );
+    }
+    color = libre.id;
+  }
   await assertColorEmpresaOperativaDisponible(db, cuentaId, color);
 
+  const rut = normalizeRut(input.rut);
   const dicose = normalizeDicose(input.dicose);
+  const ejercicio = normalizeEjercicioFiscal(
+    input.ejercicio_inicio_mes ?? EJERCICIO_INICIO_MES_DEFAULT,
+    input.ejercicio_inicio_dia ?? EJERCICIO_INICIO_DIA_DEFAULT,
+  );
+
   const result = await db
     .prepare(
-      `INSERT INTO EMPRESAS_OPERATIVAS (cuenta_id, nombre, codigo, color, activo, dicose)
-       VALUES (?, ?, ?, ?, ?, ?)`
+      `INSERT INTO EMPRESAS_OPERATIVAS
+         (cuenta_id, nombre, codigo, color, activo, rut, dicose,
+          ejercicio_inicio_mes, ejercicio_inicio_dia)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .run(
       cuentaId,
@@ -1887,7 +1910,10 @@ export async function insertEmpresaOperativa(
       codigo,
       color,
       input.activo === false ? 0 : 1,
-      dicose || null
+      rut || null,
+      dicose || null,
+      ejercicio.inicio_mes,
+      ejercicio.inicio_dia,
     );
 
   const row = (await db
@@ -2125,6 +2151,55 @@ async function narrowScopePorEmpresaActiva(
   if (!activa) return [];
   const clave = (campo === "nombre" ? activa.nombre : activa.codigo).trim().toUpperCase();
   return lista.filter((v) => v.trim().toUpperCase() === clave);
+}
+
+/**
+ * Scope de datos por empresa operativa (mapa, operativa, etc.).
+ * - consolidado: sin filtro (null) y sin stamp obligatorio
+ * - individual: solo la empresa activa; stamp en altas
+ */
+export async function resolveEmpresaOperativaDataScope(
+  db: Db,
+  user: {
+    id: number;
+    email?: string;
+    es_super_admin?: boolean;
+    empresa_id?: number | null;
+    empresa_operativa_activa_id?: number | null;
+  },
+  cuentaId: number,
+): Promise<{
+  loginMode: LoginMode;
+  /** null = ver toda la cuenta; number = filtrar esa empresa; -1 = nada */
+  filterEmpresaOperativaId: number | null;
+  /** Empresa a grabar en altas (null en consolidado = sin asignar) */
+  stampEmpresaOperativaId: number | null;
+}> {
+  const loginMode = await getLoginModeForCuenta(db, cuentaId);
+  if (loginMode !== "individual") {
+    return {
+      loginMode,
+      filterEmpresaOperativaId: null,
+      stampEmpresaOperativaId: null,
+    };
+  }
+  const activa = await getEmpresaActivaForUser(
+    db,
+    cuentaId,
+    user.empresa_operativa_activa_id,
+  );
+  if (!activa) {
+    return {
+      loginMode,
+      filterEmpresaOperativaId: -1,
+      stampEmpresaOperativaId: null,
+    };
+  }
+  return {
+    loginMode,
+    filterEmpresaOperativaId: activa.id,
+    stampEmpresaOperativaId: activa.id,
+  };
 }
 
 export async function getEmpresasOperativasPermitidas(

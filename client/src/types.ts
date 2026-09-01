@@ -435,6 +435,7 @@ export type TipoBaja =
 export interface CampoPotreroMapa {
   id: number;
   cuenta_id: number;
+  empresa_operativa_id?: number | null;
   nombre: string;
   geojson: string;
   color: string;
@@ -457,6 +458,7 @@ export type CampoMapaElementoTipo =
 export interface CampoMapaElemento {
   id: number;
   cuenta_id: number;
+  empresa_operativa_id?: number | null;
   tipo: CampoMapaElementoTipo;
   nombre: string;
   notas: string;
