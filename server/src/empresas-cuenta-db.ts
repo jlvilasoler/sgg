@@ -1441,6 +1441,21 @@ export async function listEmpresasOperativas(
   return rows.map(operativaToPublic);
 }
 
+/** Empresa operativa de una cuenta (null si no existe o no pertenece a la cuenta). */
+export async function getEmpresaOperativaById(
+  db: Db,
+  cuentaId: number,
+  empresaId: number
+): Promise<EmpresaOperativa | null> {
+  const row = (await db
+    .prepare(
+      `SELECT * FROM EMPRESAS_OPERATIVAS
+       WHERE id = ? AND cuenta_id = ?`
+    )
+    .get(empresaId, cuentaId)) as EmpresaOperativaRow | undefined;
+  return row ? operativaToPublic(row) : null;
+}
+
 export async function getEmpresaCuentaById(
   db: Db,
   id: number
@@ -2207,7 +2222,10 @@ export async function getEmpresasOperativasPermitidas(
   user: {
     id: number;
     email?: string;
+    rol?: string;
     es_super_admin?: boolean;
+    es_admin_plataforma?: boolean;
+    es_admin_cuenta?: boolean;
     empresa_id?: number | null;
     empresa_operativa_activa_id?: number | null;
   }
@@ -2215,13 +2233,17 @@ export async function getEmpresasOperativasPermitidas(
   const cuentaId = await resolveCuentaMadreIdForUser(db, user);
   if (cuentaId) {
     const todas = await getEmpresaNombresActivosPorCuenta(db, cuentaId);
-    return await narrowScopePorEmpresaActiva(
+    const narrowed = await narrowScopePorEmpresaActiva(
       db,
       cuentaId,
       user.empresa_operativa_activa_id,
       todas,
       "nombre",
     );
+    const { applyEmpresaVisibilidadToNombres } = await import(
+      "./user-stock-visibilidad-db.js"
+    );
+    return applyEmpresaVisibilidadToNombres(db, user, cuentaId, narrowed);
   }
   if (user.es_super_admin) return null;
   return [];
@@ -2232,7 +2254,10 @@ export async function getEmpresasCodigosOperativasPermitidas(
   user: {
     id: number;
     email?: string;
+    rol?: string;
     es_super_admin?: boolean;
+    es_admin_plataforma?: boolean;
+    es_admin_cuenta?: boolean;
     empresa_id?: number | null;
     empresa_operativa_activa_id?: number | null;
   }
@@ -2240,13 +2265,17 @@ export async function getEmpresasCodigosOperativasPermitidas(
   const cuentaId = await resolveCuentaMadreIdForUser(db, user);
   if (cuentaId) {
     const todos = await getEmpresaCodigosActivosPorCuenta(db, cuentaId);
-    return await narrowScopePorEmpresaActiva(
+    const narrowed = await narrowScopePorEmpresaActiva(
       db,
       cuentaId,
       user.empresa_operativa_activa_id,
       todos,
       "codigo",
     );
+    const { applyEmpresaVisibilidadToCodigosCuenta } = await import(
+      "./user-stock-visibilidad-db.js"
+    );
+    return applyEmpresaVisibilidadToCodigosCuenta(db, user, cuentaId, narrowed);
   }
   if (user.es_super_admin) return null;
   return [];
@@ -2257,7 +2286,10 @@ export async function getEmpresasOperativasDetallePermitidas(
   user: {
     id: number;
     email?: string;
+    rol?: string;
     es_super_admin?: boolean;
+    es_admin_plataforma?: boolean;
+    es_admin_cuenta?: boolean;
     empresa_id?: number | null;
     empresa_operativa_activa_id?: number | null;
   }
@@ -2272,7 +2304,16 @@ export async function getEmpresasOperativasDetallePermitidas(
       detalle.map((empresa) => empresa.nombre),
       "nombre",
     );
-    const permitidas = new Set(nombres.map((nombre) => nombre.trim().toUpperCase()));
+    const { applyEmpresaVisibilidadToNombres } = await import(
+      "./user-stock-visibilidad-db.js"
+    );
+    const visibles = await applyEmpresaVisibilidadToNombres(
+      db,
+      user,
+      cuentaId,
+      nombres
+    );
+    const permitidas = new Set(visibles.map((nombre) => nombre.trim().toUpperCase()));
     return detalle.filter((empresa) => permitidas.has(empresa.nombre.trim().toUpperCase()));
   }
   if (user.es_super_admin) return await getEmpresasOperativasDetalleActivas(db);

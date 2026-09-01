@@ -14,6 +14,7 @@ interface Props {
   onLogout: () => void;
   onOpenCuenta: () => void;
   onUserUpdated: (user: AuthUser) => void;
+  onEmpresaSessionChanged: (user: AuthUser) => void;
   onPasswordChanged: (message: string) => void;
   onError: (message: string) => void;
 }
@@ -27,6 +28,7 @@ export default function MainHeaderNav({
   onLogout,
   onOpenCuenta,
   onUserUpdated,
+  onEmpresaSessionChanged,
   onPasswordChanged,
   onError,
 }: Props) {
@@ -60,6 +62,7 @@ export default function MainHeaderNav({
       onLogout={onLogout}
       onOpenCuenta={onOpenCuenta}
       onUserUpdated={onUserUpdated}
+      onEmpresaSessionChanged={onEmpresaSessionChanged}
       onPasswordChanged={onPasswordChanged}
       onError={onError}
     />

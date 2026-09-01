@@ -976,10 +976,12 @@ export default function Usuarios({
                 !editing.es_admin_cuenta && (
                   <div className="usuarios-stock-visibilidad">
                     <h3 className="usuarios-stock-visibilidad-title">
-                      Empresas visibles en stock
+                      Empresas visibles (datos)
                     </h3>
                     <p className="usuarios-stock-visibilidad-hint">
-                      Afecta ganadería, ovino y equino. Admin siempre ve todo.
+                      Define qué empresas de la cuenta puede ver este usuario (stock,
+                      gastos, ingresos, mapa, etc.). Admin siempre ve todo. También
+                      se puede configurar desde Mi cuenta → Empresas.
                     </p>
                     {stockVisibLoading ? (
                       <p className="usuarios-stock-visibilidad-hint">Cargando empresas…</p>

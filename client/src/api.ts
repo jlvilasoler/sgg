@@ -5509,6 +5509,85 @@ export async function saveStockEmpresasVisibilidad(
   return json.data;
 }
 
+export type EmpresaUsuarioVisibilidadItem = {
+  id: number;
+  nombre: string;
+  email: string;
+  rol: string;
+  activo: boolean;
+  bypass: boolean;
+  visible: boolean;
+  modulos: Record<string, boolean>;
+  avatar?: { tipo: "iniciales" | "foto"; url: string | null } | null;
+};
+
+export const EMPRESA_MODULOS_ACCESO = [
+  "presupuesto",
+  "stock_ganadero",
+  "stock_equino",
+  "stock_ovino",
+  "campo_mapa",
+  "tareas_operativas",
+  "ventas",
+  "rrhh",
+  "divisas",
+  "precios_ganado",
+  "simulador_venta_ganado",
+] as const;
+
+export type EmpresaModuloAcceso = (typeof EMPRESA_MODULOS_ACCESO)[number];
+
+export const EMPRESA_MODULO_ACCESO_LABELS: Record<EmpresaModuloAcceso, string> = {
+  presupuesto: "Contabilidad",
+  stock_ganadero: "Stock ganadero",
+  stock_equino: "Stock equino",
+  stock_ovino: "Stock ovino",
+  campo_mapa: "Mapa del campo",
+  tareas_operativas: "Tareas operativas",
+  ventas: "Ingresos por ventas",
+  rrhh: "Recursos Humanos",
+  divisas: "Divisas",
+  precios_ganado: "Precios de Ganado",
+  simulador_venta_ganado: "Simulador de ventas",
+};
+
+export async function fetchEmpresaUsuariosVisibilidad(
+  cuentaId: number,
+  empresaId: number
+): Promise<EmpresaUsuarioVisibilidadItem[]> {
+  const json = await request<{ data: EmpresaUsuarioVisibilidadItem[] }>(
+    `/empresas-cuenta/${cuentaId}/empresas/${empresaId}/usuarios-visibilidad`
+  );
+  return json.data;
+}
+
+export async function saveEmpresaUsuariosVisibilidad(
+  cuentaId: number,
+  empresaId: number,
+  visibles: number[],
+  modulosDenegados?: Record<number, string[]>
+): Promise<EmpresaUsuarioVisibilidadItem[]> {
+  const body: {
+    visibles: number[];
+    modulos_denegados?: Record<string, string[]>;
+  } = { visibles };
+  if (modulosDenegados) {
+    const mapped: Record<string, string[]> = {};
+    for (const [uid, mods] of Object.entries(modulosDenegados)) {
+      mapped[String(uid)] = mods;
+    }
+    body.modulos_denegados = mapped;
+  }
+  const json = await request<{ data: EmpresaUsuarioVisibilidadItem[] }>(
+    `/empresas-cuenta/${cuentaId}/empresas/${empresaId}/usuarios-visibilidad`,
+    {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }
+  );
+  return json.data;
+}
+
 export async function fetchRolePermissions(): Promise<RolPermisosConfig[]> {
   const json = await request<{ data: RolPermisosConfig[] }>("/auth/role-permissions");
   return json.data;

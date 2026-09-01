@@ -32366,7 +32366,245 @@ button.sg-kpi-card:disabled {
   background: rgba(0, 0, 0, 0.2);
   border: 1px solid rgba(255, 255, 255, 0.14);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  overflow: visible;
+}
+
+.main-header-empresa {
+  display: flex;
+  align-items: stretch;
+  flex-shrink: 0;
+  position: relative;
+  border-right: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.main-header-empresa-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.42rem;
+  max-width: 13.5rem;
+  min-width: 0;
+  margin: 0;
+  padding: 0.3rem 0.55rem 0.3rem 0.5rem;
+  border: none;
+  background: linear-gradient(
+    135deg,
+    rgba(124, 179, 66, 0.18) 0%,
+    rgba(240, 185, 11, 0.1) 100%
+  );
+  color: #f8f6f0;
+  font: inherit;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.main-header-empresa-btn:hover:not(:disabled):not(.is-static) {
+  background: linear-gradient(
+    135deg,
+    rgba(124, 179, 66, 0.28) 0%,
+    rgba(240, 185, 11, 0.16) 100%
+  );
+}
+
+.main-header-empresa-btn.is-open {
+  background: rgba(240, 185, 11, 0.18);
+  box-shadow: inset 0 -2px 0 rgba(240, 185, 11, 0.75);
+}
+
+.main-header-empresa-btn.is-static {
+  cursor: default;
+}
+
+.main-header-empresa-btn:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+.main-header-empresa-btn:focus-visible {
+  outline: 2px solid rgba(240, 185, 11, 0.85);
+  outline-offset: -2px;
+}
+
+.main-header-empresa-dot {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow:
+    0 0 0 2px rgba(255, 255, 255, 0.18),
+    0 0 8px rgba(124, 179, 66, 0.35);
+}
+
+.main-header-empresa-icon {
+  display: inline-flex;
+  color: rgba(248, 246, 240, 0.82);
+  flex-shrink: 0;
+}
+
+.main-header-empresa-copy {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.02rem;
+  min-width: 0;
+  text-align: left;
+}
+
+.main-header-empresa-kicker {
+  font-size: 0.52rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 224, 138, 0.88);
+  line-height: 1.1;
+}
+
+.main-header-empresa-name {
+  font-size: 0.74rem;
+  font-weight: 650;
+  color: #fff;
+  white-space: nowrap;
   overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 10.5rem;
+  line-height: 1.15;
+}
+
+.main-header-empresa-chevron {
+  flex-shrink: 0;
+  color: rgba(248, 246, 240, 0.7);
+  transition: transform 0.15s ease;
+}
+
+.main-header-empresa-btn.is-open .main-header-empresa-chevron {
+  transform: rotate(180deg);
+  color: #ffe08a;
+}
+
+.main-header-empresa-menu {
+  position: fixed;
+  z-index: 12000;
+  width: min(20rem, calc(100vw - 1.5rem));
+  padding: 0.7rem 0.65rem 0.55rem;
+  border-radius: 10px;
+  background: #1a211a;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow:
+    0 0 0 1px rgba(26, 33, 26, 0.4),
+    0 18px 40px rgba(0, 0, 0, 0.35);
+  color: #f8f6f0;
+  animation: main-header-empresa-in 0.16s ease-out;
+}
+
+@keyframes main-header-empresa-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.main-header-empresa-menu-title {
+  margin: 0;
+  padding: 0 0.35rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.main-header-empresa-menu-sub {
+  margin: 0.15rem 0 0.55rem;
+  padding: 0 0.35rem;
+  font-size: 0.7rem;
+  line-height: 1.35;
+  color: rgba(248, 246, 240, 0.62);
+}
+
+.main-header-empresa-menu-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+  max-height: min(16rem, 50vh);
+  overflow: auto;
+}
+
+.main-header-empresa-option {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.55rem 0.55rem;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background 0.12s ease,
+    border-color 0.12s ease;
+}
+
+.main-header-empresa-option:hover:not(:disabled) {
+  background: rgba(124, 179, 66, 0.14);
+  border-color: rgba(124, 179, 66, 0.28);
+}
+
+.main-header-empresa-option.is-active {
+  background: rgba(240, 185, 11, 0.14);
+  border-color: rgba(240, 185, 11, 0.35);
+}
+
+.main-header-empresa-option:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+.main-header-empresa-option-dot {
+  width: 0.65rem;
+  height: 0.65rem;
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.12);
+}
+
+.main-header-empresa-option-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.05rem;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.main-header-empresa-option-text strong {
+  font-size: 0.82rem;
+  font-weight: 650;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.main-header-empresa-option-text span {
+  font-size: 0.68rem;
+  color: rgba(248, 246, 240, 0.55);
+}
+
+.main-header-empresa-option-busy {
+  font-size: 0.85rem;
+  color: rgba(248, 246, 240, 0.7);
+}
+
+.main-header-empresa-option svg {
+  flex-shrink: 0;
+  color: #f0b90b;
 }
 
 .main-header-user-trigger {
@@ -37706,6 +37944,14 @@ button.sg-kpi-card:disabled {
 @media (max-width: 700px) {
   .main-header-user-identity {
     display: none;
+  }
+
+  .main-header-empresa-kicker {
+    display: none;
+  }
+
+  .main-header-empresa-name {
+    max-width: 7rem;
   }
 
   .usuarios-form-grid {
@@ -43083,6 +43329,371 @@ button.sg-kpi-card:disabled {
   letter-spacing: 0.07em;
   text-transform: uppercase;
   color: color-mix(in srgb, var(--primary) 50%, var(--muted));
+}
+
+.mi-cuenta-empresa-section-label:has(svg) {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.mi-cuenta-empresa-usuarios-hint {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.35;
+}
+
+.mi-cuenta-empresa-usuarios-list {
+  list-style: none;
+  margin: 0;
+  padding: 0.55rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  max-height: 14rem;
+  overflow: auto;
+  border: 1px solid color-mix(in srgb, var(--border) 85%, transparent);
+  border-radius: 10px;
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--primary) 4%, var(--surface)) 0%,
+      color-mix(in srgb, var(--bg) 35%, var(--surface)) 100%
+    );
+}
+
+.mi-cuenta-empresa-usuarios-list--modulos {
+  max-height: min(32rem, 58vh);
+  gap: 0.5rem;
+}
+
+.mi-cuenta-acceso-row {
+  margin: 0;
+  padding: 0;
+}
+
+.mi-cuenta-acceso-panel {
+  display: grid;
+  grid-template-columns: auto auto minmax(17rem, 19.5rem) minmax(0, 1fr);
+  align-items: start;
+  column-gap: 0.75rem;
+  row-gap: 0.35rem;
+  width: 100%;
+  min-height: 2.55rem;
+  padding: 0.45rem 0.55rem;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface) 92%, #fff);
+  border: 1px solid color-mix(in srgb, var(--border) 88%, var(--primary));
+  box-shadow: 0 1px 2px rgba(30, 41, 30, 0.05);
+}
+
+.mi-cuenta-acceso-row.is-bypass .mi-cuenta-acceso-panel {
+  opacity: 0.78;
+  background: color-mix(in srgb, var(--bg) 45%, var(--surface));
+}
+
+.mi-cuenta-acceso-row.is-disabled .mi-cuenta-acceso-panel {
+  border-style: dashed;
+  opacity: 0.88;
+}
+
+.mi-cuenta-acceso-row.is-inactive .mi-cuenta-acceso-name {
+  opacity: 0.72;
+}
+
+.mi-cuenta-acceso-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 0.2rem;
+  flex: 0 0 auto;
+}
+
+.mi-cuenta-acceso-check input {
+  margin: 0;
+  width: 1rem;
+  height: 1rem;
+  accent-color: var(--primary);
+}
+
+.mi-cuenta-acceso-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 0.05rem;
+  flex: 0 0 auto;
+}
+
+.mi-cuenta-acceso-avatar .mi-cuenta-acceso-avatar-inner,
+.mi-cuenta-acceso-avatar .main-header-user-avatar-btn {
+  pointer-events: none;
+}
+
+.mi-cuenta-acceso-avatar .main-header-user-avatar {
+  width: 2rem;
+  height: 2rem;
+  font-size: 0.7rem;
+  border: 1.5px solid color-mix(in srgb, var(--primary) 22%, var(--border));
+  box-shadow: 0 1px 3px rgba(30, 41, 30, 0.1);
+  color: color-mix(in srgb, var(--primary) 70%, #1e3d2a);
+  background: linear-gradient(
+    145deg,
+    #fff 0%,
+    color-mix(in srgb, var(--primary) 10%, #e8efe9) 100%
+  );
+}
+
+.mi-cuenta-acceso-identity {
+  display: flex;
+  flex-direction: column;
+  gap: 0.22rem;
+  min-width: 0;
+}
+
+.mi-cuenta-acceso-name-row {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.35rem 0.45rem;
+  min-width: 0;
+}
+
+.mi-cuenta-acceso-name {
+  font-size: 0.86rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: var(--text);
+  line-height: 1.2;
+  min-width: 0;
+  flex: 0 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mi-cuenta-acceso-role,
+.mi-cuenta-acceso-badge {
+  flex: 0 0 auto;
+}
+
+.mi-cuenta-acceso-role {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-height: 1.15rem;
+  padding: 0.08rem 0.38rem;
+  border-radius: 4px;
+  font-size: 0.58rem;
+  font-weight: 750;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  line-height: 1.2;
+  background: color-mix(in srgb, var(--primary) 10%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--primary) 22%, var(--border));
+  color: color-mix(in srgb, var(--primary) 72%, var(--text));
+}
+
+.mi-cuenta-acceso-role[data-rol="admin"] {
+  background: color-mix(in srgb, #c9a227 18%, var(--surface));
+  border-color: color-mix(in srgb, #c9a227 40%, var(--border));
+  color: #8a6a10;
+}
+
+.mi-cuenta-acceso-role[data-rol="editor"] {
+  background: color-mix(in srgb, #2f6fed 12%, var(--surface));
+  border-color: color-mix(in srgb, #2f6fed 30%, var(--border));
+  color: #1d4ed8;
+}
+
+.mi-cuenta-acceso-role[data-rol="gestor_n2"] {
+  background: color-mix(in srgb, #0f9d8a 12%, var(--surface));
+  border-color: color-mix(in srgb, #0f9d8a 30%, var(--border));
+  color: #0f766e;
+}
+
+.mi-cuenta-acceso-role[data-rol="consulta"] {
+  background: color-mix(in srgb, var(--muted) 14%, var(--surface));
+  border-color: color-mix(in srgb, var(--muted) 28%, var(--border));
+  color: color-mix(in srgb, var(--muted) 80%, var(--text));
+}
+
+.mi-cuenta-acceso-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.08rem 0.35rem;
+  border-radius: 999px;
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: color-mix(in srgb, var(--primary) 8%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--primary) 18%, var(--border));
+  color: color-mix(in srgb, var(--primary) 65%, var(--muted));
+}
+
+.mi-cuenta-acceso-badge.is-warn {
+  background: color-mix(in srgb, #d97706 12%, var(--surface));
+  border-color: color-mix(in srgb, #d97706 28%, var(--border));
+  color: #b45309;
+}
+
+.mi-cuenta-acceso-email {
+  display: block;
+  max-width: 100%;
+  font-size: 0.72rem;
+  color: var(--muted);
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mi-cuenta-acceso-modulos,
+.mi-cuenta-acceso-off,
+.mi-cuenta-acceso-modulos-spacer {
+  min-width: 0;
+}
+
+.mi-cuenta-acceso-modulos {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  align-content: flex-start;
+  gap: 0.3rem;
+  margin: 0;
+  padding-top: 0.05rem;
+}
+
+.mi-cuenta-acceso-modulos-spacer {
+  display: block;
+}
+
+.mi-cuenta-acceso-mod {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  max-width: 100%;
+  margin: 0;
+  padding: 0.22rem 0.48rem 0.22rem 0.32rem;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, var(--border) 90%, var(--primary));
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--primary) 7%, var(--surface)) 0%,
+    color-mix(in srgb, #c9a227 5%, var(--surface)) 100%
+  );
+  color: var(--text);
+  cursor: pointer;
+  user-select: none;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    opacity 0.15s ease;
+}
+
+.mi-cuenta-acceso-mod:hover {
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--primary) 12%, var(--surface)) 0%,
+    color-mix(in srgb, #c9a227 9%, var(--surface)) 100%
+  );
+}
+
+.mi-cuenta-acceso-mod.is-on {
+  border-color: color-mix(in srgb, var(--primary) 42%, var(--border));
+  box-shadow: inset 0 -2px 0 color-mix(in srgb, #c9a227 70%, transparent);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--primary) 14%, var(--surface)) 0%,
+    color-mix(in srgb, #c9a227 10%, var(--surface)) 100%
+  );
+}
+
+.mi-cuenta-acceso-mod:not(.is-on) {
+  opacity: 0.72;
+  filter: grayscale(0.15);
+  box-shadow: none;
+}
+
+.mi-cuenta-acceso-mod input {
+  position: static;
+  opacity: 1;
+  pointer-events: auto;
+  width: 0.95rem;
+  height: 0.95rem;
+  margin: 0;
+  flex: 0 0 auto;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+
+.mi-cuenta-acceso-mod-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.05rem;
+  height: 1.05rem;
+  flex: 0 0 auto;
+  color: color-mix(in srgb, var(--primary) 55%, var(--text));
+}
+
+.mi-cuenta-acceso-mod.is-on .mi-cuenta-acceso-mod-icon {
+  color: color-mix(in srgb, var(--primary) 75%, #1a211a);
+}
+
+.mi-cuenta-acceso-mod-icon .menu-app-icon-svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.mi-cuenta-acceso-mod-copy {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.01rem;
+  min-width: 0;
+  line-height: 1.05;
+}
+
+.mi-cuenta-acceso-mod-kicker {
+  font-size: 0.48rem;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, #8a6a10 70%, var(--muted));
+}
+
+.mi-cuenta-acceso-mod-name {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  color: color-mix(in srgb, var(--text) 92%, var(--primary));
+}
+
+.mi-cuenta-acceso-off {
+  font-size: 0.72rem;
+  color: var(--muted);
+  font-style: italic;
+}
+
+/* legacy selectors kept harmless if referenced elsewhere */
+.mi-cuenta-empresa-usuario-item > .mi-cuenta-empresa-usuario-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  width: 100%;
+}
+
+.mi-cuenta-empresa-usuarios-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 0.25rem;
 }
 
 .mi-cuenta-empresa-grid {

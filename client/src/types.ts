@@ -260,6 +260,7 @@ export interface DetectarCamposDocumentoResult {
 
 export interface IngresoVenta {
   id: number;
+  empresa: string;
   nro_registro: number;
   fecha: string;
   codigo_proveedor: string;
@@ -1676,6 +1677,8 @@ export interface AuthUser {
   /** Empresa operativa activa (modo individual). null = consolidado / sin elegir. */
   empresa_operativa_activa_id?: number | null;
   empresa_activa_nombre?: string | null;
+  /** Módulos denegados por empresa (opt-out). Vacío = sin restricciones. */
+  empresa_modulos_denegados?: Array<{ empresa_id: number; modulo: string }>;
   creado_en: string;
   ultimo_acceso: string | null;
   avatar: UserAvatar;

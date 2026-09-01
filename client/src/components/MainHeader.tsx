@@ -1,6 +1,7 @@
 import { useRef } from "react";
 import LogoSgg from "./LogoSgg";
 import UserAvatar from "./UserAvatar";
+import HeaderEmpresaSwitcher from "./HeaderEmpresaSwitcher";
 import { APP_FULL_NAME, APP_NAME } from "../brand";
 import type { AuthUser } from "../types";
 import { useChatExternalRequestsOptional } from "../context/ChatExternalRequestsContext";
@@ -14,6 +15,7 @@ interface Props {
   onLogout: () => void;
   onOpenCuenta: () => void;
   onUserUpdated?: (user: AuthUser) => void;
+  onEmpresaSessionChanged?: (user: AuthUser) => void;
   onPasswordChanged?: (message: string) => void;
   onError?: (message: string) => void;
 }
@@ -26,6 +28,8 @@ export default function MainHeader({
   backTitle,
   onLogout,
   onOpenCuenta,
+  onEmpresaSessionChanged,
+  onError,
 }: Props) {
   const headerRef = useRef<HTMLElement>(null);
   const chatReq = useChatExternalRequestsOptional();
@@ -77,6 +81,14 @@ export default function MainHeader({
             </div>
 
             <div className="main-header-user-panel">
+              {onEmpresaSessionChanged ? (
+                <HeaderEmpresaSwitcher
+                  user={user}
+                  onEmpresaSessionChanged={onEmpresaSessionChanged}
+                  onError={onError}
+                />
+              ) : null}
+
               <button
                 type="button"
                 className={`main-header-user-trigger${pendingCuenta > 0 ? " main-header-user-trigger--pending" : ""}`}

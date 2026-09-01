@@ -177,6 +177,20 @@ textarea {
     min-width: 0;
   }
 
+  .main-header-empresa-kicker {
+    display: none;
+  }
+
+  .main-header-empresa-name {
+    max-width: 7.5rem;
+    font-size: 0.7rem;
+  }
+
+  .main-header-empresa-btn {
+    max-width: 10rem;
+    padding-inline: 0.4rem;
+  }
+
   .main-header-user-trigger {
     padding: 0.3rem 0.45rem;
   }

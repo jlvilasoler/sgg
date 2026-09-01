@@ -368,6 +368,31 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
     return;
   }
 
+  // En modo individual: denegación por módulo en la empresa activa.
+  if (
+    user.login_mode === "individual" &&
+    user.empresa_operativa_activa_id != null &&
+    !stockDispositivosLectura
+  ) {
+    const empMod = await import("./user-empresa-modulo-visibilidad-db.js");
+    const key = empMod.empresaModuloFromApiPath(path);
+    if (key) {
+      const okMod = await empMod.userPuedeModuloEnEmpresa(
+        getDb(),
+        user,
+        user.empresa_operativa_activa_id,
+        key
+      );
+      if (!okMod) {
+        res.status(403).json({
+          ok: false,
+          error: "Sin permiso para este módulo en la empresa activa",
+        });
+        return;
+      }
+    }
+  }
+
   if (
     modulo &&
     WRITE_METHODS.has(req.method.toUpperCase()) &&
@@ -569,14 +594,20 @@ export function registerAuthRoutes(app: Express): void {
       });
 
       // En modo "individual" se pregunta la empresa en cada inicio de sesión.
-      // Excepción: si la cuenta tiene una sola empresa, se entra directo a ella
-      // (no tiene sentido preguntar cuando no hay alternativas).
+      // Excepción: si la cuenta tiene una sola empresa visible para el usuario,
+      // se entra directo a ella (no tiene sentido preguntar cuando no hay alternativas).
       let sessionUser = result.user;
       if (sessionUser.login_mode === "individual") {
         const cuentaId = await empresasCuenta.resolveCuentaMadreIdForUser(db, sessionUser);
-        const empresas = cuentaId
+        const empresasRaw = cuentaId
           ? (await empresasCuenta.listEmpresasOperativas(db, cuentaId)).filter((e) => e.activo)
           : [];
+        const userStockVisib = await import("./user-stock-visibilidad-db.js");
+        const empresas = await userStockVisib.filterEmpresasOperativasByVisibilidad(
+          db,
+          sessionUser,
+          empresasRaw
+        );
         const empresaActivaId = empresas.length === 1 ? empresas[0].id : null;
         await authDb.setEmpresaActiva(db, sessionUser.id, empresaActivaId);
         const refreshed = await authDb.getUserById(db, sessionUser.id);
@@ -1931,8 +1962,14 @@ export function registerAuthRoutes(app: Express): void {
         res.json({ ok: true, data: [] });
         return;
       }
-      const empresas = (await empresasCuenta.listEmpresasOperativas(getDb(), cuentaId)).filter(
+      const empresasRaw = (await empresasCuenta.listEmpresasOperativas(getDb(), cuentaId)).filter(
         (e) => e.activo,
+      );
+      const userStockVisib = await import("./user-stock-visibilidad-db.js");
+      const empresas = await userStockVisib.filterEmpresasOperativasByVisibilidad(
+        getDb(),
+        req.user,
+        empresasRaw
       );
       res.json({ ok: true, data: empresas });
     } catch (e) {
@@ -1964,6 +2001,19 @@ export function registerAuthRoutes(app: Express): void {
           res.status(400).json({
             ok: false,
             error: "La empresa seleccionada no pertenece a tu cuenta o no está activa",
+          });
+          return;
+        }
+        const userStockVisib = await import("./user-stock-visibilidad-db.js");
+        const puedeVer = await userStockVisib.userPuedeVerEmpresaOperativa(
+          getDb(),
+          actor,
+          empresaId
+        );
+        if (!puedeVer) {
+          res.status(403).json({
+            ok: false,
+            error: "No tenés permiso para operar con esta empresa",
           });
           return;
         }
@@ -2280,6 +2330,146 @@ export function registerAuthRoutes(app: Express): void {
       });
     }
   });
+
+  /**
+   * Usuarios de ESTA cuenta que pueden ver datos de la empresa operativa.
+   * Solo admin de la cuenta / plataforma / superadmin.
+   * Nunca lista usuarios de otras cuentas.
+   */
+  app.get(
+    "/api/empresas-cuenta/:cuentaId/empresas/:empresaId/usuarios-visibilidad",
+    async (req, res) => {
+      if (!(await requireCuentaAdmin(req, res))) return;
+      try {
+        const cuentaId = Number(req.params.cuentaId);
+        const empresaId = Number(req.params.empresaId);
+        if (!Number.isFinite(cuentaId) || !Number.isFinite(empresaId) || cuentaId <= 0 || empresaId <= 0) {
+          res.status(400).json({ ok: false, error: "ID inválido" });
+          return;
+        }
+        if (!(await assertAccesoCuentaPropia(req, res, cuentaId))) return;
+
+        const cuenta = await empresasCuenta.getEmpresaCuentaById(getDb(), cuentaId);
+        if (!cuenta) {
+          res.status(404).json({ ok: false, error: "Cuenta no encontrada" });
+          return;
+        }
+        const empresa = await empresasCuenta.getEmpresaOperativaById(
+          getDb(),
+          cuentaId,
+          empresaId
+        );
+        if (!empresa) {
+          res.status(404).json({ ok: false, error: "Empresa no encontrada en esta cuenta" });
+          return;
+        }
+
+        const users = await authDb.listUsers(getDb(), {
+          empresa_id: cuentaId,
+          incluir_admin_id: cuenta.admin_user_id,
+        });
+        const userStockVisib = await import("./user-stock-visibilidad-db.js");
+        const data = await userStockVisib.listUsuariosVisibilidadForEmpresa(
+          getDb(),
+          empresaId,
+          users
+        );
+        res.json({ ok: true, data });
+      } catch (e) {
+        res.status(400).json({
+          ok: false,
+          error:
+            e instanceof Error
+              ? e.message
+              : "Error al cargar usuarios con acceso a la empresa",
+        });
+      }
+    }
+  );
+
+  app.put(
+    "/api/empresas-cuenta/:cuentaId/empresas/:empresaId/usuarios-visibilidad",
+    async (req, res) => {
+      if (!(await requireCuentaAdmin(req, res))) return;
+      try {
+        const cuentaId = Number(req.params.cuentaId);
+        const empresaId = Number(req.params.empresaId);
+        if (!Number.isFinite(cuentaId) || !Number.isFinite(empresaId) || cuentaId <= 0 || empresaId <= 0) {
+          res.status(400).json({ ok: false, error: "ID inválido" });
+          return;
+        }
+        if (!(await assertAccesoCuentaPropia(req, res, cuentaId))) return;
+
+        const cuenta = await empresasCuenta.getEmpresaCuentaById(getDb(), cuentaId);
+        if (!cuenta) {
+          res.status(404).json({ ok: false, error: "Cuenta no encontrada" });
+          return;
+        }
+        const empresa = await empresasCuenta.getEmpresaOperativaById(
+          getDb(),
+          cuentaId,
+          empresaId
+        );
+        if (!empresa) {
+          res.status(404).json({ ok: false, error: "Empresa no encontrada en esta cuenta" });
+          return;
+        }
+
+        const raw = req.body?.visibles;
+        if (!Array.isArray(raw)) {
+          res.status(400).json({
+            ok: false,
+            error: "Body inválido: se espera { visibles: number[] }",
+          });
+          return;
+        }
+        const visibles = raw.map((n: unknown) => Number(n));
+        const modulosPorUsuario =
+          req.body?.modulos_denegados &&
+          typeof req.body.modulos_denegados === "object" &&
+          !Array.isArray(req.body.modulos_denegados)
+            ? (req.body.modulos_denegados as Record<string, string[]>)
+            : undefined;
+
+        const users = await authDb.listUsers(getDb(), {
+          empresa_id: cuentaId,
+          incluir_admin_id: cuenta.admin_user_id,
+        });
+        const userStockVisib = await import("./user-stock-visibilidad-db.js");
+        await userStockVisib.setUsuariosVisiblesForEmpresa(
+          getDb(),
+          cuentaId,
+          empresaId,
+          visibles,
+          users,
+          modulosPorUsuario
+        );
+        const data = await userStockVisib.listUsuariosVisibilidadForEmpresa(
+          getDb(),
+          empresaId,
+          users
+        );
+        await recordUserActivity(
+          req.user!,
+          "user_updated",
+          `Actualizó usuarios con acceso a ${empresa.nombre}`,
+          {
+            ip: clientIp(req),
+            userAgent: req.headers["user-agent"],
+          }
+        );
+        res.json({ ok: true, data });
+      } catch (e) {
+        res.status(400).json({
+          ok: false,
+          error:
+            e instanceof Error
+              ? e.message
+              : "Error al guardar usuarios con acceso a la empresa",
+        });
+      }
+    }
+  );
 
   app.post("/api/empresas-cuenta/:id/usuarios", async (req, res) => {
     if (!requireAdmin(req, res)) return;

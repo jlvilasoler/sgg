@@ -17,6 +17,7 @@ import {
   fetchMiCuentaEmpresa,
 } from "../../api";
 import type { AuthUser, EmpresaCuenta, EmpresaOperativa, LoginMode } from "../../types";
+import MiCuentaEmpresaUsuariosVisibilidad from "./MiCuentaEmpresaUsuariosVisibilidad";
 
 interface Props {
   user: AuthUser;
@@ -326,8 +327,10 @@ export default function MiCuentaEmpresas({
         <div className="mi-cuenta-ejercicio-head-text">
           <strong>Empresas de la cuenta</strong>
           <span className="muted">
-            Editá el nombre, el RUT, el DICOSE y el ejercicio fiscal de cada empresa. El DICOSE
-            identifica el establecimiento (MGAP) y se usa al asignar ganado a esa empresa.
+            Editá el nombre, el RUT, el DICOSE y el ejercicio fiscal de cada empresa.
+            También podés indicar qué usuarios de la cuenta ven los datos de cada
+            empresa. El DICOSE identifica el establecimiento (MGAP) y se usa al
+            asignar ganado a esa empresa.
           </span>
         </div>
       </header>
@@ -705,6 +708,16 @@ export default function MiCuentaEmpresas({
                       </div>
                     </div>
                   </div>
+
+                  {cuenta ? (
+                    <MiCuentaEmpresaUsuariosVisibilidad
+                      cuentaId={cuenta.id}
+                      empresaId={e.id}
+                      empresaNombre={d.nombre.trim() || e.nombre}
+                      apiOnline={apiOnline}
+                      onError={onError}
+                    />
+                  ) : null}
 
                   <div className="mi-cuenta-empresa-actions">
                     {okId === e.id && !dirty ? (

@@ -191,3 +191,230 @@ export async function setDeniedEmpresaOperativaIds(
       .run(userId, empresaId);
   }
 }
+
+type VisibilidadUser = {
+  id: number;
+  rol?: string;
+  es_super_admin?: boolean;
+  es_admin_plataforma?: boolean;
+  es_admin_cuenta?: boolean;
+};
+
+async function deniedEmpresaIdsOfCuenta(
+  db: Db,
+  userId: number,
+  cuentaId: number
+): Promise<Set<number>> {
+  const denied = await listDeniedEmpresaOperativaIds(db, userId);
+  if (denied.length === 0) return new Set();
+  const placeholders = denied.map(() => "?").join(",");
+  const rows = (await db
+    .prepare(
+      `SELECT id FROM EMPRESAS_OPERATIVAS
+       WHERE cuenta_id = ? AND id IN (${placeholders})`
+    )
+    .all(cuentaId, ...denied)) as { id: number }[];
+  return new Set(rows.map((r) => Number(r.id)));
+}
+
+/** Filtra nombres de empresas denegadas al usuario (misma cuenta). */
+export async function applyEmpresaVisibilidadToNombres(
+  db: Db,
+  user: VisibilidadUser,
+  cuentaId: number,
+  nombres: string[]
+): Promise<string[]> {
+  if (shouldBypassStockEmpresaVisibilidad(user)) return nombres;
+  const deniedIds = await deniedEmpresaIdsOfCuenta(db, user.id, cuentaId);
+  if (deniedIds.size === 0) return nombres;
+  const placeholders = [...deniedIds].map(() => "?").join(",");
+  const rows = (await db
+    .prepare(
+      `SELECT nombre FROM EMPRESAS_OPERATIVAS
+       WHERE cuenta_id = ? AND id IN (${placeholders})`
+    )
+    .all(cuentaId, ...deniedIds)) as { nombre: string }[];
+  const deniedNames = new Set(
+    rows.map((r) => String(r.nombre ?? "").trim().toUpperCase()).filter(Boolean)
+  );
+  if (deniedNames.size === 0) return nombres;
+  return nombres.filter(
+    (n) => !deniedNames.has(String(n ?? "").trim().toUpperCase())
+  );
+}
+
+/** Filtra códigos de empresas denegadas al usuario (misma cuenta). */
+export async function applyEmpresaVisibilidadToCodigosCuenta(
+  db: Db,
+  user: VisibilidadUser,
+  cuentaId: number,
+  codigos: string[]
+): Promise<string[]> {
+  if (shouldBypassStockEmpresaVisibilidad(user)) return codigos;
+  const deniedIds = await deniedEmpresaIdsOfCuenta(db, user.id, cuentaId);
+  if (deniedIds.size === 0) return codigos;
+  const deniedSet = new Set(await codigosDeEmpresas(db, [...deniedIds]));
+  if (deniedSet.size === 0) return codigos;
+  return codigos.filter(
+    (c) => !deniedSet.has(String(c ?? "").trim().toUpperCase())
+  );
+}
+
+export async function filterEmpresasOperativasByVisibilidad<
+  T extends { id: number },
+>(db: Db, user: VisibilidadUser, empresas: T[]): Promise<T[]> {
+  if (shouldBypassStockEmpresaVisibilidad(user)) return empresas;
+  const denied = new Set(await listDeniedEmpresaOperativaIds(db, user.id));
+  if (denied.size === 0) return empresas;
+  return empresas.filter((e) => !denied.has(Number(e.id)));
+}
+
+export async function userPuedeVerEmpresaOperativa(
+  db: Db,
+  user: VisibilidadUser,
+  empresaOperativaId: number
+): Promise<boolean> {
+  if (shouldBypassStockEmpresaVisibilidad(user)) return true;
+  const denied = await listDeniedEmpresaOperativaIds(db, user.id);
+  return !denied.includes(empresaOperativaId);
+}
+
+export type EmpresaUsuarioVisibilidadItem = {
+  id: number;
+  nombre: string;
+  email: string;
+  rol: string;
+  activo: boolean;
+  bypass: boolean;
+  visible: boolean;
+  /** true = acceso al módulo en esta empresa (default todo true). */
+  modulos: Record<string, boolean>;
+  avatar?: { tipo: "iniciales" | "foto"; url: string | null } | null;
+};
+
+/** Usuarios de la cuenta y si ven esta empresa operativa (opt-out). */
+export async function listUsuariosVisibilidadForEmpresa(
+  db: Db,
+  empresaOperativaId: number,
+  cuentaUsers: Array<{
+    id: number;
+    nombre: string;
+    email: string;
+    rol: string;
+    activo?: boolean;
+    es_super_admin?: boolean;
+    es_admin_plataforma?: boolean;
+    es_admin_cuenta?: boolean;
+    avatar?: { tipo: "iniciales" | "foto"; url: string | null } | null;
+  }>
+): Promise<EmpresaUsuarioVisibilidadItem[]> {
+  const deniedRows = (await db
+    .prepare(
+      `SELECT user_id AS id
+       FROM USER_STOCK_EMPRESA_VISIBILIDAD
+       WHERE empresa_operativa_id = ? AND visible = 0`
+    )
+    .all(empresaOperativaId)) as { id: number }[];
+  const deniedUsers = new Set(
+    deniedRows.map((r) => Number(r.id)).filter((id) => Number.isFinite(id))
+  );
+
+  const modDb = await import("./user-empresa-modulo-visibilidad-db.js");
+  const deniedMods = await modDb.loadDeniedModulosByUsers(
+    db,
+    empresaOperativaId,
+    cuentaUsers.map((u) => u.id)
+  );
+
+  return cuentaUsers.map((u) => {
+    const bypass = shouldBypassStockEmpresaVisibilidad(u);
+    const visible = bypass || !deniedUsers.has(u.id);
+    const modulos = bypass
+      ? modDb.emptyModulosMap(true)
+      : modDb.modulosMapFromDenied(deniedMods.get(u.id) ?? []);
+    return {
+      id: u.id,
+      nombre: u.nombre,
+      email: u.email,
+      rol: u.rol,
+      activo: u.activo !== false,
+      bypass,
+      visible,
+      modulos,
+      avatar: u.avatar ?? { tipo: "iniciales", url: null },
+    };
+  });
+}
+
+/**
+ * Define qué usuarios de la cuenta ven esta empresa.
+ * Solo acepta user_ids de `cuentaUsers`; admins (bypass) siempre ven todo.
+ * Valida que la empresa pertenezca a `cuentaId`.
+ * `modulosPorUsuario`: userId → módulos DENEGADOS (opt-out). Solo aplica si el usuario queda visible.
+ */
+export async function setUsuariosVisiblesForEmpresa(
+  db: Db,
+  cuentaId: number,
+  empresaOperativaId: number,
+  visiblesUserIds: number[],
+  cuentaUsers: VisibilidadUser[],
+  modulosPorUsuario?: Record<string, string[]>
+): Promise<void> {
+  const emp = (await db
+    .prepare(
+      `SELECT id FROM EMPRESAS_OPERATIVAS
+       WHERE id = ? AND cuenta_id = ?`
+    )
+    .get(empresaOperativaId, cuentaId)) as { id: number } | undefined;
+  if (!emp) {
+    throw new Error("La empresa no pertenece a esta cuenta");
+  }
+
+  const cuentaIds = new Set(cuentaUsers.map((u) => u.id));
+  const visibles = new Set(
+    visiblesUserIds
+      .map((n) => Number(n))
+      .filter((id) => Number.isFinite(id) && id > 0 && cuentaIds.has(id))
+  );
+
+  const modDb = await import("./user-empresa-modulo-visibilidad-db.js");
+
+  for (const user of cuentaUsers) {
+    if (shouldBypassStockEmpresaVisibilidad(user)) continue;
+    const denied = await listDeniedEmpresaOperativaIds(db, user.id);
+    const shouldSee = visibles.has(user.id);
+    const isDenied = denied.includes(empresaOperativaId);
+    if (shouldSee && isDenied) {
+      await setDeniedEmpresaOperativaIds(
+        db,
+        user.id,
+        cuentaId,
+        denied.filter((id) => id !== empresaOperativaId)
+      );
+    } else if (!shouldSee && !isDenied) {
+      await setDeniedEmpresaOperativaIds(db, user.id, cuentaId, [
+        ...denied,
+        empresaOperativaId,
+      ]);
+    }
+
+    if (shouldSee) {
+      const rawDenied = modulosPorUsuario?.[String(user.id)] ?? [];
+      const denegados = modDb.normalizeEmpresaModuloKeys(rawDenied);
+      await modDb.setDeniedModulosForUserEmpresa(
+        db,
+        user.id,
+        empresaOperativaId,
+        denegados
+      );
+    } else {
+      // Sin acceso a la empresa: limpia denegaciones de módulo (empresa completa gana).
+      await modDb.setDeniedModulosForUserEmpresa(
+        db,
+        user.id,
+        empresaOperativaId,
+        []
+      );
+    }
+  }
+}

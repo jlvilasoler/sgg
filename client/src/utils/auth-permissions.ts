@@ -394,6 +394,63 @@ export function moduloForScreen(screen: TabId): Modulo {
   return SCREEN_MODULO[screen];
 }
 
+/** Clave de acceso por empresa (más granular que el módulo de rol). */
+export type EmpresaModuloAccesoScreen =
+  | "presupuesto"
+  | "stock_ganadero"
+  | "stock_equino"
+  | "stock_ovino"
+  | "campo_mapa"
+  | "tareas_operativas"
+  | "ventas"
+  | "rrhh"
+  | "divisas"
+  | "precios_ganado"
+  | "simulador_venta_ganado";
+
+const SCREEN_EMPRESA_MODULO: Partial<Record<TabId, EmpresaModuloAccesoScreen>> = {
+  registro: "presupuesto",
+  listado: "presupuesto",
+  vencimientos_impuestos: "presupuesto",
+  resumen: "presupuesto",
+  divisas: "divisas",
+  precios_ganado: "precios_ganado",
+  simulador_venta_ganado: "simulador_venta_ganado",
+  recursos_humanos: "rrhh",
+  ingresos_ventas: "ventas",
+  stock_ganadero: "stock_ganadero",
+  stock_equino: "stock_equino",
+  stock_ovino: "stock_ovino",
+  campo_mapa: "campo_mapa",
+  tareas_operativas: "tareas_operativas",
+};
+
+function bypassEmpresaModulos(user: AuthUser): boolean {
+  return Boolean(
+    user.es_super_admin ||
+      user.es_admin_plataforma ||
+      user.es_admin_cuenta ||
+      user.rol === "admin"
+  );
+}
+
+/** En modo individual: ¿el módulo está permitido en la empresa activa? */
+export function canAccessEmpresaModuloForScreen(
+  user: AuthUser | null,
+  screen: TabId
+): boolean {
+  if (!user) return false;
+  if (bypassEmpresaModulos(user)) return true;
+  const key = SCREEN_EMPRESA_MODULO[screen];
+  if (!key) return true;
+  if (user.login_mode !== "individual" || user.empresa_operativa_activa_id == null) {
+    return true;
+  }
+  const denials = user.empresa_modulos_denegados ?? [];
+  const empresaId = user.empresa_operativa_activa_id;
+  return !denials.some((d) => d.empresa_id === empresaId && d.modulo === key);
+}
+
 export function canAccessScreen(user: AuthUser | null, screen: TabId): boolean {
   if (!user) return false;
   if (screen === "registro_actividad") return true;
@@ -403,15 +460,21 @@ export function canAccessScreen(user: AuthUser | null, screen: TabId): boolean {
   if (screen === "documentos_digitales") return canAccessDocumentosDigitales(user);
   if (screen === "panel_admin_sitio") return canAccessArquitecturaSistema(user);
   if (screen === "ingresos_ventas") {
-    return canAccessIngresosVentasModulo(user) || canAccessSimuladorVentaGanado(user);
+    const roleOk =
+      canAccessIngresosVentasModulo(user) || canAccessSimuladorVentaGanado(user);
+    return roleOk && canAccessEmpresaModuloForScreen(user, screen);
   }
   if (screen === "simulador_venta_ganado") {
-    return canAccessSimuladorVentaGanado(user);
+    return (
+      canAccessSimuladorVentaGanado(user) &&
+      canAccessEmpresaModuloForScreen(user, screen)
+    );
   }
   const mod = moduloForScreen(screen);
   if (MODULOS_SOLO_ADMIN.includes(mod)) return user.rol === "admin";
   if (MODULOS_ACCESO_TODOS.includes(mod)) return true;
-  return user.permisos.includes(mod);
+  if (!user.permisos.includes(mod)) return false;
+  return canAccessEmpresaModuloForScreen(user, screen);
 }
 
 /** Configuración de vencimientos impuestos: una vez por cuenta (admin, gestor N1/N2). Lectores solo consultan. */

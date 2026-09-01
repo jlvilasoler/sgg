@@ -1,9 +1,12 @@
 import type { Db } from "./db/pg-client.js";
 import { migrateAddCuentaIdColumn } from "./empresas-cuenta-db.js";
 
+export const SIN_EMPRESAS_INGRESOS = "__sin_empresas__";
+
 export interface IngresoVenta {
   id: number;
   cuenta_id?: number | null;
+  empresa: string;
   nro_registro: number;
   fecha: string;
   codigo_proveedor: string;
@@ -18,6 +21,7 @@ export interface IngresoVenta {
 }
 
 export interface IngresoVentaInput {
+  empresa: string;
   fecha: string;
   codigo_proveedor: string;
   razon_social_proveedor: string;
@@ -33,6 +37,8 @@ export interface IngresoVentaFilters {
   fecha_desde?: string;
   fecha_hasta?: string;
   busqueda?: string;
+  empresa?: string;
+  empresas?: string[];
 }
 
 export function calcularTotalUsdVenta(
@@ -48,6 +54,25 @@ export function calcularTotalUsdVenta(
 
 export async function initVentasTable(db: Db): Promise<void> {
   await migrateAddCuentaIdColumn(db, "INGRESOS_VENTAS");
+  await migrateAddEmpresaColumn(db);
+}
+
+async function migrateAddEmpresaColumn(db: Db): Promise<void> {
+  const row = (await db
+    .prepare(
+      `SELECT 1 AS ok
+       FROM information_schema.columns
+       WHERE table_schema = 'public'
+         AND LOWER(table_name) = 'ingresos_ventas'
+         AND LOWER(column_name) = 'empresa'
+       LIMIT 1`
+    )
+    .get()) as { ok: number } | undefined;
+  if (row) return;
+  await db
+    .prepare(`ALTER TABLE INGRESOS_VENTAS ADD COLUMN empresa TEXT NOT NULL DEFAULT ''`)
+    .run();
+  console.info("[SGG Ventas] Migración: columna ingresos_ventas.empresa agregada");
 }
 
 function scopeCuenta(
@@ -58,6 +83,33 @@ function scopeCuenta(
   if (cuentaId != null) {
     query += " AND cuenta_id = @cuentaId";
     params.cuentaId = cuentaId;
+  }
+  return query;
+}
+
+function scopeEmpresa(
+  query: string,
+  params: Record<string, string | number>,
+  filters?: IngresoVentaFilters
+): string {
+  if (filters?.empresa?.trim()) {
+    query += " AND UPPER(TRIM(empresa)) = UPPER(TRIM(@empresa))";
+    params.empresa = filters.empresa.trim();
+    return query;
+  }
+  if (filters?.empresas?.length) {
+    if (
+      filters.empresas.length === 1 &&
+      filters.empresas[0] === SIN_EMPRESAS_INGRESOS
+    ) {
+      query += " AND 1=0";
+      return query;
+    }
+    const names = filters.empresas.map((_, i) => `@empresa_${i}`);
+    query += ` AND empresa IN (${names.join(", ")})`;
+    filters.empresas.forEach((empresa, i) => {
+      params[`empresa_${i}`] = empresa;
+    });
   }
   return query;
 }
@@ -90,6 +142,7 @@ function normalizeInput(data: IngresoVentaInput): IngresoVentaInput {
   const tc_usd = Number(data.tc_usd) || 0;
   const total_usd = calcularTotalUsdVenta(pesos, dolares_usd, tc_usd);
   return {
+    empresa: String(data.empresa ?? "").trim(),
     fecha: String(data.fecha ?? "").trim(),
     codigo_proveedor: String(data.codigo_proveedor ?? "").trim(),
     razon_social_proveedor: String(data.razon_social_proveedor ?? "").trim(),
@@ -110,6 +163,7 @@ export async function listIngresosVentas(
   let sql = "SELECT * FROM INGRESOS_VENTAS WHERE 1=1";
   const params: Record<string, string | number> = {};
   sql = scopeCuenta(sql, params, cuentaId);
+  sql = scopeEmpresa(sql, params, filters);
 
   if (filters?.fecha_desde) {
     sql += " AND fecha >= @fecha_desde";
@@ -124,7 +178,8 @@ export async function listIngresosVentas(
       concepto LIKE @busqueda OR
       razon_social_proveedor LIKE @busqueda OR
       codigo_proveedor LIKE @busqueda OR
-      nro_factura LIKE @busqueda
+      nro_factura LIKE @busqueda OR
+      empresa LIKE @busqueda
     )`;
     params.busqueda = `%${filters.busqueda.trim()}%`;
   }
@@ -150,6 +205,7 @@ export async function insertIngresoVenta(
   cuentaId?: number | null
 ): Promise<number> {
   const row = normalizeInput(data);
+  if (!row.empresa) throw new Error("La empresa es obligatoria.");
   if (!row.fecha) throw new Error("La fecha es obligatoria.");
   if (!row.concepto) throw new Error("El concepto es obligatorio.");
   if (row.pesos <= 0 && row.dolares_usd <= 0) {
@@ -164,10 +220,10 @@ export async function insertIngresoVenta(
     .prepare(
       `INSERT INTO INGRESOS_VENTAS (
         nro_registro, fecha, codigo_proveedor, razon_social_proveedor,
-        concepto, nro_factura, pesos, dolares_usd, tc_usd, total_usd, cuenta_id
+        concepto, nro_factura, pesos, dolares_usd, tc_usd, total_usd, cuenta_id, empresa
       ) VALUES (
         @nro_registro, @fecha, @codigo_proveedor, @razon_social_proveedor,
-        @concepto, @nro_factura, @pesos, @dolares_usd, @tc_usd, @total_usd, @cuenta_id
+        @concepto, @nro_factura, @pesos, @dolares_usd, @tc_usd, @total_usd, @cuenta_id, @empresa
       )`
     )
     .run({ ...row, nro_registro, cuenta_id: cuentaId ?? null });
@@ -181,6 +237,7 @@ export async function updateIngresoVenta(
   cuentaId?: number | null
 ): Promise<boolean> {
   const row = normalizeInput(data);
+  if (!row.empresa) throw new Error("La empresa es obligatoria.");
   if (!row.fecha) throw new Error("La fecha es obligatoria.");
   if (!row.concepto) throw new Error("El concepto es obligatorio.");
   if (row.pesos <= 0 && row.dolares_usd <= 0) {
@@ -191,6 +248,7 @@ export async function updateIngresoVenta(
   }
 
   let sql = `UPDATE INGRESOS_VENTAS SET
+          empresa = @empresa,
           fecha = @fecha,
           codigo_proveedor = @codigo_proveedor,
           razon_social_proveedor = @razon_social_proveedor,

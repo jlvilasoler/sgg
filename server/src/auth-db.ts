@@ -157,6 +157,11 @@ export interface UserPublic {
   /** Empresa operativa activa validada (modo individual). null = consolidado / sin elegir. */
   empresa_operativa_activa_id: number | null;
   empresa_activa_nombre: string | null;
+  /**
+   * Módulos denegados por empresa (opt-out). Vacío = sin restricciones de módulo.
+   * Admins no reciben filas (bypass).
+   */
+  empresa_modulos_denegados: Array<{ empresa_id: number; modulo: string }>;
   creado_en: string;
   ultimo_acceso: string | null;
   avatar: UserAvatarDto;
@@ -356,6 +361,20 @@ export async function toUserPublic(row: UserRow, db: Db): Promise<UserPublic> {
         }
       : await empresasCuenta.getEjercicioFiscalEfectivoParaCuenta(db, cuentaActividadId);
 
+  const userStockVisib = await import("./user-stock-visibilidad-db.js");
+  let empresa_modulos_denegados: Array<{ empresa_id: number; modulo: string }> = [];
+  if (
+    !userStockVisib.shouldBypassStockEmpresaVisibilidad({
+      rol: row.rol,
+      es_super_admin: esSuperAdmin,
+      es_admin_plataforma: empresasCuenta.isPrimaryPlatformAdmin({ email: row.email }),
+      es_admin_cuenta: cuentaAdmin != null,
+    })
+  ) {
+    const modDb = await import("./user-empresa-modulo-visibilidad-db.js");
+    empresa_modulos_denegados = await modDb.listAllDeniedModulosForUser(db, row.id);
+  }
+
   return {
     id: row.id,
     usuario_numero: formatUsuarioNumero(row.usuario_numero ?? row.id),
@@ -384,6 +403,7 @@ export async function toUserPublic(row: UserRow, db: Db): Promise<UserPublic> {
     debe_elegir_modo_inicio: debeElegirModoInicio,
     empresa_operativa_activa_id: empresaActiva ? empresaActiva.id : null,
     empresa_activa_nombre: empresaActiva ? empresaActiva.nombre : null,
+    empresa_modulos_denegados,
     creado_en: pgTimestampString(row.creado_en) ?? "",
     ultimo_acceso: pgTimestampString(row.ultimo_acceso),
     avatar: avatarDtoFromRow(row.id, row),

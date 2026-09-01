@@ -590,6 +590,15 @@ export default function App() {
             onLogout={() => void onLogout()}
             onOpenCuenta={() => setCuentaOpen(true)}
             onUserUpdated={setUser}
+            onEmpresaSessionChanged={(u) => {
+              clearAllSessionCaches();
+              setUser(u);
+              resetToHomeScreen();
+              void fetchCatalogos()
+                .then((c) => setCatalogos(c))
+                .catch(() => setCatalogos(DEFAULT_CATALOGOS));
+              notify(`Empresa activa: ${u.empresa_activa_nombre ?? "sesión"}`, true);
+            }}
             onPasswordChanged={(msg) => {
               setCuentaOpen(false);
               setUser(null);

@@ -1,20 +1,24 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   createIngresoVenta,
+  fetchEmpresasOperativas,
   fetchSiguienteNumeroOperacionVenta,
   fetchTipoCambioParaFecha,
   updateIngresoVenta,
 } from "../../api";
-import type { IngresoVenta, IngresoVentaForm } from "../../types";
+import type { AuthUser, Catalogos, IngresoVenta, IngresoVentaForm } from "../../types";
 import { formatNumeroOperacion, todayIso, fmtNum } from "../../utils";
 import { aMayusculas } from "../../utils/formText";
 import { calcularTotalUsdVenta } from "../../utils/importeMoneda";
+import { empresasSelectOptions } from "../../utils/empresas-catalogo";
 import SelectorProveedor from "../SelectorProveedor";
 import { PageModuleHeadRow } from "../PageModuleHead";
 
 interface Props {
   editRow: IngresoVenta | null;
   apiOnline: boolean;
+  catalogos?: Catalogos;
+  user?: AuthUser;
   onSaved: () => void;
   onCancelEdit: () => void;
   onError: (msg: string) => void;
@@ -31,7 +35,7 @@ const CAMPOS_TEXTO = [
 
 function rowToForm(row: IngresoVenta): IngresoVentaForm {
   const { id: _id, nro_registro: _n, total_usd: _t, creado_en: _c, ...rest } = row;
-  const base = { ...rest };
+  const base = { ...rest, empresa: row.empresa ?? "" };
   for (const k of CAMPOS_TEXTO) {
     const v = base[k];
     if (typeof v === "string") base[k] = aMayusculas(v);
@@ -39,7 +43,8 @@ function rowToForm(row: IngresoVenta): IngresoVentaForm {
   return base;
 }
 
-const initial = (): IngresoVentaForm => ({
+const initial = (empresa = ""): IngresoVentaForm => ({
+  empresa,
   fecha: todayIso(),
   codigo_proveedor: "",
   razon_social_proveedor: "",
@@ -53,13 +58,28 @@ const initial = (): IngresoVentaForm => ({
 export default function FormVenta({
   editRow,
   apiOnline,
+  catalogos,
+  user,
   onSaved,
   onCancelEdit,
   onError,
   onSuccess,
   onVolver,
 }: Props) {
-  const [form, setForm] = useState<IngresoVentaForm>(initial);
+  const [empresasCuenta, setEmpresasCuenta] = useState<string[]>(
+    catalogos?.empresas ?? []
+  );
+  const empresasOpciones = useMemo(
+    () => empresasSelectOptions(empresasCuenta),
+    [empresasCuenta]
+  );
+  const empresaSesion =
+    user?.login_mode === "individual"
+      ? user.empresa_activa_nombre?.trim() || ""
+      : "";
+  const [form, setForm] = useState<IngresoVentaForm>(() =>
+    initial(empresaSesion)
+  );
   const [numeroOperacion, setNumeroOperacion] = useState("");
   const [tcAuto, setTcAuto] = useState(false);
   const [tcFecha, setTcFecha] = useState("");
@@ -70,12 +90,22 @@ export default function FormVenta({
   );
 
   useEffect(() => {
+    if (!apiOnline) {
+      setEmpresasCuenta(catalogos?.empresas ?? []);
+      return;
+    }
+    fetchEmpresasOperativas()
+      .then(setEmpresasCuenta)
+      .catch(() => setEmpresasCuenta(catalogos?.empresas ?? []));
+  }, [apiOnline, catalogos?.empresas]);
+
+  useEffect(() => {
     if (editRow) {
       setForm(rowToForm(editRow));
       setNumeroOperacion(formatNumeroOperacion(editRow.nro_registro));
       return;
     }
-    setForm(initial());
+    setForm(initial(empresaSesion));
     if (!apiOnline) {
       setNumeroOperacion("");
       return;
@@ -83,7 +113,14 @@ export default function FormVenta({
     fetchSiguienteNumeroOperacionVenta()
       .then((d) => setNumeroOperacion(d.numero_operacion))
       .catch(() => setNumeroOperacion(""));
-  }, [editRow, apiOnline]);
+  }, [editRow, apiOnline, empresaSesion]);
+
+  useEffect(() => {
+    if (!form.empresa || empresasCuenta.length === 0) return;
+    if (!empresasCuenta.includes(form.empresa)) {
+      setForm((f) => ({ ...f, empresa: empresaSesion || "" }));
+    }
+  }, [empresasCuenta, form.empresa, empresaSesion]);
 
   useEffect(() => {
     if (!form.fecha || !apiOnline || editRow) return;
@@ -104,7 +141,7 @@ export default function FormVenta({
   }, [form.fecha, apiOnline, editRow]);
 
   const set = <K extends keyof IngresoVentaForm>(key: K, value: IngresoVentaForm[K]) => {
-    const sinMayus = key === "fecha";
+    const sinMayus = key === "fecha" || key === "empresa";
     const val =
       typeof value === "string" && !sinMayus
         ? (aMayusculas(value) as IngresoVentaForm[K])
@@ -117,6 +154,10 @@ export default function FormVenta({
     e.preventDefault();
     if (!apiOnline) {
       onError("Iniciá la API con npm run dev en la carpeta del proyecto");
+      return;
+    }
+    if (!form.empresa.trim()) {
+      onError("Seleccioná la empresa");
       return;
     }
     if (!form.concepto.trim()) {
@@ -142,7 +183,7 @@ export default function FormVenta({
           "Ingreso por venta registrado"
         );
       }
-      setForm(initial());
+      setForm(initial(empresaSesion));
       if (apiOnline) {
         fetchSiguienteNumeroOperacionVenta()
           .then((d) => setNumeroOperacion(d.numero_operacion))
@@ -155,6 +196,8 @@ export default function FormVenta({
       onError(err instanceof Error ? err.message : "Error al guardar");
     }
   };
+
+  const empresaFija = Boolean(empresaSesion);
 
   return (
     <div className="subseccion-panel">
@@ -176,6 +219,24 @@ export default function FormVenta({
         </div>
 
         <div className="form-grid">
+          <div className="field">
+            <label htmlFor="venta-empresa">Empresa *</label>
+            <select
+              id="venta-empresa"
+              required
+              disabled={empresaFija}
+              value={form.empresa}
+              onChange={(e) => set("empresa", e.target.value)}
+            >
+              <option value="">Seleccionar...</option>
+              {empresasOpciones.map((item) => (
+                <option key={item.value} value={item.value}>
+                  {item.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
           <div className="field">
             <label htmlFor="venta-nro-operacion">Número de operación</label>
             <input
@@ -302,7 +363,7 @@ export default function FormVenta({
             type="button"
             className="btn btn-ghost"
             onClick={() => {
-              setForm(initial());
+              setForm(initial(empresaSesion));
               onCancelEdit();
             }}
           >

@@ -161,6 +161,7 @@ export default function VentaListado({
               <tr>
                 <th>N° oper.</th>
                 <th>Fecha</th>
+                <th>Empresa</th>
                 <th>Cód.</th>
                 <th>Razón social</th>
                 <th>Concepto</th>
@@ -175,19 +176,19 @@ export default function VentaListado({
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={11} className="empty">
+                  <td colSpan={12} className="empty">
                     Cargando...
                   </td>
                 </tr>
               ) : !apiOnline ? (
                 <tr>
-                  <td colSpan={11} className="empty">
+                  <td colSpan={12} className="empty">
                     API no conectada
                   </td>
                 </tr>
               ) : rows.length === 0 ? (
                 <tr>
-                  <td colSpan={11} className="empty">
+                  <td colSpan={12} className="empty">
                     Sin documentos con esos filtros
                   </td>
                 </tr>
@@ -196,6 +197,7 @@ export default function VentaListado({
                   <tr key={r.id}>
                     <td className="num">{formatNumeroOperacion(r.nro_registro)}</td>
                     <td>{fmtDate(r.fecha)}</td>
+                    <td>{r.empresa || "—"}</td>
                     <td className="num">{r.codigo_proveedor || "—"}</td>
                     <td>{r.razon_social_proveedor || "—"}</td>
                     <td>{r.concepto}</td>

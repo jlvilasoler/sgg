@@ -71,6 +71,7 @@ import { auditBajasDispositivos, auditStockMovimiento, historialAutorFromRequest
 import { type Empresa, type Presupuesto, type PresupuestoInput } from "./types.js";
 import { empresasCuenta } from "./database.js";
 import * as userStockVisib from "./user-stock-visibilidad-db.js";
+import * as userEmpModVisib from "./user-empresa-modulo-visibilidad-db.js";
 import {
   assertGastosRubroRowWritable,
   gastosRubrosReadScopeFromRequest,
@@ -744,10 +745,23 @@ function queryFlag(value: unknown): boolean {
   return value === "1" || value === "true" || value === "yes";
 }
 
-async function empresasPermitidas(user: UserPublic): Promise<string[]> {
+async function empresasPermitidas(
+  user: UserPublic,
+  modulo?: userEmpModVisib.EmpresaModuloKey
+): Promise<string[]> {
   const scope = await empresasCuenta.getEmpresasScopeFilter(db.getDb(), user);
   if (scope === undefined) return [];
-  return scope;
+  if (!modulo) return scope;
+  const cuentaId = await cuentaIdForUser(user);
+  if (cuentaId == null) return scope;
+  const filtered = await userEmpModVisib.applyModuloVisibilidadToNombres(
+    db.getDb(),
+    user,
+    cuentaId,
+    scope,
+    modulo
+  );
+  return filtered;
 }
 
 /** cuenta_id para FILTRAR lecturas: número = su cuenta; null = super admin (ve todo). */
@@ -847,6 +861,26 @@ async function autoresLabelsForMarcaScope(user: UserPublic): Promise<string[]> {
   return [...labels];
 }
 
+async function applyModuloToCodigosScope(
+  user: UserPublic,
+  empresas: string[] | undefined,
+  modulo: userEmpModVisib.EmpresaModuloKey
+): Promise<string[] | undefined> {
+  if (empresas === undefined) return undefined;
+  if (empresas.length === 1 && empresas[0] === "__sin_empresas__") return empresas;
+  const cuentaId = await cuentaIdForUser(user);
+  if (cuentaId == null) return empresas;
+  const filtered = await userEmpModVisib.applyModuloVisibilidadToCodigos(
+    db.getDb(),
+    user,
+    cuentaId,
+    empresas,
+    modulo
+  );
+  if (filtered.length === 0) return ["__sin_empresas__"];
+  return filtered;
+}
+
 async function stockGanaderoFiltersFromRequest(
   req: Request,
   base: StockGanaderoFilters = {}
@@ -860,6 +894,7 @@ async function stockGanaderoFiltersFromRequest(
     user,
     empresas
   );
+  empresas = await applyModuloToCodigosScope(user, empresas, "stock_ganadero");
   if (empresas) filters = { ...filters, empresas };
   const lecturasScope = await stockLecturasFiltersFromRequest(req, {});
   if (lecturasScope.cuenta_id != null) {
@@ -881,6 +916,7 @@ async function stockEquinoFiltersFromRequest(
     user,
     empresas
   );
+  empresas = await applyModuloToCodigosScope(user, empresas, "stock_equino");
   if (empresas) filters = { ...filters, empresas };
   const lecturasScope = await stockLecturasFiltersFromRequest(req, {});
   if (lecturasScope.cuenta_id != null) {
@@ -975,6 +1011,7 @@ async function stockOvinoFiltersFromRequest(
     user,
     empresas
   );
+  empresas = await applyModuloToCodigosScope(user, empresas, "stock_ovino");
   if (empresas) filters = { ...filters, empresas };
   const lecturasScope = await stockLecturasFiltersFromRequest(req, {});
   if (lecturasScope.cuenta_id != null) {
@@ -1004,7 +1041,7 @@ async function applyEmpresaScopeToFilters(
   filters: db.ListFilters,
   user: UserPublic
 ): Promise<db.ListFilters> {
-  const permitidas = await empresasPermitidas(user);
+  const permitidas = await empresasPermitidas(user, "presupuesto");
   if (permitidas.length === 0) {
     return { ...filters, empresas: ["__sin_empresas__"] };
   }
@@ -1016,13 +1053,14 @@ async function applyEmpresaScopeToFilters(
 
 async function resumenEmpresaScope(
   user: UserPublic,
-  empresa?: string
+  empresa?: string,
+  modulo?: userEmpModVisib.EmpresaModuloKey
 ): Promise<db.ResumenEmpresaScope> {
   const cuentaId = await cuentaIdForScopedRead(user);
   const cuentaScope: db.ResumenEmpresaScope =
     cuentaId != null && cuentaId > 0 ? { cuenta_id: cuentaId } : {};
 
-  const permitidas = await empresasPermitidas(user);
+  const permitidas = await empresasPermitidas(user, modulo);
   if (permitidas.length === 0) {
     return { ...cuentaScope, empresas: ["__sin_empresas__"] };
   }
@@ -1635,7 +1673,7 @@ app.get("/api/presupuesto/automatizacion", async (req, res) => {
       return;
     }
     await db.gastosAutomatizacion.syncPendientes(cuentaId);
-    const empresas = await empresasPermitidas(req.user!);
+    const empresas = await empresasPermitidas(req.user!, "presupuesto");
     const plantillas = await db.gastosAutomatizacion.list(
       cuentaId,
       empresas.length ? empresas : undefined,
@@ -2093,6 +2131,7 @@ function parseIngresoVentaBody(req: Request) {
   const dolares_usd = Number(body.dolares_usd) || 0;
   const tc_usd = Number(body.tc_usd) || 0;
   return {
+    empresa: String(body.empresa ?? "").trim(),
     fecha,
     codigo_proveedor: String(body.codigo_proveedor ?? "").trim(),
     razon_social_proveedor: String(body.razon_social_proveedor ?? "").trim(),
@@ -2103,6 +2142,35 @@ function parseIngresoVentaBody(req: Request) {
     tc_usd,
     total_usd: 0,
   };
+}
+
+async function resolveIngresoEmpresaForWrite(
+  user: UserPublic,
+  empresaRaw: string
+): Promise<string> {
+  const permitidas = await empresasPermitidas(user);
+  if (
+    permitidas.length === 1 &&
+    permitidas[0] !== "__sin_empresas__" &&
+    !empresaRaw.trim()
+  ) {
+    return permitidas[0]!;
+  }
+  const empresa = empresaRaw.trim() || (permitidas.length === 1 ? permitidas[0]! : "");
+  await assertEmpresaPermitida(user, empresa);
+  return empresa;
+}
+
+async function puedeAccederIngresoVenta(
+  row: { empresa?: string | null },
+  user: UserPublic
+): Promise<boolean> {
+  const permitidas = await empresasPermitidas(user);
+  if (permitidas.length === 0) return true;
+  if (permitidas.length === 1 && permitidas[0] === "__sin_empresas__") return false;
+  const emp = String(row.empresa ?? "").trim();
+  if (!emp) return false;
+  return permitidas.includes(emp);
 }
 
 /** cuenta_id para proveedores: null = super admin (todos); 0 = sin cuenta (ninguno). */
@@ -2130,7 +2198,7 @@ async function ventasAgriculturaFiltersFromRequest(
   const mesRaw = Number(req.query.mes);
   const anioRaw = Number(req.query.anio);
   const empresaQuery = req.query.empresa as string | undefined;
-  const scope = await resumenEmpresaScope(req.user!, empresaQuery);
+  const scope = await resumenEmpresaScope(req.user!, empresaQuery, "ventas");
   return {
     empresa: scope.empresa,
     empresas: scope.empresas,
@@ -2146,7 +2214,7 @@ async function ventasArrendamientoFiltersFromRequest(
   req: Request
 ): Promise<ventasArr.VentaArrendamientoFilters> {
   const empresaQuery = req.query.empresa as string | undefined;
-  const scope = await resumenEmpresaScope(req.user!, empresaQuery);
+  const scope = await resumenEmpresaScope(req.user!, empresaQuery, "ventas");
   return {
     empresa: scope.empresa,
     empresas: scope.empresas,
@@ -2308,14 +2376,20 @@ async function parseVentaArrendamientoBody(req: Request): Promise<ventasArr.Vent
 }
 
 app.get("/api/ingresos-ventas", async (req, res) => {
-  const cuentaId = await cuentaIdForScopedRead(req.user!);
+  const scope = await resumenEmpresaScope(
+    req.user!,
+    req.query.empresa as string | undefined,
+    "ventas"
+  );
   const data = await db.ingresosVentas.list(
     {
       fecha_desde: req.query.fecha_desde as string | undefined,
       fecha_hasta: req.query.fecha_hasta as string | undefined,
       busqueda: req.query.busqueda as string | undefined,
+      empresa: scope.empresa,
+      empresas: scope.empresas,
     },
-    cuentaId
+    scope.cuenta_id ?? null
   );
   res.json({ ok: true, data });
 });
@@ -2609,7 +2683,7 @@ app.get("/api/ingresos-ventas/:id", async (req, res) => {
   const id = Number(req.params.id);
   const cuentaId = await cuentaIdForScopedRead(req.user!);
   const reg = await db.ingresosVentas.getById(id, cuentaId);
-  if (!reg) {
+  if (!reg || !(await puedeAccederIngresoVenta(reg, req.user!))) {
     res.status(404).json({ ok: false, error: "Registro no encontrado" });
     return;
   }
@@ -2619,6 +2693,10 @@ app.get("/api/ingresos-ventas/:id", async (req, res) => {
 app.post("/api/ingresos-ventas", async (req, res) => {
   try {
     const payload = parseIngresoVentaBody(req);
+    payload.empresa = await resolveIngresoEmpresaForWrite(
+      req.user!,
+      payload.empresa
+    );
     const cuentaId = await cuentaIdParaInsert(req.user!);
     const newId = await db.ingresosVentas.insert(payload, cuentaId);
     const reg = await db.ingresosVentas.getById(newId, cuentaId);
@@ -2636,8 +2714,17 @@ app.post("/api/ingresos-ventas", async (req, res) => {
 app.put("/api/ingresos-ventas/:id", async (req, res) => {
   try {
     const id = Number(req.params.id);
-    const payload = parseIngresoVentaBody(req);
     const cuentaId = await cuentaIdForScopedRead(req.user!);
+    const existing = await db.ingresosVentas.getById(id, cuentaId);
+    if (!existing || !(await puedeAccederIngresoVenta(existing, req.user!))) {
+      res.status(404).json({ ok: false, error: "Registro no encontrado" });
+      return;
+    }
+    const payload = parseIngresoVentaBody(req);
+    payload.empresa = await resolveIngresoEmpresaForWrite(
+      req.user!,
+      payload.empresa || existing.empresa || ""
+    );
     if (!await db.ingresosVentas.update(id, payload, cuentaId)) {
       res.status(404).json({ ok: false, error: "Registro no encontrado" });
       return;
@@ -2645,7 +2732,7 @@ app.put("/api/ingresos-ventas/:id", async (req, res) => {
     res.json({
       ok: true,
       data: await db.ingresosVentas.getById(id, cuentaId),
-      message: "Registro actualizado",
+      message: "Ingreso por venta actualizado",
     });
   } catch (e) {
     res.status(400).json({ ok: false, error: (e as Error).message });
@@ -2655,6 +2742,11 @@ app.put("/api/ingresos-ventas/:id", async (req, res) => {
 app.delete("/api/ingresos-ventas/:id", async (req, res) => {
   const id = Number(req.params.id);
   const cuentaId = await cuentaIdForScopedRead(req.user!);
+  const existing = await db.ingresosVentas.getById(id, cuentaId);
+  if (!existing || !(await puedeAccederIngresoVenta(existing, req.user!))) {
+    res.status(404).json({ ok: false, error: "Registro no encontrado" });
+    return;
+  }
   if (!await db.ingresosVentas.delete(id, cuentaId)) {
     res.status(404).json({ ok: false, error: "Registro no encontrado" });
     return;
@@ -10274,7 +10366,7 @@ app.get("/api/resumen", async (req, res) => {
     const fecha_desde = req.query.fecha_desde as string | undefined;
     const fecha_hasta = req.query.fecha_hasta as string | undefined;
     const empresa = req.query.empresa as string | undefined;
-    const scope = await resumenEmpresaScope(req.user!, empresa);
+    const scope = await resumenEmpresaScope(req.user!, empresa, "presupuesto");
     const estado = await db.buildEstadoFinanciero(scope, fecha_hasta);
     res.json({
       ok: true,
@@ -10308,7 +10400,7 @@ app.get("/api/resumen/gastos-proveedores", async (req, res) => {
   const codigos = partes
     .map((s) => Number(String(s).trim()))
     .filter((n) => Number.isFinite(n) && n > 0);
-  const scope = await resumenEmpresaScope(req.user!, empresa);
+  const scope = await resumenEmpresaScope(req.user!, empresa, "presupuesto");
   const data = await db.buildGastosProveedoresReport(
     codigos,
     scope,
@@ -10322,7 +10414,7 @@ app.get("/api/resumen/estado-resultados", async (req, res) => {
   const fecha_desde = req.query.fecha_desde as string | undefined;
   const fecha_hasta = req.query.fecha_hasta as string | undefined;
   const empresa = req.query.empresa as string | undefined;
-  const scope = await resumenEmpresaScope(req.user!, empresa);
+  const scope = await resumenEmpresaScope(req.user!, empresa, "presupuesto");
   const cuentaId = await cuentaIdForScopedRead(req.user!);
   const data = await db.buildEstadoResultados({
     fecha_desde,
@@ -10428,6 +10520,7 @@ app.get("/api/rrhh/pagos", async (req, res) => {
     const empresaScope = await resumenEmpresaScope(
       req.user!,
       req.query.empresa as string | undefined,
+      "rrhh",
     );
     const data = await db.rrhhPagos.porCedula(cedula, {
       fecha_desde: req.query.fecha_desde as string | undefined,
@@ -10443,7 +10536,7 @@ app.get("/api/rrhh/pagos", async (req, res) => {
 
 app.get("/api/rrhh/resumen-global", async (req, res) => {
   const cuentaId = await cuentaIdForScopedRead(req.user!);
-  const empresaScope = await resumenEmpresaScope(req.user!);
+  const empresaScope = await resumenEmpresaScope(req.user!, undefined, "rrhh");
   res.json({
     ok: true,
     data: await db.rrhhPagos.resumenGlobal(cuentaId, {
@@ -10458,7 +10551,7 @@ app.get("/api/rrhh/resumen-global", async (req, res) => {
 app.get("/api/rrhh/dashboard", async (req, res) => {
   try {
     const cuentaId = await cuentaIdForScopedRead(req.user!);
-    const empresaScope = await resumenEmpresaScope(req.user!);
+    const empresaScope = await resumenEmpresaScope(req.user!, undefined, "rrhh");
     res.json({
       ok: true,
       data: await db.rrhhPagos.dashboard(cuentaId, {
