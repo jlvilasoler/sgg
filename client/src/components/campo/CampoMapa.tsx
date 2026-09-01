@@ -630,7 +630,7 @@ export default function CampoMapa({
           });
         }),
       );
-      const byId = new Map(
+      const byId = new globalThis.Map(
         updatedList.filter((row): row is CampoPotreroMapa => row != null).map((row) => [row.id, row]),
       );
       if (byId.size === 0) {
