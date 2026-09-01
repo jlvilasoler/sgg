@@ -1519,8 +1519,20 @@
 
 .campo-mapa-bulk-bar-actions {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
   gap: 0.4rem;
+}
+
+.campo-mapa-bulk-bar-actions .campo-mapa-aside-btn {
+  flex: 1 1 0;
+  width: auto;
+  min-height: 1.7rem;
+  padding: 0.28rem 0.55rem;
+  border-radius: 0.55rem;
+  font-size: 0.75rem;
+  font-weight: 700;
 }
 
 .campo-mapa-aside-potrero-row {
