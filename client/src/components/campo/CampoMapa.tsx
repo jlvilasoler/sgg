@@ -443,7 +443,7 @@ export default function CampoMapa({
    * (no solo la activa de sesión), así el código E00001 se muestra como nombre.
    */
   const empresasLookupStock = useMemo((): EmpresaOperativaStock[] => {
-    const byKey = new Map<string, EmpresaOperativaStock>();
+    const byKey = new globalThis.Map<string, EmpresaOperativaStock>();
     const put = (codigo: string, nombre: string, color: string, dicose: string) => {
       const c = codigo.trim();
       if (!c) return;
