@@ -8,17 +8,16 @@
   flex-direction: column;
   min-height: 0;
   overflow: hidden;
-  padding-top: 0.45rem;
-  padding-bottom: 0.2rem;
-  padding-left: 0;
-  padding-right: 0;
+  /* Mapa al ras del aside verde arriba y abajo (sin margen). */
+  padding: 0;
+  gap: 0;
 }
 
 .campo-mapa-workspace {
   flex: 1 1 auto;
   min-height: 0;
   display: flex;
-  padding: 0 0.2rem 0.2rem 0.25rem;
+  padding: 0;
 }
 
 /* Menos margen lateral del page-main solo en el mapa */
@@ -34,11 +33,22 @@
   }
 }
 
+/* Sin franja bajo el mapa: llega hasta el footer */
+.layout-content:has(.campo-mapa-module-page) {
+  padding-bottom: calc(var(--app-footer-height) + env(safe-area-inset-bottom, 0px));
+}
+
+.campo-mapa-module-page > .sg-hub {
+  /* Abajo al ras (sin curva que deje ver el fondo). */
+  border-radius: var(--sg-hub-radius-xl, 1.25rem) var(--sg-hub-radius-xl, 1.25rem) 0 0;
+}
+
 .campo-mapa-map-shell {
   position: relative;
   flex: 1 1 auto;
   min-height: 0;
-  border-radius: var(--sg-hub-radius-lg, 1rem);
+  /* Izquierda recta; arriba-derecha redondeada; abajo al ras. */
+  border-radius: 0 var(--sg-hub-radius-lg, 1rem) 0 0;
   overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--bn-border, #eaecef) 88%, transparent);
   box-shadow: 0 12px 32px rgba(20, 28, 20, 0.08);
