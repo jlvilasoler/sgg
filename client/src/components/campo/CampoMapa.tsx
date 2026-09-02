@@ -437,6 +437,33 @@ export default function CampoMapa({
     }
     return set;
   }, [empresasCuenta, empresasMapaIds]);
+
+  /**
+   * Catálogo para carteles/markers: incluye todas las empresas del mapa
+   * (no solo la activa de sesión), así el código E00001 se muestra como nombre.
+   */
+  const empresasLookupStock = useMemo((): EmpresaOperativaStock[] => {
+    const byKey = new Map<string, EmpresaOperativaStock>();
+    const put = (codigo: string, nombre: string, color: string, dicose: string) => {
+      const c = codigo.trim();
+      if (!c) return;
+      const key = c.toUpperCase();
+      const prev = byKey.get(key);
+      byKey.set(key, {
+        codigo: c,
+        nombre: (nombre.trim() || prev?.nombre || c).trim(),
+        color: (color || prev?.color || "").trim(),
+        dicose: (dicose || prev?.dicose || "").trim(),
+      });
+    };
+    for (const e of empresasOperativas) {
+      put(e.codigo, e.nombre, e.color, e.dicose);
+    }
+    for (const e of empresasCuenta) {
+      put(e.codigo, e.nombre, e.color ?? "", e.dicose ?? "");
+    }
+    return [...byKey.values()];
+  }, [empresasCuenta, empresasOperativas]);
   const potrerosUnicos = useMemo(() => {
     const scoped = mapaFiltraPorEmpresa
       ? potreros.filter((p) => featureVisibleEnMapa(p.empresa_operativa_id))
@@ -1246,12 +1273,12 @@ export default function CampoMapa({
         elementosVisibles,
         stockGanaderoVisible,
         stockEquinoVisible,
-        empresasOperativas,
+        empresasLookupStock,
         stockOvinoVisible,
       ),
     [
       elementosVisibles,
-      empresasOperativas,
+      empresasLookupStock,
       potrerosUnicos,
       stockEquinoVisible,
       stockGanaderoVisible,
@@ -1275,9 +1302,9 @@ export default function CampoMapa({
     const ganadero = showDevicesOnMap ? stockGanaderoVisible : stockGanaderoFiltrado;
     const equino = showDevicesOnMap ? stockEquinoVisible : stockEquinoFiltrado;
     const ovino = showDevicesOnMap ? stockOvinoVisible : stockOvinoFiltrado;
-    return buildAllPotreroResumenes(potrerosUnicos, ganadero, equino, empresasOperativas, ovino);
+    return buildAllPotreroResumenes(potrerosUnicos, ganadero, equino, empresasLookupStock, ovino);
   }, [
-    empresasOperativas,
+    empresasLookupStock,
     potrerosUnicos,
     showDevicesOnMap,
     stockEquinoFiltrado,
