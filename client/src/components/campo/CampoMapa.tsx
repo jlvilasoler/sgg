@@ -917,14 +917,6 @@ export default function CampoMapa({
     });
   }, []);
 
-  const seleccionarTodasEmpresasMapa = useCallback(() => {
-    setEmpresasMapaIds(new Set(empresasCuenta.map((e) => e.id)));
-  }, [empresasCuenta]);
-
-  const limpiarEmpresasMapa = useCallback(() => {
-    setEmpresasMapaIds(new Set());
-  }, []);
-
   const todasEmpresasMapaSeleccionadas =
     empresasCuenta.length > 0 && empresasMapaIds.size === empresasCuenta.length;
 
