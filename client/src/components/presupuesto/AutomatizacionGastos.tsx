@@ -29,6 +29,7 @@ import type {
 import { fmtDate, fmtNum } from "../../utils/format";
 import { confirmAction } from "../../utils/confirm";
 import { canWriteModulo, canAprobarGastosAutomatizacion } from "../../utils/auth-permissions";
+import { empresaOperativaSesionNombre } from "../../utils/empresa-sesion";
 import { empresaCorta } from "../../utils";
 import { HUB_ICON_THEMES, HubMenuIcon } from "../icons/HubMenuIcons";
 import { SgHubKpi, SgMiniBars } from "../stock/SgHubUi";
@@ -156,8 +157,9 @@ export default function AutomatizacionGastos({
 
   useEffect(() => {
     void cargar();
-  }, [cargar]);
+  }, [cargar, currentUser.empresa_operativa_activa_id]);
 
+  const empresaSesion = empresaOperativaSesionNombre(currentUser);
   const abrirNueva = () => setPanelNueva(true);
 
   const cerrarNueva = () => setPanelNueva(false);
@@ -552,6 +554,7 @@ export default function AutomatizacionGastos({
             catalogos={catalogos}
             apiOnline={apiOnline}
             busy={busyId === -1}
+            currentUser={currentUser}
             onClose={cerrarNueva}
             onSubmit={(form) => void guardarNueva(form)}
             onError={onError}
@@ -621,6 +624,7 @@ export default function AutomatizacionGastos({
                       apiOnline={apiOnline}
                       showActivo
                       moneySyncKey={editMoneyKey}
+                      empresaSesion={empresaSesion}
                       onError={onError}
                       onSuccess={onSuccess}
                     />

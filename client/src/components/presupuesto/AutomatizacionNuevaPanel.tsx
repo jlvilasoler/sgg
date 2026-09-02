@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { ChevronDown, ChevronUp, FileText, Search, X } from "lucide-react";
-import type { Catalogos, Presupuesto } from "../../types";
+import type { Catalogos, Empresa, Presupuesto } from "../../types";
 import { fmtDate, fmtNum } from "../../utils/format";
 import { empresaCorta } from "../../utils";
+import { empresaOperativaSesionNombre } from "../../utils/empresa-sesion";
+import type { AuthUser } from "../../types";
 import { HUB_ICON_THEMES, HubMenuIcon } from "../icons/HubMenuIcons";
 import AutomatizacionPlantillaForm from "./AutomatizacionPlantillaForm";
 import {
@@ -18,6 +20,7 @@ interface Props {
   catalogos: Catalogos;
   apiOnline: boolean;
   busy: boolean;
+  currentUser?: AuthUser | null;
   onClose: () => void;
   onSubmit: (form: AutomatizacionPlantillaFormState) => void;
   onError: (msg: string) => void;
@@ -77,13 +80,17 @@ export default function AutomatizacionNuevaPanel({
   catalogos,
   apiOnline,
   busy,
+  currentUser,
   onClose,
   onSubmit,
   onError,
   onSuccess,
 }: Props) {
+  const empresaSesion = empresaOperativaSesionNombre(currentUser) as Empresa | "";
   const [busqueda, setBusqueda] = useState("");
-  const [form, setForm] = useState<AutomatizacionPlantillaFormState>(plantillaFormVacia());
+  const [form, setForm] = useState<AutomatizacionPlantillaFormState>(() =>
+    plantillaFormVacia(empresaSesion),
+  );
   const [moneySyncKey, setMoneySyncKey] = useState(0);
   const [origenLabel, setOrigenLabel] = useState("");
   const facturasViewportRef = useRef<HTMLDivElement>(null);
@@ -92,10 +99,10 @@ export default function AutomatizacionNuevaPanel({
 
   useEffect(() => {
     setBusqueda("");
-    setForm(plantillaFormVacia());
+    setForm(plantillaFormVacia(empresaSesion));
     setOrigenLabel("");
     setMoneySyncKey((k) => k + 1);
-  }, []);
+  }, [empresaSesion]);
 
   const gastosOrdenados = useMemo(
     () =>
@@ -426,6 +433,7 @@ export default function AutomatizacionNuevaPanel({
                   apiOnline={apiOnline}
                   origenLabel={origenLabel}
                   moneySyncKey={moneySyncKey}
+                  empresaSesion={empresaSesion}
                   onError={onError}
                   onSuccess={onSuccess}
                 />

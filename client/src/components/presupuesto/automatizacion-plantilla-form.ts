@@ -83,14 +83,16 @@ export function primeraFechaPagoProgramada(form: AutomatizacionPlantillaFormStat
   return fecha;
 }
 
-export function plantillaFormVacia(): AutomatizacionPlantillaFormState {
+export function plantillaFormVacia(
+  empresa: Empresa | "" = "",
+): AutomatizacionPlantillaFormState {
   return {
     presupuesto_id: 0,
     nombre: "",
     dia_mes: new Date().getDate(),
     intervalo_meses: 1,
     fecha_inicio: todayIso(),
-    empresa: "",
+    empresa,
     codigo_proveedor: "",
     razon_social_proveedor: "",
     concepto: "",

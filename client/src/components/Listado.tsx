@@ -13,6 +13,7 @@ import {
   type EjercicioConfig,
 } from "../utils/ejercicio-contable";
 import { empresaClass, empresaCorta, fmtDate, fmtNum } from "../utils";
+import { empresaOperativaSesionNombre } from "../utils/empresa-sesion";
 import {
   exportPresupuestoListadoCsv,
   exportPresupuestoListadoExcel,
@@ -68,7 +69,8 @@ export default function Listado({ catalogos, apiOnline, onEdit, onDeleted, onErr
     [ejCfg],
   );
   const iniciales = filtrosInicialesEjercicio(ejCfg);
-  const [empresa, setEmpresa] = useState("");
+  const empresaSesion = empresaOperativaSesionNombre(currentUser);
+  const [empresa, setEmpresa] = useState(empresaSesion);
   const [rubro, setRubro] = useState("");
   const [responsable, setResponsable] = useState("");
   const [ejercicio, setEjercicio] = useState(iniciales.ejercicio);
@@ -94,10 +96,15 @@ export default function Listado({ catalogos, apiOnline, onEdit, onDeleted, onErr
   }, [apiOnline, catalogos.empresas]);
 
   useEffect(() => {
+    setEmpresa(empresaSesion);
+  }, [empresaSesion]);
+
+  useEffect(() => {
+    if (empresaSesion) return;
     if (empresa && empresas.length > 0 && !empresas.includes(empresa)) {
       setEmpresa("");
     }
-  }, [empresas, empresa]);
+  }, [empresas, empresa, empresaSesion]);
 
   const load = useCallback(async () => {
     if (!apiOnline) {
@@ -150,7 +157,7 @@ export default function Listado({ catalogos, apiOnline, onEdit, onDeleted, onErr
 
   const resetFiltros = () => {
     const v = ejercicioVigente(new Date(), ejCfg);
-    setEmpresa("");
+    setEmpresa(empresaSesion);
     setRubro("");
     setResponsable("");
     setModalidadFecha("ejercicio");
@@ -288,8 +295,9 @@ export default function Listado({ catalogos, apiOnline, onEdit, onDeleted, onErr
                 id="filtro-empresa"
                 value={empresa}
                 onChange={(e) => setEmpresa(e.target.value)}
+                disabled={Boolean(empresaSesion) && empresas.length === 1}
               >
-                <option value="">Todas</option>
+                {!empresaSesion ? <option value="">Todas</option> : null}
                 {empresas.map((e) => (
                   <option key={e} value={e}>
                     {e}

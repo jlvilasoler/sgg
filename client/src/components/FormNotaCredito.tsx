@@ -18,6 +18,7 @@ import { aMayusculas } from "../utils/formText";
 import ImporteMoneda from "./ImporteMoneda";
 import SelectorProveedor from "./SelectorProveedor";
 import { PageModuleHeadRow } from "./PageModuleHead";
+import { empresaOperativaSesionNombre } from "../utils/empresa-sesion";
 
 interface Props {
   catalogos: Catalogos;
@@ -32,13 +33,16 @@ type ModoNc = "total" | "parcial";
 
 export default function FormNotaCredito({
   catalogos,
-  currentUser: _currentUser,
+  currentUser,
   apiOnline,
   onSaved,
   onError,
   onSuccess,
 }: Props) {
-  const [empresa, setEmpresa] = useState<Empresa | "">("");
+  const empresaSesion = empresaOperativaSesionNombre(currentUser);
+  const [empresa, setEmpresa] = useState<Empresa | "">(
+    () => (empresaSesion as Empresa | "") || "",
+  );
   const [empresasCuenta, setEmpresasCuenta] = useState<string[]>(
     () => catalogos.empresas ?? [],
   );
@@ -73,7 +77,20 @@ export default function FormNotaCredito({
       .catch(() => {
         /* keep catalogos */
       });
-  }, [apiOnline]);
+  }, [apiOnline, catalogos.empresas]);
+
+  useEffect(() => {
+    if (empresaSesion) {
+      setEmpresa(empresaSesion as Empresa);
+    }
+  }, [empresaSesion]);
+
+  useEffect(() => {
+    if (empresaSesion) return;
+    if (empresa && empresasCuenta.length > 0 && !empresasCuenta.includes(empresa)) {
+      setEmpresa("");
+    }
+  }, [empresaSesion, empresasCuenta, empresa]);
 
   useEffect(() => {
     if (!apiOnline) return;
@@ -292,8 +309,9 @@ export default function FormNotaCredito({
               required
               value={empresa}
               onChange={(e) => setEmpresa(e.target.value as Empresa | "")}
+              disabled={Boolean(empresaSesion) && empresasCuenta.length === 1}
             >
-              <option value="">Seleccionar...</option>
+              {!empresaSesion ? <option value="">Seleccionar...</option> : null}
               {empresasCuenta.map((e) => (
                 <option key={e} value={e}>
                   {e}

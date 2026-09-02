@@ -18,6 +18,7 @@ interface Props {
   origenLabel?: string;
   showActivo?: boolean;
   moneySyncKey?: number;
+  empresaSesion?: string;
   onError: (msg: string) => void;
   onSuccess?: (msg: string, title?: string) => void;
 }
@@ -30,6 +31,7 @@ export default function AutomatizacionPlantillaForm({
   origenLabel,
   showActivo = false,
   moneySyncKey = 0,
+  empresaSesion = "",
   onError,
   onSuccess,
 }: Props) {
@@ -42,7 +44,14 @@ export default function AutomatizacionPlantillaForm({
         if (list.length) setEmpresas(list);
       })
       .catch(() => undefined);
-  }, [apiOnline]);
+  }, [apiOnline, catalogos.empresas]);
+
+  useEffect(() => {
+    if (!empresaSesion) return;
+    if (form.empresa !== empresaSesion) {
+      onChange({ empresa: empresaSesion as AutomatizacionPlantillaFormState["empresa"] });
+    }
+  }, [empresaSesion]); // eslint-disable-line react-hooks/exhaustive-deps -- solo al cambiar sesión
 
   const catalogoRubros = useMemo(
     () => ({
@@ -153,8 +162,9 @@ export default function AutomatizacionPlantillaForm({
               id="auto-empresa"
               value={form.empresa}
               onChange={(e) => onChange({ empresa: e.target.value })}
+              disabled={Boolean(empresaSesion) && empresas.length === 1}
             >
-              <option value="">Seleccionar…</option>
+              {!empresaSesion ? <option value="">Seleccionar…</option> : null}
               {empresas.map((emp) => (
                 <option key={emp} value={emp}>
                   {emp}

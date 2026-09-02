@@ -118,7 +118,7 @@ export function usePresupuestoHubDashboard(user: AuthUser, apiOnline: boolean) {
     return () => {
       cancelled = true;
     };
-  }, [apiOnline, user.id, user.email, user.rol, puedeVerCuentaMes, ejCfg]);
+  }, [apiOnline, user.id, user.email, user.rol, user.empresa_operativa_activa_id, puedeVerCuentaMes, ejCfg]);
 
   const recientes = useMemo(
     () => ordenarPorIngreso(rowsPropios).slice(0, RECIENTES_LIMIT),

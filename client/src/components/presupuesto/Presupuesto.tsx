@@ -146,6 +146,7 @@ export default function Presupuesto({
     >
       {vista === "menu" ? (
         <PresupuestoHubDashboard
+          key={listKey}
           currentUser={currentUser}
           apiOnline={apiOnline}
           onNavigate={irA}
@@ -153,6 +154,7 @@ export default function Presupuesto({
         />
       ) : vista === "registro" ? (
         <FormGasto
+          key={listKey}
           catalogos={catalogos}
           currentUser={currentUser}
           editRow={editRow}
@@ -166,6 +168,7 @@ export default function Presupuesto({
         />
       ) : vista === "nota_credito" ? (
         <FormNotaCredito
+          key={listKey}
           catalogos={catalogos}
           currentUser={currentUser}
           apiOnline={apiOnline}
@@ -186,6 +189,7 @@ export default function Presupuesto({
         />
       ) : vista === "automatizacion" ? (
         <AutomatizacionGastos
+          key={listKey}
           currentUser={currentUser}
           catalogos={catalogos}
           apiOnline={apiOnline}
@@ -194,6 +198,7 @@ export default function Presupuesto({
         />
       ) : (
         <Resumen
+          key={listKey}
           catalogos={catalogos}
           currentUser={currentUser}
           apiOnline={apiOnline}

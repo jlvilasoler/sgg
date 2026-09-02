@@ -36,6 +36,7 @@ import ComisionBrouPreviewForm from "./documentos-digitales/ComisionBrouPreviewF
 import type { ComprobanteLeido } from "../types";
 import { applyBrouParsedToForm, buildComisionPayloadForGasto, tieneImporteComision } from "../utils/brou-gasto";
 import { PageModuleHeadRow } from "./PageModuleHead";
+import { empresaOperativaSesionNombre } from "../utils/empresa-sesion";
 
 /** Valores internos del select de concepto (no se guardan en PRESUPUESTO). */
 const CONCEPTO_OTRO = "__otro__";
@@ -94,8 +95,8 @@ function rowToForm(row: Presupuesto): FormState {
   return base;
 }
 
-const initial = (): FormState => ({
-  empresa: "",
+const initial = (empresa = ""): FormState => ({
+  empresa: empresa as Empresa | "",
   fecha: todayIso(),
   codigo_proveedor: "",
   razon_social_proveedor: "",
@@ -149,7 +150,8 @@ export default function FormGasto({
   onError,
   onSuccess,
 }: Props) {
-  const [form, setForm] = useState<FormState>(initial);
+  const empresaSesion = empresaOperativaSesionNombre(currentUser);
+  const [form, setForm] = useState<FormState>(() => initial(empresaSesion));
   const [empresasCuenta, setEmpresasCuenta] = useState<string[]>(catalogos.empresas);
   const handleMoneyChange = useCallback(
     (patch: Partial<FormState>) => setForm((f) => ({ ...f, ...patch })),
@@ -467,9 +469,9 @@ export default function FormGasto({
   useEffect(() => {
     if (!form.empresa || empresasCuenta.length === 0) return;
     if (!empresasCuenta.includes(form.empresa)) {
-      setForm((f) => ({ ...f, empresa: "" }));
+      setForm((f) => ({ ...f, empresa: (empresaSesion || "") as Empresa | "" }));
     }
-  }, [empresasCuenta, form.empresa]);
+  }, [empresasCuenta, form.empresa, empresaSesion]);
 
   useEffect(() => {
     if (!apiOnline || rubroOptions.length > 0) return;
@@ -486,7 +488,7 @@ export default function FormGasto({
       );
       return;
     }
-    setForm(initial());
+    setForm(initial(empresaSesion));
     setBrouImportado(null);
     setDocumentoArchivo(null);
     resetComisionState();
@@ -497,7 +499,7 @@ export default function FormGasto({
     fetchSiguienteNumeroOperacion()
       .then((d) => setNumeroOperacion(d.numero_operacion))
       .catch(() => setNumeroOperacion(""));
-  }, [editRow, apiOnline, resetComisionState]);
+  }, [editRow, apiOnline, resetComisionState, empresaSesion]);
 
   useEffect(() => {
     if (!gastoAsignadoEsEmpleados || !form.funcionario_cedula) return;
@@ -877,7 +879,7 @@ export default function FormGasto({
             `El gasto se guardó, pero el comprobante NO se adjuntó: ${documentoError}. ` +
               "El archivo quedó cargado: revisá que la API esté activa y volvé a guardar para reintentar."
           );
-          setForm(initial());
+          setForm(initial(empresaSesion));
           setBrouImportado(null);
           resetComisionState();
           if (apiOnline) {
@@ -894,7 +896,7 @@ export default function FormGasto({
 
         onSuccess(msg, "Operación ingresada con éxito");
       }
-      setForm(initial());
+      setForm(initial(empresaSesion));
       setBrouImportado(null);
       setDocumentoArchivo(null);
       resetComisionState();
@@ -952,8 +954,9 @@ export default function FormGasto({
             required
             value={form.empresa}
             onChange={(e) => set("empresa", e.target.value as Empresa | "")}
+            disabled={Boolean(empresaSesion) && empresasCuenta.length === 1}
           >
-            <option value="">Seleccionar...</option>
+            {!empresaSesion ? <option value="">Seleccionar...</option> : null}
             {empresasCuenta.map((e) => (
               <option key={e} value={e}>
                 {e}
@@ -1365,7 +1368,7 @@ export default function FormGasto({
           type="button"
           className="btn btn-ghost"
           onClick={() => {
-            setForm(initial());
+            setForm(initial(empresaSesion));
             setBrouImportado(null);
             setDocumentoArchivo(null);
             resetComisionState();

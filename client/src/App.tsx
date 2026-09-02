@@ -596,7 +596,9 @@ export default function App() {
             onEmpresaSessionChanged={(u) => {
               clearAllSessionCaches();
               setUser(u);
-              resetToHomeScreen();
+              setEditRow(null);
+              // Mantener la pantalla actual; refrescar datos de la empresa elegida.
+              setListKey((k) => k + 1);
               void fetchCatalogos()
                 .then((c) => setCatalogos(c))
                 .catch(() => setCatalogos(DEFAULT_CATALOGOS));

@@ -12,6 +12,7 @@ import type {
   ResumenRubro,
 } from "../types";
 import { empresaClass, fmtNum } from "../utils";
+import { empresaOperativaSesionNombre } from "../utils/empresa-sesion";
 import {
   ejercicioConfigFromUser,
   ejercicioDesdeHasta,
@@ -156,11 +157,12 @@ export default function Resumen({ catalogos, currentUser, apiOnline, onError }: 
     [ejCfg],
   );
   const iniciales = filtrosInicialesEjercicio(ejCfg);
+  const empresaSesion = empresaOperativaSesionNombre(currentUser);
   const [ejercicio, setEjercicio] = useState(iniciales.ejercicio);
   const [fechaDesde, setFechaDesde] = useState(iniciales.fechaDesde);
   const [fechaHasta, setFechaHasta] = useState(iniciales.fechaHasta);
   const [modalidadFecha, setModalidadFecha] = useState<ModalidadFecha>("ejercicio");
-  const [empresa, setEmpresa] = useState("");
+  const [empresa, setEmpresa] = useState(empresaSesion);
   const [porEmpresa, setPorEmpresa] = useState<ResumenEmpresa[]>([]);
   const [porEmpresaRubro, setPorEmpresaRubro] = useState<ResumenEmpresaRubro[]>([]);
   const [porRubro, setPorRubro] = useState<ResumenRubro[]>([]);
@@ -186,10 +188,15 @@ export default function Resumen({ catalogos, currentUser, apiOnline, onError }: 
   }, [apiOnline, catalogos.empresas]);
 
   useEffect(() => {
+    setEmpresa(empresaSesion);
+  }, [empresaSesion]);
+
+  useEffect(() => {
+    if (empresaSesion) return;
     if (empresa && empresas.length > 0 && !empresas.includes(empresa)) {
       setEmpresa("");
     }
-  }, [empresas, empresa]);
+  }, [empresas, empresa, empresaSesion]);
 
   const load = useCallback(async () => {
     if (!apiOnline) {
@@ -242,7 +249,7 @@ export default function Resumen({ catalogos, currentUser, apiOnline, onError }: 
     setEjercicio(String(v.anioInicio));
     setFechaDesde(v.desde);
     setFechaHasta(v.hasta);
-    setEmpresa("");
+    setEmpresa(empresaSesion);
   };
 
   const onModalidadFechaChange = (modalidad: ModalidadFecha) => {
@@ -420,8 +427,9 @@ export default function Resumen({ catalogos, currentUser, apiOnline, onError }: 
                 id="resumen-empresa"
                 value={empresa}
                 onChange={(e) => setEmpresa(e.target.value)}
+                disabled={Boolean(empresaSesion) && empresas.length === 1}
               >
-                <option value="">Todas</option>
+                {!empresaSesion ? <option value="">Todas</option> : null}
                 {empresas.map((e) => (
                   <option key={e} value={e}>
                     {e}
