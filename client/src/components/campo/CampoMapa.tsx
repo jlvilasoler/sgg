@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import L from "leaflet";
 import type { LucideIcon } from "lucide-react";
-import { Building2, Boxes, ChevronDown, ChevronRight, CircleDot, Cpu, Info, ListTree, Map, MapPin, Maximize2, MessageSquare, Minimize2, Pencil, Plus, Search, Sigma, Tag, Tags, Trash2, Undo2, VenusAndMars, X } from "lucide-react";
+import { Building2, Boxes, Check, ChevronDown, ChevronRight, CircleDot, Cpu, Info, ListTree, Map, MapPin, Maximize2, MessageSquare, Minimize2, Pencil, Plus, Search, Sigma, Tag, Tags, Trash2, Undo2, VenusAndMars, X } from "lucide-react";
 import SgHubShell from "../hub/SgHubShell";
 import { MenuAppIcon } from "../icons/MenuAppIcons";
 import { StockEquinoModuleIcon, StockOvinoModuleIcon } from "../stock/StockControlSanitarioSectionTitle";
@@ -13,6 +13,7 @@ import {
   fetchCampoMapaElementos,
   fetchCampoPotrerosMapa,
   fetchEmpresasOperativasStock,
+  fetchMisEmpresas,
   fetchStockEquinaDispositivos,
   fetchStockGanaderaDispositivos,
   fetchStockOvinaDispositivos,
@@ -20,10 +21,16 @@ import {
   updateCampoMapaElemento,
   updateCampoPotreroMapa,
 } from "../../api";
-import type { CampoMapaElemento, CampoMapaElementoTipo, CampoPotreroMapa, StockGanaderaDispositivo } from "../../types";
+import type {
+  CampoMapaElemento,
+  CampoMapaElementoTipo,
+  CampoPotreroMapa,
+  EmpresaOperativa,
+  StockGanaderaDispositivo,
+} from "../../types";
 import { hubAsideKicker } from "../../brand";
 import { normalizarPotrero } from "../stock/stock-ganadera-utils";
-import { dedupeCampoPotrerosMapaByNombre } from "./campo-potrero-dedupe";
+import { claveNombrePotreroMapa } from "./campo-potrero-dedupe";
 import {
   computeDistanceMeters,
   computeHectareas,
@@ -269,10 +276,13 @@ export default function CampoMapa({
   const editNombrePrevRef = useRef("");
   const [potreros, setPotreros] = useState<CampoPotreroMapa[]>([]);
   const [elementos, setElementos] = useState<CampoMapaElemento[]>([]);
-  const potrerosUnicos = useMemo(
-    () => dedupeCampoPotrerosMapaByNombre(potreros),
-    [potreros],
-  );
+  const [empresasCuenta, setEmpresasCuenta] = useState<EmpresaOperativa[]>([]);
+  const [empresasMapaIds, setEmpresasMapaIds] = useState<Set<number>>(() => new Set());
+  const empresasMapaInitRef = useRef(false);
+  // Al cambiar la sesión de empresa, re-sincronizar selección del riel del mapa.
+  useEffect(() => {
+    empresasMapaInitRef.current = false;
+  }, [currentUser.empresa_operativa_activa_id]);
   const [loading, setLoading] = useState(true);
   const [mapReady, setMapReady] = useState(false);
   const [showMapDetails, setShowMapDetails] = useState(loadCampoMapaShowDetails);
@@ -407,6 +417,67 @@ export default function CampoMapa({
     [elementos, selection],
   );
 
+  const mapaFiltraPorEmpresa = empresasCuenta.length > 0;
+  const featureVisibleEnMapa = useCallback(
+    (empresaOperativaId: number | null | undefined) => {
+      if (!mapaFiltraPorEmpresa) return true;
+      if (empresasMapaIds.size === 0) return false;
+      if (empresaOperativaId == null || empresaOperativaId <= 0) {
+        // Geometría compartida (modo consolidado): se muestra con cualquier selección.
+        return true;
+      }
+      return empresasMapaIds.has(empresaOperativaId);
+    },
+    [empresasMapaIds, mapaFiltraPorEmpresa],
+  );
+  const empresasMapaCodigos = useMemo(() => {
+    const set = new Set<string>();
+    for (const empresa of empresasCuenta) {
+      if (empresasMapaIds.has(empresa.id) && empresa.codigo) set.add(empresa.codigo);
+    }
+    return set;
+  }, [empresasCuenta, empresasMapaIds]);
+  const potrerosUnicos = useMemo(() => {
+    const scoped = mapaFiltraPorEmpresa
+      ? potreros.filter((p) => featureVisibleEnMapa(p.empresa_operativa_id))
+      : potreros;
+    const byKey = new globalThis.Map<string, CampoPotreroMapa>();
+    const sorted = [...scoped].sort((a, b) => a.id - b.id);
+    for (const row of sorted) {
+      const nombreKey = claveNombrePotreroMapa(row.nombre);
+      if (!nombreKey) continue;
+      const key = `${row.empresa_operativa_id ?? "cuenta"}::${nombreKey}`;
+      const prev = byKey.get(key);
+      if (!prev) {
+        byKey.set(key, row);
+        continue;
+      }
+      const prevHas = parseCampoMapaMarcadorId(prev.metadata) != null;
+      const rowHas = parseCampoMapaMarcadorId(row.metadata) != null;
+      if (!prevHas && rowHas) byKey.set(key, row);
+    }
+    return [...byKey.values()];
+  }, [featureVisibleEnMapa, mapaFiltraPorEmpresa, potreros]);
+  const elementosVisibles = useMemo(() => {
+    if (!mapaFiltraPorEmpresa) return elementos;
+    return elementos.filter((item) => featureVisibleEnMapa(item.empresa_operativa_id));
+  }, [elementos, featureVisibleEnMapa, mapaFiltraPorEmpresa]);
+  const stockGanaderoFiltrado = useMemo(() => {
+    if (!mapaFiltraPorEmpresa) return stockGanadero;
+    if (empresasMapaCodigos.size === 0) return [];
+    return stockGanadero.filter((d) => empresasMapaCodigos.has(d.empresa));
+  }, [empresasMapaCodigos, mapaFiltraPorEmpresa, stockGanadero]);
+  const stockEquinoFiltrado = useMemo(() => {
+    if (!mapaFiltraPorEmpresa) return stockEquino;
+    if (empresasMapaCodigos.size === 0) return [];
+    return stockEquino.filter((d) => empresasMapaCodigos.has(d.empresa));
+  }, [empresasMapaCodigos, mapaFiltraPorEmpresa, stockEquino]);
+  const stockOvinoFiltrado = useMemo(() => {
+    if (!mapaFiltraPorEmpresa) return stockOvino;
+    if (empresasMapaCodigos.size === 0) return [];
+    return stockOvino.filter((d) => empresasMapaCodigos.has(d.empresa));
+  }, [empresasMapaCodigos, mapaFiltraPorEmpresa, stockOvino]);
+
   const editGeometry = useMemo((): DraftGeometry | null => {
     const geojson = selectedPotrero?.geojson ?? selectedElemento?.geojson;
     if (!geojson) return null;
@@ -416,7 +487,7 @@ export default function CampoMapa({
   const elementosByTipo = useMemo(() => {
     const grouped = new globalThis.Map<CampoMapaElementoTipo, CampoMapaElemento[]>();
     for (const tipo of ELEMENTO_TIPO_ORDER) grouped.set(tipo, []);
-    for (const item of elementos) {
+    for (const item of elementosVisibles) {
       const list = grouped.get(item.tipo) ?? [];
       list.push(item);
       grouped.set(item.tipo, list);
@@ -425,26 +496,26 @@ export default function CampoMapa({
       list.sort((a, b) => a.nombre.localeCompare(b.nombre));
     }
     return grouped;
-  }, [elementos]);
+  }, [elementosVisibles]);
 
   const marcadoresUbicacion = useMemo(
     () =>
-      elementos
+      elementosVisibles
         .filter(
           (item) => item.tipo === "marcador" && parseCampoMapaObjetoTipo(item.metadata) == null,
         )
         .slice()
         .sort((a, b) => a.nombre.localeCompare(b.nombre)),
-    [elementos],
+    [elementosVisibles],
   );
 
   const objetosEnMapa = useMemo(
     () =>
-      elementos
+      elementosVisibles
         .filter((item) => parseCampoMapaObjetoTipo(item.metadata) != null)
         .slice()
         .sort((a, b) => a.nombre.localeCompare(b.nombre)),
-    [elementos],
+    [elementosVisibles],
   );
 
   const marcadorNombreById = useMemo(() => {
@@ -742,22 +813,48 @@ export default function CampoMapa({
     if (!apiOnline) {
       setPotreros([]);
       setElementos([]);
+      setEmpresasCuenta([]);
+      setEmpresasMapaIds(new Set());
+      empresasMapaInitRef.current = false;
       setLoading(false);
       return;
     }
     setLoading(true);
     try {
-      const [potreroData, elementoData] = await Promise.all([
-        fetchCampoPotrerosMapa(),
-        fetchCampoMapaElementos(),
+      const [potreroData, elementoData, misEmpresas] = await Promise.all([
+        fetchCampoPotrerosMapa({ vistaCuenta: true }),
+        fetchCampoMapaElementos({ vistaCuenta: true }),
+        fetchMisEmpresas({ para: "mapa" }),
       ]);
       setPotreros(potreroData);
       setElementos(elementoData);
+      setEmpresasCuenta(misEmpresas);
+      if (!empresasMapaInitRef.current) {
+        empresasMapaInitRef.current = true;
+        const activaId = currentUser.empresa_operativa_activa_id;
+        if (activaId != null && misEmpresas.some((e) => e.id === activaId)) {
+          setEmpresasMapaIds(new Set([activaId]));
+        } else {
+          setEmpresasMapaIds(new Set(misEmpresas.map((e) => e.id)));
+        }
+      } else {
+        setEmpresasMapaIds((prev) => {
+          const valid = new Set(misEmpresas.map((e) => e.id));
+          const next = new Set<number>();
+          for (const id of prev) {
+            if (valid.has(id)) next.add(id);
+          }
+          if (next.size === 0 && misEmpresas.length > 0) {
+            return new Set(misEmpresas.map((e) => e.id));
+          }
+          return next;
+        });
+      }
       if (apiOnline) {
         const [ganaderoData, equinoData, ovinoData, empresasData] = await Promise.all([
-          fetchStockGanaderaDispositivos({}),
-          fetchStockEquinaDispositivos({}),
-          fetchStockOvinaDispositivos({}),
+          fetchStockGanaderaDispositivos({ vistaCuenta: true }),
+          fetchStockEquinaDispositivos({ vistaCuenta: true }),
+          fetchStockOvinaDispositivos({ vistaCuenta: true }),
           fetchEmpresasOperativasStock(),
         ]);
         setStockGanadero(ganaderoData.filter((d) => d.estado === "VIVO"));
@@ -775,7 +872,7 @@ export default function CampoMapa({
     } finally {
       setLoading(false);
     }
-  }, [apiOnline, onError]);
+  }, [apiOnline, currentUser.empresa_operativa_activa_id, onError]);
 
   const enrichDispositivosForFeature = useCallback(
     (nombre: string, metaRaw: string | undefined | null): CampoMapaDispositivosMetadata => {
@@ -783,18 +880,61 @@ export default function CampoMapa({
       return enrichCampoMapaDispositivosFromStock(
         nombre,
         base,
-        stockGanadero,
-        stockEquino,
+        stockGanaderoFiltrado,
+        stockEquinoFiltrado,
         normalizarPotrero,
-        stockOvino,
+        stockOvinoFiltrado,
       );
     },
-    [stockEquino, stockGanadero, stockOvino],
+    [stockEquinoFiltrado, stockGanaderoFiltrado, stockOvinoFiltrado],
   );
 
   useEffect(() => {
     void refreshData();
   }, [refreshData]);
+
+  useEffect(() => {
+    if (!selection) return;
+    if (selection.kind === "potrero") {
+      if (!potrerosUnicos.some((p) => p.id === selection.id)) {
+        setSelection(null);
+        setEditingSelectionContent(false);
+      }
+      return;
+    }
+    if (!elementosVisibles.some((e) => e.id === selection.id)) {
+      setSelection(null);
+      setEditingSelectionContent(false);
+    }
+  }, [elementosVisibles, potrerosUnicos, selection]);
+
+  const toggleEmpresaMapa = useCallback((empresaId: number) => {
+    setEmpresasMapaIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(empresaId)) next.delete(empresaId);
+      else next.add(empresaId);
+      return next;
+    });
+  }, []);
+
+  const seleccionarTodasEmpresasMapa = useCallback(() => {
+    setEmpresasMapaIds(new Set(empresasCuenta.map((e) => e.id)));
+  }, [empresasCuenta]);
+
+  const limpiarEmpresasMapa = useCallback(() => {
+    setEmpresasMapaIds(new Set());
+  }, []);
+
+  const todasEmpresasMapaSeleccionadas =
+    empresasCuenta.length > 0 && empresasMapaIds.size === empresasCuenta.length;
+
+  const toggleTodasEmpresasMapa = useCallback(() => {
+    if (todasEmpresasMapaSeleccionadas) {
+      setEmpresasMapaIds(new Set());
+    } else {
+      setEmpresasMapaIds(new Set(empresasCuenta.map((e) => e.id)));
+    }
+  }, [empresasCuenta, todasEmpresasMapaSeleccionadas]);
 
   useEffect(() => {
     if (!selectedPotrero && !selectedElemento) {
@@ -1026,7 +1166,7 @@ export default function CampoMapa({
       if (layer) potreroLayersRef.current.set(item.id, layer);
     }
 
-    for (const item of elementos) {
+    for (const item of elementosVisibles) {
       const layer = renderElementoLayer(
         map,
         item,
@@ -1036,7 +1176,7 @@ export default function CampoMapa({
       );
       if (layer) elementoLayersRef.current.set(item.id, layer);
     }
-  }, [borderWeight, elementos, handleMapFeatureClick, potreroShapeEdit, potrerosUnicos, selection, showFeatureNames]);
+  }, [borderWeight, elementosVisibles, handleMapFeatureClick, potreroShapeEdit, potrerosUnicos, selection, showFeatureNames]);
 
   useEffect(() => {
     if (!cuentaTieneGeometriaEnMapa(potreros, elementos)) {
@@ -1095,32 +1235,32 @@ export default function CampoMapa({
   }, [mapReady, renderMapLayers]);
 
   const stockGanaderoVisible = useMemo(
-    () => (showGanaderoOnMap ? stockGanadero : []),
-    [showGanaderoOnMap, stockGanadero],
+    () => (showGanaderoOnMap ? stockGanaderoFiltrado : []),
+    [showGanaderoOnMap, stockGanaderoFiltrado],
   );
   const stockEquinoVisible = useMemo(
-    () => (showEquinoOnMap ? stockEquino : []),
-    [showEquinoOnMap, stockEquino],
+    () => (showEquinoOnMap ? stockEquinoFiltrado : []),
+    [showEquinoOnMap, stockEquinoFiltrado],
   );
   const stockOvinoVisible = useMemo(
-    () => (showOvinoOnMap ? stockOvino : []),
-    [showOvinoOnMap, stockOvino],
+    () => (showOvinoOnMap ? stockOvinoFiltrado : []),
+    [showOvinoOnMap, stockOvinoFiltrado],
   );
 
   const dispositivoMapMarkers = useMemo(
     () =>
       buildCampoMapaDispositivoMarkers(
-        potreros,
-        elementos,
+        potrerosUnicos,
+        elementosVisibles,
         stockGanaderoVisible,
         stockEquinoVisible,
         empresasOperativas,
         stockOvinoVisible,
       ),
     [
-      elementos,
+      elementosVisibles,
       empresasOperativas,
-      potreros,
+      potrerosUnicos,
       stockEquinoVisible,
       stockGanaderoVisible,
       stockOvinoVisible,
@@ -1140,19 +1280,19 @@ export default function CampoMapa({
 
   const potreroResumenes = useMemo(() => {
     // Si hay filtro de capas activo, el resumen sigue la misma visibilidad.
-    const ganadero = showDevicesOnMap ? stockGanaderoVisible : stockGanadero;
-    const equino = showDevicesOnMap ? stockEquinoVisible : stockEquino;
-    const ovino = showDevicesOnMap ? stockOvinoVisible : stockOvino;
+    const ganadero = showDevicesOnMap ? stockGanaderoVisible : stockGanaderoFiltrado;
+    const equino = showDevicesOnMap ? stockEquinoVisible : stockEquinoFiltrado;
+    const ovino = showDevicesOnMap ? stockOvinoVisible : stockOvinoFiltrado;
     return buildAllPotreroResumenes(potrerosUnicos, ganadero, equino, empresasOperativas, ovino);
   }, [
     empresasOperativas,
     potrerosUnicos,
     showDevicesOnMap,
-    stockEquino,
+    stockEquinoFiltrado,
     stockEquinoVisible,
-    stockGanadero,
+    stockGanaderoFiltrado,
     stockGanaderoVisible,
-    stockOvino,
+    stockOvinoFiltrado,
     stockOvinoVisible,
   ]);
 
@@ -1164,11 +1304,11 @@ export default function CampoMapa({
     if (!map || potreroResumenModos.length === 0) return;
     potreroResumenLayerRef.current = renderPotreroResumenOverlays(
       map,
-      potreros,
+      potrerosUnicos,
       potreroResumenes,
       potreroResumenModosSet,
     );
-  }, [mapReady, potreroResumenModos.length, potreroResumenModosSet, potreroResumenes, potreros]);
+  }, [mapReady, potreroResumenModos.length, potreroResumenModosSet, potreroResumenes, potrerosUnicos]);
 
   useEffect(() => {
     if (!potreroResumenMenuOpen) return;
@@ -2517,13 +2657,14 @@ export default function CampoMapa({
         >
           {mapaIndividual ? (
             <>
-              Mapa de <strong>{empresaActivaNombre || "la empresa elegida"}</strong> en esta
-              sesión. Solo ves y editás potreros y ubicaciones de esa empresa.
+              Marcá con el botón de empresas (abajo a la derecha) cuáles querés ver. La edición
+              sigue guardándose en <strong>{empresaActivaNombre || "la empresa activa"}</strong>{" "}
+              de esta sesión.
             </>
           ) : (
             <>
-              Mapa compartido de <strong>{cuentaNombre}</strong>. Potreros y ubicaciones los ven y
-              editan todos los integrantes del equipo en esta cuenta.
+              Mapa compartido de <strong>{cuentaNombre}</strong>. Con el botón de empresas del
+              mapa podés filtrar el stock visible.
             </>
           )}
         </div>
@@ -3270,11 +3411,7 @@ export default function CampoMapa({
         onVolverInicio={onVolver}
         apiOnline={apiOnline}
         title="Mapa del campo"
-        subtitle={
-          mapaIndividual
-            ? `Vista de ${empresaActivaNombre || "la empresa elegida"} en esta sesión. Los cambios aplican solo a esa empresa.`
-            : "Vista satelital compartida con tu equipo. Los cambios en potreros y ubicaciones aplican a toda la cuenta."
-        }
+        hideMainHead
         asideKicker={hubAsideKicker("CAMPO")}
         asideTitle="Mapa"
         asideLogo={<MenuAppIcon id="campo_mapa" />}
@@ -3286,7 +3423,10 @@ export default function CampoMapa({
         sidebarExtra={sidebarBody}
       >
         <div className="campo-mapa-workspace">
-          <div ref={mapShellRef} className="campo-mapa-map-shell">
+          <div
+            ref={mapShellRef}
+            className={`campo-mapa-map-shell${mapaFiltraPorEmpresa ? " has-empresas-rail" : ""}`}
+          >
             <div
               ref={mapContainerRef}
               className="campo-mapa-map"
@@ -3295,6 +3435,52 @@ export default function CampoMapa({
             />
             {!mapReady ? (
               <div className="campo-mapa-map-overlay">Cargando mapa satelital…</div>
+            ) : null}
+            {mapaFiltraPorEmpresa ? (
+              <aside className="campo-mapa-empresas-rail" aria-label="Empresas del mapa">
+                <button
+                  type="button"
+                  className={`campo-mapa-empresas-rail-item campo-mapa-empresas-rail-item--todas${
+                    todasEmpresasMapaSeleccionadas ? " is-on" : ""
+                  }`}
+                  onClick={toggleTodasEmpresasMapa}
+                  aria-pressed={todasEmpresasMapaSeleccionadas}
+                >
+                  <span className="campo-mapa-empresas-rail-tick" aria-hidden>
+                    {todasEmpresasMapaSeleccionadas ? <Check size={13} strokeWidth={2.75} /> : null}
+                  </span>
+                  <span className="campo-mapa-empresas-rail-name">Todas</span>
+                </button>
+                <ul className="campo-mapa-empresas-rail-list">
+                  {empresasCuenta.map((empresa) => {
+                    const on = empresasMapaIds.has(empresa.id);
+                    const dicose = empresa.dicose?.trim() || "";
+                    return (
+                      <li key={empresa.id}>
+                        <button
+                          type="button"
+                          className={`campo-mapa-empresas-rail-item${on ? " is-on" : ""}`}
+                          onClick={() => toggleEmpresaMapa(empresa.id)}
+                          aria-pressed={on}
+                          title={
+                            dicose ? `${empresa.nombre} · DICOSE ${dicose}` : empresa.nombre
+                          }
+                        >
+                          <span className="campo-mapa-empresas-rail-tick" aria-hidden>
+                            {on ? <Check size={13} strokeWidth={2.75} /> : null}
+                          </span>
+                          <span className="campo-mapa-empresas-rail-text">
+                            <span className="campo-mapa-empresas-rail-name">{empresa.nombre}</span>
+                            {dicose ? (
+                              <span className="campo-mapa-empresas-rail-dicose">{dicose}</span>
+                            ) : null}
+                          </span>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </aside>
             ) : null}
             <CampoMapaToolbar
               activeTool={activeTool}
@@ -3416,7 +3602,10 @@ export default function CampoMapa({
                   className={`campo-mapa-map-corner-btn${showDevicesOnMap ? " is-active" : ""}${
                     devicesMenuOpen ? " is-menu-open" : ""
                   }`}
-                  onClick={() => setDevicesMenuOpen((open) => !open)}
+                  onClick={() => {
+                    setDevicesMenuOpen((open) => !open);
+                    setPotreroResumenMenuOpen(false);
+                  }}
                   title="Visibilidad de animales en el mapa"
                   aria-label="Visibilidad de ganado y equinos en el mapa"
                   aria-haspopup="menu"
@@ -3466,7 +3655,10 @@ export default function CampoMapa({
                   className={`campo-mapa-map-corner-btn${potreroResumenModos.length > 0 ? " is-active" : ""}${
                     potreroResumenMenuOpen ? " is-menu-open" : ""
                   }`}
-                  onClick={() => setPotreroResumenMenuOpen((open) => !open)}
+                  onClick={() => {
+                    setPotreroResumenMenuOpen((open) => !open);
+                    setDevicesMenuOpen(false);
+                  }}
                   title="Resumen por potrero"
                   aria-label="Resumen por potrero"
                   aria-haspopup="menu"

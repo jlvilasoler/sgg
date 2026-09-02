@@ -154,9 +154,11 @@ export interface UserPublic {
   login_mode: empresasCuenta.LoginMode;
   /** El admin de la cuenta debe elegir el modo (2+ empresas y aún no elegido). */
   debe_elegir_modo_inicio: boolean;
-  /** Empresa operativa activa validada (modo individual). null = consolidado / sin elegir. */
+  /** Empresa operativa activa validada (modo individual). null = sin elegir; 0 = todas. */
   empresa_operativa_activa_id: number | null;
   empresa_activa_nombre: string | null;
+  /** true si puede elegir sesión "Todas las empresas" (ve todas las activas de la cuenta). */
+  puede_ver_todas_empresas: boolean;
   /**
    * Módulos denegados por empresa (opt-out). Vacío = sin restricciones de módulo.
    * Admins no reciben filas (bypass).
@@ -326,17 +328,22 @@ export async function toUserPublic(row: UserRow, db: Db): Promise<UserPublic> {
     empresa_id: empresaId,
   });
 
+  const rawActivaId = row.empresa_operativa_activa_id;
+  const esSesionTodas = empresasCuenta.isEmpresaSesionTodasId(rawActivaId);
+
   // Fase 3: todo lo que depende de cuentaActividadId → en paralelo.
   const [cuentaRow, loginMode, empresaActiva, empresasActivasCount] = await Promise.all([
     cuentaActividadId != null
       ? empresasCuenta.getEmpresaCuentaById(db, cuentaActividadId)
       : Promise.resolve(null),
     empresasCuenta.getLoginModeForCuenta(db, cuentaActividadId),
-    empresasCuenta.getEmpresaActivaForUser(
-      db,
-      cuentaActividadId,
-      row.empresa_operativa_activa_id,
-    ),
+    esSesionTodas
+      ? Promise.resolve(null)
+      : empresasCuenta.getEmpresaActivaForUser(
+          db,
+          cuentaActividadId,
+          rawActivaId,
+        ),
     // Sólo el admin de la cuenta necesita el conteo (para el gate de modo).
     cuentaAdmin != null && cuentaActividadId != null
       ? empresasCuenta.countEmpresasOperativasActivas(db, cuentaActividadId)
@@ -352,6 +359,34 @@ export async function toUserPublic(row: UserRow, db: Db): Promise<UserPublic> {
     debeElegirModoInicio = !modoElegido;
   }
 
+  const userStockVisib = await import("./user-stock-visibilidad-db.js");
+  const visibFlags = {
+    rol: row.rol,
+    es_super_admin: esSuperAdmin,
+    es_admin_plataforma: empresasCuenta.isPrimaryPlatformAdmin({ email: row.email }),
+    es_admin_cuenta: cuentaAdmin != null,
+  };
+
+  let puede_ver_todas_empresas = false;
+  if (loginMode === "individual" && cuentaActividadId != null) {
+    puede_ver_todas_empresas = await userStockVisib.userPuedeSesionTodasEmpresas(
+      db,
+      { id: row.id, ...visibFlags },
+      cuentaActividadId,
+    );
+  }
+
+  // Sesión "Todas" solo si el valor persistido es 0 y el usuario aún tiene permiso.
+  let empresa_operativa_activa_id: number | null = null;
+  let empresa_activa_nombre: string | null = null;
+  if (esSesionTodas && loginMode === "individual" && puede_ver_todas_empresas) {
+    empresa_operativa_activa_id = empresasCuenta.EMPRESA_SESION_TODAS_ID;
+    empresa_activa_nombre = "Todas las empresas";
+  } else if (empresaActiva) {
+    empresa_operativa_activa_id = empresaActiva.id;
+    empresa_activa_nombre = empresaActiva.nombre;
+  }
+
   // Fase 4: ejercicio fiscal (depende de loginMode / empresaActiva).
   const ejercicioFiscal =
     loginMode === "individual" && empresaActiva
@@ -361,16 +396,8 @@ export async function toUserPublic(row: UserRow, db: Db): Promise<UserPublic> {
         }
       : await empresasCuenta.getEjercicioFiscalEfectivoParaCuenta(db, cuentaActividadId);
 
-  const userStockVisib = await import("./user-stock-visibilidad-db.js");
   let empresa_modulos_denegados: Array<{ empresa_id: number; modulo: string }> = [];
-  if (
-    !userStockVisib.shouldBypassStockEmpresaVisibilidad({
-      rol: row.rol,
-      es_super_admin: esSuperAdmin,
-      es_admin_plataforma: empresasCuenta.isPrimaryPlatformAdmin({ email: row.email }),
-      es_admin_cuenta: cuentaAdmin != null,
-    })
-  ) {
+  if (!userStockVisib.shouldBypassStockEmpresaVisibilidad(visibFlags)) {
     const modDb = await import("./user-empresa-modulo-visibilidad-db.js");
     empresa_modulos_denegados = await modDb.listAllDeniedModulosForUser(db, row.id);
   }
@@ -401,8 +428,9 @@ export async function toUserPublic(row: UserRow, db: Db): Promise<UserPublic> {
     ejercicio_inicio_dia: ejercicioFiscal.inicio_dia,
     login_mode: loginMode,
     debe_elegir_modo_inicio: debeElegirModoInicio,
-    empresa_operativa_activa_id: empresaActiva ? empresaActiva.id : null,
-    empresa_activa_nombre: empresaActiva ? empresaActiva.nombre : null,
+    empresa_operativa_activa_id,
+    empresa_activa_nombre,
+    puede_ver_todas_empresas,
     empresa_modulos_denegados,
     creado_en: pgTimestampString(row.creado_en) ?? "",
     ultimo_acceso: pgTimestampString(row.ultimo_acceso),

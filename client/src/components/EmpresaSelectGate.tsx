@@ -22,11 +22,13 @@ export default function EmpresaSelectGate({
   const [loading, setLoading] = useState(true);
   const [selecting, setSelecting] = useState<number | null>(null);
 
-  const elegir = async (empresa: EmpresaOperativa) => {
+  const puedeVerTodas = Boolean(user.puede_ver_todas_empresas);
+
+  const elegir = async (empresaId: number) => {
     if (selecting != null) return;
-    setSelecting(empresa.id);
+    setSelecting(empresaId);
     try {
-      const actualizado = await seleccionarEmpresaActiva(empresa.id);
+      const actualizado = await seleccionarEmpresaActiva(empresaId);
       onSelected(actualizado);
     } catch (e) {
       onError(e instanceof Error ? e.message : "No se pudo seleccionar la empresa");
@@ -46,7 +48,9 @@ export default function EmpresaSelectGate({
         if (cancel) return;
         setEmpresas(data);
         // Con una sola empresa no tiene sentido preguntar: entramos directo.
-        if (data.length === 1) void elegir(data[0]);
+        if (data.length === 1 && !user.puede_ver_todas_empresas) {
+          void elegir(data[0].id);
+        }
       })
       .catch((e) => {
         if (!cancel) onError(e instanceof Error ? e.message : "No se pudieron cargar las empresas");
@@ -84,12 +88,33 @@ export default function EmpresaSelectGate({
           </p>
         ) : (
           <div className="empresa-gate-list">
+            {puedeVerTodas ? (
+              <button
+                type="button"
+                className="empresa-gate-item"
+                onClick={() => void elegir(0)}
+                disabled={selecting != null}
+              >
+                <span
+                  className="empresa-gate-dot"
+                  style={{ background: "#c9a227" }}
+                  aria-hidden="true"
+                />
+                <span className="empresa-gate-item-text">
+                  <strong>Todas las empresas</strong>
+                  <span className="muted">Vista combinada</span>
+                </span>
+                {selecting === 0 ? (
+                  <span className="muted empresa-gate-item-loading">Entrando…</span>
+                ) : null}
+              </button>
+            ) : null}
             {empresas.map((e) => (
               <button
                 key={e.id}
                 type="button"
                 className="empresa-gate-item"
-                onClick={() => void elegir(e)}
+                onClick={() => void elegir(e.id)}
                 disabled={selecting != null}
               >
                 <span

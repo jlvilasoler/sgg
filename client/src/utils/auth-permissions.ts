@@ -443,7 +443,12 @@ export function canAccessEmpresaModuloForScreen(
   if (bypassEmpresaModulos(user)) return true;
   const key = SCREEN_EMPRESA_MODULO[screen];
   if (!key) return true;
-  if (user.login_mode !== "individual" || user.empresa_operativa_activa_id == null) {
+  // Sesión "Todas" (id 0): no hay una sola empresa para denegar módulos.
+  if (
+    user.login_mode !== "individual" ||
+    user.empresa_operativa_activa_id == null ||
+    user.empresa_operativa_activa_id === 0
+  ) {
     return true;
   }
   const denials = user.empresa_modulos_denegados ?? [];

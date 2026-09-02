@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Building2, Check, ChevronDown } from "lucide-react";
+import { Building2, Check, ChevronDown, Layers } from "lucide-react";
 import { fetchMisEmpresas, seleccionarEmpresaActiva } from "../api";
 import type { AuthUser, EmpresaOperativa } from "../types";
+
+/** Sentinel de sesión: ver todas las empresas visibles de la cuenta. */
+export const EMPRESA_SESION_TODAS_ID = 0;
 
 interface Props {
   user: AuthUser;
@@ -16,6 +19,10 @@ function shortEmpresaLabel(nombre: string): string {
   return `${t.slice(0, 20)}…`;
 }
 
+function isSesionTodas(activaId: number | null | undefined): boolean {
+  return activaId === EMPRESA_SESION_TODAS_ID;
+}
+
 export default function HeaderEmpresaSwitcher({
   user,
   onEmpresaSessionChanged,
@@ -26,28 +33,37 @@ export default function HeaderEmpresaSwitcher({
   const btnRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const [empresas, setEmpresas] = useState<EmpresaOperativa[]>([]);
+  const [empresasReady, setEmpresasReady] = useState(false);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [switching, setSwitching] = useState<number | null>(null);
-  const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(
-    null
-  );
+  const [menuPos, setMenuPos] = useState<{
+    top: number;
+    left: number;
+    width: number;
+  } | null>(null);
 
   const visible =
     user.login_mode === "individual" &&
     user.empresa_operativa_activa_id != null;
 
+  const puedeVerTodas = Boolean(user.puede_ver_todas_empresas);
+  const sesionTodas = isSesionTodas(user.empresa_operativa_activa_id);
+
   const load = useCallback(async () => {
     if (!visible) return;
     setLoading(true);
     try {
+      // Solo empresas con permiso de visibilidad (filtra denegadas por admin).
       const data = await fetchMisEmpresas();
       setEmpresas(data.filter((e) => e.activo !== false));
     } catch (e) {
       onError?.(
         e instanceof Error ? e.message : "No se pudieron cargar las empresas"
       );
+      setEmpresas([]);
     } finally {
+      setEmpresasReady(true);
       setLoading(false);
     }
   }, [visible, onError]);
@@ -58,20 +74,30 @@ export default function HeaderEmpresaSwitcher({
 
   const activa =
     empresas.find((e) => e.id === user.empresa_operativa_activa_id) ?? null;
-  const label =
-    activa?.nombre ??
-    user.empresa_activa_nombre ??
-    "Empresa";
-  const color = activa?.color || "#7cb342";
-  const canSwitch = empresas.length > 1;
+  const label = sesionTodas
+    ? "Todas las empresas"
+    : activa?.nombre ?? user.empresa_activa_nombre ?? "Empresa";
+  const color = sesionTodas ? "#c9a227" : activa?.color || "#7cb342";
+  /**
+   * Flecha / menú solo si hay MÁS DE UNA empresa permitida.
+   * La lista ya viene filtrada por permisos del admin/superadmin.
+   * "Todas" solo aplica cuando ya hay 2+ visibles.
+   */
+  const canSwitch = empresasReady && empresas.length > 1;
+
+  useEffect(() => {
+    if (!canSwitch && open) setOpen(false);
+  }, [canSwitch, open]);
 
   const updateMenuPos = useCallback(() => {
-    const btn = btnRef.current;
-    if (!btn) return;
-    const rect = btn.getBoundingClientRect();
+    // Mismo ancho/alineación que el contenedor EMPRESA del header.
+    const el = rootRef.current ?? btnRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
     setMenuPos({
-      top: rect.bottom + 8,
-      right: Math.max(12, window.innerWidth - rect.right),
+      top: rect.bottom,
+      left: rect.left,
+      width: rect.width,
     });
   }, []);
 
@@ -112,15 +138,15 @@ export default function HeaderEmpresaSwitcher({
     return null;
   }
 
-  const elegir = async (empresa: EmpresaOperativa) => {
+  const elegir = async (empresaId: number) => {
     if (switching != null) return;
-    if (empresa.id === user.empresa_operativa_activa_id) {
+    if (empresaId === user.empresa_operativa_activa_id) {
       setOpen(false);
       return;
     }
-    setSwitching(empresa.id);
+    setSwitching(empresaId);
     try {
-      const actualizado = await seleccionarEmpresaActiva(empresa.id);
+      const actualizado = await seleccionarEmpresaActiva(empresaId);
       setOpen(false);
       onEmpresaSessionChanged(actualizado);
     } catch (e) {
@@ -166,7 +192,11 @@ export default function HeaderEmpresaSwitcher({
           aria-hidden
         />
         <span className="main-header-empresa-icon" aria-hidden>
-          <Building2 size={14} strokeWidth={2.2} />
+          {sesionTodas ? (
+            <Layers size={14} strokeWidth={2.2} />
+          ) : (
+            <Building2 size={14} strokeWidth={2.2} />
+          )}
         </span>
         <span className="main-header-empresa-copy">
           <span className="main-header-empresa-kicker">Empresa</span>
@@ -192,13 +222,44 @@ export default function HeaderEmpresaSwitcher({
             className="main-header-empresa-menu"
             role="listbox"
             aria-label="Empresas de la cuenta"
-            style={{ top: menuPos.top, right: menuPos.right }}
+            style={{
+              top: menuPos.top,
+              left: menuPos.left,
+              width: menuPos.width,
+            }}
           >
             <p className="main-header-empresa-menu-title">Sesión de empresa</p>
-            <p className="main-header-empresa-menu-sub">
-              Elegí qué empresa ver en stock, mapa y operativa.
-            </p>
             <ul className="main-header-empresa-menu-list">
+              {puedeVerTodas ? (
+                <li>
+                  <button
+                    type="button"
+                    role="option"
+                    aria-selected={sesionTodas}
+                    className={`main-header-empresa-option${
+                      sesionTodas ? " is-active" : ""
+                    }`}
+                    disabled={switching != null}
+                    onClick={() => void elegir(EMPRESA_SESION_TODAS_ID)}
+                  >
+                    <span
+                      className="main-header-empresa-option-dot main-header-empresa-option-dot--todas"
+                      aria-hidden
+                    >
+                      <Layers size={12} strokeWidth={2.2} />
+                    </span>
+                    <span className="main-header-empresa-option-text">
+                      <strong>Todas las empresas</strong>
+                      <span>Vista combinada</span>
+                    </span>
+                    {switching === EMPRESA_SESION_TODAS_ID ? (
+                      <span className="main-header-empresa-option-busy">…</span>
+                    ) : sesionTodas ? (
+                      <Check size={15} strokeWidth={2.4} aria-hidden />
+                    ) : null}
+                  </button>
+                </li>
+              ) : null}
               {empresas.map((e) => {
                 const active = e.id === user.empresa_operativa_activa_id;
                 return (
@@ -211,7 +272,7 @@ export default function HeaderEmpresaSwitcher({
                         active ? " is-active" : ""
                       }`}
                       disabled={switching != null}
-                      onClick={() => void elegir(e)}
+                      onClick={() => void elegir(e.id)}
                     >
                       <span
                         className="main-header-empresa-option-dot"

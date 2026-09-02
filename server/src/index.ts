@@ -888,7 +888,10 @@ async function stockGanaderoFiltersFromRequest(
   const user = req.user;
   if (!user) return base;
   let filters: StockGanaderoFilters = { ...base };
-  let empresas = await empresasCuenta.getEmpresasCodigosScopeFilter(db.getDb(), user);
+  const vistaCuenta = String(req.query.vista || "") === "cuenta";
+  let empresas = await empresasCuenta.getEmpresasCodigosScopeFilter(db.getDb(), user, {
+    ignoreActivaNarrow: vistaCuenta,
+  });
   empresas = await userStockVisib.applyStockEmpresaVisibilidadToCodigos(
     db.getDb(),
     user,
@@ -910,7 +913,10 @@ async function stockEquinoFiltersFromRequest(
   const user = req.user;
   if (!user) return base;
   let filters: StockEquinoFilters = { ...base };
-  let empresas = await empresasCuenta.getEmpresasCodigosScopeFilter(db.getDb(), user);
+  const vistaCuenta = String(req.query.vista || "") === "cuenta";
+  let empresas = await empresasCuenta.getEmpresasCodigosScopeFilter(db.getDb(), user, {
+    ignoreActivaNarrow: vistaCuenta,
+  });
   empresas = await userStockVisib.applyStockEmpresaVisibilidadToCodigos(
     db.getDb(),
     user,
@@ -1005,7 +1011,10 @@ async function stockOvinoFiltersFromRequest(
   const user = req.user;
   if (!user) return base;
   let filters: StockOvinoFilters = { ...base };
-  let empresas = await empresasCuenta.getEmpresasCodigosScopeFilter(db.getDb(), user);
+  const vistaCuenta = String(req.query.vista || "") === "cuenta";
+  let empresas = await empresasCuenta.getEmpresasCodigosScopeFilter(db.getDb(), user, {
+    ignoreActivaNarrow: vistaCuenta,
+  });
   empresas = await userStockVisib.applyStockEmpresaVisibilidadToCodigos(
     db.getDb(),
     user,
@@ -1071,16 +1080,48 @@ async function resumenEmpresaScope(
 }
 
 /** Scope de mapa/campo según modalidad individual vs consolidado. */
-async function campoMapaEmpresaScope(user: UserPublic, cuentaId: number) {
+async function campoMapaEmpresaScope(
+  user: UserPublic,
+  cuentaId: number,
+  options?: { vistaCuenta?: boolean },
+) {
   const scope = await empresasCuenta.resolveEmpresaOperativaDataScope(
     db.getDb(),
     user,
     cuentaId,
   );
+  if (options?.vistaCuenta) {
+    return {
+      filterEmpresaOperativaId: null as number | null,
+      stampEmpresaOperativaId: scope.stampEmpresaOperativaId,
+    };
+  }
   return {
     filterEmpresaOperativaId: scope.filterEmpresaOperativaId,
     stampEmpresaOperativaId: scope.stampEmpresaOperativaId,
   };
+}
+
+async function filterCampoMapaItemsPorAccesoAnimales<
+  T extends { empresa_operativa_id?: number | null },
+>(user: UserPublic, cuentaId: number, items: T[]): Promise<T[]> {
+  const allowedIds = await userStockVisib.listEmpresaOperativaIdsConAccesoAnimales(
+    db.getDb(),
+    user,
+    cuentaId,
+  );
+  const allowed = new Set(allowedIds);
+  // Si no hay ninguna empresa con stock visible, no mostrar capas ajenas.
+  if (allowed.size === 0) {
+    return items.filter(
+      (item) => item.empresa_operativa_id == null || item.empresa_operativa_id <= 0,
+    );
+  }
+  return items.filter((item) => {
+    const id = item.empresa_operativa_id;
+    if (id == null || id <= 0) return true;
+    return allowed.has(id);
+  });
 }
 
 /**
@@ -4114,9 +4155,15 @@ app.get("/api/campo-potreros", async (req, res) => {
       });
       return;
     }
-    const scope = await campoMapaEmpresaScope(req.user!, cuentaId);
-    await ensureCampoMapaParticionadoSiIndividual(cuentaId, scope);
-    const items = await db.campoPotreros.list(cuentaId, scope);
+    const vistaCuenta = String(req.query.vista || "") === "cuenta";
+    const scope = await campoMapaEmpresaScope(req.user!, cuentaId, { vistaCuenta });
+    if (!vistaCuenta) {
+      await ensureCampoMapaParticionadoSiIndividual(cuentaId, scope);
+    }
+    let items = await db.campoPotreros.list(cuentaId, scope);
+    if (vistaCuenta) {
+      items = await filterCampoMapaItemsPorAccesoAnimales(req.user!, cuentaId, items);
+    }
     res.json({ ok: true, data: items });
   } catch (e) {
     res.status(400).json({
@@ -4244,9 +4291,15 @@ app.get("/api/campo-mapa-elementos", async (req, res) => {
       res.status(400).json({ ok: false, error: "No se pudo determinar la cuenta" });
       return;
     }
-    const scope = await campoMapaEmpresaScope(req.user!, cuentaId);
-    await ensureCampoMapaParticionadoSiIndividual(cuentaId, scope);
-    const items = await db.campoMapaElementos.list(cuentaId, scope);
+    const vistaCuenta = String(req.query.vista || "") === "cuenta";
+    const scope = await campoMapaEmpresaScope(req.user!, cuentaId, { vistaCuenta });
+    if (!vistaCuenta) {
+      await ensureCampoMapaParticionadoSiIndividual(cuentaId, scope);
+    }
+    let items = await db.campoMapaElementos.list(cuentaId, scope);
+    if (vistaCuenta) {
+      items = await filterCampoMapaItemsPorAccesoAnimales(req.user!, cuentaId, items);
+    }
     res.json({ ok: true, data: items });
   } catch (e) {
     res.status(400).json({

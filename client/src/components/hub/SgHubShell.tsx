@@ -23,6 +23,8 @@ interface Props {
   navAriaLabel?: string;
   showDashboardInNav?: boolean;
   showAsideNav?: boolean;
+  /** Oculta título/subtítulo del panel principal (p. ej. mapa a pantalla completa). */
+  hideMainHead?: boolean;
   children: ReactNode;
   className?: string;
   hubClassName?: string;
@@ -47,6 +49,7 @@ export default function SgHubShell({
   navAriaLabel,
   showDashboardInNav = true,
   showAsideNav = true,
+  hideMainHead = false,
   children,
   className = "",
   hubClassName = "",
@@ -127,13 +130,17 @@ export default function SgHubShell({
       </aside>
 
       <main className="sg-hub-main sg-hub-main--module">
-        <header className="sg-hub-main-head">
-          <div>
-            <h1 className="sg-hub-main-title">{title}</h1>
-            {subtitle ? <p className="sg-hub-main-sub">{subtitle}</p> : null}
-          </div>
-          <div className="sg-hub-main-actions">{headerActions}</div>
-        </header>
+        {!hideMainHead ? (
+          <header className="sg-hub-main-head">
+            <div>
+              <h1 className="sg-hub-main-title">{title}</h1>
+              {subtitle ? <p className="sg-hub-main-sub">{subtitle}</p> : null}
+            </div>
+            <div className="sg-hub-main-actions">{headerActions}</div>
+          </header>
+        ) : (
+          <h1 className="sr-only">{title}</h1>
+        )}
         {children}
       </main>
     </div>

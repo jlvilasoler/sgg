@@ -1674,9 +1674,11 @@ export interface AuthUser {
   login_mode?: LoginMode;
   /** El admin debe elegir el modo de inicio (2+ empresas y aún no elegido). */
   debe_elegir_modo_inicio?: boolean;
-  /** Empresa operativa activa (modo individual). null = consolidado / sin elegir. */
+  /** Empresa operativa activa (modo individual). null = sin elegir; 0 = todas. */
   empresa_operativa_activa_id?: number | null;
   empresa_activa_nombre?: string | null;
+  /** true si puede elegir sesión "Todas las empresas" (ve todas las activas). */
+  puede_ver_todas_empresas?: boolean;
   /** Módulos denegados por empresa (opt-out). Vacío = sin restricciones. */
   empresa_modulos_denegados?: Array<{ empresa_id: number; modulo: string }>;
   creado_en: string;

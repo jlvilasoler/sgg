@@ -369,9 +369,11 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
   }
 
   // En modo individual: denegación por módulo en la empresa activa.
+  // Sesión "Todas" (id 0): no aplica chequeo de una sola empresa.
   if (
     user.login_mode === "individual" &&
     user.empresa_operativa_activa_id != null &&
+    user.empresa_operativa_activa_id > 0 &&
     !stockDispositivosLectura
   ) {
     const empMod = await import("./user-empresa-modulo-visibilidad-db.js");
@@ -1966,11 +1968,20 @@ export function registerAuthRoutes(app: Express): void {
         (e) => e.activo,
       );
       const userStockVisib = await import("./user-stock-visibilidad-db.js");
-      const empresas = await userStockVisib.filterEmpresasOperativasByVisibilidad(
-        getDb(),
-        req.user,
-        empresasRaw
-      );
+      const paraMapa =
+        String(req.query.para || "").trim().toLowerCase() === "mapa" ||
+        String(req.query.para || "").trim().toLowerCase() === "animales";
+      const empresas = paraMapa
+        ? await userStockVisib.filterEmpresasOperativasConAccesoAnimales(
+            getDb(),
+            req.user,
+            empresasRaw,
+          )
+        : await userStockVisib.filterEmpresasOperativasByVisibilidad(
+            getDb(),
+            req.user,
+            empresasRaw,
+          );
       res.json({ ok: true, data: empresas });
     } catch (e) {
       res.status(400).json({
@@ -1992,30 +2003,53 @@ export function registerAuthRoutes(app: Express): void {
       const empresaId =
         rawId == null || rawId === "" ? null : Number(rawId);
       if (empresaId != null) {
-        const empresa = await empresasCuenta.getEmpresaActivaForUser(
-          getDb(),
-          cuentaId,
-          empresaId,
-        );
-        if (!empresa) {
-          res.status(400).json({
-            ok: false,
-            error: "La empresa seleccionada no pertenece a tu cuenta o no está activa",
-          });
-          return;
-        }
         const userStockVisib = await import("./user-stock-visibilidad-db.js");
-        const puedeVer = await userStockVisib.userPuedeVerEmpresaOperativa(
-          getDb(),
-          actor,
-          empresaId
-        );
-        if (!puedeVer) {
-          res.status(403).json({
-            ok: false,
-            error: "No tenés permiso para operar con esta empresa",
-          });
-          return;
+        if (empresasCuenta.isEmpresaSesionTodasId(empresaId)) {
+          if (cuentaId == null) {
+            res.status(400).json({
+              ok: false,
+              error: "No tenés una cuenta asignada para ver todas las empresas",
+            });
+            return;
+          }
+          const puedeTodas = await userStockVisib.userPuedeSesionTodasEmpresas(
+            getDb(),
+            actor,
+            cuentaId,
+          );
+          if (!puedeTodas) {
+            res.status(403).json({
+              ok: false,
+              error:
+                "No tenés permiso para ver todas las empresas. El administrador debe habilitarte el acceso a cada una.",
+            });
+            return;
+          }
+        } else {
+          const empresa = await empresasCuenta.getEmpresaActivaForUser(
+            getDb(),
+            cuentaId,
+            empresaId,
+          );
+          if (!empresa) {
+            res.status(400).json({
+              ok: false,
+              error: "La empresa seleccionada no pertenece a tu cuenta o no está activa",
+            });
+            return;
+          }
+          const puedeVer = await userStockVisib.userPuedeVerEmpresaOperativa(
+            getDb(),
+            actor,
+            empresaId
+          );
+          if (!puedeVer) {
+            res.status(403).json({
+              ok: false,
+              error: "No tenés permiso para operar con esta empresa",
+            });
+            return;
+          }
         }
       }
       await authDb.setEmpresaActiva(getDb(), actor.id, empresaId);

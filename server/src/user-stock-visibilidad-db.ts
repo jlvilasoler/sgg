@@ -269,6 +269,53 @@ export async function filterEmpresasOperativasByVisibilidad<
   return empresas.filter((e) => !denied.has(Number(e.id)));
 }
 
+const STOCK_ANIMALES_MODULOS = [
+  "stock_ganadero",
+  "stock_equino",
+  "stock_ovino",
+] as const;
+
+/**
+ * Empresas donde el usuario puede ver animales/dispositivos:
+ * - no está denegada a nivel empresa (admin/superadmin), y
+ * - tiene al menos un módulo de stock (ganadero/equino/ovino) habilitado.
+ */
+export async function filterEmpresasOperativasConAccesoAnimales<
+  T extends { id: number },
+>(db: Db, user: VisibilidadUser, empresas: T[]): Promise<T[]> {
+  const porEmpresa = await filterEmpresasOperativasByVisibilidad(db, user, empresas);
+  if (shouldBypassStockEmpresaVisibilidad(user)) return porEmpresa;
+  if (porEmpresa.length === 0) return porEmpresa;
+
+  const modDb = await import("./user-empresa-modulo-visibilidad-db.js");
+  const deniedMods = await modDb.listAllDeniedModulosForUser(db, user.id);
+  const deniedStockByEmpresa = new Map<number, Set<string>>();
+  for (const row of deniedMods) {
+    if (!(STOCK_ANIMALES_MODULOS as readonly string[]).includes(row.modulo)) continue;
+    const set = deniedStockByEmpresa.get(row.empresa_id) ?? new Set<string>();
+    set.add(row.modulo);
+    deniedStockByEmpresa.set(row.empresa_id, set);
+  }
+
+  return porEmpresa.filter((empresa) => {
+    const denied = deniedStockByEmpresa.get(Number(empresa.id));
+    if (!denied || denied.size === 0) return true;
+    // Si los 3 módulos de stock están denegados, no hay animales visibles.
+    return !STOCK_ANIMALES_MODULOS.every((m) => denied.has(m));
+  });
+}
+
+export async function listEmpresaOperativaIdsConAccesoAnimales(
+  db: Db,
+  user: VisibilidadUser,
+  cuentaId: number,
+): Promise<number[]> {
+  const { listEmpresasOperativas } = await import("./empresas-cuenta-db.js");
+  const raw = (await listEmpresasOperativas(db, cuentaId)).filter((e) => e.activo);
+  const visibles = await filterEmpresasOperativasConAccesoAnimales(db, user, raw);
+  return visibles.map((e) => Number(e.id)).filter((id) => Number.isFinite(id) && id > 0);
+}
+
 export async function userPuedeVerEmpresaOperativa(
   db: Db,
   user: VisibilidadUser,
@@ -277,6 +324,24 @@ export async function userPuedeVerEmpresaOperativa(
   if (shouldBypassStockEmpresaVisibilidad(user)) return true;
   const denied = await listDeniedEmpresaOperativaIds(db, user.id);
   return !denied.includes(empresaOperativaId);
+}
+
+/**
+ * Puede elegir sesión "Todas las empresas" solo si ve todas las operativas
+ * activas de la cuenta (admins/superadmins bypasean; un denegado en una sola
+ * empresa bloquea el ítem). Requiere 2+ empresas.
+ */
+export async function userPuedeSesionTodasEmpresas(
+  db: Db,
+  user: VisibilidadUser,
+  cuentaId: number,
+): Promise<boolean> {
+  const { listEmpresasOperativas } = await import("./empresas-cuenta-db.js");
+  const all = (await listEmpresasOperativas(db, cuentaId)).filter((e) => e.activo);
+  if (all.length < 2) return false;
+  if (shouldBypassStockEmpresaVisibilidad(user)) return true;
+  const visibles = await filterEmpresasOperativasByVisibilidad(db, user, all);
+  return visibles.length === all.length;
 }
 
 export type EmpresaUsuarioVisibilidadItem = {

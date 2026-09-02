@@ -554,7 +554,10 @@ export default function App() {
         <ConfirmDialogHost />
       </div>
     );
-  } else if (user.login_mode === "individual" && !user.empresa_operativa_activa_id) {
+  } else if (
+    user.login_mode === "individual" &&
+    user.empresa_operativa_activa_id == null
+  ) {
     authenticatedApp = (
       <div className="app-shell app-shell--login">
         <EmpresaSelectGate

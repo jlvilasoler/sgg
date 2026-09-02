@@ -938,6 +938,8 @@ export async function fetchStockGanaderaDispositivos(filters: {
   solo_repetidos?: boolean;
   solo_bajas?: boolean;
   estado_dispositivo?: DispositivoEstado;
+  /** Mapa: todas las empresas visibles de la cuenta (sin acotar a la activa). */
+  vistaCuenta?: boolean;
 }): Promise<StockGanaderaDispositivo[]> {
   const params = new URLSearchParams();
   if (filters.busqueda?.trim()) params.set("busqueda", filters.busqueda.trim());
@@ -945,6 +947,7 @@ export async function fetchStockGanaderaDispositivos(filters: {
   if (filters.fecha_hasta) params.set("fecha_hasta", filters.fecha_hasta);
   if (filters.solo_repetidos) params.set("solo_repetidos", "1");
   if (filters.solo_bajas) params.set("solo_bajas", "1");
+  if (filters.vistaCuenta) params.set("vista", "cuenta");
   if (
     filters.estado_dispositivo === "MUERTO" ||
     filters.estado_dispositivo === "VENDIDO" ||
@@ -1287,8 +1290,11 @@ export async function createStockGanaderoPotrero(nombre: string): Promise<string
   return json.data.nombre;
 }
 
-export async function fetchCampoPotrerosMapa(): Promise<CampoPotreroMapa[]> {
-  const json = await request<{ data: CampoPotreroMapa[] }>("/campo-potreros");
+export async function fetchCampoPotrerosMapa(opts?: {
+  vistaCuenta?: boolean;
+}): Promise<CampoPotreroMapa[]> {
+  const q = opts?.vistaCuenta ? "?vista=cuenta" : "";
+  const json = await request<{ data: CampoPotreroMapa[] }>(`/campo-potreros${q}`);
   return json.data;
 }
 
@@ -1329,8 +1335,11 @@ export async function deleteCampoPotreroMapa(id: number): Promise<void> {
   await request(`/campo-potreros/${id}`, { method: "DELETE" });
 }
 
-export async function fetchCampoMapaElementos(): Promise<CampoMapaElemento[]> {
-  const json = await request<{ data: CampoMapaElemento[] }>("/campo-mapa-elementos");
+export async function fetchCampoMapaElementos(opts?: {
+  vistaCuenta?: boolean;
+}): Promise<CampoMapaElemento[]> {
+  const q = opts?.vistaCuenta ? "?vista=cuenta" : "";
+  const json = await request<{ data: CampoMapaElemento[] }>(`/campo-mapa-elementos${q}`);
   return json.data;
 }
 
@@ -2295,6 +2304,7 @@ export async function fetchStockEquinaDispositivos(filters: {
   solo_repetidos?: boolean;
   solo_bajas?: boolean;
   estado_dispositivo?: DispositivoEstado;
+  vistaCuenta?: boolean;
 }): Promise<StockEquinaDispositivo[]> {
   const params = new URLSearchParams();
   if (filters.busqueda?.trim()) params.set("busqueda", filters.busqueda.trim());
@@ -2302,6 +2312,7 @@ export async function fetchStockEquinaDispositivos(filters: {
   if (filters.fecha_hasta) params.set("fecha_hasta", filters.fecha_hasta);
   if (filters.solo_repetidos) params.set("solo_repetidos", "1");
   if (filters.solo_bajas) params.set("solo_bajas", "1");
+  if (filters.vistaCuenta) params.set("vista", "cuenta");
   if (
     filters.estado_dispositivo === "MUERTO" ||
     filters.estado_dispositivo === "VENDIDO" ||
@@ -3082,6 +3093,7 @@ export async function fetchStockOvinaDispositivos(filters: {
   solo_repetidos?: boolean;
   solo_bajas?: boolean;
   estado_dispositivo?: DispositivoEstado;
+  vistaCuenta?: boolean;
 }): Promise<StockOvinaDispositivo[]> {
   const params = new URLSearchParams();
   if (filters.busqueda?.trim()) params.set("busqueda", filters.busqueda.trim());
@@ -3089,6 +3101,7 @@ export async function fetchStockOvinaDispositivos(filters: {
   if (filters.fecha_hasta) params.set("fecha_hasta", filters.fecha_hasta);
   if (filters.solo_repetidos) params.set("solo_repetidos", "1");
   if (filters.solo_bajas) params.set("solo_bajas", "1");
+  if (filters.vistaCuenta) params.set("vista", "cuenta");
   if (
     filters.estado_dispositivo === "MUERTO" ||
     filters.estado_dispositivo === "VENDIDO" ||
@@ -5702,8 +5715,12 @@ export async function actualizarMiEjercicioEmpresa(
   return json.data;
 }
 
-export async function fetchMisEmpresas(): Promise<EmpresaOperativa[]> {
-  const json = await request<{ data: EmpresaOperativa[] }>("/auth/mis-empresas");
+export async function fetchMisEmpresas(opts?: {
+  /** Solo empresas con acceso a animales/dispositivos (mapa y stock). */
+  para?: "mapa" | "animales";
+}): Promise<EmpresaOperativa[]> {
+  const q = opts?.para ? `?para=${encodeURIComponent(opts.para)}` : "";
+  const json = await request<{ data: EmpresaOperativa[] }>(`/auth/mis-empresas${q}`);
   return json.data;
 }
 

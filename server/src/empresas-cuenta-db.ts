@@ -2092,6 +2092,18 @@ export async function setEmpresaCuentaAdmin(
 /** Marcador para consultas que no deben devolver filas (cuenta sin empresas operativas). */
 export const SIN_EMPRESAS_SCOPE = "__sin_empresas__";
 
+/**
+ * Sesión individual: valor especial de empresa_operativa_activa_id para
+ * "Todas las empresas" (solo si el usuario tiene acceso a todas las de la cuenta).
+ */
+export const EMPRESA_SESION_TODAS_ID = 0;
+
+export function isEmpresaSesionTodasId(
+  empresaId: number | null | undefined,
+): boolean {
+  return empresaId === EMPRESA_SESION_TODAS_ID;
+}
+
 export async function isCuentaAdminUser(db: Db, userId: number): Promise<boolean> {
   const row = (await db
     .prepare("SELECT 1 AS ok FROM EMPRESAS_CUENTA WHERE admin_user_id = ? LIMIT 1")
@@ -2162,6 +2174,8 @@ async function narrowScopePorEmpresaActiva(
   const mode = await getLoginModeForCuenta(db, cuentaId);
   if (mode !== "individual") return lista;
   if (empresaActivaId == null) return [];
+  // Vista explícita "Todas las empresas" (opt-in de sesión).
+  if (isEmpresaSesionTodasId(empresaActivaId)) return lista;
   const activa = await getEmpresaActivaForUser(db, cuentaId, empresaActivaId);
   if (!activa) return [];
   const clave = (campo === "nombre" ? activa.nombre : activa.codigo).trim().toUpperCase();
@@ -2192,6 +2206,13 @@ export async function resolveEmpresaOperativaDataScope(
 }> {
   const loginMode = await getLoginModeForCuenta(db, cuentaId);
   if (loginMode !== "individual") {
+    return {
+      loginMode,
+      filterEmpresaOperativaId: null,
+      stampEmpresaOperativaId: null,
+    };
+  }
+  if (isEmpresaSesionTodasId(user.empresa_operativa_activa_id)) {
     return {
       loginMode,
       filterEmpresaOperativaId: null,
@@ -2260,18 +2281,21 @@ export async function getEmpresasCodigosOperativasPermitidas(
     es_admin_cuenta?: boolean;
     empresa_id?: number | null;
     empresa_operativa_activa_id?: number | null;
-  }
+  },
+  options?: { ignoreActivaNarrow?: boolean },
 ): Promise<string[] | null> {
   const cuentaId = await resolveCuentaMadreIdForUser(db, user);
   if (cuentaId) {
     const todos = await getEmpresaCodigosActivosPorCuenta(db, cuentaId);
-    const narrowed = await narrowScopePorEmpresaActiva(
-      db,
-      cuentaId,
-      user.empresa_operativa_activa_id,
-      todos,
-      "codigo",
-    );
+    const narrowed = options?.ignoreActivaNarrow
+      ? todos
+      : await narrowScopePorEmpresaActiva(
+          db,
+          cuentaId,
+          user.empresa_operativa_activa_id,
+          todos,
+          "codigo",
+        );
     const { applyEmpresaVisibilidadToCodigosCuenta } = await import(
       "./user-stock-visibilidad-db.js"
     );
@@ -2346,9 +2370,10 @@ export async function getEmpresasCodigosScopeFilter(
     es_super_admin?: boolean;
     empresa_id?: number | null;
     empresa_operativa_activa_id?: number | null;
-  }
+  },
+  options?: { ignoreActivaNarrow?: boolean },
 ): Promise<string[] | undefined> {
-  const permitidas = await getEmpresasCodigosOperativasPermitidas(db, user);
+  const permitidas = await getEmpresasCodigosOperativasPermitidas(db, user, options);
   if (permitidas === null) return undefined;
   if (permitidas.length === 0) return [SIN_EMPRESAS_SCOPE];
   return permitidas;

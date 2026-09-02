@@ -8,35 +8,30 @@
   flex-direction: column;
   min-height: 0;
   overflow: hidden;
-  padding-bottom: 0.65rem;
-}
-
-.campo-mapa-module-page .sg-hub-main-head {
-  flex-shrink: 0;
-  container-type: inline-size;
-  container-name: campo-mapa-head;
-}
-
-.campo-mapa-module-page .sg-hub-main-head > div:first-child {
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
-.campo-mapa-module-page .sg-hub-main-sub {
-  max-width: none;
-}
-
-@container campo-mapa-head (min-width: 44rem) {
-  .campo-mapa-module-page .sg-hub-main-sub {
-    white-space: nowrap;
-  }
+  padding-top: 0.45rem;
+  padding-bottom: 0.2rem;
+  padding-left: 0;
+  padding-right: 0;
 }
 
 .campo-mapa-workspace {
   flex: 1 1 auto;
   min-height: 0;
   display: flex;
-  padding: 0 0.65rem 0.65rem;
+  padding: 0 0.2rem 0.2rem 0.25rem;
+}
+
+/* Menos margen lateral del page-main solo en el mapa */
+.page-main.bn-ui:has(.campo-mapa-module-page) {
+  padding-left: max(0.2rem, env(safe-area-inset-left, 0px));
+  padding-right: max(0.15rem, env(safe-area-inset-right, 0px));
+}
+
+@media (min-width: 900px) {
+  .page-main.bn-ui:has(.campo-mapa-module-page) {
+    padding-left: max(0.28rem, env(safe-area-inset-left, 0px));
+    padding-right: max(0.2rem, env(safe-area-inset-right, 0px));
+  }
 }
 
 .campo-mapa-map-shell {
@@ -617,6 +612,129 @@
   background: rgba(124, 179, 66, 0.28);
   border-color: rgba(124, 179, 66, 0.55);
   color: #d9f99d;
+}
+
+.campo-mapa-empresas-rail {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.7rem;
+  bottom: 3.6rem;
+  z-index: 650;
+  width: min(12.75rem, calc(100% - 1.4rem));
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0;
+  border-radius: 0;
+  border: none;
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: none;
+  pointer-events: auto;
+  overflow: hidden;
+}
+
+.campo-mapa-empresas-rail-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(248, 246, 240, 0.28) transparent;
+}
+
+.campo-mapa-empresas-rail-item {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  width: 100%;
+  min-height: 2.45rem;
+  padding: 0.4rem 0.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 0.65rem;
+  background: rgba(26, 33, 26, 0.9);
+  color: #f8f6f0;
+  cursor: pointer;
+  text-align: left;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+  transition: background 0.14s ease, border-color 0.14s ease;
+}
+
+.campo-mapa-empresas-rail-item:hover {
+  background: rgba(36, 46, 36, 0.95);
+  border-color: rgba(255, 255, 255, 0.22);
+}
+
+.campo-mapa-empresas-rail-item.is-on {
+  background: rgba(48, 72, 36, 0.95);
+  border-color: rgba(124, 179, 66, 0.55);
+}
+
+.campo-mapa-empresas-rail-item--todas {
+  flex-shrink: 0;
+  font-weight: 700;
+}
+
+.campo-mapa-empresas-rail-tick {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.15rem;
+  height: 1.15rem;
+  flex-shrink: 0;
+  border-radius: 0.35rem;
+  border: 1.5px solid rgba(255, 255, 255, 0.28);
+  background: rgba(0, 0, 0, 0.28);
+  color: #ecfccb;
+}
+
+.campo-mapa-empresas-rail-item.is-on .campo-mapa-empresas-rail-tick {
+  border-color: rgba(124, 179, 66, 0.75);
+  background: rgba(124, 179, 66, 0.92);
+  color: #142016;
+}
+
+.campo-mapa-empresas-rail-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.08rem;
+  min-width: 0;
+}
+
+.campo-mapa-empresas-rail-name {
+  min-width: 0;
+  font-size: 0.76rem;
+  font-weight: 650;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.campo-mapa-empresas-rail-dicose {
+  min-width: 0;
+  font-size: 0.62rem;
+  font-weight: 550;
+  line-height: 1.15;
+  letter-spacing: 0.02em;
+  color: rgba(248, 246, 240, 0.62);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.campo-mapa-empresas-rail-item.is-on .campo-mapa-empresas-rail-dicose {
+  color: rgba(236, 252, 203, 0.78);
+}
+
+.campo-mapa-map-shell.has-empresas-rail .campo-mapa-map-corner-actions {
+  right: calc(0.7rem + min(12.75rem, calc(100% - 1.4rem)) + 0.45rem);
 }
 
 .campo-mapa-resumen-menu-wrap {
@@ -2403,11 +2521,33 @@
 
 @media (max-width: 900px) {
   .campo-mapa-workspace {
-    padding: 0 0.45rem 0.45rem;
+    padding: 0 0.15rem 0.15rem 0.2rem;
   }
 
   .campo-mapa-map {
     min-height: 300px;
+  }
+
+  .campo-mapa-empresas-rail {
+    top: 0.55rem;
+    right: 0.45rem;
+    bottom: 3.35rem;
+    width: min(10.75rem, calc(100% - 5.5rem));
+    padding: 0;
+  }
+
+  .campo-mapa-empresas-rail-item {
+    min-height: 1.95rem;
+    padding: 0.32rem 0.4rem;
+    gap: 0.4rem;
+  }
+
+  .campo-mapa-empresas-rail-name {
+    font-size: 0.7rem;
+  }
+
+  .campo-mapa-map-shell.has-empresas-rail .campo-mapa-map-corner-actions {
+    right: calc(0.45rem + min(10.75rem, calc(100% - 5.5rem)) + 0.35rem);
   }
 
   .campo-mapa-search {
